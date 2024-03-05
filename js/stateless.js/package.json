@@ -6,8 +6,10 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "start-test-validator": "./../../cli/test_bin/run test-validator -b",
-    "test:program": "pnpm run start-test-validator && vitest run tests/e2e/program.test.ts",
+    "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
+    "test-validator": "./../../cli/test_bin/run test-validator",
+    "test:program": "pnpm run test-validator:silent && vitest run tests/e2e/program.test.ts",
+    "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
     "build": "rimraf lib && pnpm tsc"
   },
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@types/node": "^20.10.2",
     "rimraf": "^5.0.5",
+    "ts-node": "^10.9.1",
     "typescript": "5.3.2",
     "vitest": "^0.34.6"
   },

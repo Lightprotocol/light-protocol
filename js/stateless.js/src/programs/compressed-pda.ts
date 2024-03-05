@@ -1,4 +1,4 @@
-import { Program, AnchorProvider, setProvider } from "@coral-xyz/anchor";
+import { Program, AnchorProvider, setProvider, BN } from "@coral-xyz/anchor";
 import {
   PublicKey,
   TransactionInstruction,
@@ -12,6 +12,7 @@ import {
   UtxoWithMerkleContext,
   UtxoWithMerkleProof,
   addMerkleContextToUtxo,
+  bn,
   coerceIntoUtxoWithMerkleContext,
   createUtxo,
 } from "../state";
@@ -29,7 +30,7 @@ export type CompressedTransferParams = {
   /** Solana Account that will receive transferred compressed lamports as utxo  */
   toPubkey: PublicKey;
   /** Amount of compressed lamports to transfer */
-  lamports: number | bigint;
+  lamports: number | BN;
   // TODO: add
   // /** Optional: if different feepayer than owner of utxos */
   // payer?: PublicKey;
@@ -82,7 +83,6 @@ export class LightSystemProgram {
   private static initializeProgram() {
     if (!this._program) {
       const mockKeypair = Keypair.generate();
-      console.log("mockKeypair", mockKeypair.publicKey.toBase58());
       const mockConnection = new Connection(
         "http://localhost:8899",
         "confirmed"
@@ -119,25 +119,25 @@ export class LightSystemProgram {
       throw new Error("All input utxos must have the same owner");
     }
     const selectedInputUtxos = fromUtxos
-      .sort((a, b) => Number(BigInt(a.lamports) - BigInt(b.lamports)))
+      .sort((a, b) => Number(bn(a.lamports).sub(bn(b.lamports))))
       .reduce<{
         utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-        total: bigint;
+        total: BN;
       }>(
         (acc, utxo) => {
-          if (acc.total < params.lamports) {
+          if (bn(acc.total).lt(bn(params.lamports))) {
             acc.utxos.push(utxo);
-            acc.total = BigInt(acc.total) + BigInt(utxo.lamports);
+            acc.total = bn(acc.total).add(bn(utxo.lamports));
           }
           return acc;
         },
-        { utxos: [], total: BigInt(0) }
+        { utxos: [], total: bn(0) }
       );
 
     /// transfer logic
     let changeUtxo;
-    const changeAmount = selectedInputUtxos.total - BigInt(params.lamports);
-    if (changeAmount > 0) {
+    const changeAmount = bn(selectedInputUtxos.total).sub(bn(params.lamports));
+    if (bn(changeAmount).gt(bn(0))) {
       changeUtxo = createUtxo(selectedInputUtxos.utxos[0].owner, changeAmount);
     }
 
@@ -186,14 +186,14 @@ if (import.meta.vitest) {
       ];
       const fromBalance = [
         addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], BigInt(1)),
+          createUtxo(randomPubKeys[0], bn(1)),
           BigInt(0),
           randomPubKeys[3],
           0,
           randomPubKeys[4]
         ),
         addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], BigInt(2)),
+          createUtxo(randomPubKeys[0], bn(2)),
           BigInt(0),
           randomPubKeys[3],
           1,
@@ -201,7 +201,7 @@ if (import.meta.vitest) {
         ),
       ];
       const toPubkey = PublicKey.unique();
-      const lamports = BigInt(2);
+      const lamports = bn(2);
       const ix = await LightSystemProgram.transfer({
         fromBalance,
         toPubkey,
@@ -222,14 +222,14 @@ if (import.meta.vitest) {
       ];
       const fromBalance = [
         addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], BigInt(1)),
+          createUtxo(randomPubKeys[0], bn(1)),
           BigInt(0),
           randomPubKeys[3],
           0,
           randomPubKeys[4]
         ),
         addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[1], BigInt(2)), // diff owner key
+          createUtxo(randomPubKeys[1], bn(2)), // diff owner key
           BigInt(0),
           randomPubKeys[3],
           1,
@@ -237,7 +237,7 @@ if (import.meta.vitest) {
         ),
       ];
       const toPubkey = PublicKey.unique();
-      const lamports = BigInt(2);
+      const lamports = bn(2);
       await expect(
         LightSystemProgram.transfer({
           fromBalance,

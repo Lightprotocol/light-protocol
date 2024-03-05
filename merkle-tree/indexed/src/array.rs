@@ -222,7 +222,7 @@ where
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
-            if self.elements[node.next_index()].value > *value {
+            if self.elements[node.next_index()].value > *value && node.value < *value {
                 return i
                     .try_into()
                     .map_err(|_| IndexedMerkleTreeError::IntegerOverflow);

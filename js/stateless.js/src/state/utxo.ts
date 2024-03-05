@@ -1,6 +1,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { TlvDataElement, createTlvDataElement } from "./utxo-data";
-import { bigint254, createBigint254 } from "./bigint254";
+import { bigint254, bn, createBigint254 } from "./bigint254";
+import { BN } from "@coral-xyz/anchor";
 
 /// TODO: implement PublicKey254 type based on bigint254
 /// figure which fmt to use in indexer and on client side: since solana's regluar 'PublicKey' expects padding to 32.
@@ -11,9 +12,9 @@ export type Utxo = {
   /** Public key of program or user that owns the utxo */
   owner: PublicKey;
   /** Optional lamports attached to the utxo */
-  lamports: number | bigint;
+  lamports: number | BN;
   /** Optional data attached to the utxo */
-  data: TlvDataElement[];
+  data: TlvDataElement[] | null;
   /**
    * TODO: Implement address functionality
    * Optional unique account ID that is persistent across transactions.
@@ -56,7 +57,7 @@ export type UtxoWithMerkleProof = Utxo & MerkleContextWithMerkleProof;
 /** Utxo object factory */
 export const createUtxo = (
   owner: PublicKey,
-  lamports: number | bigint,
+  lamports: number | BN,
   data: TlvDataElement[] = [],
   address?: PublicKey,
   merkleContext?: MerkleContext
@@ -99,7 +100,7 @@ export const addMerkleProofToUtxo = (
 /** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
   return utxos.filter(
-    (utxo) => utxo.lamports > BigInt(0) && utxo.data.length === 0
+    (utxo) => new BN(utxo.lamports) > new BN(0) && utxo.data?.length === 0
   );
 }
 
@@ -138,23 +139,23 @@ if (import.meta.vitest) {
         PublicKey.unique(),
       ];
       const utxos = [
-        createUtxo(randomPubKeys[0], BigInt(0), [mockTlvDataElement()]), // has data, should be excluded
-        createUtxo(randomPubKeys[1], BigInt(1)), // valid
-        createUtxo(randomPubKeys[2], BigInt(2)), // valid
-        createUtxo(randomPubKeys[3], BigInt(0)), // zero lamports, should be excluded
+        createUtxo(randomPubKeys[0], bn(0), [mockTlvDataElement()]), // has data, should be excluded
+        createUtxo(randomPubKeys[1], bn(1)), // valid
+        createUtxo(randomPubKeys[2], bn(2)), // valid
+        createUtxo(randomPubKeys[3], bn(0)), // zero lamports, should be excluded
       ];
       const solutxos = getCompressedSolUtxos(utxos);
       expect(solutxos).toEqual([
-        createUtxo(randomPubKeys[1], BigInt(1)),
-        createUtxo(randomPubKeys[2], BigInt(2)),
+        createUtxo(randomPubKeys[1], bn(1)),
+        createUtxo(randomPubKeys[2], bn(2)),
       ]);
     });
 
     it("should return an empty array when all utxos have data or zero lamports", () => {
       const randomPubKeys = [PublicKey.unique(), PublicKey.unique()];
       const utxos = [
-        createUtxo(randomPubKeys[0], BigInt(0), [mockTlvDataElement()]), // has data
-        createUtxo(randomPubKeys[1], BigInt(0)), // zero lamports
+        createUtxo(randomPubKeys[0], bn(0), [mockTlvDataElement()]), // has data
+        createUtxo(randomPubKeys[1], bn(0)), // zero lamports
       ];
       const solutxos = getCompressedSolUtxos(utxos);
       expect(solutxos).toEqual([]);
@@ -176,7 +177,7 @@ if (import.meta.vitest) {
       ];
 
       const utxoWithCtx0 = addMerkleContextToUtxo(
-        createUtxo(randomPubKeys[2], BigInt(1)),
+        createUtxo(randomPubKeys[2], bn(1)),
         BigInt(0),
         randomPubKeys[3],
         0,
@@ -184,7 +185,7 @@ if (import.meta.vitest) {
       );
 
       const utxoWithCtx = addMerkleContextToUtxo(
-        createUtxo(randomPubKeys[5], BigInt(2)),
+        createUtxo(randomPubKeys[5], bn(2)),
         BigInt(1),
         randomPubKeys[6],
         1,
@@ -212,7 +213,7 @@ if (import.meta.vitest) {
 
       const utxoWithCtx = [
         addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], BigInt(1)),
+          createUtxo(randomPubKeys[0], bn(1)),
           BigInt(0),
           randomPubKeys[1],
           0,

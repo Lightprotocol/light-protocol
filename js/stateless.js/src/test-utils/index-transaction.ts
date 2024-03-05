@@ -14,7 +14,6 @@ import {
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { sleep } from "../utils/sleep";
 import { accountCompressionProgram } from "../constants";
-import { LightSystemProgram } from "../programs/compressed-pda";
 
 type Instruction = {
   accounts: any[];
@@ -32,7 +31,9 @@ import {
   bignum,
   u8,
 } from "@metaplex-foundation/beet";
+
 import { publicKey } from "@metaplex-foundation/beet-solana";
+
 export class ParsingTlvElementBeet {
   constructor(
     readonly discriminator: Uint8Array,
@@ -134,6 +135,7 @@ export class PublicTransactionIndexerEventBeet {
 }
 
 /**
+ * TODO: simplify this.
  *  Call Flow:
  *  fetchRecentTransactions() <-- called in indexer
  *    getTransactionsBatch()
@@ -153,29 +155,12 @@ export const findMatchingInstruction = (
   );
 };
 
-// const deserializePrivateEvents = (
-//   data: Buffer,
-//   tx: ParsedTransactionWithMeta
-// ): RpcIndexedTransaction | undefined => {
-//   const decodedEvent = new TransactionIndexerEvent().deserialize(data);
-//   if (decodedEvent) {
-//     decodedEvent["tx"] = tx;
-//     return enrichParsedTransactionEvents(decodedEvent);
-//   }
-// };
-
-/**
- * @description This functions takes the transactionMeta of  indexer events transactions and extracts relevant data from it
- * @function parseTransactionEvents
- * @param {(ParsedTransactionWithMeta | null)[]} indexerEventsTransactions - An array of indexer event transactions to process
- * @returns {Promise<void>}
- */
 const parseTransactionEvents = (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
   transactions: any, //RpcIndexedTransaction[] | PublicTransactionIndexerEventBeet[],
   deserializeFn: any
 ) => {
-  console.log("indexerEventsTransactions", indexerEventsTransactions);
+  console.log("found txs.: ", indexerEventsTransactions.length);
   indexerEventsTransactions.forEach((tx) => {
     if (
       !tx ||
@@ -192,12 +177,11 @@ const parseTransactionEvents = (
         if (ixInner.programId.toBase58() !== SPL_NOOP_PROGRAM_ID.toBase58())
           return;
 
-        console.log("ixInner before", ixInner);
+        // console.log("ixInner before", ixInner);
         const data = bs58.decode(ixInner.data);
-        console.log("data", data);
+        // console.log("data", data);
 
         const decodedEvent = deserializeFn(data, tx);
-        console.log("decodedEvent", decodedEvent);
         if (decodedEvent) {
           transactions.push(decodedEvent);
         }
@@ -300,19 +284,6 @@ const deserializeTransactionEvents = (data: Buffer) => {
   }
 };
 
-// export const deserializeTransactionEvents = (data: Buffer) => {
-//   console.log(
-//     "LightSystemProgram.program.coder",
-//     LightSystemProgram.program.coder
-//   );
-//   const coder = LightSystemProgram.program.coder.types.decode(
-//     "PublicTransactionEvent",
-//     data
-//   );
-
-//   return coder;
-// };
-
 export async function fetchRecentPublicTransactions({
   connection,
   batchOptions = {
@@ -358,8 +329,8 @@ export async function fetchRecentPublicTransactions({
   return {
     transactions: transactions.sort(
       (a, b) =>
-        Number(a.outUtxoIndexes[0].toString()) -
-        Number(b.outUtxoIndexes[0].toString())
+        Number(a.outUtxoIndices[0].toString()) -
+        Number(b.outUtxoIndices[0].toString())
     ),
     oldestFetchedSignature: batchBefore!,
   };

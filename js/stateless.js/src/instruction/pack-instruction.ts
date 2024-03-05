@@ -185,6 +185,7 @@ export async function packInstruction(
   /// convert to BN to support anchor encoding
   rawInputs = {
     ...rawInputs,
+    //@ts-ignore
     utxos: {
       ...rawInputs.utxos,
       //@ts-ignore

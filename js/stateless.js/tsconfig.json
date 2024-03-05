@@ -14,5 +14,5 @@
     "types": ["vitest/importMeta", "node"],
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["./src/**/*.ts"]
 }

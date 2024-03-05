@@ -18,7 +18,13 @@ import { IDL } from "../idls/account_compression";
 import { GetUtxoConfig, WithMerkleUpdateContext } from "../rpc-interface";
 import { UtxoWithMerkleContext, bigint254 } from "../state";
 
-export class TestRpc {
+export function getMockRpc(connection: Connection) {
+  return new MockRpc({
+    connection,
+  });
+}
+
+export class MockRpc {
   indexedTransactions: any[] = [];
   connection: Connection;
   // merkleTrees: SolMerkleTree[] = [];
@@ -92,7 +98,7 @@ export class TestRpc {
    * - trying to extract and parse event cpi for every signature's transaction
    * - if there are indexed transactions already in the rpc object only transactions after the last indexed event are indexed
    */
-  async getIndexedTransactions(): Promise<any[]> {
+  async getIndexedEvents(): Promise<any[]> {
     // const merkleTreeAccountInfo = await connection.getAccountInfo(
     //   this.accounts.merkleTreeAccount,
     //   "confirmed",
@@ -171,7 +177,7 @@ export class TestRpc {
   //   id: string,
   //   _variableNameID: number
   // ): Promise<RpcIndexedTransactionResponse | undefined> {
-  //   const indexedTransactions = await this.getIndexedTransactions(
+  //   const indexedTransactions = await this.getIndexedEvents(
   //     this.connection
   //   );
   //   const indexedTransaction = indexedTransactions.find((trx) =>
@@ -194,7 +200,7 @@ export class TestRpc {
   //   ids: string[],
   //   variableNameID: number
   // ): Promise<RpcIndexedTransactionResponse[] | undefined> {
-  //   const indexedTransactions = await this.getIndexedTransactions(
+  //   const indexedTransactions = await this.getIndexedEvents(
   //     this.connection
   //   );
   //   const indexedTransactionsById = indexedTransactions.filter((trx) =>
@@ -219,7 +225,7 @@ export class TestRpc {
   // ): Promise<
   //   { merkleProofs: string[][]; root: string; index: number } | undefined
   // > {
-  //   const indexedTransactions = await this.getIndexedTransactions(
+  //   const indexedTransactions = await this.getIndexedEvents(
   //     this.connection
   //   );
   //   const merkleTree = await this.syncMerkleTree(
@@ -255,7 +261,7 @@ export class TestRpc {
   // async getMerkleRoot(
   //   merkleTreePubkey: PublicKey
   // ): Promise<{ root: string; index: number } | undefined> {
-  //   const indexedTransactions = await this.getIndexedTransactions(
+  //   const indexedTransactions = await this.getIndexedEvents(
   //     this.connection
   //   );
   //   const merkleTree = await this.syncMerkleTree(

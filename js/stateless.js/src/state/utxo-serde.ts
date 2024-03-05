@@ -8,7 +8,8 @@ import {
 } from "./utxo";
 import { TlvSerial, deserializeTlv, serializeTlv } from "./utxo-data";
 import { bufToDecStr, hashToBn254FieldSizeLe } from "../utils/conversion";
-import { bigint254, createBigint254 } from "./bigint254";
+import { bigint254, bn, createBigint254 } from "./bigint254";
+import { BN } from "@coral-xyz/anchor";
 
 export type InUtxoSerializable = {
   owner: number;
@@ -36,7 +37,7 @@ export type OutUtxoSerializableTuple = {
 
 export class UtxoSerde {
   pubkeyArray: PublicKey[];
-  u64Array: bigint[]; // TODO: check encoding
+  u64Array: BN[]; // TODO: check encoding
   inUtxos: InUtxoSerializableTuple[];
   outUtxos: OutUtxoSerializableTuple[];
 
@@ -78,7 +79,7 @@ export class UtxoSerde {
       const lamports =
         lamportsIndex >= 0
           ? lamportsIndex
-          : this.u64Array.push(BigInt(utxo.lamports)) - 1;
+          : this.u64Array.push(bn(utxo.lamports)) - 1;
 
       const data = utxo.data
         ? serializeTlv({ tlvElements: utxo.data }, this.pubkeyArray, accounts)
@@ -154,12 +155,12 @@ export class UtxoSerde {
             accounts.length
           : this.pubkeyArray.push(utxo.owner) - 1 + accounts.length;
       const lamportsIndex = this.u64Array.findIndex(
-        (l) => l === BigInt(utxo.lamports)
+        (l) => l === bn(utxo.lamports)
       );
       const lamports =
         lamportsIndex >= 0
           ? lamportsIndex
-          : this.u64Array.push(BigInt(utxo.lamports)) - 1;
+          : this.u64Array.push(bn(utxo.lamports)) - 1;
 
       const data = utxo.data
         ? serializeTlv({ tlvElements: utxo.data }, this.pubkeyArray, accounts)
@@ -326,7 +327,7 @@ async function createUtxoHash(
   if (!ownerHash) throw new Error("Failed to hash owner public key");
   const ownerDecStr = bufToDecStr(ownerHash[0]);
 
-  const lamportsDecStr = BigInt(lamports).toString();
+  const lamportsDecStr = bn(lamports).toString();
 
   const blindingDecStr = (
     await computeBlinding(hasher, merkleTree, leafIndex)

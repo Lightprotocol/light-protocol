@@ -1,9 +1,16 @@
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { FIELD_SIZE } from "../constants";
 import { PublicKey } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 
 /** bigint with <254-bit max size */
 export type bigint254 = bigint;
+
+export const bn = (
+  number: string | number | BN | Buffer | Uint8Array | number[],
+  base?: number | "hex" | undefined,
+  endian?: BN.Endianness | undefined
+) => new BN(number, base, endian);
 
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBigint254 = (

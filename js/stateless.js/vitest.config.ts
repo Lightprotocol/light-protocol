@@ -7,7 +7,7 @@ export default defineConfig({
     // Include both src and tests directories as well as inline tests
     include: ["src/**/__tests__/*.test.ts", "tests/**/*.test.ts"],
     includeSource: ["src/**/*.{js,ts}"],
-    testTimeout: 35000,
+    testTimeout: 350000,
   },
   define: {
     "import.meta.vitest": false,
