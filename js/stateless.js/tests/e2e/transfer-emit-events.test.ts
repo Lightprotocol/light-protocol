@@ -53,8 +53,7 @@ describe("Emit events", () => {
 
       /// Define input state (current state that the tx consumes)
       /// In this example, Alice has their compressed sol in 2 utxos.
-      /// This is a mock since the only check we're running is a sumcheck.
-      /// Merkle Inclusion is mocked for now.
+      /// These can be mocked because we're not verifying Merkle Inclusion for now.
       const in_utxos: UtxoWithBlinding[] = [
         {
           owner: alice.publicKey,
@@ -71,9 +70,10 @@ describe("Emit events", () => {
       ];
 
       /// Define output state (new state that the tx creates)
-      /// In this example, Alice sends 42e7 lamports to Bob and keeps the rest back.
-      /// These utxos get emitted and are indexable.
-      /// Note: we're running lowest level utxo assembly here for the sake of the example.
+      /// The delta between tx output and input is the state transition.
+      /// In this example, Alice sends 42e7 lamports to Bob and keeps the rest for herself.
+      /// These utxos get emitted on-chain and are indexable.
+      /// Note: we're running lowest-level i/o utxo assembly here for the sake of the example.
       /// Users will get helpers for this.
       /// Think: ```const ix = LightSystemProgram.transfer(fromBalance, to, lamports) ...```
       const out_utxos: Utxo[] = [
@@ -89,6 +89,7 @@ describe("Emit events", () => {
         },
       ];
 
+      /// We're not verifiying the validityProof on-chain for now.
       const proof_mock: MockProof = {
         a: Array.from({ length: 32 }, () => 0),
         b: Array.from({ length: 64 }, () => 0),
