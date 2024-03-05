@@ -8,7 +8,7 @@ reproduced on mac m2:
 - rustup 1.26.0, rustc 1.73.0, cargo 1.73.0
 - solana-cli 1.17.5
 
-## Producing events for indexing
+## Producing events for indexing with Photon
 
 First, activate the devenv
 
