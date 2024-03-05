@@ -29,15 +29,13 @@ and run
 
 this starts a solana-test-validator + auto-initialized the env, programs, and accounts Light needs. Keep the validator running.
 
-now open another terminal, enter the devenv + stateless.js again,
+now open another terminal, enter the devenv + stateless.js again.
 
-`cd js/stateless.js`
-
-now run:
+then run:
 
 `pnpm emit-event:transfer`
 
-This runs ./tests/e2e/transfer-emit-events.test.ts which executes a simple compressed sol transfer against the test-validator. You'll be able to index the emitted events (output utxos) according to the event rust structs.
+This runs ./tests/e2e/transfer-emit-events.test.ts which executes a simple compressed sol transfer against the test-validator. You can now index the emitted events (output utxos) according to the event rust structs.
 
 ### Troubleshooting
 
@@ -53,6 +51,5 @@ If you're having trouble building the project or cli,
 
 ### Other side notes
 
-1. This is unsafe. We don't verify ZKPs yet, nor do we validate tree roots.
-2. this is also what allows us to make up input-utxos for emit-event:transfer
-3. on-chain runs a sumcheck on the state transition (outputs, inputs).
+1. This is unsafe. On-chain we don't verify the validity of the ZKP yet, nor do we validate tree roots.
+2. this is also what allows us to make up input-utxos with random leafIndices/blindings and root indices for emit-event:transfer
