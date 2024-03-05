@@ -21,33 +21,34 @@ If you're new, run
 Run the monorepo build script
 `./scripts/build.sh`
 
-Go to stateless.js
-`cd js/stateless.js`
+Go to /cli and build the CLI
+`cd /cli` && `pnpm run build`
+
+Now, go to stateless.js
+`cd ../js/stateless.js`
 
 and run
 `pnpm run test-validator`
 
 this starts a solana-test-validator + auto-initialized the env, programs, and accounts Light needs. Keep the validator running.
 
-now open another terminal, enter the devenv + stateless.js again.
+now open another terminal, enter the devenv + js/stateless.js again.
 
 then run:
 
 `pnpm emit-event:transfer`
 
-This runs ./tests/e2e/transfer-emit-events.test.ts which executes a simple compressed sol transfer against the test-validator. You can now index the emitted events (output utxos) according to the event rust structs.
+This runs ./tests/e2e/transfer-emit-events.test.ts once which executes a simple compressed sol transfer against the test-validator. You can now index the emitted events (output utxos) according to the event rust structs. You can adapt the variables used and rounds inside the test file.
 
 ### Troubleshooting
 
 If you're having trouble building the project or cli,
 
-- Nuke git clean -xfd (careful)
+- Nuke your git chache `git clean -xfd` (careful) and re-run the steps from the start.
 
-- re-run install.sh etc
+- you may want to manually build the programs (anchor build). The IDLs will be auto-generated into stateless.js/src/idls/
 
-- you may want to manually build the programs (anchor build)
-  or manually build the cli (`pnpm run build` in ./cli) before running
-  `./cli/test_bin/run test-validator`.
+- if you're running into issues with the CLI (e.g. if you're seeing "Warning: test-validator is not a light command.". before re-building the CLI or running `./cli/test_bin/run test-validator`, consider ensuring that the cli's dependencies (zk.js, account.rs) are built (`pnpm run build` in their respective directory)
 
 ### Other
 
