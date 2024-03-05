@@ -8,10 +8,7 @@ import { BN, BorshCoder } from "@coral-xyz/anchor";
 
 import { Utxo } from "../state";
 
-import {
-  defaultStaticAccounts,
-  defaultStaticAccountsStruct,
-} from "../constants";
+import { defaultStaticAccountsStruct } from "../constants";
 import { LightSystemProgram } from "../programs/compressed-pda";
 
 /// Temporary fix for congruence with the current anchor IDL while we're switching to use leafindex+mt as part of the UtxoWithMerkleContext type.

@@ -11,6 +11,5 @@
     "noUnusedParameters": true
   },
   "dry": false,
-  "debug": false,
-  "include": ["./src/**/*.ts", "./test/**/*.ts", "./examples/**/*.ts"]
+  "debug": false
 }
