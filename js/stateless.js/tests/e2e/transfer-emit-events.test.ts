@@ -72,7 +72,7 @@ describe("Emit events", () => {
       /// Define output state (new state that the tx creates)
       /// The delta between tx output and input is the state transition.
       /// In this example, Alice sends 42e7 lamports to Bob and keeps the rest for herself.
-      /// These utxos get emitted on-chain and are indexable.
+      /// These outputs get emitted on-chain and are indexable.
       /// Note: we're running lowest-level i/o utxo assembly here for the sake of the example.
       /// Users will get helpers for this.
       /// Think: ```const ix = LightSystemProgram.transfer(fromBalance, to, lamports) ...```
@@ -89,14 +89,14 @@ describe("Emit events", () => {
         },
       ];
 
-      /// We're not verifiying the validityProof on-chain for now.
+      /// We're not verifying the validity-proof on-chain for now.
       const proof_mock: MockProof = {
         a: Array.from({ length: 32 }, () => 0),
         b: Array.from({ length: 64 }, () => 0),
         c: Array.from({ length: 32 }, () => 0),
       };
 
-      /// Packs the utxos into ixdata and encodes the data with the relevant system keys.
+      /// Packs the utxos into ixData and encodes the data with the relevant system keys.
       /// This is the "not-optimized" version. devs will use the more efficient packInstruction() instead.
       /// The packing doesnt have any impact on the emitted events / indexing experience though.
       const ix = await createExecuteCompressedInstruction(
@@ -133,9 +133,6 @@ describe("Emit events", () => {
         `\x1b[32mTransferred ${lamportsToSend} lamports from Alice (${alice.publicKey.toBase58()}) to Bob (${bob.publicKey.toBase58()})\x1b[0m`
       );
       console.log("\x1b[34mInput mock-utxos (consumed):\x1b[0m");
-      console.log(
-        "\x1b[33mNOTE: the indexer will only be able to find output utxos since we're mocking inputs in this example.\x1b[0m"
-      );
       printUtxos(in_utxos);
       console.log("\n\x1b[34mOutput utxos (created):\x1b[0m");
       printOutUtxos(out_utxos);
