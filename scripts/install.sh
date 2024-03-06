@@ -108,6 +108,7 @@ check_flag() {
     echo false
 }
 
+GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
 PNPM_VERSION="8.8.0"
 SOLANA_VERSION="1.17.5"
@@ -121,12 +122,14 @@ case "${OS}" in
     "Darwin")
         case "${ARCH}" in
             "x86_64")
+                ARCH_SUFFIX_GO="darwin-amd64"
                 ARCH_SUFFIX_SOLANA="x86_64-apple-darwin"
                 ARCH_SUFFIX_LP="macos-amd64"
                 ARCH_SUFFIX_NODE="darwin-x64"
                 ARCH_SUFFIX_PNPM="macos-x64"
                 ;;
             "aarch64"|"arm64")
+                ARCH_SUFFIX_GO="darwin-arm64"
                 ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
                 ARCH_SUFFIX_LP="macos-arm64"
                 ARCH_SUFFIX_NODE="darwin-arm64"
@@ -141,12 +144,14 @@ case "${OS}" in
     "Linux")
         case "${ARCH}" in
             "x86_64")
+                ARCH_SUFFIX_GO="linux-amd64"
                 ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-amd64"
                 ARCH_SUFFIX_NODE="linux-x64"
                 ARCH_SUFFIX_PNPM="linuxstatic-x64"
                 ;;
             "aarch64"|"arch64"|"arm64")
+                ARCH_SUFFIX_GO="linux-arm64"
                 ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-arm64"
                 ARCH_SUFFIX_NODE="linux-arm64"
@@ -168,6 +173,14 @@ echo "🔍 Detected system ${ARCH_SUFFIX_LP}"
 
 echo "📁 Creating directory ${PREFIX}"
 mkdir -p $PREFIX/bin/deps
+
+echo "📥 Installing Go"
+curl --fail --retry "${MAX_RETRIES}" --retry-delay 10 -L -o \
+    /tmp/go.tar.gz \
+    "https://go.dev/dl/go${GO_VERSION}.${ARCH_SUFFIX_GO}.tar.gz"
+tar xpf /tmp/go.tar.gz -C "${PREFIX}"
+rm -f /tmp/go.tar.gz
+export PATH="${PREFIX}/go/bin:${PATH}"
 
 echo "🦀 Installing Rust"
 export RUSTUP_HOME="${PREFIX}/rustup"
