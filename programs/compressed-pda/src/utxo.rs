@@ -303,7 +303,6 @@ impl SerializedUtxos {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InUtxoSerializable {
     pub owner: u8,
