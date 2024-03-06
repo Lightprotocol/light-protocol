@@ -8,7 +8,7 @@ use solana_sdk::instruction::Instruction;
 
 use crate::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
-    utxo::{OutUtxo, SerializedUtxos, Utxo},
+    utxo::{InUtxoTuple, OutUtxo, OutUtxoTuple, SerializedUtxos, Utxo},
     InstructionDataTransfer, InstructionDataTransfer2,
 };
 
@@ -31,7 +31,7 @@ pub fn create_execute_compressed_instruction(
     proof: &CompressedProof,
 ) -> Instruction {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
-    let mut _in_utxos = Vec::<(Utxo, u8, u8)>::new();
+    let mut _in_utxos: Vec<InUtxoTuple> = Vec::<InUtxoTuple>::new();
     for (i, mt) in in_utxo_merkle_tree_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
             Some(_) => {}
@@ -39,11 +39,11 @@ pub fn create_execute_compressed_instruction(
                 remaining_accounts.insert(*mt, i);
             }
         };
-        _in_utxos.push((
-            in_utxos[i].clone(),
-            *remaining_accounts.get(mt).unwrap() as u8,
-            0,
-        ));
+        _in_utxos.push(InUtxoTuple {
+            in_utxo: in_utxos[i].clone(),
+            index_mt_account: *remaining_accounts.get(mt).unwrap() as u8,
+            index_nullifier_array_account: 0,
+        });
     }
     let len: usize = remaining_accounts.len();
     for (i, mt) in nullifier_array_pubkeys.iter().enumerate() {
@@ -53,10 +53,10 @@ pub fn create_execute_compressed_instruction(
                 remaining_accounts.insert(*mt, i + len);
             }
         };
-        _in_utxos[i].2 = *remaining_accounts.get(mt).unwrap() as u8;
+        _in_utxos[i].index_nullifier_array_account = *remaining_accounts.get(mt).unwrap() as u8;
     }
     let len: usize = remaining_accounts.len();
-    let mut _out_utxos = Vec::<(OutUtxo, u8)>::new();
+    let mut _out_utxos: Vec<OutUtxoTuple> = Vec::<OutUtxoTuple>::new();
 
     for (i, mt) in out_utxo_merkle_tree_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
@@ -65,10 +65,10 @@ pub fn create_execute_compressed_instruction(
                 remaining_accounts.insert(*mt, i + len);
             }
         };
-        _out_utxos.push((
-            out_utxos[i].clone(),
-            *remaining_accounts.get(mt).unwrap() as u8,
-        ));
+        _out_utxos.push(OutUtxoTuple {
+            out_utxo: out_utxos[i].clone(),
+            index_mt_account: *remaining_accounts.get(mt).unwrap() as u8,
+        });
     }
 
     let mut remaining_accounts = remaining_accounts
@@ -139,6 +139,7 @@ pub fn create_execute_compressed_opt_instruction(
         };
     }
     let len: usize = remaining_accounts.len();
+    // Note: this depends on nulifier never matching any of the statetrees.
     for (i, mt) in nullifier_array_pubkeys.iter().enumerate() {
         match remaining_accounts.get(mt) {
             Some(_) => {}
@@ -298,14 +299,14 @@ fn test_create_execute_compressed_transaction() {
         .iter()
         .enumerate()
         .for_each(|(i, utxo)| {
-            assert_eq!(in_utxos[i], utxo.0);
+            assert_eq!(in_utxos[i], utxo.in_utxo);
         });
     deserialized_instruction_data
         .out_utxos
         .iter()
         .enumerate()
         .for_each(|(i, utxo)| {
-            assert_eq!(out_utxos[i], utxo.0);
+            assert_eq!(out_utxos[i], utxo.out_utxo);
         });
     assert_eq!(deserialized_instruction_data.in_utxos.len(), 2);
     assert_eq!(deserialized_instruction_data.out_utxos.len(), 2);
@@ -323,30 +324,42 @@ fn test_create_execute_compressed_transaction() {
         proof.proof_c
     );
     assert_eq!(instruction.accounts[0], AccountMeta::new(payer, true));
-    assert_eq!(deserialized_instruction_data.in_utxos[0].2, 1);
-    assert_eq!(deserialized_instruction_data.in_utxos[1].2, 1);
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[0].1 as usize],
+        deserialized_instruction_data.in_utxos[0].index_nullifier_array_account,
+        1
+    );
+    assert_eq!(
+        deserialized_instruction_data.in_utxos[1].index_nullifier_array_account,
+        1
+    );
+    assert_eq!(
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[0].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[1].1 as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[1].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[0].2 as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[0].index_nullifier_array_account as usize],
         AccountMeta::new(nullifier_array_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.in_utxos[1].2 as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.in_utxos[1].index_nullifier_array_account as usize],
         AccountMeta::new(nullifier_array_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.out_utxos[0].1 as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.out_utxos[0].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
     assert_eq!(
-        instruction.accounts[6 + deserialized_instruction_data.out_utxos[1].1 as usize],
+        instruction.accounts
+            [6 + deserialized_instruction_data.out_utxos[1].index_mt_account as usize],
         AccountMeta::new(merkle_tree_pubkey, false)
     );
 }
