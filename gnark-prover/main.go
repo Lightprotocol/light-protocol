@@ -4,19 +4,20 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/consensys/gnark/constraint"
-	gnarkLogger "github.com/consensys/gnark/logger"
-	"github.com/urfave/cli/v2"
 	"io"
 	"light/light-prover/config"
 	"light/light-prover/logging"
-	"light/light-prover/merkle-tree"
+	merkle_tree "light/light-prover/merkle-tree"
 	"light/light-prover/prover"
 	"light/light-prover/server"
 	"math/big"
 	"os"
 	"os/signal"
 	"strings"
+
+	"github.com/consensys/gnark/constraint"
+	gnarkLogger "github.com/consensys/gnark/logger"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -415,7 +416,7 @@ func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, 
 	if len(cfg.Keys) == 0 {
 		logging.Logger().Info().Msg("No config file provided, using defaults")
 		cfg = config.Config{
-			Keys: []string{"circuit_26_1.key", "circuit_26_2.key", "circuit_26_3.key", "circuit_26_4.key", "circuit_26_8.key"},
+			Keys: []string{"circuits/circuit_26_1.key", "circuits/circuit_26_2.key", "circuits/circuit_26_3.key", "circuits/circuit_26_4.key", "circuits/circuit_26_8.key"},
 		}
 	}
 

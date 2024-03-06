@@ -5,6 +5,7 @@ on:
     paths:
       - "**/*.rs"
       - "**/Cargo.*"
+      - "gnark-prover/**"
   pull_request:
     branches:
       - main
