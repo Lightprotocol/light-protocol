@@ -1,14 +1,17 @@
-#![cfg(feature = "test-sbf")]
+//#![cfg(feature = "test-sbf")]
 
-use light_test_utils::{create_and_send_transaction, test_env::setup_test_programs_with_accounts};
+use std::println;
+
+use light_test_utils::{create_and_send_transaction, test_env::{setup_test_programs_with_accounts, PAYER_KEYPAIR}};
+// use light_verifier_sdk::light_transaction::ProofCompressed;
 use psp_compressed_pda::{
     sdk::{
         create_execute_compressed_instruction, create_execute_compressed_opt_instruction,
-        CompressedProof,
     },
-    utxo::{OutUtxo, Utxo},
+    utxo::{OutUtxo, Utxo}, ProofCompressed,
 };
-use solana_sdk::{pubkey::Pubkey, signer::Signer};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+
 
 #[tokio::test]
 async fn test_execute_compressed_transactio() {
@@ -16,7 +19,17 @@ async fn test_execute_compressed_transactio() {
         setup_test_programs_with_accounts().await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
+    // let payer_keypair: [u8; 64] = [
+    //     17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91,
+    //     202, 187, 228, 110, 146, 97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107,
+    //     2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238,
+    //     105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
+    // ];
+    // let payer = Keypair::from_bytes(&payer_keypair).unwrap();
+
+
     let payer_pubkey = payer.pubkey();
+    
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
     let in_utxos = vec![Utxo {
@@ -26,15 +39,21 @@ async fn test_execute_compressed_transactio() {
         data: None,
     }];
 
+    println!("payer keypeair: {:?}", payer.to_bytes());
+    println!("payer_pubkey: {:?}", payer_pubkey);
+    println!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
+    println!("indexed_array_pubkey: {:?}", indexed_array_pubkey);
+
+
     let out_utxos = vec![OutUtxo {
         lamports: 0,
         owner: payer_pubkey,
         data: None,
     }];
-    let proof_mock = CompressedProof {
-        proof_a: [0u8; 32],
-        proof_b: [0u8; 64],
-        proof_c: [0u8; 32],
+    let proof_mock = ProofCompressed {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
     };
 
     let instruction = create_execute_compressed_instruction(
@@ -47,6 +66,9 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
+
+    println!("instruction: {:?}", instruction.data);
+    println!("len: {:?}", instruction.data.len());
 
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
@@ -67,6 +89,8 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
+
+
     let res =
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
     assert!(res.is_err());
@@ -96,10 +120,10 @@ async fn test_create_execute_compressed_transaction_2() {
         owner: payer_pubkey,
         data: None,
     }];
-    let proof_mock = CompressedProof {
-        proof_a: [0u8; 32],
-        proof_b: [0u8; 64],
-        proof_c: [0u8; 32],
+    let proof_mock = ProofCompressed {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
     };
 
     let instruction = create_execute_compressed_opt_instruction(
@@ -153,6 +177,7 @@ async fn regenerate_accounts() {
         ("indexed_array_pubkey", env.indexed_array_pubkey),
         ("governance_authority_pda", env.governance_authority_pda),
         ("group_pda", env.group_pda),
+        ("registered_program_pda", env.registered_program_pda),
     ];
 
     for (name, pubkey) in pubkeys {

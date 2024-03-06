@@ -2,7 +2,7 @@ node_modules
 test-ledger
 ptau*
 tests/*.js
-tests/**/*.js
+tests/elgamal-babyjubjub/*.js
 lib
 build
 

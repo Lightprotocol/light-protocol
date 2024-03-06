@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
-use light_verifier_sdk::light_transaction::ProofCompressed;
+// use light_verifier_sdk::light_transaction::ProofCompressed;
 
 use crate::{
     append_state::insert_out_utxos,
@@ -18,7 +18,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> anchor_lang::Result<PublicTransactionEvent> {
     // sum check ---------------------------------------------------
-    sum_check(&inputs.in_utxos, &inputs.out_utxos, &inputs.rpc_fee)?;
+    sum_check(&inputs.in_utxos, &inputs.out_utxos, &inputs.relay_fee)?;
     msg!("sum check success");
     // signer check ---------------------------------------------------
     // TODO: change the match statement so that we signers for every utxo as soon as any in utxo has tlv
@@ -98,6 +98,12 @@ pub struct CpiSignature {
     pub tlv_data: TlvDataElement,
 }
 
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
+pub struct ProofCompressed {
+    pub a: [u8; 32],
+    pub b: [u8; 64],
+    pub c: [u8; 32],
+}
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
 #[derive(Debug)]
 #[account]
@@ -106,7 +112,7 @@ pub struct InstructionDataTransfer {
     // TODO: remove low_element_indices
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
-    pub rpc_fee: Option<u64>,
+    pub relay_fee: Option<u64>,
     pub in_utxos: Vec<InUtxoTuple>, // index of Merkle tree, nullifier queue account in remaining accounts
     pub out_utxos: Vec<OutUtxoTuple>, // index of Merkle tree account in remaining accounts
 }
@@ -117,7 +123,7 @@ pub struct InstructionDataTransfer2 {
     pub proof: Option<ProofCompressed>,
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
-    pub rpc_fee: Option<u64>,
+    pub relay_fee: Option<u64>,
     pub utxos: SerializedUtxos,
 }
 
@@ -138,7 +144,7 @@ pub fn into_inputs(
         proof: inputs.proof,
         low_element_indices: inputs.low_element_indices,
         root_indices: inputs.root_indices,
-        rpc_fee: inputs.rpc_fee,
+        relay_fee: inputs.relay_fee,
         in_utxos,
         out_utxos,
     })
