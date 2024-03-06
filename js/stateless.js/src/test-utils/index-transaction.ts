@@ -5,15 +5,15 @@ import {
   ParsedMessageAccount,
   ParsedTransactionWithMeta,
   PublicKey,
-} from "@solana/web3.js";
+} from '@solana/web3.js';
 
 import {
   SPL_NOOP_ADDRESS,
   SPL_NOOP_PROGRAM_ID,
-} from "@solana/spl-account-compression";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { sleep } from "../utils/sleep";
-import { accountCompressionProgram } from "../constants";
+} from '@solana/spl-account-compression';
+import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import { sleep } from '../utils';
+import { accountCompressionProgram } from '../constants';
 
 type Instruction = {
   accounts: any[];
@@ -30,35 +30,35 @@ import {
   FixableBeetStruct,
   bignum,
   u8,
-} from "@metaplex-foundation/beet";
+} from '@metaplex-foundation/beet';
 
-import { publicKey } from "@metaplex-foundation/beet-solana";
+import { publicKey } from '@metaplex-foundation/beet-solana';
 
 export class ParsingTlvElementBeet {
   constructor(
     readonly discriminator: Uint8Array,
     readonly owner: PublicKey,
     readonly data: number[],
-    readonly dataHash: Uint8Array
+    readonly dataHash: Uint8Array,
   ) {}
   static readonly struct = new FixableBeetStruct<
     ParsingTlvElementBeet,
     ParsingTlvElementBeet
   >(
     [
-      ["discriminator", fixedSizeUint8Array(8)],
-      ["owner", publicKey],
-      ["data", fixedSizeUint8Array(8)],
-      ["dataHash", fixedSizeUint8Array(8)],
+      ['discriminator', fixedSizeUint8Array(8)],
+      ['owner', publicKey],
+      ['data', fixedSizeUint8Array(8)],
+      ['dataHash', fixedSizeUint8Array(8)],
     ],
     (args) =>
       new ParsingTlvElementBeet(
         args.discriminator,
         args.owner,
         args.data,
-        args.dataHash
+        args.dataHash,
       ),
-    "ParsingTlvElementBeet"
+    'ParsingTlvElementBeet',
   );
 }
 
@@ -69,9 +69,9 @@ export class ParsingTlvBeet {
     ParsingTlvBeet,
     ParsingTlvBeet
   >(
-    [["tlvElements", array(u8)]],
+    [['tlvElements', array(u8)]],
     (args) => new ParsingTlvBeet(args.tlvElements),
-    "ParsingTlvBeet"
+    'ParsingTlvBeet',
   );
 }
 
@@ -80,7 +80,7 @@ export class ParsingUtxoBeet {
     readonly owner: PublicKey,
     readonly blinding: Uint8Array,
     readonly lamports: bignum,
-    readonly data: ParsingTlvBeet[] | null
+    readonly data: ParsingTlvBeet[] | null,
   ) {}
 
   static readonly struct = new FixableBeetStruct<
@@ -88,14 +88,14 @@ export class ParsingUtxoBeet {
     ParsingUtxoBeet
   >(
     [
-      ["owner", publicKey],
-      ["blinding", fixedSizeUint8Array(32)],
-      ["lamports", u64],
-      ["data", coption(array(ParsingTlvBeet.struct))],
+      ['owner', publicKey],
+      ['blinding', fixedSizeUint8Array(32)],
+      ['lamports', u64],
+      ['data', coption(array(ParsingTlvBeet.struct))],
     ],
     (args) =>
       new ParsingUtxoBeet(args.owner, args.blinding, args.lamports, args.data),
-    "ParsingUtxo"
+    'ParsingUtxo',
   );
 }
 
@@ -106,7 +106,7 @@ export class PublicTransactionIndexerEventBeet {
     readonly outUtxoIndices: bignum[],
     readonly deCompressAmount: bignum | null,
     readonly relayFee: bignum | null,
-    readonly message: number[] | null
+    readonly message: number[] | null,
   ) {}
 
   static readonly struct = new FixableBeetStruct<
@@ -114,12 +114,12 @@ export class PublicTransactionIndexerEventBeet {
     PublicTransactionIndexerEventBeet
   >(
     [
-      ["inUtxos", array(ParsingUtxoBeet.struct)],
-      ["outUtxos", array(ParsingUtxoBeet.struct)],
-      ["outUtxoIndices", array(u64)],
-      ["deCompressAmount", coption(u64)],
-      ["relayFee", coption(u64)],
-      ["message", coption(array(u8))],
+      ['inUtxos', array(ParsingUtxoBeet.struct)],
+      ['outUtxos', array(ParsingUtxoBeet.struct)],
+      ['outUtxoIndices', array(u64)],
+      ['deCompressAmount', coption(u64)],
+      ['relayFee', coption(u64)],
+      ['message', coption(array(u8))],
     ],
     (args) =>
       new PublicTransactionIndexerEventBeet(
@@ -128,9 +128,9 @@ export class PublicTransactionIndexerEventBeet {
         args.outUtxoIndices,
         args.deCompressAmount,
         args.relayFee,
-        args.message
+        args.message,
       ),
-    "PublicTransactionIndexerEvent"
+    'PublicTransactionIndexerEvent',
   );
 }
 
@@ -148,19 +148,19 @@ export class PublicTransactionIndexerEventBeet {
 
 export const findMatchingInstruction = (
   instructions: Instruction[],
-  publicKeys: PublicKey[]
+  publicKeys: PublicKey[],
 ): Instruction | undefined => {
   return instructions.find((instruction) =>
-    publicKeys.some((pubKey) => pubKey.equals(instruction.programId))
+    publicKeys.some((pubKey) => pubKey.equals(instruction.programId)),
   );
 };
 
 const parseTransactionEvents = (
   indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
   transactions: any, //RpcIndexedTransaction[] | PublicTransactionIndexerEventBeet[],
-  deserializeFn: any
+  deserializeFn: any,
 ) => {
-  console.log("found txs.: ", indexerEventsTransactions.length);
+  console.log('found txs.: ', indexerEventsTransactions.length);
   indexerEventsTransactions.forEach((tx) => {
     if (
       !tx ||
@@ -218,9 +218,9 @@ async function getTransactionsBatch({
   const signatures = await connection.getConfirmedSignaturesForAddress2(
     merkleTreeProgramId,
     batchOptions,
-    "confirmed"
+    'confirmed',
   );
-  console.log("signatures ", signatures.length);
+  console.log('signatures ', signatures.length);
 
   const lastSignature = signatures[signatures.length - 1];
   let txs: (ParsedTransactionWithMeta | null)[] = [];
@@ -235,8 +235,8 @@ async function getTransactionsBatch({
           .map((sig) => sig.signature),
         {
           maxSupportedTransactionVersion: 0,
-          commitment: "confirmed",
-        }
+          commitment: 'confirmed',
+        },
       );
 
       if (!txsBatch.some((t) => !t)) {
@@ -247,13 +247,13 @@ async function getTransactionsBatch({
       await sleep(2000);
     }
   }
-  console.log("txs ", txs.length);
+  console.log('txs ', txs.length);
 
   const transactionEvents = txs.filter((tx: any) => {
     const accountKeys = tx.transaction.message.accountKeys;
     const splNoopIndex = accountKeys.findIndex((item: ParsedMessageAccount) => {
       const itemStr =
-        typeof item === "string" || item instanceof String
+        typeof item === 'string' || item instanceof String
           ? item
           : item.pubkey.toBase58();
       return itemStr === new PublicKey(SPL_NOOP_ADDRESS).toBase58();
@@ -270,7 +270,7 @@ async function getTransactionsBatch({
 // // More specific function type for deserializing private events
 type deserializeTransactionEvents = (
   data: Buffer,
-  tx: ParsedTransactionWithMeta
+  tx: ParsedTransactionWithMeta,
 ) => PublicTransactionIndexerEventBeet | undefined;
 
 const deserializeTransactionEvents = (data: Buffer) => {
@@ -330,7 +330,7 @@ export async function fetchRecentPublicTransactions({
     transactions: transactions.sort(
       (a, b) =>
         Number(a.outUtxoIndices[0].toString()) -
-        Number(b.outUtxoIndices[0].toString())
+        Number(b.outUtxoIndices[0].toString()),
     ),
     oldestFetchedSignature: batchBefore!,
   };

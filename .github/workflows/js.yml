@@ -55,14 +55,13 @@
 #           pnpm install --frozen-lockfile
 #           pnpm run build
 #         working-directory: ${{ github.workspace }}
+# - name: Build CLI
+#   run: |
+#     cd cli
+#     pnpm install --frozen-lockfile
+#     pnpm run build
+#   working-directory: ${{ github.workspace }}
 
-#       - name: Install dependencies for stateless.js
-#         run: pnpm install --frozen-lockfile
-#         working-directory: ${{ matrix.directory }}
-
-#       - name: Run tests for stateless.js
-#         run: pnpm run test
-#         working-directory: ${{ matrix.directory }}
-
-#       - name: Log out
+# - name: Install dependencies for stateless.js
+#   run: pnpm install --frozen-lockfile
 #         run: docker logout
