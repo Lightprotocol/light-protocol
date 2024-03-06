@@ -9,7 +9,6 @@ use crate::{
     ErrorCode,
 };
 
-// Anchor idl doesn't like implict tuples, so we're implementing a struct
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InUtxoSerializableTuple {
     pub in_utxo_serializable: InUtxoSerializable,
@@ -17,14 +16,12 @@ pub struct InUtxoSerializableTuple {
     pub index_nullifier_array_account: u8,
 }
 
-// Anchor idl doesn't like implict tuples, so we're implementing a struct
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct OutUtxoSerializableTuple {
     pub out_utxo_serializable: OutUtxoSerializable,
     pub index_mt_account: u8,
 }
 
-// Anchor idl doesn't like implict tuples, so we're implementing a struct
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InUtxoTuple {
     pub in_utxo: Utxo,
@@ -32,7 +29,6 @@ pub struct InUtxoTuple {
     pub index_nullifier_array_account: u8,
 }
 
-// Anchor idl doesn't like implict tuples, so we're implementing a struct
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct OutUtxoTuple {
     pub out_utxo: OutUtxo,
@@ -307,7 +303,7 @@ impl SerializedUtxos {
     }
 }
 
-// #[account]
+
 #[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InUtxoSerializable {
     pub owner: u8,
@@ -317,7 +313,6 @@ pub struct InUtxoSerializable {
 }
 
 // no need to send blinding is computed onchain
-// #[account]
 #[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct OutUtxoSerializable {
     pub owner: u8,
@@ -325,7 +320,6 @@ pub struct OutUtxoSerializable {
     pub data: Option<TlvSerializable>,
 }
 
-// #[account]
 #[derive(Debug, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct OutUtxo {
     pub owner: Pubkey,
@@ -334,7 +328,7 @@ pub struct OutUtxo {
 }
 
 // blinding we just need to send the leafIndex
-// #[account]
+
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct Utxo {
     pub owner: Pubkey,
