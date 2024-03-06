@@ -13,7 +13,7 @@ pub struct PublicTransactionEvent {
     pub out_utxos: Vec<Utxo>,
     pub out_utxo_indices: Vec<u64>,
     pub de_compress_amount: Option<u64>,
-    pub rpc_fee: Option<u64>,
+    pub relay_fee: Option<u64>,
     pub message: Option<Vec<u8>>,
 }
 
@@ -46,12 +46,12 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         in_utxos: inputs
             .in_utxos
             .iter()
-            .map(|(utxo, _, _)| utxo.clone())
+            .map(|in_utxo_tuple: &crate::utxo::InUtxoTuple| in_utxo_tuple.in_utxo.clone())
             .collect(),
         out_utxos: out_utxos.to_vec(),
         out_utxo_indices: out_utxo_indices.iter().map(|x| *x as u64).collect(),
         de_compress_amount: None,
-        rpc_fee: inputs.rpc_fee,
+        relay_fee: inputs.relay_fee,
         message: None,
     };
     invoke_indexer_transaction_event(&event, &ctx.accounts.noop_program)?;

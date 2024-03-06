@@ -51,7 +51,7 @@ pub mod {{rust-name}} {
             leaves: inputs_des.public_out_utxo_hash.try_into().unwrap(),
             public_amount_spl: inputs_des.public_amount_spl,
             public_amount_sol: inputs_des.public_amount_sol,
-            rpc_fee: inputs_des.rpc_fee,
+            relay_fee: inputs_des.relay_fee,
             encrypted_utxos: inputs_des.encrypted_utxos.try_into().unwrap(),
             merkle_root_index: inputs_des.root_index,
         };

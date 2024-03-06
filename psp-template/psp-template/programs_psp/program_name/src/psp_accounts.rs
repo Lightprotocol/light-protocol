@@ -23,7 +23,7 @@ pub struct InstructionDataLightInstructionFirst {
     pub public_amount_sol: [u8; 32],
     pub public_transaction_hash: [u8; 32],
     pub root_index: u64,
-    pub rpc_fee: u64,
+    pub relay_fee: u64,
     pub encrypted_utxos: Vec<u8>,
 }
 

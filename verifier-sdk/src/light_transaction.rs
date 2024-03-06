@@ -113,7 +113,7 @@ pub struct TransactionInput<
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[u8; 32]; NR_LEAVES],
     pub encrypted_utxos: &'a Vec<u8>,
-    pub rpc_fee: u64,
+    pub relay_fee: u64,
     pub merkle_root_index: usize,
     pub pool_type: &'a [u8; 32],
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
@@ -218,7 +218,7 @@ impl<
             leaves: &leaves,
             public_amount_sol: self.input.public_amount.sol,
             public_amount_spl: self.input.public_amount.spl,
-            rpc_fee: self.input.rpc_fee,
+            relay_fee: self.input.relay_fee,
             encrypted_utxos: self.input.encrypted_utxos.clone(),
             nullifiers: self.input.nullifiers.to_vec(),
             first_leaf_index,
@@ -282,7 +282,7 @@ impl<
             leaves_hash.to_bytes().as_slice(),
             self.input.public_amount.spl.as_slice(),
             self.input.public_amount.sol.as_slice(),
-            self.input.rpc_fee.to_le_bytes().as_slice(),
+            self.input.relay_fee.to_le_bytes().as_slice(),
             encrypted_utxos_hash.to_bytes().as_slice(),
             nullifiers_hash.to_bytes().as_slice(),
             first_leaf_index.to_le_bytes().as_slice(),
@@ -414,7 +414,7 @@ impl<
 
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
     /// ensures that the rpc cannot change parameters of the internal or decompress transaction.
-    /// H(recipient_spl||recipient_sol||signer||rpc_fee||encrypted_utxos).
+    /// H(recipient_spl||recipient_sol||signer||relay_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
         let message_hash = match self.input.message {
             Some(message) => message.hash,
@@ -443,7 +443,7 @@ impl<
                 .get_signing_address()
                 .key()
                 .to_bytes(),
-            &self.input.rpc_fee.to_be_bytes(),
+            &self.input.relay_fee.to_be_bytes(),
             self.input.encrypted_utxos,
         ]);
         // msg!("message_hash: {:?}", message_hash.to_vec());
@@ -471,10 +471,10 @@ impl<
         //         .to_vec()
         // );
         // msg!(
-        //     "rpc_fee: {:?}",
-        //     self.input.rpc_fee.to_be_bytes().to_vec()
+        //     "relay_fee: {:?}",
+        //     self.input.relay_fee.to_be_bytes().to_vec()
         // );
-        // msg!("rpc_fee {}", self.input.rpc_fee);
+        // msg!("relay_fee {}", self.input.relay_fee);
         // msg!("encrypted_utxos: {:?}", self.input.encrypted_utxos);
 
         self.tx_integrity_hash = truncate_to_circuit(&tx_integrity_hash.to_bytes());
@@ -750,8 +750,8 @@ impl<
     #[inline(never)]
     pub fn transfer_fee(&self) -> Result<()> {
         // check that it is the native token pool
-        let (fee_amount_checked, rpc_fee) = self.check_amount(
-            self.input.rpc_fee,
+        let (fee_amount_checked, relay_fee) = self.check_amount(
+            self.input.relay_fee,
             change_endianness(&self.input.public_amount.sol),
         )?;
         msg!("fee amount {} ", fee_amount_checked);
@@ -831,7 +831,7 @@ impl<
                 msg!("decompressed sol for the user");
             }
         }
-        if !self.is_compress_sol() && rpc_fee > 0 {
+        if !self.is_compress_sol() && relay_fee > 0 {
             // pays the rpc fee
             decompress_sol_cpi(
                 self.input.ctx.program_id,
@@ -863,7 +863,7 @@ impl<
                     .accounts
                     .get_registered_verifier_pda()
                     .to_account_info(),
-                rpc_fee,
+                relay_fee,
             )?;
         }
 
@@ -1061,7 +1061,7 @@ impl<
     }
 
     #[allow(clippy::comparison_chain)]
-    pub fn check_amount(&self, rpc_fee: u64, amount: [u8; 32]) -> Result<(u64, u64)> {
+    pub fn check_amount(&self, relay_fee: u64, amount: [u8; 32]) -> Result<(u64, u64)> {
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
@@ -1073,8 +1073,8 @@ impl<
             && pub_amount.0[2] == 0
             && pub_amount.0[3] == 0
         {
-            if rpc_fee != 0 {
-                msg!("rpc_fee {}", rpc_fee);
+            if relay_fee != 0 {
+                msg!("relay_fee {}", relay_fee);
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
             Ok((pub_amount.0[0], 0))
@@ -1089,16 +1089,16 @@ impl<
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
 
-            if field.0[0] < rpc_fee {
+            if field.0[0] < relay_fee {
                 msg!(
-                    "Decompress invalid rpc_fee: pub amount {} < {} fee",
+                    "Decompress invalid relay_fee: pub amount {} < {} fee",
                     field.0[0],
-                    rpc_fee
+                    relay_fee
                 );
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
 
-            Ok((field.0[0].saturating_sub(rpc_fee), rpc_fee))
+            Ok((field.0[0].saturating_sub(relay_fee), relay_fee))
         } else if pub_amount.0[0] == 0
             && pub_amount.0[1] == 0
             && pub_amount.0[2] == 0

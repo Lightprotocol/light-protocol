@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { assert } from "chai";
 import { Program, BN, AnchorProvider } from "@coral-xyz/anchor";
 import { utf8 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";

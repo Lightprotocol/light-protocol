@@ -154,7 +154,7 @@ export type PspCompressedPda = {
             "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "(Utxo,u8,u8)"
+                "defined": "InUtxoTuple"
               }
             }
           },
@@ -162,7 +162,7 @@ export type PspCompressedPda = {
             "name": "outUtxos",
             "type": {
               "vec": {
-                "defined": "(OutUtxo,u8)"
+                "defined": "OutUtxoTuple"
               }
             }
           }
@@ -204,115 +204,6 @@ export type PspCompressedPda = {
             "name": "utxos",
             "type": {
               "defined": "SerializedUtxos"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "inUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "leafIndex",
-            "type": "u32"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "outUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "outUtxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "lamports",
-            "type": "u64"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "Tlv"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "utxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "blinding",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lamports",
-            "type": "u64"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "Tlv"
-              }
             }
           }
         ]
@@ -527,6 +418,86 @@ export type PspCompressedPda = {
       }
     },
     {
+      "name": "InUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxoSerializable",
+            "type": {
+              "defined": "InUtxoSerializable"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "outUtxoSerializable",
+            "type": {
+              "defined": "OutUtxoSerializable"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxo",
+            "type": {
+              "defined": "Utxo"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "outUtxo",
+            "type": {
+              "defined": "OutUtxo"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "SerializedUtxos",
       "type": {
         "kind": "struct",
@@ -547,7 +518,7 @@ export type PspCompressedPda = {
             "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "(InUtxoSerializable,u8,u8)"
+                "defined": "InUtxoSerializableTuple"
               }
             }
           },
@@ -555,7 +526,116 @@ export type PspCompressedPda = {
             "name": "outUtxos",
             "type": {
               "vec": {
-                "defined": "(OutUtxoSerializable,u8)"
+                "defined": "OutUtxoSerializableTuple"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "leafIndex",
+            "type": "u32"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Utxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "blinding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
               }
             }
           }
@@ -778,7 +858,7 @@ export const IDL: PspCompressedPda = {
             "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "(Utxo,u8,u8)"
+                "defined": "InUtxoTuple"
               }
             }
           },
@@ -786,7 +866,7 @@ export const IDL: PspCompressedPda = {
             "name": "outUtxos",
             "type": {
               "vec": {
-                "defined": "(OutUtxo,u8)"
+                "defined": "OutUtxoTuple"
               }
             }
           }
@@ -828,115 +908,6 @@ export const IDL: PspCompressedPda = {
             "name": "utxos",
             "type": {
               "defined": "SerializedUtxos"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "inUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "leafIndex",
-            "type": "u32"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "outUtxoSerializable",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "u8"
-          },
-          {
-            "name": "lamports",
-            "type": "u8"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "TlvSerializable"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "outUtxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "lamports",
-            "type": "u64"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "Tlv"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "utxo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "owner",
-            "type": "publicKey"
-          },
-          {
-            "name": "blinding",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lamports",
-            "type": "u64"
-          },
-          {
-            "name": "data",
-            "type": {
-              "option": {
-                "defined": "Tlv"
-              }
             }
           }
         ]
@@ -1151,6 +1122,86 @@ export const IDL: PspCompressedPda = {
       }
     },
     {
+      "name": "InUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxoSerializable",
+            "type": {
+              "defined": "InUtxoSerializable"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxoSerializableTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "outUtxoSerializable",
+            "type": {
+              "defined": "OutUtxoSerializable"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxo",
+            "type": {
+              "defined": "Utxo"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxoTuple",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "outUtxo",
+            "type": {
+              "defined": "OutUtxo"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "SerializedUtxos",
       "type": {
         "kind": "struct",
@@ -1171,7 +1222,7 @@ export const IDL: PspCompressedPda = {
             "name": "inUtxos",
             "type": {
               "vec": {
-                "defined": "(InUtxoSerializable,u8,u8)"
+                "defined": "InUtxoSerializableTuple"
               }
             }
           },
@@ -1179,7 +1230,116 @@ export const IDL: PspCompressedPda = {
             "name": "outUtxos",
             "type": {
               "vec": {
-                "defined": "(OutUtxoSerializable,u8)"
+                "defined": "OutUtxoSerializableTuple"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "leafIndex",
+            "type": "u32"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxoSerializable",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "u8"
+          },
+          {
+            "name": "lamports",
+            "type": "u8"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "TlvSerializable"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "OutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Utxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "blinding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
               }
             }
           }

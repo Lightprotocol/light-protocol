@@ -17,8 +17,8 @@
   ],
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/zk.js": "workspace:*",
     "@lightprotocol/account.rs": "workspace:*",
+    "@lightprotocol/zk.js": "workspace:*",
     "@oclif/core": "^2.15",
     "@oclif/plugin-autocomplete": "^2.3.8",
     "@oclif/plugin-help": "^5.2.15",

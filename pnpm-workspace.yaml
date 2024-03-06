@@ -11,3 +11,4 @@ packages:
   - "tmp-test-psp/**"
   - "web/webapp/**"
   - "account-compression/programs/**"
+  - "js/stateless.js/**"

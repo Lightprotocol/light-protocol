@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { BN, Program, Provider } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { MerkleTree } from "@lightprotocol/circuit-lib.js";

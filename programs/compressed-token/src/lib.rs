@@ -224,7 +224,7 @@ pub enum ErrorCode {
 //     // Fields used when (de)compression
 //     pub public_amount_sol: Option<[u8; 32]>,
 //     pub public_amount_spl: Option<[u8; 32]>,
-//     pub rpc_fee: Option<u64>,
+//     pub relay_fee: Option<u64>,
 //     // Program utxo fields
 //     pub message: Option<Vec<u8>>,
 //     pub transaction_hash: Option<[u8; 32]>,
