@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "type": "module",
   "scripts": {
-    "test": "test:program",
+    "test": "pnpm run test:program",
     "test-all": "vitest run",
     "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
     "test-validator": "./../../cli/test_bin/run test-validator",
