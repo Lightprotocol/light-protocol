@@ -88,10 +88,16 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     use account_compression::indexed_array_sdk::create_initialize_indexed_array_instruction;
     use solana_sdk::transaction::Transaction;
 
+    use crate::airdrop_lamports;
+
     let mut context = setup_test_programs().await;
     let cpi_authority_pda = get_cpi_authority_pda();
     let authority_pda = get_governance_authority_pda();
-    let payer = context.payer.insecure_clone();
+    let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+    airdrop_lamports(&mut context, &payer.pubkey(), 100_000_000_000)
+        .await
+        .unwrap();
+
     let instruction =
         create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
@@ -142,7 +148,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
 
     let account_create_ix = crate::create_account_instruction(
-        &context.payer.pubkey(),
+        &payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,
         context
             .banks_client
@@ -156,12 +162,12 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
     let instruction =
-        account_compression::instructions::insert_two_leaves_transaction::sdk::create_initialize_merkle_tree_instruction(context.payer.pubkey(), merkle_tree_pubkey);
+        account_compression::instructions::insert_two_leaves_transaction::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey);
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
-        Some(&context.payer.pubkey()),
-        &vec![&context.payer, &merkle_tree_keypair],
+        Some(&payer.pubkey()),
+        &vec![&payer, &merkle_tree_keypair],
         context.last_blockhash,
     );
     context
@@ -171,7 +177,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         .unwrap();
     let indexed_array_keypair = Keypair::from_bytes(&INDEXED_ARRAY_TEST_KEYPAIR).unwrap();
     let account_create_ix = crate::create_account_instruction(
-        &context.payer.pubkey(),
+        &payer.pubkey(),
         account_compression::IndexedArrayAccount::LEN,
         context
             .banks_client
@@ -184,14 +190,14 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     );
     let indexed_array_pubkey = indexed_array_keypair.pubkey();
     let instruction = create_initialize_indexed_array_instruction(
-        context.payer.pubkey(),
+        payer.pubkey(),
         indexed_array_keypair.pubkey(),
         0,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
-        Some(&context.payer.pubkey()),
-        &vec![&context.payer, &indexed_array_keypair],
+        Some(&payer.pubkey()),
+        &vec![&payer, &indexed_array_keypair],
         context.last_blockhash,
     );
     context
