@@ -3,14 +3,15 @@ use std::borrow::Borrow;
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 
-// use light_verifier_sdk::light_transaction::ProofCompressed;
+// use light_verifier_sdk::light_transaction::CompressedProof;
 use crate::{
     append_state::insert_out_utxos,
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     tlv::TlvDataElement,
+    utils::CompressedProof,
     utxo::{InUtxoTuple, OutUtxoTuple, SerializedUtxos, Utxo},
-    verify_state::{fetch_roots, hash_in_utxos, out_utxos_to_utxos, sum_check},
+    verify_state::{fetch_roots, hash_in_utxos, sum_check},
     ErrorCode,
 };
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
@@ -34,7 +35,43 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             .in_utxos
             .iter()
             .try_for_each(|utxo_tuple: &InUtxoTuple| {
-                if utxo_tuple.in_utxo.owner != ctx.accounts.signer.key() {
+                // TODO(@ananas-block): revisit program signer check
+                // Two options:
+                // 1. we require the program as an account and reconstruct the cpi signer to check that the cpi signer is a pda of the program
+                //   - The advantage is that the utxo can be owned by the program_id
+                // 2. we set a deterministic pda signer for every program eg seeds = [b"cpi_authority"]
+                //   - The advantages are that the program does not need to be an account, and we don't need to reconstruct the pda -> more efficient (costs are just low hundreds of cu though)
+                //   - The drawback is that the pda signer is the owner of the utxo which is confusing
+                if utxo_tuple.in_utxo.data.is_some() {
+                    let invoking_program_id = ctx.accounts.invoking_program.as_ref().unwrap().key();
+                    let signer = anchor_lang::prelude::Pubkey::find_program_address(
+                        &[b"cpi_authority"],
+                        &invoking_program_id,
+                    )
+                    .0;
+                    if signer != ctx.accounts.signer.key()
+                        && invoking_program_id != utxo_tuple.in_utxo.owner
+                    {
+                        msg!(
+                            "program signer check failed derived cpi signer {} !=  signer {}",
+                            utxo_tuple.in_utxo.owner,
+                            ctx.accounts.signer.key()
+                        );
+                        msg!(
+                            "program signer check failed utxo owner {} !=  invoking_program_id {}",
+                            utxo_tuple.in_utxo.owner,
+                            invoking_program_id
+                        );
+                        err!(ErrorCode::SignerCheckFailed)
+                    } else {
+                        Ok(())
+                    }
+                } else if utxo_tuple.in_utxo.owner != ctx.accounts.signer.key() {
+                    msg!(
+                        "signer check failed utxo owner {} !=  signer {}",
+                        utxo_tuple.in_utxo.owner,
+                        ctx.accounts.signer.key()
+                    );
                     err!(ErrorCode::SignerCheckFailed)
                 } else {
                     Ok(())
@@ -51,7 +88,6 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // TODO: add heap neutral
     hash_in_utxos(inputs, &mut utxo_hashes)?;
     // TODO: add heap neutral
-    out_utxos_to_utxos(inputs, ctx, &mut out_utxos, &mut out_utxo_indices)?;
     // TODO: verify inclusion proof ---------------------------------------------------
 
     // insert nullifiers (in utxo hashes)---------------------------------------------------
@@ -60,7 +96,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     }
     // insert leaves (out utxo hashes) ---------------------------------------------------
     if !inputs.out_utxos.is_empty() {
-        insert_out_utxos(inputs, ctx)?;
+        insert_out_utxos(inputs, ctx, &mut out_utxos, &mut out_utxo_indices)?;
     }
 
     emit_state_transition_event(inputs, ctx, &out_utxos, &out_utxo_indices)
@@ -71,7 +107,6 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
 /// 1 Merkle tree for each in utxo one queue and Merkle tree account each for each out utxo.
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
-    #[account(mut)]
     pub signer: Signer<'info>,
     /// CHECK: this account
     #[account(mut)]
@@ -84,6 +119,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account in psp account compression program
     pub account_compression_program: Program<'info, AccountCompression>,
     pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,
+    pub invoking_program: Option<UncheckedAccount<'info>>,
 }
 
 #[account]
@@ -98,17 +134,11 @@ pub struct CpiSignature {
     pub tlv_data: TlvDataElement,
 }
 
-#[derive(Debug, AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct ProofCompressed {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataTransfer {
-    pub proof: Option<ProofCompressed>,
+    pub proof: Option<CompressedProof>,
     // TODO: remove low_element_indices
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
@@ -120,7 +150,7 @@ pub struct InstructionDataTransfer {
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataTransfer2 {
-    pub proof: Option<ProofCompressed>,
+    pub proof: Option<CompressedProof>,
     pub low_element_indices: Vec<u16>,
     pub root_indices: Vec<u16>,
     pub relay_fee: Option<u64>,

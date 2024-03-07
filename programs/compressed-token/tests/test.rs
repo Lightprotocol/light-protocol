@@ -1,16 +1,17 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
+use anchor_lang::AnchorSerialize;
 use light_hasher::Poseidon;
 use light_test_utils::{
     create_account_instruction, create_and_send_transaction,
     test_env::setup_test_programs_with_accounts,
 };
-use psp_compressed_pda::{event::PublicTransactionEvent, utxo::Utxo};
+use psp_compressed_pda::{event::PublicTransactionEvent, utils::CompressedProof, utxo::Utxo};
 use psp_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initiatialize_mint_instruction, create_mint_to_instruction},
-    TokenTlvData,
+    transfer_sdk, TokenTlvData, TokenTransferOutUtxo,
 };
 use solana_program_test::ProgramTestContext;
 use solana_sdk::{
@@ -18,6 +19,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use spl_token::instruction::initialize_mint;
+
 pub fn create_initialize_mint_instructions(
     payer: &Pubkey,
     authority: &Pubkey,
@@ -202,6 +204,140 @@ async fn test_mint_to() {
     .await;
 }
 
+#[tokio::test]
+async fn test_transfer() {
+    let env: light_test_utils::test_env::EnvWithAccounts =
+        setup_test_programs_with_accounts().await;
+    let mut context = env.context;
+    let payer = context.payer.insecure_clone();
+    let payer_pubkey = payer.pubkey();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let recipient_keypair = Keypair::new();
+    let mint = create_mint_helper(&mut context, &payer).await;
+    let amount = 10000u64;
+    let instruction = create_mint_to_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &mint,
+        &merkle_tree_pubkey,
+        vec![amount],
+        vec![recipient_keypair.pubkey()],
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+        &mut context,
+        env.merkle_tree_pubkey,
+    )
+    .await;
+    let old_merkle_tree =
+        state_merkle_tree_from_bytes(&old_merkle_tree_account.deserialized.state_merkle_tree);
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+
+    let mut mock_indexer = MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+    );
+    mock_indexer.add_token_utxos(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert_mint_to(
+        &mut context,
+        &mock_indexer,
+        &recipient_keypair,
+        mint,
+        amount,
+        old_merkle_tree,
+    )
+    .await;
+    let transfer_recipient_keypair = Keypair::new();
+    let in_utxos_tlv = mock_indexer.token_utxos[0].token_data.clone();
+    let in_utxos = vec![mock_indexer.utxos[mock_indexer.token_utxos[0].index].clone()];
+
+    let change_out_utxo = TokenTransferOutUtxo {
+        amount: in_utxos_tlv.amount - 1000,
+        owner: recipient_keypair.pubkey(),
+        lamports: None,
+        index_mt_account: 0,
+    };
+    let transfer_recipient_out_utxo = TokenTransferOutUtxo {
+        amount: 1000,
+        owner: transfer_recipient_keypair.pubkey(),
+        lamports: None,
+        index_mt_account: 0,
+    };
+    let mock_proof = CompressedProof {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
+    };
+    let instruction = transfer_sdk::create_transfer_instruction(
+        &payer_pubkey,
+        &recipient_keypair.pubkey(),
+        &vec![merkle_tree_pubkey],   // in utxo Merkle trees
+        &vec![indexed_array_pubkey], // in utxo indexed arrays
+        &vec![merkle_tree_pubkey, merkle_tree_pubkey], // out utxo Merkle trees
+        in_utxos.as_slice(),         // in utxos
+        &vec![change_out_utxo, transfer_recipient_out_utxo],
+        &vec![0u16],
+        &mock_proof,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        [&payer, &recipient_keypair].as_slice(),
+        context.last_blockhash,
+    );
+    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+        &mut context,
+        env.merkle_tree_pubkey,
+    )
+    .await;
+    let old_merkle_tree =
+        state_merkle_tree_from_bytes(&old_merkle_tree_account.deserialized.state_merkle_tree);
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+
+    mock_indexer.add_token_utxos(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+
+    assert_transfer(
+        &mut context,
+        &mock_indexer,
+        &transfer_recipient_out_utxo,
+        &change_out_utxo,
+        old_merkle_tree,
+    )
+    .await;
+}
+
 async fn assert_mint_to(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
@@ -216,7 +352,6 @@ async fn assert_mint_to(
     assert_eq!(token_utxo_data.mint, mint);
     assert_eq!(token_utxo_data.delegate, None.into());
     assert_eq!(token_utxo_data.is_native, None);
-    assert_eq!(token_utxo_data.close_authority, None.into());
     assert_eq!(token_utxo_data.delegated_amount, 0);
 
     let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
@@ -262,6 +397,120 @@ async fn assert_mint_to(
     .unwrap();
     assert_eq!(pool_account.amount, amount);
 }
+
+async fn assert_transfer(
+    context: &mut ProgramTestContext,
+    mock_indexer: &MockIndexer,
+    recipient_out_utxo: &TokenTransferOutUtxo,
+    change_out_utxo: &TokenTransferOutUtxo,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<Poseidon, 22, 0, 2800>,
+) {
+    let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+        context,
+        mock_indexer.merkle_tree_pubkey,
+    )
+    .await;
+    let merkle_tree =
+        state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
+    assert_eq!(merkle_tree.root_index(), 3);
+
+    assert_eq!(
+        merkle_tree.root().unwrap(),
+        mock_indexer.merkle_tree.root().unwrap(),
+        "merkle tree root update failed"
+    );
+    assert_ne!(
+        old_merkle_tree.root().unwrap(),
+        merkle_tree.root().unwrap(),
+        "merkle tree root update failed"
+    );
+    let pos = mock_indexer
+        .token_utxos
+        .iter()
+        .position(|x| x.token_data.owner == recipient_out_utxo.owner)
+        .expect("transfer recipient utxo not found in mock indexer");
+    let transfer_recipient_token_utxo = mock_indexer.token_utxos[pos].clone();
+    assert_eq!(
+        transfer_recipient_token_utxo.token_data.amount,
+        recipient_out_utxo.amount
+    );
+    assert_eq!(
+        transfer_recipient_token_utxo.token_data.mint,
+        transfer_recipient_token_utxo.token_data.mint
+    );
+    assert_eq!(
+        transfer_recipient_token_utxo.token_data.owner,
+        recipient_out_utxo.owner
+    );
+    assert_eq!(
+        transfer_recipient_token_utxo.token_data.delegate,
+        None.into()
+    );
+    assert_eq!(transfer_recipient_token_utxo.token_data.is_native, None);
+    assert_eq!(transfer_recipient_token_utxo.token_data.delegated_amount, 0);
+    let transfer_recipient_utxo = mock_indexer.utxos[transfer_recipient_token_utxo.index].clone();
+    assert_eq!(transfer_recipient_utxo.lamports, 0);
+    assert!(transfer_recipient_utxo.data.is_some());
+    assert_eq!(
+        transfer_recipient_utxo
+            .data
+            .as_ref()
+            .unwrap()
+            .tlv_elements
+            .len(),
+        1
+    );
+    let mut data = Vec::new();
+    transfer_recipient_token_utxo
+        .token_data
+        .serialize(&mut data)
+        .unwrap();
+    assert_eq!(
+        transfer_recipient_utxo.data.as_ref().unwrap().tlv_elements[0].data,
+        data
+    );
+    assert_eq!(
+        transfer_recipient_utxo.data.as_ref().unwrap().tlv_elements[0].owner,
+        psp_compressed_token::ID
+    );
+    assert_eq!(transfer_recipient_utxo.owner, psp_compressed_token::ID);
+
+    let pos = mock_indexer
+        .token_utxos
+        .iter()
+        .position(|x| {
+            x.token_data.owner == change_out_utxo.owner
+                && x.token_data.amount == change_out_utxo.amount
+        })
+        .expect("transfer recipient utxo not found in mock indexer");
+    let change_token_utxo = mock_indexer.token_utxos[pos].clone();
+    assert_eq!(change_token_utxo.token_data.amount, change_out_utxo.amount);
+    assert_eq!(
+        change_token_utxo.token_data.mint,
+        transfer_recipient_token_utxo.token_data.mint
+    );
+    assert_eq!(change_token_utxo.token_data.owner, change_out_utxo.owner);
+    assert_eq!(change_token_utxo.token_data.delegate, None.into());
+    assert_eq!(change_token_utxo.token_data.is_native, None);
+    assert_eq!(change_token_utxo.token_data.delegated_amount, 0);
+
+    let change_utxo = mock_indexer.utxos[change_token_utxo.index].clone();
+    assert_eq!(change_utxo.lamports, 0);
+    assert!(change_utxo.data.is_some());
+    assert_eq!(change_utxo.data.as_ref().unwrap().tlv_elements.len(), 1);
+    let mut data = Vec::new();
+    change_token_utxo.token_data.serialize(&mut data).unwrap();
+    assert_eq!(
+        change_utxo.data.as_ref().unwrap().tlv_elements[0].data,
+        data
+    );
+    assert_eq!(
+        change_utxo.data.as_ref().unwrap().tlv_elements[0].owner,
+        psp_compressed_token::ID
+    );
+    assert_eq!(change_utxo.owner, psp_compressed_token::ID);
+}
+
 #[derive(Debug)]
 pub struct MockIndexer {
     pub merkle_tree_pubkey: Pubkey,
@@ -309,14 +558,6 @@ impl MockIndexer {
     }
 
     pub fn add_event_and_utxos(&mut self, event: PublicTransactionEvent) -> Vec<usize> {
-        let mut indices = Vec::with_capacity(event.out_utxos.len());
-        for utxo in event.out_utxos.iter() {
-            self.utxos.push(utxo.clone());
-            indices.push(self.utxos.len() - 1);
-            self.merkle_tree
-                .append(&utxo.hash())
-                .expect("insert failed");
-        }
         for utxo in event.in_utxos.iter() {
             let index = self
                 .utxos
@@ -336,6 +577,15 @@ impl MockIndexer {
                 None => {}
             }
         }
+        let mut indices = Vec::with_capacity(event.out_utxos.len());
+        for utxo in event.out_utxos.iter() {
+            self.utxos.push(utxo.clone());
+            indices.push(self.utxos.len() - 1);
+            self.merkle_tree
+                .append(&utxo.hash())
+                .expect("insert failed");
+        }
+
         self.events.push(event);
         indices
     }

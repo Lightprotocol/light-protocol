@@ -51,6 +51,18 @@ pub struct SerializedUtxos {
     pub in_utxos: Vec<InUtxoSerializableTuple>,
     pub out_utxos: Vec<OutUtxoSerializableTuple>,
 }
+// TODO(@ananas-block): implement packing function for token transfer instruction data
+// probably the easiest is to keep tlv separate and just point to the index of the in/out utxo in the utxo array
+// serialize utxos first -> then serialize tlv so that tlv is more accessible
+// how do I make it as open as possible? by storing just plain data, possibly in a separate struct, however this decouples the utxo from it's data which is ugly
+// if I want to keep the data with the utxo I need to serialize the tlv data first, and all utxos need to have serialized tlv data already
+// which is already the case, there should be an abstraction to add pubkeys to the serialized utxo pubkey array
+// we then need some kind of serialize tlv data trait which can be derived
+// that trait should enable explicitly finding the diff in a uxo, hm or we create a function that creates a the out utxo based on a diff
+// takeaway:
+// 1. instantiate serialized utxo struct
+// 2. serialize tlv and add accounts respectively - store the serialized tlv in the utxos
+// 3. add utxos
 
 impl SerializedUtxos {
     pub fn in_utxos_from_serialized_utxos(

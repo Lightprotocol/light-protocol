@@ -5,8 +5,8 @@ use std::println;
 use light_test_utils::{create_and_send_transaction, test_env::setup_test_programs_with_accounts};
 use psp_compressed_pda::{
     sdk::{create_execute_compressed_instruction, create_execute_compressed_opt_instruction},
+    utils::CompressedProof,
     utxo::{OutUtxo, Utxo},
-    ProofCompressed,
 };
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
 
@@ -33,7 +33,7 @@ async fn test_execute_compressed_transactio() {
         owner: payer_pubkey,
         data: None,
     }];
-    let proof_mock = ProofCompressed {
+    let proof_mock = CompressedProof {
         a: [0u8; 32],
         b: [0u8; 64],
         c: [0u8; 32],
@@ -99,7 +99,7 @@ async fn test_create_execute_compressed_transaction_2() {
         owner: payer_pubkey,
         data: None,
     }];
-    let proof_mock = ProofCompressed {
+    let proof_mock = CompressedProof {
         a: [0u8; 32],
         b: [0u8; 64],
         c: [0u8; 32],

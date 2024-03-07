@@ -11,9 +11,10 @@ use crate::{
 pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    out_utxos: &'a mut [Utxo],
+    out_utxo_indices: &'a mut [u32],
 ) -> anchor_lang::Result<()> {
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
-    let mut out_utxo_index: Vec<u32> = Vec::with_capacity(inputs.out_utxos.len());
     let mut leaves: Vec<[u8; 32]> = Vec::with_capacity(inputs.out_utxos.len());
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     for (j, out_utxo_tuple) in inputs.out_utxos.iter().enumerate() {
@@ -23,7 +24,8 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
             .push(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].clone());
         match index {
             Some(index) => {
-                out_utxo_index.push(*index as u32);
+                out_utxo_indices[j] = *index as u32;
+                *index += 1;
             }
             None => {
                 let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
@@ -36,10 +38,10 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
                 let index = merkle_tree.next_index as usize;
                 merkle_tree_indices.insert(
                     ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
-                    index,
+                    index + 1,
                 );
 
-                out_utxo_index.push(index as u32);
+                out_utxo_indices[j] = index as u32;
             }
         }
         let mut utxo = Utxo {
@@ -50,10 +52,11 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
         };
         utxo.update_blinding(
             ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
-            out_utxo_index[j] as usize,
+            out_utxo_indices[j] as usize,
         )
         .unwrap();
-        leaves.push(utxo.hash())
+        leaves.push(utxo.hash());
+        out_utxos[j] = utxo;
     }
 
     insert_two_leaves_cpi(

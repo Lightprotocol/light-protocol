@@ -138,12 +138,22 @@ export type PspCompressedToken = {
       "name": "transfer",
       "accounts": [
         {
-          "name": "signer",
+          "name": "feePayer",
           "isMut": true,
           "isSigner": true
         },
         {
-          "name": "authorityPda",
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cpiAuthorityPda",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -158,17 +168,17 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "compressedPdaProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "selfProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -188,54 +198,41 @@ export type PspCompressedToken = {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": {
+                "defined": "CompressedProof"
+              }
             }
           },
           {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lowElementIndexes",
+            "name": "rootIndices",
             "type": {
               "vec": "u16"
             }
           },
           {
-            "name": "rootIndexes",
+            "name": "inUtxos",
             "type": {
-              "vec": "u64"
+              "vec": {
+                "defined": "InUtxoTuple"
+              }
             }
           },
           {
-            "name": "rpcFee",
+            "name": "inTlvData",
             "type": {
-              "option": "u64"
+              "vec": {
+                "defined": "TokenTlvData"
+              }
             }
           },
           {
-            "name": "serializedUtxos",
+            "name": "outUtxos",
             "type": {
-              "defined": "SerializedUtxos"
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
             }
           }
         ]
@@ -243,6 +240,32 @@ export type PspCompressedToken = {
     }
   ],
   "types": [
+    {
+      "name": "TokenTransferOutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "lamports",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "TokenTlvData",
       "type": {
@@ -306,15 +329,6 @@ export type PspCompressedToken = {
               "The amount delegated"
             ],
             "type": "u64"
-          },
-          {
-            "name": "closeAuthority",
-            "docs": [
-              "Optional authority to close the account."
-            ],
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -347,6 +361,41 @@ export type PspCompressedToken = {
       "code": 6001,
       "name": "MissingNewAuthorityPda",
       "msg": "missing new authority pda"
+    },
+    {
+      "code": 6002,
+      "name": "SignerCheckFailed",
+      "msg": "SignerCheckFailed"
+    },
+    {
+      "code": 6003,
+      "name": "MintCheckFailed",
+      "msg": "MintCheckFailed"
+    },
+    {
+      "code": 6004,
+      "name": "ComputeInputSumFailed",
+      "msg": "ComputeInputSumFailed"
+    },
+    {
+      "code": 6005,
+      "name": "ComputeOutputSumFailed",
+      "msg": "ComputeOutputSumFailed"
+    },
+    {
+      "code": 6006,
+      "name": "ComputeCompressSumFailed",
+      "msg": "ComputeCompressSumFailed"
+    },
+    {
+      "code": 6007,
+      "name": "ComputeDecompressSumFailed",
+      "msg": "ComputeDecompressSumFailed"
+    },
+    {
+      "code": 6008,
+      "name": "SumCheckFailed",
+      "msg": "SumCheckFailed"
     }
   ]
 };
@@ -491,12 +540,22 @@ export const IDL: PspCompressedToken = {
       "name": "transfer",
       "accounts": [
         {
-          "name": "signer",
+          "name": "feePayer",
           "isMut": true,
           "isSigner": true
         },
         {
-          "name": "authorityPda",
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cpiAuthorityPda",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -511,17 +570,17 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "compressedPdaProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "selfProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -541,54 +600,41 @@ export const IDL: PspCompressedToken = {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
             "type": {
-              "array": [
-                "u8",
-                32
-              ]
+              "option": {
+                "defined": "CompressedProof"
+              }
             }
           },
           {
-            "name": "proofB",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "proofC",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "lowElementIndexes",
+            "name": "rootIndices",
             "type": {
               "vec": "u16"
             }
           },
           {
-            "name": "rootIndexes",
+            "name": "inUtxos",
             "type": {
-              "vec": "u64"
+              "vec": {
+                "defined": "InUtxoTuple"
+              }
             }
           },
           {
-            "name": "rpcFee",
+            "name": "inTlvData",
             "type": {
-              "option": "u64"
+              "vec": {
+                "defined": "TokenTlvData"
+              }
             }
           },
           {
-            "name": "serializedUtxos",
+            "name": "outUtxos",
             "type": {
-              "defined": "SerializedUtxos"
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
             }
           }
         ]
@@ -596,6 +642,32 @@ export const IDL: PspCompressedToken = {
     }
   ],
   "types": [
+    {
+      "name": "TokenTransferOutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "lamports",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
     {
       "name": "TokenTlvData",
       "type": {
@@ -659,15 +731,6 @@ export const IDL: PspCompressedToken = {
               "The amount delegated"
             ],
             "type": "u64"
-          },
-          {
-            "name": "closeAuthority",
-            "docs": [
-              "Optional authority to close the account."
-            ],
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -700,6 +763,41 @@ export const IDL: PspCompressedToken = {
       "code": 6001,
       "name": "MissingNewAuthorityPda",
       "msg": "missing new authority pda"
+    },
+    {
+      "code": 6002,
+      "name": "SignerCheckFailed",
+      "msg": "SignerCheckFailed"
+    },
+    {
+      "code": 6003,
+      "name": "MintCheckFailed",
+      "msg": "MintCheckFailed"
+    },
+    {
+      "code": 6004,
+      "name": "ComputeInputSumFailed",
+      "msg": "ComputeInputSumFailed"
+    },
+    {
+      "code": 6005,
+      "name": "ComputeOutputSumFailed",
+      "msg": "ComputeOutputSumFailed"
+    },
+    {
+      "code": 6006,
+      "name": "ComputeCompressSumFailed",
+      "msg": "ComputeCompressSumFailed"
+    },
+    {
+      "code": 6007,
+      "name": "ComputeDecompressSumFailed",
+      "msg": "ComputeDecompressSumFailed"
+    },
+    {
+      "code": 6008,
+      "name": "SumCheckFailed",
+      "msg": "SumCheckFailed"
     }
   ]
 };

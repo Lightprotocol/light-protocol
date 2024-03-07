@@ -59,3 +59,5 @@ jobs:
           do
             npx nx run $subtest
           done
+          
+          cd programs/light && cargo test-sbf
