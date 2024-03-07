@@ -14,19 +14,17 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = ["custom-heap"]
+default = []
 test-sbf = []
-custom-heap = []
 
 [dependencies]
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 anchor-lang = "0.29.0"
 bytemuck = "1.14"
-light-verifier-sdk = { version = "0.3.0", path = "../../verifier-sdk" }
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
+account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"]  }
 # TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
 ahash = "=0.8.6"
-account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"]  }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.17.4"

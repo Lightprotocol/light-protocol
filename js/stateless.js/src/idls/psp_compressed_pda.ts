@@ -12,7 +12,7 @@ export type PspCompressedPda = {
       "accounts": [
         {
           "name": "signer",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -40,6 +40,12 @@ export type PspCompressedPda = {
           "isMut": false,
           "isSigner": false,
           "isOptional": true
+        },
+        {
+          "name": "invokingProgram",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -61,7 +67,7 @@ export type PspCompressedPda = {
       "accounts": [
         {
           "name": "signer",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -86,6 +92,12 @@ export type PspCompressedPda = {
         },
         {
           "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "invokingProgram",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -128,7 +140,7 @@ export type PspCompressedPda = {
             "name": "proof",
             "type": {
               "option": {
-                "defined": "ProofCompressed"
+                "defined": "CompressedProof"
               }
             }
           },
@@ -178,7 +190,7 @@ export type PspCompressedPda = {
             "name": "proof",
             "type": {
               "option": {
-                "defined": "ProofCompressed"
+                "defined": "CompressedProof"
               }
             }
           },
@@ -281,41 +293,6 @@ export type PspCompressedPda = {
             "name": "tlvData",
             "type": {
               "defined": "TlvDataElement"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ProofCompressed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "a",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "b",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "c",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
             }
           }
         ]
@@ -442,6 +419,41 @@ export type PspCompressedPda = {
           },
           {
             "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProof",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
             "type": {
               "array": [
                 "u8",
@@ -751,7 +763,7 @@ export const IDL: PspCompressedPda = {
       "accounts": [
         {
           "name": "signer",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -779,6 +791,12 @@ export const IDL: PspCompressedPda = {
           "isMut": false,
           "isSigner": false,
           "isOptional": true
+        },
+        {
+          "name": "invokingProgram",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
         }
       ],
       "args": [
@@ -800,7 +818,7 @@ export const IDL: PspCompressedPda = {
       "accounts": [
         {
           "name": "signer",
-          "isMut": true,
+          "isMut": false,
           "isSigner": true
         },
         {
@@ -825,6 +843,12 @@ export const IDL: PspCompressedPda = {
         },
         {
           "name": "cpiSignatureAccount",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "invokingProgram",
           "isMut": false,
           "isSigner": false,
           "isOptional": true
@@ -867,7 +891,7 @@ export const IDL: PspCompressedPda = {
             "name": "proof",
             "type": {
               "option": {
-                "defined": "ProofCompressed"
+                "defined": "CompressedProof"
               }
             }
           },
@@ -917,7 +941,7 @@ export const IDL: PspCompressedPda = {
             "name": "proof",
             "type": {
               "option": {
-                "defined": "ProofCompressed"
+                "defined": "CompressedProof"
               }
             }
           },
@@ -1020,41 +1044,6 @@ export const IDL: PspCompressedPda = {
             "name": "tlvData",
             "type": {
               "defined": "TlvDataElement"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "ProofCompressed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "a",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "b",
-            "type": {
-              "array": [
-                "u8",
-                64
-              ]
-            }
-          },
-          {
-            "name": "c",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
             }
           }
         ]
@@ -1181,6 +1170,41 @@ export const IDL: PspCompressedPda = {
           },
           {
             "name": "dataHash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProof",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
             "type": {
               "array": [
                 "u8",

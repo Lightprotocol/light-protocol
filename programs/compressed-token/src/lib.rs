@@ -197,6 +197,20 @@ pub enum ErrorCode {
     PublicKeyAmountMissmatch,
     #[msg("missing new authority pda")]
     MissingNewAuthorityPda,
+    #[msg("SignerCheckFailed")]
+    SignerCheckFailed,
+    #[msg("MintCheckFailed")]
+    MintCheckFailed,
+    #[msg("ComputeInputSumFailed")]
+    ComputeInputSumFailed,
+    #[msg("ComputeOutputSumFailed")]
+    ComputeOutputSumFailed,
+    #[msg("ComputeCompressSumFailed")]
+    ComputeCompressSumFailed,
+    #[msg("ComputeDecompressSumFailed")]
+    ComputeDecompressSumFailed,
+    #[msg("SumCheckFailed")]
+    SumCheckFailed,
 }
 
 // // TODO: unify these structures one way would be to put them into the registry program and import that into verifier sdk

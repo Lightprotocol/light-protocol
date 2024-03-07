@@ -138,12 +138,22 @@ export type PspCompressedToken = {
       "name": "transfer",
       "accounts": [
         {
-          "name": "signer",
+          "name": "feePayer",
           "isMut": true,
           "isSigner": true
         },
         {
-          "name": "authorityPda",
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cpiAuthorityPda",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -158,17 +168,17 @@ export type PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "compressedPdaProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "selfProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -183,12 +193,64 @@ export type PspCompressedToken = {
   ],
   "accounts": [
     {
-      "name": "instructionDataTransfer",
+      "name": "instructionDataTransferClient",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "CompressedProofClient"
+              }
+            }
+          },
+          {
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoTupleClient"
+              }
+            }
+          },
+          {
+            "name": "inTlvData",
+            "type": {
+              "vec": {
+                "defined": "TokenTlvData"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "UtxoClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "blinding",
             "type": {
               "array": [
                 "u8",
@@ -197,7 +259,58 @@ export type PspCompressedToken = {
             }
           },
           {
-            "name": "proofB",
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoTupleClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxo",
+            "type": {
+              "defined": "UtxoClient"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProofClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
             "type": {
               "array": [
                 "u8",
@@ -206,43 +319,89 @@ export type PspCompressedToken = {
             }
           },
           {
-            "name": "proofC",
+            "name": "c",
             "type": {
               "array": [
                 "u8",
                 32
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionDataTransfer",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "CompressedProof"
+              }
+            }
           },
           {
-            "name": "lowElementIndexes",
+            "name": "rootIndices",
             "type": {
               "vec": "u16"
             }
           },
           {
-            "name": "rootIndexes",
+            "name": "inUtxos",
             "type": {
-              "vec": "u64"
+              "vec": {
+                "defined": "InUtxoTuple"
+              }
             }
           },
           {
-            "name": "relayFee",
+            "name": "inTlvData",
+            "type": {
+              "vec": {
+                "defined": "TokenTlvData"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenTransferOutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "lamports",
             "type": {
               "option": "u64"
             }
           },
           {
-            "name": "serializedUtxos",
-            "type": {
-              "defined": "SerializedUtxos"
-            }
+            "name": "indexMtAccount",
+            "type": "u8"
           }
         ]
       }
-    }
-  ],
-  "types": [
+    },
     {
       "name": "TokenTlvData",
       "type": {
@@ -306,15 +465,6 @@ export type PspCompressedToken = {
               "The amount delegated"
             ],
             "type": "u64"
-          },
-          {
-            "name": "closeAuthority",
-            "docs": [
-              "Optional authority to close the account."
-            ],
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -347,6 +497,41 @@ export type PspCompressedToken = {
       "code": 6001,
       "name": "MissingNewAuthorityPda",
       "msg": "missing new authority pda"
+    },
+    {
+      "code": 6002,
+      "name": "SignerCheckFailed",
+      "msg": "SignerCheckFailed"
+    },
+    {
+      "code": 6003,
+      "name": "MintCheckFailed",
+      "msg": "MintCheckFailed"
+    },
+    {
+      "code": 6004,
+      "name": "ComputeInputSumFailed",
+      "msg": "ComputeInputSumFailed"
+    },
+    {
+      "code": 6005,
+      "name": "ComputeOutputSumFailed",
+      "msg": "ComputeOutputSumFailed"
+    },
+    {
+      "code": 6006,
+      "name": "ComputeCompressSumFailed",
+      "msg": "ComputeCompressSumFailed"
+    },
+    {
+      "code": 6007,
+      "name": "ComputeDecompressSumFailed",
+      "msg": "ComputeDecompressSumFailed"
+    },
+    {
+      "code": 6008,
+      "name": "SumCheckFailed",
+      "msg": "SumCheckFailed"
     }
   ]
 };
@@ -491,12 +676,22 @@ export const IDL: PspCompressedToken = {
       "name": "transfer",
       "accounts": [
         {
-          "name": "signer",
+          "name": "feePayer",
           "isMut": true,
           "isSigner": true
         },
         {
-          "name": "authorityPda",
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "cpiAuthorityPda",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "compressedPdaProgram",
           "isMut": false,
           "isSigner": false
         },
@@ -511,17 +706,17 @@ export const IDL: PspCompressedToken = {
           "isSigner": false
         },
         {
-          "name": "compressedPdaProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "pspAccountCompressionAuthority",
           "isMut": true,
           "isSigner": false
         },
         {
           "name": "accountCompressionProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "selfProgram",
           "isMut": false,
           "isSigner": false
         }
@@ -536,12 +731,64 @@ export const IDL: PspCompressedToken = {
   ],
   "accounts": [
     {
-      "name": "instructionDataTransfer",
+      "name": "instructionDataTransferClient",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "proofA",
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "CompressedProofClient"
+              }
+            }
+          },
+          {
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoTupleClient"
+              }
+            }
+          },
+          {
+            "name": "inTlvData",
+            "type": {
+              "vec": {
+                "defined": "TokenTlvData"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "UtxoClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "blinding",
             "type": {
               "array": [
                 "u8",
@@ -550,7 +797,58 @@ export const IDL: PspCompressedToken = {
             }
           },
           {
-            "name": "proofB",
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoTupleClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxo",
+            "type": {
+              "defined": "UtxoClient"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProofClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
             "type": {
               "array": [
                 "u8",
@@ -559,43 +857,89 @@ export const IDL: PspCompressedToken = {
             }
           },
           {
-            "name": "proofC",
+            "name": "c",
             "type": {
               "array": [
                 "u8",
                 32
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionDataTransfer",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "CompressedProof"
+              }
+            }
           },
           {
-            "name": "lowElementIndexes",
+            "name": "rootIndices",
             "type": {
               "vec": "u16"
             }
           },
           {
-            "name": "rootIndexes",
+            "name": "inUtxos",
             "type": {
-              "vec": "u64"
+              "vec": {
+                "defined": "InUtxoTuple"
+              }
             }
           },
           {
-            "name": "relayFee",
+            "name": "inTlvData",
+            "type": {
+              "vec": {
+                "defined": "TokenTlvData"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenTransferOutUtxo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "lamports",
             "type": {
               "option": "u64"
             }
           },
           {
-            "name": "serializedUtxos",
-            "type": {
-              "defined": "SerializedUtxos"
-            }
+            "name": "indexMtAccount",
+            "type": "u8"
           }
         ]
       }
-    }
-  ],
-  "types": [
+    },
     {
       "name": "TokenTlvData",
       "type": {
@@ -659,15 +1003,6 @@ export const IDL: PspCompressedToken = {
               "The amount delegated"
             ],
             "type": "u64"
-          },
-          {
-            "name": "closeAuthority",
-            "docs": [
-              "Optional authority to close the account."
-            ],
-            "type": {
-              "option": "publicKey"
-            }
           }
         ]
       }
@@ -700,6 +1035,41 @@ export const IDL: PspCompressedToken = {
       "code": 6001,
       "name": "MissingNewAuthorityPda",
       "msg": "missing new authority pda"
+    },
+    {
+      "code": 6002,
+      "name": "SignerCheckFailed",
+      "msg": "SignerCheckFailed"
+    },
+    {
+      "code": 6003,
+      "name": "MintCheckFailed",
+      "msg": "MintCheckFailed"
+    },
+    {
+      "code": 6004,
+      "name": "ComputeInputSumFailed",
+      "msg": "ComputeInputSumFailed"
+    },
+    {
+      "code": 6005,
+      "name": "ComputeOutputSumFailed",
+      "msg": "ComputeOutputSumFailed"
+    },
+    {
+      "code": 6006,
+      "name": "ComputeCompressSumFailed",
+      "msg": "ComputeCompressSumFailed"
+    },
+    {
+      "code": 6007,
+      "name": "ComputeDecompressSumFailed",
+      "msg": "ComputeDecompressSumFailed"
+    },
+    {
+      "code": 6008,
+      "name": "SumCheckFailed",
+      "msg": "SumCheckFailed"
     }
   ]
 };

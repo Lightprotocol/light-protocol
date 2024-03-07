@@ -6,9 +6,9 @@ use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use solana_sdk::instruction::Instruction;
 
 use crate::{
-    utils::{get_cpi_authority_pda, get_registered_program_pda},
+    utils::{get_cpi_authority_pda, get_registered_program_pda, CompressedProof},
     utxo::{InUtxoTuple, OutUtxo, OutUtxoTuple, SerializedUtxos, Utxo},
-    InstructionDataTransfer, InstructionDataTransfer2, ProofCompressed,
+    InstructionDataTransfer, InstructionDataTransfer2,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -20,7 +20,7 @@ pub fn create_execute_compressed_instruction(
     nullifier_array_pubkeys: &[Pubkey],
     out_utxo_merkle_tree_pubkeys: &[Pubkey],
     root_indices: &[u16],
-    proof: &ProofCompressed,
+    proof: &CompressedProof,
 ) -> Instruction {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _in_utxos: Vec<InUtxoTuple> = Vec::<InUtxoTuple>::new();
@@ -88,7 +88,7 @@ pub fn create_execute_compressed_instruction(
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let instruction_data = crate::instruction::ExecuteCompressedTransaction { inputs };
-    // InstructionDataTransfer::deserialize(&mut inputs.as_slice()).unwrap();
+
     let accounts = crate::accounts::TransferInstruction {
         signer: *payer,
         // authority_pda: get_cpi_authority_pda(&crate::ID),
@@ -97,6 +97,7 @@ pub fn create_execute_compressed_instruction(
         account_compression_program: account_compression::ID,
         psp_account_compression_authority: get_cpi_authority_pda(&crate::ID),
         cpi_signature_account: None,
+        invoking_program: None,
     };
     Instruction {
         program_id: crate::ID,
@@ -116,7 +117,7 @@ pub fn create_execute_compressed_opt_instruction(
     out_utxo_merkle_tree_pubkeys: &[Pubkey],
     leaf_indices: &[u32],
     root_indices: &[u16],
-    proof: &ProofCompressed,
+    proof: &CompressedProof,
 ) -> Instruction {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     for (i, mt) in in_utxo_merkle_tree_pubkeys.iter().enumerate() {
@@ -156,6 +157,7 @@ pub fn create_execute_compressed_opt_instruction(
         account_compression_program: account_compression::ID,
         psp_account_compression_authority: get_cpi_authority_pda(&crate::ID),
         cpi_signature_account: None,
+        invoking_program: None,
     };
     let mut utxos = SerializedUtxos {
         pubkey_array: vec![],
@@ -217,134 +219,141 @@ pub fn create_execute_compressed_opt_instruction(
     }
 }
 
-#[test]
-fn test_create_execute_compressed_transaction() {
-    let payer = Pubkey::new_unique();
-    let recipient = Pubkey::new_unique();
-    let in_utxos = vec![
-        Utxo {
-            lamports: 100,
-            owner: payer,
-            blinding: [0u8; 32],
-            data: None,
-        },
-        Utxo {
-            lamports: 100,
-            owner: payer,
-            blinding: [0u8; 32],
-            data: None,
-        },
-    ];
-    let out_utxos = vec![
-        OutUtxo {
-            lamports: 50,
-            owner: payer,
-            data: None,
-        },
-        OutUtxo {
-            lamports: 150,
-            owner: recipient,
-            data: None,
-        },
-    ];
-    let merkle_tree_pubkey = Pubkey::new_unique();
-    let nullifier_array_pubkey = Pubkey::new_unique();
-    let in_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey, merkle_tree_pubkey];
-    let nullifier_array_pubkeys = vec![nullifier_array_pubkey, nullifier_array_pubkey];
-    let out_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey, merkle_tree_pubkey];
-    let root_indices = vec![0, 1];
-    let proof = ProofCompressed {
-        a: [0u8; 32],
-        b: [0u8; 64],
-        c: [0u8; 32],
-    };
-    let instruction = create_execute_compressed_instruction(
-        &payer,
-        &in_utxos.clone(),
-        &out_utxos.clone(),
-        &in_utxo_merkle_tree_pubkeys,
-        &nullifier_array_pubkeys,
-        &out_utxo_merkle_tree_pubkeys,
-        &root_indices.clone(),
-        &proof.clone(),
-    );
-    assert_eq!(instruction.program_id, crate::ID);
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::utils::CompressedProof;
+    #[test]
+    fn test_create_execute_compressed_transaction() {
+        let payer = Pubkey::new_unique();
+        let recipient = Pubkey::new_unique();
+        let in_utxos = vec![
+            Utxo {
+                lamports: 100,
+                owner: payer,
+                blinding: [0u8; 32],
+                data: None,
+            },
+            Utxo {
+                lamports: 100,
+                owner: payer,
+                blinding: [0u8; 32],
+                data: None,
+            },
+        ];
+        let out_utxos = vec![
+            OutUtxo {
+                lamports: 50,
+                owner: payer,
+                data: None,
+            },
+            OutUtxo {
+                lamports: 150,
+                owner: recipient,
+                data: None,
+            },
+        ];
+        let merkle_tree_pubkey = Pubkey::new_unique();
+        let nullifier_array_pubkey = Pubkey::new_unique();
+        let in_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey, merkle_tree_pubkey];
+        let nullifier_array_pubkeys = vec![nullifier_array_pubkey, nullifier_array_pubkey];
+        let out_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey, merkle_tree_pubkey];
+        let root_indices = vec![0, 1];
+        let proof = CompressedProof {
+            a: [0u8; 32],
+            b: [0u8; 64],
+            c: [0u8; 32],
+        };
+        let instruction = create_execute_compressed_instruction(
+            &payer,
+            &in_utxos.clone(),
+            &out_utxos.clone(),
+            &in_utxo_merkle_tree_pubkeys,
+            &nullifier_array_pubkeys,
+            &out_utxo_merkle_tree_pubkeys,
+            &root_indices.clone(),
+            &proof.clone(),
+        );
+        assert_eq!(instruction.program_id, crate::ID);
 
-    use account_compression::AccountDeserialize;
+        use account_compression::AccountDeserialize;
 
-    let deserialized_instruction_data: InstructionDataTransfer =
-        InstructionDataTransfer::try_deserialize_unchecked(
-            &mut [vec![0u8; 8], instruction.data[12..].to_vec()]
-                .concat()
-                .as_slice(),
-        )
-        .unwrap();
-    deserialized_instruction_data
-        .in_utxos
-        .iter()
-        .enumerate()
-        .for_each(|(i, utxo)| {
-            assert_eq!(in_utxos[i], utxo.in_utxo);
-        });
-    deserialized_instruction_data
-        .out_utxos
-        .iter()
-        .enumerate()
-        .for_each(|(i, utxo)| {
-            assert_eq!(out_utxos[i], utxo.out_utxo);
-        });
-    assert_eq!(deserialized_instruction_data.in_utxos.len(), 2);
-    assert_eq!(deserialized_instruction_data.out_utxos.len(), 2);
-    assert_eq!(deserialized_instruction_data.root_indices, root_indices);
-    assert_eq!(
-        deserialized_instruction_data.proof.clone().unwrap().a,
-        proof.a
-    );
-    assert_eq!(
-        deserialized_instruction_data.proof.clone().unwrap().b,
-        proof.b
-    );
-    assert_eq!(
-        deserialized_instruction_data.proof.clone().unwrap().c,
-        proof.c
-    );
-    assert_eq!(instruction.accounts[0], AccountMeta::new(payer, true));
-    assert_eq!(
-        deserialized_instruction_data.in_utxos[0].index_nullifier_array_account,
-        1
-    );
-    assert_eq!(
-        deserialized_instruction_data.in_utxos[1].index_nullifier_array_account,
-        1
-    );
-    assert_eq!(
-        instruction.accounts
-            [6 + deserialized_instruction_data.in_utxos[0].index_mt_account as usize],
-        AccountMeta::new(merkle_tree_pubkey, false)
-    );
-    assert_eq!(
-        instruction.accounts
-            [6 + deserialized_instruction_data.in_utxos[1].index_mt_account as usize],
-        AccountMeta::new(merkle_tree_pubkey, false)
-    );
-    assert_eq!(
-        instruction.accounts
-            [6 + deserialized_instruction_data.in_utxos[0].index_nullifier_array_account as usize],
-        AccountMeta::new(nullifier_array_pubkey, false)
-    );
-    assert_eq!(
-        instruction.accounts
-            [6 + deserialized_instruction_data.in_utxos[1].index_nullifier_array_account as usize],
-        AccountMeta::new(nullifier_array_pubkey, false)
-    );
-    assert_eq!(
-        instruction.accounts
-            [6 + deserialized_instruction_data.out_utxos[0].index_mt_account as usize],
-        AccountMeta::new(merkle_tree_pubkey, false)
-    );
-    assert_eq!(
-        instruction.accounts
-            [6 + deserialized_instruction_data.out_utxos[1].index_mt_account as usize],
-        AccountMeta::new(merkle_tree_pubkey, false)
-    );
+        let deserialized_instruction_data: InstructionDataTransfer =
+            InstructionDataTransfer::try_deserialize_unchecked(
+                &mut [vec![0u8; 8], instruction.data[12..].to_vec()]
+                    .concat()
+                    .as_slice(),
+            )
+            .unwrap();
+        deserialized_instruction_data
+            .in_utxos
+            .iter()
+            .enumerate()
+            .for_each(|(i, utxo)| {
+                assert_eq!(in_utxos[i], utxo.in_utxo);
+            });
+        deserialized_instruction_data
+            .out_utxos
+            .iter()
+            .enumerate()
+            .for_each(|(i, utxo)| {
+                assert_eq!(out_utxos[i], utxo.out_utxo);
+            });
+        assert_eq!(deserialized_instruction_data.in_utxos.len(), 2);
+        assert_eq!(deserialized_instruction_data.out_utxos.len(), 2);
+        assert_eq!(deserialized_instruction_data.root_indices, root_indices);
+        assert_eq!(
+            deserialized_instruction_data.proof.clone().unwrap().a,
+            proof.a
+        );
+        assert_eq!(
+            deserialized_instruction_data.proof.clone().unwrap().b,
+            proof.b
+        );
+        assert_eq!(
+            deserialized_instruction_data.proof.clone().unwrap().c,
+            proof.c
+        );
+        let mut ref_account_meta = AccountMeta::new(payer, true);
+        ref_account_meta.is_writable = false;
+        assert_eq!(instruction.accounts[0], ref_account_meta);
+        assert_eq!(
+            deserialized_instruction_data.in_utxos[0].index_nullifier_array_account,
+            1
+        );
+        assert_eq!(
+            deserialized_instruction_data.in_utxos[1].index_nullifier_array_account,
+            1
+        );
+        assert_eq!(
+            instruction.accounts
+                [7 + deserialized_instruction_data.in_utxos[0].index_mt_account as usize],
+            AccountMeta::new(merkle_tree_pubkey, false)
+        );
+        assert_eq!(
+            instruction.accounts
+                [7 + deserialized_instruction_data.in_utxos[1].index_mt_account as usize],
+            AccountMeta::new(merkle_tree_pubkey, false)
+        );
+        assert_eq!(
+            instruction.accounts[7 + deserialized_instruction_data.in_utxos[0]
+                .index_nullifier_array_account as usize],
+            AccountMeta::new(nullifier_array_pubkey, false)
+        );
+        assert_eq!(
+            instruction.accounts[7 + deserialized_instruction_data.in_utxos[1]
+                .index_nullifier_array_account as usize],
+            AccountMeta::new(nullifier_array_pubkey, false)
+        );
+        assert_eq!(
+            instruction.accounts
+                [7 + deserialized_instruction_data.out_utxos[0].index_mt_account as usize],
+            AccountMeta::new(merkle_tree_pubkey, false)
+        );
+        assert_eq!(
+            instruction.accounts
+                [7 + deserialized_instruction_data.out_utxos[1].index_mt_account as usize],
+            AccountMeta::new(merkle_tree_pubkey, false)
+        );
+    }
 }

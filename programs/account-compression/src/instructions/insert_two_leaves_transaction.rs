@@ -78,6 +78,7 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
         let state_merkle_tree =
             state_merkle_tree_from_bytes_mut(&mut merkle_tree_account.state_merkle_tree);
+        msg!("inserting leaves: {:?}", leaves);
         let changelog_entries = state_merkle_tree.append_batch(&leaves[..]).unwrap();
         changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
             mt.key(),

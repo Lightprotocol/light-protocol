@@ -52,7 +52,7 @@ pub fn process_mint_to<'info>(
         compression_public_keys.as_slice(),
         &amounts,
     );
-    cpi_create_execute_compressed_instruction(&ctx, &out_utxos)?;
+    cpi_execute_compressed_transaction_mint_to(&ctx, &out_utxos)?;
     Ok(())
 }
 
@@ -69,18 +69,17 @@ pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]
                 state: AccountState::Initialized,
                 is_native: None,
                 delegated_amount: 0,
-                close_authority: None,
             };
             let mut token_data = Vec::new();
             token_tlv_data.serialize(&mut token_data).unwrap();
             let data: TlvDataElement = TlvDataElement {
                 discriminator: 2u64.to_le_bytes(),
-                owner: Token::id(),
+                owner: crate::ID,
                 data: token_data,
                 data_hash: token_tlv_data.hash().unwrap(),
             };
             OutUtxo {
-                owner: Token::id(),
+                owner: crate::ID,
                 lamports: 0,
                 data: Some(Tlv {
                     tlv_elements: vec![data],
@@ -91,8 +90,7 @@ pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]
 }
 
 #[inline(never)]
-#[allow(clippy::too_many_arguments)]
-pub fn cpi_create_execute_compressed_instruction<'info>(
+pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     out_utxos: &[OutUtxo],
 ) -> Result<()> {
@@ -143,6 +141,7 @@ pub fn cpi_create_execute_compressed_instruction<'info>(
             .to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         cpi_signature_account: None,
+        invoking_program: None,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -257,7 +256,7 @@ pub mod mint_sdk {
 
     use crate::{get_token_authority_pda, get_token_pool_pda};
 
-    pub fn create_initiatialize_mint_instruction(
+    pub fn create_initialize_mint_instruction(
         fee_payer: &Pubkey,
         authority: &Pubkey,
         mint: &Pubkey,

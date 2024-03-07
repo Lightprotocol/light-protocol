@@ -1,4 +1,4 @@
-#[cfg(not(target_os = "solana"))]
+#![cfg(not(target_os = "solana"))]
 use account_compression::{self, utils::constants::GROUP_AUTHORITY_SEED, ID};
 use anchor_lang::{system_program, InstructionData};
 use solana_sdk::{

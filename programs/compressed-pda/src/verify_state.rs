@@ -1,13 +1,11 @@
-use std::collections::HashMap;
-
 use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::prelude::*;
 
 #[cfg(test)]
 use crate::utxo::OutUtxo;
 use crate::{
     instructions::{InstructionDataTransfer, TransferInstruction},
-    utxo::{InUtxoTuple, OutUtxoTuple, Utxo},
+    utxo::{InUtxoTuple, OutUtxoTuple},
     ErrorCode,
 };
 
@@ -34,56 +32,6 @@ pub fn hash_in_utxos<'a, 'b, 'c: 'info, 'info>(
 ) -> anchor_lang::Result<()> {
     for (j, in_utxo_tuple) in inputs.in_utxos.iter().enumerate() {
         leaves[j] = in_utxo_tuple.in_utxo.hash();
-    }
-    Ok(())
-}
-
-pub fn out_utxos_to_utxos<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    utxos: &'a mut [Utxo],
-    out_utxo_index: &'a mut [u32],
-) -> anchor_lang::Result<()> {
-    let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
-    let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
-    for (j, out_utxo_tuple) in inputs.out_utxos.iter().enumerate() {
-        let index = merkle_tree_indices
-            .get_mut(&ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key());
-        out_merkle_trees_account_infos
-            .push(ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].clone());
-        match index {
-            Some(index) => {
-                out_utxo_index[j] = *index as u32;
-            }
-            None => {
-                let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
-                    &ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize],
-                )
-                .unwrap();
-                let merkle_tree_account = merkle_tree.load()?;
-                let merkle_tree =
-                    state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
-                let index = merkle_tree.next_index as usize;
-                merkle_tree_indices.insert(
-                    ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
-                    index,
-                );
-
-                out_utxo_index[j] = index as u32;
-            }
-        }
-        let mut utxo: Utxo = Utxo {
-            owner: out_utxo_tuple.out_utxo.owner,
-            blinding: [0u8; 32],
-            lamports: out_utxo_tuple.out_utxo.lamports,
-            data: out_utxo_tuple.out_utxo.data.clone(),
-        };
-        utxo.update_blinding(
-            ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
-            out_utxo_index[j] as usize,
-        )
-        .unwrap();
-        utxos[j] = utxo;
     }
     Ok(())
 }
@@ -122,82 +70,97 @@ pub fn sum_check(
     }
 }
 
-#[test]
-fn test_sum_check_passes() {
-    let in_utxos: Vec<InUtxoTuple> = vec![
-        InUtxoTuple {
-            in_utxo: Utxo {
-                owner: Pubkey::new_unique(),
-                blinding: [0; 32],
-                lamports: 100,
-                data: None,
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::utxo::{InUtxoTuple, Utxo};
+
+    #[test]
+    fn test_sum_check_passes() {
+        let in_utxos: Vec<InUtxoTuple> = vec![
+            InUtxoTuple {
+                in_utxo: Utxo {
+                    owner: Pubkey::new_unique(),
+                    blinding: [0; 32],
+                    lamports: 100,
+                    data: None,
+                },
+                index_mt_account: 0,
+                index_nullifier_array_account: 0,
             },
-            index_mt_account: 0,
-            index_nullifier_array_account: 0,
-        },
-        InUtxoTuple {
-            in_utxo: Utxo {
-                owner: Pubkey::new_unique(),
-                blinding: [0; 32],
-                lamports: 50,
-                data: None,
+            InUtxoTuple {
+                in_utxo: Utxo {
+                    owner: Pubkey::new_unique(),
+                    blinding: [0; 32],
+                    lamports: 50,
+                    data: None,
+                },
+                index_mt_account: 0,
+                index_nullifier_array_account: 0,
             },
-            index_mt_account: 0,
-            index_nullifier_array_account: 0,
-        },
-    ];
+        ];
 
-    let out_utxos: Vec<OutUtxoTuple> = vec![OutUtxoTuple {
-        out_utxo: OutUtxo {
-            owner: Pubkey::new_unique(),
-            lamports: 150,
-            data: None,
-        },
-        index_mt_account: 0,
-    }];
-
-    let relay_fee = None; // No RPC fee
-
-    let result = sum_check(&in_utxos, &out_utxos, &relay_fee);
-    assert!(result.is_ok());
-}
-
-#[test]
-fn test_sum_check_fails() {
-    let in_utxos: Vec<InUtxoTuple> = vec![
-        InUtxoTuple {
-            in_utxo: Utxo {
+        let out_utxos: Vec<OutUtxoTuple> = vec![OutUtxoTuple {
+            out_utxo: OutUtxo {
                 owner: Pubkey::new_unique(),
-                blinding: [0; 32],
                 lamports: 150,
                 data: None,
             },
             index_mt_account: 0,
-            index_nullifier_array_account: 0,
-        },
-        InUtxoTuple {
-            in_utxo: Utxo {
+        }];
+
+        let relay_fee = None; // No RPC fee
+
+        let result = sum_check(&in_utxos, &out_utxos, &relay_fee);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_sum_check_fails() {
+        let in_utxos: Vec<InUtxoTuple> = vec![
+            InUtxoTuple {
+                in_utxo: Utxo {
+                    owner: Pubkey::new_unique(),
+                    blinding: [0; 32],
+                    lamports: 150,
+                    data: None,
+                },
+                index_mt_account: 0,
+                index_nullifier_array_account: 0,
+            },
+            InUtxoTuple {
+                in_utxo: Utxo {
+                    owner: Pubkey::new_unique(),
+                    blinding: [0; 32],
+                    lamports: 50,
+                    data: None,
+                },
+                index_mt_account: 0,
+                index_nullifier_array_account: 0,
+            },
+        ];
+
+        let out_utxos: [OutUtxoTuple; 1] = [OutUtxoTuple {
+            out_utxo: OutUtxo {
                 owner: Pubkey::new_unique(),
-                blinding: [0; 32],
-                lamports: 50,
+                lamports: 100,
                 data: None,
             },
             index_mt_account: 0,
-            index_nullifier_array_account: 0,
-        },
-    ];
+        }];
 
-    let out_utxos: [OutUtxoTuple; 1] = [OutUtxoTuple {
-        out_utxo: OutUtxo {
-            owner: Pubkey::new_unique(),
-            lamports: 100,
-            data: None,
-        },
-        index_mt_account: 0,
-    }];
+        let out_utxos: [OutUtxoTuple; 1] = [OutUtxoTuple {
+            out_utxo: OutUtxo {
+                owner: Pubkey::new_unique(),
+                lamports: 100,
+                data: None,
+            },
+            index_mt_account: 0,
+        }];
 
-    let relay_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
+        let relay_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
 
-    let result = sum_check(&in_utxos, &out_utxos, &relay_fee);
-    assert!(result.is_err());
+        let result = sum_check(&in_utxos, &out_utxos, &relay_fee);
+        assert!(result.is_err());
+    }
 }
