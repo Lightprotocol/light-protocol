@@ -66,6 +66,7 @@ runs:
         echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
     - name: Verify Solana Test Validator Installation
+      shell: bash
       run: solana-test-validator --version
 
     - name: Build and prepare for tests
