@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
-// use light_verifier_sdk::light_transaction::ProofCompressed;
 
+// use light_verifier_sdk::light_transaction::ProofCompressed;
 use crate::{
     append_state::insert_out_utxos,
     event::{emit_state_transition_event, PublicTransactionEvent},

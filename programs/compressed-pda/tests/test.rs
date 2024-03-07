@@ -2,16 +2,17 @@
 
 use std::println;
 
-use light_test_utils::{create_and_send_transaction, test_env::{setup_test_programs_with_accounts, PAYER_KEYPAIR}};
+use light_test_utils::{
+    create_and_send_transaction,
+    test_env::{setup_test_programs_with_accounts, PAYER_KEYPAIR},
+};
 // use light_verifier_sdk::light_transaction::ProofCompressed;
 use psp_compressed_pda::{
-    sdk::{
-        create_execute_compressed_instruction, create_execute_compressed_opt_instruction,
-    },
-    utxo::{OutUtxo, Utxo}, ProofCompressed,
+    sdk::{create_execute_compressed_instruction, create_execute_compressed_opt_instruction},
+    utxo::{OutUtxo, Utxo},
+    ProofCompressed,
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
-
 
 #[tokio::test]
 async fn test_execute_compressed_transactio() {
@@ -27,9 +28,8 @@ async fn test_execute_compressed_transactio() {
     // ];
     // let payer = Keypair::from_bytes(&payer_keypair).unwrap();
 
-
     let payer_pubkey = payer.pubkey();
-    
+
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
     let in_utxos = vec![Utxo {
@@ -43,7 +43,6 @@ async fn test_execute_compressed_transactio() {
     println!("payer_pubkey: {:?}", payer_pubkey);
     println!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
     println!("indexed_array_pubkey: {:?}", indexed_array_pubkey);
-
 
     let out_utxos = vec![OutUtxo {
         lamports: 0,
@@ -89,7 +88,6 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
-
 
     let res =
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;

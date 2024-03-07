@@ -1,25 +1,15 @@
 #![cfg(not(target_os = "solana"))]
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 use account_compression::{AccountMeta, Pubkey};
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-// use light_verifier_sdk::light_transaction::Proof;
-// use light_verifier_sdk::light_transaction::ProofCompressed;
 use solana_sdk::instruction::Instruction;
 
-use crate::ProofCompressed;
 use crate::{
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     utxo::{InUtxoTuple, OutUtxo, OutUtxoTuple, SerializedUtxos, Utxo},
-    InstructionDataTransfer, InstructionDataTransfer2,
+    InstructionDataTransfer, InstructionDataTransfer2, ProofCompressed,
 };
-
-// #[derive(Debug, Clone, PartialEq, Eq)]
-// // pub struct ProofCompressed {
-// //     pub a: [u8; 32],
-// //     pub b: [u8; 64],
-// //     pub c: [u8; 32],
-// // }
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_execute_compressed_instruction(
