@@ -59,6 +59,15 @@ runs:
       shell: bash
       run: pnpm install
 
+    - name: Install Solana CLI tools
+      shell: bash
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v1.10.0/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+
+    - name: Verify Solana Test Validator Installation
+      run: solana-test-validator --version
+
     - name: Build and prepare for tests
       shell: bash
       run: |
