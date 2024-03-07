@@ -256,7 +256,7 @@ pub mod mint_sdk {
 
     use crate::{get_token_authority_pda, get_token_pool_pda};
 
-    pub fn create_initiatialize_mint_instruction(
+    pub fn create_initialize_mint_instruction(
         fee_payer: &Pubkey,
         authority: &Pubkey,
         mint: &Pubkey,

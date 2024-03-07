@@ -10,7 +10,7 @@ use light_test_utils::{
 use psp_compressed_pda::{event::PublicTransactionEvent, utils::CompressedProof, utxo::Utxo};
 use psp_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
-    mint_sdk::{create_initiatialize_mint_instruction, create_mint_to_instruction},
+    mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
     transfer_sdk, TokenTlvData, TokenTransferOutUtxo,
 };
 use solana_program_test::ProgramTestContext;
@@ -48,7 +48,7 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(&payer, &mint_pubkey, rent);
 
-    let instruction = create_initiatialize_mint_instruction(&payer, &authority, &mint_pubkey);
+    let instruction = create_initialize_mint_instruction(&payer, &authority, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [
