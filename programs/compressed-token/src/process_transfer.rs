@@ -107,7 +107,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     //     in_utxo_data_hashes: [None, None],
     //     out_utxos: out_utxos.clone(),
     //     merkle_root_indexes,
-    //     rpc_fee: inputs.rpc_fee,
+    //     relay_fee: inputs.relay_fee,
     //     pool_type: &[0u8; 32],
     //     verifyingkey: &VERIFYINGKEY_PUBLIC_PROGRAM_TRANSACTION2_IN2_OUT_MAIN,
     //     program_id: None,
@@ -176,7 +176,7 @@ pub struct InstructionDataTransfer {
     proof_c: [u8; 32],
     low_element_indexes: Vec<u16>,
     root_indexes: Vec<u64>,
-    rpc_fee: Option<u64>,
+    relay_fee: Option<u64>,
     serialized_utxos: SerializedUtxos,
 }
 

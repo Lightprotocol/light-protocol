@@ -1,12 +1,12 @@
 #![cfg(feature = "test-sbf")]
 
+use std::println;
+
 use light_test_utils::{create_and_send_transaction, test_env::setup_test_programs_with_accounts};
 use psp_compressed_pda::{
-    sdk::{
-        create_execute_compressed_instruction, create_execute_compressed_opt_instruction,
-        CompressedProof,
-    },
+    sdk::{create_execute_compressed_instruction, create_execute_compressed_opt_instruction},
     utxo::{OutUtxo, Utxo},
+    ProofCompressed,
 };
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
 
@@ -16,7 +16,9 @@ async fn test_execute_compressed_transactio() {
         setup_test_programs_with_accounts().await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
+
     let payer_pubkey = payer.pubkey();
+
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
     let in_utxos = vec![Utxo {
@@ -31,10 +33,10 @@ async fn test_execute_compressed_transactio() {
         owner: payer_pubkey,
         data: None,
     }];
-    let proof_mock = CompressedProof {
-        proof_a: [0u8; 32],
-        proof_b: [0u8; 64],
-        proof_c: [0u8; 32],
+    let proof_mock = ProofCompressed {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
     };
 
     let instruction = create_execute_compressed_instruction(
@@ -67,6 +69,7 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
+
     let res =
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
     assert!(res.is_err());
@@ -96,10 +99,10 @@ async fn test_create_execute_compressed_transaction_2() {
         owner: payer_pubkey,
         data: None,
     }];
-    let proof_mock = CompressedProof {
-        proof_a: [0u8; 32],
-        proof_b: [0u8; 64],
-        proof_c: [0u8; 32],
+    let proof_mock = ProofCompressed {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
     };
 
     let instruction = create_execute_compressed_opt_instruction(
@@ -153,6 +156,7 @@ async fn regenerate_accounts() {
         ("indexed_array_pubkey", env.indexed_array_pubkey),
         ("governance_authority_pda", env.governance_authority_pda),
         ("group_pda", env.group_pda),
+        ("registered_program_pda", env.registered_program_pda),
     ];
 
     for (name, pubkey) in pubkeys {

@@ -32,11 +32,13 @@ func runCli() {
 			{
 				Name: "setup",
 				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
 					&cli.UintFlag{Name: "utxos", Usage: "Number of Utxos", Required: true},
 				},
 				Action: func(context *cli.Context) error {
+					circuit := context.String("circuit")
 					path := context.String("output")
 					treeDepth := uint32(context.Uint("tree-depth"))
 					numberOfUtxos := uint32(context.Uint("utxos"))
@@ -44,7 +46,7 @@ func runCli() {
 
 					var system *prover.ProvingSystem
 					var err error
-					system, err = prover.SetupInclusion(treeDepth, numberOfUtxos)
+					system, err = prover.SetupCircuit(circuit, treeDepth, numberOfUtxos)
 
 					if err != nil {
 						return err
@@ -416,7 +418,18 @@ func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, 
 	if len(cfg.Keys) == 0 {
 		logging.Logger().Info().Msg("No config file provided, using defaults")
 		cfg = config.Config{
-			Keys: []string{"circuits/circuit_26_1.key", "circuits/circuit_26_2.key", "circuits/circuit_26_3.key", "circuits/circuit_26_4.key", "circuits/circuit_26_8.key"},
+			Keys: []string{
+				"circuits/inclusion_26_1.key",
+				"circuits/inclusion_26_2.key",
+				"circuits/inclusion_26_3.key",
+				"circuits/inclusion_26_4.key",
+				"circuits/inclusion_26_8.key",
+				"circuits/non-inclusion_26_1.key",
+				"circuits/non-inclusion_26_2.key",
+				"circuits/non-inclusion_26_3.key",
+				"circuits/non-inclusion_26_4.key",
+				"circuits/non-inclusion_26_8.key",
+			},
 		}
 	}
 

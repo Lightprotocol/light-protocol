@@ -433,7 +433,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65be532f9dd1e98ad0150b037276cde464c6f371059e6dd02c0222395761f6aa"
 dependencies = [
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-std 0.3.0",
 ]
 
@@ -443,7 +443,7 @@ version = "0.3.0"
 source = "git+https://github.com/Lightprotocol/curves?branch=release-0.3.0#7c901afc3ec80bf3eaea654237ffe73356f68c86"
 dependencies = [
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-std 0.3.0",
 ]
 
@@ -492,11 +492,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff773c0ef8c655c98071d3026a63950798a66b2f45baef22d8334c1756f1bd18"
 dependencies = [
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-nonnative-field",
  "ark-r1cs-std",
  "ark-relations 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-snark 0.3.0",
  "ark-std 0.3.0",
  "blake2 0.9.2",
@@ -529,8 +529,8 @@ name = "ark-ec"
 version = "0.3.0"
 source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
- "ark-ff 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
  "derivative",
  "num-traits",
@@ -563,7 +563,7 @@ checksum = "43b7ada17db3854f5994e74e60b18e10e818594935ee7e1d329800c117b32970"
 dependencies = [
  "ark-bls12-381",
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-r1cs-std",
  "ark-std 0.3.0",
 ]
@@ -576,7 +576,7 @@ checksum = "7fdc786b806fdbff4abebb08ec2fcb50cfe3941918e57120ab121228452903fd"
 dependencies = [
  "ark-bn254 0.3.0",
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-r1cs-std",
  "ark-std 0.3.0",
 ]
@@ -586,15 +586,32 @@ name = "ark-ff"
 version = "0.3.0"
 source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
- "ark-ff-asm 0.3.0",
- "ark-ff-macros 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-ff-asm 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
+ "ark-ff-macros 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
  "derivative",
  "num-bigint 0.4.4",
  "num-traits",
  "paste",
  "rustc_version 0.3.3",
+ "zeroize",
+]
+
+[[package]]
+name = "ark-ff"
+version = "0.3.0"
+source = "git+https://github.com/Lightprotocol/algebra#4184e52420a498a996b54ea812c15ae5b620da90"
+dependencies = [
+ "ark-ff-asm 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
+ "ark-ff-macros 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
+ "ark-std 0.3.0",
+ "derivative",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "paste",
+ "rustc_version 0.4.0",
  "zeroize",
 ]
 
@@ -630,6 +647,15 @@ dependencies = [
 
 [[package]]
 name = "ark-ff-asm"
+version = "0.3.0"
+source = "git+https://github.com/Lightprotocol/algebra#4184e52420a498a996b54ea812c15ae5b620da90"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "ark-ff-asm"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ed4aa4fe255d0bc6d79373f7e31d2ea147bcf486cba1be5ba7ea85abdb92348"
@@ -642,6 +668,17 @@ dependencies = [
 name = "ark-ff-macros"
 version = "0.3.0"
 source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
+dependencies = [
+ "num-bigint 0.4.4",
+ "num-traits",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "ark-ff-macros"
+version = "0.3.0"
+source = "git+https://github.com/Lightprotocol/algebra#4184e52420a498a996b54ea812c15ae5b620da90"
 dependencies = [
  "num-bigint 0.4.4",
  "num-traits",
@@ -670,10 +707,10 @@ checksum = "38f8fff7468e947130b5caf9bdd27de8b913cf30e15104b4f0cd301726b3d897"
 dependencies = [
  "ark-crypto-primitives 0.3.0",
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-poly 0.3.0",
  "ark-relations 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
 ]
 
@@ -699,11 +736,11 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caa8510faa8e64f0a6841ee4b58efe2d56f7a80d86fa0ce9891bbb3aa20166d9"
 dependencies = [
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-poly 0.3.0",
  "ark-poly-commit",
  "ark-relations 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
  "derivative",
  "digest 0.9.0",
@@ -717,7 +754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "440ad4569974910adbeb84422b7e622b79e08d27142afd113785b7fcfb446186"
 dependencies = [
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-r1cs-std",
  "ark-relations 0.3.0",
  "ark-std 0.3.0",
@@ -734,8 +771,8 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b0f78f47537c2f15706db7e98fe64cc1711dbf9def81218194e17239e53e5aa"
 dependencies = [
- "ark-ff 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
  "derivative",
  "hashbrown 0.11.2",
@@ -762,9 +799,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a71ddfa72bad1446cab7bbecb6018dbbdc9abcbc3a0065483ae5186ad2a64dcd"
 dependencies = [
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-poly 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
  "derivative",
  "digest 0.9.0",
@@ -778,7 +815,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22e8fdacb1931f238a0d866ced1e916a49d36de832fd8b83dc916b718ae72893"
 dependencies = [
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-relations 0.3.0",
  "ark-std 0.3.0",
  "derivative",
@@ -793,7 +830,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4cba4c1c99792a6834bd97f7fd76578ec2cd58d2afc5139a17e1d1bec65b38f6"
 dependencies = [
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-std 0.3.0",
  "tracing",
  "tracing-subscriber 0.2.25",
@@ -819,6 +856,15 @@ dependencies = [
  "ark-serialize-derive 0.3.0",
  "ark-std 0.3.0",
  "digest 0.9.0",
+]
+
+[[package]]
+name = "ark-serialize"
+version = "0.3.0"
+source = "git+https://github.com/Lightprotocol/algebra#4184e52420a498a996b54ea812c15ae5b620da90"
+dependencies = [
+ "ark-std 0.3.0",
+ "digest 0.10.7",
 ]
 
 [[package]]
@@ -860,7 +906,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dc3dff1a5f67a9c0b34df32b079752d8dd17f1e9d06253da0453db6c1b7cc8a"
 dependencies = [
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-relations 0.3.0",
  "ark-std 0.3.0",
 ]
@@ -910,14 +956,14 @@ dependencies = [
  "ark-ec 0.3.0",
  "ark-ed-on-bls12-381",
  "ark-ed-on-bn254",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-groth16 0.3.0",
  "ark-marlin",
  "ark-poly 0.3.0",
  "ark-poly-commit",
  "ark-r1cs-std",
  "ark-relations 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-snark 0.3.0",
  "ark-std 0.3.0",
  "blake2 0.9.2",
@@ -1376,9 +1422,9 @@ checksum = "e1e5f035d16fc623ae5f74981db80a439803888314e3a555fd6f04acd51a3205"
 
 [[package]]
 name = "bytemuck"
-version = "1.14.0"
+version = "1.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "374d28ec25809ee0e23827c2ab573d729e293f281dfe393500e7ad618baa61c6"
+checksum = "a2ef034f05691a48569bd920a96c81b9d91bbad1ab5ac7c4616c1f6ef36cb79f"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1530,12 +1576,15 @@ dependencies = [
  "ark-relations 0.4.0",
  "ark-serialize 0.4.2",
  "ark-std 0.4.0",
+ "bytemuck",
  "color-eyre",
  "duct",
  "env_logger 0.10.2",
  "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana.git)",
  "light-hasher",
+ "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
+ "light-utils",
  "log",
  "num-bigint 0.4.4",
  "num-traits",
@@ -3271,6 +3320,7 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-merkle-tree-reference",
  "light-utils",
+ "num-bigint 0.4.4",
  "num-traits",
  "solana-program",
  "thiserror",
@@ -3314,10 +3364,10 @@ dependencies = [
  "ark-crypto-primitives 0.3.0",
  "ark-ec 0.3.0",
  "ark-ed-on-bn254",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-groth16 0.3.0",
  "ark-relations 0.3.0",
- "ark-serialize 0.3.0",
+ "ark-serialize 0.3.0 (git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0)",
  "ark-std 0.3.0",
  "arkworks-gadgets",
  "arrayref",
@@ -3419,7 +3469,7 @@ dependencies = [
  "anchor-spl",
  "ark-bn254 0.3.0",
  "ark-ec 0.3.0",
- "ark-ff 0.3.0",
+ "ark-ff 0.3.0 (git+https://github.com/Lightprotocol/algebra)",
  "ark-std 0.3.0",
  "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana?branch=master)",
  "light-macros",
@@ -3712,6 +3762,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rand 0.8.5",
+ "serde",
 ]
 
 [[package]]

@@ -71,7 +71,7 @@ func SetupInclusion(treeDepth uint32, numberOfUtxos uint32) (*ProvingSystem, err
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{treeDepth, numberOfUtxos, pk, vk, ccs}, nil
+	return &ProvingSystem{treeDepth, numberOfUtxos, true, pk, vk, ccs}, nil
 }
 
 func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, error) {
@@ -106,7 +106,7 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 		return nil, err
 	}
 
-	logging.Logger().Info().Msg("Proof " + strconv.Itoa(int(ps.TreeDepth)) + " " + strconv.Itoa(int(ps.NumberOfUtxos)))
+	logging.Logger().Info().Msg("Proof inclusion" + strconv.Itoa(int(ps.TreeDepth)) + " " + strconv.Itoa(int(ps.NumberOfUtxos)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {
 		return nil, err

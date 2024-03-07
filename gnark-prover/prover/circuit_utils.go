@@ -2,14 +2,15 @@ package prover
 
 import (
 	"fmt"
+	"light/light-prover/logging"
+	"light/light-prover/prover/poseidon"
+	"os"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
-	"light/light-prover/logging"
-	"light/light-prover/prover/poseidon"
-	"os"
 )
 
 type Proof struct {
@@ -19,6 +20,7 @@ type Proof struct {
 type ProvingSystem struct {
 	TreeDepth        uint32
 	NumberOfUtxos    uint32
+	Inclusion        bool
 	ProvingKey       groth16.ProvingKey
 	VerifyingKey     groth16.VerifyingKey
 	ConstraintSystem constraint.ConstraintSystem
@@ -64,10 +66,49 @@ type InclusionProof struct {
 	Depth         int
 }
 
+type NonInclusionProof struct {
+	Root  []frontend.Variable
+	Value []frontend.Variable
+
+	LeafLowerRangeValue  []frontend.Variable
+	LeafHigherRangeValue []frontend.Variable
+	LeafIndex            []frontend.Variable
+
+	InPathIndices  []frontend.Variable
+	InPathElements [][]frontend.Variable
+
+	NumberOfUtxos int
+	Depth         int
+}
+
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
 	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
 		currentHash[proofIndex] = gadget.Leaf[proofIndex]
+		for j := 0; j < gadget.Depth; j++ {
+			currentHash[proofIndex] = abstractor.Call(api, ProofRound{Direction: gadget.InPathIndices[proofIndex], Hash: currentHash[proofIndex], Sibling: gadget.InPathElements[proofIndex][j]})
+		}
+	}
+	return currentHash
+}
+
+func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
+	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
+	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
+		// checks if leafLowerRangeValue != value
+		api.AssertIsDifferent(gadget.LeafLowerRangeValue[proofIndex], gadget.Value[proofIndex])
+
+		// checks if leafHigherRangeValue != value
+		api.AssertIsDifferent(gadget.LeafHigherRangeValue[proofIndex], gadget.Value[proofIndex])
+
+		// checks if leafLowerRangeValue < value
+		api.AssertIsLessOrEqual(gadget.LeafLowerRangeValue[proofIndex], gadget.Value[proofIndex])
+
+		// checks if value < leafHigherRangeValue
+		api.AssertIsLessOrEqual(gadget.Value[proofIndex], gadget.LeafHigherRangeValue[proofIndex])
+		currentHash[proofIndex] = abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue[proofIndex], In2: gadget.LeafIndex[proofIndex], In3: gadget.LeafHigherRangeValue[proofIndex]})
+		api.Println("currentHash[proofIndex]", currentHash[proofIndex])
+
 		for j := 0; j < gadget.Depth; j++ {
 			currentHash[proofIndex] = abstractor.Call(api, ProofRound{Direction: gadget.InPathIndices[proofIndex], Hash: currentHash[proofIndex], Sibling: gadget.InPathElements[proofIndex][j]})
 		}

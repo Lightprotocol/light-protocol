@@ -1,8 +1,6 @@
 package poseidon
 
 import (
-	"fmt"
-
 	"github.com/consensys/gnark/frontend"
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
@@ -14,20 +12,18 @@ type cfg struct {
 	mds       [][]frontend.Variable
 }
 
-var CFG_3 = cfg{
-	RF:        8,
-	RP:        57,
-	constants: CONSTANTS_3,
-	mds:       MDS_3,
-}
-
 var CFG_2 = cfg{
 	RF:        8,
 	RP:        56,
 	constants: CONSTANTS_2,
 	mds:       MDS_2,
 }
-
+var CFG_3 = cfg{
+	RF:        8,
+	RP:        57,
+	constants: CONSTANTS_3,
+	mds:       MDS_3,
+}
 var CFG_4 = cfg{
 	RF:        8,
 	RP:        56,
@@ -70,12 +66,8 @@ type Poseidon3 struct {
 }
 
 func (g Poseidon3) DefineGadget(api frontend.API) interface{} {
-	fmt.Println("poseidon3 DefineGadget called")
 	inp := []frontend.Variable{0, g.In1, g.In2, g.In3}
-	fmt.Println("poseidon3 inp", inp)
-	fmt.Println("calling poseidon call1")
 	result := abstractor.Call1(api, poseidon{inp})[0]
-	fmt.Println("poseidon3 result", result)
 	return result
 }
 
@@ -88,12 +80,15 @@ func (g poseidon) DefineGadget(api frontend.API) interface{} {
 	cfg := cfgFor(len(state))
 	for i := 0; i < cfg.RF/2; i += 1 {
 		state = abstractor.Call1(api, fullRound{state, cfg.constants[i]})
+		api.Println("state after fullRound", i, state)
 	}
 	for i := 0; i < cfg.RP; i += 1 {
 		state = abstractor.Call1(api, halfRound{state, cfg.constants[cfg.RF/2+i]})
+		api.Println("state after halfRound", i, state)
 	}
 	for i := 0; i < cfg.RF/2; i += 1 {
 		state = abstractor.Call1(api, fullRound{state, cfg.constants[cfg.RF/2+cfg.RP+i]})
+		api.Println("state after fullRound", i, state)
 	}
 	return state
 }

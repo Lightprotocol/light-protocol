@@ -327,7 +327,6 @@ pub struct OutUtxo {
 }
 
 // blinding we just need to send the leafIndex
-
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct Utxo {
     pub owner: Pubkey,

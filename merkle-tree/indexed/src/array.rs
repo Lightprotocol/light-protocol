@@ -4,6 +4,7 @@ use ark_ff::{BigInteger, BigInteger256};
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_concurrent_merkle_tree::light_hasher::Hasher;
 use light_utils::bigint::{be_bytes_to_bigint, bigint_to_be_bytes};
+use num_bigint::{BigInt, Sign};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::errors::IndexedMerkleTreeError;
@@ -128,6 +129,16 @@ where
             self.next_index.to_be_bytes().as_ref(),
             next_value.to_bytes_be().as_ref(),
         ])?;
+
+        let hashBN = BigInt::from_bytes_be(Sign::Plus, &hash);
+
+        println!(
+            "hash={:?}, value={:?}, next_index={:?}, next_value={:?}",
+            hashBN,
+            self.value.to_bytes_be(),
+            self.next_index.to_be_bytes(),
+            next_value
+        );
         Ok(hash)
     }
 }
@@ -222,7 +233,7 @@ where
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
-            if self.elements[node.next_index()].value > *value {
+            if self.elements[node.next_index()].value > *value && node.value < *value {
                 return i
                     .try_into()
                     .map_err(|_| IndexedMerkleTreeError::IntegerOverflow);

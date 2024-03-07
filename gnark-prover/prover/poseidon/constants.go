@@ -8,7 +8,8 @@ import (
 
 func hex(s string) big.Int {
 	var bi big.Int
-	bi.SetString(s, 0)
+	bi.SetString(s,
+		0)
 	return bi
 }
 
@@ -875,7 +876,8 @@ var CONSTANTS_4 = [][]frontend.Variable{
 		hex("0x191033d6d85ceaa6fc7a9a23a6fd9996642d772045ece51335d49306728af96c"),
 		hex("0x006e5979da7e7ef53a825aa6fddc3abfc76f200b3740b8b232ef481f5d06297b"),
 		hex("0x0b0d7e69c651910bbef3e68d417e9fa0fbd57f596c8f29831eff8c0174cdb06d"),
-	}, {
+	},
+	{
 		hex("0x25caf5b0c1b93bc516435ec084e2ecd44ac46dbbb033c5112c4b20a25c9cdf9d"),
 		hex("0x12c1ea892cc31e0d9af8b796d9645872f7f77442d62fd4c8085b2f150f72472a"),
 		hex("0x16af29695157aba9b8bbe3afeb245feee5a929d9f928b9b81de6dadc78c32aae"),
@@ -909,6 +911,6 @@ var CONSTANTS_4 = [][]frontend.Variable{
 		hex("0x1e41fc29b825454fe6d61737fe08b47fb07fe739e4c1e61d0337490883db4fd5"),
 		hex("0x12507cd556b7bbcc72ee6dafc616584421e1af872d8c0e89002ae8d3ba0653b6"),
 		hex("0x13d437083553006bcef312e5e6f52a5d97eb36617ef36fe4d77d3e97f71cb5db"),
-		hex("0x163ec73251f85443687222487dda9a65467d90b22f0b38664686077c6a4486d"),
+		hex("0x163ec73251f85443687222487dda9a65467d90b22f0b38664686077c6a4486d5"),
 	},
 }
