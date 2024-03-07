@@ -1,5 +1,6 @@
 *.tgz
 
+**/test-ledger/
 /test-ledger/
 # CLI
 /cli/node_modules/

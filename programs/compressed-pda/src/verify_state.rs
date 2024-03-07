@@ -91,7 +91,7 @@ pub fn out_utxos_to_utxos<'a, 'b, 'c: 'info, 'info>(
 pub fn sum_check(
     in_utxos: &[InUtxoTuple],
     out_utxos: &[OutUtxoTuple],
-    rpc_fee: &Option<u64>,
+    relay_fee: &Option<u64>,
 ) -> anchor_lang::Result<()> {
     let mut sum: u64 = 0;
     for utxo_tuple in in_utxos.iter() {
@@ -108,9 +108,9 @@ pub fn sum_check(
             .map_err(|_| ErrorCode::ComputeOutputSumFailed)?;
     }
 
-    if let Some(rpc_fee) = rpc_fee {
+    if let Some(relay_fee) = relay_fee {
         sum = sum
-            .checked_sub(*rpc_fee)
+            .checked_sub(*relay_fee)
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| ErrorCode::ComputeRpcSumFailed)?;
     }
@@ -156,9 +156,9 @@ fn test_sum_check_passes() {
         index_mt_account: 0,
     }];
 
-    let rpc_fee = None; // No RPC fee
+    let relay_fee = None; // No RPC fee
 
-    let result = sum_check(&in_utxos, &out_utxos, &rpc_fee);
+    let result = sum_check(&in_utxos, &out_utxos, &relay_fee);
     assert!(result.is_ok());
 }
 
@@ -196,8 +196,8 @@ fn test_sum_check_fails() {
         index_mt_account: 0,
     }];
 
-    let rpc_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
+    let relay_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
 
-    let result = sum_check(&in_utxos, &out_utxos, &rpc_fee);
+    let result = sum_check(&in_utxos, &out_utxos, &relay_fee);
     assert!(result.is_err());
 }
