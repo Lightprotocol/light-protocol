@@ -1,6 +1,10 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
+use account_compression::{
+    state_merkle_tree_from_bytes,
+    utils::constants::{MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS},
+    StateMerkleTreeAccount,
+};
 use anchor_lang::AnchorSerialize;
 use light_hasher::Poseidon;
 use light_test_utils::{
@@ -337,14 +341,18 @@ async fn test_transfer() {
     )
     .await;
 }
-
 async fn assert_mint_to(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
     recipient_keypair: &Keypair,
     mint: Pubkey,
     amount: u64,
-    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<Poseidon, 22, 0, 2800>,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<
+        Poseidon,
+        MERKLE_TREE_HEIGHT,
+        0,
+        MERKLE_TREE_ROOTS,
+    >,
 ) {
     let token_utxo_data = mock_indexer.token_utxos[0].token_data.clone();
     assert_eq!(token_utxo_data.amount, amount);
@@ -403,7 +411,12 @@ async fn assert_transfer(
     mock_indexer: &MockIndexer,
     recipient_out_utxo: &TokenTransferOutUtxo,
     change_out_utxo: &TokenTransferOutUtxo,
-    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<Poseidon, 22, 0, 2800>,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<
+        Poseidon,
+        MERKLE_TREE_HEIGHT,
+        0,
+        MERKLE_TREE_ROOTS,
+    >,
 ) {
     let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         context,
@@ -521,7 +534,11 @@ pub struct MockIndexer {
     pub token_utxos: Vec<TokenUtxo>,
     pub token_nullified_utxos: Vec<TokenUtxo>,
     pub events: Vec<PublicTransactionEvent>,
-    pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon, 22, 2800>,
+    pub merkle_tree: light_merkle_tree_reference::MerkleTree<
+        light_hasher::Poseidon,
+        MERKLE_TREE_HEIGHT,
+        MERKLE_TREE_ROOTS,
+    >,
 }
 
 #[derive(Debug, Clone)]
@@ -541,9 +558,12 @@ impl MockIndexer {
             events: vec![],
             token_utxos: vec![],
             token_nullified_utxos: vec![],
-            merkle_tree:
-                light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon, 22, 2800>::new()
-                    .unwrap(),
+            merkle_tree: light_merkle_tree_reference::MerkleTree::<
+                light_hasher::Poseidon,
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_ROOTS,
+            >::new()
+            .unwrap(),
         }
     }
 
