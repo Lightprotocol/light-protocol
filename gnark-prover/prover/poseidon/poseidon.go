@@ -1,6 +1,8 @@
 package poseidon
 
 import (
+	"fmt"
+
 	"github.com/consensys/gnark/frontend"
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
@@ -26,12 +28,21 @@ var CFG_2 = cfg{
 	mds:       MDS_2,
 }
 
+var CFG_4 = cfg{
+	RF:        8,
+	RP:        56,
+	constants: CONSTANTS_4,
+	mds:       MDS_4,
+}
+
 func cfgFor(t int) *cfg {
 	switch t {
 	case 2:
 		return &CFG_2
 	case 3:
 		return &CFG_3
+	case 4:
+		return &CFG_4
 	}
 	panic("Poseidon: unsupported arg count")
 }
@@ -52,6 +63,20 @@ type Poseidon2 struct {
 func (g Poseidon2) DefineGadget(api frontend.API) interface{} {
 	inp := []frontend.Variable{0, g.In1, g.In2}
 	return abstractor.Call1(api, poseidon{inp})[0]
+}
+
+type Poseidon3 struct {
+	In1, In2, In3 frontend.Variable
+}
+
+func (g Poseidon3) DefineGadget(api frontend.API) interface{} {
+	fmt.Println("poseidon3 DefineGadget called")
+	inp := []frontend.Variable{0, g.In1, g.In2, g.In3}
+	fmt.Println("poseidon3 inp", inp)
+	fmt.Println("calling poseidon call1")
+	result := abstractor.Call1(api, poseidon{inp})[0]
+	fmt.Println("poseidon3 result", result)
+	return result
 }
 
 type poseidon struct {
