@@ -26,12 +26,14 @@ async fn test_execute_compressed_transactio() {
         owner: payer_pubkey,
         blinding: [1u8; 32],
         data: None,
+        address: None,
     }];
 
     let out_utxos = vec![OutUtxo {
         lamports: 0,
         owner: payer_pubkey,
         data: None,
+        address: None,
     }];
     let proof_mock = CompressedProof {
         a: [0u8; 32],
@@ -58,6 +60,7 @@ async fn test_execute_compressed_transactio() {
         owner: Pubkey::new_unique(),
         blinding: [1u8; 32],
         data: None,
+        address: None,
     }];
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
@@ -89,6 +92,7 @@ async fn test_create_execute_compressed_transaction_2() {
         owner: payer_pubkey,
         blinding: [0u8; 32],
         data: None,
+        address: None,
     };
     in_utxo.update_blinding(merkle_tree_pubkey, 0).unwrap();
 
@@ -98,6 +102,7 @@ async fn test_create_execute_compressed_transaction_2() {
         lamports: 0,
         owner: payer_pubkey,
         data: None,
+        address: None,
     }];
     let proof_mock = CompressedProof {
         a: [0u8; 32],
@@ -125,6 +130,7 @@ async fn test_create_execute_compressed_transaction_2() {
         owner: Pubkey::new_unique(),
         blinding: [1u8; 32],
         data: None,
+        address: None,
     }];
     let instruction = create_execute_compressed_opt_instruction(
         &payer_pubkey,

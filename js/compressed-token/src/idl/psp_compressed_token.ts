@@ -591,6 +591,12 @@ export type PspCompressedToken = {
             type: 'u8';
           },
           {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
+          },
+          {
             name: 'data';
             type: {
               option: {
@@ -615,6 +621,12 @@ export type PspCompressedToken = {
             type: 'u8';
           },
           {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
+          },
+          {
             name: 'data';
             type: {
               option: {
@@ -637,6 +649,12 @@ export type PspCompressedToken = {
           {
             name: 'lamports';
             type: 'u64';
+          },
+          {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
           },
           {
             name: 'data';
@@ -669,6 +687,12 @@ export type PspCompressedToken = {
             type: 'u64';
           },
           {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
+          },
+          {
             name: 'data';
             type: {
               option: {
@@ -697,6 +721,12 @@ export type PspCompressedToken = {
           {
             name: 'lamports';
             type: 'u64';
+          },
+          {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
           },
           {
             name: 'data';
@@ -1600,6 +1630,12 @@ export const IDL: PspCompressedToken = {
             type: 'u8',
           },
           {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
+          },
+          {
             name: 'data',
             type: {
               option: {
@@ -1624,6 +1660,12 @@ export const IDL: PspCompressedToken = {
             type: 'u8',
           },
           {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
+          },
+          {
             name: 'data',
             type: {
               option: {
@@ -1646,6 +1688,12 @@ export const IDL: PspCompressedToken = {
           {
             name: 'lamports',
             type: 'u64',
+          },
+          {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
           },
           {
             name: 'data',
@@ -1678,6 +1726,12 @@ export const IDL: PspCompressedToken = {
             type: 'u64',
           },
           {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
+          },
+          {
             name: 'data',
             type: {
               option: {
@@ -1706,6 +1760,12 @@ export const IDL: PspCompressedToken = {
           {
             name: 'lamports',
             type: 'u64',
+          },
+          {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
           },
           {
             name: 'data',
