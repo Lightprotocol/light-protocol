@@ -83,13 +83,10 @@ pub fn create_execute_compressed_instruction(
         proof: Some(proof.clone()),
     };
 
-    println!("inputs_struct {:?}", inputs_struct);
     let mut inputs = Vec::new();
-    // inputs_struct.serialize(&mut inputs).unwrap();
+
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    println!("encoded inputs {:?}", inputs);
-    println!("encoded inputs len: {:?}", inputs.len());
     let instruction_data = crate::instruction::ExecuteCompressedTransaction { inputs };
     // InstructionDataTransfer::deserialize(&mut inputs.as_slice()).unwrap();
     let accounts = crate::accounts::TransferInstruction {

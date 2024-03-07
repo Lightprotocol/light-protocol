@@ -2,17 +2,13 @@
 
 use std::println;
 
-use light_test_utils::{
-    create_and_send_transaction,
-    test_env::{setup_test_programs_with_accounts, PAYER_KEYPAIR},
-};
-// use light_verifier_sdk::light_transaction::ProofCompressed;
+use light_test_utils::{create_and_send_transaction, test_env::setup_test_programs_with_accounts};
 use psp_compressed_pda::{
     sdk::{create_execute_compressed_instruction, create_execute_compressed_opt_instruction},
     utxo::{OutUtxo, Utxo},
     ProofCompressed,
 };
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{pubkey::Pubkey, signer::Signer};
 
 #[tokio::test]
 async fn test_execute_compressed_transactio() {
@@ -20,13 +16,6 @@ async fn test_execute_compressed_transactio() {
         setup_test_programs_with_accounts().await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
-    // let payer_keypair: [u8; 64] = [
-    //     17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91,
-    //     202, 187, 228, 110, 146, 97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107,
-    //     2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238,
-    //     105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
-    // ];
-    // let payer = Keypair::from_bytes(&payer_keypair).unwrap();
 
     let payer_pubkey = payer.pubkey();
 
@@ -38,11 +27,6 @@ async fn test_execute_compressed_transactio() {
         blinding: [1u8; 32],
         data: None,
     }];
-
-    println!("payer keypeair: {:?}", payer.to_bytes());
-    println!("payer_pubkey: {:?}", payer_pubkey);
-    println!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
-    println!("indexed_array_pubkey: {:?}", indexed_array_pubkey);
 
     let out_utxos = vec![OutUtxo {
         lamports: 0,
@@ -65,9 +49,6 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
-
-    println!("instruction: {:?}", instruction.data);
-    println!("len: {:?}", instruction.data.len());
 
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
