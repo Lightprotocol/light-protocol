@@ -193,7 +193,145 @@ export type PspCompressedToken = {
   ],
   "accounts": [
     {
-      "name": "instructionDataTransfer",
+      "name": "instructionDataTransferClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "CompressedProofClient"
+              }
+            }
+          },
+          {
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoTupleClient"
+              }
+            }
+          },
+          {
+            "name": "inTlvData",
+            "type": {
+              "vec": {
+                "defined": "TokenTlvData"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "UtxoClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "blinding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoTupleClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxo",
+            "type": {
+              "defined": "UtxoClient"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProofClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionDataTransfer",
       "type": {
         "kind": "struct",
         "fields": [
@@ -237,9 +375,7 @@ export type PspCompressedToken = {
           }
         ]
       }
-    }
-  ],
-  "types": [
+    },
     {
       "name": "TokenTransferOutUtxo",
       "type": {
@@ -595,7 +731,145 @@ export const IDL: PspCompressedToken = {
   ],
   "accounts": [
     {
-      "name": "instructionDataTransfer",
+      "name": "instructionDataTransferClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proof",
+            "type": {
+              "option": {
+                "defined": "CompressedProofClient"
+              }
+            }
+          },
+          {
+            "name": "rootIndices",
+            "type": {
+              "vec": "u16"
+            }
+          },
+          {
+            "name": "inUtxos",
+            "type": {
+              "vec": {
+                "defined": "InUtxoTupleClient"
+              }
+            }
+          },
+          {
+            "name": "inTlvData",
+            "type": {
+              "vec": {
+                "defined": "TokenTlvData"
+              }
+            }
+          },
+          {
+            "name": "outUtxos",
+            "type": {
+              "vec": {
+                "defined": "TokenTransferOutUtxo"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "UtxoClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "publicKey"
+          },
+          {
+            "name": "blinding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "lamports",
+            "type": "u64"
+          },
+          {
+            "name": "data",
+            "type": {
+              "option": {
+                "defined": "Tlv"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InUtxoTupleClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "inUtxo",
+            "type": {
+              "defined": "UtxoClient"
+            }
+          },
+          {
+            "name": "indexMtAccount",
+            "type": "u8"
+          },
+          {
+            "name": "indexNullifierArrayAccount",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CompressedProofClient",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "a",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "b",
+            "type": {
+              "array": [
+                "u8",
+                64
+              ]
+            }
+          },
+          {
+            "name": "c",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "InstructionDataTransfer",
       "type": {
         "kind": "struct",
         "fields": [
@@ -639,9 +913,7 @@ export const IDL: PspCompressedToken = {
           }
         ]
       }
-    }
-  ],
-  "types": [
+    },
     {
       "name": "TokenTransferOutUtxo",
       "type": {
