@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, AnchorDeserialize};
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
 use psp_compressed_pda::{
@@ -24,9 +24,8 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
-    let mut inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
-        &mut [vec![0u8; 8], inputs].concat().as_slice(),
-    )?;
+    let mut inputs: InstructionDataTransfer =
+        InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
 
     let is_delegate = check_signer_or_delegate(&ctx.accounts.authority.key(), &inputs.in_tlv_data)?;
     if is_delegate {
@@ -242,9 +241,50 @@ pub struct TransferInstruction<'info> {
     pub self_program: Program<'info, crate::program::PspCompressedToken>,
 }
 
-// TODO: parse utxos a more efficient way, since owner is sent multiple times this way
+// TODO: remove when instruction data struct has been implemented with beet in client
+// ported from utxo.rs so that it is included in anchor idl
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct UtxoClient {
+    pub owner: Pubkey,
+    pub blinding: [u8; 32],
+    pub lamports: u64,
+    pub data: Option<Tlv>,
+}
+
+// TODO: remove when instruction data struct has been implemented with beet in client
+// ported from utxo.rs so that it is included in anchor idl
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct InUtxoTupleClient {
+    pub in_utxo: UtxoClient,
+    pub index_mt_account: u8,
+    pub index_nullifier_array_account: u8,
+}
+
+// TODO: remove when instruction data struct has been implemented with beet in client
+// ported from utxo.rs so that it is included in anchor idl
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedProofClient {
+    pub a: [u8; 32],
+    pub b: [u8; 64],
+    pub c: [u8; 32],
+}
+
+// TODO: remove when instruction data struct has been implemented with beet in client
+// this struct is just used in the client
+// for that reason it uses the ported client structs
 #[derive(Debug)]
 #[account]
+pub struct InstructionDataTransferClient {
+    proof: Option<CompressedProofClient>,
+    root_indices: Vec<u16>,
+    in_utxos: Vec<InUtxoTupleClient>,
+    in_tlv_data: Vec<TokenTlvData>,
+    out_utxos: Vec<TokenTransferOutUtxo>,
+}
+
+// TODO: parse utxos a more efficient way, since owner is sent multiple times this way
+// This struct is equivalent to the InstructionDataTransferClient, but uses the imported types from the psp_compressed_pda
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     proof: Option<CompressedProof>,
     root_indices: Vec<u16>,
