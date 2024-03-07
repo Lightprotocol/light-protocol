@@ -38,6 +38,9 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
       - name: Setup Node.js environment
         uses: actions/setup-node@v3
         with:
@@ -46,11 +49,18 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install dependencies
+      - name: Build CLI
+        run: |
+          cd cli
+          pnpm install --frozen-lockfile
+          pnpm run build
+        working-directory: ${{ github.workspace }}
+
+      - name: Install dependencies for stateless.js
         run: pnpm install --frozen-lockfile
         working-directory: ${{ matrix.directory }}
 
-      - name: Run tests
+      - name: Run tests for stateless.js
         run: pnpm run test
         working-directory: ${{ matrix.directory }}
 
