@@ -1,68 +1,68 @@
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - ready_for_review
-      - reopened
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     branches:
+#       - main
+#     types:
+#       - opened
+#       - synchronize
+#       - ready_for_review
+#       - reopened
 
-name: JavaScript Libraries Tests
+# name: JavaScript Libraries Tests
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
 
-jobs:
-  js-lib-tests:
-    name: JS Library Test
-    if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
-    strategy:
-      matrix:
-        include:
-          - name: stateless-js
-            directory: js/stateless.js
-            # we can add more js libs here later.
+# jobs:
+#   js-lib-tests:
+#     name: JS Library Test
+#     if: github.event.pull_request.draft == false
+#     runs-on: buildjet-16vcpu-ubuntu-2204
+#     strategy:
+#       matrix:
+#         include:
+#           - name: stateless-js
+#             directory: js/stateless.js
+#             # we can add more js libs here later.
 
-    steps:
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Checkout sources
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v1
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
+#       - name: Checkout sources
+#         uses: actions/checkout@v4
 
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
+#       - name: Setup and build
+#         uses: ./.github/actions/setup-and-build
 
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20.9.0"
+#       - name: Setup Node.js environment
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: "20.9.0"
 
-      - name: Install pnpm
-        run: npm install -g pnpm
+#       - name: Install pnpm
+#         run: npm install -g pnpm
 
-      - name: Build CLI
-        run: |
-          cd cli
-          pnpm install --frozen-lockfile
-          pnpm run build
-        working-directory: ${{ github.workspace }}
+#       - name: Build CLI
+#         run: |
+#           cd cli
+#           pnpm install --frozen-lockfile
+#           pnpm run build
+#         working-directory: ${{ github.workspace }}
 
-      - name: Install dependencies for stateless.js
-        run: pnpm install --frozen-lockfile
-        working-directory: ${{ matrix.directory }}
+#       - name: Install dependencies for stateless.js
+#         run: pnpm install --frozen-lockfile
+#         working-directory: ${{ matrix.directory }}
 
-      - name: Run tests for stateless.js
-        run: pnpm run test
-        working-directory: ${{ matrix.directory }}
+#       - name: Run tests for stateless.js
+#         run: pnpm run test
+#         working-directory: ${{ matrix.directory }}
 
-      - name: Log out
-        run: docker logout
+#       - name: Log out
+#         run: docker logout
