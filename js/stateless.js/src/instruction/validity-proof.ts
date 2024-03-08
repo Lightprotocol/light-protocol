@@ -20,7 +20,7 @@ export const checkValidityProofShape = (proof: ValidityProof) => {
     proof.proofB.length !== 64 ||
     proof.proofC.length !== 32
   ) {
-    throw new Error("ValidityProof has invalid shape");
+    throw new Error('ValidityProof has invalid shape');
   }
 };
 
@@ -29,9 +29,9 @@ if (import.meta.vitest) {
   //@ts-ignore
   const { it, expect, describe } = import.meta.vitest;
 
-  describe("Validity Proof Functions", () => {
-    describe("placeholderValidityProof", () => {
-      it("should create a validity proof with correct shape", () => {
+  describe('Validity Proof Functions', () => {
+    describe('placeholderValidityProof', () => {
+      it('should create a validity proof with correct shape', () => {
         const validityProof = placeholderValidityProof();
         expect(validityProof.proofA.length).toBe(32);
         expect(validityProof.proofB.length).toBe(64);
@@ -39,8 +39,8 @@ if (import.meta.vitest) {
       });
     });
 
-    describe("checkValidityProofShape", () => {
-      it("should not throw an error for valid proof shape", () => {
+    describe('checkValidityProofShape', () => {
+      it('should not throw an error for valid proof shape', () => {
         const validProof = {
           proofA: new Uint8Array(32),
           proofB: new Uint8Array(64),
@@ -49,14 +49,14 @@ if (import.meta.vitest) {
         expect(() => checkValidityProofShape(validProof)).not.toThrow();
       });
 
-      it("should throw an error for an invalid proof", () => {
+      it('should throw an error for an invalid proof', () => {
         const invalidProof = {
           proofA: new Uint8Array(31), // incorrect length
           proofB: new Uint8Array(64),
           proofC: new Uint8Array(32),
         };
         expect(() => checkValidityProofShape(invalidProof)).toThrow(
-          "ValidityProof has invalid shape"
+          'ValidityProof has invalid shape',
         );
       });
     });

@@ -5,14 +5,16 @@
   "main": "lib/index.js",
   "type": "module",
   "scripts": {
-    "test": "pnpm run test:program",
+    "test": "pnpm run test-validator:silent && pnpm run emit-event:transfer",
     "test-all": "vitest run",
     "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
     "test-validator": "./../../cli/test_bin/run test-validator",
     "test:program": "pnpm run test-validator:silent && vitest run tests/e2e/program.test.ts",
     "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "rimraf lib && pnpm tsc"
+    "build": "rimraf lib && pnpm run pull-idls && pnpm tsc",
+    "pull-idls": "../../scripts/push-stateless-js-idls.sh",
+    "format": "prettier --write ."
   },
   "keywords": [
     "zk",
@@ -23,6 +25,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/node": "^20.10.2",
+    "prettier": "^3.0.3",
     "rimraf": "^5.0.5",
     "ts-node": "^10.9.1",
     "typescript": "5.3.2",

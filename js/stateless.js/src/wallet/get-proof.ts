@@ -1,13 +1,13 @@
-import { Idl } from "@coral-xyz/anchor";
+import { Idl } from '@coral-xyz/anchor';
 //@ts-ignore
-import { Prover } from "@lightprotocol/prover.js";
-import { ProofError, ProofErrorCode } from "../errors";
-import { InclusionProofInputs } from "./interface";
+import { Prover } from '@lightprotocol/prover.js';
+import { ProofError, ProofErrorCode } from '../errors';
+import { InclusionProofInputs } from './interface';
 
 function getProverInstance(
   verifierIdl: Idl,
   firstPath: string,
-  circuitName?: string
+  circuitName?: string,
 ) {
   return new Prover(verifierIdl, firstPath, circuitName);
 }
@@ -50,7 +50,7 @@ export async function getProofInternal({
     verifierIdl,
     firstPath,
     circuitName,
-    wasmTester
+    wasmTester,
   );
 
   await prover.addProofInputs(proofInputs);
@@ -69,8 +69,8 @@ export async function getProofInternal({
   } catch (error: AnyError) {
     throw new ProofError(
       ProofErrorCode.PROOF_GENERATION_FAILED,
-      "getProofInternal",
-      error
+      'getProofInternal',
+      error,
     );
   }
 
@@ -79,7 +79,7 @@ export async function getProofInternal({
   if (verify || enableLogging) {
     const res = await prover.verify();
     if (!res)
-      throw new ProofError(ProofErrorCode.INVALID_PROOF, "getProofInternal");
+      throw new ProofError(ProofErrorCode.INVALID_PROOF, 'getProofInternal');
   }
 
   const parsedPublicInputsObject: ParsedPublicInputsObject =
