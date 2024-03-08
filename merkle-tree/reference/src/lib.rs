@@ -1,5 +1,6 @@
 use std::{cell::RefCell, collections::VecDeque, marker::PhantomData, rc::Rc};
 
+use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_hasher::{errors::HasherError, Hasher};
 
 pub mod store;
@@ -7,10 +8,12 @@ pub mod store;
 /// Reference implementation of Merkle tree which stores all nodes. Used for
 /// testing.
 #[derive(Debug)]
-pub struct MerkleTree<H, const HEIGHT: usize, const MAX_ROOTS: usize>
+pub struct MerkleTree<H>
 where
     H: Hasher,
 {
+    pub height: usize,
+    pub roots_size: usize,
     pub leaf_nodes: Vec<Rc<RefCell<TreeNode<H>>>>,
     pub roots: Vec<[u8; 32]>,
     pub rightmost_index: usize,
@@ -18,13 +21,13 @@ where
     _hasher: PhantomData<H>,
 }
 
-impl<H, const HEIGHT: usize, const MAX_ROOTS: usize> MerkleTree<H, HEIGHT, MAX_ROOTS>
+impl<H> MerkleTree<H>
 where
     H: Hasher,
 {
-    pub fn new() -> Result<Self, HasherError> {
+    pub fn new(height: usize, roots_size: usize) -> Result<Self, HasherError> {
         let mut leaf_nodes = vec![];
-        for i in 0..(1 << HEIGHT) {
+        for i in 0..(1 << height) {
             let tree_node = TreeNode::new_empty(0, i);
             leaf_nodes.push(Rc::new(RefCell::new(tree_node)));
         }
@@ -55,9 +58,11 @@ where
             seq_num += 1;
         }
 
-        let root = H::zero_bytes()[HEIGHT];
+        let root = H::zero_bytes()[height];
         let roots = vec![root];
         Ok(Self {
+            height,
+            roots_size,
             leaf_nodes,
             roots,
             rightmost_index: 0,
@@ -66,8 +71,8 @@ where
     }
 
     /// Returns the Merkle proof of the leaf under the given `ìndex`.
-    pub fn get_proof_of_leaf(&self, index: usize) -> [[u8; 32]; HEIGHT] {
-        let mut proof = [[0u8; 32]; HEIGHT];
+    pub fn get_proof_of_leaf(&self, index: usize) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+        let mut proof = BoundedVec::with_capacity(self.height);
         let mut node = self.leaf_nodes[index].clone();
         let mut i = 0_usize;
         loop {
@@ -77,35 +82,39 @@ where
             }
             let parent = ref_node.borrow().parent.as_ref().unwrap().clone();
             if parent.borrow().left.as_ref().unwrap().borrow().id == ref_node.borrow().id {
-                proof[i] = parent
-                    .borrow()
-                    .right
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .node
-                    .unwrap_or(H::zero_bytes()[i]);
+                proof.push(
+                    parent
+                        .borrow()
+                        .right
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .node
+                        .unwrap_or(H::zero_bytes()[i]),
+                )?;
             } else {
-                proof[i] = parent
-                    .borrow()
-                    .left
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .node
-                    .unwrap_or(H::zero_bytes()[i]);
+                proof.push(
+                    parent
+                        .borrow()
+                        .left
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .node
+                        .unwrap_or(H::zero_bytes()[i]),
+                )?;
             }
             node = parent;
             i += 1;
         }
 
         // Fill up the proof with zero bytes.
-        while i < HEIGHT {
-            proof[i] = H::zero_bytes()[i];
+        while i < self.height {
+            proof.push(H::zero_bytes()[i])?;
             i += 1;
         }
 
-        proof
+        Ok(proof)
     }
 
     /// Updates root from an updated leaf node set at index: `idx`

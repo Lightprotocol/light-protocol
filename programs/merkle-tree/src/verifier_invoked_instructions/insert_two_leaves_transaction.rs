@@ -2,7 +2,8 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_merkle_tree_event::{ChangelogEvent, ChangelogEventV1};
 
 use crate::{
-    emit_indexer_event, state::MerkleTreeSet, state_merkle_tree_from_bytes_mut, RegisteredVerifier,
+    emit_indexer_event, errors::ErrorCode, state::MerkleTreeSet, state_merkle_tree_from_bytes_mut,
+    RegisteredVerifier,
 };
 
 #[derive(Accounts)]
@@ -54,7 +55,10 @@ pub fn process_insert_two_leaves<'info, 'a>(
             ChangelogEventV1::new(
                 ctx.accounts.merkle_tree_set.key().to_bytes(),
                 changelog_entries,
-                state_merkle_tree.sequence_number,
+                state_merkle_tree
+                    .sequence_number
+                    .try_into()
+                    .map_err(|_| ErrorCode::IntegerOverflow)?,
             )
             .map_err(ProgramError::from)?,
         );

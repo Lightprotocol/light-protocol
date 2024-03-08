@@ -1,8 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
-    state_merkle_tree_from_bytes,
-    utils::constants::{MERKLE_TREE_HEIGHT, MERKLE_TREE_ROOTS},
+    utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS},
     StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorSerialize;
@@ -179,8 +178,10 @@ async fn test_mint_to() {
         env.merkle_tree_pubkey,
     )
     .await;
-    let old_merkle_tree =
-        state_merkle_tree_from_bytes(&old_merkle_tree_account.deserialized.state_merkle_tree);
+    let old_merkle_tree = old_merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
         transaction,
@@ -203,7 +204,7 @@ async fn test_mint_to() {
         &recipient_keypair,
         mint,
         amount,
-        old_merkle_tree,
+        &old_merkle_tree,
     )
     .await;
 }
@@ -239,8 +240,10 @@ async fn test_transfer() {
         env.merkle_tree_pubkey,
     )
     .await;
-    let old_merkle_tree =
-        state_merkle_tree_from_bytes(&old_merkle_tree_account.deserialized.state_merkle_tree);
+    let old_merkle_tree = old_merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
         transaction,
@@ -267,12 +270,15 @@ async fn test_transfer() {
         &recipient_keypair,
         mint,
         amount,
-        old_merkle_tree,
+        &old_merkle_tree,
     )
     .await;
     let transfer_recipient_keypair = Keypair::new();
     let in_utxos_tlv = mock_indexer.token_utxos[0].token_data.clone();
     let in_utxos = vec![mock_indexer.utxos[mock_indexer.token_utxos[0].index].clone()];
+
+    println!("in_utxos_tlv: {:?}", in_utxos_tlv);
+    println!("in_utxos: {:?}", in_utxos);
 
     let change_out_utxo = TokenTransferOutUtxo {
         amount: in_utxos_tlv.amount - 1000,
@@ -291,6 +297,7 @@ async fn test_transfer() {
         b: [0u8; 64],
         c: [0u8; 32],
     };
+    
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
         &recipient_keypair.pubkey(),
@@ -314,8 +321,10 @@ async fn test_transfer() {
         env.merkle_tree_pubkey,
     )
     .await;
-    let old_merkle_tree =
-        state_merkle_tree_from_bytes(&old_merkle_tree_account.deserialized.state_merkle_tree);
+    let old_merkle_tree = old_merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
         transaction,
@@ -337,22 +346,17 @@ async fn test_transfer() {
         &mock_indexer,
         &transfer_recipient_out_utxo,
         &change_out_utxo,
-        old_merkle_tree,
+        &old_merkle_tree,
     )
     .await;
 }
-async fn assert_mint_to(
+async fn assert_mint_to<'a>(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
     recipient_keypair: &Keypair,
     mint: Pubkey,
     amount: u64,
-    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<
-        Poseidon,
-        MERKLE_TREE_HEIGHT,
-        0,
-        MERKLE_TREE_ROOTS,
-    >,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
 ) {
     let token_utxo_data = mock_indexer.token_utxos[0].token_data.clone();
     assert_eq!(token_utxo_data.amount, amount);
@@ -367,8 +371,12 @@ async fn assert_mint_to(
         mock_indexer.merkle_tree_pubkey,
     )
     .await;
-    let merkle_tree =
-        state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
+    // let merkle_tree =
+    //     state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
+    let merkle_tree = merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
     assert_eq!(
         merkle_tree.root().unwrap(),
         mock_indexer.merkle_tree.root().unwrap(),
@@ -406,25 +414,22 @@ async fn assert_mint_to(
     assert_eq!(pool_account.amount, amount);
 }
 
-async fn assert_transfer(
+async fn assert_transfer<'a>(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
     recipient_out_utxo: &TokenTransferOutUtxo,
     change_out_utxo: &TokenTransferOutUtxo,
-    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<
-        Poseidon,
-        MERKLE_TREE_HEIGHT,
-        0,
-        MERKLE_TREE_ROOTS,
-    >,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
 ) {
     let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         context,
         mock_indexer.merkle_tree_pubkey,
     )
     .await;
-    let merkle_tree =
-        state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
+    let merkle_tree = merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
     assert_eq!(merkle_tree.root_index(), 3);
 
     assert_eq!(
@@ -534,11 +539,7 @@ pub struct MockIndexer {
     pub token_utxos: Vec<TokenUtxo>,
     pub token_nullified_utxos: Vec<TokenUtxo>,
     pub events: Vec<PublicTransactionEvent>,
-    pub merkle_tree: light_merkle_tree_reference::MerkleTree<
-        light_hasher::Poseidon,
-        MERKLE_TREE_HEIGHT,
-        MERKLE_TREE_ROOTS,
-    >,
+    pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
 }
 
 #[derive(Debug, Clone)]
@@ -558,11 +559,10 @@ impl MockIndexer {
             events: vec![],
             token_utxos: vec![],
             token_nullified_utxos: vec![],
-            merkle_tree: light_merkle_tree_reference::MerkleTree::<
-                light_hasher::Poseidon,
-                MERKLE_TREE_HEIGHT,
-                MERKLE_TREE_ROOTS,
-            >::new()
+            merkle_tree: light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
+                STATE_MERKLE_TREE_HEIGHT,
+                STATE_MERKLE_TREE_ROOTS,
+            )
             .unwrap(),
         }
     }

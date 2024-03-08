@@ -8,21 +8,42 @@ export type AccountCompression = {
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     },
     {
-      "name": "MERKLE_TREE_HEIGHT",
+      "name": "STATE_MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
       "value": "22"
     },
     {
-      "name": "MERKLE_TREE_CHANGELOG",
+      "name": "STATE_MERKLE_TREE_CHANGELOG",
       "type": {
         "defined": "usize"
       },
       "value": "0"
     },
     {
-      "name": "MERKLE_TREE_ROOTS",
+      "name": "STATE_MERKLE_TREE_ROOTS",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
+    },
+    {
+      "name": "ADDRESS_MERKLE_TREE_HEIGHT",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "22"
+    },
+    {
+      "name": "ADDRESS_MERKLE_TREE_CHANGELOG",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
+    },
+    {
+      "name": "ADDRESS_MERKLE_TREE_ROOTS",
       "type": {
         "defined": "usize"
       },
@@ -65,7 +86,34 @@ export type AccountCompression = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
+        {
+          "name": "owner",
+          "type": "publicKey"
+        },
+        {
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        },
+        {
+          "name": "height",
+          "type": "u64"
+        },
+        {
+          "name": "changelogSize",
+          "type": "u64"
+        },
+        {
+          "name": "rootsSize",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "insertAddresses",
@@ -269,7 +317,7 @@ export type AccountCompression = {
       ]
     },
     {
-      "name": "initializeConcurrentMerkleTree",
+      "name": "initializeStateMerkleTree",
       "docs": [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority."
@@ -305,6 +353,18 @@ export type AccountCompression = {
           "type": {
             "option": "publicKey"
           }
+        },
+        {
+          "name": "height",
+          "type": "u64"
+        },
+        {
+          "name": "changelogSize",
+          "type": "u64"
+        },
+        {
+          "name": "rootsSize",
+          "type": "u64"
         }
       ]
     },
@@ -498,11 +558,66 @@ export type AccountCompression = {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkleTree",
+            "name": "index",
+            "docs": [
+              "Unique index."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "nextMerkleTree",
+            "docs": [
+              "Public key of the next Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Owner of the Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "Delegate of the Merkle tree. This will be used for program owned Merkle trees."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "merkleTreeStruct",
             "type": {
               "array": [
                 "u8",
-                2173568
+                224
+              ]
+            }
+          },
+          {
+            "name": "merkleTreeFilledSubtrees",
+            "type": {
+              "array": [
+                "u8",
+                704
+              ]
+            }
+          },
+          {
+            "name": "merkleTreeChangelog",
+            "type": {
+              "array": [
+                "u8",
+                2083200
+              ]
+            }
+          },
+          {
+            "name": "merkleTreeRoots",
+            "type": {
+              "array": [
+                "u8",
+                89600
               ]
             }
           }
@@ -546,14 +661,41 @@ export type AccountCompression = {
             "type": "publicKey"
           },
           {
-            "name": "stateMerkleTree",
+            "name": "stateMerkleTreeStruct",
             "docs": [
               "Merkle tree for the transaction state."
             ],
             "type": {
               "array": [
                 "u8",
-                90368
+                224
+              ]
+            }
+          },
+          {
+            "name": "stateMerkleTreeFilledSubtrees",
+            "type": {
+              "array": [
+                "u8",
+                704
+              ]
+            }
+          },
+          {
+            "name": "stateMerkleTreeChangelog",
+            "type": {
+              "array": [
+                "u8",
+                0
+              ]
+            }
+          },
+          {
+            "name": "stateMerkleTreeRoots",
+            "type": {
+              "array": [
+                "u8",
+                89600
               ]
             }
           }
@@ -673,15 +815,6 @@ export type AccountCompression = {
         "kind": "alias",
         "value": {
           "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
-        }
-      }
-    },
-    {
-      "name": "StateMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
         }
       }
     }
@@ -760,21 +893,42 @@ export const IDL: AccountCompression = {
       "value": "[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]"
     },
     {
-      "name": "MERKLE_TREE_HEIGHT",
+      "name": "STATE_MERKLE_TREE_HEIGHT",
       "type": {
         "defined": "usize"
       },
       "value": "22"
     },
     {
-      "name": "MERKLE_TREE_CHANGELOG",
+      "name": "STATE_MERKLE_TREE_CHANGELOG",
       "type": {
         "defined": "usize"
       },
       "value": "0"
     },
     {
-      "name": "MERKLE_TREE_ROOTS",
+      "name": "STATE_MERKLE_TREE_ROOTS",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
+    },
+    {
+      "name": "ADDRESS_MERKLE_TREE_HEIGHT",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "22"
+    },
+    {
+      "name": "ADDRESS_MERKLE_TREE_CHANGELOG",
+      "type": {
+        "defined": "usize"
+      },
+      "value": "2800"
+    },
+    {
+      "name": "ADDRESS_MERKLE_TREE_ROOTS",
       "type": {
         "defined": "usize"
       },
@@ -817,7 +971,34 @@ export const IDL: AccountCompression = {
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "index",
+          "type": "u64"
+        },
+        {
+          "name": "owner",
+          "type": "publicKey"
+        },
+        {
+          "name": "delegate",
+          "type": {
+            "option": "publicKey"
+          }
+        },
+        {
+          "name": "height",
+          "type": "u64"
+        },
+        {
+          "name": "changelogSize",
+          "type": "u64"
+        },
+        {
+          "name": "rootsSize",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "insertAddresses",
@@ -1021,7 +1202,7 @@ export const IDL: AccountCompression = {
       ]
     },
     {
-      "name": "initializeConcurrentMerkleTree",
+      "name": "initializeStateMerkleTree",
       "docs": [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority."
@@ -1057,6 +1238,18 @@ export const IDL: AccountCompression = {
           "type": {
             "option": "publicKey"
           }
+        },
+        {
+          "name": "height",
+          "type": "u64"
+        },
+        {
+          "name": "changelogSize",
+          "type": "u64"
+        },
+        {
+          "name": "rootsSize",
+          "type": "u64"
         }
       ]
     },
@@ -1250,11 +1443,66 @@ export const IDL: AccountCompression = {
         "kind": "struct",
         "fields": [
           {
-            "name": "merkleTree",
+            "name": "index",
+            "docs": [
+              "Unique index."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "nextMerkleTree",
+            "docs": [
+              "Public key of the next Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "owner",
+            "docs": [
+              "Owner of the Merkle tree."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "delegate",
+            "docs": [
+              "Delegate of the Merkle tree. This will be used for program owned Merkle trees."
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "merkleTreeStruct",
             "type": {
               "array": [
                 "u8",
-                2173568
+                224
+              ]
+            }
+          },
+          {
+            "name": "merkleTreeFilledSubtrees",
+            "type": {
+              "array": [
+                "u8",
+                704
+              ]
+            }
+          },
+          {
+            "name": "merkleTreeChangelog",
+            "type": {
+              "array": [
+                "u8",
+                2083200
+              ]
+            }
+          },
+          {
+            "name": "merkleTreeRoots",
+            "type": {
+              "array": [
+                "u8",
+                89600
               ]
             }
           }
@@ -1298,14 +1546,41 @@ export const IDL: AccountCompression = {
             "type": "publicKey"
           },
           {
-            "name": "stateMerkleTree",
+            "name": "stateMerkleTreeStruct",
             "docs": [
               "Merkle tree for the transaction state."
             ],
             "type": {
               "array": [
                 "u8",
-                90368
+                224
+              ]
+            }
+          },
+          {
+            "name": "stateMerkleTreeFilledSubtrees",
+            "type": {
+              "array": [
+                "u8",
+                704
+              ]
+            }
+          },
+          {
+            "name": "stateMerkleTreeChangelog",
+            "type": {
+              "array": [
+                "u8",
+                0
+              ]
+            }
+          },
+          {
+            "name": "stateMerkleTreeRoots",
+            "type": {
+              "array": [
+                "u8",
+                89600
               ]
             }
           }
@@ -1425,15 +1700,6 @@ export const IDL: AccountCompression = {
         "kind": "alias",
         "value": {
           "defined": "IndexingArray<Poseidon,u16,BigInteger256,2800>"
-        }
-      }
-    },
-    {
-      "name": "StateMerkleTree",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "ConcurrentMerkleTree<Poseidon,MERKLE_TREE_HEIGHT,MERKLE_TREE_CHANGELOG,MERKLE_TREE_ROOTS>"
         }
       }
     }

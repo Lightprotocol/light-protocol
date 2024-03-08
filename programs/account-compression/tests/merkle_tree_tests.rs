@@ -8,14 +8,13 @@ use account_compression::{
     instructions::insert_two_leaves_transaction::sdk::{
         create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
     },
-    state_merkle_tree_from_bytes,
-    utils::constants::GROUP_AUTHORITY_SEED,
+    utils::constants::{GROUP_AUTHORITY_SEED, STATE_INDEXED_ARRAY_SIZE},
     GroupAuthority, StateMerkleTreeAccount, ID,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use ark_ff::BigInteger256;
 use ark_serialize::CanonicalDeserialize;
-use light_concurrent_merkle_tree::ConcurrentMerkleTree;
+use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
 use light_test_utils::{
@@ -221,9 +220,9 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         merkle_tree_pubkey,
     )
     .await;
-    assert_eq!(merkle_tree.deserialized.owner, context_pubkey);
-    assert_eq!(merkle_tree.deserialized.delegate, context_pubkey);
-    assert_eq!(merkle_tree.deserialized.index, 1);
+    assert_eq!(merkle_tree.deserialized().owner, context_pubkey);
+    assert_eq!(merkle_tree.deserialized().delegate, context_pubkey);
+    assert_eq!(merkle_tree.deserialized().index, 1);
 
     // insertions with merkle tree leaves missmatch should fail
     let instruction_data = account_compression::instruction::InsertLeavesIntoMerkleTrees {
@@ -256,16 +255,19 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         context.banks_client.process_transaction(transaction).await;
     assert!(remaining_accounts_missmatch_error.is_err());
 
-    let instruction = [create_insert_leaves_instruction(
-        vec![[1u8; 32], [2u8; 32]],
-        context.payer.pubkey(),
-        vec![merkle_tree_pubkey, merkle_tree_pubkey],
-    )];
     let old_merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
         &mut context,
         merkle_tree_pubkey,
     )
     .await;
+    let old_merkle_tree = old_merkle_tree.deserialized().copy_merkle_tree().unwrap();
+
+    let instruction = [create_insert_leaves_instruction(
+        vec![[1u8; 32], [2u8; 32]],
+        context.payer.pubkey(),
+        vec![merkle_tree_pubkey, merkle_tree_pubkey],
+    )];
+
     create_and_send_transaction(
         &mut context,
         &instruction,
@@ -280,38 +282,20 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         merkle_tree_pubkey,
     )
     .await;
-    let merkle_tree_struct =
-        state_merkle_tree_from_bytes(&merkle_tree.deserialized.state_merkle_tree);
-    assert_eq!(
-        state_merkle_tree_from_bytes(&old_merkle_tree.deserialized.state_merkle_tree).next_index
-            + 2,
-        merkle_tree_struct.next_index,
-    );
-    assert_eq!(
-        state_merkle_tree_from_bytes(&old_merkle_tree.deserialized.state_merkle_tree)
-            .current_root_index
-            + 2,
-        merkle_tree_struct.current_root_index,
-    );
-    assert_ne!(
-        state_merkle_tree_from_bytes(&old_merkle_tree.deserialized.state_merkle_tree)
-            .root()
-            .unwrap(),
-        merkle_tree_struct.root().unwrap(),
-    );
+    let merkle_tree = merkle_tree.deserialized().copy_merkle_tree().unwrap();
+    assert_eq!(merkle_tree.next_index, old_merkle_tree.next_index + 2);
 
-    let mut reference_merkle_tree = ConcurrentMerkleTree::<
-        Poseidon,
-        { account_compression::utils::constants::MERKLE_TREE_HEIGHT },
-        { account_compression::utils::constants::MERKLE_TREE_CHANGELOG },
-        { account_compression::utils::constants::MERKLE_TREE_ROOTS },
-    >::default();
+    let mut reference_merkle_tree = ConcurrentMerkleTree26::<Poseidon>::new(
+        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG,
+        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS,
+    );
     reference_merkle_tree.init().unwrap();
     reference_merkle_tree
         .append_batch(&[&[1u8; 32], &[2u8; 32]])
         .unwrap();
     assert_eq!(
-        merkle_tree_struct.root().unwrap(),
+        merkle_tree.root().unwrap(),
         reference_merkle_tree.root().unwrap()
     );
 }
@@ -367,11 +351,12 @@ async fn test_init_and_insert_into_indexed_array() {
         indexed_array_pubkey,
     )
     .await;
-    assert_eq!(array.deserialized.owner, context_pubkey);
-    assert_eq!(array.deserialized.delegate, context_pubkey);
-    assert_eq!(array.deserialized.index, 1);
-    let indexed_array = indexed_array_from_bytes(&array.deserialized.indexed_array);
-    let mut default_array = IndexingArray::<Poseidon, u16, BigInteger256, 2800>::default();
+    assert_eq!(array.deserialized().owner, context_pubkey);
+    assert_eq!(array.deserialized().delegate, context_pubkey);
+    assert_eq!(array.deserialized().index, 1);
+    let indexed_array = indexed_array_from_bytes(&array.deserialized().indexed_array);
+    let mut default_array =
+        IndexingArray::<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>::default();
     assert_eq!(indexed_array.elements, default_array.elements);
     assert_eq!(
         indexed_array.current_node_index,
@@ -419,7 +404,7 @@ async fn test_init_and_insert_into_indexed_array() {
     )
     .await;
 
-    let indexed_array = indexed_array_from_bytes(&array.deserialized.indexed_array);
+    let indexed_array = indexed_array_from_bytes(&array.deserialized().indexed_array);
     default_array
         .append(BigInteger256::deserialize_uncompressed_unchecked(&[1u8; 32][..]).unwrap())
         .unwrap();

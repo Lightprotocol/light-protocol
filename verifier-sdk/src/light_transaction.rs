@@ -203,8 +203,11 @@ impl<
         custom_heap::log_total_heap("post load MerkleTreeSet");
 
         // Initialize the vector of leaves
-        let first_leaf_index =
-            state_merkle_tree_from_bytes(&merkle_tree_set.state_merkle_tree).next_index;
+        let first_leaf_index: u64 =
+            state_merkle_tree_from_bytes(&merkle_tree_set.state_merkle_tree)
+                .next_index
+                .try_into()
+                .map_err(|_| VerifierSdkError::IntegerOverflow)?;
         drop(merkle_tree_set);
         #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
         custom_heap::log_total_heap("drop MerkleTreeSet");

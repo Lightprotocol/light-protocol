@@ -8,13 +8,16 @@ license = "Apache-2.0"
 [features]
 heavy-tests = []
 solana = [
+  "light-bounded-vec/solana",
   "light-hasher/solana",
   "solana-program"
 ]
 
 [dependencies]
 bytemuck = "1.14"
+light-bounded-vec = { path = "../bounded-vec", version = "0.1.0" }
 light-hasher = { path = "../hasher", version = "0.1.0" }
+memoffset = "0.8"
 solana-program = { version = ">=1.17, <1.18", optional = true }
 thiserror = "1.0"
 

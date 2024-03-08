@@ -4,8 +4,8 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
     emit_indexer_event,
+    errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
-    state_merkle_tree_from_bytes_mut,
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
     ChangelogEvent, ChangelogEventV1, Changelogs, RegisteredProgram,
 };
@@ -16,6 +16,7 @@ pub struct InsertTwoLeavesParallel<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     #[account(mut)]
     pub authority: Signer<'info>,
+    // TODO: Add fee payer.
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting
     pub log_wrapper: UncheckedAccount<'info>,
@@ -69,21 +70,24 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     let mut changelog_events = Vec::new();
     for (mt, leaves) in merkle_tree_map.values() {
         let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
-        let mut merkle_tree_account = merkle_tree.load_mut()?;
+        let mut merkle_tree = merkle_tree.load_mut()?;
         // TODO: activate when group access control is implemented
         // check_registered_or_signer::<InsertTwoLeavesParallel, StateMerkleTreeAccount>(
         //     &ctx,
         //     &merkle_tree_account,
         // )?;
 
-        let state_merkle_tree =
-            state_merkle_tree_from_bytes_mut(&mut merkle_tree_account.state_merkle_tree);
         msg!("inserting leaves: {:?}", leaves);
-        let changelog_entries = state_merkle_tree.append_batch(&leaves[..]).unwrap();
+        let changelog_entries = merkle_tree
+            .load_merkle_tree_mut()?
+            .append_batch(&leaves[..])
+            .map_err(ProgramError::from)?;
+        let sequence_number = u64::try_from(merkle_tree.load_merkle_tree()?.sequence_number)
+            .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
         changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
             mt.key(),
             &changelog_entries,
-            state_merkle_tree.sequence_number,
+            sequence_number,
         )?));
     }
     let changelog_event = Changelogs {
@@ -106,15 +110,22 @@ pub mod sdk {
         pubkey::Pubkey,
     };
 
+    use crate::utils::constants::{
+        STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
+    };
+
     pub fn create_initialize_merkle_tree_instruction(
         payer: Pubkey,
         merkle_tree_pubkey: Pubkey,
     ) -> Instruction {
-        let instruction_data: crate::instruction::InitializeConcurrentMerkleTree =
-            crate::instruction::InitializeConcurrentMerkleTree {
+        let instruction_data: crate::instruction::InitializeStateMerkleTree =
+            crate::instruction::InitializeStateMerkleTree {
                 index: 1u64,
                 owner: payer,
                 delegate: None,
+                height: STATE_MERKLE_TREE_HEIGHT as u64,
+                changelog_size: STATE_MERKLE_TREE_CHANGELOG as u64,
+                roots_size: STATE_MERKLE_TREE_ROOTS as u64,
             };
         Instruction {
             program_id: crate::ID,

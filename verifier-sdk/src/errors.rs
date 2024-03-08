@@ -40,4 +40,6 @@ pub enum VerifierSdkError {
     EventMerkleTreeInvalidHashFunction,
     #[msg("Invalid noop progam key")]
     InvalidNoopPubkey,
+    #[msg("Integer overflow")]
+    IntegerOverflow,
 }

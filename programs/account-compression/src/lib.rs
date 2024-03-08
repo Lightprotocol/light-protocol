@@ -24,8 +24,22 @@ pub mod account_compression {
 
     pub fn initialize_address_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTree<'info>>,
+        index: u64,
+        owner: Pubkey,
+        delegate: Option<Pubkey>,
+        height: u64,
+        changelog_size: u64,
+        roots_size: u64,
     ) -> Result<()> {
-        process_initialize_address_merkle_tree(ctx)
+        process_initialize_address_merkle_tree(
+            ctx,
+            index,
+            owner,
+            delegate,
+            height,
+            changelog_size,
+            roots_size,
+        )
     }
 
     pub fn insert_addresses<'info>(
@@ -94,13 +108,24 @@ pub mod account_compression {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_concurrent_merkle_tree(
-        ctx: Context<InitializeConcurrentMerkleTree>,
+    pub fn initialize_state_merkle_tree(
+        ctx: Context<InitializeStateMerkleTree>,
         index: u64,
         owner: Pubkey,
         delegate: Option<Pubkey>,
+        height: u64,
+        changelog_size: u64,
+        roots_size: u64,
     ) -> Result<()> {
-        process_initialize_concurrent_state_merkle_tree(ctx, index, owner, delegate)
+        process_initialize_state_merkle_tree(
+            ctx,
+            index,
+            owner,
+            delegate,
+            height,
+            changelog_size,
+            roots_size,
+        )
     }
 
     pub fn insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(

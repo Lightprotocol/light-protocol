@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
+use account_compression::StateMerkleTreeAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 use crate::{
@@ -32,10 +32,8 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
                     &ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize],
                 )
                 .unwrap();
-                let merkle_tree_account = merkle_tree.load()?;
-                let merkle_tree =
-                    state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
-                let index = merkle_tree.next_index as usize;
+                let merkle_tree = merkle_tree.load()?;
+                let index = merkle_tree.load_next_index()?;
                 merkle_tree_indices.insert(
                     ctx.remaining_accounts[out_utxo_tuple.index_mt_account as usize].key(),
                     index + 1,

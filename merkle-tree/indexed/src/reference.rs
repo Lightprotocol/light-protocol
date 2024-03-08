@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use ark_ff::BigInteger;
+use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_concurrent_merkle_tree::light_hasher::Hasher;
 use light_merkle_tree_reference::MerkleTree;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
@@ -8,27 +9,26 @@ use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use crate::{array::IndexingElement, errors::IndexedMerkleTreeError};
 
 #[repr(C)]
-pub struct IndexedMerkleTree<H, I, B, const HEIGHT: usize, const MAX_ROOTS: usize>
+pub struct IndexedMerkleTree<H, I, B>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
 {
-    pub merkle_tree: MerkleTree<H, HEIGHT, MAX_ROOTS>,
+    pub merkle_tree: MerkleTree<H>,
     _bigint: PhantomData<B>,
     _index: PhantomData<I>,
 }
 
-impl<H, I, B, const HEIGHT: usize, const MAX_ROOTS: usize>
-    IndexedMerkleTree<H, I, B, HEIGHT, MAX_ROOTS>
+impl<H, I, B> IndexedMerkleTree<H, I, B>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
     usize: From<I>,
 {
-    pub fn new() -> Result<Self, IndexedMerkleTreeError> {
-        let mut merkle_tree = MerkleTree::new()?;
+    pub fn new(height: usize, roots_size: usize) -> Result<Self, IndexedMerkleTreeError> {
+        let mut merkle_tree = MerkleTree::new(height, roots_size)?;
 
         // Append the first low leaf, which has value 0 and does not point
         // to any other leaf yet.
@@ -43,7 +43,7 @@ where
         })
     }
 
-    pub fn get_proof_of_leaf(&self, index: usize) -> [[u8; 32]; HEIGHT] {
+    pub fn get_proof_of_leaf(&self, index: usize) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
         self.merkle_tree.get_proof_of_leaf(index)
     }
 

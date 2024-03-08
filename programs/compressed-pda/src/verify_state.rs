@@ -1,4 +1,4 @@
-use account_compression::{state_merkle_tree_from_bytes, StateMerkleTreeAccount};
+use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 
 #[cfg(test)]
@@ -19,10 +19,10 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
             &ctx.remaining_accounts[in_utxo_tuple.index_mt_account as usize],
         )
         .unwrap();
-        let merkle_tree_account = merkle_tree.load()?;
-        let merkle_tree = state_merkle_tree_from_bytes(&merkle_tree_account.state_merkle_tree);
+        let merkle_tree = merkle_tree.load()?;
+        let fetched_roots = merkle_tree.load_roots()?;
 
-        roots[j] = merkle_tree.roots[inputs.root_indices[j] as usize];
+        roots[j] = fetched_roots[inputs.root_indices[j] as usize];
     }
     Ok(())
 }
@@ -139,15 +139,6 @@ mod test {
                 index_nullifier_array_account: 0,
             },
         ];
-
-        let out_utxos: [OutUtxoTuple; 1] = [OutUtxoTuple {
-            out_utxo: OutUtxo {
-                owner: Pubkey::new_unique(),
-                lamports: 100,
-                data: None,
-            },
-            index_mt_account: 0,
-        }];
 
         let out_utxos: [OutUtxoTuple; 1] = [OutUtxoTuple {
             out_utxo: OutUtxo {
