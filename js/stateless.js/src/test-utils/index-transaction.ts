@@ -33,6 +33,7 @@ import {
 } from '@metaplex-foundation/beet';
 
 import { publicKey } from '@metaplex-foundation/beet-solana';
+import { LightSystemProgram } from '../programs';
 
 export class ParsingTlvElementBeet {
   constructor(
@@ -48,8 +49,8 @@ export class ParsingTlvElementBeet {
     [
       ['discriminator', fixedSizeUint8Array(8)],
       ['owner', publicKey],
-      ['data', fixedSizeUint8Array(8)],
-      ['dataHash', fixedSizeUint8Array(8)],
+      ['data', array(u8)],
+      ['dataHash', fixedSizeUint8Array(32)],
     ],
     (args) =>
       new ParsingTlvElementBeet(
@@ -63,13 +64,13 @@ export class ParsingTlvElementBeet {
 }
 
 export class ParsingTlvBeet {
-  constructor(readonly tlvElements: number[] | null) {}
+  constructor(readonly tlvElements: ParsingTlvElementBeet[] | null) {}
 
   static readonly struct = new FixableBeetStruct<
     ParsingTlvBeet,
     ParsingTlvBeet
   >(
-    [['tlvElements', array(u8)]],
+    [['tlvElements', array(ParsingTlvElementBeet.struct)]],
     (args) => new ParsingTlvBeet(args.tlvElements),
     'ParsingTlvBeet',
   );
@@ -80,7 +81,7 @@ export class ParsingUtxoBeet {
     readonly owner: PublicKey,
     readonly blinding: Uint8Array,
     readonly lamports: bignum,
-    readonly data: ParsingTlvBeet[] | null,
+    readonly data: ParsingTlvBeet | null,
   ) {}
 
   static readonly struct = new FixableBeetStruct<
@@ -91,7 +92,7 @@ export class ParsingUtxoBeet {
       ['owner', publicKey],
       ['blinding', fixedSizeUint8Array(32)],
       ['lamports', u64],
-      ['data', coption(array(ParsingTlvBeet.struct))],
+      ['data', coption(ParsingTlvBeet.struct)],
     ],
     (args) =>
       new ParsingUtxoBeet(args.owner, args.blinding, args.lamports, args.data),
@@ -160,7 +161,6 @@ const parseTransactionEvents = (
   transactions: any, //RpcIndexedTransaction[] | PublicTransactionIndexerEventBeet[],
   deserializeFn: any,
 ) => {
-  console.log('found txs.: ', indexerEventsTransactions.length);
   indexerEventsTransactions.forEach((tx) => {
     if (
       !tx ||
@@ -171,17 +171,18 @@ const parseTransactionEvents = (
     ) {
       return;
     }
+
+    /// TODO: make robust
     tx.meta.innerInstructions.forEach((ix) => {
       ix.instructions.forEach((ixInner: any) => {
         if (!ixInner.data) return;
         if (ixInner.programId.toBase58() !== SPL_NOOP_PROGRAM_ID.toBase58())
           return;
 
-        // console.log("ixInner before", ixInner);
         const data = bs58.decode(ixInner.data);
-        // console.log("data", data);
-
+        if (data.length < 800) return;
         const decodedEvent = deserializeFn(data, tx);
+
         if (decodedEvent) {
           transactions.push(decodedEvent);
         }
@@ -228,8 +229,14 @@ async function getTransactionsBatch({
   const signaturesPerRequest = 5;
 
   while (index < signatures.length) {
+    console.log(
+      'while index <sigs i, sigs',
+      index,
+      signatures.length,
+      signatures[0].signature,
+    );
     try {
-      const txsBatch = await connection.getParsedTransactions(
+      let txsBatch: any = await connection.getParsedTransactions(
         signatures
           .slice(index, index + signaturesPerRequest)
           .map((sig) => sig.signature),
@@ -238,12 +245,12 @@ async function getTransactionsBatch({
           commitment: 'confirmed',
         },
       );
-
-      if (!txsBatch.some((t) => !t)) {
+      if (!txsBatch.some((t: ParsedTransactionWithMeta) => !t)) {
         txs = txs.concat(txsBatch);
         index += signaturesPerRequest;
       }
     } catch (e) {
+      console.log('error fetching txs', e);
       await sleep(2000);
     }
   }
@@ -264,22 +271,41 @@ async function getTransactionsBatch({
     }
   });
   parseTransactionEvents(transactionEvents, transactions, deserializeFn);
+  console.log('no des');
   return lastSignature;
 }
 
+// TODO: wrap up testing
 // // More specific function type for deserializing private events
-type deserializeTransactionEvents = (
-  data: Buffer,
-  tx: ParsedTransactionWithMeta,
-) => PublicTransactionIndexerEventBeet | undefined;
+// type deserializeTransactionEvents = (
+//   data: Buffer,
+//   tx: ParsedTransactionWithMeta,
+// ) => PublicTransactionIndexerEventBeet | undefined;
 
-const deserializeTransactionEvents = (data: Buffer) => {
+// const deserializeTransactionEvents = (data: Buffer) => {
+//   data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
+
+//   try {
+//     const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
+//     return event;
+//   } catch (e) {
+//     console.log('couldnt deserializing event', e);
+//     return null;
+//   }
+// };
+
+// TODO: rm TEMP for debugging utxo.data serde
+const deserializeTransactionEventsTokenAnchor = (data: Buffer) => {
   data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
 
   try {
-    const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
+    const event = LightSystemProgram.program.coder.types.decode(
+      'PublicTransactionEvent',
+      data,
+    );
     return event;
   } catch (e) {
+    console.log('couldnt deserializing event', e);
     return null;
   }
 };
@@ -308,6 +334,7 @@ export async function fetchRecentPublicTransactions({
   for (let i = 0; i < rounds; i++) {
     const batchLimit =
       i === rounds - 1 ? batchOptions.limit! - i * batchSize : batchSize;
+    console.log('batchlimit=?', batchLimit, 'round', i);
     const lastSignature = await getTransactionsBatch({
       connection,
       merkleTreeProgramId: new PublicKey(accountCompressionProgram),
@@ -317,7 +344,9 @@ export async function fetchRecentPublicTransactions({
         until: batchOptions.until,
       },
       transactions,
-      deserializeFn: deserializeTransactionEvents,
+      // TODO: rm debug
+      // deserializeFn: deserializeTransactionEvents,
+      deserializeFn: deserializeTransactionEventsTokenAnchor,
     });
     if (!lastSignature) {
       break;

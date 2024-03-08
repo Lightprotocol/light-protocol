@@ -5,30 +5,15 @@ import {
   TransactionInstruction,
   SystemProgram,
 } from '@solana/web3.js';
-import {
-  BN,
-  Program,
-  AnchorProvider,
-  setProvider,
-  utils,
-} from '@coral-xyz/anchor';
+import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, PspCompressedToken } from './idl/psp_compressed_token';
 import {
   LightSystemProgram,
-  Utxo,
   UtxoWithMerkleContext,
   UtxoWithMerkleProof,
-  addMerkleContextToUtxo,
   bn,
-  coerceIntoUtxoWithMerkleContext,
   confirmConfig,
-  createUtxo,
-  defaultStaticAccounts,
   defaultStaticAccountsStruct,
-  merkleTreeProgramId,
-  packInstruction,
-  pipe,
-  placeholderValidityProof,
   toArray,
   useWallet,
 } from '@lightprotocol/stateless.js';
@@ -37,7 +22,7 @@ import {
   TOKEN_PROGRAM_ID,
   createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { POOL_SEED_BYTES } from './constants';
+import { MINT_AUTHORITY_SEED, POOL_SEED } from './constants';
 
 /** In order to reduce rpc roundtrips we can hardcode the minimum_rent_exemption
  * for spl token mints
@@ -149,7 +134,7 @@ export class CompressedTokenProgram {
   ): PublicKey => {
     const [pubkey] = PublicKey.findProgramAddressSync(
       [
-        utils.bytes.utf8.encode('authority'),
+        MINT_AUTHORITY_SEED, // eq Buffer.from
         authority.toBuffer(),
         mint.toBuffer(),
       ],
@@ -159,7 +144,7 @@ export class CompressedTokenProgram {
   };
 
   static deriveTokenPoolPda(mint: PublicKey): PublicKey {
-    const seeds = [POOL_SEED_BYTES, mint.toBuffer()];
+    const seeds = [POOL_SEED, mint.toBuffer()];
     const [address, _] = PublicKey.findProgramAddressSync(
       seeds,
       this.programId,
@@ -192,6 +177,7 @@ export class CompressedTokenProgram {
     });
 
     const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+
     const initializeMintInstruction = createInitializeMint2Instruction(
       mint,
       params.decimals,

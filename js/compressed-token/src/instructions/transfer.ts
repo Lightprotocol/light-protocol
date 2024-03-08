@@ -2,7 +2,6 @@ import {
   UtxoWithBlinding,
   MockProof,
   InUtxoTuple,
-  deserializeTlv,
   defaultStaticAccountsStruct,
   LightSystemProgram,
 } from '@lightprotocol/stateless.js';
@@ -53,7 +52,7 @@ export type TokenTlvData = {
   // close_authority?: PublicKey,
 };
 
-// TODO:
+// FIXME:(swen) produces inconsistent remaining accounts with expected remaining accounts
 // this is currently akin to createExecuteCompressedInstruction
 export async function createTransferInstruction(
   feePayer: PublicKey,
@@ -88,11 +87,12 @@ export async function createTransferInstruction(
     inUtxosWithIndex.push({
       inUtxo,
       indexMtAccount: remainingAccountsMap.get(mt)!,
-      indexNullifierArrayAccount: 0, // Will be set in the next loop
+      indexNullifierArrayAccount: 1, // Will be set in the next loop
     });
   });
 
   nullifierArrayPubkeys.forEach((mt, i) => {
+    console.log('mt', mt, i);
     if (!remainingAccountsMap.has(mt)) {
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
     }
@@ -150,5 +150,6 @@ export async function createTransferInstruction(
     })
     .remainingAccounts(remainingAccountMetas)
     .instruction();
+
   return instruction;
 }

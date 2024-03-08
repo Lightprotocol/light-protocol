@@ -10,9 +10,10 @@
     "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
     "test-validator": "./../../cli/test_bin/run test-validator",
     "test:program": "pnpm run test-validator:silent && vitest run tests/e2e/program.test.ts",
-    "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
+    "emit-event:create_mint": "vitest run tests/e2e/emit-create_mint.test.ts",
+    "emit-event:mint_to": "vitest run tests/e2e/emit-mint_to-event.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "rimraf lib && pnpm run pull-idl && pnpm tsc",
+    "build": "rimraf lib && pnpm tsc",
     "pull-idl": "./scripts/pull-idl.sh"
   },
   "keywords": [

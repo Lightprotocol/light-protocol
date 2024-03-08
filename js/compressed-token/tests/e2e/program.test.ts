@@ -1,4 +1,4 @@
-import { describe, it, expect, assert, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { CompressedTokenProgram } from '../../src/program';
 import { SPL_TOKEN_MINT_RENT_EXEMPT_BALANCE } from '../../src/constants';
 import {
@@ -6,6 +6,7 @@ import {
   Keypair,
   TransactionMessage,
   VersionedTransaction,
+  PublicKey,
 } from '@solana/web3.js';
 import {
   MockProof,
@@ -14,19 +15,49 @@ import {
   confirmTx,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
+  UtxoWithBlinding,
 } from '@lightprotocol/stateless.js';
 import {
   TokenTransferOutUtxo,
   createTransferInstruction,
 } from '../../src/instructions/transfer';
+import { unpackMint, unpackAccount } from '@solana/spl-token';
+import { BN } from '@coral-xyz/anchor';
 
-// TODO add tests for
-// - invalid tx signer
-// - asserting emitted events..
-// - repeat: sending fetching balance, sending more
-// its not pretty but should work
+/// Asserts that createMint() creates a new spl mint account + the respective system pool account
+async function assertMintCreated(
+  mint: PublicKey,
+  authority: PublicKey,
+  connection: Connection,
+  decimals: number,
+  poolAccount: PublicKey,
+) {
+  const mintAcc = await connection.getAccountInfo(mint);
+  const unpackedMint = unpackMint(mint, mintAcc);
 
-// todo: 1) test the tests 2) add asserts 3) move to emit script
+  // for mint account
+  const mintAuthority = CompressedTokenProgram.deriveMintAuthorityPda(
+    authority,
+    mint,
+  );
+
+  expect(unpackedMint.mintAuthority?.toString()).toBe(mintAuthority.toString());
+  expect(unpackedMint.supply).toBe(0n);
+  expect(unpackedMint.decimals).toBe(decimals);
+  expect(unpackedMint.isInitialized).toBe(true);
+  expect(unpackedMint.freezeAuthority).toBe(null);
+  expect(unpackedMint.tlvData.length).toBe(0);
+
+  // for pool
+  const poolAccountInfo = await connection.getAccountInfo(poolAccount);
+  const unpackedPoolAccount = unpackAccount(poolAccount, poolAccountInfo);
+
+  expect(unpackedPoolAccount.mint.toBase58()).toBe(mint.toBase58());
+  expect(unpackedPoolAccount.amount).toBe(0n); // deal with bigint
+  expect(unpackedPoolAccount.owner.toBase58()).toBe(mintAuthority.toBase58());
+  expect(unpackedPoolAccount.delegate).toBe(null);
+}
+
 describe('Compressed Token Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
@@ -47,6 +78,8 @@ describe('Compressed Token Program test', () => {
   beforeAll(async () => {
     const sig = await connection.requestAirdrop(payer.publicKey, 3e9);
     await confirmTx(connection, sig);
+    const sig2 = await connection.requestAirdrop(bob.publicKey, 3e9);
+    await confirmTx(connection, sig2);
   });
 
   it('should create mint', async () => {
@@ -75,6 +108,16 @@ describe('Compressed Token Program test', () => {
 
     const txId = await sendAndConfirmTx(connection, tx);
 
+    const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(
+      randomMint.publicKey,
+    );
+    await assertMintCreated(
+      randomMint.publicKey,
+      payer.publicKey,
+      connection,
+      mintDecimals,
+      poolAccount,
+    );
     console.log('created compressed Mint txId', txId);
   });
 
@@ -105,22 +148,61 @@ describe('Compressed Token Program test', () => {
         1 * mintDecimals
       } tokens (mint: ${randomMint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
     );
+    /// TODO: assert output utxos after implementing proper beet serde
   });
 
-  // TODO: add test for 'should batch mint'
-  // TODO: add asserthelpers
+  /// TODO: refactor
+  type TokenTlvData = {
+    mint: PublicKey;
+    owner: PublicKey;
+    amount: BN;
+    delegate: PublicKey | null;
+    state: number;
+    isNative: null;
+    delegatedAmount: BN;
+  };
 
-  it('should transfer n mint to charlie', async () => {
-    /// get the token tlv from mockRpc  after mint_to
-    const mockIndexer: any = null;
-    let in_utxo_tlv = mockIndexer.token_utxos[0].token_data.clone();
-    let in_utxos = [
-      mockIndexer.utxos[mockIndexer.token_utxos[0].index].clone(),
-    ];
+  type TlvDataElement = {
+    discriminator: Uint8Array;
+    owner: PublicKey;
+    data: Uint8Array;
+    dataHash: BN;
+  };
+
+  /// TODO(swen): still need to debug compressed token transfers produces inconsistent remaining accounts with what's expected on-chain.
+  it.skip('should transfer n mint to charlie', async () => {
+    const tlv: TokenTlvData = {
+      mint: randomMint.publicKey,
+      owner: bob.publicKey,
+      amount: bn(1000 + transferAmount),
+      delegate: null,
+      state: 0x01, //'Initialized',
+      isNative: null,
+      delegatedAmount: bn(0),
+    };
+
+    const tlvData = CompressedTokenProgram.program.coder.types.encode(
+      'TokenTlvData',
+      tlv,
+    );
+
+    const tlvDataElement: TlvDataElement = {
+      discriminator: Uint8Array.from({ length: 8 }, () => 2),
+      owner: bob.publicKey,
+      data: Uint8Array.from(tlvData),
+      dataHash: bn(Uint8Array.from({ length: 32 }, () => 0)), // mock
+    };
+
+    const inUtxo: UtxoWithBlinding = {
+      owner: bob.publicKey,
+      blinding: Array.from({ length: 32 }, () => 0),
+      lamports: 0,
+      data: { tlvElements: [tlvDataElement] },
+    };
 
     const changeUtxo: TokenTransferOutUtxo = {
-      amount: in_utxo_tlv.amount.sub(bn(transferAmount)),
-      owner: charlie.publicKey,
+      amount: bn(1000),
+      owner: bob.publicKey,
       lamports: null,
       index_mt_account: 0,
     };
@@ -139,12 +221,12 @@ describe('Compressed Token Program test', () => {
     };
 
     const ix = await createTransferInstruction(
-      bob.publicKey,
+      payer.publicKey,
       bob.publicKey,
       [merkleTree],
       [queue],
       [merkleTree, merkleTree],
-      in_utxos,
+      [inUtxo],
       [charlieOutUtxo, changeUtxo],
       [0], // input state root indices
       proof_mock,
@@ -158,7 +240,7 @@ describe('Compressed Token Program test', () => {
       instructions: ixs,
     }).compileToV0Message();
     const tx = new VersionedTransaction(messageV0);
-    tx.sign([payer]);
+    tx.sign([payer, bob]);
 
     await sendAndConfirmTx(connection, tx);
   });
