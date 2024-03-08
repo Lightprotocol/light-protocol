@@ -55,7 +55,7 @@ export type TokenTlvData = {
 
 // TODO:
 // this is currently akin to createExecuteCompressedInstruction
-async function createTransferInstruction(
+export async function createTransferInstruction(
   feePayer: PublicKey,
   authority: PublicKey,
   inUtxoMerkleTreePubkeys: PublicKey[],
@@ -125,7 +125,7 @@ async function createTransferInstruction(
     inTlvData: inUtxoTlvData,
     outUtxos,
   };
-
+  /// TODO: check!
   const data = (
     await CompressedTokenProgram.program.coder.accounts.encode(
       'instructionDataTransferClient',
