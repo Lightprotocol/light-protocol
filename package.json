@@ -6,6 +6,7 @@
     "playwright": "^1.40.1",
     "snarkjs": "^0.7.2",
     "syncpack": "^11.2.1",
-    "typescript": "5.3.2"
+    "typescript": "5.3.2",
+    "prettier": "^3.2.5"
   }
 }

@@ -3,20 +3,14 @@ on:
     branches:
       - main
     paths:
-      # - "zk.js/**"
       - "programs/**"
-      # - "light-circuits/**"
-      # - "psp-examples/**"
       - ".github/workflows/light-system-programs-tests.yml"
   pull_request:
     branches:
       - main
     paths:
-      # - "zk.js/**"
       - "programs/**"
-      # - "light-circuits/**"
       - ".github/workflows/light-system-programs-tests.yml"
-      # - "psp-examples/**"
     types:
       - opened
       - synchronize

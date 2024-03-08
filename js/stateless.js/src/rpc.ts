@@ -106,7 +106,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     const value: UtxoWithMerkleContext = {
       owner: res.result.value.owner,
       lamports: res.result.value.lamports,
-      data: res.result.value.data,
+      data: { tlvElements: res.result.value.data },
       hash: utxoHash,
       merkleTree: res.result.value.merkleTree,
       leafIndex: res.result.value.leafIndex,
@@ -183,7 +183,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     const value: UtxoWithMerkleContext = {
       owner: res.result.value.owner,
       lamports: res.result.value.lamports,
-      data: res.result.value.data,
+      data: { tlvElements: res.result.value.data },
       hash: PublicKeyToBN254(res.result.value.hash),
       merkleTree: res.result.value.merkleTree,
       stateNullifierQueue: res.result.value.stateNullifierQueue,
@@ -259,7 +259,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         value: {
           owner: value.owner,
           lamports: value.lamports,
-          data: value.data,
+          data: { tlvElements: value.data },
           hash: PublicKeyToBN254(value.hash),
           merkleTree: value.merkleTree,
           stateNullifierQueue: value.stateNullifierQueue,
