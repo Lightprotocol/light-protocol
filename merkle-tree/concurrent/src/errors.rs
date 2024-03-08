@@ -18,8 +18,8 @@ pub enum ConcurrentMerkleTreeError {
     BytesRead,
     #[error("Merkle tree is full, cannot append more leaves.")]
     TreeFull,
-    #[error("Provided proof is larger than the height of the tree.")]
-    ProofTooLarge,
+    #[error("Invalid proof length, expected {0}, got {1}.")]
+    InvalidProofLength(usize, usize),
     #[error("Invalid Merkle proof, expected root: {0:?}, the provided proof produces root: {1:?}")]
     InvalidProof([u8; 32], [u8; 32]),
     #[error("Attempting to update the leaf which was updated by an another newest change.")]
@@ -44,6 +44,8 @@ pub enum ConcurrentMerkleTreeError {
     ChangelogBufferSize(usize, usize),
     #[error("Invalid root buffer size, expected {0}, got {1}")]
     RootBufferSize(usize, usize),
+    #[error("Invalid canopy buffer size, expected {0}, got {1}")]
+    CanopyBufferSize(usize, usize),
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
     #[error("Bounded vector error: {0}")]
@@ -63,7 +65,7 @@ impl From<ConcurrentMerkleTreeError> for u32 {
             ConcurrentMerkleTreeError::RootHigherThanMax => 2005,
             ConcurrentMerkleTreeError::BytesRead => 2006,
             ConcurrentMerkleTreeError::TreeFull => 2007,
-            ConcurrentMerkleTreeError::ProofTooLarge => 2008,
+            ConcurrentMerkleTreeError::InvalidProofLength(_, _) => 2008,
             ConcurrentMerkleTreeError::InvalidProof(_, _) => 2009,
             ConcurrentMerkleTreeError::CannotUpdateLeaf => 2010,
             ConcurrentMerkleTreeError::CannotUpdateEmpty => 2011,
@@ -75,6 +77,7 @@ impl From<ConcurrentMerkleTreeError> for u32 {
             ConcurrentMerkleTreeError::FilledSubtreesBufferSize(_, _) => 2017,
             ConcurrentMerkleTreeError::ChangelogBufferSize(_, _) => 2018,
             ConcurrentMerkleTreeError::RootBufferSize(_, _) => 2019,
+            ConcurrentMerkleTreeError::CanopyBufferSize(_, _) => 2020,
             ConcurrentMerkleTreeError::Hasher(e) => e.into(),
             ConcurrentMerkleTreeError::BoundedVec(e) => e.into(),
         }

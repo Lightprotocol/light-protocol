@@ -14,6 +14,7 @@ use thiserror::Error;
 const MERKLE_TREE_HEIGHT: usize = 4;
 const MERKLE_TREE_CHANGELOG: usize = 256;
 const MERKLE_TREE_ROOTS: usize = 1024;
+const MERKLE_TREE_CANOPY: usize = 0;
 
 const QUEUE_ELEMENTS: usize = 1024;
 
@@ -101,6 +102,7 @@ where
     let mut relayer_merkle_tree = reference::IndexedMerkleTree::<H, usize, BigInteger256>::new(
         MERKLE_TREE_HEIGHT,
         MERKLE_TREE_ROOTS,
+        MERKLE_TREE_CANOPY,
     )
     .unwrap();
 
@@ -219,6 +221,7 @@ where
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
+            MERKLE_TREE_CANOPY,
         ));
     onchain_tree.borrow_mut().init().unwrap();
 
@@ -273,6 +276,7 @@ where
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
+            MERKLE_TREE_CANOPY,
         ));
     onchain_tree.borrow_mut().init().unwrap();
 
@@ -347,6 +351,7 @@ where
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
+            MERKLE_TREE_CANOPY,
         ));
     onchain_tree.borrow_mut().init().unwrap();
 
@@ -356,6 +361,7 @@ where
     let mut local_merkle_tree = reference::IndexedMerkleTree::<H, usize, BigInteger256>::new(
         MERKLE_TREE_HEIGHT,
         MERKLE_TREE_ROOTS,
+        MERKLE_TREE_CANOPY,
     )
     .unwrap();
 

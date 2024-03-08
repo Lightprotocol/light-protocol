@@ -136,12 +136,13 @@ mod test {
         const HEIGHT: usize = 2;
         const MAX_CHANGELOG: usize = 8;
         const MAX_ROOTS: usize = 8;
+        const CANOPY: usize = 0;
 
         let pubkey = Pubkey::new_from_array([0u8; 32]);
 
         // Fill up the Merkle tree with random leaves.
         let mut merkle_tree =
-            ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS);
+            ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS, CANOPY);
         merkle_tree.init().unwrap();
         let mut spl_merkle_tree =
             spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree::<

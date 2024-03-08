@@ -1,7 +1,9 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
-    utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS},
+    utils::constants::{
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
+    },
     StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorSerialize;
@@ -574,6 +576,7 @@ impl MockIndexer {
             merkle_tree: light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
                 STATE_MERKLE_TREE_HEIGHT,
                 STATE_MERKLE_TREE_ROOTS,
+                STATE_MERKLE_TREE_CANOPY_DEPTH,
             )
             .unwrap(),
         }
@@ -677,7 +680,7 @@ impl MockIndexer {
                 .merkle_tree
                 .get_proof_of_leaf(leaf_index)
                 .unwrap()
-                .to_array::<26>()
+                .to_array::<16>()
                 .unwrap()
                 .to_vec();
 

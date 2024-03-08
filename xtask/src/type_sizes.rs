@@ -2,15 +2,19 @@ use std::mem;
 
 use account_compression::{
     utils::constants::{
-        ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS,
-        STATE_INDEXED_ARRAY_SIZE, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+        ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
+        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS, STATE_INDEXED_ARRAY_SIZE,
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
         STATE_MERKLE_TREE_ROOTS,
     },
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use account_compression_state::{AddressMerkleTree, AddressQueue, StateMerkleTree};
 use ark_ff::BigInteger256;
-use light_concurrent_merkle_tree::changelog::{ChangelogEntry22, ChangelogEntry26};
+use light_concurrent_merkle_tree::{
+    changelog::{ChangelogEntry22, ChangelogEntry26},
+    ConcurrentMerkleTree26,
+};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexingArray;
 use tabled::{Table, Tabled};
@@ -44,6 +48,11 @@ pub fn type_sizes() -> anyhow::Result<()> {
             space: mem::size_of::<[u8; 32]>() * STATE_MERKLE_TREE_ROOTS,
         },
         Type {
+            name: "StateMerkleTree->canopy".to_owned(),
+            space: mem::size_of::<[u8; 32]>()
+                * ConcurrentMerkleTree26::<Poseidon>::canopy_size(STATE_MERKLE_TREE_CANOPY_DEPTH),
+        },
+        Type {
             name: "IndexedArray".to_owned(),
             space: mem::size_of::<
                 IndexingArray<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>,
@@ -72,6 +81,10 @@ pub fn type_sizes() -> anyhow::Result<()> {
         Type {
             name: "AddressMerkleTree->roots".to_owned(),
             space: mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_ROOTS,
+        },
+        Type {
+            name: "AddressMerkleTree->canopy".to_owned(),
+            space: mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
         },
     ];
 
