@@ -23,7 +23,10 @@ fn merkle_tree_inputs_26() -> MerkleTreeProofInput {
     const ROOTS: usize = 1;
 
     info!("initializing merkle tree");
-    let mut merkle_tree = MerkleTree::<Poseidon, HEIGHT, ROOTS>::new().unwrap();
+    // SAFETY: Calling `unwrap()` when the Merkle tree parameters are corect
+    // should not cause panic. Returning an error would not be compatible with
+    // usafe of `once_cell::sync::Lazy` as a static variable.
+    let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, ROOTS).unwrap();
     info!("merkle tree initialized");
 
     info!("updating merkle tree");
@@ -35,14 +38,19 @@ fn merkle_tree_inputs_26() -> MerkleTreeProofInput {
     info!("merkle tree updated");
 
     info!("getting proof of leaf");
-    let proof_of_leaf = merkle_tree
+    // SAFETY: Calling `unwrap()` when the Merkle tree parameters are corect
+    // should not cause panic. Returning an error would not be compatible with
+    // usafe of `once_cell::sync::Lazy` as a static variable.
+    let in_path_elements = merkle_tree
         .get_proof_of_leaf(0)
-        .map(|el| BigInt::from_bytes_be(Sign::Plus, &el));
+        .unwrap()
+        .iter()
+        .map(|el| BigInt::from_bytes_be(Sign::Plus, el))
+        .collect::<Vec<_>>();
     info!("proof of leaf calculated");
     let leaf_bn = BigInt::from_bytes_be(Sign::Plus, &leaf);
     let root_bn = BigInt::from_bytes_be(Sign::Plus, root1);
     let in_path_indices = BigInt::zero();
-    let in_path_elements = proof_of_leaf.to_vec();
 
     MerkleTreeProofInput {
         leaf: leaf_bn,

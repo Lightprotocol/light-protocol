@@ -1,3 +1,5 @@
+use std::{marker::PhantomData, pin::Pin};
+
 use anchor_lang::{
     solana_program::{pubkey::Pubkey, system_instruction},
     AnchorDeserialize,
@@ -15,27 +17,33 @@ pub mod spl;
 pub mod test_env;
 
 pub struct AccountZeroCopy<'a, T> {
-    pub account: Account,
-    pub deserialized: &'a T,
-    phantom_data: std::marker::PhantomData<T>,
+    pub account: Pin<Box<Account>>,
+    deserialized: *const T,
+    _phantom_data: PhantomData<&'a T>,
 }
 
 impl<'a, T> AccountZeroCopy<'a, T> {
     pub async fn new(context: &mut ProgramTestContext, address: Pubkey) -> AccountZeroCopy<'a, T> {
-        let account = context
-            .banks_client
-            .get_account(address)
-            .await
-            .unwrap()
-            .unwrap();
-        unsafe {
-            let ptr = account.data[8..].as_ptr() as *const T;
-            Self {
-                account,
-                deserialized: &*ptr,
-                phantom_data: std::marker::PhantomData,
-            }
+        let account = Box::pin(
+            context
+                .banks_client
+                .get_account(address)
+                .await
+                .unwrap()
+                .unwrap(),
+        );
+        let deserialized = account.data[8..].as_ptr() as *const T;
+
+        Self {
+            account,
+            deserialized,
+            _phantom_data: PhantomData,
         }
+    }
+
+    // Safe method to access `deserialized` ensuring the lifetime is respected
+    pub fn deserialized(&self) -> &'a T {
+        unsafe { &*self.deserialized }
     }
 }
 

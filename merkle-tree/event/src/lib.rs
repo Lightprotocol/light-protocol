@@ -97,7 +97,7 @@ impl ChangelogEventV1 {
 
 #[cfg(test)]
 mod test {
-    use light_concurrent_merkle_tree::{light_hasher::Keccak, ConcurrentMerkleTree};
+    use light_concurrent_merkle_tree::{light_hasher::Keccak, ConcurrentMerkleTree22};
     use solana_program::pubkey::Pubkey;
     use spl_account_compression::{events::ChangeLogEventV1, ChangeLogEvent};
 
@@ -107,7 +107,7 @@ mod test {
     /// implementation and the one from spl-account-compression;
     #[test]
     fn test_changelog_event_v1() {
-        const HEIGHT: usize = 2;
+        const HEIGHT: usize = 22;
         const MAX_CHANGELOG: usize = 8;
         const MAX_ROOTS: usize = 8;
 
@@ -116,7 +116,7 @@ mod test {
         // Fill up the Merkle tree with random leaves.
         // let mut merkle_tree = MerkleTree::<Poseidon, HEIGHT, ROOTS>::new().unwrap();
         let mut merkle_tree =
-            ConcurrentMerkleTree::<Keccak, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>::default();
+            ConcurrentMerkleTree22::<Keccak>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS);
         merkle_tree.init().unwrap();
         let mut spl_merkle_tree =
             spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree::<
@@ -125,7 +125,7 @@ mod test {
             >::new();
         spl_merkle_tree.initialize().unwrap();
 
-        let leaves = 1 << HEIGHT;
+        let leaves = 8;
 
         for i in 0..leaves {
             merkle_tree.append(&[(i + 1) as u8; 32]).unwrap();
@@ -133,7 +133,7 @@ mod test {
         }
 
         for i in 0..leaves {
-            let changelog_entry = merkle_tree.changelog[i];
+            let changelog_entry = merkle_tree.changelog[i].clone();
             let changelog_event =
                 ChangelogEventV1::new(pubkey, vec![changelog_entry], i as u64).unwrap();
 

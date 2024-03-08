@@ -1,3 +1,4 @@
+use light_bounded_vec::BoundedVec;
 use light_hasher::Hasher;
 
 use crate::errors::ConcurrentMerkleTreeError;
@@ -24,10 +25,10 @@ where
 
 /// Computes the root for the given `leaf` (with index `i`) and `proof`. It
 /// doesn't perform the validation of the provided `proof`.
-pub fn compute_root<H, const HEIGHT: usize>(
+pub fn compute_root<H>(
     leaf: &[u8; 32],
     leaf_index: usize,
-    proof: &[[u8; 32]; HEIGHT],
+    proof: &BoundedVec<[u8; 32]>,
 ) -> Result<[u8; 32], ConcurrentMerkleTreeError>
 where
     H: Hasher,

@@ -1,5 +1,12 @@
+use core::slice;
+use std::{
+    alloc::{self, handle_alloc_error, Layout},
+    mem,
+};
+
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
+use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
 };
@@ -17,7 +24,7 @@ where
     const CHANGELOG: usize = 32;
     const ROOTS: usize = 256;
 
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
     merkle_tree.init().unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
@@ -67,14 +74,14 @@ where
     // L1   Z[0]
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [leaf1, h1, h2, h3];
-    let expected_filled_subtrees = [leaf1, h1, h2, h3];
+    let expected_filled_subtrees = BoundedVec::from_array(&[leaf1, h1, h2, h3]);
 
     merkle_tree.append(&leaf1).unwrap();
 
     assert_eq!(merkle_tree.changelog_index(), 1);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 0)
+        ChangelogEntry::new(expected_root, expected_changelog_path, 0)
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 1);
@@ -105,14 +112,14 @@ where
     let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [leaf2, h1, h2, h3];
-    let expected_filled_subtrees = [leaf1, h1, h2, h3];
+    let expected_filled_subtrees = BoundedVec::from_array(&[leaf1, h1, h2, h3]);
 
     merkle_tree.append(&leaf2).unwrap();
 
     assert_eq!(merkle_tree.changelog_index(), 2);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 1),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 1),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 2);
@@ -143,14 +150,14 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [leaf3, h2, h3, h4];
-    let expected_filled_subtrees = [leaf3, h1, h3, h4];
+    let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf3).unwrap();
 
     assert_eq!(merkle_tree.changelog_index(), 3);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 2),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 2),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 3);
@@ -181,14 +188,14 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [leaf4, h2, h3, h4];
-    let expected_filled_subtrees = [leaf3, h1, h3, h4];
+    let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf4).unwrap();
 
     assert_eq!(merkle_tree.changelog_index(), 4);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 3),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 3),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 4);
@@ -204,7 +211,7 @@ where
 {
     const HEIGHT: usize = 4;
 
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
     merkle_tree.init().unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
@@ -229,7 +236,7 @@ where
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
     let expected_changelog_path = [leaf4, h2, h3, h4];
-    let expected_filled_subtrees = [leaf3, h1, h3, h4];
+    let expected_filled_subtrees = BoundedVec::from_array(&[leaf3, h1, h3, h4]);
 
     merkle_tree.append(&leaf1).unwrap();
     merkle_tree.append(&leaf2).unwrap();
@@ -240,7 +247,7 @@ where
         assert_eq!(merkle_tree.changelog_index(), 4);
         assert_eq!(
             merkle_tree.changelog[merkle_tree.changelog_index()],
-            ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 3),
+            ChangelogEntry::new(expected_root, expected_changelog_path, 3),
         );
     }
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -266,11 +273,11 @@ where
     //
     // Merkle proof for the replaced leaf L1 is:
     // [L2, H2, Z[2], Z[3]]
-    let proof = &[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof = BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     let changelog_index = merkle_tree.changelog_index();
     merkle_tree
-        .update(changelog_index, &leaf1, &new_leaf1, 0, proof)
+        .update(changelog_index, &leaf1, &new_leaf1, 0, &mut proof)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &leaf2]).unwrap();
@@ -284,7 +291,7 @@ where
         assert_eq!(merkle_tree.changelog_index(), 5);
         assert_eq!(
             merkle_tree.changelog[merkle_tree.changelog_index()],
-            ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 0),
+            ChangelogEntry::new(expected_root, expected_changelog_path, 0),
         );
     }
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -309,11 +316,12 @@ where
     //
     // Merkle proof for the replaced leaf L2 is:
     // [L1, H2, Z[2], Z[3]]
-    let proof = &[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof =
+        BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     let changelog_index = merkle_tree.changelog_index();
     merkle_tree
-        .update(changelog_index, &leaf2, &new_leaf2, 1, proof)
+        .update(changelog_index, &leaf2, &new_leaf2, 1, &mut proof)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
@@ -327,7 +335,7 @@ where
         assert_eq!(merkle_tree.changelog_index(), 6);
         assert_eq!(
             merkle_tree.changelog[merkle_tree.changelog_index()],
-            ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 1),
+            ChangelogEntry::new(expected_root, expected_changelog_path, 1),
         );
     }
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -352,11 +360,11 @@ where
     //
     // Merkle proof for the replaced leaf L3 is:
     // [L4, H1, Z[2], Z[3]]
-    let proof = &[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof = BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     let changelog_index = merkle_tree.changelog_index();
     merkle_tree
-        .update(changelog_index, &leaf3, &new_leaf3, 2, proof)
+        .update(changelog_index, &leaf3, &new_leaf3, 2, &mut proof)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
@@ -370,7 +378,7 @@ where
         assert_eq!(merkle_tree.changelog_index(), 7);
         assert_eq!(
             merkle_tree.changelog[merkle_tree.changelog_index()],
-            ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 2)
+            ChangelogEntry::new(expected_root, expected_changelog_path, 2)
         );
     }
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -395,11 +403,12 @@ where
     //
     // Merkle proof for the replaced leaf L4 is:
     // [L3, H1, Z[2], Z[3]]
-    let proof = &[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let mut proof =
+        BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     let changelog_index = merkle_tree.root_index();
     merkle_tree
-        .update(changelog_index, &leaf4, &new_leaf4, 3, proof)
+        .update(changelog_index, &leaf4, &new_leaf4, 3, &mut proof)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
@@ -413,7 +422,7 @@ where
         assert_eq!(merkle_tree.changelog_index(), 8);
         assert_eq!(
             merkle_tree.changelog[merkle_tree.changelog_index()],
-            ChangelogEntry::<HEIGHT>::new(expected_root, expected_changelog_path, 3)
+            ChangelogEntry::new(expected_root, expected_changelog_path, 3)
         );
     }
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -431,7 +440,7 @@ where
     const CHANGELOG: usize = 32;
     const ROOTS: usize = 32;
 
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
     merkle_tree.init().unwrap();
 
     for _ in 0..4 {
@@ -454,14 +463,14 @@ where
     const ROOTS: usize = 8;
 
     // Our implementation of concurrent Merkle tree.
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
     merkle_tree.init().unwrap();
 
     // Reference implementation of Merkle tree which Solana Labs uses for
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
     let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<H, HEIGHT, ROOTS>::new().unwrap();
+        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
 
     let mut rng = thread_rng();
 
@@ -490,10 +499,10 @@ where
 
         let changelog_index = merkle_tree.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let proof = reference_tree.get_proof_of_leaf(i);
+        let mut proof = reference_tree.get_proof_of_leaf(i).unwrap();
 
         merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
     }
@@ -513,10 +522,10 @@ where
 
         let changelog_index = merkle_tree.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let proof = reference_tree.get_proof_of_leaf(i);
+        let mut proof = reference_tree.get_proof_of_leaf(i).unwrap();
 
         merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
     }
@@ -534,10 +543,12 @@ where
 
         let changelog_index = merkle_tree.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let proof = reference_tree.get_proof_of_leaf(i);
+        let mut proof = reference_tree.get_proof_of_leaf(i).unwrap();
+
+        println!("loop: {i}, changelog_index: {changelog_index}");
 
         merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
     }
@@ -559,16 +570,16 @@ where
     let mut seq = 1;
 
     for batch_size in 1..(1 << HEIGHT) {
-        let mut concurrent_mt_1 = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+        let mut concurrent_mt_1 = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
         concurrent_mt_1.init().unwrap();
 
         // Tree to which are going to append single leaves.
-        let mut concurrent_mt_2 = ConcurrentMerkleTree::<H, HEIGHT, CHANGELOG, ROOTS>::default();
+        let mut concurrent_mt_2 = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
         concurrent_mt_2.init().unwrap();
 
         // Reference tree for checking the correctness of proofs.
         let mut reference_mt =
-            light_merkle_tree_reference::MerkleTree::<H, HEIGHT, ROOTS>::new().unwrap();
+            light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
 
         // Store to which we are passing the changelog events from `concurrent_mt_1`.
         // We will get proofs from it and validate against proofs from `reference_mt`.
@@ -739,8 +750,8 @@ fn test_compat_batch_sha256_16() {
 
 /// Compares the internal fields of concurrent Merkle tree implementations, to
 /// ensure their consistency.
-fn compare_trees<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>(
-    concurrent_mt: &ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>,
+fn compare_trees<H, const HEIGHT: usize, const MAX_ROOTS: usize>(
+    concurrent_mt: &ConcurrentMerkleTree<H, HEIGHT>,
     spl_concurrent_mt: &spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree<
         HEIGHT,
         MAX_ROOTS,
@@ -749,15 +760,15 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_R
     H: Hasher,
 {
     for i in 0..concurrent_mt.current_changelog_index as usize {
-        let changelog_entry = concurrent_mt.changelog[i];
+        let changelog_entry = concurrent_mt.changelog[i].clone();
         let spl_changelog_entry = spl_concurrent_mt.change_logs[i];
         assert_eq!(changelog_entry.root, spl_changelog_entry.root);
-        assert_eq!(changelog_entry.path, spl_changelog_entry.path);
+        assert_eq!(changelog_entry.path.as_slice(), spl_changelog_entry.path);
         assert_eq!(changelog_entry.index, spl_changelog_entry.index as u64);
     }
     assert_eq!(
         concurrent_mt.current_changelog_index,
-        spl_concurrent_mt.active_index
+        spl_concurrent_mt.active_index as usize
     );
     assert_eq!(concurrent_mt.root().unwrap(), spl_concurrent_mt.get_root());
     for i in 0..concurrent_mt.current_root_index as usize {
@@ -768,11 +779,11 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_R
     }
     assert_eq!(
         concurrent_mt.current_root_index,
-        spl_concurrent_mt.active_index
+        spl_concurrent_mt.active_index as usize
     );
     assert_eq!(
         concurrent_mt.next_index,
-        spl_concurrent_mt.rightmost_proof.index as u64
+        spl_concurrent_mt.rightmost_proof.index as usize
     );
     assert_eq!(
         concurrent_mt.rightmost_leaf,
@@ -791,7 +802,7 @@ async fn test_spl_compat() {
     let mut rng = thread_rng();
 
     // Our implementation of concurrent Merkle tree.
-    let mut concurrent_mt = ConcurrentMerkleTree::<Keccak, HEIGHT, CHANGELOG, ROOTS>::default();
+    let mut concurrent_mt = ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
     concurrent_mt.init().unwrap();
 
     // Solana Labs implementation of concurrent Merkle tree.
@@ -802,7 +813,7 @@ async fn test_spl_compat() {
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
     let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<Keccak, HEIGHT, ROOTS>::new().unwrap();
+        light_merkle_tree_reference::MerkleTree::<Keccak>::new(HEIGHT, ROOTS).unwrap();
 
     for i in 0..(1 << HEIGHT) {
         let leaf: [u8; 32] = Fr::rand(&mut rng)
@@ -832,10 +843,10 @@ async fn test_spl_compat() {
             let root = concurrent_mt.root().unwrap();
             let changelog_index = concurrent_mt.changelog_index();
             let old_leaf = reference_tree.leaf(0);
-            let proof = reference_tree.get_proof_of_leaf(0);
+            let mut proof = reference_tree.get_proof_of_leaf(0).unwrap();
 
             concurrent_mt
-                .update(changelog_index, &old_leaf, &new_leaf, 0, &proof)
+                .update(changelog_index, &old_leaf, &new_leaf, 0, &mut proof)
                 .unwrap();
             spl_concurrent_mt
                 .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), 0 as u32)
@@ -856,10 +867,10 @@ async fn test_spl_compat() {
         let root = concurrent_mt.root().unwrap();
         let changelog_index = concurrent_mt.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let proof = reference_tree.get_proof_of_leaf(i);
+        let mut proof = reference_tree.get_proof_of_leaf(i).unwrap();
 
         concurrent_mt
-            .update(changelog_index, &old_leaf, &new_leaf, i, &proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
             .unwrap();
         spl_concurrent_mt
             .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), i as u32)
@@ -868,4 +879,132 @@ async fn test_spl_compat() {
 
         compare_trees(&concurrent_mt, &spl_concurrent_mt);
     }
+}
+
+fn from_bytes<H, const HEIGHT: usize, const CHANGELOG: usize, const ROOTS: usize>()
+where
+    H: Hasher,
+{
+    let layout = Layout::from_size_align(
+        mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>(),
+        mem::align_of::<ConcurrentMerkleTree<H, HEIGHT>>(),
+    )
+    .unwrap();
+    let bytes_struct = unsafe { alloc::alloc(layout) };
+    if bytes_struct.is_null() {
+        handle_alloc_error(layout);
+    }
+    let bytes_struct = unsafe {
+        slice::from_raw_parts_mut(
+            bytes_struct,
+            mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>(),
+        )
+    };
+
+    let layout = Layout::from_size_align(
+        mem::size_of::<[u8; 32]>() * HEIGHT,
+        mem::align_of::<[u8; 32]>(),
+    )
+    .unwrap();
+    let bytes_filled_subtrees = unsafe { alloc::alloc(layout) };
+    if bytes_filled_subtrees.is_null() {
+        handle_alloc_error(layout);
+    }
+    let bytes_filled_subtrees = unsafe {
+        slice::from_raw_parts_mut(bytes_filled_subtrees, mem::size_of::<[u8; 32]>() * HEIGHT)
+    };
+
+    let layout = Layout::from_size_align(
+        mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG,
+        mem::align_of::<ChangelogEntry<HEIGHT>>(),
+    )
+    .unwrap();
+    let bytes_changelog = unsafe { alloc::alloc(layout) };
+    if bytes_changelog.is_null() {
+        handle_alloc_error(layout);
+    }
+    let bytes_changelog = unsafe {
+        slice::from_raw_parts_mut(
+            bytes_changelog,
+            mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG,
+        )
+    };
+
+    let layout = Layout::from_size_align(
+        mem::size_of::<[u8; 32]>() * ROOTS,
+        mem::align_of::<[u8; 32]>(),
+    )
+    .unwrap();
+    let bytes_roots = unsafe { alloc::alloc(layout) };
+    if bytes_roots.is_null() {
+        handle_alloc_error(layout);
+    }
+    let bytes_roots =
+        unsafe { slice::from_raw_parts_mut(bytes_roots, mem::size_of::<[u8; 32]>() * ROOTS) };
+
+    let merkle_tree = unsafe {
+        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
+            bytes_struct,
+            bytes_filled_subtrees,
+            bytes_changelog,
+            bytes_roots,
+            HEIGHT,
+            CHANGELOG,
+            ROOTS,
+        )
+        .unwrap()
+    };
+    merkle_tree.init().unwrap();
+    let mut reference_tree =
+        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
+
+    let mut rng = thread_rng();
+
+    for _ in 0..(1 << HEIGHT) {
+        let leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+
+        merkle_tree.append(&leaf).unwrap();
+        reference_tree.append(&leaf).unwrap();
+
+        assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+    }
+
+    let merkle_tree = unsafe {
+        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
+            bytes_struct,
+            bytes_filled_subtrees,
+            bytes_changelog,
+            bytes_roots,
+        )
+        .unwrap()
+    };
+    assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+}
+
+#[test]
+fn test_from_bytes_keccak_8_256_256() {
+    const HEIGHT: usize = 8;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    from_bytes::<Keccak, HEIGHT, CHANGELOG, ROOTS>()
+}
+
+#[test]
+fn test_from_bytes_poseidon_8_256_256() {
+    const HEIGHT: usize = 8;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    from_bytes::<Poseidon, HEIGHT, CHANGELOG, ROOTS>()
+}
+
+#[test]
+fn test_from_bytes_sha256_8_256_256() {
+    const HEIGHT: usize = 8;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    from_bytes::<Sha256, HEIGHT, CHANGELOG, ROOTS>()
 }

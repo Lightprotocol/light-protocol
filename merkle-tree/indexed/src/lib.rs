@@ -2,7 +2,10 @@ use std::marker::PhantomData;
 
 use ark_ff::BigInteger;
 use array::IndexingElement;
-use light_concurrent_merkle_tree::{light_hasher::Hasher, ConcurrentMerkleTree};
+use light_bounded_vec::BoundedVec;
+use light_concurrent_merkle_tree::{
+    errors::ConcurrentMerkleTreeError, light_hasher::Hasher, ConcurrentMerkleTree,
+};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
@@ -12,49 +15,112 @@ pub mod reference;
 use crate::errors::IndexedMerkleTreeError;
 
 #[repr(C)]
-pub struct IndexedMerkleTree<
-    H,
-    I,
-    B,
-    const HEIGHT: usize,
-    const MAX_CHANGELOG: usize,
-    const MAX_ROOTS: usize,
-> where
+pub struct IndexedMerkleTree<'a, H, I, B, const HEIGHT: usize>
+where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
     usize: From<I>,
 {
-    pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>,
+    pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
     _index: PhantomData<I>,
     _bigint: PhantomData<B>,
 }
 
-impl<H, I, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize> Default
-    for IndexedMerkleTree<H, I, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
+pub type IndexedMerkleTree22<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 22>;
+pub type IndexedMerkleTree26<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 26>;
+pub type IndexedMerkleTree32<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 32>;
+pub type IndexedMerkleTree40<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 40>;
+
+impl<'a, H, I, B, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, B, HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     B: BigInteger,
     usize: From<I>,
 {
-    fn default() -> Self {
+    pub fn new(height: usize, changelog_size: usize, roots_size: usize) -> Self {
+        let merkle_tree =
+            ConcurrentMerkleTree::<H, HEIGHT>::new(height, changelog_size, roots_size);
         Self {
-            merkle_tree: ConcurrentMerkleTree::default(),
+            merkle_tree,
             _index: PhantomData,
             _bigint: PhantomData,
         }
     }
-}
 
-impl<H, I, B, const HEIGHT: usize, const MAX_CHANGELOG: usize, const MAX_ROOTS: usize>
-    IndexedMerkleTree<H, I, B, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>
-where
-    H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
-    usize: From<I>,
-{
+    /// Casts byte slices into `ConcurrentMerkleTree`.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the size and alignment of the byte
+    /// slices is the caller's responsibility.
+    pub unsafe fn from_bytes<'b>(
+        bytes_struct: &'b [u8],
+        bytes_filled_subtrees: &'b [u8],
+        bytes_changelog: &'b [u8],
+        bytes_roots: &'b [u8],
+    ) -> Result<&'b Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
+            bytes_struct,
+            bytes_filled_subtrees,
+            bytes_changelog,
+            bytes_roots,
+        )?;
+
+        Ok(&*(merkle_tree as *const ConcurrentMerkleTree<H, HEIGHT> as *const Self))
+    }
+
+    /// Casts byte slices into `ConcurrentMerkleTree`.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the size and alignment of the byte
+    /// slices is the caller's responsibility.
+    pub unsafe fn from_bytes_init(
+        bytes_struct: &'a mut [u8],
+        bytes_filled_subtrees: &'a mut [u8],
+        bytes_changelog: &'a mut [u8],
+        bytes_roots: &'a mut [u8],
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+    ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
+            bytes_struct,
+            bytes_filled_subtrees,
+            bytes_changelog,
+            bytes_roots,
+            height,
+            changelog_size,
+            roots_size,
+        )?;
+
+        Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
+    }
+
+    /// Casts byte slices into `ConcurrentMerkleTree`.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the size and alignment of the byte
+    /// slices is the caller's responsibility.
+    pub unsafe fn from_bytes_mut<'b>(
+        bytes_struct: &'b mut [u8],
+        bytes_filled_subtrees: &'b mut [u8],
+        bytes_changelog: &'b mut [u8],
+        bytes_roots: &'b mut [u8],
+    ) -> Result<&'b mut Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
+            bytes_struct,
+            bytes_filled_subtrees,
+            bytes_changelog,
+            bytes_roots,
+        )?;
+
+        Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
+    }
+
     pub fn init(&mut self) -> Result<(), IndexedMerkleTreeError> {
         self.merkle_tree.init()?;
 
@@ -87,7 +153,7 @@ where
         &self,
         leaf: &[u8; 32],
         leaf_index: usize,
-        proof: &[[u8; 32]; HEIGHT],
+        proof: &BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
         self.merkle_tree.validate_proof(leaf, leaf_index, proof)?;
         Ok(())
@@ -100,7 +166,7 @@ where
         new_element_next_value: B,
         low_element: IndexingElement<I, B>,
         low_element_next_value: B,
-        low_leaf_proof: &[[u8; 32]; HEIGHT],
+        low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.

@@ -5,10 +5,14 @@ edition = "2021"
 
 
 [dependencies]
+account-compression = { path = "../programs/account-compression" }
 account-compression-state = { path = "../state" }
 anyhow = "1.0"
+ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
+light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.1.0" }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.0" }
 light-merkle-tree-program = { path = "../programs/merkle-tree", version = "0.3.1" }
 light-utils = { path = "../utils", version = "0.1.0" }
 quote = "1.0"

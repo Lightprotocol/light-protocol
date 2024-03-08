@@ -1,3 +1,4 @@
+use light_bounded_vec::BoundedVec;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use light_merkle_tree_reference::MerkleTree;
 
@@ -8,7 +9,7 @@ where
     const HEIGHT: usize = 4;
     const ROOTS: usize = 256;
 
-    let mut merkle_tree = MerkleTree::<H, HEIGHT, ROOTS>::new().unwrap();
+    let mut merkle_tree = MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
 
@@ -56,17 +57,17 @@ where
     //  /    \
     // L1   Z[0]
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [
+    let expected_proof = BoundedVec::from_array(&[
         H::zero_bytes()[0],
         H::zero_bytes()[1],
         H::zero_bytes()[2],
         H::zero_bytes()[3],
-    ];
+    ]);
 
     merkle_tree.update(&leaf1, 0).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(0), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(0).unwrap(), expected_proof);
 
     // Appending the 2nd leaf should result in recomputing the root due to the
     // change of the `h1`, which now is a hash of the two non-zero leafs. So
@@ -90,17 +91,17 @@ where
     let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
     let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [
+    let expected_proof = BoundedVec::from_array(&[
         leaf1,
         H::zero_bytes()[1],
         H::zero_bytes()[2],
         H::zero_bytes()[3],
-    ];
+    ]);
 
     merkle_tree.update(&leaf2, 1).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(1), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(1).unwrap(), expected_proof);
 
     // Appending the 3rd leaf alters the next subtree on the right.
     // Instead of using Z[1], we will end up with the hash of the new leaf and
@@ -124,17 +125,17 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [
+    let expected_proof = BoundedVec::from_array(&[
         H::zero_bytes()[0],
         h1,
         H::zero_bytes()[2],
         H::zero_bytes()[3],
-    ];
+    ]);
 
     merkle_tree.update(&leaf3, 2).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(2), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(2).unwrap(), expected_proof);
 
     // Appending the 4th leaf alters the next subtree on the right.
     // Instead of using Z[1], we will end up with the hash of the new leaf and
@@ -158,12 +159,13 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let expected_proof =
+        BoundedVec::from_array(&[leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     merkle_tree.update(&leaf4, 3).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(3), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(3).unwrap(), expected_proof);
 
     // Update `leaf1`.
     let new_leaf1 = [9u8; 32];
@@ -193,10 +195,11 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let expected_proof =
+        BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(0), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(0).unwrap(), expected_proof);
 
     // Update `leaf2`.
     let new_leaf2 = H::hash(&[8u8; 32]).unwrap();
@@ -222,10 +225,11 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let expected_proof =
+        BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(1), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(1).unwrap(), expected_proof);
 
     // Update `leaf3`.
     let new_leaf3 = H::hash(&[7u8; 32]).unwrap();
@@ -251,10 +255,11 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let expected_proof =
+        BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(2), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(2).unwrap(), expected_proof);
 
     // Update `leaf4`.
     let new_leaf4 = H::hash(&[6u8; 32]).unwrap();
@@ -280,10 +285,11 @@ where
     let h3 = H::hashv(&[&h1, &h2]).unwrap();
     let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
     let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
-    let expected_proof = [new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]];
+    let expected_proof =
+        BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(3), expected_proof);
+    assert_eq!(merkle_tree.get_proof_of_leaf(3).unwrap(), expected_proof);
 }
 
 #[test]

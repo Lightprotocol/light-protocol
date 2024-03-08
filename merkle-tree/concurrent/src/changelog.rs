@@ -1,10 +1,11 @@
 use std::marker::PhantomData;
 
+use light_bounded_vec::{BoundedVec, Pod};
 use light_hasher::Hasher;
 
 use crate::errors::ConcurrentMerkleTreeError;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct ChangelogEntry<const HEIGHT: usize> {
     /// Root.
@@ -15,15 +16,12 @@ pub struct ChangelogEntry<const HEIGHT: usize> {
     pub index: u64,
 }
 
-impl<const HEIGHT: usize> Default for ChangelogEntry<HEIGHT> {
-    fn default() -> Self {
-        Self {
-            root: [0u8; 32],
-            path: [[0u8; 32]; HEIGHT],
-            index: 0,
-        }
-    }
-}
+pub type ChangelogEntry22 = ChangelogEntry<22>;
+pub type ChangelogEntry26 = ChangelogEntry<26>;
+pub type ChangelogEntry32 = ChangelogEntry<32>;
+pub type ChangelogEntry40 = ChangelogEntry<40>;
+
+unsafe impl<const HEIGHT: usize> Pod for ChangelogEntry<HEIGHT> {}
 
 impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     pub fn new(root: [u8; 32], path: [[u8; 32]; HEIGHT], index: usize) -> Self {
@@ -58,7 +56,7 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     pub fn update_proof(
         &self,
         leaf_index: usize,
-        proof: &mut [[u8; 32]; HEIGHT],
+        proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if leaf_index != self.index() {
             let intersection_index = self.intersection_index(leaf_index);
@@ -74,7 +72,7 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         Ok(())
     }
 
-    pub fn update_subtrees(&self, rightmost_index: usize, subtrees: &mut [[u8; 32]; HEIGHT]) {
+    pub fn update_subtrees(&self, rightmost_index: usize, subtrees: &mut BoundedVec<[u8; 32]>) {
         let (mut current_index, start) = if rightmost_index != self.index() {
             let intersection_index = self.intersection_index(rightmost_index);
             let current_index = rightmost_index + intersection_index;
@@ -86,8 +84,7 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
             (rightmost_index, 0)
         };
 
-        for (i, subtree) in subtrees.iter_mut().enumerate().take(HEIGHT).skip(start) {
-            // for i in start..HEIGHT {
+        for (i, subtree) in subtrees.iter_mut().enumerate().skip(start) {
             let is_left = current_index % 2 == 0;
             if is_left {
                 *subtree = self.path[i];
@@ -99,26 +96,27 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
 }
 
 /// Temoporary buffer for building Merkle paths during batched append.
-pub struct MerklePaths<H, const HEIGHT: usize>
+pub struct MerklePaths<H>
 where
     H: Hasher,
 {
-    pub paths: Vec<[Option<[u8; 32]>; HEIGHT]>,
+    height: usize,
     root: Option<[u8; 32]>,
-    current_leaf_index: usize,
+    pub paths: Vec<Vec<Option<[u8; 32]>>>,
+
     _hasher: PhantomData<H>,
 }
 
-impl<H, const HEIGHT: usize> MerklePaths<H, HEIGHT>
+impl<H> MerklePaths<H>
 where
     H: Hasher,
 {
-    pub fn new(nr_leaves: usize) -> Self {
-        let paths = vec![[None; HEIGHT]; nr_leaves];
+    pub fn new(height: usize, nr_leaves: usize) -> Self {
+        let paths = Vec::with_capacity(nr_leaves);
         Self {
+            height,
             paths,
             root: None,
-            current_leaf_index: 0,
             _hasher: PhantomData,
         }
     }
@@ -126,7 +124,7 @@ where
     /// Searches for a node under the given `node_index` in all Merkle paths,
     /// starting from the newest one.
     pub fn get(&self, node_index: usize) -> Option<&[u8; 32]> {
-        for path in self.paths[..self.current_leaf_index].iter().rev() {
+        for path in self.paths.iter().rev() {
             if let Some(Some(node)) = path.get(node_index) {
                 return Some(node);
             }
@@ -134,18 +132,17 @@ where
         None
     }
 
-    pub fn inc_current_leaf(&mut self) {
-        self.current_leaf_index += 1;
+    pub fn add_leaf(&mut self) {
+        self.paths.push(vec![None; self.height])
     }
 
     pub fn set(&mut self, node_index: usize, node: [u8; 32]) {
-        self.paths[self.current_leaf_index][node_index] = Some(node);
+        self.paths.last_mut().unwrap()[node_index] = Some(node);
 
         // Fill up empty nodes from previous paths on the same level.
-        for leaf_index in 0..self.current_leaf_index {
+        for leaf_index in 0..self.paths.len() {
             if self.paths[leaf_index][node_index].is_none() {
-                self.paths[leaf_index][node_index] =
-                    self.paths[self.current_leaf_index][node_index];
+                self.paths[leaf_index][node_index] = self.paths.last().unwrap()[node_index];
             }
         }
     }
@@ -154,7 +151,7 @@ where
         self.root = Some(root);
     }
 
-    pub fn to_changelog_entries(
+    pub fn to_changelog_entries<const HEIGHT: usize>(
         &self,
         first_leaf_index: usize,
     ) -> Result<Vec<ChangelogEntry<HEIGHT>>, ConcurrentMerkleTreeError> {
@@ -163,9 +160,9 @@ where
             .enumerate()
             .map(|(i, path)| {
                 let mut changelog_path = [[0u8; 32]; HEIGHT];
-                for i in 0..HEIGHT {
-                    changelog_path[i] =
-                        path[i].ok_or(ConcurrentMerkleTreeError::MerklePathsEmptyNode)?;
+                for j in 0..HEIGHT {
+                    changelog_path[j] =
+                        path[j].ok_or(ConcurrentMerkleTreeError::MerklePathsEmptyNode)?;
                 }
                 Ok(ChangelogEntry::new(
                     self.root

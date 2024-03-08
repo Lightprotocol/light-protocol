@@ -1,6 +1,7 @@
-use account_compression_state::{address_merkle_tree_from_bytes_mut, address_queue_from_bytes_mut};
+use account_compression_state::address_queue_from_bytes_mut;
 use anchor_lang::prelude::*;
 use ark_ff::BigInteger256;
+use light_bounded_vec::BoundedVec;
 use light_indexed_merkle_tree::array::{IndexingElement, RawIndexingElement};
 use light_utils::bigint::be_bytes_to_bigint;
 
@@ -43,7 +44,6 @@ pub fn process_update_address_merkle_tree<'info>(
     let mut address_queue = ctx.accounts.queue.load_mut()?;
     let address_queue = address_queue_from_bytes_mut(&mut address_queue.queue);
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-    let merkle_tree = address_merkle_tree_from_bytes_mut(&mut merkle_tree.merkle_tree);
 
     // Remove the address from the queue.
     let address = address_queue
@@ -53,8 +53,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the address with ranges adjusted to the Merkle tree state.
     let address: IndexingElement<usize, BigInteger256> = IndexingElement {
-        index: usize::try_from(merkle_tree.merkle_tree.next_index)
-            .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
+        index: merkle_tree.load_merkle_tree()?.merkle_tree.next_index,
         value: address.value,
         next_index: address_next_index,
     };
@@ -70,13 +69,14 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the Merkle tree.
     merkle_tree
+        .load_merkle_tree_mut()?
         .update(
             usize::from(changelog_index),
             address,
             address_next_value,
             low_address,
             low_address_next_value,
-            &low_address_proof,
+            &mut BoundedVec::from_array(&low_address_proof),
         )
         .map_err(|_| AccountCompressionErrorCode::AddressMerkleTreeUpdate)?;
 

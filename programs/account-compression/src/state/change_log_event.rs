@@ -141,7 +141,7 @@ mod test {
 
         // Fill up the Merkle tree with random leaves.
         let mut merkle_tree =
-            ConcurrentMerkleTree::<Keccak, HEIGHT, MAX_CHANGELOG, MAX_ROOTS>::default();
+            ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS);
         merkle_tree.init().unwrap();
         let mut spl_merkle_tree =
             spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree::<
@@ -158,7 +158,7 @@ mod test {
         }
 
         for i in 0..leaves {
-            let changelog_entry = merkle_tree.changelog[i];
+            let changelog_entry = merkle_tree.changelog[i].clone();
             let changelog_event =
                 ChangelogEventV1::new(pubkey, &[changelog_entry], i as u64).unwrap();
 
