@@ -277,6 +277,9 @@ async fn test_transfer() {
     let in_utxos_tlv = mock_indexer.token_utxos[0].token_data.clone();
     let in_utxos = vec![mock_indexer.utxos[mock_indexer.token_utxos[0].index].clone()];
 
+    println!("in_utxos_tlv: {:?}", in_utxos_tlv);
+    println!("in_utxos: {:?}", in_utxos);
+
     let change_out_utxo = TokenTransferOutUtxo {
         amount: in_utxos_tlv.amount - 1000,
         owner: recipient_keypair.pubkey(),
@@ -294,6 +297,7 @@ async fn test_transfer() {
         b: [0u8; 64],
         c: [0u8; 32],
     };
+    
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
         &recipient_keypair.pubkey(),

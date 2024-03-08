@@ -1,7 +1,7 @@
 {
-  "name": "@lightprotocol/stateless.js",
+  "name": "@lightprotocol/compressed-token",
   "version": "0.0.1",
-  "description": "The Light Protocol core client library.",
+  "description": "JS client to interact with the compressed-token program",
   "main": "lib/index.js",
   "type": "module",
   "scripts": {
@@ -10,13 +10,16 @@
     "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
     "test-validator": "./../../cli/test_bin/run test-validator",
     "test:program": "pnpm run test-validator:silent && vitest run tests/e2e/program.test.ts",
-    "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
+    "emit-event:create_mint": "vitest run tests/e2e/emit-create_mint.test.ts",
+    "emit-event:mint_to": "vitest run tests/e2e/emit-mint_to-event.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "rimraf lib && pnpm run pull-idl && pnpm tsc",
+    "build": "rimraf lib && pnpm tsc",
     "pull-idl": "./scripts/pull-idl.sh"
   },
   "keywords": [
     "zk",
+    "compression",
+    "zk-compression",
     "stateless",
     "solana"
   ],
@@ -31,16 +34,12 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/account.rs": "workspace:*",
-    "@lightprotocol/prover.js": "workspace:*",
+    "@lightprotocol/stateless.js": "workspace:*",
     "@metaplex-foundation/beet": "0.7.1",
     "@metaplex-foundation/beet-solana": "^0.4.1",
-    "@solana/buffer-layout": "^4.0.1",
-    "@solana/buffer-layout-utils": "^0.2.0",
-    "@solana/spl-account-compression": "^0.1.8",
+    "@solana/spl-token": "^0.3.7",
     "@solana/web3.js": "^1.87.6",
     "buffer": "^6.0.3",
-    "superstruct": "^1.0.3",
     "tweetnacl": "^1.0.3"
   }
 }

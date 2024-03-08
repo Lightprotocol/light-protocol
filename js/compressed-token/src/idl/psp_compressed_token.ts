@@ -590,9 +590,7 @@ export type PspCompressedToken = {
           {
             name: 'state';
             docs: ["The account's state"];
-            type: {
-              defined: 'AccountState';
-            };
+            type: 'u8';
           },
           {
             name: 'isNative';
@@ -1303,9 +1301,7 @@ export const IDL: PspCompressedToken = {
           {
             name: 'state',
             docs: ["The account's state"],
-            type: {
-              defined: 'AccountState',
-            },
+            type: 'u8',
           },
           {
             name: 'isNative',
