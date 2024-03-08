@@ -167,6 +167,14 @@ export class CompressedTokenProgram {
     return address;
   }
 
+  static get cpiAuthorityPda(): PublicKey {
+    const [address, _] = PublicKey.findProgramAddressSync(
+      [Buffer.from('cpi_authority')],
+      this.programId,
+    );
+    return address;
+  }
+
   static async createMint(
     params: CreateMintParams,
   ): Promise<TransactionInstruction[]> {
@@ -211,7 +219,6 @@ export class CompressedTokenProgram {
         mintAuthorityPda,
         tokenProgram: TOKEN_PROGRAM_ID,
       })
-      // .signers([) // set authority and mint as signers on tx level
       .instruction();
 
     return [
