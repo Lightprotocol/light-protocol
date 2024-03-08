@@ -13,8 +13,8 @@
     "emit-event:create_mint": "vitest run tests/e2e/emit-create_mint.test.ts",
     "emit-event:mint_to": "vitest run tests/e2e/emit-mint_to-event.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "rimraf lib && pnpm tsc",
-    "pull-idl": "./scripts/pull-idl.sh"
+    "build": "rimraf lib && pnpm run pull-idl && pnpm tsc",
+    "pull-idl": "../../scripts/push-compressed-token-idl.sh"
   },
   "keywords": [
     "zk",

@@ -29,11 +29,12 @@ Go to stateless.js
 and run
 `pnpm run test-validator`
 
-this starts a solana-test-validator + auto-initialized the env, programs, and accounts Light needs. Keep the validator running.
+this starts a solana-test-validator + auto-initialized the env, programs, and accounts Light needs.
+It should print: "Executing command solana-test-validator...
+Waiting for fees to stabilize 1..."
+Keep the validator running.
 
-now open another terminal, enter the devenv + compressed-token,
-
-`cd js/compressed-token`
+Now open another terminal, activate the devenv again + move to js/compressed-token.
 
 now run:
 
