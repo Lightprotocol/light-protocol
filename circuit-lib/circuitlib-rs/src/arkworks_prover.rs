@@ -8,7 +8,7 @@ use ark_relations::r1cs::ConstraintMatrices;
 use ark_std::rand::thread_rng;
 use log::info;
 
-use crate::{errors::CircuitsError, merkle_proof_inputs::MerkleTreeInfo};
+use crate::{errors::CircuitsError, inclusion::merkle_tree_info::MerkleTreeInfo};
 
 pub type ArkProof = (Proof<Bn254>, Vec<Fr>);
 pub type ArkProvingKey = (ProvingKey<Bn254>, ConstraintMatrices<Fr>);
@@ -53,7 +53,7 @@ pub fn read_zk(
 }
 
 pub fn prove(
-    mt_height: &MerkleTreeInfo,
+    merkle_tree_height: u8,
     nr_utxos: usize,
     inputs: HashMap<String, Inputs>,
     pk: &ArkProvingKey,
@@ -66,9 +66,7 @@ pub fn prove(
     let mut duration = start.elapsed();
     info!(
         "mt_{}_{} witness generated: {:?}",
-        mt_height.height(),
-        nr_utxos,
-        duration
+        merkle_tree_height, nr_utxos, duration
     );
 
     info!("creating proof...");
@@ -92,9 +90,7 @@ pub fn prove(
     duration = start.elapsed();
     info!(
         "mt_{}_{} proof created: {:?}",
-        mt_height.height(),
-        nr_utxos,
-        duration
+        merkle_tree_height, nr_utxos, duration
     );
 
     Ok((proof, full_assignment))

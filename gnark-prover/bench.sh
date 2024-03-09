@@ -15,7 +15,7 @@ generate_and_test() {
     TEST_FILE="/tmp/inputs_${DEPTH}_${utxos}.json"
     if [ ! -f "${CIRCUIT_FILE}" ]; then
         echo "Prover setup..."
-        gnark setup --utxos "$utxos" --tree-depth "$DEPTH" --output "${CIRCUIT_FILE}"
+        gnark setup --circuit inclusion --utxos "$utxos" --tree-depth "$DEPTH" --output "${CIRCUIT_FILE}"
     fi
     if [ ! -f "${TEST_FILE}" ]; then
         echo "Generating test inputs..."
@@ -32,8 +32,6 @@ run_benchmark() {
 }
 
 start_server() {
-#  local -n arr=$1
-#  for utxos in "${arr[@]}"
   utxos_arr=$1
   for utxos in "${utxos_arr[@]}"
   do

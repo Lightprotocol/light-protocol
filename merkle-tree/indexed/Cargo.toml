@@ -17,6 +17,7 @@ light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.0" }
 light-merkle-tree-reference = { path = "../reference", version = "0.1.0" }
 light-utils = { path = "../../utils", version = "0.1.0" }
 num-traits = "0.2"
+
 solana-program = { version = ">=1.17, <1.18", optional = true }
 thiserror = "1.0"
 

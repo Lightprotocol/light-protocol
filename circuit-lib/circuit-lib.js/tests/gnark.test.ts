@@ -1,15 +1,15 @@
 import { MerkleTree } from "../src";
-import { LightWasm, WasmFactory } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/account.rs";
 import axios from "axios";
 import { BN } from "@coral-xyz/anchor";
 import { assert } from "chai";
 
 describe("Tests", () => {
-  let lightWasm: LightWasm;
   const MAX_RETRIES = 20;
   const DELAY_MS = 5000;
   const SERVER_URL = "http://localhost:3001";
-  const PROVE_URL = `${SERVER_URL}/prove`;
+  const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
+  const NON_INCLUSION_PROOF_URL = `${SERVER_URL}/noninclusion`;
   const HEALTH_CHECK_URL = `${SERVER_URL}/health`;
 
   async function pingServer(serverUrl: string) {
@@ -31,11 +31,7 @@ describe("Tests", () => {
     }
   }
 
-  before(async () => {
-    lightWasm = await WasmFactory.getInstance();
-  });
-
-  it("merkle proofgen", async () => {
+  it("inclusion proof", async () => {
     await pingServer(HEALTH_CHECK_URL);
 
     const hasher = await WasmFactory.getInstance();
@@ -58,7 +54,7 @@ describe("Tests", () => {
         };
         const inputsData = JSON.stringify(inputs);
         console.time(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
-        const response = await axios.post(PROVE_URL, inputsData);
+        const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
         console.timeEnd(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
 
         assert.equal(response.status, 200);

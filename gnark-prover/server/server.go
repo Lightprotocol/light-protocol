@@ -80,7 +80,7 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 	logging.Logger().Info().Str("addr", config.MetricsAddress).Msg("metrics server started")
 
 	proverMux := http.NewServeMux()
-	proverMux.Handle("/prove", proveHandler{provingSystem: provingSystem})
+	proverMux.Handle("/inclusion", proveHandler{provingSystem: provingSystem})
 	proverMux.Handle("/health", healthHandler{})
 	proverServer := &http.Server{Addr: config.ProverAddress, Handler: proverMux}
 	proverJob := spawnServerJob(proverServer, "prover server")
@@ -109,6 +109,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var proof *prover.Proof
+
 	var params prover.InclusionParameters
 
 	err = json.Unmarshal(buf, &params)
@@ -120,7 +121,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var numberOfUtxos = uint32(len(params.Root))
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {
-		if provingSystem.NumberOfUtxos == numberOfUtxos {
+		if provingSystem.Inclusion && provingSystem.NumberOfUtxos == numberOfUtxos {
 			ps = provingSystem
 			break
 		}
@@ -130,7 +131,6 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos)).send(w)
 		return
 	}
-
 	proof, err = ps.ProveInclusion(&params)
 
 	if err != nil {
