@@ -193,7 +193,7 @@ export type PspCompressedToken = {
   ];
   accounts: [
     {
-      name: 'instructionDataTransferClient';
+      name: 'InstructionDataTransferClient';
       type: {
         kind: 'struct';
         fields: [
@@ -223,7 +223,7 @@ export type PspCompressedToken = {
             name: 'inTlvData';
             type: {
               vec: {
-                defined: 'TokenTlvData';
+                defined: 'TokenTlvDataClient';
               };
             };
           },
@@ -240,6 +240,78 @@ export type PspCompressedToken = {
     },
   ];
   types: [
+    {
+      name: 'PublicTransactionEvent';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'inUtxos';
+            type: {
+              vec: {
+                defined: 'Utxo';
+              };
+            };
+          },
+          {
+            name: 'outUtxos';
+            type: {
+              vec: {
+                defined: 'Utxo';
+              };
+            };
+          },
+          {
+            name: 'outUtxoIndices';
+            type: {
+              vec: 'u64';
+            };
+          },
+          {
+            name: 'deCompressAmount';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'relayFee';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'message';
+            type: {
+              option: 'bytes';
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: 'CpiSignature';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'program';
+            type: 'publicKey';
+          },
+          {
+            name: 'tlvHash';
+            type: {
+              array: ['u8', 32];
+            };
+          },
+          {
+            name: 'tlvData';
+            type: {
+              defined: 'TlvDataElement';
+            };
+          },
+        ];
+      };
+    },
     {
       name: 'TlvSerializable';
       type: {
@@ -386,6 +458,228 @@ export type PspCompressedToken = {
       };
     },
     {
+      name: 'InUtxoSerializableTuple';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'inUtxoSerializable';
+            type: {
+              defined: 'InUtxoSerializable';
+            };
+          },
+          {
+            name: 'indexMtAccount';
+            type: 'u8';
+          },
+          {
+            name: 'indexNullifierArrayAccount';
+            type: 'u8';
+          },
+        ];
+      };
+    },
+    {
+      name: 'OutUtxoSerializableTuple';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'outUtxoSerializable';
+            type: {
+              defined: 'OutUtxoSerializable';
+            };
+          },
+          {
+            name: 'indexMtAccount';
+            type: 'u8';
+          },
+        ];
+      };
+    },
+    {
+      name: 'InUtxoTuple';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'inUtxo';
+            type: {
+              defined: 'Utxo';
+            };
+          },
+          {
+            name: 'indexMtAccount';
+            type: 'u8';
+          },
+          {
+            name: 'indexNullifierArrayAccount';
+            type: 'u8';
+          },
+        ];
+      };
+    },
+    {
+      name: 'OutUtxoTuple';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'outUtxo';
+            type: {
+              defined: 'OutUtxo';
+            };
+          },
+          {
+            name: 'indexMtAccount';
+            type: 'u8';
+          },
+        ];
+      };
+    },
+    {
+      name: 'SerializedUtxos';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'pubkeyArray';
+            type: {
+              vec: 'publicKey';
+            };
+          },
+          {
+            name: 'u64Array';
+            type: {
+              vec: 'u64';
+            };
+          },
+          {
+            name: 'inUtxos';
+            type: {
+              vec: {
+                defined: 'InUtxoSerializableTuple';
+              };
+            };
+          },
+          {
+            name: 'outUtxos';
+            type: {
+              vec: {
+                defined: 'OutUtxoSerializableTuple';
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: 'InUtxoSerializable';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'owner';
+            type: 'u8';
+          },
+          {
+            name: 'leafIndex';
+            type: 'u32';
+          },
+          {
+            name: 'lamports';
+            type: 'u8';
+          },
+          {
+            name: 'data';
+            type: {
+              option: {
+                defined: 'TlvSerializable';
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: 'OutUtxoSerializable';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'owner';
+            type: 'u8';
+          },
+          {
+            name: 'lamports';
+            type: 'u8';
+          },
+          {
+            name: 'data';
+            type: {
+              option: {
+                defined: 'TlvSerializable';
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: 'OutUtxo';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'owner';
+            type: 'publicKey';
+          },
+          {
+            name: 'lamports';
+            type: 'u64';
+          },
+          {
+            name: 'data';
+            type: {
+              option: {
+                defined: 'Tlv';
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: 'Utxo';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'owner';
+            type: 'publicKey';
+          },
+          {
+            name: 'blinding';
+            type: {
+              array: ['u8', 32];
+            };
+          },
+          {
+            name: 'lamports';
+            type: 'u64';
+          },
+          {
+            name: 'data';
+            type: {
+              option: {
+                defined: 'Tlv';
+              };
+            };
+          },
+        ];
+      };
+    },
+    {
       name: 'UtxoClient';
       type: {
         kind: 'struct';
@@ -510,28 +804,6 @@ export type PspCompressedToken = {
       };
     },
     {
-      name: 'InUtxoTuple';
-      type: {
-        kind: 'struct';
-        fields: [
-          {
-            name: 'inUtxo';
-            type: {
-              defined: 'Utxo';
-            };
-          },
-          {
-            name: 'indexMtAccount';
-            type: 'u8';
-          },
-          {
-            name: 'indexNullifierArrayAccount';
-            type: 'u8';
-          },
-        ];
-      };
-    },
-    {
       name: 'TokenTransferOutUtxo';
       type: {
         kind: 'struct';
@@ -559,6 +831,63 @@ export type PspCompressedToken = {
     },
     {
       name: 'TokenTlvData';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'mint';
+            docs: ['The mint associated with this account'];
+            type: 'publicKey';
+          },
+          {
+            name: 'owner';
+            docs: ['The owner of this account.'];
+            type: 'publicKey';
+          },
+          {
+            name: 'amount';
+            docs: ['The amount of tokens this account holds.'];
+            type: 'u64';
+          },
+          {
+            name: 'delegate';
+            docs: [
+              'If `delegate` is `Some` then `delegated_amount` represents',
+              'the amount authorized by the delegate',
+            ];
+            type: {
+              option: 'publicKey';
+            };
+          },
+          {
+            name: 'state';
+            docs: ["The account's state"];
+            type: {
+              defined: 'AccountState';
+            };
+          },
+          {
+            name: 'isNative';
+            docs: [
+              'If is_some, this is a native token, and the value logs the rent-exempt',
+              'reserve. An Account is required to be rent-exempt, so the value is',
+              'used by the Processor to ensure that wrapped SOL accounts do not',
+              'drop below this threshold.',
+            ];
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'delegatedAmount';
+            docs: ['The amount delegated'];
+            type: 'u64';
+          },
+        ];
+      };
+    },
+    {
+      name: 'TokenTlvDataClient';
       type: {
         kind: 'struct';
         fields: [
@@ -629,36 +958,6 @@ export type PspCompressedToken = {
         ];
       };
     },
-    {
-      name: 'Utxo';
-      type: {
-        kind: 'struct';
-        fields: [
-          {
-            name: 'owner';
-            type: 'publicKey';
-          },
-          {
-            name: 'blinding';
-            type: {
-              array: ['u8', 32];
-            };
-          },
-          {
-            name: 'lamports';
-            type: 'u64';
-          },
-          {
-            name: 'data';
-            type: {
-              option: {
-                defined: 'Tlv';
-              };
-            };
-          },
-        ];
-      };
-    },
   ];
   errors: [
     {
@@ -708,7 +1007,6 @@ export type PspCompressedToken = {
     },
   ];
 };
-
 export const IDL: PspCompressedToken = {
   version: '0.3.0',
   name: 'psp_compressed_token',
@@ -904,7 +1202,7 @@ export const IDL: PspCompressedToken = {
   ],
   accounts: [
     {
-      name: 'instructionDataTransferClient',
+      name: 'InstructionDataTransferClient',
       type: {
         kind: 'struct',
         fields: [
@@ -934,7 +1232,7 @@ export const IDL: PspCompressedToken = {
             name: 'inTlvData',
             type: {
               vec: {
-                defined: 'TokenTlvData',
+                defined: 'TokenTlvDataClient',
               },
             },
           },
@@ -951,6 +1249,78 @@ export const IDL: PspCompressedToken = {
     },
   ],
   types: [
+    {
+      name: 'PublicTransactionEvent',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'inUtxos',
+            type: {
+              vec: {
+                defined: 'Utxo',
+              },
+            },
+          },
+          {
+            name: 'outUtxos',
+            type: {
+              vec: {
+                defined: 'Utxo',
+              },
+            },
+          },
+          {
+            name: 'outUtxoIndices',
+            type: {
+              vec: 'u64',
+            },
+          },
+          {
+            name: 'deCompressAmount',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'relayFee',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'message',
+            type: {
+              option: 'bytes',
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'CpiSignature',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'program',
+            type: 'publicKey',
+          },
+          {
+            name: 'tlvHash',
+            type: {
+              array: ['u8', 32],
+            },
+          },
+          {
+            name: 'tlvData',
+            type: {
+              defined: 'TlvDataElement',
+            },
+          },
+        ],
+      },
+    },
     {
       name: 'TlvSerializable',
       type: {
@@ -1097,6 +1467,228 @@ export const IDL: PspCompressedToken = {
       },
     },
     {
+      name: 'InUtxoSerializableTuple',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'inUtxoSerializable',
+            type: {
+              defined: 'InUtxoSerializable',
+            },
+          },
+          {
+            name: 'indexMtAccount',
+            type: 'u8',
+          },
+          {
+            name: 'indexNullifierArrayAccount',
+            type: 'u8',
+          },
+        ],
+      },
+    },
+    {
+      name: 'OutUtxoSerializableTuple',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'outUtxoSerializable',
+            type: {
+              defined: 'OutUtxoSerializable',
+            },
+          },
+          {
+            name: 'indexMtAccount',
+            type: 'u8',
+          },
+        ],
+      },
+    },
+    {
+      name: 'InUtxoTuple',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'inUtxo',
+            type: {
+              defined: 'Utxo',
+            },
+          },
+          {
+            name: 'indexMtAccount',
+            type: 'u8',
+          },
+          {
+            name: 'indexNullifierArrayAccount',
+            type: 'u8',
+          },
+        ],
+      },
+    },
+    {
+      name: 'OutUtxoTuple',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'outUtxo',
+            type: {
+              defined: 'OutUtxo',
+            },
+          },
+          {
+            name: 'indexMtAccount',
+            type: 'u8',
+          },
+        ],
+      },
+    },
+    {
+      name: 'SerializedUtxos',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'pubkeyArray',
+            type: {
+              vec: 'publicKey',
+            },
+          },
+          {
+            name: 'u64Array',
+            type: {
+              vec: 'u64',
+            },
+          },
+          {
+            name: 'inUtxos',
+            type: {
+              vec: {
+                defined: 'InUtxoSerializableTuple',
+              },
+            },
+          },
+          {
+            name: 'outUtxos',
+            type: {
+              vec: {
+                defined: 'OutUtxoSerializableTuple',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'InUtxoSerializable',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'owner',
+            type: 'u8',
+          },
+          {
+            name: 'leafIndex',
+            type: 'u32',
+          },
+          {
+            name: 'lamports',
+            type: 'u8',
+          },
+          {
+            name: 'data',
+            type: {
+              option: {
+                defined: 'TlvSerializable',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'OutUtxoSerializable',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'owner',
+            type: 'u8',
+          },
+          {
+            name: 'lamports',
+            type: 'u8',
+          },
+          {
+            name: 'data',
+            type: {
+              option: {
+                defined: 'TlvSerializable',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'OutUtxo',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'owner',
+            type: 'publicKey',
+          },
+          {
+            name: 'lamports',
+            type: 'u64',
+          },
+          {
+            name: 'data',
+            type: {
+              option: {
+                defined: 'Tlv',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'Utxo',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'owner',
+            type: 'publicKey',
+          },
+          {
+            name: 'blinding',
+            type: {
+              array: ['u8', 32],
+            },
+          },
+          {
+            name: 'lamports',
+            type: 'u64',
+          },
+          {
+            name: 'data',
+            type: {
+              option: {
+                defined: 'Tlv',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
       name: 'UtxoClient',
       type: {
         kind: 'struct',
@@ -1221,28 +1813,6 @@ export const IDL: PspCompressedToken = {
       },
     },
     {
-      name: 'InUtxoTuple',
-      type: {
-        kind: 'struct',
-        fields: [
-          {
-            name: 'inUtxo',
-            type: {
-              defined: 'Utxo',
-            },
-          },
-          {
-            name: 'indexMtAccount',
-            type: 'u8',
-          },
-          {
-            name: 'indexNullifierArrayAccount',
-            type: 'u8',
-          },
-        ],
-      },
-    },
-    {
       name: 'TokenTransferOutUtxo',
       type: {
         kind: 'struct',
@@ -1270,6 +1840,63 @@ export const IDL: PspCompressedToken = {
     },
     {
       name: 'TokenTlvData',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'mint',
+            docs: ['The mint associated with this account'],
+            type: 'publicKey',
+          },
+          {
+            name: 'owner',
+            docs: ['The owner of this account.'],
+            type: 'publicKey',
+          },
+          {
+            name: 'amount',
+            docs: ['The amount of tokens this account holds.'],
+            type: 'u64',
+          },
+          {
+            name: 'delegate',
+            docs: [
+              'If `delegate` is `Some` then `delegated_amount` represents',
+              'the amount authorized by the delegate',
+            ],
+            type: {
+              option: 'publicKey',
+            },
+          },
+          {
+            name: 'state',
+            docs: ["The account's state"],
+            type: {
+              defined: 'AccountState',
+            },
+          },
+          {
+            name: 'isNative',
+            docs: [
+              'If is_some, this is a native token, and the value logs the rent-exempt',
+              'reserve. An Account is required to be rent-exempt, so the value is',
+              'used by the Processor to ensure that wrapped SOL accounts do not',
+              'drop below this threshold.',
+            ],
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'delegatedAmount',
+            docs: ['The amount delegated'],
+            type: 'u64',
+          },
+        ],
+      },
+    },
+    {
+      name: 'TokenTlvDataClient',
       type: {
         kind: 'struct',
         fields: [
@@ -1336,36 +1963,6 @@ export const IDL: PspCompressedToken = {
           },
           {
             name: 'Frozen',
-          },
-        ],
-      },
-    },
-    {
-      name: 'Utxo',
-      type: {
-        kind: 'struct',
-        fields: [
-          {
-            name: 'owner',
-            type: 'publicKey',
-          },
-          {
-            name: 'blinding',
-            type: {
-              array: ['u8', 32],
-            },
-          },
-          {
-            name: 'lamports',
-            type: 'u64',
-          },
-          {
-            name: 'data',
-            type: {
-              option: {
-                defined: 'Tlv',
-              },
-            },
           },
         ],
       },

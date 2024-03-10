@@ -19,7 +19,8 @@ wget https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-
 mv spl_noop.so ./target/deploy/spl_noop.so
 
 # Distribute IDL files to client libraries
-./scripts/push-idls.sh
+./scripts/push-stateless-js-idls.sh
+./scripts/push-compressed-token-idl.sh
 
 # Enforce build order of dependent projects
 npx nx run @lightprotocol/stateless.js:build

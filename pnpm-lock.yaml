@@ -20,6 +20,9 @@ importers:
       playwright:
         specifier: ^1.40.1
         version: 1.40.1
+      prettier:
+        specifier: ^3.2.5
+        version: 3.2.5
       snarkjs:
         specifier: ^0.7.2
         version: 0.7.2
@@ -98,10 +101,6 @@ importers:
       vitest:
         specifier: ^0.34.6
         version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
-
-  account.rs/src/main/wasm: {}
-
-  account.rs/src/main/wasm-simd: {}
 
   circuit-lib/circuit-lib.circom:
     devDependencies:
@@ -5002,7 +5001,7 @@ packages:
       '@solana/web3.js': 1.87.6
       bs58: 5.0.0
       dotenv: 16.3.1
-      prettier: 3.0.3
+      prettier: 3.2.5
       typescript: 5.3.2
     transitivePeerDependencies:
       - bufferutil
@@ -13213,6 +13212,12 @@ packages:
 
   /prettier@3.0.3:
     resolution: {integrity: sha512-L/4pUDMxcNa8R/EthV08Zt42WBO4h1rarVtK0K+QJG0X187OLo7l699jWw0GKuwzkPQ//jMFA/8Xm6Fh3J/DAg==}
+    engines: {node: '>=14'}
+    hasBin: true
+    dev: true
+
+  /prettier@3.2.5:
+    resolution: {integrity: sha512-3/GWa9aOC0YeD7LUfvOG2NiDyhOWRvt1k+rcKhOuYnMY24iiCphgneUfJDyFXd6rZCAnuLBv6UeAULtrhT/F4A==}
     engines: {node: '>=14'}
     hasBin: true
 
