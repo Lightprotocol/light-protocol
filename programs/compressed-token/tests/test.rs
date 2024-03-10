@@ -297,7 +297,7 @@ async fn test_transfer() {
         b: [0u8; 64],
         c: [0u8; 32],
     };
-    
+
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
         &recipient_keypair.pubkey(),

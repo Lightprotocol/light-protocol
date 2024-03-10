@@ -293,7 +293,6 @@ pub struct InstructionDataTransfer {
     out_utxos: Vec<TokenTransferOutUtxo>,
 }
 
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenTransferOutUtxo {
     pub owner: Pubkey,
