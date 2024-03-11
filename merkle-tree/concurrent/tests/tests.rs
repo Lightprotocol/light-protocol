@@ -1,8 +1,4 @@
-use core::slice;
-use std::{
-    alloc::{self, handle_alloc_error, Layout},
-    mem,
-};
+use std::mem;
 
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
@@ -885,69 +881,17 @@ fn from_bytes<H, const HEIGHT: usize, const CHANGELOG: usize, const ROOTS: usize
 where
     H: Hasher,
 {
-    let layout = Layout::from_size_align(
-        mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>(),
-        mem::align_of::<ConcurrentMerkleTree<H, HEIGHT>>(),
-    )
-    .unwrap();
-    let bytes_struct = unsafe { alloc::alloc(layout) };
-    if bytes_struct.is_null() {
-        handle_alloc_error(layout);
-    }
-    let bytes_struct = unsafe {
-        slice::from_raw_parts_mut(
-            bytes_struct,
-            mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>(),
-        )
-    };
-
-    let layout = Layout::from_size_align(
-        mem::size_of::<[u8; 32]>() * HEIGHT,
-        mem::align_of::<[u8; 32]>(),
-    )
-    .unwrap();
-    let bytes_filled_subtrees = unsafe { alloc::alloc(layout) };
-    if bytes_filled_subtrees.is_null() {
-        handle_alloc_error(layout);
-    }
-    let bytes_filled_subtrees = unsafe {
-        slice::from_raw_parts_mut(bytes_filled_subtrees, mem::size_of::<[u8; 32]>() * HEIGHT)
-    };
-
-    let layout = Layout::from_size_align(
-        mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG,
-        mem::align_of::<ChangelogEntry<HEIGHT>>(),
-    )
-    .unwrap();
-    let bytes_changelog = unsafe { alloc::alloc(layout) };
-    if bytes_changelog.is_null() {
-        handle_alloc_error(layout);
-    }
-    let bytes_changelog = unsafe {
-        slice::from_raw_parts_mut(
-            bytes_changelog,
-            mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG,
-        )
-    };
-
-    let layout = Layout::from_size_align(
-        mem::size_of::<[u8; 32]>() * ROOTS,
-        mem::align_of::<[u8; 32]>(),
-    )
-    .unwrap();
-    let bytes_roots = unsafe { alloc::alloc(layout) };
-    if bytes_roots.is_null() {
-        handle_alloc_error(layout);
-    }
-    let bytes_roots =
-        unsafe { slice::from_raw_parts_mut(bytes_roots, mem::size_of::<[u8; 32]>() * ROOTS) };
+    let mut bytes_struct = vec![0u8; mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>()];
+    let mut bytes_filled_subtrees = vec![0u8; mem::size_of::<[u8; 32]>() * HEIGHT];
+    let mut bytes_changelog = vec![0u8; mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG];
+    let mut bytes_roots = vec![0u8; mem::size_of::<[u8; 32]>() * ROOTS];
 
     let merkle_tree = unsafe {
         ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
+            bytes_struct.as_mut_slice(),
+            bytes_filled_subtrees.as_mut_slice(),
+            bytes_changelog.as_mut_slice(),
+            bytes_roots.as_mut_slice(),
             HEIGHT,
             CHANGELOG,
             ROOTS,
@@ -975,10 +919,10 @@ where
 
     let merkle_tree = unsafe {
         ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
+            bytes_struct.as_slice(),
+            bytes_filled_subtrees.as_slice(),
+            bytes_changelog.as_slice(),
+            bytes_roots.as_slice(),
         )
         .unwrap()
     };
