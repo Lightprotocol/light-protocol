@@ -4,15 +4,11 @@ import {
   Connection,
   TransactionMessage,
   VersionedTransaction,
-  Keypair,
 } from '@solana/web3.js';
 
 import {
-  Utxo,
-  UtxoWithBlinding,
   byteArrayToKeypair,
   confirmTx,
-  defaultTestStateTreeAccounts,
   sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { SPL_TOKEN_MINT_RENT_EXEMPT_BALANCE } from '../../src/constants';

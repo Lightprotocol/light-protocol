@@ -4,20 +4,22 @@ on:
       - main
     paths:
       - "js/stateless.js/**"
-      - ".github/workflows/stateless-js-tests.yml"
+      - "js/compressed-token/**"
+      - ".github/workflows/js.yml"
   pull_request:
     branches:
       - main
     paths:
       - "js/stateless.js/**"
-      - ".github/workflows/stateless-js-tests.yml"
+      - "js/compressed-token/**"
+      - ".github/workflows/js.yml"
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
 
-name: stateless-js-tests
+name: js-tests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,4 +47,10 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cd js/stateless.js
+          pnpm run test
+
+      - name: Run compressed-token tests
+        run: |
+          source ./scripts/devenv.sh
+          cd js/compressed-token
           pnpm run test
