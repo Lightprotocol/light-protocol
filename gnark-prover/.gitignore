@@ -11,3 +11,5 @@ formal-verification/lake-packages/*
 
 inputs_*
 log.txt
+
+*.bin
