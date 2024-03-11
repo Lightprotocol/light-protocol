@@ -1,67 +1,56 @@
-# on:
-#   push:
-#     branches:
-#       - main
-#   pull_request:
-#     branches:
-#       - main
-#     types:
-#       - opened
-#       - synchronize
-#       - ready_for_review
-#       - reopened
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "js/stateless.js/**"
+      - "js/compressed-token/**"
+      - ".github/workflows/js.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "js/stateless.js/**"
+      - "js/compressed-token/**"
+      - ".github/workflows/js.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
-# name: JavaScript Libraries Tests
+name: js-tests
 
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.ref }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-# jobs:
-#   js-lib-tests:
-#     name: JS Library Test
-#     if: github.event.pull_request.draft == false
-#     runs-on: buildjet-16vcpu-ubuntu-2204
-#     strategy:
-#       matrix:
-#         include:
-#           - name: stateless-js
-#             directory: js/stateless.js
-#             # we can add more js libs here later.
+jobs:
+  stateless-js:
+    name: stateless-js
+    if: github.event.pull_request.draft == false
+    runs-on: buildjet-16vcpu-ubuntu-2204
 
-#     steps:
-#       - name: Log in to Docker Hub
-#         uses: docker/login-action@v1
-#         with:
-#           username: ${{ secrets.DOCKER_USERNAME }}
-#           password: ${{ secrets.DOCKER_PASSWORD }}
-#       - name: Checkout sources
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
 
-#       - name: Setup and build
-#         uses: ./.github/actions/setup-and-build
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          enable-redis: false
 
-#       - name: Setup Node.js environment
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: "20.9.0"
+      - name: Run build script
+        run: ./scripts/build.sh
 
-#       - name: Install pnpm
-#         run: npm install -g pnpm
+      - name: Run stateless.js tests
+        run: |
+          source ./scripts/devenv.sh
+          cd js/stateless.js
+          pnpm run test
 
-#       - name: Build CLI
-#         run: |
-#           cd cli
-#           pnpm install --frozen-lockfile
-#           pnpm run build
-#         working-directory: ${{ github.workspace }}
-# - name: Build CLI
-#   run: |
-#     cd cli
-#     pnpm install --frozen-lockfile
-#     pnpm run build
-#   working-directory: ${{ github.workspace }}
-
-# - name: Install dependencies for stateless.js
-#   run: pnpm install --frozen-lockfile
-#         run: docker logout
+      - name: Run compressed-token tests
+        run: |
+          source ./scripts/devenv.sh
+          cd js/compressed-token
+          pnpm run test

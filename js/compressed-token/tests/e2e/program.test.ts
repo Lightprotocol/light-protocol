@@ -58,6 +58,7 @@ async function assertMintCreated(
   expect(unpackedPoolAccount.delegate).toBe(null);
 }
 
+/// TODO: fix deserialization bug to enable assert for output utxos
 describe('Compressed Token Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
