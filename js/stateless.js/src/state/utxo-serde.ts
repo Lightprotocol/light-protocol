@@ -82,7 +82,7 @@ export class UtxoSerde {
           : this.u64Array.push(bn(utxo.lamports)) - 1;
 
       const data = utxo.data
-        ? serializeTlv({ tlvElements: utxo.data }, this.pubkeyArray, accounts)
+        ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
       const inputUtxoSerializable: InUtxoSerializable = {
@@ -163,7 +163,7 @@ export class UtxoSerde {
           : this.u64Array.push(bn(utxo.lamports)) - 1;
 
       const data = utxo.data
-        ? serializeTlv({ tlvElements: utxo.data }, this.pubkeyArray, accounts)
+        ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
       const outputUtxoSerializable: OutUtxoSerializable = {
@@ -227,7 +227,7 @@ export class UtxoSerde {
         : undefined;
 
       // reconstruct inputUtxo
-      const utxo = createUtxo(owner, lamports, data?.tlvElements);
+      const utxo = createUtxo(owner, lamports, data);
       const utxoHash = await createUtxoHash(
         hasher,
         utxo,
@@ -276,7 +276,7 @@ export class UtxoSerde {
         : undefined;
 
       // Reconstruct Utxo
-      const utxo = createUtxo(owner, lamports, data?.tlvElements);
+      const utxo = createUtxo(owner, lamports, data);
 
       outUtxos.push([utxo, outputUtxoSerializableTuple.indexMtAccount]);
     }
@@ -319,7 +319,9 @@ async function createUtxoHash(
 
   /// hash all tlv elements into a single hash
   const tlvDataHash = data
-    ? hasher.poseidonHashString(data.map((d) => d.dataHash.toString()))
+    ? hasher.poseidonHashString(
+        data.tlvElements.map((d) => d.dataHash.toString()),
+      )
     : bn(0).toString();
 
   /// ensure <254-bit

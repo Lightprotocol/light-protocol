@@ -22,20 +22,6 @@ import {
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import { confirmTx, getMockRpc, sendAndConfirmTx } from '../../src/test-utils';
 
-// new todo
-// - test case 1 utxo with lamports in - 2 out utxos -> send money DONE
-// - rename rpc fee to relay fee ~~
-// - test changelog event nn
-// - test rpc get utxo by owner THIS
-// - clean up FIRST RUN DON
-// - script that does one transaction with constanst as amounts so that these are easy to change
-// - readme (start test validator, in separate tab run script that does a transaction)
-
-// TODO add tests for
-// - invalid tx signer
-// - asserting emitted events..
-// - repeat: sending fetching balance, sending more
-// its not pretty but should work
 describe('Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
@@ -54,6 +40,7 @@ describe('Program test', () => {
     await confirmTx(connection, sig);
   });
 
+  /// TODO: switch default tests to this after we resolve the deserialization bug
   it('should match reference bytes for encoded inputs @test_execute_compressed_transactio (rust sdk)', async () => {
     const in_utxos: UtxoWithBlinding[] = [
       {
@@ -184,6 +171,7 @@ describe('Program test', () => {
     assert.equal(indexedEvents[1].outUtxos[1].data, null);
   });
 
+  /// TODO: enable test after refactor for packInstruction() is complete
   it.skip('should build ix and send to chain successfully', async () => {
     const keys = defaultTestStateTreeAccounts();
     const merkleTree = keys.merkleTree; /// TODO: replace with inited mt

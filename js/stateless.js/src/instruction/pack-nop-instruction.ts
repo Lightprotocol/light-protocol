@@ -144,7 +144,10 @@ export async function createExecuteCompressedInstruction(
 
   const instruction = await LightSystemProgram.program.methods
     .executeCompressedTransaction(data)
-    .accounts({ ...staticAccounts })
+    .accounts({
+      ...staticAccounts,
+      invokingProgram: LightSystemProgram.programId,
+    })
     .remainingAccounts(remainingAccountMetas)
     .instruction();
 

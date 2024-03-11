@@ -113,6 +113,7 @@ NODE_VERSION="20.9.0"
 PNPM_VERSION="8.8.0"
 SOLANA_VERSION="1.17.5"
 ANCHOR_VERSION="anchor-v0.29.0"
+JQ_VERSION="jq-1.7.1"
 CIRCOM_VERSION=`latest_release Lightprotocol circom`
 MACRO_CIRCOM_VERSION=`latest_release Lightprotocol macro-circom`
 LIGHT_PROTOCOL_VERSION=`latest_release Lightprotocol light-protocol`
@@ -127,6 +128,7 @@ case "${OS}" in
                 ARCH_SUFFIX_LP="macos-amd64"
                 ARCH_SUFFIX_NODE="darwin-x64"
                 ARCH_SUFFIX_PNPM="macos-x64"
+                ARCH_SUFFIX_JQ="jq-osx-amd64"
                 ;;
             "aarch64"|"arm64")
                 ARCH_SUFFIX_GO="darwin-arm64"
@@ -134,6 +136,7 @@ case "${OS}" in
                 ARCH_SUFFIX_LP="macos-arm64"
                 ARCH_SUFFIX_NODE="darwin-arm64"
                 ARCH_SUFFIX_PNPM="macos-arm64"
+                ARCH_SUFFIX_JQ="jq-macos-arm64"
                 ;;
             "*")
                 echo "Architecture ${ARCH} on operating system ${OS} is not supported."
@@ -149,6 +152,7 @@ case "${OS}" in
                 ARCH_SUFFIX_LP="linux-amd64"
                 ARCH_SUFFIX_NODE="linux-x64"
                 ARCH_SUFFIX_PNPM="linuxstatic-x64"
+                ARCH_SUFFIX_JQ="jq-linux-amd64"
                 ;;
             "aarch64"|"arch64"|"arm64")
                 ARCH_SUFFIX_GO="linux-arm64"
@@ -156,6 +160,7 @@ case "${OS}" in
                 ARCH_SUFFIX_LP="linux-arm64"
                 ARCH_SUFFIX_NODE="linux-arm64"
                 ARCH_SUFFIX_PNPM="linuxstatic-arm64"
+                ARCH_SUFFIX_JQ="jq-linux-arm64"
                 ;;
             "*")
                 echo "Architecture ${ARCH} on operating system ${OS} is not supported."
@@ -234,6 +239,15 @@ download_file_github \
     "${ANCHOR_VERSION}" \
     "anchor-${ARCH_SUFFIX_LP}" \
     anchor \
+    "${PREFIX}/bin"
+
+echo "📥 Downloading Jq"
+download_file_github \
+    jqlang \
+    jq \
+    "${JQ_VERSION}" \
+    "${ARCH_SUFFIX_JQ}" \
+    jq \
     "${PREFIX}/bin"
 
 echo "📥 Downloading Circom"

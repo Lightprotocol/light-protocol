@@ -35,6 +35,3 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "pnpm run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
-
-[workspace]
-types = "js/stateless.js/src/idls"

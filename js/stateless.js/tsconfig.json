@@ -12,7 +12,8 @@
     "moduleResolution": "Node",
     "lib": ["ESNext"],
     "types": ["vitest/importMeta", "node"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": true
   },
   "include": ["./src/**/*.ts"]
 }

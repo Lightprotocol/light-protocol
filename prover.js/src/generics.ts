@@ -10,11 +10,11 @@ type ConvertArray<T> = T extends { array: infer U }
   ? U extends [{ array: infer K }, number]
     ? Array<ConvertArray<{ array: K }>>
     : U extends ["u8", number]
-    ? Array<string>
-    : never
+      ? Array<string>
+      : never
   : T extends "u8"
-  ? string
-  : never;
+    ? string
+    : never;
 
 // Generic type parser according to the parsed public inputs for a solana program instruction i.e. for
 // { array: [{ array: [{ array: [{ array: ["u8", 2] }, 3] }, 4] }, 5] } => number[][][][][]
@@ -22,11 +22,11 @@ type ConvertToParsedArray<T> = T extends { array: infer U }
   ? U extends [{ array: infer K }, number]
     ? Array<ConvertArray<{ array: K }>>
     : U extends ["u8", number]
-    ? Array<Array<number>>
-    : never
+      ? Array<Array<number>>
+      : never
   : T extends "u8"
-  ? Array<number>
-  : never;
+    ? Array<number>
+    : never;
 
 // create a mapped type combing name as key and type as property
 type MapObjectKeys<T extends Array<{ name: any; type: any }>> = {
@@ -87,12 +87,13 @@ type SelectAccount<
 type SelectZKAccount<
   Idl extends zkIdl,
   AccountName extends ZKAccounts["name"],
-> = SelectAccount<AccountName, Idl["accounts"]> extends {
-  name: any;
-  type: { kind: any; fields: any };
-}
-  ? SelectAccount<AccountName, Idl["accounts"]>["type"]["fields"]
-  : never;
+> =
+  SelectAccount<AccountName, Idl["accounts"]> extends {
+    name: any;
+    type: { kind: any; fields: any };
+  }
+    ? SelectAccount<AccountName, Idl["accounts"]>["type"]["fields"]
+    : never;
 
 type Accounts<Idl extends zkIdl> = {
   [N in Idl["name"]]: Account;
@@ -100,11 +101,12 @@ type Accounts<Idl extends zkIdl> = {
 type ZKAccounts = FetchZKAccounts<Accounts<zkIdl>>;
 
 // Filter circuit zk accounts
-type FetchZKAccounts<T> = T extends Accounts<zkIdl>
-  ? T["name"] extends `zK${infer _}`
-    ? T
-    : never
-  : never;
+type FetchZKAccounts<T> =
+  T extends Accounts<zkIdl>
+    ? T["name"] extends `zK${infer _}`
+      ? T
+      : never
+    : never;
 
 type ZKProofAccounts = FetchProofAccounts<ZKAccounts>;
 type FetchProofAccounts<T> = T extends ZKAccounts
