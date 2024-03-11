@@ -128,11 +128,27 @@ pub mod account_compression {
         )
     }
 
-    pub fn insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeavesParallel<'info>>,
+    pub fn append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
         leaves: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_leaves_into_merkle_trees(ctx, &leaves)
+        process_append_leaves_to_merkle_trees(ctx, &leaves)
+    }
+
+    pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
+        change_log_indices: Vec<u64>,
+        leaves_indices: Vec<u16>,
+        indices: Vec<u64>,
+        proofs: Vec<Vec<[u8; 32]>>,
+    ) -> Result<()> {
+        process_nullify_leaves(
+            &ctx,
+            &change_log_indices,
+            &leaves_indices,
+            &indices,
+            &proofs,
+        )
     }
 
     // TODO: add insert into merkle tree function that inserts multiple leaves into a single merkle tree

@@ -84,7 +84,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
 
-    let accounts = account_compression::cpi::accounts::InsertTwoLeavesParallel {
+    let accounts = account_compression::cpi::accounts::AppendLeaves {
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
         log_wrapper: log_wrapper.to_account_info(),
@@ -93,7 +93,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let mut cpi_ctx =
         CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx.remaining_accounts = out_merkle_trees_account_infos;
-    account_compression::cpi::insert_leaves_into_merkle_trees(cpi_ctx, leaves)?;
+    account_compression::cpi::append_leaves_to_merkle_trees(cpi_ctx, leaves)?;
     Ok(())
 }
 #[inline(never)]

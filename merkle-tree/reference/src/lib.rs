@@ -184,6 +184,12 @@ where
             .node
             .unwrap_or(H::zero_bytes()[0])
     }
+
+    pub fn get_leaf_index(&self, leaf: &[u8; 32]) -> Option<usize> {
+        self.leaf_nodes
+            .iter()
+            .position(|node| node.borrow().node == Some(*leaf))
+    }
 }
 
 #[derive(Clone, Debug)]

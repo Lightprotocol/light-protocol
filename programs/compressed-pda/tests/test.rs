@@ -8,7 +8,9 @@ use psp_compressed_pda::{
     utils::CompressedProof,
     utxo::{OutUtxo, Utxo},
 };
+use solana_cli_output::CliAccount;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
+use tokio::fs::write as async_write;
 
 #[tokio::test]
 async fn test_execute_compressed_transactio() {
@@ -147,8 +149,7 @@ async fn test_create_execute_compressed_transaction_2() {
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
     assert!(res.is_err());
 }
-use solana_cli_output::CliAccount;
-use tokio::fs::write as async_write;
+
 #[ignore = "this is a helper function to regenerate accounts"]
 #[tokio::test]
 async fn regenerate_accounts() {

@@ -12,7 +12,7 @@ use crate::{
 
 // TODO: implement group access control
 #[derive(Accounts)]
-pub struct InsertTwoLeavesParallel<'info> {
+pub struct AppendLeaves<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -32,7 +32,7 @@ impl GroupAccess for StateMerkleTreeAccount {
     }
 }
 
-impl<'info> GroupAccounts<'info> for InsertTwoLeavesParallel<'info> {
+impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
     fn get_signing_address(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -45,8 +45,8 @@ impl<'info> GroupAccounts<'info> for InsertTwoLeavesParallel<'info> {
 /// for every leaf could be inserted into a different Merkle tree account
 /// 1. deduplicate Merkle trees and identify into which tree to insert what leaf
 /// 2. iterate over every unique Merkle tree and batch insert leaves
-pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeavesParallel<'info>>,
+pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: &'a [[u8; 32]],
 ) -> Result<()> {
     if leaves.len() != ctx.remaining_accounts.len() {
@@ -72,7 +72,7 @@ pub fn process_insert_leaves_into_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
         let mut merkle_tree = merkle_tree.load_mut()?;
         // TODO: activate when group access control is implemented
-        // check_registered_or_signer::<InsertTwoLeavesParallel, StateMerkleTreeAccount>(
+        // check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
         //     &ctx,
         //     &merkle_tree_account,
         // )?;
@@ -143,9 +143,9 @@ pub mod sdk {
         payer: Pubkey,
         merkle_tree_pubkeys: Vec<Pubkey>,
     ) -> Instruction {
-        let instruction_data = crate::instruction::InsertLeavesIntoMerkleTrees { leaves };
+        let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { leaves };
 
-        let accounts = crate::accounts::InsertTwoLeavesParallel {
+        let accounts = crate::accounts::AppendLeaves {
             authority: payer,
             registered_program_pda: None,
             log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,

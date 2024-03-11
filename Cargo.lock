@@ -29,6 +29,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-macros",
+ "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
  "log",

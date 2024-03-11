@@ -23,4 +23,4 @@ ark-serialize = { git = "https://github.com/Lightprotocol/algebra", branch="rele
 overflow-checks = true
 
 [profile.test]
-opt-level = 2
+opt-level = 0
