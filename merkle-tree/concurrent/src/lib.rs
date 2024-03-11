@@ -3,7 +3,7 @@ use std::{marker::PhantomData, mem, slice};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 pub use light_hasher;
 use light_hasher::Hasher;
-
+use solana_program::msg;
 pub mod changelog;
 pub mod errors;
 pub mod hash;
@@ -661,8 +661,13 @@ where
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         let mut i = changelog_index + 1;
-
+        println!("changelog_index: {}", changelog_index);
+        #[cfg(target_os = "solana")]
+        msg!("changelog_index: {}", changelog_index);
         while i != self.changelog_index() + 1 {
+            println!("i: {}", i);
+            #[cfg(target_os = "solana")]
+            msg!("i: {}", i);
             self.changelog[i].update_proof(leaf_index, proof)?;
 
             i = (i + 1) % self.changelog_length;
@@ -682,6 +687,11 @@ where
     ) -> Result<(), ConcurrentMerkleTreeError> {
         let expected_root = self.root()?;
         let computed_root = compute_root::<H>(leaf, leaf_index, proof)?;
+        // with the following print set the expected and computed roots are the same
+        // comment the statment to reproduce the error with test programs/account-compression/tests/merkle_tree_tests.rs
+        // in accounts-compression run cargo test-sbf test_nullify_leaves
+        #[cfg(target_os = "solana")]
+        msg!("leaf: {:?}", leaf);
         if computed_root == expected_root {
             Ok(())
         } else {
@@ -743,6 +753,7 @@ where
     /// Replaces the `old_leaf` under the `leaf_index` with a `new_leaf`, using
     /// the given `proof` and `changelog_index` (pointing to the changelog entry
     /// which was the newest at the time of preparing the proof).
+    #[inline(never)]
     pub fn update(
         &mut self,
         changelog_index: usize,
@@ -759,6 +770,8 @@ where
             self.update_proof(changelog_index, leaf_index, proof)?;
         }
         self.validate_proof(old_leaf, leaf_index, proof)?;
+        #[cfg(target_os = "solana")]
+        msg!("validated proof");
         self.update_leaf_in_tree(new_leaf, leaf_index, proof)
     }
 

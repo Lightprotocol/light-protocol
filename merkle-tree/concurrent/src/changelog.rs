@@ -58,6 +58,8 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
+        println!("leaf_index: {}", leaf_index);
+        println!("self.index(): {}", self.index());
         if leaf_index != self.index() {
             let intersection_index = self.intersection_index(leaf_index);
             proof[intersection_index] = self.path[intersection_index];

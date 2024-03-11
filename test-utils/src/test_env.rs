@@ -162,7 +162,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
     let instruction =
-        account_compression::instructions::insert_two_leaves_transaction::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey);
+        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey);
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],

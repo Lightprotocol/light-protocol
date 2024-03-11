@@ -28,4 +28,8 @@ pub enum AccountCompressionErrorCode {
     InvalidNoopPubkey,
     #[msg("Emitting an event requires at least one changelog entry")]
     EventNoChangelogEntry,
+    #[msg("Number of change log indices mismatch")]
+    NumberOfChangeLogIndicesMismatch,
+    #[msg("Number of indices mismatch")]
+    NumberOfIndicesMismatch,
 }

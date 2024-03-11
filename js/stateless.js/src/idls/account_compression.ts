@@ -376,7 +376,7 @@ export type AccountCompression = {
       ]
     },
     {
-      "name": "insertLeavesIntoMerkleTrees",
+      "name": "appendLeavesToMerkleTrees",
       "accounts": [
         {
           "name": "authority",
@@ -1268,7 +1268,7 @@ export const IDL: AccountCompression = {
       ]
     },
     {
-      "name": "insertLeavesIntoMerkleTrees",
+      "name": "appendLeavesToMerkleTrees",
       "accounts": [
         {
           "name": "authority",
