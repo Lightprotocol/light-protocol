@@ -241,50 +241,8 @@ pub struct TransferInstruction<'info> {
     pub self_program: Program<'info, crate::program::PspCompressedToken>,
 }
 
-// TODO: remove when instruction data struct has been implemented with beet in client
-// ported from utxo.rs so that it is included in anchor idl
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct UtxoClient {
-    pub owner: Pubkey,
-    pub blinding: [u8; 32],
-    pub lamports: u64,
-    pub address: Option<Pubkey>,
-    pub data: Option<Tlv>,
-}
-
-// TODO: remove when instruction data struct has been implemented with beet in client
-// ported from utxo.rs so that it is included in anchor idl
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InUtxoTupleClient {
-    pub in_utxo: UtxoClient,
-    pub index_mt_account: u8,
-    pub index_nullifier_array_account: u8,
-}
-
-// TODO: remove when instruction data struct has been implemented with beet in client
-// ported from utxo.rs so that it is included in anchor idl
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedProofClient {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
-
-// TODO: remove when instruction data struct has been implemented with beet in client
-// this struct is just used in the client
-// for that reason it uses the ported client structs
-#[derive(Debug)]
-#[account]
-pub struct InstructionDataTransferClient {
-    proof: Option<CompressedProofClient>,
-    root_indices: Vec<u16>,
-    in_utxos: Vec<InUtxoTupleClient>,
-    in_tlv_data: Vec<TokenTlvDataClient>,
-    out_utxos: Vec<TokenTransferOutUtxo>,
-}
-
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
-// This struct is equivalent to the InstructionDataTransferClient, but uses the imported types from the psp_compressed_pda
+// This struct is equivalent to the InstructionDataTransfer, but uses the imported types from the psp_compressed_pda
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     proof: Option<CompressedProof>,
@@ -334,6 +292,7 @@ pub struct TokenTlvData {
     // /// Optional authority to close the account.
     // pub close_authority: Option<Pubkey>,
 }
+// keeping this client struct for now because ts encoding is complaining about the enum, state is replaced with u8 in this struct
 #[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct TokenTlvDataClient {
     /// The mint associated with this account
@@ -662,84 +621,5 @@ mod test {
             .out_utxos_from_serialized_utxos(&accounts)
             .unwrap();
         assert_eq!(deserialized_out_utxos[0].out_utxo, out_utxo);
-    }
-
-    #[test]
-    fn test_instruction_data_transfer_client_serialization() {
-        let mut in_utxos = Vec::new();
-        let mut in_tlv_data = Vec::new();
-        let mut out_utxos = Vec::new();
-        let mut root_indices = Vec::new();
-        let proof = CompressedProofClient {
-            a: [1u8; 32],
-            b: [2u8; 64],
-            c: [3u8; 32],
-        };
-        let in_utxo = InUtxoTupleClient {
-            in_utxo: UtxoClient {
-                owner: Pubkey::new_unique(),
-                blinding: [5u8; 32],
-                lamports: 4,
-                address: None,
-                data: None,
-            },
-            index_mt_account: 1,
-            index_nullifier_array_account: 2,
-        };
-        let in_tlv = TokenTlvData {
-            mint: Pubkey::new_unique(),
-            owner: Pubkey::new_unique(),
-            amount: 3,
-            delegate: None,
-            state: AccountState::Uninitialized,
-            is_native: None,
-            delegated_amount: 1,
-        };
-        let out_utxo = TokenTransferOutUtxo {
-            owner: Pubkey::new_unique(),
-            amount: 3,
-            lamports: None,
-            index_mt_account: 1,
-        };
-        in_utxos.push(in_utxo);
-        in_tlv_data.push(in_tlv);
-        out_utxos.push(out_utxo);
-        root_indices.push(0);
-        let instruction_data_transfer = InstructionDataTransferClient {
-            proof: Some(proof),
-            root_indices,
-            in_utxos,
-            in_tlv_data,
-            out_utxos,
-        };
-        let mut serialized = Vec::new();
-        InstructionDataTransferClient::serialize(&instruction_data_transfer, &mut serialized)
-            .unwrap();
-        let deserialized =
-            InstructionDataTransfer::deserialize(&mut serialized.as_slice()).unwrap();
-        assert_eq!(
-            instruction_data_transfer.in_utxos[0].in_utxo.blinding,
-            deserialized.in_utxos[0].in_utxo.blinding
-        );
-        assert_eq!(
-            instruction_data_transfer.in_utxos[0].in_utxo.lamports,
-            deserialized.in_utxos[0].in_utxo.lamports
-        );
-        assert_eq!(
-            instruction_data_transfer.in_utxos[0].in_utxo.address,
-            deserialized.in_utxos[0].in_utxo.address
-        );
-        assert_eq!(
-            instruction_data_transfer.in_utxos[0].in_utxo.data,
-            deserialized.in_utxos[0].in_utxo.data
-        );
-        assert_eq!(
-            instruction_data_transfer.in_tlv_data[0].amount,
-            deserialized.in_tlv_data[0].amount
-        );
-        assert_eq!(
-            instruction_data_transfer.out_utxos[0].amount,
-            deserialized.out_utxos[0].amount
-        );
     }
 }

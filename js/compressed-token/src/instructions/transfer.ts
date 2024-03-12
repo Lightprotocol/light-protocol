@@ -124,12 +124,10 @@ export async function createTransferInstruction(
     outUtxos,
   };
   /// TODO: check!
-  const data = (
-    await CompressedTokenProgram.program.coder.accounts.encode(
-      'InstructionDataTransferClient',
-      rawInputs,
-    )
-  ).subarray(8);
+  const data = CompressedTokenProgram.program.coder.types.encode(
+    'InstructionDataTransfer',
+    rawInputs,
+  );
   /// FIXME:  why are static account params optional?
   const instruction = await CompressedTokenProgram.program.methods
     .transfer(data)

@@ -6,6 +6,8 @@ import {
   VersionedTransaction,
   Keypair,
   PublicKey,
+  ComputeBudgetInstruction,
+  ComputeBudgetProgram,
 } from '@solana/web3.js';
 
 import {
@@ -108,7 +110,7 @@ describe('Emit events for transfer', () => {
       };
 
       const tlvData = CompressedTokenProgram.program.coder.types.encode(
-        'TokenTlvDataClient',
+        'TokenTlvData',
         tlv,
       );
 
@@ -163,7 +165,10 @@ describe('Emit events for transfer', () => {
       const messageV0 = new TransactionMessage({
         payerKey: payer.publicKey,
         recentBlockhash: blockhash,
-        instructions: [ix],
+        instructions: [
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ix,
+        ],
       }).compileToV0Message();
       const tx = new VersionedTransaction(messageV0);
       tx.sign([payer, bob]);
