@@ -1,8 +1,9 @@
 use circuitlib_rs::helpers::init_logger;
 
 use crate::{
-    constants::{PROVE, SERVER_ADDRESS},
-    helpers::{health_check, kill_gnark_server, prepare_inputs, spawn_gnark_server},
+    constants::{INCLUSION_PATH, SERVER_ADDRESS},
+    helpers::{health_check, kill_gnark_server, spawn_gnark_server},
+    inclusion_json_formatter::inclusion_inputs_string,
 };
 
 #[tokio::test]
@@ -12,9 +13,10 @@ async fn prove_inclusion() {
     health_check().await;
     let client = reqwest::Client::new();
     for number_of_utxos in &[1, 2, 3, 4, 8] {
-        let inputs = prepare_inputs(*number_of_utxos as usize);
+        let inputs = inclusion_inputs_string(*number_of_utxos as usize);
+        println!("Inputs utxo {} inclusion: {}", number_of_utxos, inputs);
         let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE))
+            .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(inputs)
             .send()
@@ -22,6 +24,5 @@ async fn prove_inclusion() {
             .expect("Failed to execute request.");
         assert!(response_result.status().is_success());
     }
-
     kill_gnark_server(&mut gnark);
 }

@@ -2,14 +2,15 @@ package prover
 
 import (
 	"fmt"
+	"light/light-prover/logging"
+	"light/light-prover/prover/poseidon"
+	"os"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
-	"light/light-prover/logging"
-	"light/light-prover/prover/poseidon"
-	"os"
 )
 
 type Proof struct {
@@ -19,6 +20,7 @@ type Proof struct {
 type ProvingSystem struct {
 	TreeDepth        uint32
 	NumberOfUtxos    uint32
+	Inclusion        bool
 	ProvingKey       groth16.ProvingKey
 	VerifyingKey     groth16.VerifyingKey
 	ConstraintSystem constraint.ConstraintSystem

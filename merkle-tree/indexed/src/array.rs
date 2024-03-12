@@ -128,6 +128,7 @@ where
             self.next_index.to_be_bytes().as_ref(),
             next_value.to_bytes_be().as_ref(),
         ])?;
+
         Ok(hash)
     }
 }

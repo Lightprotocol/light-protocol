@@ -75,5 +75,5 @@ func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string,
 		return nil, err
 	}
 
-	return &ProvingSystem{treeDepth, numberOfUtxos, pk, vk, ccs}, nil
+	return &ProvingSystem{treeDepth, numberOfUtxos, true, pk, vk, ccs}, nil
 }

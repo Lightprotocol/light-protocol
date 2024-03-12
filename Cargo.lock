@@ -1379,9 +1379,9 @@ checksum = "e1e5f035d16fc623ae5f74981db80a439803888314e3a555fd6f04acd51a3205"
 
 [[package]]
 name = "bytemuck"
-version = "1.14.0"
+version = "1.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "374d28ec25809ee0e23827c2ab573d729e293f281dfe393500e7ad618baa61c6"
+checksum = "a2ef034f05691a48569bd920a96c81b9d91bbad1ab5ac7c4616c1f6ef36cb79f"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1533,12 +1533,15 @@ dependencies = [
  "ark-relations 0.4.0",
  "ark-serialize 0.4.2",
  "ark-std 0.4.0",
+ "bytemuck",
  "color-eyre",
  "duct",
  "env_logger 0.10.2",
  "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana.git)",
  "light-hasher",
+ "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
+ "light-utils",
  "log",
  "num-bigint 0.4.4",
  "num-traits",
@@ -3736,6 +3739,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "rand 0.8.5",
+ "serde",
 ]
 
 [[package]]
