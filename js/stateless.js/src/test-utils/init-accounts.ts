@@ -1,5 +1,5 @@
 // TODO: remove!
-import { Keypair } from "@solana/web3.js";
+import { Keypair } from '@solana/web3.js';
 
 export function byteArrayToKeypair(byteArray: number[]): Keypair {
   return Keypair.fromSecretKey(Uint8Array.from(byteArray));

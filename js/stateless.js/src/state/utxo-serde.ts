@@ -82,7 +82,7 @@ export class UtxoSerde {
           : this.u64Array.push(bn(utxo.lamports)) - 1;
 
       const data = utxo.data
-        ? serializeTlv({ tlvElements: utxo.data }, this.pubkeyArray, accounts)
+        ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
       const inputUtxoSerializable: InUtxoSerializable = {
@@ -150,10 +150,11 @@ export class UtxoSerde {
         ownerIndex >= 0
           ? ownerIndex
           : this.pubkeyArray.findIndex((pubkey) => pubkey.equals(utxo.owner)) >=
-            0
-          ? this.pubkeyArray.findIndex((pubkey) => pubkey.equals(utxo.owner)) +
-            accounts.length
-          : this.pubkeyArray.push(utxo.owner) - 1 + accounts.length;
+              0
+            ? this.pubkeyArray.findIndex((pubkey) =>
+                pubkey.equals(utxo.owner),
+              ) + accounts.length
+            : this.pubkeyArray.push(utxo.owner) - 1 + accounts.length;
       const lamportsIndex = this.u64Array.findIndex(
         (l) => l === bn(utxo.lamports),
       );
@@ -163,7 +164,7 @@ export class UtxoSerde {
           : this.u64Array.push(bn(utxo.lamports)) - 1;
 
       const data = utxo.data
-        ? serializeTlv({ tlvElements: utxo.data }, this.pubkeyArray, accounts)
+        ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
       const outputUtxoSerializable: OutUtxoSerializable = {
@@ -227,7 +228,7 @@ export class UtxoSerde {
         : undefined;
 
       // reconstruct inputUtxo
-      const utxo = createUtxo(owner, lamports, data?.tlvElements);
+      const utxo = createUtxo(owner, lamports, data);
       const utxoHash = await createUtxoHash(
         hasher,
         utxo,
@@ -276,7 +277,7 @@ export class UtxoSerde {
         : undefined;
 
       // Reconstruct Utxo
-      const utxo = createUtxo(owner, lamports, data?.tlvElements);
+      const utxo = createUtxo(owner, lamports, data);
 
       outUtxos.push([utxo, outputUtxoSerializableTuple.indexMtAccount]);
     }
@@ -319,7 +320,9 @@ async function createUtxoHash(
 
   /// hash all tlv elements into a single hash
   const tlvDataHash = data
-    ? hasher.poseidonHashString(data.map((d) => d.dataHash.toString()))
+    ? hasher.poseidonHashString(
+        data.tlvElements.map((d) => d.dataHash.toString()),
+      )
     : bn(0).toString();
 
   /// ensure <254-bit

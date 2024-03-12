@@ -5,12 +5,12 @@ import {
   Keypair,
   VersionedTransaction,
   sendAndConfirmTransaction,
-} from "@solana/web3.js";
-import { PublicKey, Transaction } from "@solana/web3.js";
-import { sign } from "tweetnacl";
-import { Proof } from "./get-proof";
-import { Idl } from "@coral-xyz/anchor";
-import { IDL } from "../idls/psp_compressed_pda";
+} from '@solana/web3.js';
+import { PublicKey, Transaction } from '@solana/web3.js';
+import { sign } from 'tweetnacl';
+import { Proof } from './get-proof';
+import { Idl } from '@coral-xyz/anchor';
+import { IDL } from '../idls/psp_compressed_pda';
 
 export type InclusionProofPublicInputs = {
   root: string;
@@ -49,19 +49,19 @@ export class Wallet {
   };
 
   sendTransaction = async (
-    transaction: VersionedTransaction
+    transaction: VersionedTransaction,
   ): Promise<string> => {
     const signature = await this._connection.sendTransaction(transaction);
     return signature;
   };
 
   signAllTransactions = async <T extends Transaction | VersionedTransaction>(
-    transactions: T[]
+    transactions: T[],
   ): Promise<T[]> => {
     const signedTxs = await Promise.all(
       transactions.map(async (tx) => {
         return await this.signTransaction(tx);
-      })
+      }),
     );
     return signedTxs;
   };
@@ -72,7 +72,7 @@ export class Wallet {
 
   sendAndConfirmTransaction = async (
     transaction: Transaction,
-    signers = []
+    signers = [],
   ): Promise<any> => {
     const response = await sendAndConfirmTransaction(
       this._connection,
@@ -80,7 +80,7 @@ export class Wallet {
       [this._keypair, ...signers],
       {
         commitment: this._commitment,
-      }
+      },
     );
     return response;
   };
@@ -104,8 +104,8 @@ export class Wallet {
     // });
 
     return {
-      parsedProof: "mockParsedProof",
-      parsedPublicInputsObject: "mockParsedPublicInputsObject",
+      parsedProof: 'mockParsedProof',
+      parsedPublicInputsObject: 'mockParsedPublicInputsObject',
     };
   };
 }
@@ -117,7 +117,7 @@ const getIdlByProofInputs = (_proofInputs: InclusionProofInputs): Idl => {
 /// TODO: use actual circuits
 /// Picks the circuit by amount of proof inputs
 const getCircuitByProofInputs = (
-  _proofInputs: InclusionProofInputs
+  _proofInputs: InclusionProofInputs,
 ): string => {
-  return "mockCircuit";
+  return 'mockCircuit';
 };

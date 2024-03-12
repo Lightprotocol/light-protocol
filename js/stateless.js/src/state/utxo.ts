@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { TlvDataElement, createTlvDataElement } from './utxo-data';
+import { Tlv, TlvDataElement, createTlvDataElement } from './utxo-data';
 import { BN254, bn, createBN254 } from './BN254';
 import { BN } from '@coral-xyz/anchor';
 
@@ -10,7 +10,7 @@ export type Utxo = {
   /** Optional lamports attached to the utxo */
   lamports: number | BN;
   /** Optional data attached to the utxo */
-  data: TlvDataElement[] | null;
+  data: Tlv | null;
   /**
    * TODO: Implement address functionality Optional unique account ID that is
    * persistent across transactions.
@@ -54,7 +54,7 @@ export type UtxoWithMerkleProof = Utxo & MerkleContextWithMerkleProof;
 export const createUtxo = (
   owner: PublicKey,
   lamports: number | BN,
-  data: TlvDataElement[] = [],
+  data: Tlv | null = null,
   address?: PublicKey,
   merkleContext?: MerkleContext,
 ): Utxo | UtxoWithMerkleContext => ({
@@ -95,7 +95,8 @@ export const addMerkleProofToUtxo = (
 /** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
   return utxos.filter(
-    (utxo) => new BN(utxo.lamports) > new BN(0) && utxo.data?.length === 0,
+    (utxo) =>
+      new BN(utxo.lamports) > new BN(0) && utxo.data?.tlvElements.length === 0,
   );
 }
 
@@ -125,6 +126,10 @@ if (import.meta.vitest) {
       createBN254(1),
     );
 
+  const mockTlv = (): Tlv => ({
+    tlvElements: [mockTlvDataElement()],
+  });
+
   describe('getCompressedSolUtxos function', () => {
     it('should return utxos with compressed lamports excluding those with data', () => {
       const randomPubKeys = [
@@ -134,7 +139,7 @@ if (import.meta.vitest) {
         PublicKey.unique(),
       ];
       const utxos = [
-        createUtxo(randomPubKeys[0], bn(0), [mockTlvDataElement()]), // has data, should be excluded
+        createUtxo(randomPubKeys[0], bn(0), mockTlv()), // has data, should be excluded
         createUtxo(randomPubKeys[1], bn(1)), // valid
         createUtxo(randomPubKeys[2], bn(2)), // valid
         createUtxo(randomPubKeys[3], bn(0)), // zero lamports, should be excluded
@@ -149,7 +154,7 @@ if (import.meta.vitest) {
     it('should return an empty array when all utxos have data or zero lamports', () => {
       const randomPubKeys = [PublicKey.unique(), PublicKey.unique()];
       const utxos = [
-        createUtxo(randomPubKeys[0], bn(0), [mockTlvDataElement()]), // has data
+        createUtxo(randomPubKeys[0], bn(0), mockTlv()), // has data
         createUtxo(randomPubKeys[1], bn(0)), // zero lamports
       ];
       const solutxos = getCompressedSolUtxos(utxos);

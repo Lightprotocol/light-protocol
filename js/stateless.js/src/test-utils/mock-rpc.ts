@@ -33,8 +33,8 @@ export class MockRpc {
   constructor({
     connection, // lightWasm,
     /// TODO: implement once we enable ZKP verification
-  } // _merkleTreeAccount,
-  : {
+    // _merkleTreeAccount,
+  }: {
     // _merkleTreeAccount?: PublicKey;
 
     connection: Connection;

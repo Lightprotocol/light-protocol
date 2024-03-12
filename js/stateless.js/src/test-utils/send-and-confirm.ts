@@ -4,16 +4,21 @@ import {
   TransactionConfirmationStrategy,
   SignatureResult,
   RpcResponseAndContext,
-} from "@solana/web3.js";
+  Signer,
+  TransactionInstruction,
+  TransactionMessage,
+  ConfirmOptions,
+} from '@solana/web3.js';
 
 /** @returns txId */
 export async function sendAndConfirmTx(
   connection: Connection,
-  tx: VersionedTransaction
+  tx: VersionedTransaction,
+  confirmOptions?: ConfirmOptions,
 ): Promise<string> {
-  const txId = await connection.sendTransaction(tx);
+  const txId = await connection.sendTransaction(tx, confirmOptions);
   const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash();
+    await connection.getLatestBlockhash(confirmOptions?.commitment);
   const transactionConfirmationStrategy0: TransactionConfirmationStrategy = {
     signature: txId,
     blockhash,
@@ -21,7 +26,7 @@ export async function sendAndConfirmTx(
   };
   await connection.confirmTransaction(
     transactionConfirmationStrategy0,
-    connection.commitment
+    confirmOptions?.commitment || connection.commitment || 'confirmed',
   );
   return txId;
 }
@@ -29,7 +34,7 @@ export async function sendAndConfirmTx(
 export async function confirmTx(
   connection: Connection,
   txId: string,
-  blockHashCtx?: { blockhash: string; lastValidBlockHeight: number }
+  blockHashCtx?: { blockhash: string; lastValidBlockHeight: number },
 ): Promise<RpcResponseAndContext<SignatureResult>> {
   if (!blockHashCtx) blockHashCtx = await connection.getLatestBlockhash();
 
@@ -40,7 +45,28 @@ export async function confirmTx(
   };
   const res = await connection.confirmTransaction(
     transactionConfirmationStrategy,
-    connection.commitment || "confirmed"
+    connection.commitment || 'confirmed',
   );
   return res;
+}
+
+export function buildAndSignTx(
+  instructions: TransactionInstruction[],
+  payer: Signer,
+  blockhash: string,
+  additionalSigners: Signer[] = [],
+): VersionedTransaction {
+  if (additionalSigners.includes(payer))
+    throw new Error('payer must not be in additionalSigners');
+  const allSigners = [payer, ...additionalSigners];
+
+  const messageV0 = new TransactionMessage({
+    payerKey: payer.publicKey,
+    recentBlockhash: blockhash,
+    instructions,
+  }).compileToV0Message();
+
+  const tx = new VersionedTransaction(messageV0);
+  tx.sign(allSigners);
+  return tx;
 }

@@ -1,7 +1,7 @@
 *.tgz
 
 **/test-ledger/
-/test-ledger/
+
 # CLI
 /cli/node_modules/
 /cli/build/
@@ -12,8 +12,9 @@
 /cli/lookupTable.txt
 /cli/build/cli.js
 /cli/build/lookupTable.txt
-*/light-test-cache/
-/**/.DS_store
+
+**/light-test-cache/
+
 /cli/bin
 
 # Yarn
@@ -25,17 +26,18 @@
 # Rust
 **/target/
 
-/**/dist/
+**/dist/
+
 # rpc
 /rpc/node_modules/
 /rpc/dist/
 /rpc/lib/
 /rpc/lookUpTable.txt
 /rpc/test-ledger/
-*/yarn-error.log
+
 **/yarn-error.log
 
-/**/lookUpTable.txt
+**/lookUpTable.txt
 # zk.js
 /zk.js/node_modules/
 /zk.js/lib/
@@ -51,17 +53,14 @@
 /light-circuits/node_modules/
 /light-circuits/lookUpTable.txt
 
-.env
-/.env
-*/.env
 **/.env
 
 # Third-party dependencies
 /.local
 /.vscode
 
-/**/.idea
-/**/*.iml
+**/.idea
+**/*.iml
 
 /**/dump.rdb
 psp-examples/tmp-test-psp
@@ -73,4 +72,5 @@ qodana.yaml
 node_modules
 
 **/.pnpm-store/
+**/.DS_Store
 /web/webapp/public/build-circuits
