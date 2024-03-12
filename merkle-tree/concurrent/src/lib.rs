@@ -661,15 +661,8 @@ where
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         let mut i = changelog_index + 1;
-        println!("changelog_index: {}", changelog_index);
-        #[cfg(target_os = "solana")]
-        msg!("changelog_index: {}", changelog_index);
         while i != self.changelog_index() + 1 {
-            println!("i: {}", i);
-            #[cfg(target_os = "solana")]
-            msg!("i: {}", i);
             self.changelog[i].update_proof(leaf_index, proof)?;
-
             i = (i + 1) % self.changelog_length;
         }
 

@@ -593,20 +593,21 @@ async fn test_nullify_leaves() {
         )
         .unwrap();
 
-    let instruction = [
+    let instructions = [
         account_compression::nullify_leaves::sdk::create_nullify_instruction(
             vec![2u64].as_slice(),
-            vec![[1u8; 32]].as_slice(),
+            vec![1u16].as_slice(),
             vec![0u64].as_slice(),
             vec![proof].as_slice(),
             &context.payer.pubkey(),
             &merkle_tree_pubkey,
+            &indexed_array_pubkey,
         ),
     ];
 
     create_and_send_transaction(
         &mut context,
-        &instruction,
+        &instructions,
         &context_keypair.pubkey(),
         &[&context_keypair],
     )

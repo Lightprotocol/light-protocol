@@ -138,13 +138,17 @@ pub mod account_compression {
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
         change_log_indices: Vec<u64>,
-        leaves: Vec<[u8; 32]>,
+        leaves_indices: Vec<u16>,
         indices: Vec<u64>,
         proofs: Vec<Vec<[u8; 32]>>,
     ) -> Result<()> {
-        msg!("pre process_nullify_leaves");
-
-        process_nullify_leaves(&ctx, &change_log_indices, &leaves, &indices, &proofs)
+        process_nullify_leaves(
+            &ctx,
+            &change_log_indices,
+            &leaves_indices,
+            &indices,
+            &proofs,
+        )
     }
 
     // TODO: add insert into merkle tree function that inserts multiple leaves into a single merkle tree

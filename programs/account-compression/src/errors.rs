@@ -32,4 +32,6 @@ pub enum AccountCompressionErrorCode {
     NumberOfChangeLogIndicesMismatch,
     #[msg("Number of indices mismatch")]
     NumberOfIndicesMismatch,
+    #[msg("IndexOutOfBounds")]
+    IndexOutOfBounds,
 }
