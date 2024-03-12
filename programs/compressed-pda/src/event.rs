@@ -54,6 +54,9 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         relay_fee: inputs.relay_fee,
         message: None,
     };
+    msg!("in_utxos: {:?}", event.in_utxos);
+    msg!("out_utxos: {:?}", event.out_utxos);
+
     invoke_indexer_transaction_event(&event, &ctx.accounts.noop_program)?;
     Ok(event)
 }

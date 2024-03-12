@@ -21,6 +21,9 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // sum check ---------------------------------------------------
     sum_check(&inputs.in_utxos, &inputs.out_utxos, &inputs.relay_fee)?;
     msg!("sum check success");
+    msg!("inputs.in_utxos: {:?}", inputs.in_utxos);
+    msg!("inputs.out_utxos: {:?}", inputs.out_utxos);
+
     // signer check ---------------------------------------------------
     // TODO: change the match statement so that we signers for every utxo as soon as any in utxo has tlv
     // and we need to use the provided tlv in out utxos

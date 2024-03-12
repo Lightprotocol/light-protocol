@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::assert_eq;
+
 use account_compression::{
     utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS},
     StateMerkleTreeAccount,
@@ -18,8 +20,7 @@ use psp_compressed_token::{
 };
 use solana_program_test::ProgramTestContext;
 use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
-    transaction::Transaction,
+    instruction::Instruction, msg, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction
 };
 use spl_token::instruction::initialize_mint;
 
@@ -359,6 +360,14 @@ async fn assert_mint_to<'a>(
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
 ) {
     let token_utxo_data = mock_indexer.token_utxos[0].token_data.clone();
+    let token_utxo = mock_indexer.utxos[mock_indexer.token_utxos[0].index].clone();
+
+    // assert base 
+    assert_eq!(token_utxo.owner, psp_compressed_token::ID);
+    assert_eq!(token_utxo.lamports, 0);
+    assert!(token_utxo.data.is_some());
+
+
     assert_eq!(token_utxo_data.amount, amount);
     assert_eq!(token_utxo_data.owner, recipient_keypair.pubkey());
     assert_eq!(token_utxo_data.mint, mint);
@@ -467,6 +476,18 @@ async fn assert_transfer<'a>(
     assert_eq!(transfer_recipient_token_utxo.token_data.is_native, None);
     assert_eq!(transfer_recipient_token_utxo.token_data.delegated_amount, 0);
     let transfer_recipient_utxo = mock_indexer.utxos[transfer_recipient_token_utxo.index].clone();
+    let nullified_in_utxo_1 = mock_indexer.utxos[0].clone();
+    // let nullified_in_utxo_2 = if mock_indexer.utxos.get(1).is_some() {
+    //     Some(mock_indexer.utxos[1].clone().try_into().unwrap())
+    // } else {
+    //     None
+    // };
+    msg!("nullified_in_utxo_1: {:?}", nullified_in_utxo_1);
+    // msg!("nullified_in_utxo_2: {:?}", nullified_in_utxo_2);
+
+    assert_eq!(nullified_in_utxo_1.owner, change_out_utxo.owner);
+    // assert_eq!(nullified_in_utxo_2.owner, change_out_utxo.owner);
+
     assert_eq!(transfer_recipient_utxo.lamports, 0);
     assert!(transfer_recipient_utxo.data.is_some());
     assert_eq!(
@@ -576,7 +597,7 @@ impl MockIndexer {
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
         self.add_event_and_utxos(event);
     }
-
+    
     pub fn add_event_and_utxos(&mut self, event: PublicTransactionEvent) -> Vec<usize> {
         for utxo in event.in_utxos.iter() {
             let index = self

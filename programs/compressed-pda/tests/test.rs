@@ -49,6 +49,7 @@ async fn test_execute_compressed_transactio() {
         &vec![0u16],
         &proof_mock,
     );
+    println!("instruction: {:?}", instruction);
 
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await
