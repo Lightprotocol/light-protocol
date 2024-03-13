@@ -3,7 +3,6 @@ use std::{marker::PhantomData, mem, slice};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 pub use light_hasher;
 use light_hasher::Hasher;
-use solana_program::msg;
 pub mod changelog;
 pub mod errors;
 pub mod hash;
@@ -13,6 +12,9 @@ use crate::{
     errors::ConcurrentMerkleTreeError,
     hash::{compute_parent_node, compute_root},
 };
+
+#[cfg(target_os = "solana")]
+use solana_program::msg;
 
 #[repr(C)]
 #[derive(Debug)]

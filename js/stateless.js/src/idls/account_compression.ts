@@ -586,8 +586,10 @@ export type AccountCompression = {
             "name": "indexedArray",
             "type": {
               "array": [
-                "u8",
-                192008
+                {
+                  "defined": "QueueArrayElemenet"
+                },
+                4800
               ]
             }
           }
@@ -776,6 +778,34 @@ export type AccountCompression = {
   ],
   "types": [
     {
+      "name": "QueueArrayElemenet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merkleTreeOverwriteSequenceNumber",
+            "docs": [
+              "The squence number of the Merkle tree at which it is safe to overwrite the element.",
+              "It is safe to overwrite an element once no root that includes the element is in the root history array.",
+              "With every time a root is inserted into the root history array, the sequence number is incremented.",
+              "0 means that the element still exists in the state Merkle tree, is not nullified yet.",
+              "TODO: add a root history array sequence number to the Merkle tree account."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "element",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "Changelogs",
       "type": {
         "kind": "struct",
@@ -879,15 +909,6 @@ export type AccountCompression = {
           }
         ]
       }
-    },
-    {
-      "name": "IndexedArray",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "IndexingArray<Poseidon,u16,BigInteger256,STATE_INDEXED_ARRAY_SIZE>"
-        }
-      }
     }
   ],
   "errors": [
@@ -965,6 +986,16 @@ export type AccountCompression = {
       "code": 6014,
       "name": "IndexOutOfBounds",
       "msg": "IndexOutOfBounds"
+    },
+    {
+      "code": 6015,
+      "name": "ElementAlreadyExists",
+      "msg": "ElementAlreadyExists"
+    },
+    {
+      "code": 6016,
+      "name": "HashSetFull",
+      "msg": "HashSetFull"
     }
   ]
 };
@@ -1557,8 +1588,10 @@ export const IDL: AccountCompression = {
             "name": "indexedArray",
             "type": {
               "array": [
-                "u8",
-                192008
+                {
+                  "defined": "QueueArrayElemenet"
+                },
+                4800
               ]
             }
           }
@@ -1747,6 +1780,34 @@ export const IDL: AccountCompression = {
   ],
   "types": [
     {
+      "name": "QueueArrayElemenet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "merkleTreeOverwriteSequenceNumber",
+            "docs": [
+              "The squence number of the Merkle tree at which it is safe to overwrite the element.",
+              "It is safe to overwrite an element once no root that includes the element is in the root history array.",
+              "With every time a root is inserted into the root history array, the sequence number is incremented.",
+              "0 means that the element still exists in the state Merkle tree, is not nullified yet.",
+              "TODO: add a root history array sequence number to the Merkle tree account."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "element",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "Changelogs",
       "type": {
         "kind": "struct",
@@ -1850,15 +1911,6 @@ export const IDL: AccountCompression = {
           }
         ]
       }
-    },
-    {
-      "name": "IndexedArray",
-      "type": {
-        "kind": "alias",
-        "value": {
-          "defined": "IndexingArray<Poseidon,u16,BigInteger256,STATE_INDEXED_ARRAY_SIZE>"
-        }
-      }
     }
   ],
   "errors": [
@@ -1936,6 +1988,16 @@ export const IDL: AccountCompression = {
       "code": 6014,
       "name": "IndexOutOfBounds",
       "msg": "IndexOutOfBounds"
+    },
+    {
+      "code": 6015,
+      "name": "ElementAlreadyExists",
+      "msg": "ElementAlreadyExists"
+    },
+    {
+      "code": 6016,
+      "name": "HashSetFull",
+      "msg": "HashSetFull"
     }
   ]
 };

@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use account_compression::{
-    self, from_vec, indexed_array_from_bytes,
+    self, from_vec,
     indexed_array_sdk::create_initialize_indexed_array_instruction,
     instructions::append_leaves::sdk::{
         create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
@@ -28,7 +28,6 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use spl_concurrent_merkle_tree::concurrent_merkle_tree;
 
 #[tokio::test]
 async fn test_create_and_update_group() {
@@ -355,18 +354,11 @@ async fn test_init_and_insert_into_indexed_array() {
     assert_eq!(array.deserialized().owner, context_pubkey);
     assert_eq!(array.deserialized().delegate, context_pubkey);
     assert_eq!(array.deserialized().index, 1);
-    let indexed_array = indexed_array_from_bytes(&array.deserialized().indexed_array);
+    let indexed_array = array.deserialized().indexed_array;
     let mut default_array =
         IndexingArray::<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>::default();
-    assert_eq!(indexed_array.elements, default_array.elements);
-    assert_eq!(
-        indexed_array.current_node_index,
-        default_array.current_node_index
-    );
-    assert_eq!(
-        indexed_array.highest_element_index,
-        default_array.highest_element_index
-    );
+    assert_eq!(indexed_array[0].element, [0u8; 32]);
+    assert_eq!(indexed_array[0].merkle_tree_overwrite_sequence_number, 0);
 
     // TODO: investigate why this fails with 0 0
     let instruction_data = account_compression::instruction::InsertIntoIndexedArrays {
@@ -405,15 +397,23 @@ async fn test_init_and_insert_into_indexed_array() {
     )
     .await;
 
-    let indexed_array = indexed_array_from_bytes(&array.deserialized().indexed_array);
+    let indexed_array = array.deserialized().indexed_array;
     default_array
         .append(BigInteger256::deserialize_uncompressed_unchecked(&[1u8; 32][..]).unwrap())
         .unwrap();
     default_array
         .append(BigInteger256::deserialize_uncompressed_unchecked(&[2u8; 32][..]).unwrap())
         .unwrap();
-    assert_eq!(indexed_array.elements[0], default_array.elements[0]);
-    assert_eq!(indexed_array.elements[1], default_array.elements[1]);
+    assert_eq!(indexed_array[0].element, [1u8; 32]);
+    assert_eq!(indexed_array[1].element, [2u8; 32]);
+    assert_eq!(
+        indexed_array[0].merkle_tree_overwrite_sequence_number,
+        u64::MAX
+    );
+    assert_eq!(
+        indexed_array[1].merkle_tree_overwrite_sequence_number,
+        u64::MAX
+    );
 }
 
 #[tokio::test]

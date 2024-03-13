@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use ark_ff::BigInteger256;
-use ark_serialize::CanonicalDeserialize;
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::IndexingArray;
+use bytemuck::{Pod, Zeroable};
 
 use crate::{utils::constants::STATE_INDEXED_ARRAY_SIZE, RegisteredProgram};
 
@@ -23,6 +20,8 @@ pub struct InsertIntoIndexedArrays<'info> {
 pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
     elements: &'a [[u8; 32]],
+    // TODO: pass the sequence numbers of the Merkle tree accounts.
+    // TODO: pass squence numbers for indexed arrays.
 ) -> Result<()> {
     if elements.len() != ctx.remaining_accounts.len() {
         msg!(
@@ -48,13 +47,11 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
         msg!("Inserting into indexed array {:?}", mt.key());
         let array = AccountLoader::<IndexedArrayAccount>::try_from(mt).unwrap();
         let mut array_account = array.load_mut()?;
-        let array = indexed_array_from_bytes_mut(&mut array_account.indexed_array);
         for element in elements.iter() {
-            array
-                .append(
-                    BigInteger256::deserialize_uncompressed_unchecked(element.as_slice()).unwrap(),
-                )
-                .unwrap();
+            let insert_index = array_account.non_inclusion(element, &0usize)?;
+            array_account.indexed_array[insert_index].element = *element;
+            array_account.indexed_array[insert_index].merkle_tree_overwrite_sequence_number =
+                u64::MAX;
         }
     }
     Ok(())
@@ -92,46 +89,43 @@ pub struct IndexedArrayAccount {
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub array: Pubkey,
-    pub indexed_array: [u8; 192008],
+    pub indexed_array: [QueueArrayElemenet; STATE_INDEXED_ARRAY_SIZE],
 }
 
-pub type IndexedArray = IndexingArray<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>;
-
-pub fn indexed_array_from_bytes(bytes: &[u8; 192008]) -> &IndexedArray {
-    // SAFETY: We make sure that the size of the byte slice is equal to
-    // the size of `IndexedArray`.
-    // The only reason why we are doing this is that Anchor is struggling with
-    // generating IDL when `ConcurrentMerkleTree` with generics is used
-    // directly as a field.
-    unsafe {
-        let ptr = bytes.as_ptr() as *const IndexedArray;
-        &*ptr
-    }
+#[repr(C)]
+#[derive(Debug, PartialEq, Clone, Copy, AnchorSerialize, AnchorDeserialize, Zeroable, Pod)]
+pub struct QueueArrayElemenet {
+    /// The squence number of the Merkle tree at which it is safe to overwrite the element.
+    /// It is safe to overwrite an element once no root that includes the element is in the root history array.
+    /// With every time a root is inserted into the root history array, the sequence number is incremented.
+    /// 0 means that the element still exists in the state Merkle tree, is not nullified yet.
+    /// TODO: add a root history array sequence number to the Merkle tree account.
+    pub merkle_tree_overwrite_sequence_number: u64,
+    pub element: [u8; 32],
 }
 
-pub fn indexed_array_from_bytes_mut(bytes: &mut [u8; 192008]) -> &mut IndexedArray {
-    // SAFETY: We make sure that the size of the byte slice is equal to
-    // the size of `IndexedArray`.
-    // The only reason why we are doing this is that Anchor is struggling with
-    // generating IDL when `ConcurrentMerkleTree` with generics is used
-    // directly as a field.
-    unsafe {
-        let ptr = bytes.as_ptr() as *mut IndexedArray;
-        &mut *ptr
-    }
-}
-
-pub fn initialize_default_indexed_array(indexed_array: &mut [u8; 192008]) {
-    // SAFETY: We make sure that the size of the byte slice is equal to
-    // the size of `IndexedArray`.
-
-    unsafe {
-        let ptr = indexed_array.as_ptr() as *mut IndexedArray;
-        // Assuming IndexedArray implements Default and Poseidon, BigInteger256 are types that fit into the generic parameters
-        std::ptr::write(
-            ptr,
-            IndexingArray::<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>::default(),
-        );
+impl IndexedArrayAccount {
+    /// Naive non-inclusion check remove once hash set is ready.
+    pub fn non_inclusion(
+        &self,
+        value: &[u8; 32],
+        current_sequence_number: &usize,
+    ) -> Result<usize> {
+        for (i, element) in self.indexed_array.iter().enumerate() {
+            if element.element == *value {
+                return Err(
+                    crate::errors::AccountCompressionErrorCode::ElementAlreadyExists.into(),
+                );
+            }
+            // TODO: make sure that there is no vulnerability for a fresh array and tree.
+            else if element.merkle_tree_overwrite_sequence_number
+                < *current_sequence_number as u64
+                || element.element == [0; 32]
+            {
+                return Ok(i);
+            }
+        }
+        Err(crate::errors::AccountCompressionErrorCode::HashSetFull.into())
     }
 }
 

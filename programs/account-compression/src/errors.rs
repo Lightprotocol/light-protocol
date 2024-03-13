@@ -34,4 +34,8 @@ pub enum AccountCompressionErrorCode {
     NumberOfIndicesMismatch,
     #[msg("IndexOutOfBounds")]
     IndexOutOfBounds,
+    #[msg("ElementAlreadyExists")]
+    ElementAlreadyExists,
+    #[msg("HashSetFull")]
+    HashSetFull,
 }

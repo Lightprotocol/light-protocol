@@ -1,12 +1,10 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use ark_ff::BigInteger;
 use light_bounded_vec::BoundedVec;
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 
 use crate::{
-    emit_indexer_event, errors::AccountCompressionErrorCode, indexed_array_from_bytes_mut,
-    state::StateMerkleTreeAccount, ChangelogEvent, ChangelogEventV1, Changelogs,
-    IndexedArrayAccount, RegisteredProgram,
+    emit_indexer_event, errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
+    ChangelogEvent, ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
 };
 // TODO: implement group access control
 #[derive(Accounts)]
@@ -32,7 +30,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     change_log_indices: &'a [u64],
     leaves_indices: &'a [u16],
     indices: &'a [u64],
-    proofs: &'a [Vec<[u8; 32]>], // TODO: make height independent
+    proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
     // TODO: activate when group access control is implemented
     // check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
@@ -40,15 +38,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     //     &merkle_tree_account,
     // )?;
     let mut array_account = ctx.accounts.indexed_array.load_mut()?;
-    let array = indexed_array_from_bytes_mut(&mut array_account.indexed_array);
-
-    let leaf: [u8; 32] = array
-        .get(leaves_indices[0] as usize)
-        .ok_or(AccountCompressionErrorCode::IndexOutOfBounds)?
-        .value
-        .to_bytes_be()
-        .try_into()
-        .unwrap();
+    let leaf: [u8; 32] = array_account.indexed_array[leaves_indices[0] as usize].element;
     msg!("leaf {:?}", leaf);
     if change_log_indices.len() != 1 {
         msg!("only implemented for 1 nullifier update");
@@ -75,7 +65,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
             &mut bounded_vec,
         )
         .map_err(ProgramError::from)?;
-    let sequence_number = u64::try_from(merkle_tree.load_merkle_tree()?.sequence_number)
+    let sequence_number = u64::try_from(loaded_merkle_tree.sequence_number)
         .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
     changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
         ctx.accounts.merkle_tree.key(),
@@ -90,6 +80,10 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.log_wrapper,
         &ctx.accounts.authority,
     )?;
+    array_account.indexed_array[leaves_indices[0] as usize].element = [0u8; 32];
+    // TODO: replace with root history sequence number
+    array_account.indexed_array[leaves_indices[0] as usize].merkle_tree_overwrite_sequence_number =
+        loaded_merkle_tree.sequence_number as u64;
 
     Ok(())
 }
@@ -100,7 +94,7 @@ pub fn from_vec(vec: &[[u8; 32]]) -> Result<BoundedVec<[u8; 32]>> {
     Ok(bounded_vec)
 }
 #[cfg(not(target_os = "solana"))]
-pub mod sdk {
+pub mod sdk_nullify {
     use anchor_lang::{InstructionData, ToAccountMetas};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 

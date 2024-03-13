@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::println;
+
 use light_test_utils::{create_and_send_transaction, test_env::setup_test_programs_with_accounts};
 use psp_compressed_pda::{
     sdk::{create_execute_compressed_instruction, create_execute_compressed_opt_instruction},
@@ -8,7 +10,6 @@ use psp_compressed_pda::{
 };
 use solana_cli_output::CliAccount;
 use solana_sdk::{pubkey::Pubkey, signer::Signer};
-use std::println;
 use tokio::fs::write as async_write;
 
 #[tokio::test]
