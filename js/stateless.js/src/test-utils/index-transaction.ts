@@ -188,7 +188,6 @@ const parseTransactionEvents = (
           return;
 
         const data = bs58.decode(ixInner.data);
-        if (data.length > 800) return;
         const decodedEvent = deserializeFn(data, tx);
 
         if (decodedEvent) {
@@ -297,7 +296,6 @@ const deserializeTransactionEvents = (data: Buffer) => {
     const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
     return event;
   } catch (e) {
-    console.log('couldnt deserializing event', e);
     return null;
   }
 };
