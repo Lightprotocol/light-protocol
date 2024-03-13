@@ -81,6 +81,7 @@ export class ParsingUtxoBeet {
     readonly owner: PublicKey,
     readonly blinding: Uint8Array,
     readonly lamports: bignum,
+    readonly address: PublicKey | null,
     readonly data: ParsingTlvBeet | null,
   ) {}
 
@@ -92,10 +93,17 @@ export class ParsingUtxoBeet {
       ['owner', publicKey],
       ['blinding', fixedSizeUint8Array(32)],
       ['lamports', u64],
+      ['address', coption(publicKey)],
       ['data', coption(ParsingTlvBeet.struct)],
     ],
     (args) =>
-      new ParsingUtxoBeet(args.owner, args.blinding, args.lamports, args.data),
+      new ParsingUtxoBeet(
+        args.owner,
+        args.blinding,
+        args.lamports,
+        args.address,
+        args.data,
+      ),
     'ParsingUtxo',
   );
 }
@@ -104,8 +112,8 @@ export class PublicTransactionIndexerEventBeet {
   constructor(
     readonly inUtxos: ParsingUtxoBeet[],
     readonly outUtxos: ParsingUtxoBeet[],
-    readonly outUtxoIndices: bignum[],
     readonly deCompressAmount: bignum | null,
+    readonly outUtxoIndices: bignum[],
     readonly relayFee: bignum | null,
     readonly message: number[] | null,
   ) {}
@@ -117,8 +125,8 @@ export class PublicTransactionIndexerEventBeet {
     [
       ['inUtxos', array(ParsingUtxoBeet.struct)],
       ['outUtxos', array(ParsingUtxoBeet.struct)],
-      ['outUtxoIndices', array(u64)],
       ['deCompressAmount', coption(u64)],
+      ['outUtxoIndices', array(u64)],
       ['relayFee', coption(u64)],
       ['message', coption(array(u8))],
     ],
@@ -126,8 +134,8 @@ export class PublicTransactionIndexerEventBeet {
       new PublicTransactionIndexerEventBeet(
         args.inUtxos,
         args.outUtxos,
-        args.outUtxoIndices,
         args.deCompressAmount,
+        args.outUtxoIndices,
         args.relayFee,
         args.message,
       ),
@@ -180,7 +188,6 @@ const parseTransactionEvents = (
           return;
 
         const data = bs58.decode(ixInner.data);
-        if (data.length < 800) return;
         const decodedEvent = deserializeFn(data, tx);
 
         if (decodedEvent) {
@@ -282,17 +289,16 @@ async function getTransactionsBatch({
 //   tx: ParsedTransactionWithMeta,
 // ) => PublicTransactionIndexerEventBeet | undefined;
 
-// const deserializeTransactionEvents = (data: Buffer) => {
-//   data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
+const deserializeTransactionEvents = (data: Buffer) => {
+  data = Buffer.from(Array.from(data).map((x: any) => Number(x)));
 
-//   try {
-//     const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
-//     return event;
-//   } catch (e) {
-//     console.log('couldnt deserializing event', e);
-//     return null;
-//   }
-// };
+  try {
+    const event = PublicTransactionIndexerEventBeet.struct.deserialize(data)[0];
+    return event;
+  } catch (e) {
+    return null;
+  }
+};
 
 // TODO: rm TEMP for debugging utxo.data serde
 const deserializeTransactionEventsTokenAnchor = (data: Buffer) => {
@@ -334,7 +340,7 @@ export async function fetchRecentPublicTransactions({
   for (let i = 0; i < rounds; i++) {
     const batchLimit =
       i === rounds - 1 ? batchOptions.limit! - i * batchSize : batchSize;
-    console.log('batchlimit=?', batchLimit, 'round', i);
+
     const lastSignature = await getTransactionsBatch({
       connection,
       merkleTreeProgramId: new PublicKey(accountCompressionProgram),

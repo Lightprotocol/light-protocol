@@ -214,15 +214,15 @@ export type PspCompressedToken = {
             };
           },
           {
-            name: 'outUtxoIndices';
-            type: {
-              vec: 'u64';
-            };
-          },
-          {
             name: 'deCompressAmount';
             type: {
               option: 'u64';
+            };
+          },
+          {
+            name: 'outUtxoIndices';
+            type: {
+              vec: 'u64';
             };
           },
           {
@@ -1121,15 +1121,15 @@ export const IDL: PspCompressedToken = {
             },
           },
           {
-            name: 'outUtxoIndices',
-            type: {
-              vec: 'u64',
-            },
-          },
-          {
             name: 'deCompressAmount',
             type: {
               option: 'u64',
+            },
+          },
+          {
+            name: 'outUtxoIndices',
+            type: {
+              vec: 'u64',
             },
           },
           {

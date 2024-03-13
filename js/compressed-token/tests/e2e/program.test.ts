@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, assert } from 'vitest';
 import { CompressedTokenProgram } from '../../src/program';
 import { SPL_TOKEN_MINT_RENT_EXEMPT_BALANCE } from '../../src/constants';
 import {
@@ -17,6 +17,7 @@ import {
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
   UtxoWithBlinding,
+  getMockRpc,
 } from '@lightprotocol/stateless.js';
 import {
   TokenTransferOutUtxo,
@@ -25,7 +26,6 @@ import {
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import { createMint, mintTo } from '../../src/actions';
-import { assert } from 'console';
 
 /// Asserts that createMint() creates a new spl mint account + the respective system pool account
 async function assertMintCreated(
@@ -291,5 +291,8 @@ describe('Compressed Token Program test', () => {
     console.log(
       `bob (${bob.publicKey.toBase58()}) transferred ${transferAmount} tokens (mint: ${randomMint.publicKey.toBase58()}) to charlie (${charlie.publicKey.toBase58()}) \n txId: ${txId}`,
     );
+    const mockRpc = getMockRpc(connection);
+    const indexedEvents = await mockRpc.getIndexedEvents();
+    assert.equal(indexedEvents.length, 2);
   });
 });

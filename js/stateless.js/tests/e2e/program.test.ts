@@ -21,6 +21,7 @@ import {
 } from '../../src/instruction/pack-nop-instruction';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import { confirmTx, getMockRpc, sendAndConfirmTx } from '../../src/test-utils';
+import { LightSystemProgram } from '../../src/programs';
 
 describe('Program test', () => {
   const keys = defaultTestStateTreeAccounts();
