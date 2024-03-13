@@ -245,15 +245,15 @@ export type PspCompressedPda = {
             };
           },
           {
-            name: 'outUtxoIndices';
-            type: {
-              vec: 'u64';
-            };
-          },
-          {
             name: 'deCompressAmount';
             type: {
               option: 'u64';
+            };
+          },
+          {
+            name: 'outUtxoIndices';
+            type: {
+              vec: 'u64';
             };
           },
           {
@@ -993,15 +993,15 @@ export const IDL: PspCompressedPda = {
             },
           },
           {
-            name: 'outUtxoIndices',
-            type: {
-              vec: 'u64',
-            },
-          },
-          {
             name: 'deCompressAmount',
             type: {
               option: 'u64',
+            },
+          },
+          {
+            name: 'outUtxoIndices',
+            type: {
+              vec: 'u64',
             },
           },
           {
