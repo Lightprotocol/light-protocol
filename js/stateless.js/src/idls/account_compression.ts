@@ -410,6 +410,70 @@ export type AccountCompression = {
       ]
     },
     {
+      "name": "nullifyLeaves",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "indexedArray",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "changeLogIndices",
+          "type": {
+            "vec": "u64"
+          }
+        },
+        {
+          "name": "leavesIndices",
+          "type": {
+            "vec": "u16"
+          }
+        },
+        {
+          "name": "indices",
+          "type": {
+            "vec": "u64"
+          }
+        },
+        {
+          "name": "proofs",
+          "type": {
+            "vec": {
+              "vec": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "initializeIndexedArray",
       "accounts": [
         {
@@ -886,6 +950,21 @@ export type AccountCompression = {
       "code": 6011,
       "name": "EventNoChangelogEntry",
       "msg": "Emitting an event requires at least one changelog entry"
+    },
+    {
+      "code": 6012,
+      "name": "NumberOfChangeLogIndicesMismatch",
+      "msg": "Number of change log indices mismatch"
+    },
+    {
+      "code": 6013,
+      "name": "NumberOfIndicesMismatch",
+      "msg": "Number of indices mismatch"
+    },
+    {
+      "code": 6014,
+      "name": "IndexOutOfBounds",
+      "msg": "IndexOutOfBounds"
     }
   ]
 };
@@ -1302,6 +1381,70 @@ export const IDL: AccountCompression = {
       ]
     },
     {
+      "name": "nullifyLeaves",
+      "accounts": [
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "registeredProgramPda",
+          "isMut": false,
+          "isSigner": false,
+          "isOptional": true
+        },
+        {
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "merkleTree",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "indexedArray",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "changeLogIndices",
+          "type": {
+            "vec": "u64"
+          }
+        },
+        {
+          "name": "leavesIndices",
+          "type": {
+            "vec": "u16"
+          }
+        },
+        {
+          "name": "indices",
+          "type": {
+            "vec": "u64"
+          }
+        },
+        {
+          "name": "proofs",
+          "type": {
+            "vec": {
+              "vec": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "initializeIndexedArray",
       "accounts": [
         {
@@ -1778,6 +1921,21 @@ export const IDL: AccountCompression = {
       "code": 6011,
       "name": "EventNoChangelogEntry",
       "msg": "Emitting an event requires at least one changelog entry"
+    },
+    {
+      "code": 6012,
+      "name": "NumberOfChangeLogIndicesMismatch",
+      "msg": "Number of change log indices mismatch"
+    },
+    {
+      "code": 6013,
+      "name": "NumberOfIndicesMismatch",
+      "msg": "Number of indices mismatch"
+    },
+    {
+      "code": 6014,
+      "name": "IndexOutOfBounds",
+      "msg": "IndexOutOfBounds"
     }
   ]
 };

@@ -275,6 +275,7 @@ async fn test_transfer() {
     .await;
     let transfer_recipient_keypair = Keypair::new();
     let in_utxos_tlv = mock_indexer.token_utxos[0].token_data.clone();
+    mock_indexer.utxos[mock_indexer.token_utxos[0].index].blinding = [1u8; 32];
     let in_utxos = vec![mock_indexer.utxos[mock_indexer.token_utxos[0].index].clone()];
 
     let change_out_utxo = TokenTransferOutUtxo {
@@ -343,6 +344,7 @@ async fn test_transfer() {
         &transfer_recipient_out_utxo,
         &change_out_utxo,
         &old_merkle_tree,
+        &in_utxos,
     )
     .await;
 }
@@ -416,6 +418,7 @@ async fn assert_transfer<'a>(
     recipient_out_utxo: &TokenTransferOutUtxo,
     change_out_utxo: &TokenTransferOutUtxo,
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
+    in_utxos: &Vec<Utxo>,
 ) {
     let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         context,
@@ -523,6 +526,15 @@ async fn assert_transfer<'a>(
         psp_compressed_token::ID
     );
     assert_eq!(change_utxo.owner, psp_compressed_token::ID);
+
+    // assert in utxos are nullified
+    for utxo in in_utxos.iter() {
+        let _nullified_utxo = mock_indexer
+            .nullified_utxos
+            .iter()
+            .find(|x| *x == utxo)
+            .expect("utxo not nullified");
+    }
 }
 
 #[derive(Debug)]

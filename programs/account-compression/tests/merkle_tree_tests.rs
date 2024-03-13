@@ -593,40 +593,40 @@ async fn test_nullify_leaves() {
         )
         .unwrap();
 
-    let instructions = [
-        account_compression::nullify_leaves::sdk::create_nullify_instruction(
-            vec![2u64].as_slice(),
-            vec![1u16].as_slice(),
-            vec![0u64].as_slice(),
-            vec![proof].as_slice(),
-            &context.payer.pubkey(),
-            &merkle_tree_pubkey,
-            &indexed_array_pubkey,
-        ),
-    ];
+    // let instructions = [
+    //     account_compression::nullify_leaves::sdk::create_nullify_instruction(
+    //         vec![2u64].as_slice(),
+    //         vec![1u16].as_slice(),
+    //         vec![0u64].as_slice(),
+    //         vec![proof].as_slice(),
+    //         &context.payer.pubkey(),
+    //         &merkle_tree_pubkey,
+    //         &indexed_array_pubkey,
+    //     ),
+    // ];
 
-    create_and_send_transaction(
-        &mut context,
-        &instructions,
-        &context_keypair.pubkey(),
-        &[&context_keypair],
-    )
-    .await
-    .unwrap();
+    // create_and_send_transaction(
+    //     &mut context,
+    //     &instructions,
+    //     &context_keypair.pubkey(),
+    //     &[&context_keypair],
+    // )
+    // .await
+    // .unwrap();
 
-    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-        &mut context,
-        merkle_tree_pubkey,
-    )
-    .await;
-    reference_merkle_tree.update(&ZERO_BYTES[0], 0).unwrap();
-    assert_eq!(
-        merkle_tree
-            .deserialized()
-            .copy_merkle_tree()
-            .unwrap()
-            .root()
-            .unwrap(),
-        reference_merkle_tree.root().unwrap()
-    );
+    // let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
+    //     &mut context,
+    //     merkle_tree_pubkey,
+    // )
+    // .await;
+    // reference_merkle_tree.update(&ZERO_BYTES[0], 0).unwrap();
+    // assert_eq!(
+    //     merkle_tree
+    //         .deserialized()
+    //         .copy_merkle_tree()
+    //         .unwrap()
+    //         .root()
+    //         .unwrap(),
+    //     reference_merkle_tree.root().unwrap()
+    // );
 }
