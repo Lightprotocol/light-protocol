@@ -7,6 +7,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
   PublicKey,
+  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
   MockProof,
@@ -273,7 +274,10 @@ describe('Compressed Token Program test', () => {
       proof_mock,
     );
 
-    const ixs = [ix];
+    const ixs = [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+      ix,
+    ];
     const { blockhash } = await connection.getLatestBlockhash();
     const messageV0 = new TransactionMessage({
       payerKey: payer.publicKey,

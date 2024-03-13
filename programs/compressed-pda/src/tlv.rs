@@ -250,6 +250,7 @@ mod test {
             owner: owner_pubkey,
             blinding: [0u8; 32],
             lamports: 100,
+            address: None,
             data: Some(tlv_data),
         };
 

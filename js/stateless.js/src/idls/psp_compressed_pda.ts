@@ -574,6 +574,12 @@ export type PspCompressedPda = {
             type: 'u8';
           },
           {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
+          },
+          {
             name: 'data';
             type: {
               option: {
@@ -598,6 +604,12 @@ export type PspCompressedPda = {
             type: 'u8';
           },
           {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
+          },
+          {
             name: 'data';
             type: {
               option: {
@@ -620,6 +632,12 @@ export type PspCompressedPda = {
           {
             name: 'lamports';
             type: 'u64';
+          },
+          {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
           },
           {
             name: 'data';
@@ -650,6 +668,12 @@ export type PspCompressedPda = {
           {
             name: 'lamports';
             type: 'u64';
+          },
+          {
+            name: 'address';
+            type: {
+              option: 'publicKey';
+            };
           },
           {
             name: 'data';
@@ -1298,6 +1322,12 @@ export const IDL: PspCompressedPda = {
             type: 'u8',
           },
           {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
+          },
+          {
             name: 'data',
             type: {
               option: {
@@ -1322,6 +1352,12 @@ export const IDL: PspCompressedPda = {
             type: 'u8',
           },
           {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
+          },
+          {
             name: 'data',
             type: {
               option: {
@@ -1344,6 +1380,12 @@ export const IDL: PspCompressedPda = {
           {
             name: 'lamports',
             type: 'u64',
+          },
+          {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
           },
           {
             name: 'data',
@@ -1374,6 +1416,12 @@ export const IDL: PspCompressedPda = {
           {
             name: 'lamports',
             type: 'u64',
+          },
+          {
+            name: 'address',
+            type: {
+              option: 'publicKey',
+            },
           },
           {
             name: 'data',

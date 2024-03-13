@@ -98,6 +98,7 @@ impl SerializedUtxos {
                 owner,
                 blinding: [0u8; 32],
                 lamports,
+                address: None,
                 data,
             };
             utxo.update_blinding(
@@ -145,6 +146,7 @@ impl SerializedUtxos {
             let utxo = OutUtxo {
                 owner,
                 lamports,
+                address: None,
                 data,
             };
             out_utxos.push(OutUtxoTuple {
@@ -211,6 +213,7 @@ impl SerializedUtxos {
                 owner: owner_index,
                 leaf_index: leaf_indices[i],
                 lamports: lamports_index,
+                address: None,
                 data: data_serializable,
             };
             utxos.push(InUtxoSerializableTuple {
@@ -286,6 +289,7 @@ impl SerializedUtxos {
             let out_utxo_serializable = OutUtxoSerializable {
                 owner: owner_index,
                 lamports: lamports_index,
+                address: None,
                 data: data_serializable,
             };
             utxos.push(OutUtxoSerializableTuple {
@@ -320,6 +324,7 @@ pub struct InUtxoSerializable {
     pub owner: u8,
     pub leaf_index: u32,
     pub lamports: u8,
+    pub address: Option<Pubkey>,
     pub data: Option<TlvSerializable>,
 }
 
@@ -328,6 +333,7 @@ pub struct InUtxoSerializable {
 pub struct OutUtxoSerializable {
     pub owner: u8,
     pub lamports: u8,
+    pub address: Option<Pubkey>,
     pub data: Option<TlvSerializable>,
 }
 
@@ -335,6 +341,7 @@ pub struct OutUtxoSerializable {
 pub struct OutUtxo {
     pub owner: Pubkey,
     pub lamports: u64,
+    pub address: Option<Pubkey>,
     pub data: Option<Tlv>,
 }
 
@@ -344,6 +351,7 @@ pub struct Utxo {
     pub owner: Pubkey,
     pub blinding: [u8; 32],
     pub lamports: u64,
+    pub address: Option<Pubkey>,
     pub data: Option<Tlv>,
 }
 
@@ -406,18 +414,21 @@ mod tests {
             owner: owner_pubkey,
             blinding: [0u8; 32],
             lamports: 100,
+            address: None,
             data: None,
         };
         let utxo_1 = Utxo {
             owner: owner2_pubkey,
             blinding: [0u8; 32],
             lamports: 100,
+            address: None,
             data: None,
         };
         let utxo_2 = Utxo {
             owner: owner2_pubkey,
             blinding: [0u8; 32],
             lamports: 201,
+            address: None,
             data: None,
         };
         let merkle_tree_pubkey_0 = Pubkey::new_unique();
@@ -452,6 +463,7 @@ mod tests {
                 owner: 0,
                 leaf_index: 0,
                 lamports: 0,
+                address: None,
                 data: None,
             }
         );
@@ -470,6 +482,7 @@ mod tests {
                 owner: 1,
                 leaf_index: 1,
                 lamports: 0,
+                address: None,
                 data: None,
             }
         );
@@ -489,6 +502,7 @@ mod tests {
                 owner: 1,
                 leaf_index: 2,
                 lamports: 1,
+                address: None,
                 data: None,
             }
         );
@@ -523,6 +537,7 @@ mod tests {
         let utxo = OutUtxo {
             owner: owner_pubkey,
             lamports: 100,
+            address: None,
             data: None,
         };
 
@@ -544,6 +559,7 @@ mod tests {
             OutUtxoSerializable {
                 owner: 0,
                 lamports: 0,
+                address: None,
                 data: None,
             }
         );
@@ -552,6 +568,7 @@ mod tests {
         let utxo = OutUtxo {
             owner: owner2_pubkey,
             lamports: 100,
+            address: None,
             data: None,
         };
 
@@ -573,6 +590,7 @@ mod tests {
             OutUtxoSerializable {
                 owner: 1,
                 lamports: 0,
+                address: None,
                 data: None,
             }
         );
@@ -581,6 +599,7 @@ mod tests {
         let utxo = OutUtxo {
             owner: owner2_pubkey,
             lamports: 201,
+            address: None,
             data: None,
         };
 
@@ -602,6 +621,7 @@ mod tests {
             OutUtxoSerializable {
                 owner: 1,
                 lamports: 1,
+                address: None,
                 data: None,
             }
         );
@@ -632,6 +652,7 @@ mod tests {
             owner: owner_pubkey,
             blinding: [0u8; 32],
             lamports: 100,
+            address: None,
             data: None,
         };
 
@@ -649,6 +670,7 @@ mod tests {
         let out_utxo = OutUtxo {
             owner: owner_pubkey,
             lamports: 100,
+            address: None,
             data: None,
         };
         let out_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey_1];
@@ -670,6 +692,7 @@ mod tests {
         let out_utxo2 = OutUtxo {
             owner: owner2_pubkey,
             lamports: 200,
+            address: None,
             data: None,
         };
         let out_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey_0];
@@ -787,6 +810,7 @@ mod tests {
                     owner: 0,
                     leaf_index: 1,
                     lamports: 0,
+                    address: None,
                     data: None,
                 },
                 index_mt_account: 0,

@@ -232,12 +232,14 @@ mod test {
                 lamports: 100,
                 owner: payer,
                 blinding: [0u8; 32],
+                address: None,
                 data: None,
             },
             Utxo {
                 lamports: 100,
                 owner: payer,
                 blinding: [0u8; 32],
+                address: None,
                 data: None,
             },
         ];
@@ -245,11 +247,13 @@ mod test {
             OutUtxo {
                 lamports: 50,
                 owner: payer,
+                address: None,
                 data: None,
             },
             OutUtxo {
                 lamports: 150,
                 owner: recipient,
+                address: None,
                 data: None,
             },
         ];

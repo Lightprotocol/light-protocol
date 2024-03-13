@@ -84,6 +84,7 @@ pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]
                 data: Some(Tlv {
                     tlv_elements: vec![data],
                 }),
+                address: None,
             }
         })
         .collect()

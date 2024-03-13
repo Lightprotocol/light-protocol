@@ -241,49 +241,8 @@ pub struct TransferInstruction<'info> {
     pub self_program: Program<'info, crate::program::PspCompressedToken>,
 }
 
-// TODO: remove when instruction data struct has been implemented with beet in client
-// ported from utxo.rs so that it is included in anchor idl
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct UtxoClient {
-    pub owner: Pubkey,
-    pub blinding: [u8; 32],
-    pub lamports: u64,
-    pub data: Option<Tlv>,
-}
-
-// TODO: remove when instruction data struct has been implemented with beet in client
-// ported from utxo.rs so that it is included in anchor idl
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InUtxoTupleClient {
-    pub in_utxo: UtxoClient,
-    pub index_mt_account: u8,
-    pub index_nullifier_array_account: u8,
-}
-
-// TODO: remove when instruction data struct has been implemented with beet in client
-// ported from utxo.rs so that it is included in anchor idl
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedProofClient {
-    pub a: [u8; 32],
-    pub b: [u8; 64],
-    pub c: [u8; 32],
-}
-
-// TODO: remove when instruction data struct has been implemented with beet in client
-// this struct is just used in the client
-// for that reason it uses the ported client structs
-#[derive(Debug)]
-#[account]
-pub struct InstructionDataTransferClient {
-    proof: Option<CompressedProofClient>,
-    root_indices: Vec<u16>,
-    in_utxos: Vec<InUtxoTupleClient>,
-    in_tlv_data: Vec<TokenTlvDataClient>,
-    out_utxos: Vec<TokenTransferOutUtxo>,
-}
-
 // TODO: parse utxos a more efficient way, since owner is sent multiple times this way
-// This struct is equivalent to the InstructionDataTransferClient, but uses the imported types from the psp_compressed_pda
+// This struct is equivalent to the InstructionDataTransfer, but uses the imported types from the psp_compressed_pda
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     proof: Option<CompressedProof>,
@@ -333,6 +292,7 @@ pub struct TokenTlvData {
     // /// Optional authority to close the account.
     // pub close_authority: Option<Pubkey>,
 }
+// keeping this client struct for now because ts encoding is complaining about the enum, state is replaced with u8 in this struct
 #[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
 pub struct TokenTlvDataClient {
     /// The mint associated with this account
@@ -583,6 +543,7 @@ mod test {
             blinding: [0u8; 32],
             lamports: 100,
             data: Some(tlv_data.clone()),
+            address: None,
         };
         let leaf_index = 1u32;
         utxo.update_blinding(merkle_tree_pda, (leaf_index as usize).clone())
@@ -604,6 +565,7 @@ mod test {
             owner: owner_pubkey,
             lamports: 100,
             data: Some(tlv_data),
+            address: None,
         };
 
         // Add OutUtxo

@@ -46,6 +46,7 @@ pub fn insert_out_utxos<'a, 'b, 'c: 'info, 'info>(
             owner: out_utxo_tuple.out_utxo.owner,
             blinding: [0u8; 32],
             lamports: out_utxo_tuple.out_utxo.lamports,
+            address: None,
             data: out_utxo_tuple.out_utxo.data.clone(),
         };
         utxo.update_blinding(
