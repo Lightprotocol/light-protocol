@@ -6,52 +6,19 @@ const spinner = require("cli-spinners");
 import { BN } from "@coral-xyz/anchor";
 import {
   confirmConfig,
-  ConfirmOptions,
-  MerkleTreeConfig,
   Provider,
   Rpc,
   RPC_FEE,
   TestRpc,
   TOKEN_ACCOUNT_FEE,
-  User,
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
-import { WasmFactory } from "@lightprotocol/account.rs";
 
 require("dotenv").config();
 
 let provider: Provider;
 let rpc: Rpc;
-
-export const createNewWallet = () => {
-  const keypair: solana.Keypair = solana.Keypair.generate();
-  const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
-  try {
-    setSecretKey(JSON.stringify(Array.from(secretKey)));
-    return keypair;
-  } catch (error) {
-    throw new Error(`error writing secret.txt: ${error}`);
-  }
-};
-
-export const getWalletConfig = async (
-  anchorProvider: anchor.AnchorProvider,
-): Promise<MerkleTreeConfig> => {
-  try {
-    const merkleTreeConfig = new MerkleTreeConfig({
-      payer: getPayer(),
-      anchorProvider: anchorProvider,
-    });
-
-    merkleTreeConfig.getMerkleTreeAuthorityPda();
-
-    return merkleTreeConfig;
-  } catch (error) {
-    console.log({ error });
-    throw error;
-  }
-};
 
 export const readWalletFromFile = () => {
   try {
@@ -95,18 +62,6 @@ export const getLightProvider = async (localTestRpc?: boolean) => {
     return provider;
   }
   return provider;
-};
-
-export const getUser = async ({
-  skipFetchBalance,
-  localTestRpc,
-}: {
-  skipFetchBalance?: boolean;
-  localTestRpc?: boolean;
-}): Promise<User> => {
-  const provider = await getLightProvider(localTestRpc);
-  const user = await User.init({ provider, skipFetchBalance });
-  return user;
 };
 
 /** TODO: use non-local testrpc once we have a proper one */
@@ -156,17 +111,9 @@ export const getSolanaRpcUrl = (): string => {
   return config.solanaRpcUrl;
 };
 
-export const setsolanaRpcUrl = (url: string): void => {
-  setConfig({ solanaRpcUrl: url });
-};
-
 export const getRpcUrl = (): string => {
   const config = getConfig();
   return config.rpcUrl;
-};
-
-export const setRpcUrl = (url: string): void => {
-  setConfig({ rpcUrl: url });
 };
 
 export const getSecretKey = () => {
@@ -174,26 +121,8 @@ export const getSecretKey = () => {
   return config.secretKey;
 };
 
-export const setSecretKey = (key: string) => {
-  setConfig({ secretKey: key });
-};
-
-export const getRpcRecipient = () => {
-  const config = getConfig();
-  return new solana.PublicKey(config.rpcRecipient);
-};
-
 export const setRpcRecipient = (address: string) => {
   setConfig({ rpcRecipient: address });
-};
-
-export const getRpcPublicKey = () => {
-  const config = getConfig();
-  return new solana.PublicKey(config.rpcPublicKey);
-};
-
-export const setRpcPublicKey = (address: string): void => {
-  setConfig({ rpcPublicKey: address });
 };
 
 export const getLookUpTable = () => {
@@ -206,10 +135,6 @@ export const getLookUpTable = () => {
   return new solana.PublicKey(config.lookUpTable);
 };
 
-export const setLookUpTable = (address: string): void => {
-  setConfig({ lookUpTable: address });
-};
-
 export const getPayer = () => {
   const secretKey = bs58.decode(getSecretKey());
 
@@ -219,9 +144,6 @@ export const getPayer = () => {
   return keypair;
 };
 
-export const setPayer = (key: string) => {
-  setConfig({ payer: key });
-};
 import { existsSync } from "fs";
 
 function getConfigPath(): string {
@@ -289,15 +211,6 @@ export const setConfig = (config: Partial<Config>, filePath?: string): void => {
   }
 };
 
-export function generateSolanaTransactionURL(
-  transactionType: "tx" | "address",
-  transactionHash: string,
-  cluster: string,
-): string {
-  const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
-  return url;
-}
-
 export class CustomLoader {
   message: string;
   logInterval: any;
@@ -313,7 +226,6 @@ export class CustomLoader {
 
   start() {
     this.startTime = Date.now();
-    const elapsedTime = ((Date.now() - this.startTime) / 1000).toFixed(2);
     process.stdout.write(
       `\n${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
         this.message
@@ -348,13 +260,3 @@ export function isValidBase58SecretKey(secretKey: string): boolean {
     /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
   return base58Regex.test(secretKey);
 }
-
-export const getConfirmOptions = (flags: any) => {
-  if (flags["finalized"]) {
-    return ConfirmOptions.finalized;
-  } else if (flags["spendable"]) {
-    return ConfirmOptions.spendable;
-  } else {
-    return undefined;
-  }
-};

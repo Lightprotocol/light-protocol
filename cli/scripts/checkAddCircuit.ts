@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs = require('fs');
 import { toSnakeCase, toCamelCase } from "@lightprotocol/zk.js";
 
 function main() {

@@ -7,7 +7,7 @@ import "mocha";
 import { getSolanaArgs } from "../../src/utils";
 
 describe("Init test env utils", () => {
-  var tempdir: string;
+  let tempdir: string;
 
   before(async () => {
     // Ensure that programs (as .so files) are going to be downloaded to a
