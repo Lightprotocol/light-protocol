@@ -180,7 +180,7 @@ describe('Program test', () => {
     const payer = PAYER_KEYPAIR;
 
     const recipient = PublicKey.unique();
-    const inputState = [
+    const inputState: Utxo[] = [
       //   addMerkleContextToUtxo(
       //     createUtxo(payer.publicKey, 1_000_000_000n),
       //     0n,

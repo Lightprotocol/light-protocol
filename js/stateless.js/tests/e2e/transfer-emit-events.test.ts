@@ -14,6 +14,7 @@ import {
 } from '../../src/instruction/pack-nop-instruction';
 import { FIELD_SIZE, defaultTestStateTreeAccounts } from '../../src/constants';
 import { confirmTx, sendAndConfirmTx } from '../../src/test-utils';
+import crypto from "crypto";
 
 /// static testing key. don't use in prod.
 const FIXED_PAYER = byteArrayToKeypair([

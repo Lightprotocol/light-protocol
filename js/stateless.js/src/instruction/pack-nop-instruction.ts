@@ -45,8 +45,8 @@ export async function createExecuteCompressedInstruction(
   rootIndices: number[],
   proof: MockProof,
 ): Promise<TransactionInstruction> {
-  let remainingAccounts = new Map<PublicKey, number>();
-  let _inUtxos: InUtxoTuple[] = [];
+  const remainingAccounts = new Map<PublicKey, number>();
+  const _inUtxos: InUtxoTuple[] = [];
   inUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, remainingAccounts.size);
@@ -66,7 +66,7 @@ export async function createExecuteCompressedInstruction(
     _inUtxos[i].indexNullifierArrayAccount = remainingAccounts.get(mt)!;
   });
   len = remainingAccounts.size;
-  let _outUtxos: OutUtxoTuple[] = [];
+  const _outUtxos: OutUtxoTuple[] = [];
   outUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, len + i);
@@ -78,7 +78,7 @@ export async function createExecuteCompressedInstruction(
   });
 
   // hack!
-  let rawInputs = {
+  const rawInputs = {
     lowElementIndices: new Array(inUtxos.length).fill(0),
     relayFee: null,
     inUtxos: _inUtxos.map((utxo) => ({
