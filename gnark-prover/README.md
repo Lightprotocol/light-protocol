@@ -60,6 +60,30 @@ go build .
 light-prover --config path/to/config/file
 ```
 
+## Performance Testing
+
+We have included two scripts to benchmark the performance:
+
+`./scripts/stress_load.sh`:  This script facilitates stress testing by allowing you to define the test duration and rate.
+`./scripts/rate_detection.sh`: This script is designed to detect a predetermined sustainable response rate where the mean response time does not exceed the MEAN_TIME_THRESHOLD.
+
+
+Response time distribution for 30 proofs/sec on Digital Ocean droplet with 16 vCPUs:
+```
+Bucket           #    %       Histogram
+[0s,     10ms]   0    0.00%   
+[10ms,   20ms]   0    0.00%   
+[20ms,   30ms]   0    0.00%   
+[30ms,   40ms]   0    0.00%   
+[40ms,   50ms]   7    2.33%   #
+[50ms,   60ms]   268  89.33%  ###################################################################
+[60ms,   70ms]   21   7.00%   #####
+[70ms,   80ms]   1    0.33%   
+[80ms,   90ms]   2    0.67%   
+[90ms,   100ms]  1    0.33%   
+[100ms,  +Inf]   0    0.00%  
+```
+
 ## Docker
 
 ```shell
