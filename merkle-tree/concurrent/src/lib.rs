@@ -504,14 +504,13 @@ where
     ///
     /// # Purpose
     ///
-    /// This method is meant to be used mostly in Solana programs, where memory
-    /// constraints are tight and we want to make sure no data is copied.
+    /// This method is meant to be used mostly in Solana programs to initialize
+    /// a new account which is supposed to store the Merkle tree.
     ///
     /// # Safety
     ///
     /// This is highly unsafe. This method validates only sizes of slices.
-    /// Ensuring the alignment and that the slices provide actual data of the
-    /// Merkle tree is the caller's responsibility.
+    /// Ensuring the alignment is the caller's responsibility.
     ///
     /// Calling it in async context (or anywhere where the underlying data can
     /// be moved in the memory) is certainly going to cause undefined behavior.
@@ -766,8 +765,6 @@ where
         // with the following print set the expected and computed roots are the same
         // comment the statment to reproduce the error with test programs/account-compression/tests/merkle_tree_tests.rs
         // in accounts-compression run cargo test-sbf test_nullify_leaves
-        #[cfg(target_os = "solana")]
-        solana_program::msg!("leaf: {:?}", leaf);
         if computed_root == expected_root {
             Ok(())
         } else {

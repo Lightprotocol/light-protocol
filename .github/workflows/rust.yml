@@ -27,7 +27,7 @@ concurrency:
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
           submodules: true
 
       - name: Cache .local directory
-        uses: buildjet/cache@v3
+        uses: actions/cache@v3
         with:
           path: .local
           key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
