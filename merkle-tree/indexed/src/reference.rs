@@ -1,30 +1,27 @@
 use std::marker::PhantomData;
 
-use ark_ff::BigInteger;
 use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_concurrent_merkle_tree::light_hasher::Hasher;
 use light_merkle_tree_reference::MerkleTree;
+use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
-use crate::{array::IndexingElement, errors::IndexedMerkleTreeError};
+use crate::{array::IndexedElement, errors::IndexedMerkleTreeError};
 
 #[repr(C)]
-pub struct IndexedMerkleTree<H, I, B>
+pub struct IndexedMerkleTree<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
 {
     pub merkle_tree: MerkleTree<H>,
-    _bigint: PhantomData<B>,
     _index: PhantomData<I>,
 }
 
-impl<H, I, B> IndexedMerkleTree<H, I, B>
+impl<H, I> IndexedMerkleTree<H, I>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     pub fn new(
@@ -42,7 +39,6 @@ where
 
         Ok(Self {
             merkle_tree,
-            _bigint: PhantomData,
             _index: PhantomData,
         })
     }
@@ -61,9 +57,9 @@ where
 
     pub fn update(
         &mut self,
-        new_low_element: &IndexingElement<I, B>,
-        new_element: &IndexingElement<I, B>,
-        new_element_next_value: &B,
+        new_low_element: &IndexedElement<I>,
+        new_element: &IndexedElement<I>,
+        new_element_next_value: &BigUint,
     ) -> Result<(), IndexedMerkleTreeError> {
         // Update the low element.
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
