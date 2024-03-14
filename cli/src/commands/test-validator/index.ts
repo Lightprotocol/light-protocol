@@ -1,7 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { sleep } from "@lightprotocol/zk.js";
 import { initTestEnv } from "../../utils/initTestEnv";
-import { executeCommand } from "../../psp-utils/process";
 import { CustomLoader } from "../../utils/index";
 
 class SetupCommand extends Command {
