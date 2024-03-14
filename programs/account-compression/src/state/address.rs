@@ -29,6 +29,7 @@ pub struct AddressMerkleTreeAccount {
     pub merkle_tree_filled_subtrees: [u8; 704],
     pub merkle_tree_changelog: [u8; 2083200],
     pub merkle_tree_roots: [u8; 89600],
+    pub merkle_tree_canopy: [u8; 0],
 }
 
 impl AddressMerkleTreeAccount {
@@ -39,6 +40,7 @@ impl AddressMerkleTreeAccount {
                 &self.merkle_tree_filled_subtrees,
                 &self.merkle_tree_changelog,
                 &self.merkle_tree_roots,
+                &self.merkle_tree_canopy,
             )
             .map_err(ProgramError::from)?
         };
@@ -50,6 +52,7 @@ impl AddressMerkleTreeAccount {
         height: usize,
         changelog_size: usize,
         roots_size: usize,
+        canopy_depth: usize,
     ) -> Result<&mut IndexedMerkleTree22<Poseidon, usize, BigInteger256>> {
         let tree = unsafe {
             IndexedMerkleTree22::<Poseidon, usize, BigInteger256>::from_bytes_init(
@@ -57,9 +60,11 @@ impl AddressMerkleTreeAccount {
                 &mut self.merkle_tree_filled_subtrees,
                 &mut self.merkle_tree_changelog,
                 &mut self.merkle_tree_roots,
+                &mut self.merkle_tree_canopy,
                 height,
                 changelog_size,
                 roots_size,
+                canopy_depth,
             )
             .map_err(ProgramError::from)?
         };
@@ -76,6 +81,7 @@ impl AddressMerkleTreeAccount {
                 &mut self.merkle_tree_filled_subtrees,
                 &mut self.merkle_tree_changelog,
                 &mut self.merkle_tree_roots,
+                &mut self.merkle_tree_canopy,
             )
             .map_err(ProgramError::from)?
         };

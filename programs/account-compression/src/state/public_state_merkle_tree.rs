@@ -21,10 +21,11 @@ pub struct StateMerkleTreeAccount {
     pub delegate: Pubkey,
 
     /// Merkle tree for the transaction state.
-    pub state_merkle_tree_struct: [u8; 224],
+    pub state_merkle_tree_struct: [u8; 256],
     pub state_merkle_tree_filled_subtrees: [u8; 832],
     pub state_merkle_tree_changelog: [u8; 1220800],
     pub state_merkle_tree_roots: [u8; 76800],
+    pub state_merkle_tree_canopy: [u8; 65472],
 }
 
 impl StateMerkleTreeAccount {
@@ -48,6 +49,7 @@ impl StateMerkleTreeAccount {
                 &self.state_merkle_tree_filled_subtrees,
                 &self.state_merkle_tree_changelog,
                 &self.state_merkle_tree_roots,
+                &self.state_merkle_tree_canopy,
             )
             .map_err(ProgramError::from)?
         };
@@ -59,6 +61,7 @@ impl StateMerkleTreeAccount {
         height: usize,
         changelog_size: usize,
         roots_size: usize,
+        canopy_depth: usize,
     ) -> Result<&mut ConcurrentMerkleTree26<Poseidon>> {
         let tree = unsafe {
             ConcurrentMerkleTree26::<Poseidon>::from_bytes_init(
@@ -66,9 +69,11 @@ impl StateMerkleTreeAccount {
                 &mut self.state_merkle_tree_filled_subtrees,
                 &mut self.state_merkle_tree_changelog,
                 &mut self.state_merkle_tree_roots,
+                &mut self.state_merkle_tree_canopy,
                 height,
                 changelog_size,
                 roots_size,
+                canopy_depth,
             )
             .map_err(ProgramError::from)?
         };
@@ -83,6 +88,7 @@ impl StateMerkleTreeAccount {
                 &mut self.state_merkle_tree_filled_subtrees,
                 &mut self.state_merkle_tree_changelog,
                 &mut self.state_merkle_tree_roots,
+                &mut self.state_merkle_tree_canopy,
             )
             .map_err(ProgramError::from)?
         };
@@ -118,6 +124,10 @@ impl StateMerkleTreeAccount {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::utils::constants::{
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+        STATE_MERKLE_TREE_ROOTS,
+    };
 
     #[test]
     fn test_load_merkle_tree() {
@@ -126,13 +136,21 @@ mod test {
             next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
             owner: Pubkey::new_from_array([2u8; 32]),
             delegate: Pubkey::new_from_array([3u8; 32]),
-            state_merkle_tree_struct: [0u8; 224],
+            state_merkle_tree_struct: [0u8; 256],
             state_merkle_tree_filled_subtrees: [0u8; 832],
             state_merkle_tree_changelog: [0u8; 1220800],
             state_merkle_tree_roots: [0u8; 76800],
+            state_merkle_tree_canopy: [0u8; 65472],
         };
 
-        let merkle_tree = account.load_merkle_tree_init(26, 1400, 2400).unwrap();
+        let merkle_tree = account
+            .load_merkle_tree_init(
+                STATE_MERKLE_TREE_HEIGHT,
+                STATE_MERKLE_TREE_CHANGELOG,
+                STATE_MERKLE_TREE_ROOTS,
+                STATE_MERKLE_TREE_CANOPY_DEPTH,
+            )
+            .unwrap();
         for _ in 0..(1 << 8) {
             merkle_tree.append(&[4u8; 32]).unwrap();
         }

@@ -27,8 +27,12 @@ where
     B: BigInteger,
     usize: From<I>,
 {
-    pub fn new(height: usize, roots_size: usize) -> Result<Self, IndexedMerkleTreeError> {
-        let mut merkle_tree = MerkleTree::new(height, roots_size)?;
+    pub fn new(
+        height: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+    ) -> Result<Self, IndexedMerkleTreeError> {
+        let mut merkle_tree = MerkleTree::new(height, roots_size, canopy_depth)?;
 
         // Append the first low leaf, which has value 0 and does not point
         // to any other leaf yet.

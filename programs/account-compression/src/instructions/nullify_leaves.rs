@@ -90,8 +90,9 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
 
 #[inline(never)]
 pub fn from_vec(vec: &[[u8; 32]]) -> Result<BoundedVec<[u8; 32]>> {
-    let proof: [[u8; 32]; 26] = (vec).try_into().unwrap();
-    let bounded_vec = BoundedVec::from_array(&proof);
+    let proof: [[u8; 32]; 16] = (vec).try_into().unwrap();
+    let mut bounded_vec = BoundedVec::with_capacity(26);
+    bounded_vec.extend(proof).map_err(ProgramError::from)?;
     Ok(bounded_vec)
 }
 

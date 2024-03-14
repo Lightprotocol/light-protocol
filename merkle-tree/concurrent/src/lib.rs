@@ -61,7 +61,6 @@ where
     pub roots_length: usize,
     pub current_root_index: usize,
 
-    // TODO(vadorovsky): Add canopy.
     pub canopy_depth: usize,
 
     pub next_index: usize,
@@ -74,6 +73,8 @@ where
     pub changelog: CyclicBoundedVec<'a, ChangelogEntry<HEIGHT>>,
     /// History of roots.
     pub roots: CyclicBoundedVec<'a, [u8; 32]>,
+    /// Cached upper nodes.
+    pub canopy: BoundedVec<'a, [u8; 32]>,
 
     _hasher: PhantomData<H>,
 }
@@ -87,7 +88,18 @@ impl<'a, H, const HEIGHT: usize> ConcurrentMerkleTree<'a, H, HEIGHT>
 where
     H: Hasher,
 {
-    pub fn new(height: usize, changelog_size: usize, roots_size: usize) -> Self {
+    /// Number of nodes to include in canopy, based on `canopy_depth`.
+    #[inline(always)]
+    pub fn canopy_size(canopy_depth: usize) -> usize {
+        (1 << (canopy_depth + 1)) - 2
+    }
+
+    pub fn new(
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+    ) -> Self {
         Self {
             height,
 
@@ -99,8 +111,7 @@ where
             roots_length: 0,
             current_root_index: 0,
 
-            // TODO(vadorovsky): Implement canopy.
-            canopy_depth: 0,
+            canopy_depth,
 
             next_index: 0,
             sequence_number: 0,
@@ -109,6 +120,7 @@ where
             filled_subtrees: BoundedVec::with_capacity(height),
             changelog: CyclicBoundedVec::with_capacity(changelog_size),
             roots: CyclicBoundedVec::with_capacity(roots_size),
+            canopy: BoundedVec::with_capacity(Self::canopy_size(canopy_depth)),
 
             _hasher: PhantomData,
         }
@@ -175,6 +187,7 @@ where
                 filled_subtrees: BoundedVec::with_capacity((*struct_ref).height),
                 changelog: CyclicBoundedVec::with_capacity((*struct_ref).changelog_capacity),
                 roots: CyclicBoundedVec::with_capacity((*struct_ref).roots_capacity),
+                canopy: BoundedVec::with_capacity(Self::canopy_size((*struct_ref).canopy_depth)),
 
                 _hasher: PhantomData,
             }
@@ -333,6 +346,7 @@ where
         bytes_filled_subtrees: &'a [u8],
         bytes_changelog: &'a [u8],
         bytes_roots: &'a [u8],
+        bytes_canopy: &'a [u8],
     ) -> Result<&'a Self, ConcurrentMerkleTreeError> {
         let expected_bytes_struct_size = mem::size_of::<Self>();
         if bytes_struct.len() != expected_bytes_struct_size {
@@ -374,12 +388,30 @@ where
             tree.changelog_capacity,
         );
 
+        let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * tree.roots_capacity;
+        if bytes_roots.len() != expected_bytes_roots_size {
+            return Err(ConcurrentMerkleTreeError::RootBufferSize(
+                expected_bytes_roots_size,
+                bytes_roots.len(),
+            ));
+        }
         tree.roots = Self::roots_from_bytes(
             bytes_roots,
             tree.current_root_index + 1,
             tree.roots_length,
             tree.roots_capacity,
         )?;
+
+        let canopy_size = Self::canopy_size(tree.canopy_depth);
+        let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
+        if bytes_canopy.len() != expected_canopy_size {
+            return Err(ConcurrentMerkleTreeError::CanopyBufferSize(
+                expected_canopy_size,
+                bytes_canopy.len(),
+            ));
+        }
+        tree.canopy =
+            BoundedVec::from_raw_parts(bytes_canopy.as_ptr() as _, canopy_size, canopy_size);
 
         Ok(tree)
     }
@@ -396,11 +428,13 @@ where
         bytes_filled_subtrees: &'b mut [u8],
         bytes_changelog: &'b mut [u8],
         bytes_roots: &'b mut [u8],
+        bytes_canopy: &'b mut [u8],
         subtrees_length: usize,
         changelog_next_index: usize,
         changelog_length: usize,
         roots_next_index: usize,
         roots_length: usize,
+        canopy_length: usize,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         // Restore the vectors correctly, by pointing them to the appropriate
         // byte slices as underlying data. The most unsafe part of this code.
@@ -447,6 +481,17 @@ where
             self.roots_capacity,
         );
 
+        let canopy_size = Self::canopy_size(self.canopy_depth);
+        let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
+        if bytes_canopy.len() != expected_canopy_size {
+            return Err(ConcurrentMerkleTreeError::CanopyBufferSize(
+                expected_canopy_size,
+                bytes_canopy.len(),
+            ));
+        }
+        self.canopy =
+            BoundedVec::from_raw_parts(bytes_canopy.as_mut_ptr() as _, canopy_length, canopy_size);
+
         Ok(())
     }
 
@@ -474,14 +519,17 @@ where
     ///
     /// Calling it in async context (or anywhere where the underlying data can
     /// be moved in the memory) is certainly going to cause undefined behavior.
+    #[allow(clippy::too_many_arguments)]
     pub unsafe fn from_bytes_init(
         bytes_struct: &'a mut [u8],
         bytes_filled_subtrees: &'a mut [u8],
         bytes_changelog: &'a mut [u8],
         bytes_roots: &'a mut [u8],
+        bytes_canopy: &'a mut [u8],
         height: usize,
         changelog_size: usize,
         roots_size: usize,
+        canopy_depth: usize,
     ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
         let tree = ConcurrentMerkleTree::struct_from_bytes_mut(bytes_struct)?;
 
@@ -495,10 +543,14 @@ where
         tree.roots_length = 0;
         tree.current_root_index = 0;
 
+        tree.canopy_depth = canopy_depth;
+
         tree.fill_vectors_mut(
             bytes_filled_subtrees,
             bytes_changelog,
             bytes_roots,
+            bytes_canopy,
+            0,
             0,
             0,
             0,
@@ -537,17 +589,20 @@ where
         bytes_filled_subtrees: &'b mut [u8],
         bytes_changelog: &'b mut [u8],
         bytes_roots: &'b mut [u8],
+        bytes_canopy: &'b mut [u8],
     ) -> Result<&'b mut Self, ConcurrentMerkleTreeError> {
         let tree = ConcurrentMerkleTree::struct_from_bytes_mut(bytes_struct)?;
         tree.fill_vectors_mut(
             bytes_filled_subtrees,
             bytes_changelog,
             bytes_roots,
+            bytes_canopy,
             tree.height,
             tree.current_changelog_index + 1,
             tree.changelog_length,
             tree.current_root_index + 1,
             tree.roots_length,
+            Self::canopy_size(tree.canopy_depth),
         )?;
         Ok(tree)
     }
@@ -574,6 +629,15 @@ where
         // Initialize filled subtrees.
         for i in 0..self.height {
             self.filled_subtrees.push(H::zero_bytes()[i]).unwrap();
+        }
+
+        // Initialize canopy.
+        for level_i in 0..self.canopy_depth {
+            let level_nodes = 1 << (level_i + 1);
+            for _ in 0..level_nodes {
+                let node = H::zero_bytes()[self.height - level_i - 1];
+                self.canopy.push(node)?;
+            }
         }
 
         Ok(())
@@ -639,6 +703,27 @@ where
         self.next_index
     }
 
+    pub fn update_proof_from_canopy(
+        &self,
+        leaf_index: usize,
+        proof: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<(), ConcurrentMerkleTreeError> {
+        let mut node_index = ((1 << self.height) + leaf_index) >> (self.height - self.canopy_depth);
+        while node_index > 1 {
+            // `node_index - 2` maps to the canopy index.
+            let canopy_index = node_index - 2;
+            let canopy_index = if canopy_index % 2 == 0 {
+                canopy_index + 1
+            } else {
+                canopy_index - 1
+            };
+            proof.push(self.canopy[canopy_index])?;
+            node_index >>= 1;
+        }
+
+        Ok(())
+    }
+
     /// Returns an updated Merkle proof.
     ///
     /// The update is performed by checking whether there are any new changelog
@@ -656,7 +741,7 @@ where
     ///     element from the changelog to our updated proof).
     ///   * If yes, it means that the same leaf we want to update was already
     ///     updated. In such case, updating the proof is not possible.
-    fn update_proof(
+    fn update_proof_from_changelog(
         &self,
         changelog_index: usize,
         leaf_index: usize,
@@ -757,12 +842,22 @@ where
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
+        let expected_proof_len = self.height - self.canopy_depth;
+        if proof.len() != expected_proof_len {
+            return Err(ConcurrentMerkleTreeError::InvalidProofLength(
+                expected_proof_len,
+                proof.len(),
+            ));
+        }
         if leaf_index >= self.next_index() {
             return Err(ConcurrentMerkleTreeError::CannotUpdateEmpty);
         }
 
+        if self.canopy_depth > 0 {
+            self.update_proof_from_canopy(leaf_index, proof)?;
+        }
         if self.changelog_capacity > 0 {
-            self.update_proof(changelog_index, leaf_index, proof)?;
+            self.update_proof_from_changelog(changelog_index, leaf_index, proof)?;
         }
         self.validate_proof(old_leaf, leaf_index, proof)?;
         self.update_leaf_in_tree(new_leaf, leaf_index, proof)
@@ -854,6 +949,32 @@ where
             }
         }
 
+        if self.canopy_depth > 0 {
+            self.update_canopy(&changelog_entries)?;
+        }
+
         Ok(changelog_entries)
+    }
+
+    fn update_canopy(
+        &mut self,
+        changelog_entries: &Vec<ChangelogEntry<HEIGHT>>,
+    ) -> Result<(), ConcurrentMerkleTreeError> {
+        for changelog_entry in changelog_entries {
+            for (i, path_node) in changelog_entry
+                .path
+                .iter()
+                .rev()
+                .take(self.canopy_depth)
+                .enumerate()
+            {
+                let level = self.height - i - 1;
+                let index = (1 << (self.height - level)) + (changelog_entry.index >> level);
+                // `index - 2` maps to the canopy index.
+                self.canopy[(index - 2) as usize] = *path_node;
+            }
+        }
+
+        Ok(())
     }
 }

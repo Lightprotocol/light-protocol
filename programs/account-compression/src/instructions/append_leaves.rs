@@ -111,7 +111,8 @@ pub mod sdk {
     };
 
     use crate::utils::constants::{
-        STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+        STATE_MERKLE_TREE_ROOTS,
     };
 
     pub fn create_initialize_merkle_tree_instruction(
@@ -126,6 +127,7 @@ pub mod sdk {
                 height: STATE_MERKLE_TREE_HEIGHT as u64,
                 changelog_size: STATE_MERKLE_TREE_CHANGELOG as u64,
                 roots_size: STATE_MERKLE_TREE_ROOTS as u64,
+                canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH as u64,
             };
         Instruction {
             program_id: crate::ID,

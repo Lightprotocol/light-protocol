@@ -12,7 +12,7 @@ use light_merkle_tree_reference::store::Store;
 use rand::thread_rng;
 
 /// Tests whether append operations work as expected.
-fn append<H>()
+fn append<H, const CANOPY: usize>()
 where
     H: Hasher,
 {
@@ -20,7 +20,7 @@ where
     const CHANGELOG: usize = 32;
     const ROOTS: usize = 256;
 
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
     merkle_tree.init().unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
@@ -201,13 +201,13 @@ where
 }
 
 /// Tests whether update operations work as expected.
-fn update<H, const CHANGELOG: usize, const ROOTS: usize>()
+fn update<H, const CHANGELOG: usize, const ROOTS: usize, const CANOPY: usize>()
 where
     H: Hasher,
 {
     const HEIGHT: usize = 4;
 
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
     merkle_tree.init().unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
@@ -435,8 +435,9 @@ where
     const HEIGHT: usize = 2;
     const CHANGELOG: usize = 32;
     const ROOTS: usize = 32;
+    const CANOPY: usize = 0;
 
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
     merkle_tree.init().unwrap();
 
     for _ in 0..4 {
@@ -457,16 +458,17 @@ where
     const HEIGHT: usize = 2;
     const CHANGELOG: usize = 6;
     const ROOTS: usize = 8;
+    const CANOPY: usize = 0;
 
     // Our implementation of concurrent Merkle tree.
-    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+    let mut merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
     merkle_tree.init().unwrap();
 
     // Reference implementation of Merkle tree which Solana Labs uses for
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
     let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
+        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
 
     let mut rng = thread_rng();
 
@@ -541,8 +543,6 @@ where
         let old_leaf = reference_tree.leaf(i);
         let mut proof = reference_tree.get_proof_of_leaf(i).unwrap();
 
-        println!("loop: {i}, changelog_index: {changelog_index}");
-
         merkle_tree
             .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
             .unwrap();
@@ -555,7 +555,7 @@ where
 
 /// Checks whether `append_batch` is compatible with equivalent multiple
 /// appends.
-fn compat_batch<H, const HEIGHT: usize>()
+fn compat_batch<H, const HEIGHT: usize, const CANOPY: usize>()
 where
     H: Hasher,
 {
@@ -566,16 +566,18 @@ where
     let mut seq = 1;
 
     for batch_size in 1..(1 << HEIGHT) {
-        let mut concurrent_mt_1 = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+        let mut concurrent_mt_1 =
+            ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
         concurrent_mt_1.init().unwrap();
 
         // Tree to which are going to append single leaves.
-        let mut concurrent_mt_2 = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+        let mut concurrent_mt_2 =
+            ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
         concurrent_mt_2.init().unwrap();
 
         // Reference tree for checking the correctness of proofs.
         let mut reference_mt =
-            light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
+            light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
 
         // Store to which we are passing the changelog events from `concurrent_mt_1`.
         // We will get proofs from it and validate against proofs from `reference_mt`.
@@ -634,49 +636,124 @@ where
     }
 }
 
-#[test]
-fn test_append_keccak() {
-    append::<Keccak>()
+fn compat_canopy<H, const HEIGHT: usize>()
+where
+    H: Hasher,
+{
+    const CHANGELOG: usize = 64;
+    const ROOTS: usize = 256;
+
+    let mut rng = thread_rng();
+
+    for canopy_depth in 1..(HEIGHT + 1) {
+        for batch_size in 1..(1 << HEIGHT) {
+            let mut concurrent_mt_with_canopy =
+                ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, canopy_depth);
+            concurrent_mt_with_canopy.init().unwrap();
+
+            let mut concurrent_mt_without_canopy =
+                ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, 0);
+            concurrent_mt_without_canopy.init().unwrap();
+
+            let mut reference_mt_with_canopy =
+                light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, canopy_depth)
+                    .unwrap();
+            let mut reference_mt_without_canopy =
+                light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, 0).unwrap();
+
+            for batch_i in 0..((1 << HEIGHT) / batch_size) {
+                let leaves: Vec<[u8; 32]> = (0..batch_size)
+                    .map(|_| {
+                        Fr::rand(&mut rng)
+                            .into_bigint()
+                            .to_bytes_be()
+                            .try_into()
+                            .unwrap()
+                    })
+                    .collect();
+                let leaves: Vec<&[u8; 32]> = leaves.iter().collect();
+
+                concurrent_mt_with_canopy
+                    .append_batch(leaves.as_slice())
+                    .unwrap();
+                concurrent_mt_without_canopy
+                    .append_batch(leaves.as_slice())
+                    .unwrap();
+
+                for leaf in leaves {
+                    reference_mt_with_canopy.append(leaf).unwrap();
+                    reference_mt_without_canopy.append(leaf).unwrap();
+                }
+
+                for leaf_i in 0..batch_size {
+                    let leaf_index = (batch_i * batch_size) + leaf_i;
+
+                    let mut proof_with_canopy = reference_mt_with_canopy
+                        .get_proof_of_leaf(leaf_index)
+                        .unwrap();
+                    let proof_without_canopy = reference_mt_without_canopy
+                        .get_proof_of_leaf(leaf_index)
+                        .unwrap();
+
+                    assert_eq!(
+                        proof_with_canopy[..],
+                        proof_without_canopy[..HEIGHT - canopy_depth]
+                    );
+
+                    concurrent_mt_with_canopy
+                        .update_proof_from_canopy(leaf_index, &mut proof_with_canopy)
+                        .unwrap();
+
+                    assert_eq!(proof_with_canopy, proof_without_canopy)
+                }
+            }
+        }
+    }
 }
 
 #[test]
-fn test_append_poseidon() {
-    append::<Poseidon>()
+fn test_append_keccak_canopy_0() {
+    append::<Keccak, 0>()
 }
 
 #[test]
-fn test_append_sha256() {
-    append::<Sha256>()
+fn test_append_poseidon_canopy_0() {
+    append::<Poseidon, 0>()
 }
 
 #[test]
-fn test_update_keccak_height_4_changelog_0_roots_256() {
-    update::<Keccak, 0, 256>()
+fn test_append_sha256_canopy_0() {
+    append::<Sha256, 0>()
 }
 
 #[test]
-fn test_update_keccak_height_4_changelog_32_roots_256() {
-    update::<Keccak, 32, 256>()
+fn test_update_keccak_height_4_changelog_0_roots_256_canopy_0() {
+    update::<Keccak, 0, 256, 0>()
 }
 
 #[test]
-fn test_update_poseidon_height_4_changelog_0_roots_256() {
-    update::<Poseidon, 0, 256>()
+fn test_update_keccak_height_4_changelog_32_roots_256_canopy_0() {
+    update::<Keccak, 32, 256, 0>()
 }
 
 #[test]
-fn test_update_poseidon_height_4_changelog_32_roots_256() {
-    update::<Poseidon, 32, 256>()
+fn test_update_poseidon_height_4_changelog_0_roots_256_canopy_0() {
+    update::<Poseidon, 0, 256, 0>()
 }
 
 #[test]
-fn test_update_sha256_height_0_changelog_32_roots_256() {
-    update::<Sha256, 0, 256>()
+fn test_update_poseidon_height_4_changelog_32_roots_256_canopy_0() {
+    update::<Poseidon, 32, 256, 0>()
 }
 
 #[test]
-fn test_update_sha256_height_4_changelog_32_roots_256() {
-    update::<Sha256, 32, 256>()
+fn test_update_sha256_height_0_changelog_32_roots_256_canopy_0() {
+    update::<Sha256, 0, 256, 0>()
+}
+
+#[test]
+fn test_update_sha256_height_4_changelog_32_roots_256_canopy_0() {
+    update::<Sha256, 32, 256, 0>()
 }
 
 #[test]
@@ -700,48 +777,80 @@ fn test_overfill_changelog_keccak() {
 }
 
 #[test]
-fn test_compat_batch_keccak_8() {
+fn test_compat_batch_keccak_8_canopy_0() {
     const HEIGHT: usize = 8;
-    compat_batch::<Keccak, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Keccak, HEIGHT, CANOPY>()
 }
 
 #[test]
-fn test_compat_batch_poseidon_3() {
+fn test_compat_batch_poseidon_3_canopy_0() {
     const HEIGHT: usize = 3;
-    compat_batch::<Poseidon, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Poseidon, HEIGHT, CANOPY>()
 }
 
 #[test]
-fn test_compat_batch_poseidon_6() {
+fn test_compat_batch_poseidon_6_canopy_0() {
     const HEIGHT: usize = 6;
-    compat_batch::<Poseidon, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Poseidon, HEIGHT, CANOPY>()
 }
 
 #[test]
-fn test_compat_batch_sha256_8() {
+fn test_compat_batch_sha256_8_canopy_0() {
     const HEIGHT: usize = 8;
-    compat_batch::<Sha256, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Sha256, HEIGHT, CANOPY>()
 }
 
 #[cfg(feature = "heavy-tests")]
 #[test]
 fn test_compat_batch_keccak_16() {
     const HEIGHT: usize = 16;
-    compat_batch::<Keccak, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Keccak, HEIGHT, CANOPY>()
 }
 
 #[cfg(feature = "heavy-tests")]
 #[test]
 fn test_compat_batch_poseidon_16() {
     const HEIGHT: usize = 16;
-    compat_batch::<Poseidon, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Poseidon, HEIGHT, CANOPY>()
 }
 
 #[cfg(feature = "heavy-tests")]
 #[test]
 fn test_compat_batch_sha256_16() {
     const HEIGHT: usize = 16;
-    compat_batch::<Sha256, HEIGHT>()
+    const CANOPY: usize = 0;
+    compat_batch::<Sha256, HEIGHT, CANOPY>()
+}
+
+#[test]
+fn test_compat_canopy_keccak_8() {
+    const HEIGHT: usize = 8;
+    compat_canopy::<Keccak, HEIGHT>()
+}
+
+#[test]
+fn test_compat_canopy_poseidon_6() {
+    const HEIGHT: usize = 6;
+    compat_canopy::<Poseidon, HEIGHT>()
+}
+
+#[cfg(feature = "heavy-tests")]
+#[test]
+fn test_compat_canopy_poseidon_26() {
+    const HEIGHT: usize = 26;
+    compat_canopy::<Poseidon, HEIGHT>()
+}
+
+#[test]
+fn test_compat_canopy_sha256_8() {
+    const HEIGHT: usize = 8;
+    compat_canopy::<Sha256, HEIGHT>()
 }
 
 /// Compares the internal fields of concurrent Merkle tree implementations, to
@@ -794,11 +903,13 @@ async fn test_spl_compat() {
     const HEIGHT: usize = 4;
     const CHANGELOG: usize = 64;
     const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
 
     let mut rng = thread_rng();
 
     // Our implementation of concurrent Merkle tree.
-    let mut concurrent_mt = ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS);
+    let mut concurrent_mt =
+        ConcurrentMerkleTree::<Keccak, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
     concurrent_mt.init().unwrap();
 
     // Solana Labs implementation of concurrent Merkle tree.
@@ -809,7 +920,7 @@ async fn test_spl_compat() {
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
     let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<Keccak>::new(HEIGHT, ROOTS).unwrap();
+        light_merkle_tree_reference::MerkleTree::<Keccak>::new(HEIGHT, ROOTS, CANOPY).unwrap();
 
     for i in 0..(1 << HEIGHT) {
         let leaf: [u8; 32] = Fr::rand(&mut rng)
@@ -877,7 +988,13 @@ async fn test_spl_compat() {
     }
 }
 
-fn from_bytes<H, const HEIGHT: usize, const CHANGELOG: usize, const ROOTS: usize>()
+fn from_bytes<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
 where
     H: Hasher,
 {
@@ -885,6 +1002,11 @@ where
     let mut bytes_filled_subtrees = vec![0u8; mem::size_of::<[u8; 32]>() * HEIGHT];
     let mut bytes_changelog = vec![0u8; mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG];
     let mut bytes_roots = vec![0u8; mem::size_of::<[u8; 32]>() * ROOTS];
+    let mut bytes_canopy = vec![
+        0u8;
+        mem::size_of::<[u8; 32]>()
+            * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY)
+    ];
 
     let merkle_tree = unsafe {
         ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
@@ -892,15 +1014,17 @@ where
             bytes_filled_subtrees.as_mut_slice(),
             bytes_changelog.as_mut_slice(),
             bytes_roots.as_mut_slice(),
+            bytes_canopy.as_mut_slice(),
             HEIGHT,
             CHANGELOG,
             ROOTS,
+            CANOPY,
         )
         .unwrap()
     };
     merkle_tree.init().unwrap();
     let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
+        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
 
     let mut rng = thread_rng();
 
@@ -923,6 +1047,7 @@ where
             bytes_filled_subtrees.as_slice(),
             bytes_changelog.as_slice(),
             bytes_roots.as_slice(),
+            bytes_canopy.as_slice(),
         )
         .unwrap()
     };
@@ -934,7 +1059,8 @@ fn test_from_bytes_keccak_8_256_256() {
     const HEIGHT: usize = 8;
     const CHANGELOG: usize = 256;
     const ROOTS: usize = 256;
-    from_bytes::<Keccak, HEIGHT, CHANGELOG, ROOTS>()
+    const CANOPY: usize = 0;
+    from_bytes::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
 #[test]
@@ -942,13 +1068,15 @@ fn test_from_bytes_poseidon_8_256_256() {
     const HEIGHT: usize = 8;
     const CHANGELOG: usize = 256;
     const ROOTS: usize = 256;
-    from_bytes::<Poseidon, HEIGHT, CHANGELOG, ROOTS>()
+    const CANOPY: usize = 0;
+    from_bytes::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
 #[test]
-fn test_from_bytes_sha256_8_256_256() {
+fn test_from_bytes_sha256_8_256_256_0() {
     const HEIGHT: usize = 8;
     const CHANGELOG: usize = 256;
     const ROOTS: usize = 256;
-    from_bytes::<Sha256, HEIGHT, CHANGELOG, ROOTS>()
+    const CANOPY: usize = 0;
+    from_bytes::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }

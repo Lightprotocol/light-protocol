@@ -18,6 +18,7 @@ pub fn process_initialize_address_merkle_tree<'info>(
     height: u64,
     changelog_size: u64,
     roots_size: u64,
+    canopy_depth: u64,
 ) -> Result<()> {
     let mut address_merkle_tree = ctx.accounts.merkle_tree.load_init()?;
 
@@ -34,6 +35,9 @@ pub fn process_initialize_address_merkle_tree<'info>(
                 .try_into()
                 .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
             roots_size
+                .try_into()
+                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
+            canopy_depth
                 .try_into()
                 .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
         )

@@ -8,7 +8,9 @@ use account_compression::{
         UpdateAddressMerkleTree,
     },
     state::{AddressMerkleTreeAccount, AddressQueueAccount},
-    utils::constants::{ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS},
+    utils::constants::{
+        ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS,
+    },
     ID,
 };
 use account_compression_state::address_queue_from_bytes;
@@ -94,6 +96,7 @@ fn initialize_address_merkle_tree_ix(
         height: 26,
         changelog_size: 1400,
         roots_size: 2800,
+        canopy_depth: 0,
     };
     let initialize_ix = Instruction {
         program_id: ID,
@@ -245,6 +248,7 @@ async fn relayer_update(
         reference::IndexedMerkleTree::<Poseidon, usize, BigInteger256>::new(
             ADDRESS_MERKLE_TREE_HEIGHT,
             ADDRESS_MERKLE_TREE_ROOTS,
+            ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
         )
         .unwrap(),
     );
@@ -401,6 +405,7 @@ async fn test_insert_invalid_low_element() {
         reference::IndexedMerkleTree::<Poseidon, usize, BigInteger256>::new(
             ADDRESS_MERKLE_TREE_HEIGHT,
             ADDRESS_MERKLE_TREE_ROOTS,
+            ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
         )
         .unwrap(),
     );

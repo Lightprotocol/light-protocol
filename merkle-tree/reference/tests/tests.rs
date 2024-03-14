@@ -8,8 +8,9 @@ where
 {
     const HEIGHT: usize = 4;
     const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
 
-    let mut merkle_tree = MerkleTree::<H>::new(HEIGHT, ROOTS).unwrap();
+    let mut merkle_tree = MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
 

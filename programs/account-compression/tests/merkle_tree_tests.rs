@@ -281,6 +281,7 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
         account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT,
         account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG,
         account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH,
     );
     reference_merkle_tree.init().unwrap();
     reference_merkle_tree
@@ -538,6 +539,7 @@ async fn test_nullify_leaves() {
     let mut reference_merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
         account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT,
         account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH,
     )
     .unwrap();
     reference_merkle_tree.append(&[1u8; 32]).unwrap();
@@ -594,6 +596,7 @@ async fn test_nullify_leaves() {
         account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT,
         account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG,
         account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH,
     );
     concurrent_merkle_tree.init().unwrap();
     concurrent_merkle_tree
@@ -604,11 +607,14 @@ async fn test_nullify_leaves() {
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(0)
         .unwrap()
-        .to_array::<26>()
+        .to_array::<16>()
         .unwrap()
         .to_vec();
 
-    let bounded_vec = from_vec(&proof).unwrap();
+    let mut bounded_vec = from_vec(&proof).unwrap();
+    concurrent_merkle_tree
+        .update_proof_from_canopy(0, &mut bounded_vec)
+        .unwrap();
     concurrent_merkle_tree
         .validate_proof(&[1u8; 32], 0, &bounded_vec)
         .unwrap();

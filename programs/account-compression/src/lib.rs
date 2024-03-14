@@ -30,6 +30,7 @@ pub mod account_compression {
         height: u64,
         changelog_size: u64,
         roots_size: u64,
+        canopy_depth: u64,
     ) -> Result<()> {
         process_initialize_address_merkle_tree(
             ctx,
@@ -39,6 +40,7 @@ pub mod account_compression {
             height,
             changelog_size,
             roots_size,
+            canopy_depth,
         )
     }
 
@@ -116,6 +118,7 @@ pub mod account_compression {
         height: u64,
         changelog_size: u64,
         roots_size: u64,
+        canopy_depth: u64,
     ) -> Result<()> {
         process_initialize_state_merkle_tree(
             ctx,
@@ -125,6 +128,7 @@ pub mod account_compression {
             height,
             changelog_size,
             roots_size,
+            canopy_depth,
         )
     }
 

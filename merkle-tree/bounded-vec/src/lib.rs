@@ -1,6 +1,6 @@
 use std::{
     alloc::{self, handle_alloc_error, Layout},
-    mem,
+    fmt, mem,
     ops::{Index, IndexMut},
     slice::{self, Iter, IterMut, SliceIndex},
 };
@@ -22,6 +22,13 @@ impl From<BoundedVecError> for u32 {
             BoundedVecError::Full => 5001,
             BoundedVecError::ArraySize(_, _) => 5002,
         }
+    }
+}
+
+#[cfg(feature = "solana")]
+impl From<BoundedVecError> for solana_program::program_error::ProgramError {
+    fn from(e: BoundedVecError) -> Self {
+        solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
 
@@ -53,7 +60,6 @@ unsafe impl<const N: usize> Pod for [u8; N] {}
 ///   only once (that makes it different from [`Vec`](std::vec::Vec)).
 /// * Can store only Plain Old Data ([`Pod`](bytemuck::Pod)). It cannot nest
 ///   any other dynamically sized types.
-#[derive(Debug)]
 pub struct BoundedVec<'a, T>
 where
     T: Clone + Pod,
@@ -151,7 +157,7 @@ where
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.data
+        &self.data[..self.length]
     }
 
     /// Appends an element to the back of a collection.
@@ -190,22 +196,22 @@ where
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.data.get(index)
+        self.data[..self.length].get(index)
     }
 
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.data.get_mut(index)
+        self.data[..self.length].get_mut(index)
     }
 
     #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
-        self.data.iter()
+        self.data[..self.length].iter()
     }
 
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.data.iter_mut()
+        self.data[..self.length].iter_mut()
     }
 
     pub fn to_array<const N: usize>(self) -> Result<[T; N], BoundedVecError> {
@@ -213,6 +219,22 @@ where
             return Err(BoundedVecError::ArraySize(N, self.len()));
         }
         Ok(std::array::from_fn(|i| self.data[i].clone()))
+    }
+
+    pub fn extend<U: IntoIterator<Item = T>>(&mut self, iter: U) -> Result<(), BoundedVecError> {
+        for item in iter {
+            self.push(item)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a, T> fmt::Debug for BoundedVec<'a, T>
+where
+    T: Clone + fmt::Debug + Pod,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", &self.data[..self.length])
     }
 }
 
@@ -225,7 +247,7 @@ where
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        self.data.index(index)
+        self.data[..self.length].index(index)
     }
 }
 
@@ -235,7 +257,7 @@ where
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        self.data.index_mut(index)
+        self.data[..self.length].index_mut(index)
     }
 }
 
@@ -244,7 +266,9 @@ where
     T: Clone + PartialEq + Pod,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.data.iter().eq(other.data.iter())
+        self.data[..self.length]
+            .iter()
+            .eq(other.data[..other.length].iter())
     }
 }
 
@@ -350,7 +374,7 @@ where
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.data
+        &self.data[..self.length]
     }
 
     /// Appends an element to the back of a collection.
@@ -390,22 +414,22 @@ where
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.data.get(index)
+        self.data[..self.length].get(index)
     }
 
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.data.get_mut(index)
+        self.data[..self.length].get_mut(index)
     }
 
     #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
-        self.data.iter()
+        self.data[..self.length].iter()
     }
 
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.data.iter_mut()
+        self.data[..self.length].iter_mut()
     }
 }
 
@@ -418,7 +442,7 @@ where
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        self.data.index(index)
+        self.data[..self.length].index(index)
     }
 }
 
@@ -428,7 +452,7 @@ where
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        self.data.index_mut(index)
+        self.data[..self.length].index_mut(index)
     }
 }
 
@@ -437,7 +461,7 @@ where
     T: Clone + Pod + PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.data.iter().eq(other.data.iter())
+        self.data[..self.length].iter().eq(other.data.iter())
     }
 }
 

@@ -24,7 +24,7 @@ anchor-lang = "0.29.0"
 ark-ff = "0.4.0"
 borsh = "0.10.3"
 bytemuck = { version = "1.14", features = ["min_const_generics"] }
-light-bounded-vec = { version = "0.1.0", path = "../../merkle-tree/bounded-vec" }
+light-bounded-vec = { version = "0.1.0", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher", features = ["solana"] }
 light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/indexed", features = ["solana"] }

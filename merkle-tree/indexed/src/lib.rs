@@ -39,9 +39,18 @@ where
     B: BigInteger,
     usize: From<I>,
 {
-    pub fn new(height: usize, changelog_size: usize, roots_size: usize) -> Self {
-        let merkle_tree =
-            ConcurrentMerkleTree::<H, HEIGHT>::new(height, changelog_size, roots_size);
+    pub fn new(
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+    ) -> Self {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(
+            height,
+            changelog_size,
+            roots_size,
+            canopy_depth,
+        );
         Self {
             merkle_tree,
             _index: PhantomData,
@@ -60,12 +69,14 @@ where
         bytes_filled_subtrees: &'b [u8],
         bytes_changelog: &'b [u8],
         bytes_roots: &'b [u8],
+        bytes_canopy: &'b [u8],
     ) -> Result<&'b Self, ConcurrentMerkleTreeError> {
         let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
             bytes_struct,
             bytes_filled_subtrees,
             bytes_changelog,
             bytes_roots,
+            bytes_canopy,
         )?;
 
         Ok(&*(merkle_tree as *const ConcurrentMerkleTree<H, HEIGHT> as *const Self))
@@ -77,23 +88,28 @@ where
     ///
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slices is the caller's responsibility.
+    #[allow(clippy::too_many_arguments)]
     pub unsafe fn from_bytes_init(
         bytes_struct: &'a mut [u8],
         bytes_filled_subtrees: &'a mut [u8],
         bytes_changelog: &'a mut [u8],
         bytes_roots: &'a mut [u8],
+        bytes_canopy: &'a mut [u8],
         height: usize,
         changelog_size: usize,
         roots_size: usize,
+        canopy_depth: usize,
     ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
         let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
             bytes_struct,
             bytes_filled_subtrees,
             bytes_changelog,
             bytes_roots,
+            bytes_canopy,
             height,
             changelog_size,
             roots_size,
+            canopy_depth,
         )?;
 
         Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
@@ -110,12 +126,14 @@ where
         bytes_filled_subtrees: &'b mut [u8],
         bytes_changelog: &'b mut [u8],
         bytes_roots: &'b mut [u8],
+        bytes_canopy: &'b mut [u8],
     ) -> Result<&'b mut Self, ConcurrentMerkleTreeError> {
         let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
             bytes_struct,
             bytes_filled_subtrees,
             bytes_changelog,
             bytes_roots,
+            bytes_canopy,
         )?;
 
         Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
