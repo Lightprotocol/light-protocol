@@ -87,12 +87,12 @@ pub struct IndexedArrayAccount {
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub array: Pubkey,
-    pub indexed_array: [QueueArrayElemenet; STATE_INDEXED_ARRAY_SIZE],
+    pub indexed_array: [QueueArrayElement; STATE_INDEXED_ARRAY_SIZE],
 }
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, AnchorSerialize, AnchorDeserialize, Zeroable, Pod)]
-pub struct QueueArrayElemenet {
+pub struct QueueArrayElement {
     /// The squence number of the Merkle tree at which it is safe to overwrite the element.
     /// It is safe to overwrite an element once no root that includes the element is in the root history array.
     /// With every time a root is inserted into the root history array, the sequence number is incremented.

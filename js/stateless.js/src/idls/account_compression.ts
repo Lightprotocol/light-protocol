@@ -557,7 +557,7 @@ export type AccountCompression = {
             type: {
               array: [
                 {
-                  defined: 'QueueArrayElemenet';
+                  defined: 'QueueArrayElement';
                 },
                 4800,
               ];
@@ -707,7 +707,7 @@ export type AccountCompression = {
   ];
   types: [
     {
-      name: 'QueueArrayElemenet';
+      name: 'QueueArrayElement';
       type: {
         kind: 'struct';
         fields: [
@@ -1477,7 +1477,7 @@ export const IDL: AccountCompression = {
             type: {
               array: [
                 {
-                  defined: 'QueueArrayElemenet',
+                  defined: 'QueueArrayElement',
                 },
                 4800,
               ],
@@ -1627,7 +1627,7 @@ export const IDL: AccountCompression = {
   ],
   types: [
     {
-      name: 'QueueArrayElemenet',
+      name: 'QueueArrayElement',
       type: {
         kind: 'struct',
         fields: [
