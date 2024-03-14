@@ -1,12 +1,11 @@
 use std::sync::Mutex;
 
-use ark_ff::{BigInteger, BigInteger256};
 use ark_std::Zero;
 use light_hasher::{Hasher, Poseidon};
-use light_indexed_merkle_tree::{array::IndexingArray, reference::IndexedMerkleTree};
+use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 use light_merkle_tree_reference::MerkleTree;
 use log::info;
-use num_bigint::{BigInt, Sign};
+use num_bigint::{BigInt, Sign, ToBigUint};
 use once_cell::{self, sync::Lazy};
 
 use crate::{
@@ -73,10 +72,10 @@ pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
     const ROOTS: usize = 1;
     const CANOPY: usize = 0;
     let mut indexed_tree =
-        IndexedMerkleTree::<Poseidon, usize, BigInteger256>::new(HEIGHT, ROOTS, CANOPY).unwrap();
-    let mut indexing_array = IndexingArray::<Poseidon, usize, BigInteger256, 1024>::default();
+        IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut indexing_array = IndexedArray::<Poseidon, usize, 1024>::default();
 
-    let bundle1 = indexing_array.append(BigInteger256::from(1_u32)).unwrap();
+    let bundle1 = indexing_array.append(&1_u32.to_biguint().unwrap()).unwrap();
     indexed_tree
         .update(
             &bundle1.new_low_element,
@@ -85,7 +84,7 @@ pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
         )
         .unwrap();
 
-    let bundle3 = indexing_array.append(BigInteger256::from(3_u32)).unwrap();
+    let bundle3 = indexing_array.append(&3_u32.to_biguint().unwrap()).unwrap();
     indexed_tree
         .update(
             &bundle3.new_low_element,

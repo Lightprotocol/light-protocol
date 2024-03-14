@@ -1,10 +1,11 @@
 #[cfg(feature = "light_program")]
-use account_compression::indexed_array_sdk::create_initialize_indexed_array_instruction;
-#[cfg(feature = "light_program")]
 use account_compression::{
+    indexed_array_sdk::create_initialize_indexed_array_instruction,
+    initialize_address_queue_sdk::create_initialize_address_queue_instruction,
     instruction::InitializeAddressMerkleTree, state::AddressMerkleTreeAccount, GroupAuthority,
     RegisteredProgram,
 };
+#[cfg(feature = "light_program")]
 use anchor_lang::{system_program, InstructionData};
 #[cfg(feature = "light_program")]
 use light::sdk::{
@@ -13,19 +14,20 @@ use light::sdk::{
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 use light_macros::pubkey;
-use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
+#[cfg(feature = "light_program")]
+use solana_program_test::BanksClientError;
+use solana_program_test::{ProgramTest, ProgramTestContext};
+#[cfg(feature = "light_program")]
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    signature::Keypair,
     transaction::Transaction,
 };
+use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 #[cfg(feature = "light_program")]
 use solana_sdk::{signature::Signer, system_instruction};
 
-use crate::create_account_instruction;
 #[cfg(feature = "light_program")]
-use crate::{create_and_send_transaction, get_account};
+use crate::{create_account_instruction, create_and_send_transaction, get_account};
 
 pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
 pub const ACCOUNT_COMPRESSION_ID: Pubkey = pubkey!("5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN");
@@ -203,7 +205,7 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    create_queue_account(
+    create_indexed_array_account(
         &payer,
         &mut context,
         &indexed_array_keypair,
@@ -214,14 +216,13 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     let address_merkle_tree_keypair =
         Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
 
-    // TODO: enable, currently failing because we didn't maintain the address merkle tree account
-    // create_and_initialize_address_merkle_tree(&mut context, &address_merkle_tree_keypair)
-    //     .await
-    //     .unwrap();
+    create_and_initialize_address_merkle_tree(&mut context, &address_merkle_tree_keypair)
+        .await
+        .unwrap();
     let address_merkle_tree_queue_keypair =
         Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
 
-    create_queue_account(
+    create_address_queue_account(
         &payer,
         &mut context,
         &address_merkle_tree_queue_keypair,
@@ -259,22 +260,28 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
     }
 }
+
 #[cfg(feature = "light_program")]
-pub async fn create_queue_account(
+pub async fn create_indexed_array_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
     indexed_array_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
 ) {
+    let size = account_compression::IndexedArrayAccount::size(
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+    )
+    .unwrap();
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
-        account_compression::IndexedArrayAccount::LEN,
+        size,
         context
             .banks_client
             .get_rent()
             .await
             .unwrap()
-            .minimum_balance(account_compression::IndexedArrayAccount::LEN),
+            .minimum_balance(size),
         &ACCOUNT_COMPRESSION_ID,
         Some(indexed_array_keypair),
     );
@@ -283,6 +290,9 @@ pub async fn create_queue_account(
         indexed_array_keypair.pubkey(),
         0,
         Some(*merkle_tree_pubkey),
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -296,6 +306,53 @@ pub async fn create_queue_account(
         .await
         .unwrap();
 }
+
+#[cfg(feature = "light_program")]
+pub async fn create_address_queue_account(
+    payer: &Keypair,
+    context: &mut ProgramTestContext,
+    address_queue_keypair: &Keypair,
+    address_merkle_tree_pubkey: &Pubkey,
+) {
+    let size = account_compression::AddressQueueAccount::size(
+        account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
+        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
+    )
+    .unwrap();
+    let account_create_ix = crate::create_account_instruction(
+        &payer.pubkey(),
+        size,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(size),
+        &ACCOUNT_COMPRESSION_ID,
+        Some(address_queue_keypair),
+    );
+    let instruction = create_initialize_address_queue_instruction(
+        payer.pubkey(),
+        address_queue_keypair.pubkey(),
+        1u64,
+        Some(*address_merkle_tree_pubkey),
+        account_compression::utils::constants::ADDRESS_QUEUE_INDICES,
+        account_compression::utils::constants::ADDRESS_QUEUE_VALUES,
+        account_compression::utils::constants::ADDRESS_QUEUE_SEQUENCE_THRESHOLD,
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[account_create_ix, instruction],
+        Some(&payer.pubkey()),
+        &vec![&payer, &address_queue_keypair],
+        context.last_blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(transaction.clone())
+        .await
+        .unwrap();
+}
+
 #[cfg(feature = "light_program")]
 pub fn initialize_address_merkle_tree_ix(
     context: &ProgramTestContext,
@@ -306,10 +363,10 @@ pub fn initialize_address_merkle_tree_ix(
         index: 1u64,
         owner: payer,
         delegate: None,
-        height: 26,
-        changelog_size: 1400,
-        roots_size: 2800,
-        canopy_depth: 0,
+        height: account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT,
+        changelog_size: account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG,
+        roots_size: account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS,
+        canopy_depth: account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
     };
     Instruction {
         program_id: ACCOUNT_COMPRESSION_ID,

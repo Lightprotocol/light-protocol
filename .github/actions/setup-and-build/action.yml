@@ -16,7 +16,7 @@ runs:
         submodules: true
 
     - name: Cache Rust dependencies
-      uses: buildjet/cache@v3
+      uses: actions/cache@v3
       with:
         path: |
           ~/.cargo
@@ -24,7 +24,7 @@ runs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Cache .local directory
-      uses: buildjet/cache@v3
+      uses: actions/cache@v3
       with:
         path: .local
         key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
