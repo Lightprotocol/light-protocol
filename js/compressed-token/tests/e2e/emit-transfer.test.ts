@@ -26,7 +26,7 @@ import {
   createTransferInstruction,
 } from '../../src/instructions/transfer';
 import { BN } from '@coral-xyz/anchor';
-import * as crypto from "crypto";
+import * as crypto from 'crypto';
 
 type TokenTlvData = {
   mint: PublicKey;
