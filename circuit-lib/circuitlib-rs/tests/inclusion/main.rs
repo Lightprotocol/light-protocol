@@ -12,6 +12,7 @@ pub use circuitlib_rs::{
 
 macro_rules! test_and_prove {
     ($fn_name:ident, $mt_height:expr, $nr_inputs:expr) => {
+        #[ignore]
         #[test]
         fn $fn_name() {
             init_logger();

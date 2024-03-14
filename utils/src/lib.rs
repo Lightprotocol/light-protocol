@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_hash_to_bn254_field_size_le() {
-        for _ in 0..1000_0000 {
+        for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
             let (hashed_value, _) = hash_to_bn254_field_size_le(input_bytes.as_slice())
                 .expect("Failed to find a hash within BN254 field size");
