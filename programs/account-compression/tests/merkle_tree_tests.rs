@@ -6,14 +6,21 @@ use account_compression::{
     instructions::append_leaves::sdk::{
         create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
     },
+    utils::constants::{
+        STATE_INDEXED_ARRAY_INDICES, STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
+        STATE_INDEXED_ARRAY_VALUES,
+    },
     Pubkey, StateMerkleTreeAccount, ID,
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
 use light_test_utils::{
-    airdrop_lamports, create_account_instruction, create_and_send_transaction, AccountZeroCopy,
+    airdrop_lamports, create_account_instruction, create_and_send_transaction, get_hash_set,
+    AccountZeroCopy,
 };
+use light_utils::bigint::bigint_to_be_bytes_array;
+use num_bigint::ToBigUint;
 use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -165,10 +172,10 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     assert_eq!(merkle_tree.next_index, old_merkle_tree.next_index + 2);
 
     let mut reference_merkle_tree = ConcurrentMerkleTree26::<Poseidon>::new(
-        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT,
-        account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG,
-        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS,
-        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH,
+        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
     );
     reference_merkle_tree.init().unwrap();
     reference_merkle_tree
@@ -280,9 +287,9 @@ async fn test_nullify_leaves() {
         .unwrap();
 
     let mut reference_merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
-        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT,
-        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS,
-        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH,
+        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
     )
     .unwrap();
     reference_merkle_tree.append(&elements[0]).unwrap();
@@ -422,21 +429,31 @@ pub async fn nullify(
         reference_merkle_tree.root().unwrap()
     );
 
-    let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-        context,
-        *indexed_array_pubkey,
-    )
-    .await;
-    let indexed_array = array.deserialized().indexed_array;
-    assert_eq!(indexed_array[leaf_queue_index as usize].element, *element);
+    let indexed_array = unsafe {
+        get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+            context,
+            *indexed_array_pubkey,
+        )
+        .await
+    };
+    let indexed_array = indexed_array.lock().await;
+    let array_element = indexed_array
+        .by_value_index(leaf_queue_index.into())
+        .unwrap();
+    for element in indexed_array.iter().take(100) {
+        println!("ELEMENT: {element:?}");
+    }
+    assert_eq!(&array_element.value_bytes(), element);
     assert_eq!(
-        indexed_array[0].merkle_tree_overwrite_sequence_number,
-        merkle_tree
-            .deserialized()
-            .load_merkle_tree()
-            .unwrap()
-            .sequence_number as u64
-            + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as u64
+        array_element.sequence_number(),
+        Some(
+            merkle_tree
+                .deserialized()
+                .load_merkle_tree()
+                .unwrap()
+                .sequence_number
+                + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
+        )
     );
     Ok(())
 }
@@ -495,15 +512,20 @@ async fn functional_1_initialize_indexed_array(
     indexed_array_keypair: &Keypair,
     associated_merkle_tree: Option<Pubkey>,
 ) -> Pubkey {
+    let size = account_compression::IndexedArrayAccount::size(
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+    )
+    .unwrap();
     let account_create_ix = create_account_instruction(
         payer_pubkey,
-        account_compression::IndexedArrayAccount::LEN,
+        size,
         context
             .banks_client
             .get_rent()
             .await
             .unwrap()
-            .minimum_balance(account_compression::IndexedArrayAccount::LEN),
+            .minimum_balance(size),
         &ID,
         Some(&indexed_array_keypair),
     );
@@ -514,6 +536,9 @@ async fn functional_1_initialize_indexed_array(
         indexed_array_pubkey,
         1u64,
         associated_merkle_tree,
+        STATE_INDEXED_ARRAY_INDICES,
+        STATE_INDEXED_ARRAY_VALUES,
+        STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -541,6 +566,15 @@ async fn functional_1_initialize_indexed_array(
     assert_eq!(indexed_array.owner, *payer_pubkey);
     assert_eq!(indexed_array.delegate, *payer_pubkey);
 
+    // let indexed_array = unsafe {
+    //     get_hash_set::<u16, account_compression::IndexedArrayAccount>(context, indexed_array_pubkey)
+    //         .await
+    // };
+
+    // for element in indexed_array.iter().take(100) {
+    //     println!("ELEMENT INIT: {element:?}");
+    // }
+
     indexed_array_pubkey
 }
 
@@ -550,20 +584,24 @@ async fn functional_2_test_insert_into_indexed_arrays(
 ) {
     let payer = context.payer.insecure_clone();
 
-    let elements = vec![[1u8; 32], [2u8; 32]];
+    let elements = vec![[1_u8; 32], [2_u8; 32]];
     insert_into_indexed_arrays(&elements, &payer, indexed_array_pubkey, context)
         .await
         .unwrap();
-    let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-        context,
-        *indexed_array_pubkey,
-    )
-    .await;
-    let indexed_array = array.deserialized().indexed_array;
-    assert_eq!(indexed_array[0].element, elements[0]);
-    assert_eq!(indexed_array[1].element, elements[1]);
-    assert_eq!(indexed_array[0].merkle_tree_overwrite_sequence_number, 0);
-    assert_eq!(indexed_array[1].merkle_tree_overwrite_sequence_number, 0);
+    let array = unsafe {
+        get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+            context,
+            *indexed_array_pubkey,
+        )
+        .await
+    };
+    let array = array.lock().await;
+    let array_element_0 = array.by_value_index(0).unwrap();
+    assert_eq!(array_element_0.value_bytes(), [1u8; 32]);
+    assert_eq!(array_element_0.sequence_number(), None);
+    let array_element_1 = array.by_value_index(1).unwrap();
+    assert_eq!(array_element_1.value_bytes(), [2u8; 32]);
+    assert_eq!(array_element_1.sequence_number(), None);
 }
 
 async fn fail_3_insert_same_elements_into_indexed_array(
@@ -598,18 +636,25 @@ async fn functional_5_test_insert_into_indexed_arrays(
 ) {
     let payer = context.payer.insecure_clone();
 
-    let elements = vec![[3u8; 32]];
+    let element = 3_u32.to_biguint().unwrap();
+    let elements = vec![bigint_to_be_bytes_array(&element).unwrap()];
     insert_into_indexed_arrays(&elements, &payer, indexed_array_pubkey, context)
         .await
         .unwrap();
-    let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-        context,
-        *indexed_array_pubkey,
-    )
-    .await;
-    let indexed_array = array.deserialized().indexed_array;
-    assert_eq!(indexed_array[2].element, elements[0]);
-    assert_eq!(indexed_array[2].merkle_tree_overwrite_sequence_number, 0);
+    let array = unsafe {
+        get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+            context,
+            *indexed_array_pubkey,
+        )
+        .await
+    };
+    let array = array.lock().await;
+    for element in array.iter() {
+        println!("ELEMENT: {element:?}");
+    }
+    let array_element = array.by_value_index(2).unwrap();
+    assert_eq!(array_element.value_biguint(), element);
+    assert_eq!(array_element.sequence_number(), None);
 }
 
 async fn insert_into_indexed_arrays(

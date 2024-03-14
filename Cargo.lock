@@ -26,6 +26,7 @@ dependencies = [
  "bytemuck",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
+ "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-macros",
@@ -34,6 +35,7 @@ dependencies = [
  "light-utils",
  "log",
  "memoffset 0.9.0",
+ "num-bigint 0.4.4",
  "solana-client-wasm",
  "solana-program-test",
  "solana-sdk",
@@ -2927,6 +2929,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-hash-set"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "light-bounded-vec",
+ "light-utils",
+ "memoffset 0.9.0",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "rand 0.8.5",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
 name = "light-hasher"
 version = "0.1.0"
 dependencies = [
@@ -2949,6 +2967,7 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-merkle-tree-reference",
  "light-utils",
+ "num-bigint 0.4.4",
  "num-traits",
  "solana-program",
  "thiserror",
@@ -3021,12 +3040,16 @@ dependencies = [
  "anyhow",
  "ark-ff",
  "light",
+ "light-hash-set",
  "light-macros",
+ "num-bigint 0.4.4",
+ "num-traits",
  "rand 0.8.5",
  "solana-program-test",
  "solana-sdk",
  "spl-token 3.5.0",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -3046,6 +3069,7 @@ dependencies = [
  "anyhow",
  "ark-bn254",
  "ark-ff",
+ "num-bigint 0.4.4",
  "rand 0.8.5",
  "solana-program",
  "thiserror",
@@ -7874,6 +7898,7 @@ dependencies = [
  "clap 4.4.11",
  "groth16-solana 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "light-concurrent-merkle-tree",
+ "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-utils",

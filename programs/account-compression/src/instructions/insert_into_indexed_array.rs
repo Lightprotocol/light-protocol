@@ -1,14 +1,12 @@
-use std::collections::HashMap;
+use std::{cell::RefMut, collections::HashMap, mem};
 
 use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use bytemuck::{Pod, Zeroable};
+use light_hash_set::{HashSet, HashSetZeroCopy};
+use num_bigint::BigUint;
 
 use crate::{
-    utils::{
-        check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
-        constants::STATE_INDEXED_ARRAY_SIZE,
-    },
+    utils::check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
     RegisteredProgram,
 };
 
@@ -50,17 +48,32 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
 
     for (mt, elements) in array_map.values() {
         msg!("Inserting into indexed array {:?}", mt.key());
-        let array = AccountLoader::<IndexedArrayAccount>::try_from(mt).unwrap();
-        let mut array_account = array.load_mut()?;
-        check_registered_or_signer::<InsertIntoIndexedArrays, IndexedArrayAccount>(
-            &ctx,
-            &array_account,
-        )?;
+
+        let indexed_array = AccountLoader::<IndexedArrayAccount>::try_from(mt).unwrap();
+        {
+            let indexed_array_account = indexed_array.load()?;
+            check_registered_or_signer::<InsertIntoIndexedArrays, IndexedArrayAccount>(
+                &ctx,
+                &indexed_array_account,
+            )?;
+            drop(indexed_array_account);
+        }
+        let mut indexed_array = unsafe {
+            indexed_array_from_bytes_zero_copy_mut(
+                indexed_array.to_account_info().try_borrow_mut_data()?,
+            )
+            .unwrap()
+        };
+        for element in indexed_array.iter() {
+            msg!("ELEMENT: {:?}", element);
+        }
+
         for element in elements.iter() {
             msg!("Inserting element {:?}", element);
-            let insert_index = array_account.non_inclusion(element, &0usize)?;
-            array_account.indexed_array[insert_index].element = *element;
-            array_account.indexed_array[insert_index].merkle_tree_overwrite_sequence_number = 0u64;
+            let element = BigUint::from_bytes_be(element.as_slice());
+            indexed_array
+                .insert(&element, 0)
+                .map_err(ProgramError::from)?;
         }
     }
     Ok(())
@@ -74,12 +87,32 @@ pub fn process_initialize_indexed_array<'info>(
     owner: Pubkey,
     delegate: Option<Pubkey>,
     associated_merkle_tree: Option<Pubkey>,
+    capacity_indices: u16,
+    capacity_values: u16,
+    sequence_threshold: u64,
 ) -> Result<()> {
-    let mut indexed_array_account = ctx.accounts.indexed_array.load_init()?;
-    indexed_array_account.index = index;
-    indexed_array_account.owner = owner;
-    indexed_array_account.delegate = delegate.unwrap_or(owner);
-    indexed_array_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
+    {
+        let mut indexed_array_account = ctx.accounts.indexed_array.load_init()?;
+        indexed_array_account.index = index;
+        indexed_array_account.owner = owner;
+        indexed_array_account.delegate = delegate.unwrap_or(owner);
+        indexed_array_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
+        drop(indexed_array_account);
+    }
+
+    let _ = unsafe {
+        indexed_array_from_bytes_zero_copy_init(
+            ctx.accounts
+                .indexed_array
+                .to_account_info()
+                .try_borrow_mut_data()?,
+            capacity_indices.into(),
+            capacity_values.into(),
+            sequence_threshold as usize,
+        )
+        .unwrap()
+    };
+
     // Explicitly initializing the indexed array is not necessary as default values are all zero.
     Ok(())
 }
@@ -100,7 +133,6 @@ pub struct IndexedArrayAccount {
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub associated_merkle_tree: Pubkey,
-    pub indexed_array: [QueueArrayElement; STATE_INDEXED_ARRAY_SIZE],
 }
 
 impl GroupAccess for IndexedArrayAccount {
@@ -121,41 +153,66 @@ impl<'info> GroupAccounts<'info> for InsertIntoIndexedArrays<'info> {
         &self.registered_program_pda
     }
 }
-#[repr(C)]
-#[derive(Debug, PartialEq, Clone, Copy, AnchorSerialize, AnchorDeserialize, Zeroable, Pod)]
-pub struct QueueArrayElement {
-    /// The squence number of the Merkle tree at which it is safe to overwrite the element.
-    /// It is safe to overwrite an element once no root that includes the element is in the root history array.
-    /// With every time a root is inserted into the root history array, the sequence number is incremented.
-    /// 0 means that the element still exists in the state Merkle tree, is not nullified yet.
-    /// TODO: add a root history array sequence number to the Merkle tree account.
-    pub merkle_tree_overwrite_sequence_number: u64,
-    pub element: [u8; 32],
-}
 
 impl IndexedArrayAccount {
-    /// Naive non-inclusion check remove once hash set is ready.
-    pub fn non_inclusion(
-        &self,
-        value: &[u8; 32],
-        current_sequence_number: &usize,
-    ) -> Result<usize> {
-        for (i, element) in self.indexed_array.iter().enumerate() {
-            if element.element == *value {
-                return Err(
-                    crate::errors::AccountCompressionErrorCode::ElementAlreadyExists.into(),
-                );
-            }
-            // TODO: make sure that there is no vulnerability for a fresh array and tree.
-            else if element.merkle_tree_overwrite_sequence_number
-                < *current_sequence_number as u64
-                || element.element == [0; 32]
-            {
-                return Ok(i);
-            }
-        }
-        Err(crate::errors::AccountCompressionErrorCode::HashSetFull.into())
+    pub fn size(capacity_indices: usize, capacity_values: usize) -> Result<usize> {
+        Ok(8 + mem::size_of::<Self>()
+            + HashSet::<u16>::size_in_account(capacity_indices, capacity_values)
+                .map_err(ProgramError::from)?)
     }
+}
+
+/// Creates a copy of `IndexedArray` from the given account data.
+///
+/// # Safety
+///
+/// This operation is unsafe. It's the caller's responsibility to ensure that
+/// the provided account data have correct size and alignment.
+pub unsafe fn indexed_array_from_bytes_copy(
+    mut data: RefMut<'_, &mut [u8]>,
+) -> Result<HashSet<u16>> {
+    let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
+    let queue = HashSet::<u16>::from_bytes_copy(data).map_err(ProgramError::from)?;
+    Ok(queue)
+}
+
+/// Casts the given account data to an `IndexedArrayZeroCopy` instance.
+///
+/// # Safety
+///
+/// This operation is unsafe. It's the caller's responsibility to ensure that
+/// the provided account data have correct size and alignment.
+pub unsafe fn indexed_array_from_bytes_zero_copy_mut(
+    mut data: RefMut<'_, &mut [u8]>,
+) -> Result<HashSetZeroCopy<u16>> {
+    let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
+    let queue =
+        HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
+    Ok(queue)
+}
+
+/// Casts the given account data to an `IndexedArrayZeroCopy` instance.
+///
+/// # Safety
+///
+/// This operation is unsafe. It's the caller's responsibility to ensure that
+/// the provided account data have correct size and alignment.
+pub unsafe fn indexed_array_from_bytes_zero_copy_init(
+    mut data: RefMut<'_, &mut [u8]>,
+    capacity_indices: usize,
+    capacity_values: usize,
+    sequence_threshold: usize,
+) -> Result<HashSetZeroCopy<u16>> {
+    let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
+    msg!("data size: {}", data.len());
+    let queue = HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
+        data,
+        capacity_indices,
+        capacity_values,
+        sequence_threshold,
+    )
+    .map_err(ProgramError::from)?;
+    Ok(queue)
 }
 
 #[cfg(not(target_os = "solana"))]
@@ -171,6 +228,9 @@ pub mod indexed_array_sdk {
         indexed_array_pubkey: Pubkey,
         index: u64,
         associated_merkle_tree: Option<Pubkey>,
+        capacity_indices: u16,
+        capacity_values: u16,
+        sequence_threshold: u64,
     ) -> Instruction {
         let instruction_data: crate::instruction::InitializeIndexedArray =
             crate::instruction::InitializeIndexedArray {
@@ -178,6 +238,9 @@ pub mod indexed_array_sdk {
                 owner: payer,
                 delegate: None,
                 associated_merkle_tree,
+                capacity_indices,
+                capacity_values,
+                sequence_threshold,
             };
         Instruction {
             program_id: crate::ID,

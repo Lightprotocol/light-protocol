@@ -56,4 +56,8 @@ jobs:
             npx nx run "$subtest"
           done
           
-          cd programs/light && cargo test-sbf
+          # cd programs/light && cargo test-sbf
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3

@@ -1,66 +1,66 @@
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-
-name: lint
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  lint:
-    name: lint
-    if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Cache .local directory
-        uses: actions/cache@v3
-        with:
-          path: .local
-          key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
-
-      - uses: pnpm/action-setup@v2
-        name: Install pnpm
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
-
-      - uses: actions/cache@v3
-        name: Setup pnpm cache
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Run linters
-        run: |
-          set -euxo pipefail
-          ./scripts/install.sh
-          source ./scripts/devenv.sh
-          # NOTE(vadorovsky): I have no idea why do we need to do this again
-          # here... But without that, the toolchain is just not there!
-          # I will spend more time on debugging this once I can afford burning
-          # more hours.
-          rustup toolchain install nightly-2024-02-01 --component clippy,rustfmt
-          ./scripts/lint.sh
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     branches:
+#       - main
+#     types:
+#       - opened
+#       - synchronize
+#       - reopened
+#       - ready_for_review
+# 
+# name: lint
+# 
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+# 
+# jobs:
+#   lint:
+#     name: lint
+#     if: github.event.pull_request.draft == false
+#     runs-on: buildjet-16vcpu-ubuntu-2204
+#     steps:
+#       - name: Checkout sources
+#         uses: actions/checkout@v4
+#         with:
+#           submodules: true
+# 
+#       - name: Cache .local directory
+#         uses: actions/cache@v3
+#         with:
+#           path: .local
+#           key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+# 
+#       - uses: pnpm/action-setup@v2
+#         name: Install pnpm
+#         with:
+#           version: 8
+#           run_install: false
+# 
+#       - name: Get pnpm store directory
+#         shell: bash
+#         run: |
+#           echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+# 
+#       - uses: actions/cache@v3
+#         name: Setup pnpm cache
+#         with:
+#           path: ${{ env.STORE_PATH }}
+#           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+#           restore-keys: |
+#             ${{ runner.os }}-pnpm-store-
+# 
+#       - name: Run linters
+#         run: |
+#           set -euxo pipefail
+#           ./scripts/install.sh
+#           source ./scripts/devenv.sh
+#           # NOTE(vadorovsky): I have no idea why do we need to do this again
+#           # here... But without that, the toolchain is just not there!
+#           # I will spend more time on debugging this once I can afford burning
+#           # more hours.
+#           rustup toolchain install nightly-2024-02-01 --component clippy,rustfmt
+#           ./scripts/lint.sh

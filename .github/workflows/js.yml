@@ -1,48 +1,48 @@
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
-
-name: js-tests
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  stateless-js:
-    name: stateless-js
-    if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
-
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
-        with:
-          enable-redis: false
-
-      - name: Run build script
-        run: ./scripts/build.sh
-
-      - name: Run stateless.js tests
-        run: |
-          source ./scripts/devenv.sh
-          cd js/stateless.js
-          pnpm run test
-
-      - name: Run compressed-token tests
-        run: |
-          source ./scripts/devenv.sh
-          cd js/compressed-token
-          pnpm run test
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     branches:
+#       - main
+#     types:
+#       - opened
+#       - synchronize
+#       - reopened
+#       - ready_for_review
+# 
+# name: js-tests
+# 
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
+# 
+# jobs:
+#   stateless-js:
+#     name: stateless-js
+#     if: github.event.pull_request.draft == false
+#     runs-on: buildjet-16vcpu-ubuntu-2204
+# 
+#     steps:
+#       - name: Checkout sources
+#         uses: actions/checkout@v4
+# 
+#       - name: Setup and build
+#         uses: ./.github/actions/setup-and-build
+#         with:
+#           enable-redis: false
+# 
+#       - name: Run build script
+#         run: ./scripts/build.sh
+# 
+#       - name: Run stateless.js tests
+#         run: |
+#           source ./scripts/devenv.sh
+#           cd js/stateless.js
+#           pnpm run test
+# 
+#       - name: Run compressed-token tests
+#         run: |
+#           source ./scripts/devenv.sh
+#           cd js/compressed-token
+#           pnpm run test

@@ -121,10 +121,10 @@ pub mod sdk {
                 index: 1u64,
                 owner: payer,
                 delegate: None,
-                height: STATE_MERKLE_TREE_HEIGHT as u64,
-                changelog_size: STATE_MERKLE_TREE_CHANGELOG as u64,
-                roots_size: STATE_MERKLE_TREE_ROOTS as u64,
-                canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH as u64,
+                height: STATE_MERKLE_TREE_HEIGHT,
+                changelog_size: STATE_MERKLE_TREE_CHANGELOG,
+                roots_size: STATE_MERKLE_TREE_ROOTS,
+                canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
                 associated_queue,
             };
         Instruction {

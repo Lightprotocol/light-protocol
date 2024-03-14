@@ -11,14 +11,17 @@ default = ["light_program", "account_compression"]
 anchor-lang = "0.29.0"
 anyhow = "1.0"
 ark-ff = "0.4"
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1" }
+num-bigint = "0.4"
+num-traits = "0.2"
 solana-program-test = "1.17.4"
 solana-sdk = "1.17.4"
 thiserror = "1.0"
 light-macros = {path = "../macros/light"}
-
 light = {path = "../programs/light", features = ["cpi"],  optional= true}
 account-compression = {path = "../programs/account-compression", features = ["cpi"],  optional= true}
 spl-token = {version="3.5.0", features = ["no-entrypoint"]}
+tokio = "1.36"
 
 [dev-dependencies]
 rand = "0.8"
