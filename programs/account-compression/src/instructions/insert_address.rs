@@ -1,8 +1,10 @@
-use account_compression_state::address_queue_from_bytes_mut;
 use anchor_lang::prelude::*;
-use light_utils::bigint::be_bytes_to_bigint;
+use num_bigint::BigUint;
 
-use crate::{errors::AccountCompressionErrorCode, AddressQueueAccount};
+use crate::{
+    address_queue_from_bytes_zero_copy_mut, errors::AccountCompressionErrorCode,
+    AddressMerkleTreeAccount, AddressQueueAccount,
+};
 
 #[derive(Accounts)]
 pub struct InsertAddresses<'info> {
@@ -10,20 +12,29 @@ pub struct InsertAddresses<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub queue: AccountLoader<'info, AddressQueueAccount>,
+    #[account(mut)]
+    pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
 }
 
 pub fn process_insert_addresses<'info>(
     ctx: Context<'_, '_, '_, 'info, InsertAddresses<'info>>,
     addresses: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let mut address_queue = ctx.accounts.queue.load_mut()?;
-    let address_queue = address_queue_from_bytes_mut(&mut address_queue.queue);
+    // let address_queue_acc = ctx.accounts.queue.to_account_info();
+    // let data =
+    //     &mut address_queue_acc.data.borrow_mut()[8 + mem::size_of::<AddressQueueAccount>()..];
+    // let address_queue = unsafe { HashSet::<u16>::from_bytes(data) };
+    let address_queue = ctx.accounts.queue.to_account_info();
+    let mut address_queue = address_queue.try_borrow_mut_data()?;
+    let mut address_queue = unsafe { address_queue_from_bytes_zero_copy_mut(&mut address_queue)? };
+
+    let merkle_tree = ctx.accounts.merkle_tree.load()?;
+    let sequence_number = merkle_tree.load_merkle_tree()?.merkle_tree.sequence_number;
 
     for address in addresses.iter() {
-        let address =
-            be_bytes_to_bigint(address).map_err(|_| AccountCompressionErrorCode::BytesToBigint)?;
+        let address = BigUint::from_bytes_le(address);
         address_queue
-            .append(address)
+            .insert(&address, sequence_number)
             .map_err(|_| AccountCompressionErrorCode::AddressQueueInsert)?;
     }
 

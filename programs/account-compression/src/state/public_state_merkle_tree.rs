@@ -147,10 +147,10 @@ mod test {
 
         let merkle_tree = account
             .load_merkle_tree_init(
-                STATE_MERKLE_TREE_HEIGHT,
-                STATE_MERKLE_TREE_CHANGELOG,
-                STATE_MERKLE_TREE_ROOTS,
-                STATE_MERKLE_TREE_CANOPY_DEPTH,
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CHANGELOG as usize,
+                STATE_MERKLE_TREE_ROOTS as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
             )
             .unwrap();
         for _ in 0..(1 << 8) {

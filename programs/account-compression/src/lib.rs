@@ -16,8 +16,13 @@ pub const PROGRAM_ID: &str = "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN";
 pub mod account_compression {
     use super::*;
 
-    pub fn initialize_address_queue(_ctx: Context<InitializeAddressQueue>) -> Result<()> {
-        Ok(())
+    pub fn initialize_address_queue<'info>(
+        ctx: Context<'_, '_, '_, 'info, InitializeAddressQueue<'info>>,
+        capacity_indices: u16,
+        capacity_values: u16,
+        sequence_threshold: u64,
+    ) -> Result<()> {
+        process_initialize_address_queue(ctx, capacity_indices, capacity_values, sequence_threshold)
     }
 
     pub fn initialize_address_merkle_tree<'info>(
@@ -49,39 +54,43 @@ pub mod account_compression {
         process_insert_addresses(ctx, addresses)
     }
 
-    // Commented because usize breaks the idl
-    // pub fn update_address_merkle_tree<'info>(
-    //     ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
-    //     // Index of the Merkle tree changelog.
-    //     changelog_index: u16,
-    //     // Index of the address to dequeue.
-    //     queue_index: u16,
-    //     // Index of the next address.
-    //     address_next_index: usize,
-    //     // Value of the next address.
-    //     address_next_value: [u8; 32],
-    //     // Low address.
-    //     low_address: RawIndexingElement<usize, 32>,
-    //     // Value of the next address.
-    //     low_address_next_value: [u8; 32],
-    //     // Merkle proof for updating the low address.
-    //     low_address_proof: [[u8; 32]; 22],
-    //     // ZK proof for integrity of provided `address_next_index` and
-    //     // `address_next_value`.
-    //     next_address_proof: [u8; 128],
-    // ) -> Result<()> {
-    //     process_update_address_merkle_tree(
-    //         ctx,
-    //         changelog_index,
-    //         queue_index,
-    //         address_next_index,
-    //         address_next_value,
-    //         low_address,
-    //         low_address_next_value,
-    //         low_address_proof,
-    //         next_address_proof,
-    //     )
-    // }
+    pub fn update_address_merkle_tree<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
+        // Index of the Merkle tree changelog.
+        changelog_index: u16,
+        // Index of the address to dequeue.
+        value: [u8; 32],
+        // Index of the next address.
+        next_index: u64,
+        // Value of the next address.
+        next_value: [u8; 32],
+        // Low address.
+        low_address_index: u64,
+        low_address_value: [u8; 32],
+        low_address_next_index: u64,
+        // Value of the next address.
+        low_address_next_value: [u8; 32],
+        // Merkle proof for updating the low address.
+        low_address_proof: [[u8; 32]; 16],
+        // ZK proof for integrity of provided `address_next_index` and
+        // `address_next_value`.
+        next_address_proof: [u8; 128],
+    ) -> Result<()> {
+        process_update_address_merkle_tree(
+            ctx,
+            changelog_index,
+            value,
+            next_index as usize,
+            next_value,
+            low_address_index,
+            low_address_value,
+            low_address_next_index,
+            low_address_next_value,
+            low_address_proof,
+            next_address_proof,
+        )
+    }
+
     /// initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,
@@ -164,8 +173,20 @@ pub mod account_compression {
         owner: Pubkey,
         delegate: Option<Pubkey>,
         associated_merkle_tree: Option<Pubkey>,
+        capacity_indices: u16,
+        capacity_values: u16,
+        sequence_threshold: u64,
     ) -> Result<()> {
-        process_initialize_indexed_array(ctx, index, owner, delegate, associated_merkle_tree)
+        process_initialize_indexed_array(
+            ctx,
+            index,
+            owner,
+            delegate,
+            associated_merkle_tree,
+            capacity_indices,
+            capacity_values,
+            sequence_threshold,
+        )
     }
 
     pub fn insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(

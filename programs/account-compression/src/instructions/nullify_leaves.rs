@@ -3,8 +3,9 @@ use light_bounded_vec::BoundedVec;
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 
 use crate::{
-    emit_indexer_event, errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
-    ChangelogEvent, ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
+    emit_indexer_event, errors::AccountCompressionErrorCode,
+    indexed_array_from_bytes_zero_copy_mut, state::StateMerkleTreeAccount, ChangelogEvent,
+    ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
 };
 
 #[derive(Accounts)]
@@ -32,32 +33,40 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     indices: &'a [u64],
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
-    let mut array_account = ctx.accounts.indexed_array.load_mut()?;
-    if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
-        msg!(
+    {
+        let array_account = ctx.accounts.indexed_array.load()?;
+        if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
+            msg!(
             "Nullifier queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
             array_account.associated_merkle_tree,
             ctx.accounts.merkle_tree.key(),
         );
-        return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
+            return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
+        }
+        drop(array_account);
     }
 
-    let leaf: [u8; 32] = array_account.indexed_array[leaves_queue_indices[0] as usize].element;
-    msg!("leaf {:?}", leaf);
+    let leaf = {
+        let indexed_array = ctx.accounts.indexed_array.to_account_info();
+        let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+        let indexed_array =
+            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
+        let leaf_cell = indexed_array
+            .by_value_index(leaves_queue_indices[0] as usize)
+            .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
+        leaf_cell.value_bytes()
+    };
+
     if change_log_indices.len() != 1 {
-        msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfChangeLogIndicesMismatch.into());
     }
     if leaves_queue_indices.len() != change_log_indices.len() {
-        msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfLeavesMismatch.into());
     }
     if indices.len() != change_log_indices.len() {
-        msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfIndicesMismatch.into());
     }
     if proofs.len() != change_log_indices.len() {
-        msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfProofsMismatch.into());
     }
     let changelog_event = insert_nullifier(
@@ -66,7 +75,6 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         leaf,
         indices,
         ctx,
-        &mut array_account,
         leaves_queue_indices,
     )?;
     emit_indexer_event(
@@ -83,7 +91,6 @@ fn insert_nullifier(
     leaf: [u8; 32],
     indices: &[u64],
     ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
-    array_account: &mut std::cell::RefMut<'_, IndexedArrayAccount>,
     leaves_queue_indices: &[u16],
 ) -> Result<Changelogs> {
     let mut merkle_tree_account = ctx.accounts.merkle_tree.load_mut()?;
@@ -111,6 +118,14 @@ fn insert_nullifier(
 
     let mut bounded_vec = from_vec(proofs[0].as_slice())?;
 
+    let indexed_array = ctx.accounts.indexed_array.to_account_info();
+    let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+    let indexed_array =
+        unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
+    let leaf_cell = indexed_array
+        .by_value_index(leaves_queue_indices[0] as usize)
+        .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
+
     let changelog_entries = loaded_merkle_tree
         .update(
             change_log_indices[0] as usize,
@@ -122,10 +137,9 @@ fn insert_nullifier(
         .map_err(ProgramError::from)?;
     let sequence_number = u64::try_from(loaded_merkle_tree.sequence_number)
         .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
-    // TODO: replace with root history sequence number
-    array_account.indexed_array[leaves_queue_indices[0] as usize]
-        .merkle_tree_overwrite_sequence_number = loaded_merkle_tree.sequence_number as u64
-        + crate::utils::constants::STATE_MERKLE_TREE_ROOTS as u64;
+    indexed_array
+        .mark_with_sequence_number(&leaf_cell.value_biguint(), sequence_number as usize)
+        .map_err(ProgramError::from)?;
     Ok(Changelogs {
         changelogs: vec![ChangelogEvent::V1(ChangelogEventV1::new(
             ctx.accounts.merkle_tree.key(),

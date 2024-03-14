@@ -5,6 +5,7 @@ use std::{
     thread::spawn,
 };
 
+use num_bigint::BigUint;
 use thiserror::Error;
 
 pub mod bigint;
@@ -14,12 +15,30 @@ const CHUNK_SIZE: usize = 32;
 
 #[derive(Debug, Error)]
 pub enum UtilsError {
-    #[error("Invalid input size, expected {0}, got {1}")]
-    InvalidInputSize(usize, usize),
+    #[error("Invalid input size, expected at most {0}")]
+    InputTooLarge(usize),
     #[error("Invalid chunk size")]
     InvalidChunkSize,
     #[error("Invalid seeds")]
     InvalidSeeds,
+}
+
+// NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
+// doesn't support data-carrying enums.
+impl From<UtilsError> for u32 {
+    fn from(e: UtilsError) -> u32 {
+        match e {
+            UtilsError::InputTooLarge(_) => 9001,
+            UtilsError::InvalidChunkSize => 9002,
+            UtilsError::InvalidSeeds => 9003,
+        }
+    }
+}
+
+impl From<UtilsError> for solana_program::program_error::ProgramError {
+    fn from(e: UtilsError) -> Self {
+        solana_program::program_error::ProgramError::Custom(e.into())
+    }
 }
 
 pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
@@ -61,8 +80,8 @@ pub fn truncate_to_circuit(bytes: &[u8; 32]) -> [u8; 32] {
 }
 
 pub fn is_smaller_than_bn254_field_size_le(bytes: &[u8; 32]) -> Result<bool, UtilsError> {
-    let bigint = bigint::le_bytes_to_bigint::<32, 4>(bytes)?;
-    if bigint < ark_bn254::Fr::MODULUS {
+    let bigint = BigUint::from_bytes_le(bytes);
+    if bigint < ark_bn254::Fr::MODULUS.into() {
         Ok(true)
     } else {
         Ok(false)

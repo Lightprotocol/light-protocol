@@ -1,73 +1,26 @@
 use std::{cmp::Ordering, marker::PhantomData};
 
-use ark_ff::{BigInteger, BigInteger256};
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_concurrent_merkle_tree::light_hasher::Hasher;
-use light_utils::bigint::{be_bytes_to_bigint, bigint_to_be_bytes};
+use light_utils::bigint::bigint_to_be_bytes_array;
+use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::errors::IndexedMerkleTreeError;
 
-#[derive(BorshDeserialize, BorshSerialize)]
-pub struct RawIndexingElement<I, const N: usize>
-where
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-{
-    pub index: I,
-    pub value: [u8; N],
-    pub next_index: I,
-}
-
 #[derive(Clone, Debug, Default)]
-pub struct IndexingElement<I, B>
+pub struct IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     pub index: I,
-    pub value: B,
+    pub value: BigUint,
     pub next_index: I,
 }
 
-impl<I> TryFrom<RawIndexingElement<I, 32>> for IndexingElement<I, BigInteger256>
+impl<I> PartialEq for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
-{
-    type Error = ();
-
-    fn try_from(element: RawIndexingElement<I, 32>) -> Result<Self, Self::Error> {
-        let value = be_bytes_to_bigint(&element.value).map_err(|_| ())?;
-        Ok(Self {
-            index: element.index,
-            value,
-            next_index: element.next_index,
-        })
-    }
-}
-
-impl<I> TryFrom<IndexingElement<I, BigInteger256>> for RawIndexingElement<I, 32>
-where
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    usize: From<I>,
-{
-    type Error = ();
-
-    fn try_from(element: IndexingElement<I, BigInteger256>) -> Result<Self, Self::Error> {
-        let value = bigint_to_be_bytes(&element.value).map_err(|_| ())?;
-        Ok(Self {
-            index: element.index,
-            value,
-            next_index: element.next_index,
-        })
-    }
-}
-
-impl<I, B> PartialEq for IndexingElement<I, B>
-where
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     fn eq(&self, other: &Self) -> bool {
@@ -75,18 +28,16 @@ where
     }
 }
 
-impl<I, B> Eq for IndexingElement<I, B>
+impl<I> Eq for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
 }
 
-impl<I, B> PartialOrd for IndexingElement<I, B>
+impl<I> PartialOrd for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -94,10 +45,9 @@ where
     }
 }
 
-impl<I, B> Ord for IndexingElement<I, B>
+impl<I> Ord for IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -105,10 +55,9 @@ where
     }
 }
 
-impl<I, B> IndexingElement<I, B>
+impl<I> IndexedElement<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     pub fn index(&self) -> usize {
@@ -119,57 +68,54 @@ where
         self.next_index.into()
     }
 
-    pub fn hash<H>(&self, next_value: &B) -> Result<[u8; 32], IndexedMerkleTreeError>
+    pub fn hash<H>(&self, next_value: &BigUint) -> Result<[u8; 32], IndexedMerkleTreeError>
     where
         H: Hasher,
     {
         let hash = H::hashv(&[
-            self.value.to_bytes_be().as_ref(),
+            bigint_to_be_bytes_array::<32>(&self.value)?.as_ref(),
             self.next_index.to_be_bytes().as_ref(),
-            next_value.to_bytes_be().as_ref(),
+            bigint_to_be_bytes_array::<32>(next_value)?.as_ref(),
         ])?;
 
         Ok(hash)
     }
 }
 
-pub struct IndexingElementBundle<I, B>
+pub struct IndexedElementBundle<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
-    pub new_low_element: IndexingElement<I, B>,
-    pub new_element: IndexingElement<I, B>,
-    pub new_element_next_value: B,
+    pub new_low_element: IndexedElement<I>,
+    pub new_element: IndexedElement<I>,
+    pub new_element_next_value: BigUint,
 }
 
-pub struct IndexingArray<H, I, B, const ELEMENTS: usize>
+pub struct IndexedArray<H, I, const ELEMENTS: usize>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
-    pub elements: [IndexingElement<I, B>; ELEMENTS],
+    pub elements: [IndexedElement<I>; ELEMENTS],
     pub current_node_index: I,
     pub highest_element_index: I,
 
     _hasher: PhantomData<H>,
 }
 
-impl<H, I, B, const ELEMENTS: usize> Default for IndexingArray<H, I, B, ELEMENTS>
+impl<H, I, const ELEMENTS: usize> Default for IndexedArray<H, I, ELEMENTS>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     fn default() -> Self {
         Self {
-            elements: std::array::from_fn(|_| IndexingElement {
+            elements: std::array::from_fn(|_| IndexedElement {
                 index: I::zero(),
-                value: B::from(0_u32),
+                value: BigUint::new(vec![0; 32]),
                 next_index: I::zero(),
             }),
             current_node_index: I::zero(),
@@ -179,14 +125,13 @@ where
     }
 }
 
-impl<H, I, B, const ELEMENTS: usize> IndexingArray<H, I, B, ELEMENTS>
+impl<H, I, const ELEMENTS: usize> IndexedArray<H, I, ELEMENTS>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
-    pub fn get(&self, index: usize) -> Option<&IndexingElement<I, B>> {
+    pub fn get(&self, index: usize) -> Option<&IndexedElement<I>> {
         self.elements.get(index)
     }
 
@@ -198,7 +143,7 @@ where
         self.current_node_index == I::zero()
     }
 
-    pub fn iter(&self) -> IndexingArrayIter<H, I, B, ELEMENTS> {
+    pub fn iter(&self) -> IndexingArrayIter<H, I, ELEMENTS> {
         IndexingArrayIter {
             indexing_array: self,
             front: 0,
@@ -206,7 +151,7 @@ where
         }
     }
 
-    pub fn find_element(&self, value: &B) -> Option<&IndexingElement<I, B>> {
+    pub fn find_element(&self, value: &BigUint) -> Option<&IndexedElement<I>> {
         self.elements[..self.len() + 1]
             .iter()
             .find(|&node| node.value == *value)
@@ -219,7 +164,7 @@ where
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index(&self, value: &B) -> Result<I, IndexedMerkleTreeError> {
+    pub fn find_low_element_index(&self, value: &BigUint) -> Result<I, IndexedMerkleTreeError> {
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
@@ -246,13 +191,13 @@ where
     /// Low elements are used in non-membership proofs.
     pub fn find_low_element(
         &self,
-        value: &B,
-    ) -> Result<(IndexingElement<I, B>, B), IndexedMerkleTreeError> {
+        value: &BigUint,
+    ) -> Result<(IndexedElement<I>, BigUint), IndexedMerkleTreeError> {
         let low_element_index = self.find_low_element_index(value)?;
         let low_element = self.elements[usize::from(low_element_index)].clone();
         Ok((
             low_element.clone(),
-            self.elements[low_element.next_index()].value,
+            self.elements[low_element.next_index()].value.clone(),
         ))
     }
 
@@ -265,7 +210,7 @@ where
     /// Low elements are used in non-membership proofs.
     pub fn find_low_element_index_for_existing_element(
         &self,
-        value: &B,
+        value: &BigUint,
     ) -> Result<Option<I>, IndexedMerkleTreeError> {
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
             if self.elements[usize::from(node.next_index)].value == *value {
@@ -293,9 +238,9 @@ where
             .get(usize::from(element.next_index))
             .ok_or(IndexedMerkleTreeError::IndexHigherThanMax)?;
         let hash = H::hashv(&[
-            element.value.to_bytes_le().as_ref(),
-            element.next_index.to_le_bytes().as_ref(),
-            next_element.value.to_bytes_le().as_ref(),
+            bigint_to_be_bytes_array::<32>(&element.value)?.as_ref(),
+            element.next_index.to_be_bytes().as_ref(),
+            bigint_to_be_bytes_array::<32>(&next_element.value)?.as_ref(),
         ])?;
         Ok(hash)
     }
@@ -305,25 +250,27 @@ where
     pub fn new_element_with_low_element_index(
         &self,
         low_element_index: I,
-        value: B,
-    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
+        value: &BigUint,
+    ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
         let mut new_low_element = self.elements[usize::from(low_element_index)].clone();
 
         let new_element_index = self
             .current_node_index
             .checked_add(&I::one())
             .ok_or(IndexedMerkleTreeError::IntegerOverflow)?;
-        let new_element = IndexingElement {
+        let new_element = IndexedElement {
             index: new_element_index,
-            value,
+            value: value.clone(),
             next_index: new_low_element.next_index,
         };
 
         new_low_element.next_index = new_element_index;
 
-        let new_element_next_value = self.elements[usize::from(new_element.next_index)].value;
+        let new_element_next_value = self.elements[usize::from(new_element.next_index)]
+            .value
+            .clone();
 
-        Ok(IndexingElementBundle {
+        Ok(IndexedElementBundle {
             new_low_element,
             new_element,
             new_element_next_value,
@@ -332,9 +279,9 @@ where
 
     pub fn new_element(
         &self,
-        value: B,
-    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
-        let low_element_index = self.find_low_element_index(&value)?;
+        value: &BigUint,
+    ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
+        let low_element_index = self.find_low_element_index(value)?;
         let element = self.new_element_with_low_element_index(low_element_index, value)?;
 
         Ok(element)
@@ -344,8 +291,8 @@ where
     pub fn append_with_low_element_index(
         &mut self,
         low_element_index: I,
-        value: B,
-    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
+        value: &BigUint,
+    ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
         let old_low_element = &self.elements[usize::from(low_element_index)];
 
         // Check that the `value` belongs to the range of `old_low_element`.
@@ -353,18 +300,18 @@ where
             // In this case, the `old_low_element` is the greatest element.
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
-            if value <= old_low_element.value {
+            if value <= &old_low_element.value {
                 return Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement);
             }
         } else {
             // The value of `new_element` needs to be greater than the value of
             // `old_low_element` (and therefore, be the greatest).
-            if value <= old_low_element.value {
+            if value <= &old_low_element.value {
                 return Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement);
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
-            if value >= self.elements[usize::from(old_low_element.next_index)].value {
+            if value >= &self.elements[usize::from(old_low_element.next_index)].value {
                 return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
         }
@@ -397,13 +344,13 @@ where
 
     pub fn append(
         &mut self,
-        value: B,
-    ) -> Result<IndexingElementBundle<I, B>, IndexedMerkleTreeError> {
-        let low_element_index = self.find_low_element_index(&value)?;
+        value: &BigUint,
+    ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
+        let low_element_index = self.find_low_element_index(value)?;
         self.append_with_low_element_index(low_element_index, value)
     }
 
-    pub fn lowest(&self) -> Option<IndexingElement<I, B>> {
+    pub fn lowest(&self) -> Option<IndexedElement<I>> {
         if self.current_node_index < I::one() {
             None
         } else {
@@ -422,7 +369,7 @@ where
         &mut self,
         low_element_index: I,
         index: I,
-    ) -> Result<Option<IndexingElement<I, B>>, IndexedMerkleTreeError> {
+    ) -> Result<Option<IndexedElement<I>>, IndexedMerkleTreeError> {
         if index > self.current_node_index {
             // Index out of bounds.
             return Ok(None);
@@ -486,7 +433,7 @@ where
     pub fn dequeue_at(
         &mut self,
         index: I,
-    ) -> Result<Option<IndexingElement<I, B>>, IndexedMerkleTreeError> {
+    ) -> Result<Option<IndexedElement<I>>, IndexedMerkleTreeError> {
         match self.elements.get(usize::from(index)) {
             Some(node) => {
                 let low_element_index = self
@@ -499,27 +446,24 @@ where
     }
 }
 
-pub struct IndexingArrayIter<'a, H, I, B, const MAX_ELEMENTS: usize>
+pub struct IndexingArrayIter<'a, H, I, const MAX_ELEMENTS: usize>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
-    indexing_array: &'a IndexingArray<H, I, B, MAX_ELEMENTS>,
+    indexing_array: &'a IndexedArray<H, I, MAX_ELEMENTS>,
     front: usize,
     back: usize,
 }
 
-impl<'a, H, I, B, const MAX_ELEMENTS: usize> Iterator
-    for IndexingArrayIter<'a, H, I, B, MAX_ELEMENTS>
+impl<'a, H, I, const MAX_ELEMENTS: usize> Iterator for IndexingArrayIter<'a, H, I, MAX_ELEMENTS>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
-    type Item = &'a IndexingElement<I, B>;
+    type Item = &'a IndexedElement<I>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.front <= self.back {
@@ -532,12 +476,11 @@ where
     }
 }
 
-impl<'a, H, I, B, const MAX_ELEMENTS: usize> DoubleEndedIterator
-    for IndexingArrayIter<'a, H, I, B, MAX_ELEMENTS>
+impl<'a, H, I, const MAX_ELEMENTS: usize> DoubleEndedIterator
+    for IndexingArrayIter<'a, H, I, MAX_ELEMENTS>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
@@ -553,8 +496,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use ark_ff::BigInteger256;
     use light_concurrent_merkle_tree::light_hasher::Poseidon;
+    use num_bigint::ToBigUint;
 
     use super::*;
 
@@ -567,11 +510,10 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, usize, BigInteger256, 8> =
-            IndexingArray::default();
+        let mut indexing_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
 
-        let nullifier1 = BigInteger256::from(30_u32);
-        indexing_array.append(nullifier1).unwrap();
+        let nullifier1 = 30_u32.to_biguint().unwrap();
+        indexing_array.append(&nullifier1).unwrap();
 
         // After adding a new value 30, it should look like:
         //
@@ -590,23 +532,23 @@ mod test {
         //   nullifier.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 1,
             },
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
 
-        let nullifier2 = BigInteger256::from(10_u32);
-        indexing_array.append(nullifier2).unwrap();
+        let nullifier2 = 10_u32.to_biguint().unwrap();
+        indexing_array.append(&nullifier2).unwrap();
 
         // After adding an another value 10, it should look like:
         //
@@ -628,31 +570,31 @@ mod test {
         // * The previously inserted nullifier, the node 1, remains unchanged.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 2,
             }
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
         assert_eq!(
             indexing_array.elements[2],
-            IndexingElement {
+            IndexedElement {
                 index: 2,
-                value: BigInteger256::from(10_u32),
+                value: 10_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
 
-        let nullifier3 = BigInteger256::from(20_u32);
-        indexing_array.append(nullifier3).unwrap();
+        let nullifier3 = 20_u32.to_biguint().unwrap();
+        indexing_array.append(&nullifier3).unwrap();
 
         // After adding an another value 20, it should look like:
         //
@@ -671,39 +613,39 @@ mod test {
         //   after update it looks like: `[value = 10, next_index = 3]`.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 2,
             }
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
         assert_eq!(
             indexing_array.elements[2],
-            IndexingElement {
+            IndexedElement {
                 index: 2,
-                value: BigInteger256::from(10_u32),
+                value: 10_u32.to_biguint().unwrap(),
                 next_index: 3,
             }
         );
         assert_eq!(
             indexing_array.elements[3],
-            IndexingElement {
+            IndexedElement {
                 index: 3,
-                value: BigInteger256::from(20_u32),
+                value: 20_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
 
-        let nullifier4 = BigInteger256::from(50_u32);
-        indexing_array.append(nullifier4).unwrap();
+        let nullifier4 = 50_u32.to_biguint().unwrap();
+        indexing_array.append(&nullifier4).unwrap();
 
         // After adding an another value 50, it should look like:
         //
@@ -724,41 +666,41 @@ mod test {
         //   after update it looks like: `[value = 30, next_index = 4]`.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 2,
             }
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 4,
             }
         );
         assert_eq!(
             indexing_array.elements[2],
-            IndexingElement {
+            IndexedElement {
                 index: 2,
-                value: BigInteger256::from(10_u32),
+                value: 10_u32.to_biguint().unwrap(),
                 next_index: 3,
             }
         );
         assert_eq!(
             indexing_array.elements[3],
-            IndexingElement {
+            IndexedElement {
                 index: 3,
-                value: BigInteger256::from(20_u32),
+                value: 20_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
         assert_eq!(
             indexing_array.elements[4],
-            IndexingElement {
+            IndexedElement {
                 index: 4,
-                value: BigInteger256::from(50_u32),
+                value: 50_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
@@ -772,13 +714,12 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, usize, BigInteger256, 8> =
-            IndexingArray::default();
+        let mut indexing_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
 
         let low_element_index = 0;
-        let nullifier1 = BigInteger256::from(30_u32);
+        let nullifier1 = 30_u32.to_biguint().unwrap();
         indexing_array
-            .append_with_low_element_index(low_element_index, nullifier1)
+            .append_with_low_element_index(low_element_index, &nullifier1)
             .unwrap();
 
         // After adding a new value 30, it should look like:
@@ -798,25 +739,25 @@ mod test {
         //   nullifier.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 1,
             },
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
 
         let low_element_index = 0;
-        let nullifier2 = BigInteger256::from(10_u32);
+        let nullifier2 = 10_u32.to_biguint().unwrap();
         indexing_array
-            .append_with_low_element_index(low_element_index, nullifier2)
+            .append_with_low_element_index(low_element_index, &nullifier2)
             .unwrap();
 
         // After adding an another value 10, it should look like:
@@ -839,33 +780,33 @@ mod test {
         // * The previously inserted nullifier, the node 1, remains unchanged.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 2,
             }
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
         assert_eq!(
             indexing_array.elements[2],
-            IndexingElement {
+            IndexedElement {
                 index: 2,
-                value: BigInteger256::from(10_u32),
+                value: 10_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
 
         let low_element_index = 2;
-        let nullifier3 = BigInteger256::from(20_u32);
+        let nullifier3 = 20_u32.to_biguint().unwrap();
         indexing_array
-            .append_with_low_element_index(low_element_index, nullifier3)
+            .append_with_low_element_index(low_element_index, &nullifier3)
             .unwrap();
 
         // After adding an another value 20, it should look like:
@@ -885,41 +826,41 @@ mod test {
         //   after update it looks like: `[value = 10, next_index = 3]`.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 2,
             }
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
         assert_eq!(
             indexing_array.elements[2],
-            IndexingElement {
+            IndexedElement {
                 index: 2,
-                value: BigInteger256::from(10_u32),
+                value: 10_u32.to_biguint().unwrap(),
                 next_index: 3,
             }
         );
         assert_eq!(
             indexing_array.elements[3],
-            IndexingElement {
+            IndexedElement {
                 index: 3,
-                value: BigInteger256::from(20_u32),
+                value: 20_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
 
         let low_element_index = 1;
-        let nullifier4 = BigInteger256::from(50_u32);
+        let nullifier4 = 50_u32.to_biguint().unwrap();
         indexing_array
-            .append_with_low_element_index(low_element_index, nullifier4)
+            .append_with_low_element_index(low_element_index, &nullifier4)
             .unwrap();
 
         // After adding an another value 50, it should look like:
@@ -941,41 +882,41 @@ mod test {
         //   after update it looks like: `[value = 30, next_index = 4]`.
         assert_eq!(
             indexing_array.elements[0],
-            IndexingElement {
+            IndexedElement {
                 index: 0,
-                value: BigInteger256::zero(),
+                value: 0_u32.to_biguint().unwrap(),
                 next_index: 2,
             }
         );
         assert_eq!(
             indexing_array.elements[1],
-            IndexingElement {
+            IndexedElement {
                 index: 1,
-                value: BigInteger256::from(30_u32),
+                value: 30_u32.to_biguint().unwrap(),
                 next_index: 4,
             }
         );
         assert_eq!(
             indexing_array.elements[2],
-            IndexingElement {
+            IndexedElement {
                 index: 2,
-                value: BigInteger256::from(10_u32),
+                value: 10_u32.to_biguint().unwrap(),
                 next_index: 3,
             }
         );
         assert_eq!(
             indexing_array.elements[3],
-            IndexingElement {
+            IndexedElement {
                 index: 3,
-                value: BigInteger256::from(20_u32),
+                value: 20_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
         assert_eq!(
             indexing_array.elements[4],
-            IndexingElement {
+            IndexedElement {
                 index: 4,
-                value: BigInteger256::from(50_u32),
+                value: 50_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
@@ -992,8 +933,7 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexingArray<Poseidon, usize, BigInteger256, 8> =
-            IndexingArray::default();
+        let mut indexing_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
 
         // Append nullifier 30. The low nullifier is at index 0. The array
         // should look like:
@@ -1003,18 +943,18 @@ mod test {
         // next_index = [ 1] [ 0] [0] [0] [0] [0] [0] [0]
         // ```
         let low_element_index = 0;
-        let nullifier1 = BigInteger256::from(30_u32);
+        let nullifier1 = 30_u32.to_biguint().unwrap();
         indexing_array
-            .append_with_low_element_index(low_element_index, nullifier1)
+            .append_with_low_element_index(low_element_index, &nullifier1)
             .unwrap();
 
         // Try appending nullifier 20, while pointing to index 1 as low
         // nullifier.
         // Therefore, the new element is lower than the supposed low element.
         let low_element_index = 1;
-        let nullifier2 = BigInteger256::from(20_u32);
+        let nullifier2 = 20_u32.to_biguint().unwrap();
         assert!(matches!(
-            indexing_array.append_with_low_element_index(low_element_index, nullifier2),
+            indexing_array.append_with_low_element_index(low_element_index, &nullifier2),
             Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement)
         ));
 
@@ -1022,9 +962,9 @@ mod test {
         // nullifier.
         // Therefore, the new element is greater than next element.
         let low_element_index = 0;
-        let nullifier2 = BigInteger256::from(50_u32);
+        let nullifier2 = 50_u32.to_biguint().unwrap();
         assert!(matches!(
-            indexing_array.append_with_low_element_index(low_element_index, nullifier2),
+            indexing_array.append_with_low_element_index(low_element_index, &nullifier2),
             Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement),
         ));
 
@@ -1036,18 +976,18 @@ mod test {
         // next_index = [ 1] [ 2] [ 0] [0] [0] [0] [0] [0]
         // ```
         let low_element_index = 1;
-        let nullifier2 = BigInteger256::from(50_u32);
+        let nullifier2 = 50_u32.to_biguint().unwrap();
         indexing_array
-            .append_with_low_element_index(low_element_index, nullifier2)
+            .append_with_low_element_index(low_element_index, &nullifier2)
             .unwrap();
 
         // Try appending nullifier 40, while pointint to index 2 (value 50) as
         // low nullifier.
         // Therefore, the pointed low element is greater than the new element.
         let low_element_index = 2;
-        let nullifier3 = BigInteger256::from(40_u32);
+        let nullifier3 = 40_u32.to_biguint().unwrap();
         assert!(matches!(
-            indexing_array.append_with_low_element_index(low_element_index, nullifier3),
+            indexing_array.append_with_low_element_index(low_element_index, &nullifier3),
             Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement)
         ));
     }
