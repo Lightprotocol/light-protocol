@@ -46,4 +46,6 @@ pub enum AccountCompressionErrorCode {
     InvalidIndexedArray,
     #[msg("InvalidMerkleTree")]
     InvalidMerkleTree,
+    #[msg("Could not find the leaf in the queue")]
+    LeafNotFound,
 }

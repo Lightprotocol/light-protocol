@@ -1,0 +1,21 @@
+[package]
+name = "light-hash-set"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+solana = ["solana-program"]
+
+[dependencies]
+light-bounded-vec = { path = "../bounded-vec" }
+light-utils = { path = "../../utils" }
+memoffset = "0.9"
+num-bigint = "0.4"
+num-traits = "0.2"
+solana-program = { version = ">=1.17, <1.18", optional = true }
+thiserror = "1.0"
+
+[dev-dependencies]
+ark-bn254 = "0.4"
+ark-ff = "0.4"
+rand = "0.8"

@@ -504,14 +504,13 @@ where
     ///
     /// # Purpose
     ///
-    /// This method is meant to be used mostly in Solana programs, where memory
-    /// constraints are tight and we want to make sure no data is copied.
+    /// This method is meant to be used mostly in Solana programs to initialize
+    /// a new account which is supposed to store the Merkle tree.
     ///
     /// # Safety
     ///
     /// This is highly unsafe. This method validates only sizes of slices.
-    /// Ensuring the alignment and that the slices provide actual data of the
-    /// Merkle tree is the caller's responsibility.
+    /// Ensuring the alignment is the caller's responsibility.
     ///
     /// Calling it in async context (or anywhere where the underlying data can
     /// be moved in the memory) is certainly going to cause undefined behavior.
