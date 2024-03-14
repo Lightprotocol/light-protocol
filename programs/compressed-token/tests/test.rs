@@ -8,7 +8,7 @@ use anchor_lang::AnchorSerialize;
 use light_hasher::Poseidon;
 use light_test_utils::{
     create_account_instruction, create_and_send_transaction,
-    test_env::setup_test_programs_with_accounts,
+    test_env::setup_test_programs_with_accounts, AccountZeroCopy,
 };
 use psp_compressed_pda::{event::PublicTransactionEvent, utils::CompressedProof, utxo::Utxo};
 use psp_compressed_token::{
@@ -209,6 +209,8 @@ async fn test_mint_to() {
     .await;
 }
 
+// this test breaks the stack limit execute with:
+// RUST_MIN_STACK=8388608  cargo test-sbf test_transfer
 #[tokio::test]
 async fn test_transfer() {
     let env: light_test_utils::test_env::EnvWithAccounts =
@@ -344,9 +346,12 @@ async fn test_transfer() {
         &transfer_recipient_out_utxo,
         &change_out_utxo,
         &old_merkle_tree,
+        &in_utxos,
     )
     .await;
+    mock_indexer.nullify_utxos(&mut context).await;
 }
+
 async fn assert_mint_to<'a>(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
@@ -417,6 +422,7 @@ async fn assert_transfer<'a>(
     recipient_out_utxo: &TokenTransferOutUtxo,
     change_out_utxo: &TokenTransferOutUtxo,
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
+    in_utxos: &Vec<Utxo>,
 ) {
     let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         context,
@@ -524,6 +530,15 @@ async fn assert_transfer<'a>(
         psp_compressed_token::ID
     );
     assert_eq!(change_utxo.owner, psp_compressed_token::ID);
+
+    // assert in utxos are nullified
+    for utxo in in_utxos.iter() {
+        let _nullified_utxo = mock_indexer
+            .nullified_utxos
+            .iter()
+            .find(|x| *x == utxo)
+            .expect("utxo not nullified");
+    }
 }
 
 #[derive(Debug)]
@@ -606,6 +621,7 @@ impl MockIndexer {
         self.events.push(event);
         indices
     }
+
     /// deserializes an event
     /// adds the out_utxos to the utxos
     /// removes the in_utxos from the utxos
@@ -624,6 +640,89 @@ impl MockIndexer {
                 index: *index,
                 token_data,
             });
+        }
+    }
+
+    /// Check utxos in the queue array which are not nullified yet
+    /// Iterate over these utxos and nullify them
+    pub async fn nullify_utxos(&mut self, context: &mut ProgramTestContext) {
+        let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
+            context,
+            self.indexed_array_pubkey,
+        )
+        .await;
+        let indexed_array = array.deserialized().indexed_array;
+        let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+            context,
+            self.merkle_tree_pubkey,
+        )
+        .await;
+        let merkle_tree = merkle_tree_account
+            .deserialized()
+            .copy_merkle_tree()
+            .unwrap();
+        let change_log_index = merkle_tree.current_changelog_index as u64;
+
+        let mut utxo_to_nullify = Vec::new();
+
+        for (i, element) in indexed_array.iter().enumerate() {
+            if element.merkle_tree_overwrite_sequence_number == 0 && element.element != [0u8; 32] {
+                utxo_to_nullify.push((i, element));
+            }
+        }
+
+        for (index_in_indexed_array, utxo) in utxo_to_nullify.iter() {
+            let leaf_index = self.merkle_tree.get_leaf_index(&utxo.element).unwrap();
+            let proof: Vec<[u8; 32]> = self
+                .merkle_tree
+                .get_proof_of_leaf(leaf_index)
+                .unwrap()
+                .to_array::<26>()
+                .unwrap()
+                .to_vec();
+
+            let instructions = [
+                account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
+                    vec![change_log_index].as_slice(),
+                    vec![(*index_in_indexed_array) as u16].as_slice(),
+                    vec![0u64].as_slice(),
+                    vec![proof].as_slice(),
+                    &context.payer.pubkey(),
+                    &self.merkle_tree_pubkey,
+                    &self.indexed_array_pubkey,
+                ),
+            ];
+
+            create_and_send_transaction(
+                context,
+                &instructions,
+                &self.payer.pubkey(),
+                &[&self.payer],
+            )
+            .await
+            .unwrap();
+            let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
+                context,
+                self.indexed_array_pubkey,
+            )
+            .await;
+            let indexed_array = array.deserialized().indexed_array;
+            assert_eq!(indexed_array[*index_in_indexed_array].element, utxo.element);
+            let merkle_tree_account =
+                light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+                    context,
+                    self.merkle_tree_pubkey,
+                )
+                .await;
+            assert_eq!(
+                indexed_array[*index_in_indexed_array].merkle_tree_overwrite_sequence_number,
+                merkle_tree_account
+                    .deserialized()
+                    .load_merkle_tree()
+                    .unwrap()
+                    .sequence_number as u64
+                    + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as u64
+            );
         }
     }
 }

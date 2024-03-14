@@ -56,4 +56,4 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cargo build --workspace --all-targets
-          cargo test --workspace --all-targets
+          RUST_MIN_STACK=8388608 cargo test --workspace --all-targets

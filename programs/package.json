@@ -4,6 +4,6 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "anchor build",
-    "test": "cargo test-sbf -p account-compression && cargo test-sbf -p psp-compressed-pda && cargo test-sbf -p psp-compressed-token"
+    "test": "RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression && RUST_MIN_STACK=8388608 cargo test-sbf -p psp-compressed-pda && RUST_MIN_STACK=8388608 cargo test-sbf -p psp-compressed-token -- --test-threads 1"
   }
 }

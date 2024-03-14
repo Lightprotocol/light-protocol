@@ -358,7 +358,7 @@ export type AccountCompression = {
       ];
     },
     {
-      name: 'insertLeavesIntoMerkleTrees';
+      name: 'appendLeavesToMerkleTrees';
       accounts: [
         {
           name: 'authority';
@@ -383,6 +383,67 @@ export type AccountCompression = {
           type: {
             vec: {
               array: ['u8', 32];
+            };
+          };
+        },
+      ];
+    },
+    {
+      name: 'nullifyLeaves';
+      accounts: [
+        {
+          name: 'authority';
+          isMut: true;
+          isSigner: true;
+        },
+        {
+          name: 'registeredProgramPda';
+          isMut: false;
+          isSigner: false;
+          isOptional: true;
+        },
+        {
+          name: 'logWrapper';
+          isMut: false;
+          isSigner: false;
+        },
+        {
+          name: 'merkleTree';
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: 'indexedArray';
+          isMut: true;
+          isSigner: false;
+        },
+      ];
+      args: [
+        {
+          name: 'changeLogIndices';
+          type: {
+            vec: 'u64';
+          };
+        },
+        {
+          name: 'leavesIndices';
+          type: {
+            vec: 'u16';
+          };
+        },
+        {
+          name: 'indices';
+          type: {
+            vec: 'u64';
+          };
+        },
+        {
+          name: 'proofs';
+          type: {
+            vec: {
+              vec: {
+                array: ['u8', 32];
+              };
             };
           };
         },
@@ -494,7 +555,12 @@ export type AccountCompression = {
           {
             name: 'indexedArray';
             type: {
-              array: ['u8', 192008];
+              array: [
+                {
+                  defined: 'QueueArrayElement';
+                },
+                4800,
+              ];
             };
           },
         ];
@@ -641,6 +707,31 @@ export type AccountCompression = {
   ];
   types: [
     {
+      name: 'QueueArrayElement';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'merkleTreeOverwriteSequenceNumber';
+            docs: [
+              'The squence number of the Merkle tree at which it is safe to overwrite the element.',
+              'It is safe to overwrite an element once no root that includes the element is in the root history array.',
+              'With every time a root is inserted into the root history array, the sequence number is incremented.',
+              '0 means that the element still exists in the state Merkle tree, is not nullified yet.',
+              'TODO: add a root history array sequence number to the Merkle tree account.',
+            ];
+            type: 'u64';
+          },
+          {
+            name: 'element';
+            type: {
+              array: ['u8', 32];
+            };
+          },
+        ];
+      };
+    },
+    {
       name: 'Changelogs';
       type: {
         kind: 'struct';
@@ -736,15 +827,6 @@ export type AccountCompression = {
         ];
       };
     },
-    {
-      name: 'IndexedArray';
-      type: {
-        kind: 'alias';
-        value: {
-          defined: 'IndexingArray<Poseidon,u16,BigInteger256,STATE_INDEXED_ARRAY_SIZE>';
-        };
-      };
-    },
   ];
   errors: [
     {
@@ -806,6 +888,31 @@ export type AccountCompression = {
       code: 6011;
       name: 'EventNoChangelogEntry';
       msg: 'Emitting an event requires at least one changelog entry';
+    },
+    {
+      code: 6012;
+      name: 'NumberOfChangeLogIndicesMismatch';
+      msg: 'Number of change log indices mismatch';
+    },
+    {
+      code: 6013;
+      name: 'NumberOfIndicesMismatch';
+      msg: 'Number of indices mismatch';
+    },
+    {
+      code: 6014;
+      name: 'IndexOutOfBounds';
+      msg: 'IndexOutOfBounds';
+    },
+    {
+      code: 6015;
+      name: 'ElementAlreadyExists';
+      msg: 'ElementAlreadyExists';
+    },
+    {
+      code: 6016;
+      name: 'HashSetFull';
+      msg: 'HashSetFull';
     },
   ];
 };
@@ -1171,7 +1278,7 @@ export const IDL: AccountCompression = {
       ],
     },
     {
-      name: 'insertLeavesIntoMerkleTrees',
+      name: 'appendLeavesToMerkleTrees',
       accounts: [
         {
           name: 'authority',
@@ -1196,6 +1303,67 @@ export const IDL: AccountCompression = {
           type: {
             vec: {
               array: ['u8', 32],
+            },
+          },
+        },
+      ],
+    },
+    {
+      name: 'nullifyLeaves',
+      accounts: [
+        {
+          name: 'authority',
+          isMut: true,
+          isSigner: true,
+        },
+        {
+          name: 'registeredProgramPda',
+          isMut: false,
+          isSigner: false,
+          isOptional: true,
+        },
+        {
+          name: 'logWrapper',
+          isMut: false,
+          isSigner: false,
+        },
+        {
+          name: 'merkleTree',
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: 'indexedArray',
+          isMut: true,
+          isSigner: false,
+        },
+      ],
+      args: [
+        {
+          name: 'changeLogIndices',
+          type: {
+            vec: 'u64',
+          },
+        },
+        {
+          name: 'leavesIndices',
+          type: {
+            vec: 'u16',
+          },
+        },
+        {
+          name: 'indices',
+          type: {
+            vec: 'u64',
+          },
+        },
+        {
+          name: 'proofs',
+          type: {
+            vec: {
+              vec: {
+                array: ['u8', 32],
+              },
             },
           },
         },
@@ -1307,7 +1475,12 @@ export const IDL: AccountCompression = {
           {
             name: 'indexedArray',
             type: {
-              array: ['u8', 192008],
+              array: [
+                {
+                  defined: 'QueueArrayElement',
+                },
+                4800,
+              ],
             },
           },
         ],
@@ -1454,6 +1627,31 @@ export const IDL: AccountCompression = {
   ],
   types: [
     {
+      name: 'QueueArrayElement',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'merkleTreeOverwriteSequenceNumber',
+            docs: [
+              'The squence number of the Merkle tree at which it is safe to overwrite the element.',
+              'It is safe to overwrite an element once no root that includes the element is in the root history array.',
+              'With every time a root is inserted into the root history array, the sequence number is incremented.',
+              '0 means that the element still exists in the state Merkle tree, is not nullified yet.',
+              'TODO: add a root history array sequence number to the Merkle tree account.',
+            ],
+            type: 'u64',
+          },
+          {
+            name: 'element',
+            type: {
+              array: ['u8', 32],
+            },
+          },
+        ],
+      },
+    },
+    {
       name: 'Changelogs',
       type: {
         kind: 'struct',
@@ -1549,16 +1747,6 @@ export const IDL: AccountCompression = {
         ],
       },
     },
-    {
-      name: 'IndexedArray',
-      type: {
-        kind: 'alias',
-        value: {
-          defined:
-            'IndexingArray<Poseidon,u16,BigInteger256,STATE_INDEXED_ARRAY_SIZE>',
-        },
-      },
-    },
   ],
   errors: [
     {
@@ -1620,6 +1808,31 @@ export const IDL: AccountCompression = {
       code: 6011,
       name: 'EventNoChangelogEntry',
       msg: 'Emitting an event requires at least one changelog entry',
+    },
+    {
+      code: 6012,
+      name: 'NumberOfChangeLogIndicesMismatch',
+      msg: 'Number of change log indices mismatch',
+    },
+    {
+      code: 6013,
+      name: 'NumberOfIndicesMismatch',
+      msg: 'Number of indices mismatch',
+    },
+    {
+      code: 6014,
+      name: 'IndexOutOfBounds',
+      msg: 'IndexOutOfBounds',
+    },
+    {
+      code: 6015,
+      name: 'ElementAlreadyExists',
+      msg: 'ElementAlreadyExists',
+    },
+    {
+      code: 6016,
+      name: 'HashSetFull',
+      msg: 'HashSetFull',
     },
   ],
 };

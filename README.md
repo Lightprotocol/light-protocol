@@ -145,7 +145,7 @@ solana-keygen new -o ~/.config/solana/id.json
 
 ```bash
 cd light-verifier-sdk/
-cargo test
+RUST_MIN_STACK=8388608 cargo test
 ```
 
 ### SDK tests
