@@ -137,6 +137,26 @@ export async function getSolanaArgs({
       name: "spl_noop.so",
       tag: SPL_NOOP_PROGRAM_TAG,
     },
+    {
+      id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
+      name: "psp_compressed_pda.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+    },
+    {
+      id: "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE",
+      name: "psp_compressed_token.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+    },
+    {
+      id: "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN",
+      name: "account_compression.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+    },
+    {
+      id: "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP",
+      name: "light.so",
+      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+    },
   ];
   if (additionalPrograms)
     additionalPrograms.forEach((program) => {
