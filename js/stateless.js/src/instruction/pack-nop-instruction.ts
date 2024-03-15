@@ -5,7 +5,7 @@ import {
   AccountMeta,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { BN, BorshCoder } from '@coral-xyz/anchor';
+import { BorshCoder } from '@coral-xyz/anchor';
 
 import {
   CompressedProof_IdlType,
@@ -28,8 +28,8 @@ export async function createExecuteCompressedInstruction(
   rootIndices: number[],
   proof: CompressedProof_IdlType,
 ): Promise<TransactionInstruction> {
-  let remainingAccounts = new Map<PublicKey, number>();
-  let _inUtxos: InUtxoTuple_IdlType[] = [];
+  const remainingAccounts = new Map<PublicKey, number>();
+  const _inUtxos: InUtxoTuple_IdlType[] = [];
   inUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, remainingAccounts.size);
@@ -48,7 +48,7 @@ export async function createExecuteCompressedInstruction(
     _inUtxos[i].indexNullifierArrayAccount = remainingAccounts.get(mt)!;
   });
   len = remainingAccounts.size;
-  let _outUtxos: OutUtxoTuple_IdlType[] = [];
+  const _outUtxos: OutUtxoTuple_IdlType[] = [];
   outUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, len + i);
@@ -59,10 +59,9 @@ export async function createExecuteCompressedInstruction(
     });
   });
 
-  // hack!
-  let rawInputs = {
+  const rawInputs = {
     proof,
-    lowElementIndices: new Array(inUtxos.length).fill(0),
+    lowElementIndices: new Array(inUtxos.length).fill(0), // TODO: remove
     rootIndices: [...rootIndices],
     relayFee: null,
     inUtxos: _inUtxos,

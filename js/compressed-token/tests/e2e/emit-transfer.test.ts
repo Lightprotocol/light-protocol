@@ -125,7 +125,7 @@ describe('Emit events for transfer', () => {
         index_mt_account: 0,
       };
 
-      let charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
+      const charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
         amount: bn(transferAmount * mintDecimals),
         owner: charlie.publicKey,
         lamports: null,

@@ -252,7 +252,7 @@ describe('Compressed Token Program test', () => {
       index_mt_account: 0,
     };
 
-    let charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
+    const charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
       amount: bn(transferAmount),
       owner: charlie.publicKey,
       lamports: null,

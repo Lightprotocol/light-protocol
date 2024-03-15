@@ -99,7 +99,7 @@ export async function transfer(
     index_mt_account: 0,
   };
 
-  let recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
+  const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
     amount: bn(amount),
     owner: newOwner,
     lamports: null,

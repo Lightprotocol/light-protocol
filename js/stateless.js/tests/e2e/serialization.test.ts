@@ -26,7 +26,7 @@ describe.only('Serialization test', () => {
       2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
       2, 2, 2, 2, 2, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     ];
-    const deserializedUtxo = LightSystemProgram.program.coder.types.decode(
+    LightSystemProgram.program.coder.types.decode(
       'Utxo',
       Buffer.from(utxoData),
     );
@@ -44,7 +44,7 @@ describe.only('Serialization test', () => {
       2, 2, 2, 2, 2, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
       0, 0, 0, 0, 0, 0,
     ];
-    let deserializedEvent = LightSystemProgram.program.coder.types.decode(
+    LightSystemProgram.program.coder.types.decode(
       'PublicTransactionEvent',
       Buffer.from(data),
     );

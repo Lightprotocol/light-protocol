@@ -227,7 +227,7 @@ export class MockRpc implements CompressionApiInterface {
     const events: PublicTransactionEvent_IdlType[] =
       await this.getParsedEvents();
 
-    let matchingUtxos: UtxoWithMerkleContext[] = [];
+    const matchingUtxos: UtxoWithMerkleContext[] = [];
 
     for (const event of events) {
       const leafIndices = [...event.outUtxoIndices]; // Clone to prevent mutation

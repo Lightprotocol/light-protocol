@@ -160,7 +160,10 @@ export class MerkleTree {
    * @param comparator A function that checks leaf value equality
    * @returns {number} Index if element is found, otherwise -1
    */
-  indexOf(element: string, comparator: Function | null = null) {
+  indexOf(
+    element: string,
+    comparator: ((element: string, el: string) => boolean) | null = null,
+  ) {
     if (comparator) {
       return this._layers[0].findIndex((el: string) => comparator(element, el));
     } else {
@@ -198,7 +201,10 @@ export class MerkleTree {
    * @param hashFunction
    * @returns {MerkleTree}
    */
-  static deserialize(data: any, hashFunction: Function) {
+  static deserialize(
+    data: any,
+    hashFunction: (left: string, right: string) => string,
+  ) {
     const instance = Object.assign(Object.create(this.prototype), data);
     instance._hash = hashFunction;
     instance.capacity = 2 ** instance.levels;
