@@ -244,6 +244,9 @@ importers:
       '@lightprotocol/account.rs':
         specifier: workspace:*
         version: link:../account.rs
+      '@lightprotocol/compressed-token':
+        specifier: workspace:*
+        version: link:../js/compressed-token
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../js/stateless.js

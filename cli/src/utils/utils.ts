@@ -64,6 +64,15 @@ export const getLightProvider = async (localTestRpc?: boolean) => {
   return provider;
 };
 
+export function generateSolanaTransactionURL(
+  transactionType: "tx" | "address",
+  transactionHash: string,
+  cluster: string,
+): string {
+  const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
+  return url;
+}
+
 /** TODO: use non-local testrpc once we have a proper one */
 export const getRpc = async (localTestRpc?: boolean) => {
   if (!rpc) {

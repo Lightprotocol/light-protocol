@@ -6,13 +6,6 @@ import {
   TransactionSignature,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
-import {
-  defaultTestStateTreeAccounts,
-  sendAndConfirmTx,
-} from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
-import { BN } from '@coral-xyz/anchor';
-
 /**
  * Mint compressed tokens to a solana address
  *
@@ -61,6 +54,13 @@ export async function mintTo(
 
   return txId;
 }
+import {
+  defaultTestStateTreeAccounts,
+  sendAndConfirmTx,
+} from '@lightprotocol/stateless.js';
+import { buildAndSignTx } from '@lightprotocol/stateless.js';
+
+import { BN } from '@coral-xyz/anchor';
 
 /** @internal */
 export function getSigners(

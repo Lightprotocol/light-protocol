@@ -123,9 +123,11 @@ function programFilePath(programName: string): string {
 export async function getSolanaArgs({
   additionalPrograms,
   skipSystemAccounts,
+  downloadBinaries = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
+  downloadBinaries?: boolean;
 }): Promise<Array<string>> {
   const LIMIT_LEDGER_SIZE = "500000000";
 
@@ -176,14 +178,16 @@ export async function getSolanaArgs({
       solanaArgs.push("--bpf-program", program.id, program.path);
     } else {
       const localFilePath = programFilePath(program.name!);
-      await downloadBinIfNotExists({
-        localFilePath,
-        dirPath,
-        owner: "Lightprotocol",
-        repoName: "light-protocol",
-        remoteFileName: program.name!,
-        tag: program.tag,
-      });
+      if (program.name === "spl_noop.so" || downloadBinaries) {
+        await downloadBinIfNotExists({
+          localFilePath,
+          dirPath,
+          owner: "Lightprotocol",
+          repoName: "light-protocol",
+          remoteFileName: program.name!,
+          tag: program.tag,
+        });
+      }
       solanaArgs.push("--bpf-program", program.id, localFilePath);
     }
   }
