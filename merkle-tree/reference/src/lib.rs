@@ -73,11 +73,18 @@ where
     }
 
     /// Returns the Merkle proof of the leaf under the given `ìndex`.
-    pub fn get_proof_of_leaf(&self, index: usize) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+    pub fn get_proof_of_leaf(
+        &self,
+        index: usize,
+        full: bool,
+    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
         let mut proof = BoundedVec::with_capacity(self.height);
         let mut node = self.leaf_nodes[index].clone();
 
-        let limit = self.height - self.canopy_depth;
+        let limit = match full {
+            true => self.height,
+            false => self.height - self.canopy_depth,
+        };
 
         for i in 0..limit {
             let ref_node = node.clone();

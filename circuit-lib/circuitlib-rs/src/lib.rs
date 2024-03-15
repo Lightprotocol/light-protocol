@@ -1,5 +1,7 @@
 pub mod arkworks_prover;
 pub mod errors;
+#[cfg(feature = "gnark")]
+pub mod gnark;
 pub mod groth16_solana_verifier;
 pub mod helpers;
 pub mod inclusion;

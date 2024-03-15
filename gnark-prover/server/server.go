@@ -104,6 +104,8 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logging.Logger().Info().Msg("received prove request")
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
+		logging.Logger().Info().Msg("error reading request body")
+		logging.Logger().Info().Msg(err.Error())
 		malformedBodyError(err).send(w)
 		return
 	}
@@ -114,11 +116,14 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(buf, &params)
 	if err != nil {
+		logging.Logger().Info().Msg("error Unmarshal")
+		logging.Logger().Info().Msg(err.Error())
 		malformedBodyError(err).send(w)
 		return
 	}
 
 	var numberOfUtxos = uint32(len(params.Root))
+
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {
 		if provingSystem.Inclusion && provingSystem.NumberOfUtxos == numberOfUtxos {
@@ -128,18 +133,24 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ps == nil {
+		logging.Logger().Info().Msg(fmt.Sprintf("no proving system for %d utxos", numberOfUtxos))
 		provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos)).send(w)
 		return
 	}
+
 	proof, err = ps.ProveInclusion(&params)
 
 	if err != nil {
+		logging.Logger().Info().Msg("error ProveInclusion")
+		logging.Logger().Info().Msg(err.Error())
 		provingError(err).send(w)
 		return
 	}
 
 	responseBytes, err := json.Marshal(&proof)
 	if err != nil {
+		logging.Logger().Info().Msg("Error marshal response bytes")
+		logging.Logger().Info().Msg(err.Error())
 		unexpectedError(err).send(w)
 		return
 	}
@@ -149,6 +160,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		logging.Logger().Error().Err(err).Msg("error writing response")
+		logging.Logger().Info().Msg(err.Error())
 	}
 }
 

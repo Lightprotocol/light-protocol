@@ -18,6 +18,7 @@ use psp_compressed_token::{
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
     transfer_sdk, TokenTlvData, TokenTransferOutUtxo,
 };
+use reqwest::Client;
 use solana_program_test::ProgramTestContext;
 use solana_sdk::{
     instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
@@ -158,6 +159,12 @@ async fn test_mint_to() {
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
+    let mock_indexer = MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+        None,
+    );
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut context, &payer).await;
     let amount = 10000u64;
@@ -190,7 +197,7 @@ async fn test_mint_to() {
     )
     .await;
 
-    let mut mock_indexer = MockIndexer::new(merkle_tree_pubkey, indexed_array_pubkey, payer);
+    let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_token_utxos(
         res.unwrap()
             .metadata
@@ -222,6 +229,12 @@ async fn test_transfer() {
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
+    let mock_indexer = MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+        Some(0),
+    );
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut context, &payer).await;
     let amount = 10000u64;
@@ -253,12 +266,7 @@ async fn test_transfer() {
         transaction,
     )
     .await;
-
-    let mut mock_indexer = MockIndexer::new(
-        merkle_tree_pubkey,
-        indexed_array_pubkey,
-        payer.insecure_clone(),
-    );
+    let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_token_utxos(
         res.unwrap()
             .metadata
@@ -293,11 +301,9 @@ async fn test_transfer() {
         lamports: None,
         index_mt_account: 0,
     };
-    let mock_proof = CompressedProof {
-        a: [0u8; 32],
-        b: [0u8; 64],
-        c: [0u8; 32],
-    };
+    let (root_indices, proof) = mock_indexer
+        .create_proof_for_utxos(&[in_utxos[0].hash()], &mut context)
+        .await;
 
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
@@ -307,8 +313,8 @@ async fn test_transfer() {
         &vec![merkle_tree_pubkey, merkle_tree_pubkey], // out utxo Merkle trees
         in_utxos.as_slice(),         // in utxos
         &vec![change_out_utxo, transfer_recipient_out_utxo],
-        &vec![0u16],
-        &mock_proof,
+        &root_indices,
+        &proof,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -366,7 +372,7 @@ async fn assert_mint_to<'a>(
     assert_eq!(token_utxo_data.amount, amount);
     assert_eq!(token_utxo_data.owner, recipient_keypair.pubkey());
     assert_eq!(token_utxo_data.mint, mint);
-    assert_eq!(token_utxo_data.delegate, None.into());
+    assert_eq!(token_utxo_data.delegate, None);
     assert_eq!(token_utxo_data.is_native, None);
     assert_eq!(token_utxo_data.delegated_amount, 0);
 
@@ -465,10 +471,7 @@ async fn assert_transfer<'a>(
         transfer_recipient_token_utxo.token_data.owner,
         recipient_out_utxo.owner
     );
-    assert_eq!(
-        transfer_recipient_token_utxo.token_data.delegate,
-        None.into()
-    );
+    assert_eq!(transfer_recipient_token_utxo.token_data.delegate, None);
     assert_eq!(transfer_recipient_token_utxo.token_data.is_native, None);
     assert_eq!(transfer_recipient_token_utxo.token_data.delegated_amount, 0);
     let transfer_recipient_utxo = mock_indexer.utxos[transfer_recipient_token_utxo.index].clone();
@@ -513,7 +516,7 @@ async fn assert_transfer<'a>(
         transfer_recipient_token_utxo.token_data.mint
     );
     assert_eq!(change_token_utxo.token_data.owner, change_out_utxo.owner);
-    assert_eq!(change_token_utxo.token_data.delegate, None.into());
+    assert_eq!(change_token_utxo.token_data.delegate, None);
     assert_eq!(change_token_utxo.token_data.is_native, None);
     assert_eq!(change_token_utxo.token_data.delegated_amount, 0);
 
@@ -542,6 +545,17 @@ async fn assert_transfer<'a>(
             .expect("utxo not nullified");
     }
 }
+use circuitlib_rs::{
+    gnark::{
+        constants::{INCLUSION_PATH, SERVER_ADDRESS},
+        helpers::{health_check, spawn_gnark_server},
+        inclusion_json_formatter::InclusionJsonStruct,
+        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    },
+    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+};
+use num_bigint::BigInt;
+use num_traits::ops::bytes::FromBytes;
 
 #[derive(Debug)]
 pub struct MockIndexer {
@@ -554,6 +568,7 @@ pub struct MockIndexer {
     pub token_nullified_utxos: Vec<TokenUtxo>,
     pub events: Vec<PublicTransactionEvent>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
+    pub gnark_server: Option<std::process::Child>,
 }
 
 #[derive(Debug, Clone)]
@@ -563,7 +578,30 @@ pub struct TokenUtxo {
 }
 
 impl MockIndexer {
-    fn new(merkle_tree_pubkey: Pubkey, indexed_array_pubkey: Pubkey, payer: Keypair) -> Self {
+    async fn new(
+        merkle_tree_pubkey: Pubkey,
+        indexed_array_pubkey: Pubkey,
+        payer: Keypair,
+        startup_time: Option<u64>,
+    ) -> Self {
+        let gnark_server = if startup_time.is_some() {
+            Some(spawn_gnark_server(
+                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+                0,
+            ))
+        } else {
+            None
+        };
+
+        let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
+            STATE_MERKLE_TREE_HEIGHT,
+            STATE_MERKLE_TREE_ROOTS,
+            STATE_MERKLE_TREE_CANOPY_DEPTH,
+        )
+        .unwrap();
+        if startup_time.is_some() {
+            tokio::time::sleep(tokio::time::Duration::from_secs(startup_time.unwrap())).await;
+        }
         Self {
             merkle_tree_pubkey,
             indexed_array_pubkey,
@@ -573,13 +611,84 @@ impl MockIndexer {
             events: vec![],
             token_utxos: vec![],
             token_nullified_utxos: vec![],
-            merkle_tree: light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
-                STATE_MERKLE_TREE_HEIGHT,
-                STATE_MERKLE_TREE_ROOTS,
-                STATE_MERKLE_TREE_CANOPY_DEPTH,
-            )
-            .unwrap(),
+            merkle_tree,
+            gnark_server,
         }
+    }
+
+    pub async fn create_proof_for_utxos(
+        &mut self,
+        utxos: &[[u8; 32]],
+        context: &mut ProgramTestContext,
+    ) -> (Vec<u16>, CompressedProof) {
+        self.gnark_server = if self.gnark_server.is_none() {
+            Some(spawn_gnark_server(
+                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+                4,
+            ))
+        } else {
+            None
+        };
+        // waiting for server to start
+        health_check().await;
+
+        let client = Client::new();
+
+        let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
+        for utxo in utxos.iter() {
+            let leaf_index = self.merkle_tree.get_leaf_index(utxo).unwrap();
+            let proof = self
+                .merkle_tree
+                .get_proof_of_leaf(leaf_index, true)
+                .unwrap();
+            inclusion_proofs.push(InclusionMerkleProofInputs {
+                root: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
+                leaf: BigInt::from_be_bytes(utxo),
+                in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
+                in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+            });
+        }
+        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
+        let json_payload =
+            InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs).to_string();
+
+        let response_result = client
+            .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .body(json_payload)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        assert!(response_result.status().is_success());
+        let body = response_result.text().await.unwrap();
+        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+
+        let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+            context,
+            self.merkle_tree_pubkey,
+        )
+        .await;
+        let merkle_tree = merkle_tree_account
+            .deserialized()
+            .copy_merkle_tree()
+            .unwrap();
+        assert_eq!(
+            self.merkle_tree.root().unwrap(),
+            merkle_tree.root().unwrap(),
+            "Local Merkle tree root is not equal to latest onchain root"
+        );
+
+        let root_indices: Vec<u16> = vec![merkle_tree.current_root_index as u16; utxos.len()];
+        (
+            root_indices,
+            CompressedProof {
+                a: proof_a,
+                b: proof_b,
+                c: proof_c,
+            },
+        )
     }
 
     /// deserializes an event
@@ -678,7 +787,7 @@ impl MockIndexer {
             let leaf_index = self.merkle_tree.get_leaf_index(&utxo.element).unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
-                .get_proof_of_leaf(leaf_index)
+                .get_proof_of_leaf(leaf_index, true)
                 .unwrap()
                 .to_array::<16>()
                 .unwrap()

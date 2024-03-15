@@ -2685,6 +2685,16 @@ dependencies = [
 [[package]]
 name = "groth16-solana"
 version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5650595f0c8cf8b45ddaa0d9ede9ae54b45f36352afde98e0face95ccee4854c"
+dependencies = [
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
+name = "groth16-solana"
+version = "0.0.2"
 source = "git+https://github.com/Lightprotocol/groth16-solana?branch=master#d1165a03aed6150576c38160797c9f9a1ae630a1"
 dependencies = [
  "ark-bn254 0.4.0",
@@ -4376,10 +4386,17 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "bytemuck",
+ "circuitlib-rs",
+ "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana?branch=master)",
+ "lazy_static",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest",
  "serde_json",
  "solana-cli-output",
  "solana-program-test",
@@ -4397,12 +4414,17 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
+ "circuitlib-rs",
+ "lazy_static",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
  "psp-compressed-pda",
+ "reqwest",
  "solana-program-test",
  "solana-sdk",
  "solana-security-txt",
@@ -4726,9 +4748,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.24"
+version = "0.11.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6920094eb85afde5e4a138be3f2de8bbdf28000f0029e72c45025a56b042251"
+checksum = "78bf93c4af7a8bb7d879d51cebe797356ff10ae8516ace542b5182d9dcac10b2"
 dependencies = [
  "async-compression",
  "base64 0.21.4",
@@ -8346,6 +8368,7 @@ dependencies = [
  "anyhow",
  "ark-ff 0.4.2",
  "clap 4.4.11",
+ "groth16-solana 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
