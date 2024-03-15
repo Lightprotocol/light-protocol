@@ -414,18 +414,54 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
     devDependencies:
+      '@esbuild-plugins/node-globals-polyfill':
+        specifier: ^0.2.3
+        version: 0.2.3(esbuild@0.19.5)
+      '@rollup/plugin-typescript':
+        specifier: ^11.1.5
+        version: 11.1.5(rollup@4.6.1)(tslib@2.6.2)(typescript@5.3.2)
       '@types/node':
         specifier: ^20.10.2
         version: 20.10.4
+      '@typescript-eslint/eslint-plugin':
+        specifier: ^6.7.3
+        version: 6.7.4(@typescript-eslint/parser@6.7.4)(eslint@8.55.0)(typescript@5.3.2)
+      eslint:
+        specifier: ^8.50.0
+        version: 8.55.0
+      eslint-config-standard-with-typescript:
+        specifier: ^39.1.0
+        version: 39.1.0(@typescript-eslint/eslint-plugin@6.7.4)(eslint-plugin-import@2.28.1)(eslint-plugin-n@16.1.0)(eslint-plugin-promise@6.1.1)(eslint@8.55.0)(typescript@5.3.2)
+      eslint-plugin-import:
+        specifier: ^2.25.2
+        version: 2.28.1(@typescript-eslint/parser@6.7.4)(eslint@8.55.0)
+      eslint-plugin-n:
+        specifier: '^15.0.0 || ^16.0.0 '
+        version: 16.1.0(eslint@8.55.0)
+      eslint-plugin-promise:
+        specifier: ^6.0.0
+        version: 6.1.1(eslint@8.55.0)
+      eslint-plugin-vitest:
+        specifier: ^0.3.26
+        version: 0.3.26(@typescript-eslint/eslint-plugin@6.7.4)(eslint@8.55.0)(typescript@5.3.2)(vitest@0.34.6)
       prettier:
         specifier: ^3.0.3
         version: 3.2.5
       rimraf:
         specifier: ^5.0.5
         version: 5.0.5
+      rollup:
+        specifier: ^4.6.1
+        version: 4.6.1
+      rollup-plugin-polyfill-node:
+        specifier: ^0.13.0
+        version: 0.13.0(rollup@4.6.1)
       ts-node:
         specifier: ^10.9.1
         version: 10.9.1(@types/node@20.10.4)(typescript@5.3.2)
+      tslib:
+        specifier: ^2.6.2
+        version: 2.6.2
       typescript:
         specifier: 5.3.2
         version: 5.3.2
