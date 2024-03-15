@@ -70,7 +70,6 @@ func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string,
 	}
 
 	vk, err := LoadVerifyingKey(vkPath)
-
 	if err != nil {
 		return nil, err
 	}
