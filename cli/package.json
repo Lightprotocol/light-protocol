@@ -19,6 +19,7 @@
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/account.rs": "workspace:*",
     "@lightprotocol/zk.js": "workspace:*",
+    "@lightprotocol/stateless.js": "workspace:*",
     "@oclif/core": "^2.15",
     "@oclif/plugin-autocomplete": "^2.3.8",
     "@oclif/plugin-help": "^5.2.15",

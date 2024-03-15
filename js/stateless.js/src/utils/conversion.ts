@@ -55,8 +55,8 @@ export function pushUniqueItems<T>(items: T[], map: T[]): void {
 }
 
 export function toCamelCase(
-  obj: Array<any> | Object | any,
-): Array<any> | Object | any {
+  obj: Array<any> | unknown | any,
+): Array<any> | unknown | any {
   if (Array.isArray(obj)) {
     return obj.map((v) => toCamelCase(v));
   } else if (obj !== null && obj.constructor === Object) {

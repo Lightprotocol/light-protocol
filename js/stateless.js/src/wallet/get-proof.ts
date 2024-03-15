@@ -41,7 +41,7 @@ export async function getProofInternal({
   verifierIdl: Idl;
   firstPath: string;
   circuitName?: string;
-  getProver?: Function;
+  getProver?: any;
   verify?: boolean;
   enableLogging?: boolean;
   wasmTester?: WasmTester;

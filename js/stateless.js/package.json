@@ -2,8 +2,22 @@
   "name": "@lightprotocol/stateless.js",
   "version": "0.0.1",
   "description": "The Light Protocol core client library.",
-  "main": "lib/index.js",
+  "sideEffects": false,
   "type": "module",
+  "main": "./dist/umd/index.js",
+  "module": "./dist/es/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/main/index.d.ts",
+      "import": "./dist/es/index.js",
+      "default": "./dist/cjs/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "pnpm run test-validator:silent && pnpm test:program",
     "test-all": "vitest run",
@@ -14,9 +28,11 @@
     "test:serialize": "vitest run tests/e2e/serialization.test.ts",
     "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "rimraf lib && pnpm run pull-idls && pnpm tsc",
     "pull-idls": "../../scripts/push-stateless-js-idls.sh",
-    "format": "prettier --write ."
+    "build": "rimraf dist && pnpm run pull-idls && pnpm build:bundle",
+    "build:bundle": "rollup -c --bundleConfigAsCjs",
+    "format": "prettier --write .",
+    "lint": "eslint ."
   },
   "keywords": [
     "zk",
@@ -26,10 +42,22 @@
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
     "@types/node": "^20.10.2",
+    "@typescript-eslint/eslint-plugin": "^6.7.3",
+    "eslint": "^8.50.0",
+    "eslint-config-standard-with-typescript": "^39.1.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+    "eslint-plugin-promise": "^6.0.0",
+    "eslint-plugin-vitest": "^0.3.26",
     "prettier": "^3.0.3",
     "rimraf": "^5.0.5",
+    "rollup": "^4.6.1",
+    "rollup-plugin-polyfill-node": "^0.13.0",
     "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
     "typescript": "5.3.2",
     "vitest": "^0.34.6"
   },
