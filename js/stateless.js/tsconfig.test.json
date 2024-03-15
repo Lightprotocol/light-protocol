@@ -4,5 +4,5 @@
     "rootDirs": ["src", "tests"]
   },
   "extends": "./tsconfig.json",
-  "include": ["./tests/**/*.ts"]
+  "include": ["./tests/**/*.ts", "vitest.config.ts"]
 }

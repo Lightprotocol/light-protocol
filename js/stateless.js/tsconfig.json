@@ -15,5 +15,5 @@
     "types": ["vitest/importMeta", "node"],
     "skipLibCheck": true
   },
-  "include": ["./src/**/*.ts"]
+  "include": ["./src/**/*.ts", "rollup.config.js"]
 }

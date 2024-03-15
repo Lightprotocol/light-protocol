@@ -243,7 +243,7 @@ async function getTransactionsBatch({
       signatures[0].signature,
     );
     try {
-      let txsBatch: any = await connection.getParsedTransactions(
+      const txsBatch: any = await connection.getParsedTransactions(
         signatures
           .slice(index, index + signaturesPerRequest)
           .map((sig) => sig.signature),
