@@ -1,19 +1,19 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "outDir": "./lib",
-    "rootDir": "src",
-    "baseUrl": "src",
+    "importHelpers": true,
+    "outDir": "./dist",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
+    "declaration": true,
+    "declarationDir": "dist/types",
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Node",
     "lib": ["ESNext"],
     "types": ["vitest/importMeta", "node"],
-    "skipLibCheck": true,
-    "declaration": true
+    "skipLibCheck": true
   },
   "include": ["./src/**/*.ts"]
 }
