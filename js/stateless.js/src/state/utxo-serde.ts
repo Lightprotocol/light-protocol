@@ -6,39 +6,22 @@ import {
   addMerkleContextToUtxo,
   createUtxo,
 } from './utxo';
-import { TlvSerial, deserializeTlv, serializeTlv } from './utxo-data';
+import { deserializeTlv, serializeTlv } from './utxo-data';
 import { bufToDecStr, hashToBn254FieldSizeLe } from '../utils/conversion';
 import { BN254, bn, createBN254 } from './BN254';
 import { BN } from '@coral-xyz/anchor';
-
-export type InUtxoSerializable = {
-  owner: number;
-  leafIndex: number;
-  lamports: number;
-  data: TlvSerial | null;
-};
-
-export type OutUtxoSerializable = {
-  owner: number;
-  lamports: number;
-  data: TlvSerial | null;
-};
-
-export type InUtxoSerializableTuple = {
-  inUtxoSerializable: InUtxoSerializable;
-  indexMtAccount: number;
-  indexNullifierArrayAccount: number;
-};
-
-export type OutUtxoSerializableTuple = {
-  outUtxoSerializable: OutUtxoSerializable; // field names have to match onchain
-  indexMtAccount: number;
-};
+import {
+  InUtxoSerializableTuple_IdlType,
+  InUtxoSerializable_IdlType,
+  OutUtxoSerializableTuple,
+  OutUtxoSerializable_IdlType,
+  Tlv_IdlType,
+} from './types';
 
 export class UtxoSerde {
   pubkeyArray: PublicKey[];
   u64Array: BN[]; // TODO: check encoding
-  inUtxos: InUtxoSerializableTuple[];
+  inUtxos: InUtxoSerializableTuple_IdlType[];
   outUtxos: OutUtxoSerializableTuple[];
 
   constructor() {
@@ -50,7 +33,7 @@ export class UtxoSerde {
   addinputUtxos(
     utxosToAdd: Utxo[],
     accounts: PublicKey[],
-    leafIndices: number[],
+    leafIndices: BN[],
     inputUtxoMerkleTreePubkeys: PublicKey[],
     nullifierArrayPubkeys: PublicKey[],
   ): UtxoSerde {
@@ -65,7 +48,7 @@ export class UtxoSerde {
       throw new Error('ArrayLengthMismatch');
     }
 
-    const utxos: InUtxoSerializableTuple[] = [];
+    const utxos: InUtxoSerializableTuple_IdlType[] = [];
     const merkleTreeIndices = new Map<string, number>();
     const nullifierIndices = new Map<string, number>();
 
@@ -85,11 +68,12 @@ export class UtxoSerde {
         ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
-      const inputUtxoSerializable: InUtxoSerializable = {
+      const inputUtxoSerializable: InUtxoSerializable_IdlType = {
         owner,
-        leafIndex: leafIndices[i],
+        leafIndex: leafIndices[i].toNumber(),
         lamports,
         data,
+        address: utxo.address,
       };
 
       // Calculate indices for merkle tree and nullifier array pubkeys
@@ -155,22 +139,21 @@ export class UtxoSerde {
                 pubkey.equals(utxo.owner),
               ) + accounts.length
             : this.pubkeyArray.push(utxo.owner) - 1 + accounts.length;
-      const lamportsIndex = this.u64Array.findIndex(
-        (l) => l === bn(utxo.lamports),
-      );
+      const lamportsIndex = this.u64Array.findIndex((l) => l === utxo.lamports);
       const lamports =
         lamportsIndex >= 0
           ? lamportsIndex
-          : this.u64Array.push(bn(utxo.lamports)) - 1;
+          : this.u64Array.push(utxo.lamports) - 1;
 
       const data = utxo.data
         ? serializeTlv(utxo.data, this.pubkeyArray, accounts)
         : null;
 
-      const outputUtxoSerializable: OutUtxoSerializable = {
+      const outputUtxoSerializable: OutUtxoSerializable_IdlType = {
         owner,
-        lamports,
+        lamports: lamports,
         data,
+        address: utxo.address,
       };
 
       // Calc index for merkle tree pubkey
@@ -206,7 +189,7 @@ export class UtxoSerde {
     hasher: LightWasm,
     accounts: PublicKey[],
     merkleTreeAccounts: PublicKey[],
-    stateNullifierQueues: PublicKey[],
+    nullifierQueues: PublicKey[],
   ): Promise<UtxoWithMerkleContext[]> {
     const inUtxos: UtxoWithMerkleContext[] = [];
 
@@ -240,9 +223,7 @@ export class UtxoSerde {
         utxoHash,
         merkleTreeAccounts[inputUtxoSerializableTuple.indexMtAccount],
         inputUtxo.leafIndex,
-        stateNullifierQueues[
-          inputUtxoSerializableTuple.indexNullifierArrayAccount
-        ],
+        nullifierQueues[inputUtxoSerializableTuple.indexNullifierArrayAccount],
       );
 
       inUtxos.push(utxoWithMerkleContext);
@@ -291,39 +272,35 @@ export class UtxoSerde {
 const computeBlinding = async (
   hasher: LightWasm,
   merkleTreePublicKey: PublicKey,
-  leafIndex: number,
+  leafIndex: BN,
 ): Promise<BN254> => {
   /// ensure <254-bit
   const mtHash = await hashToBn254FieldSizeLe(merkleTreePublicKey.toBuffer());
   if (!mtHash) throw new Error('Failed to hash merkle tree public key');
 
   const mtPubkeyDecStr = bufToDecStr(mtHash[0]);
-  const leafIndexDecStr = bn(leafIndex).toString();
+  const leafIndexDecStr = leafIndex.toString();
 
   const hashStr = hasher.poseidonHashString([mtPubkeyDecStr, leafIndexDecStr]);
   return createBN254(hashStr);
 };
 
-/// TODO: bunch of redundant conversions. optimize.
+/// TODO: bunch of redundant conversions. optimize. add unit test.
 /**
  * Hashes a UTXO preimage. Hash inputs: owner, blinding(merkleTree,leafIndex),
  * lamports, tlvDataHash
  *
  * async for browser crypto.digest support */
-async function createUtxoHash(
+export async function createUtxoHash(
   hasher: LightWasm,
   utxo: Utxo,
   merkleTree: PublicKey,
-  leafIndex: number,
+  leafIndex: number | BN,
 ): Promise<BN254> {
   const { owner, lamports, data } = utxo;
 
   /// hash all tlv elements into a single hash
-  const tlvDataHash = data
-    ? hasher.poseidonHashString(
-        data.tlvElements.map((d) => d.dataHash.toString()),
-      )
-    : bn(0).toString();
+  const tlvDataHash = computeTlvDataHash(data, hasher);
 
   /// ensure <254-bit
   const ownerHash = await hashToBn254FieldSizeLe(owner.toBuffer());
@@ -333,7 +310,7 @@ async function createUtxoHash(
   const lamportsDecStr = bn(lamports).toString();
 
   const blindingDecStr = (
-    await computeBlinding(hasher, merkleTree, leafIndex)
+    await computeBlinding(hasher, merkleTree, bn(leafIndex))
   ).toString();
 
   const hash = hasher.poseidonHashString([
@@ -343,4 +320,15 @@ async function createUtxoHash(
     tlvDataHash,
   ]);
   return createBN254(hash);
+}
+
+export function computeTlvDataHash(
+  data: Tlv_IdlType | null,
+  hasher: LightWasm,
+) {
+  return data
+    ? hasher.poseidonHashString(
+        data.tlvElements.map((d) => d.dataHash.toString()),
+      )
+    : bn(0).toString();
 }

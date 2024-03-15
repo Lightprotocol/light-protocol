@@ -10,22 +10,25 @@ import {
   ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
-  MockProof,
   bn,
   byteArrayToKeypair,
   confirmTx,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
-  UtxoWithBlinding,
   getMockRpc,
+  Utxo_IdlType,
+  TlvDataElement_IdlType,
+  CompressedProof_IdlType,
+  buildAndSignTx,
 } from '@lightprotocol/stateless.js';
-import {
-  TokenTransferOutUtxo,
-  createTransferInstruction,
-} from '../../src/instructions/transfer';
+import { createTransferInstruction } from '../../src/instructions/transfer';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
-import { createMint, mintTo } from '../../src/actions';
+import { createMint, mintTo, transfer } from '../../src/actions';
+import {
+  TokenTlvData_IdlType,
+  TokenTransferOutUtxo_IdlType,
+} from '../../src/types';
 
 /// Asserts that createMint() creates a new spl mint account + the respective system pool account
 async function assertMintCreated(
@@ -65,7 +68,7 @@ async function assertMintCreated(
 describe('Compressed Token Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
-  const queue = keys.stateNullifierQueue;
+  const queue = keys.nullifierQueue;
   const payer = byteArrayToKeypair([
     122, 239, 192, 18, 21, 29, 237, 120, 104, 95, 247, 150, 181, 218, 207, 60,
     158, 110, 200, 246, 74, 226, 30, 223, 142, 138, 133, 194, 30, 254, 132, 236,
@@ -195,30 +198,29 @@ describe('Compressed Token Program test', () => {
     /// TODO: assert output utxos after implementing proper beet serde
   });
   /// TODO: refactor
-  type TokenTlvData = {
-    mint: PublicKey;
-    owner: PublicKey;
-    amount: BN;
-    delegate: PublicKey | null;
-    state: number;
-    isNative: null;
-    delegatedAmount: BN;
-  };
 
-  type TlvDataElement = {
-    discriminator: Uint8Array;
-    owner: PublicKey;
-    data: Uint8Array;
-    dataHash: BN;
-  };
+  it('should transfer using "transfer" action ', async () => {
+    const txId = await transfer(
+      connection,
+      payer,
+      randomMint.publicKey,
+      100,
+      bob,
+      charlie.publicKey,
+      merkleTree,
+    );
+    console.log(
+      `bob (${bob.publicKey.toBase58()}) transferred ${100} tokens (mint: ${randomMint.publicKey.toBase58()}) to charlie (${charlie.publicKey.toBase58()}) \n txId: ${txId}`,
+    );
+  });
 
   it('should transfer n mint to charlie', async () => {
-    const tlv: TokenTlvData = {
+    const tlv: TokenTlvData_IdlType = {
       mint: randomMint.publicKey,
       owner: bob.publicKey,
       amount: bn(1000 + transferAmount),
       delegate: null,
-      state: 0x01, //'Initialized',
+      state: 1, //'Initialized',
       isNative: null,
       delegatedAmount: bn(0),
     };
@@ -228,35 +230,36 @@ describe('Compressed Token Program test', () => {
       tlv,
     );
 
-    const tlvDataElement: TlvDataElement = {
-      discriminator: Uint8Array.from({ length: 8 }, () => 2),
+    const tlvDataElement: TlvDataElement_IdlType = {
+      discriminator: Array(8).fill(2),
       owner: bob.publicKey,
       data: Uint8Array.from(tlvData),
-      dataHash: bn(Uint8Array.from({ length: 32 }, () => 0)), // mock
+      dataHash: Array(32).fill(0), // mock
     };
 
-    const inUtxo: UtxoWithBlinding = {
+    const inUtxo: Utxo_IdlType = {
       owner: bob.publicKey,
       blinding: Array.from({ length: 32 }, () => 0),
       lamports: new BN(0),
       data: { tlvElements: [tlvDataElement] },
+      address: null,
     };
 
-    const changeUtxo: TokenTransferOutUtxo = {
+    const changeUtxo: TokenTransferOutUtxo_IdlType = {
       amount: bn(1000),
       owner: bob.publicKey,
       lamports: null,
       index_mt_account: 0,
     };
 
-    const charlieOutUtxo: TokenTransferOutUtxo = {
+    let charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
       amount: bn(transferAmount),
       owner: charlie.publicKey,
       lamports: null,
       index_mt_account: 0,
     };
 
-    const proof_mock: MockProof = {
+    const proof_mock: CompressedProof_IdlType = {
       a: Array.from({ length: 32 }, () => 0),
       b: Array.from({ length: 64 }, () => 0),
       c: Array.from({ length: 32 }, () => 0),
@@ -279,20 +282,16 @@ describe('Compressed Token Program test', () => {
       ix,
     ];
     const { blockhash } = await connection.getLatestBlockhash();
-    const messageV0 = new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: ixs,
-    }).compileToV0Message();
-    const tx = new VersionedTransaction(messageV0);
-    tx.sign([payer, bob]);
 
-    const txId = await sendAndConfirmTx(connection, tx);
+    const signedTx = buildAndSignTx(ixs, payer, blockhash, [bob]);
+
+    const txId = await sendAndConfirmTx(connection, signedTx);
+
     console.log(
       `bob (${bob.publicKey.toBase58()}) transferred ${transferAmount} tokens (mint: ${randomMint.publicKey.toBase58()}) to charlie (${charlie.publicKey.toBase58()}) \n txId: ${txId}`,
     );
-    const mockRpc = getMockRpc(connection);
-    const indexedEvents = await mockRpc.getIndexedEvents();
-    assert.equal(indexedEvents.length, 2);
+    const mockRpc = await getMockRpc(connection);
+    const indexedEvents = await mockRpc.getParsedEvents();
+    assert.equal(indexedEvents.length, 3);
   });
 });

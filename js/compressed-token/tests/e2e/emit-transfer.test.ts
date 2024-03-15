@@ -5,15 +5,14 @@ import {
   TransactionMessage,
   VersionedTransaction,
   Keypair,
-  PublicKey,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
 
 import {
+  CompressedProof_IdlType,
   FIELD_SIZE,
-  MockProof,
-  TlvDataElement,
-  UtxoWithBlinding,
+  TlvDataElement_IdlType,
+  Utxo_IdlType,
   bn,
   byteArrayToKeypair,
   confirmTx,
@@ -21,22 +20,12 @@ import {
   sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../src/program';
-import {
-  TokenTransferOutUtxo,
-  createTransferInstruction,
-} from '../../src/instructions/transfer';
+import { createTransferInstruction } from '../../src/instructions/transfer';
 import { BN } from '@coral-xyz/anchor';
-import * as crypto from 'crypto';
-
-type TokenTlvData = {
-  mint: PublicKey;
-  owner: PublicKey;
-  amount: BN;
-  delegate: PublicKey | null;
-  state: number;
-  isNative: null;
-  delegatedAmount: BN;
-};
+import {
+  TokenTlvData_IdlType,
+  TokenTransferOutUtxo_IdlType,
+} from '../../src/types';
 
 /// static testing key. don't use in prod.
 const FIXED_PAYER = byteArrayToKeypair([
@@ -81,7 +70,7 @@ const transferRounds = 1;
 describe('Emit events for transfer', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
-  const queue = keys.stateNullifierQueue;
+  const queue = keys.nullifierQueue;
   const payer = FIXED_PAYER;
   const bob = FIXED_BOB;
   const charlie = Keypair.generate(); // rand
@@ -99,7 +88,7 @@ describe('Emit events for transfer', () => {
   /// events in a loop
   it('should transfer bob -> charlie', async () => {
     for (let i = 0; i < transferRounds; i++) {
-      const tlv: TokenTlvData = {
+      const tlv: TokenTlvData_IdlType = {
         mint: FIXED_MINT.publicKey,
         owner: bob.publicKey,
         amount: bn(1000 + transferAmount * mintDecimals), // 1000 is the mocked input balance - transferAmount
@@ -114,35 +103,36 @@ describe('Emit events for transfer', () => {
         tlv,
       );
 
-      const tlvDataElement: TlvDataElement = {
-        discriminator: Uint8Array.from({ length: 8 }, () => 2),
+      const tlvDataElement: TlvDataElement_IdlType = {
+        discriminator: Array(8).fill(2),
         owner: bob.publicKey,
         data: Uint8Array.from(tlvData),
-        dataHash: bn(Uint8Array.from({ length: 32 }, () => 0)), // mock
+        dataHash: Array(32).fill(0), // mock!
       };
 
-      const inUtxo: UtxoWithBlinding = {
+      const inUtxo: Utxo_IdlType = {
         owner: bob.publicKey,
         blinding: rndMockedBlinding(),
         lamports: new BN(0),
         data: { tlvElements: [tlvDataElement] },
+        address: null,
       };
 
-      const changeUtxo: TokenTransferOutUtxo = {
+      const changeUtxo: TokenTransferOutUtxo_IdlType = {
         amount: bn(1000),
         owner: bob.publicKey,
         lamports: null,
         index_mt_account: 0,
       };
 
-      const charlieOutUtxo: TokenTransferOutUtxo = {
+      let charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
         amount: bn(transferAmount * mintDecimals),
         owner: charlie.publicKey,
         lamports: null,
         index_mt_account: 0,
       };
 
-      const proof_mock: MockProof = {
+      const proof_mock: CompressedProof_IdlType = {
         a: Array.from({ length: 32 }, () => 0),
         b: Array.from({ length: 64 }, () => 0),
         c: Array.from({ length: 32 }, () => 0),

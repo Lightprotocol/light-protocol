@@ -1,307 +1,316 @@
 import {
-  ConfirmOptions,
   Connection,
-  Keypair,
+  ParsedMessageAccount,
+  ParsedTransactionWithMeta,
   PublicKey,
-  TransactionConfirmationStrategy,
-  TransactionInstruction,
-  TransactionSignature,
 } from '@solana/web3.js';
-import { AnchorProvider, BN, Program } from '@coral-xyz/anchor';
+import { LightWasm, WasmFactory } from '@lightprotocol/account.rs';
+import {
+  defaultStaticAccountsStruct,
+  defaultTestStateTreeAccounts,
+} from '../constants';
+import { parseEvents, parsePublicTransactionEventWithIdl } from './parse-event';
+import { MerkleTree } from './merkle-tree';
+import {
+  CompressionApiInterface,
+  GetUtxoConfig,
+  WithMerkleUpdateContext,
+} from '../rpc-interface';
+import {
+  BN254,
+  MerkleContextWithMerkleProof,
+  PublicTransactionEvent_IdlType,
+  UtxoWithMerkleContext,
+  Utxo_IdlType,
+  createBN254,
+  createUtxoHash,
+  createUtxoWithMerkleContext,
+} from '../state';
+import { BN } from '@coral-xyz/anchor';
 
-import { LightWasm } from '@lightprotocol/account.rs';
+/**
+ * Returns a mock rpc instance. use for unit tests
+ *
+ * @param connection connection to the solana cluster (use for localnet only)
+ * @param merkleTreeAddress address of the state tree to index. Defaults to the
+ * public default test state tree.
+ * @param lightWasm light wasm hasher instance
+ */
+export async function getMockRpc(
+  connection: Connection,
+  lightWasm?: LightWasm,
+  merkleTreeAddress?: PublicKey,
+) {
+  if (!lightWasm) lightWasm = await WasmFactory.getInstance();
 
-import { fetchRecentPublicTransactions } from './index-transaction';
-
-import { merkleTreeProgramId } from '../constants';
-import { IDL } from '../idls/account_compression';
-import { GetUtxoConfig, WithMerkleUpdateContext } from '../rpc-interface';
-import { UtxoWithMerkleContext, BN254 } from '../state';
-
-export function getMockRpc(connection: Connection) {
   return new MockRpc({
     connection,
+    lightWasm: lightWasm!,
+    merkleTreeAddress,
   });
 }
 
-export class MockRpc {
+/**
+ * Simple mock rpc for unit tests that simulates the compression rpc interface.
+ * Fetches, parses events and builds merkletree on-demand, i.e. it does not persist state.
+ * Constraints:
+ * - Can only index 1 merkletree
+ * - Can only index up to 1000 transactions
+ *
+ * For advanced testing use photon: https://github.com/helius-labs/photon
+ */
+export class MockRpc implements CompressionApiInterface {
   indexedTransactions: any[] = [];
   connection: Connection;
-  // merkleTrees: SolMerkleTree[] = [];
-  // lightWasm: LightWasm;
-  // accountCompressionProgram: Program<any>;
-  constructor({
-    connection, // lightWasm,
-    /// TODO: implement once we enable ZKP verification
-    // _merkleTreeAccount,
-  }: {
-    // _merkleTreeAccount?: PublicKey;
-
-    connection: Connection;
-    // lightWasm: LightWasm;
-  }) {
-    this.connection = connection;
-
-    // const solMerkleTree = new SolMerkleTree({
-    //   lightWasm,
-    //   pubkey: merkleTreeAccount,
-    // });
-    // this.merkleTrees.push(solMerkleTree);
-    // this.lightWasm = lightWasm;
-    // this.accountCompressionProgram = new Program(
-    //   // @ts-ignore: idl is broken
-    //   IDL,
-    //   merkleTreeProgramId,
-    //   new AnchorProvider(connection, {} as any, {}) // doesnt support browser
-    // );
-  }
-
-  /// TODO: make implement rpc-interface
-  // async getUtxosByOwner(
-  //   utxoHash: BN254,
-  //   _config?: GetUtxoConfig
-  // ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[] | null> {
-  //   // get indexed transactions
-  //   const parsedtxs = await fetchRecentPublicTransactions({
-  //     connection: this.connection,
-  //     batchOptions: {
-  //       limit: 1000,
-  //     },
-  //   });
-
-  //   if (res.result.value === null) {
-  //     return null;
-  //   }
-
-  //   const context: MerkleUpdateContext = {
-  //     slotUpdated: res.result.value.slotUpdated,
-  //     seq: res.result.value.seq,
-  //   };
-
-  //   const value: UtxoWithMerkleContext = {
-  //     owner: res.result.value.owner,
-  //     lamports: res.result.value.lamports,
-  //     data: res.result.value.data,
-  //     hash: utxoHash,
-  //     merkleTree: res.result.value.merkleTree,
-  //     leafIndex: res.result.value.leafIndex,
-  //     address: res.result.value.address,
-  //     stateNullifierQueue: res.result.value.stateNullifierQueue,
-  //   };
-
-  //   return { context, value };
-  // }
+  merkleTreeAddress: PublicKey;
+  nullifierQueueAddress: PublicKey;
+  lightWasm: LightWasm;
+  depth: number;
 
   /**
-   * Indexes light transactions by:
-   * - getting all signatures the merkle tree was involved in
-   * - trying to extract and parse event cpi for every signature's transaction
-   * - if there are indexed transactions already in the rpc object only transactions after the last indexed event are indexed
+   * Instantiate a mock RPC simulating the compression rpc interface.
+   *
+   * @param connection            connection to the solana cluster (use for
+   *                              localnet only)
+   * @param lightWasm             light wasm hasher instance
+   * @param merkleTreeAddress     address of the state tree to index. Defaults
+   *                              to the public default test state tree.
+   * @param nullifierQueueAddress address of the nullifier queue belonging to
+   *                              the state tree to index. Defaults to the
+   *                              public default test nullifier queue.
+   * @param depth                 depth of tree. Defaults to the public default
+   *                              test state tree depth.
    */
-  async getIndexedEvents(): Promise<any[]> {
-    // const merkleTreeAccountInfo = await connection.getAccountInfo(
-    //   this.accounts.merkleTreeAccount,
-    //   "confirmed",
-    // );
-    // if (!merkleTreeAccountInfo)
-    //   throw new Error("Failed to fetch merkle tree account");
-    // const coder = new BorshAccountsCoder(IDL_LIGHT_MERKLE_TREE_PROGRAM);
-    // const merkleTreeAccount = coder.decode(
-    //   "merkleTreeAccount",
-    //   merkleTreeAccountInfo.data,
-    // );
-    // const stateMerkleTree = serializeOnchainMerkleTree(
-    //   merkleTreeAccount.stateMerkleTree,
-    // );
-
-    // limits the number of signatures which are queried
-    // if the number is too low it is not going to index all transactions
-    // hence the dependency on the merkle tree account index times 260 transactions
-    // which is approximately the number of transactions sent to send one compressed transaction and update the merkle tree
-    const limit = 1000; //+ 260 * stateMerkleTree.nextIndex.toNumber();
-    // if (this.indexedTransactions.length === 0) {
-    const { transactions: newTransactions } =
-      await fetchRecentPublicTransactions({
-        connection: this.connection,
-        batchOptions: {
-          limit,
-        },
-      });
-    this.indexedTransactions = newTransactions;
-    return this.indexedTransactions;
-    // }
-    // else {
-    //   if (this.indexedTransactions.length === 0) return [];
-
-    //   const mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
-    //     (a.transaction as ParsedIndexedTransaction).blockTime >
-    //     (b.transaction as ParsedIndexedTransaction).blockTime
-    //       ? a
-    //       : b
-    //   );
-
-    //   const { transactions: newTransactions } = await fetchRecentTransactions({
-    //     connection,
-    //     batchOptions: {
-    //       limit,
-    //       until: (mostRecentTransaction.transaction as ParsedIndexedTransaction)
-    //         .signature,
-    //     },
-    //   });
-    //   this.indexedTransactions = [
-    //     ...this.indexedTransactions,
-    //     ...newTransactions,
-    //   ];
-    //   return this.indexedTransactions;
-    // }
+  constructor({
+    connection,
+    lightWasm,
+    merkleTreeAddress,
+    nullifierQueueAddress,
+    depth,
+  }: {
+    connection: Connection;
+    lightWasm: LightWasm;
+    merkleTreeAddress?: PublicKey;
+    nullifierQueueAddress?: PublicKey;
+    depth?: number;
+  }) {
+    const { merkleTree, nullifierQueue, merkleTreeHeight } =
+      defaultTestStateTreeAccounts();
+    this.connection = connection;
+    this.merkleTreeAddress = merkleTreeAddress ?? merkleTree;
+    this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
+    this.lightWasm = lightWasm;
+    this.depth = depth ?? merkleTreeHeight;
   }
 
-  // async syncMerkleTree(
-  //   merkleTreePubkey: PublicKey,
-  //   indexedTransactions: ParsedIndexedTransaction[]
-  // ): Promise<SolMerkleTree> {
-  //   const solMerkleTreeIndex = this.merkleTrees.findIndex((tree) =>
-  //     tree.pubkey.equals(merkleTreePubkey)
-  //   );
-  //   const rebuiltMt = await SolMerkleTree.build({
-  //     lightWasm: this.lightWasm,
-  //     pubkey: merkleTreePubkey,
-  //     indexedTransactions,
-  //   });
-  //   this.merkleTrees[solMerkleTreeIndex] = rebuiltMt;
-  //   return rebuiltMt;
-  // }
+  /**
+   * @internal
+   * Returns newest first
+   * */
+  async getParsedEvents(): Promise<PublicTransactionEvent_IdlType[]> {
+    const { connection } = this;
+    const { noopProgram, accountCompressionProgram } =
+      defaultStaticAccountsStruct();
 
-  // async getEventById(
-  //   merkleTreePdaPublicKey: PublicKey,
-  //   id: string,
-  //   _variableNameID: number
-  // ): Promise<RpcIndexedTransactionResponse | undefined> {
-  //   const indexedTransactions = await this.getIndexedEvents(
-  //     this.connection
-  //   );
-  //   const indexedTransaction = indexedTransactions.find((trx) =>
-  //     trx.IDs.includes(id)
-  //   )?.transaction;
-  //   if (!indexedTransaction) return undefined;
-  //   const merkleTree = await this.syncMerkleTree(
-  //     merkleTreePdaPublicKey,
-  //     indexedTransactions.map(
-  //       (trx) => trx.transaction as ParsedIndexedTransaction
-  //     )
-  //   );
-  //   return createRpcIndexedTransactionResponse(
-  //     indexedTransaction as ParsedIndexedTransaction,
-  //     merkleTree
-  //   );
-  // }
+    /// Get raw transactions
+    const signatures = (
+      await connection.getConfirmedSignaturesForAddress2(
+        accountCompressionProgram,
+        undefined,
+        'confirmed',
+      )
+    ).map((s) => s.signature);
+    const txs = await connection.getParsedTransactions(signatures, {
+      maxSupportedTransactionVersion: 0,
+      commitment: 'confirmed',
+    });
 
-  // async getEventsByIdBatch(
-  //   ids: string[],
-  //   variableNameID: number
-  // ): Promise<RpcIndexedTransactionResponse[] | undefined> {
-  //   const indexedTransactions = await this.getIndexedEvents(
-  //     this.connection
-  //   );
-  //   const indexedTransactionsById = indexedTransactions.filter((trx) =>
-  //     trx.IDs.some((id) => ids.includes(id))
-  //   );
-  //   const merkleTree = await this.syncMerkleTree(
-  //     this.accounts.merkleTreeAccount,
-  //     indexedTransactions.map(
-  //       (trx) => trx.transaction as ParsedIndexedTransaction
-  //     )
-  //   );
-  //   return indexedTransactionsById.map((trx) =>
-  //     createRpcIndexedTransactionResponse(
-  //       trx.transaction as ParsedIndexedTransaction,
-  //       merkleTree
-  //     )
-  //   );
-  // }
+    /// Filter by NOOP program
+    const transactionEvents = txs.filter(
+      (tx: ParsedTransactionWithMeta | null) => {
+        if (!tx) {
+          return false;
+        }
+        const accountKeys = tx.transaction.message.accountKeys;
 
-  // async getMerkleProofByIndexBatch(
-  //   indexes: number[]
-  // ): Promise<
-  //   { merkleProofs: string[][]; root: string; index: number } | undefined
-  // > {
-  //   const indexedTransactions = await this.getIndexedEvents(
-  //     this.connection
-  //   );
-  //   const merkleTree = await this.syncMerkleTree(
-  //     this.accounts.merkleTreeAccount,
-  //     indexedTransactions.map(
-  //       (trx) => trx.transaction as ParsedIndexedTransaction
-  //     )
-  //   );
-  //   if (!merkleTree) return undefined;
-  //   const rootIndex = await getRootIndex(
-  //     this.accountCompressionProgram,
-  //     merkleTree.pubkey,
-  //     merkleTree.merkleTree.root(),
-  //     "merkleTreeAccount"
-  //   );
+        const hasSplNoopAddress = accountKeys.some(
+          (item: ParsedMessageAccount) => {
+            const itemStr =
+              typeof item === 'string' ? item : item.pubkey.toBase58();
+            return itemStr === noopProgram.toBase58();
+          },
+        );
 
-  //   if (rootIndex === undefined) {
-  //     throw new RpcError(
-  //       TransactionErrorCode.ROOT_NOT_FOUND,
-  //       "getRootIndex",
-  //       `Root index not found for root ${merkleTree.merkleTree.root()}`
-  //     );
-  //   }
-  //   return {
-  //     merkleProofs: indexes.map(
-  //       (index) => merkleTree.merkleTree.path(index).pathElements
-  //     ),
-  //     root: merkleTree.merkleTree.root(),
-  //     index: rootIndex.toNumber(),
-  //   };
-  // }
+        return hasSplNoopAddress;
+      },
+    );
 
-  // async getMerkleRoot(
-  //   merkleTreePubkey: PublicKey
-  // ): Promise<{ root: string; index: number } | undefined> {
-  //   const indexedTransactions = await this.getIndexedEvents(
-  //     this.connection
-  //   );
-  //   const merkleTree = await this.syncMerkleTree(
-  //     this.accounts.merkleTreeAccount,
-  //     indexedTransactions.map(
-  //       (trx) => trx.transaction as ParsedIndexedTransaction
-  //     )
-  //   );
+    /// Parse events
+    const parsedEvents = parseEvents(
+      transactionEvents,
+      parsePublicTransactionEventWithIdl,
+    );
 
-  //   const rootIndex = await getRootIndex(
-  //     this.accountCompressionProgram,
-  //     merkleTreePubkey,
-  //     merkleTree.merkleTree.root(),
-  //     "merkleTreeAccount"
-  //   );
-  //   if (rootIndex === undefined) {
-  //     throw new RpcError(
-  //       TransactionErrorCode.ROOT_NOT_FOUND,
-  //       "getRootIndex",
-  //       `Root index not found for root ${merkleTree.merkleTree.root()}`
-  //     );
-  //   }
-  //   return { root: merkleTree.merkleTree.root(), index: rootIndex.toNumber() };
-  // }
+    return parsedEvents;
+  }
+
+  /**
+   * Retrieve a utxo with context
+   *
+   * Note that it always returns null for MerkleUpdateContext
+   *
+   * @param utxoHash  hash of the utxo to retrieve
+   *
+   * */
+  async getUtxo(
+    utxoHash: BN254,
+    _config?: GetUtxoConfig,
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null> {
+    const events: PublicTransactionEvent_IdlType[] =
+      await this.getParsedEvents();
+
+    let matchingUtxo: Utxo_IdlType | undefined;
+    let matchingLeafIndex: BN | undefined;
+
+    for (const event of events) {
+      const leafIndices = event.outUtxoIndices;
+      /// Note: every input utxo is a output utxo of a previous tx, therefore we
+      /// just have to look at the outUtxos
+      for (const outUtxo of event.outUtxos) {
+        const leafIndex = leafIndices.shift();
+        const utxoHashComputed = await createUtxoHash(
+          this.lightWasm,
+          outUtxo,
+          this.merkleTreeAddress,
+          leafIndex!,
+        );
+        if (utxoHashComputed.toString() === utxoHash.toString()) {
+          matchingUtxo = outUtxo;
+          matchingLeafIndex = leafIndex;
+          break;
+        }
+      }
+      if (matchingUtxo) break;
+    }
+
+    if (!matchingUtxo || !matchingLeafIndex) return null;
+
+    const merkleContext = {
+      merkleTree: this.merkleTreeAddress,
+      nullifierQueue: this.nullifierQueueAddress,
+      hash: utxoHash,
+      leafIndex: matchingLeafIndex,
+    };
+    const utxoWithMerkleContext = createUtxoWithMerkleContext(
+      matchingUtxo.owner,
+      matchingUtxo.lamports,
+      matchingUtxo.data,
+      merkleContext,
+      matchingUtxo.address ?? undefined,
+    );
+
+    return { context: null, value: utxoWithMerkleContext };
+  }
+
+  /**
+   * Retrieve all utxo by owner
+   *
+   * Note that it always returns null for MerkleUpdateContexts
+   *
+   * @param owner Publickey of the owning user or program
+   *
+   * */
+  async getUtxos(
+    owner: PublicKey,
+    _config?: GetUtxoConfig,
+  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]> {
+    const events: PublicTransactionEvent_IdlType[] =
+      await this.getParsedEvents();
+
+    let matchingUtxos: UtxoWithMerkleContext[] = [];
+
+    for (const event of events) {
+      const leafIndices = [...event.outUtxoIndices]; // Clone to prevent mutation
+      for (const outUtxo of event.outUtxos) {
+        const leafIndex = leafIndices.shift();
+        if (!leafIndex) continue; // Safety check
+
+        const utxoHashComputed = await createUtxoHash(
+          this.lightWasm,
+          outUtxo,
+          this.merkleTreeAddress,
+          leafIndex,
+        );
+
+        if (outUtxo.owner.equals(owner)) {
+          const merkleContext = {
+            merkleTree: this.merkleTreeAddress,
+            nullifierQueue: this.nullifierQueueAddress,
+            hash: utxoHashComputed,
+            leafIndex: leafIndex,
+          };
+          const utxoWithMerkleContext = createUtxoWithMerkleContext(
+            outUtxo.owner,
+            outUtxo.lamports,
+            outUtxo.data,
+            merkleContext,
+            outUtxo.address ?? undefined,
+          );
+
+          matchingUtxos.push(utxoWithMerkleContext);
+        }
+      }
+    }
+
+    // Note: MerkleUpdateContext is always null in this mock implementation
+    return matchingUtxos.map((utxo) => ({ context: null, value: utxo }));
+  }
+
+  /** Retrieve the proof for a utxo */
+  async getUtxoProof(
+    utxoHash: BN254,
+  ): Promise<MerkleContextWithMerkleProof | null> {
+    const events: PublicTransactionEvent_IdlType[] =
+      await this.getParsedEvents();
+
+    const utxoHashes = (
+      await Promise.all(
+        events.flatMap((event) =>
+          event.outUtxos.map((utxo, index) =>
+            createUtxoHash(
+              this.lightWasm,
+              utxo,
+              this.merkleTreeAddress,
+              event.outUtxoIndices[index],
+            ),
+          ),
+        ),
+      )
+    ).flat();
+
+    const tree = new MerkleTree(
+      this.depth,
+      this.lightWasm,
+      utxoHashes.map((utxo) => utxo.toString()),
+    );
+
+    /// We can assume that rootIndex = utxoHashes.length - 1
+    /// Because root history array length > 1000
+    const rootIndex = utxoHashes.length - 1;
+    const leafIndex = utxoHashes.indexOf(utxoHash);
+
+    const proof = tree
+      .path(leafIndex)
+      .pathElements.map((proof) => createBN254(proof));
+
+    const value: MerkleContextWithMerkleProof = {
+      hash: utxoHash,
+      merkleTree: this.merkleTreeAddress,
+      leafIndex: leafIndex,
+      merkleProof: proof,
+      nullifierQueue: this.nullifierQueueAddress,
+      rootIndex,
+    };
+    return value;
+  }
 }
-
-// export const createRpcIndexedTransactionResponse = (
-//   indexedTransaction: ParsedIndexedTransaction,
-//   merkleTree: SolMerkleTree
-// ): RpcIndexedTransactionResponse => {
-//   const leavesIndexes = indexedTransaction.leaves.map((leaf) =>
-//     merkleTree.merkleTree.indexOf(new BN(leaf).toString())
-//   );
-//   const merkleProofs = leavesIndexes.map(
-//     (index) => merkleTree.merkleTree.path(index).pathElements
-//   );
-//   const rpcIndexedTransactionResponse: RpcIndexedTransactionResponse = {
-//     transaction: indexedTransaction,
-//     leavesIndexes,
-//     merkleProofs,
-//   };
-//   return rpcIndexedTransactionResponse;
-// };

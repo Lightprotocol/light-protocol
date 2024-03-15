@@ -1,56 +1,17 @@
 import {
-  UtxoWithBlinding,
-  MockProof,
-  InUtxoTuple,
+  CompressedProof_IdlType,
   defaultStaticAccountsStruct,
+  InUtxoTuple_IdlType,
   LightSystemProgram,
+  Utxo_IdlType,
 } from '@lightprotocol/stateless.js';
 import {
   PublicKey,
   TransactionInstruction,
   AccountMeta,
 } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
 import { CompressedTokenProgram } from '../program';
-
-// Implement refactor
-export type TokenTransferOutUtxo = {
-  owner: PublicKey;
-  amount: BN;
-  lamports: BN | null;
-  index_mt_account: number;
-};
-
-enum AccountState {
-  Uninitialized,
-  Initialized,
-  Frozen,
-}
-
-// TODO: beet -> change property names to camelCase
-export type TokenTlvData = {
-  /// The mint associated with this account
-  mint: PublicKey;
-  /// The owner of this account.
-  owner: PublicKey;
-  /// The amount of tokens this account holds.
-  amount: number;
-  /// If `delegate` is `Some` then `delegated_amount` represents
-  /// the amount authorized by the delegate
-  delegate?: PublicKey;
-  /// The account's state
-  state: AccountState;
-  /// If is_some, this is a native token, and the value logs the rent-exempt
-  /// reserve. An Account is required to be rent-exempt, so the value is
-  /// used by the Processor to ensure that wrapped SOL accounts do not
-  /// drop below this threshold.
-  is_native?: number;
-  /// The amount delegated
-  delegated_amount: number;
-  // TODO: validate that we don't need close authority
-  // /// Optional authority to close the account.
-  // close_authority?: PublicKey,
-};
+import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
 
 // NOTE: this is currently akin to createExecuteCompressedInstruction on-chain
 export async function createTransferInstruction(
@@ -59,15 +20,15 @@ export async function createTransferInstruction(
   inUtxoMerkleTreePubkeys: PublicKey[],
   nullifierArrayPubkeys: PublicKey[],
   outUtxoMerkleTreePubkeys: PublicKey[],
-  inUtxos: UtxoWithBlinding[],
-  outUtxos: TokenTransferOutUtxo[], // tlv missing
+  inUtxos: Utxo_IdlType[],
+  outUtxos: TokenTransferOutUtxo_IdlType[], // tlv missing
   rootIndices: number[],
-  proof: MockProof,
+  proof: CompressedProof_IdlType,
 ): Promise<TransactionInstruction> {
   const outputUtxos = outUtxos.map((utxo) => ({ ...utxo }));
   const remainingAccountsMap = new Map<PublicKey, number>();
-  const inUtxosWithIndex: InUtxoTuple[] = [];
-  const inUtxoTlvData: TokenTlvData[] = [];
+  const inUtxosWithIndex: InUtxoTuple_IdlType[] = [];
+  const inUtxoTlvData: TokenTlvData_IdlType[] = [];
 
   const coder = CompressedTokenProgram.program.coder;
 
@@ -76,7 +37,7 @@ export async function createTransferInstruction(
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
     }
     const inUtxo = inUtxos[i];
-    const tokenTlvData: TokenTlvData = coder.types.decode(
+    const tokenTlvData: TokenTlvData_IdlType = coder.types.decode(
       'TokenTlvData',
       Buffer.from(inUtxo.data!.tlvElements[0].data), // FIXME: handle null
     );

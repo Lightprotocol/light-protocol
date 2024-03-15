@@ -1,5 +1,10 @@
 import { describe, it, expect, assert, beforeAll } from 'vitest';
-import { createUtxo } from '../../src/state';
+import {
+  CompressedProof_IdlType,
+  Utxo,
+  Utxo_IdlType,
+  createUtxo,
+} from '../../src/state';
 import {
   PAYER_KEYPAIR,
   byteArrayToKeypair,
@@ -14,19 +19,19 @@ import {
   Keypair,
 } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import {
-  MockProof,
-  createExecuteCompressedInstruction,
-  UtxoWithBlinding,
-} from '../../src/instruction/pack-nop-instruction';
+import { createExecuteCompressedInstruction } from '../../src/instruction/pack-nop-instruction';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { confirmTx, getMockRpc, sendAndConfirmTx } from '../../src/test-utils';
-import { LightSystemProgram } from '../../src/programs';
+import {
+  buildAndSignTx,
+  confirmTx,
+  getMockRpc,
+  sendAndConfirmTx,
+} from '../../src/test-utils';
 
 describe('Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
-  const queue = keys.stateNullifierQueue;
+  const queue = keys.nullifierQueue;
   const payer = byteArrayToKeypair([
     122, 239, 192, 18, 21, 29, 237, 120, 104, 95, 247, 150, 181, 218, 207, 60,
     158, 110, 200, 246, 74, 226, 30, 223, 142, 138, 133, 194, 30, 254, 132, 236,
@@ -43,19 +48,25 @@ describe('Program test', () => {
 
   /// TODO: switch default tests to this after we resolve the deserialization bug
   it('should match reference bytes for encoded inputs @test_execute_compressed_transactio (rust sdk)', async () => {
-    const in_utxos: UtxoWithBlinding[] = [
+    const in_utxos: Utxo_IdlType[] = [
       {
         owner: payer.publicKey,
         lamports: new BN(0),
         blinding: new Array(32).fill(1),
         data: null,
+        address: null,
       },
     ];
     const out_utxos = [
-      { owner: payer.publicKey, lamports: new BN(0), data: null },
+      {
+        owner: payer.publicKey,
+        lamports: new BN(0),
+        data: null,
+        address: null,
+      },
     ];
 
-    const proof_mock: MockProof = {
+    const proof_mock: CompressedProof_IdlType = {
       a: Array.from({ length: 32 }, () => 0),
       b: Array.from({ length: 64 }, () => 0),
       c: Array.from({ length: 32 }, () => 0),
@@ -87,41 +98,53 @@ describe('Program test', () => {
 
     await sendAndConfirmTx(connection, tx);
 
-    const mockRpc = getMockRpc(connection);
-    const indexedEvents = await mockRpc.getIndexedEvents();
+    const mockRpc = await getMockRpc(connection);
+    const indexedEvents = await mockRpc.getParsedEvents();
 
     assert.equal(indexedEvents.length, 1);
     assert.equal(indexedEvents[0].inUtxos.length, 1);
     assert.equal(indexedEvents[0].outUtxos.length, 1);
     assert.equal(indexedEvents[0].outUtxos[0].lamports, 0);
     assert.equal(
-      indexedEvents[0].outUtxos[0].owner,
+      indexedEvents[0].outUtxos[0].owner.toBase58(),
       payer.publicKey.toBase58(),
     );
     assert.equal(indexedEvents[0].outUtxos[0].data, null);
   });
 
   it('should send .5 sol from alice to bob, with .5 change', async () => {
-    const in_utxos: UtxoWithBlinding[] = [
+    const in_utxos: Utxo_IdlType[] = [
       {
         owner: payer.publicKey,
         lamports: new BN(1e8),
         blinding: new Array(32).fill(1),
         data: null,
+        address: null,
       },
       {
         owner: payer.publicKey,
         lamports: new BN(9e8),
         blinding: new Array(32).fill(1),
         data: null,
+        address: null,
       },
     ];
-    const out_utxos = [
-      { owner: bob.publicKey, lamports: new BN(5e8), data: null },
-      { owner: payer.publicKey, lamports: new BN(5e8), data: null },
+    const out_utxos: Utxo[] = [
+      {
+        owner: bob.publicKey,
+        lamports: new BN(5e8),
+        data: null,
+        address: null,
+      },
+      {
+        owner: payer.publicKey,
+        lamports: new BN(5e8),
+        data: null,
+        address: null,
+      },
     ];
 
-    const proof_mock: MockProof = {
+    const proof_mock: CompressedProof_IdlType = {
       a: Array.from({ length: 32 }, () => 0),
       b: Array.from({ length: 64 }, () => 0),
       c: Array.from({ length: 32 }, () => 0),
@@ -139,44 +162,37 @@ describe('Program test', () => {
     );
     const ixs = [ix];
 
-    /// Build and send Solana tx
+    /// Send
     const { blockhash } = await connection.getLatestBlockhash();
-
-    const messageV0 = new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: ixs,
-    }).compileToV0Message();
-
-    const tx = new VersionedTransaction(messageV0);
-
-    tx.sign([payer]);
-    await sendAndConfirmTx(connection, tx);
+    const signedTx = buildAndSignTx(ixs, payer, blockhash);
+    await sendAndConfirmTx(connection, signedTx);
 
     /// Assert emitted events
-    const mockRpc = getMockRpc(connection);
-    const indexedEvents = await mockRpc.getIndexedEvents();
+    const mockRpc = await getMockRpc(connection);
+    const indexedEvents = await mockRpc.getParsedEvents();
 
     assert.equal(indexedEvents.length, 2);
-
-    assert.equal(indexedEvents[1].inUtxos.length, 2);
-    assert.equal(indexedEvents[1].outUtxos.length, 2);
-    assert.equal(indexedEvents[1].outUtxos[0].lamports, 5e8);
-    assert.equal(indexedEvents[1].outUtxos[1].lamports, 5e8);
-    assert.equal(indexedEvents[1].outUtxos[0].owner, bob.publicKey.toBase58());
+    assert.equal(indexedEvents[0].inUtxos.length, 2);
+    assert.equal(indexedEvents[0].outUtxos.length, 2);
+    assert.equal(Number(indexedEvents[0].outUtxos[0].lamports), 5e8);
+    assert.equal(Number(indexedEvents[0].outUtxos[1].lamports), 5e8);
     assert.equal(
-      indexedEvents[1].outUtxos[1].owner,
+      indexedEvents[0].outUtxos[0].owner.toBase58(),
+      bob.publicKey.toBase58(),
+    );
+    assert.equal(
+      indexedEvents[0].outUtxos[1].owner.toBase58(),
       payer.publicKey.toBase58(),
     );
-    assert.equal(indexedEvents[1].outUtxos[0].data, null);
-    assert.equal(indexedEvents[1].outUtxos[1].data, null);
+    assert.equal(indexedEvents[0].outUtxos[0].data, null);
+    assert.equal(indexedEvents[0].outUtxos[1].data, null);
   });
 
   /// TODO: enable test after refactor for packInstruction() is complete
   it.skip('should build ix and send to chain successfully', async () => {
     const keys = defaultTestStateTreeAccounts();
     const merkleTree = keys.merkleTree; /// TODO: replace with inited mt
-    const queue = keys.stateNullifierQueue; /// TODO: replace with inited queue
+    const queue = keys.nullifierQueue; /// TODO: replace with inited queue
     const payer = PAYER_KEYPAIR;
 
     const recipient = PublicKey.unique();
@@ -196,7 +212,7 @@ describe('Program test', () => {
       createUtxo(payer.publicKey, 0),
     ];
     // const mockProof = placeholderValidityProof();
-    const mockProof: MockProof = {
+    const mockProof: CompressedProof_IdlType = {
       a: Array.from({ length: 32 }, (_, i) => i),
       b: Array.from({ length: 64 }, (_, i) => i),
       c: Array.from({ length: 32 }, (_, i) => i),

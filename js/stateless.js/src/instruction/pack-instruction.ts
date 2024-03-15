@@ -25,7 +25,7 @@ export type InputState = {
   inputUtxos: UtxoWithMerkleContext[];
   /** The indices of the state roots of the input utxos */
   inputStateRootIndices: number[];
-  inputStateNullifierQueueAccounts: PublicKey[];
+  inputnullifierQueueAccounts: PublicKey[];
 };
 
 /** Instruction context for state' */
@@ -131,12 +131,10 @@ export async function packInstruction(
   /// map unique accounts
   const remainingAccounts: PublicKey[] = [];
   const inputMerkleTrees = inputUtxos.map((utxo) => utxo.merkleTree);
-  const stateNullifierQueues = inputUtxos.map(
-    (utxo) => utxo.stateNullifierQueue,
-  );
+  const nullifierQueues = inputUtxos.map((utxo) => utxo.nullifierQueue);
 
   pushUniqueItems<PublicKey>(inputMerkleTrees, remainingAccounts);
-  pushUniqueItems<PublicKey>(stateNullifierQueues, remainingAccounts);
+  pushUniqueItems<PublicKey>(nullifierQueues, remainingAccounts);
   pushUniqueItems<PublicKey>(outputStateTrees, remainingAccounts);
 
   const remainingAccountMetas = remainingAccounts.map(
@@ -163,9 +161,9 @@ export async function packInstruction(
     .addinputUtxos(
       inputUtxos,
       allAccounts,
-      leafIndices,
+      leafIndices.map((i) => bn(i)),
       inputMerkleTrees,
-      stateNullifierQueues,
+      nullifierQueues,
     )
     .addoutputUtxos(
       outputUtxos,

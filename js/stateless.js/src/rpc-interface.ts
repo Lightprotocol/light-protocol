@@ -16,18 +16,16 @@ import {
   any,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
-import {
-  TlvDataElement,
-  decodeUtxoData,
-  isValidTlvDataElement,
-} from './state/utxo-data';
+import { decodeUtxoData, isValidTlvDataElement } from './state/utxo-data';
 import {
   MerkleContext,
-  MerkleContextWithMerkleProof,
   MerkleUpdateContext,
   UtxoWithMerkleContext,
   BN254,
+  createBN254,
+  TlvDataElement_IdlType,
 } from './state';
+import { BN } from '@coral-xyz/anchor';
 
 export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
 
@@ -43,7 +41,7 @@ export type GetCompressedAccountsConfig = {
 
 export type WithMerkleUpdateContext<T> = {
   /** merkle update context */
-  context: MerkleUpdateContext;
+  context: MerkleUpdateContext | null;
   /** response value */
   value: T;
 };
@@ -60,13 +58,21 @@ const PublicKeyFromString = coerce(
 /**
  * @internal
  */
+// TODO: use a BN254 class here for the 1st parameter
+const BN254FromString = coerce(instance(BN), string(), (value) =>
+  createBN254(value),
+);
+
+/**
+ * @internal
+ */
 const Base64EncodedUtxoDataResult = tuple([string(), literal('base64')]);
 
 /**
  * @internal
  */
 const TlvFromBase64EncodedUtxoData = coerce(
-  instance(Array<TlvDataElement>),
+  instance(Array<TlvDataElement_IdlType>),
   Base64EncodedUtxoDataResult,
   (value) => {
     const decodedData = decodeUtxoData(Buffer.from(value[0], 'base64'));
@@ -140,56 +146,42 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
  */
 /// Utxo with merkle context
 export const UtxoResult = pick({
+  data: TlvFromBase64EncodedUtxoData,
   owner: PublicKeyFromString,
   lamports: number(),
-  data: TlvFromBase64EncodedUtxoData,
-  address: optional(PublicKeyFromString), // account
-  leafIndex: number(), // bigint?
+  leafIndex: number(),
   merkleTree: PublicKeyFromString,
-  stateNullifierQueue: PublicKeyFromString,
-  slotUpdated: number(),
+  nullifierQueue: PublicKeyFromString,
+  slotCreated: number(),
   seq: number(),
+  address: optional(PublicKeyFromString),
 });
 
 /**
  * @internal
  */
-export const CompressedAccountResult = pick({
-  owner: PublicKeyFromString,
-  lamports: number(),
-  data: TlvFromBase64EncodedUtxoData,
-  hash: PublicKeyFromString,
-  leafIndex: number(),
-  merkleTree: PublicKeyFromString,
-  stateNullifierQueue: PublicKeyFromString,
-  slotUpdated: number(),
-  seq: number(),
-});
-
-/**
- * @internal
- */
-export const CompressedAccountsResult = pick({
-  owner: PublicKeyFromString,
-  address: PublicKeyFromString,
-  lamports: number(),
-  data: TlvFromBase64EncodedUtxoData,
-  hash: PublicKeyFromString,
-  leafIndex: number(),
-  merkleTree: PublicKeyFromString,
-  stateNullifierQueue: PublicKeyFromString,
-  slotUpdated: number(),
-  seq: number(),
-});
-
+/// Utxo with merkle context
+export const UtxosResult = array(
+  pick({
+    data: TlvFromBase64EncodedUtxoData,
+    hash: BN254FromString,
+    lamports: number(),
+    leafIndex: number(),
+    merkleTree: PublicKeyFromString,
+    nullifierQueue: PublicKeyFromString,
+    slotCreated: number(),
+    seq: number(),
+    address: optional(PublicKeyFromString),
+  }),
+);
 /**
  * @internal
  */
 export const MerkleProofResult = pick({
   merkleTree: PublicKeyFromString,
+  nullifierQueue: PublicKeyFromString,
   leafIndex: number(),
-  proof: array(PublicKeyFromString),
-  stateNullifierQueue: PublicKeyFromString,
+  proof: array(BN254FromString),
   rootIndex: number(),
 });
 
@@ -199,9 +191,9 @@ export const MerkleProofResult = pick({
 export const CompressedAccountMerkleProofResult = pick({
   utxoHash: PublicKeyFromString,
   merkleTree: PublicKeyFromString,
+  nullifierQueue: PublicKeyFromString,
   leafIndex: number(),
-  proof: array(PublicKeyFromString),
-  stateNullifierQueue: PublicKeyFromString,
+  proof: array(BN254FromString),
   rootIndex: number(),
 });
 
@@ -213,18 +205,9 @@ export interface CompressionApiInterface {
   ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
   /** Retrieve the proof for a utxo */
   getUtxoProof(utxoHash: BN254): Promise<MerkleContext | null>;
-  /** Retrieve a compressed account */
-  getCompressedAccount(
-    address: PublicKey,
-    config?: GetCompressedAccountConfig,
-  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
-  /** Retrieve a recent Merkle proof for a compressed account */
-  getCompressedAccountProof(
-    address: PublicKey,
-  ): Promise<MerkleContextWithMerkleProof | null>;
-  /** Retrieve all compressed accounts for a given owner */
-  getCompressedAccounts( // GPA
+  /** Retrieve utxos by owner */
+  getUtxos(
     owner: PublicKey,
-    config?: GetCompressedAccountsConfig,
+    config?: GetUtxoConfig,
   ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]>;
 }

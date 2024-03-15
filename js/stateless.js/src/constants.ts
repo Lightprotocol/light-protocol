@@ -53,12 +53,13 @@ export const defaultStaticAccountsStruct = () => {
 
 export const defaultTestStateTreeAccounts = () => {
   return {
-    stateNullifierQueue: new PublicKey(stateNullifierQueuePubkey),
+    nullifierQueue: new PublicKey(nullifierQueuePubkey),
     merkleTree: new PublicKey(merkletreePubkey),
+    merkleTreeHeight: DEFAULT_MERKLE_TREE_HEIGHT,
   };
 };
 
-export const stateNullifierQueuePubkey =
+export const nullifierQueuePubkey =
   '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ'; // also called indexed_array
 
 export const merkletreePubkey = '5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W';
