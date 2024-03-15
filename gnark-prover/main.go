@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"bytes"
 	"light/light-prover/config"
 	"light/light-prover/logging"
 	merkle_tree "light/light-prover/merkle-tree"
@@ -33,11 +34,13 @@ func runCli() {
 				Name: "setup",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
+					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
 					&cli.UintFlag{Name: "utxos", Usage: "Number of Utxos", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
+					path_vkey := context.String("output-vkey")
 					treeDepth := uint32(context.Uint("tree-depth"))
 					numberOfUtxos := uint32(context.Uint("utxos"))
 					logging.Logger().Info().Msg("Running setup")
@@ -64,6 +67,18 @@ func runCli() {
 						return err
 					}
 					logging.Logger().Info().Int64("bytesWritten", written).Msg("proving system written to file")
+					prover, err := prover.ReadSystemFromFile(path)
+					if err != nil {
+						return err
+					}
+					var buf bytes.Buffer
+					_, err = prover.VerifyingKey.WriteRawTo(&buf)
+
+					proofBytes := buf.Bytes()
+					err = createFileAndWriteBytes(path_vkey, proofBytes)
+					if err != nil {
+						return err
+					}
 					return nil
 				},
 			},
@@ -438,4 +453,22 @@ func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, 
 		logging.Logger().Info().Uint32("treeDepth", ps.TreeDepth).Uint32("utxos", ps.NumberOfUtxos).Msg("Read proving system")
 	}
 	return pss, nil
+}
+
+func createFileAndWriteBytes(filePath string, data []byte) error {
+	// Create or open the file for writing. The file is created if it does not exist,
+	// or truncated if it does.
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err // Return the error to the caller
+	}
+	defer file.Close() // Ensure the file is closed when the function completes
+
+	// Write the bytes to the file
+	_, err = io.WriteString(file, fmt.Sprintf("%d",data))
+	if err != nil {
+		return err // Return any error that occurs during writing
+	}
+	fmt.Println("Wrote", len(data), "bytes to", filePath) // Write a log message
+	return nil // No errors, return nil
 }
