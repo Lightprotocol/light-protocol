@@ -2,8 +2,22 @@
   "name": "@lightprotocol/compressed-token",
   "version": "0.0.1",
   "description": "JS client to interact with the compressed-token program",
-  "main": "lib/index.js",
+  "sideEffects": false,
   "type": "module",
+  "main": "./dist/umd/index.js",
+  "module": "./dist/es/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/types/main/index.d.ts",
+      "import": "./dist/es/index.js",
+      "default": "./dist/cjs/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "pnpm run test:program",
     "test-all": "vitest run",
@@ -14,9 +28,11 @@
     "emit-event:mint_to": "vitest run tests/e2e/emit-mint_to.test.ts",
     "emit-event:transfer": "vitest run tests/e2e/emit-transfer.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
-    "build": "rimraf lib && pnpm run pull-idl && pnpm tsc",
     "pull-idl": "../../scripts/push-compressed-token-idl.sh",
-    "format": "prettier --write ."
+    "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
+    "build:bundle": "rollup -c --bundleConfigAsCjs",
+    "format": "prettier --write .",
+    "lint": "eslint ."
   },
   "keywords": [
     "zk",
@@ -27,14 +43,6 @@
   ],
   "author": "",
   "license": "Apache-2.0",
-  "devDependencies": {
-    "@types/node": "^20.10.2",
-    "prettier": "^3.0.3",
-    "rimraf": "^5.0.5",
-    "ts-node": "^10.9.1",
-    "typescript": "5.3.2",
-    "vitest": "^0.34.6"
-  },
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/stateless.js": "workspace:*",
@@ -44,5 +52,25 @@
     "@solana/web3.js": "^1.87.6",
     "buffer": "^6.0.3",
     "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.2",
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@typescript-eslint/eslint-plugin": "^6.7.3",
+    "eslint": "^8.50.0",
+    "eslint-config-standard-with-typescript": "^39.1.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+    "eslint-plugin-promise": "^6.0.0",
+    "eslint-plugin-vitest": "^0.3.26",
+    "prettier": "^3.0.3",
+    "rimraf": "^5.0.5",
+    "rollup": "^4.6.1",
+    "rollup-plugin-polyfill-node": "^0.13.0",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.6.2",
+    "typescript": "5.3.2",
+    "vitest": "^0.34.6"
   }
 }
