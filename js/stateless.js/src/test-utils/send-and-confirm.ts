@@ -8,14 +8,15 @@ import {
   TransactionInstruction,
   TransactionMessage,
   ConfirmOptions,
+  TransactionSignature,
 } from '@solana/web3.js';
 
-/** @returns txId */
+/** Sends a versioned transaction and confirms it. */
 export async function sendAndConfirmTx(
   connection: Connection,
   tx: VersionedTransaction,
   confirmOptions?: ConfirmOptions,
-): Promise<string> {
+): Promise<TransactionSignature> {
   const txId = await connection.sendTransaction(tx, confirmOptions);
   const { blockhash, lastValidBlockHeight } =
     await connection.getLatestBlockhash(confirmOptions?.commitment);
@@ -31,6 +32,7 @@ export async function sendAndConfirmTx(
   return txId;
 }
 
+/** @internal */
 export async function confirmTx(
   connection: Connection,
   txId: string,
@@ -50,6 +52,14 @@ export async function confirmTx(
   return res;
 }
 
+/**
+ * Builds a versioned Transaction from instructions and signs it.
+ *
+ * @param instructions        instructions to include in the transaction
+ * @param payer               payer of the transaction
+ * @param blockhash           recent blockhash to use in the transaction
+ * @param additionalSigners   non-feepayer signers to include in the transaction
+ */
 export function buildAndSignTx(
   instructions: TransactionInstruction[],
   payer: Signer,

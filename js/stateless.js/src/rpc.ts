@@ -1,20 +1,15 @@
-/// TODO: coerce directly as BN254fromString, sync interface with spec
 import {
   Connection,
   ConnectionConfig,
-  PublicKey,
   SolanaJSONRPCError,
+  PublicKey,
 } from '@solana/web3.js';
 import {
-  CompressedAccountMerkleProofResult,
-  CompressedAccountResult,
-  CompressedAccountsResult,
   CompressionApiInterface,
-  GetCompressedAccountConfig,
-  GetCompressedAccountsConfig,
   GetUtxoConfig,
   MerkleProofResult,
   UtxoResult,
+  UtxosResult,
   WithMerkleUpdateContext,
   jsonRpcResultAndContext,
 } from './rpc-interface';
@@ -23,9 +18,10 @@ import {
   MerkleContextWithMerkleProof,
   MerkleUpdateContext,
   BN254,
-  PublicKeyToBN254,
+  bn,
+  createBN254,
 } from './state';
-import { array, create, nullable } from 'superstruct';
+import { create, nullable } from 'superstruct';
 import { toCamelCase } from './utils/conversion';
 
 export function createRpc(
@@ -99,19 +95,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     const context: MerkleUpdateContext = {
-      slotUpdated: res.result.value.slotUpdated,
+      slotCreated: res.result.value.slotCreated,
       seq: res.result.value.seq,
     };
 
     const value: UtxoWithMerkleContext = {
       owner: res.result.value.owner,
-      lamports: res.result.value.lamports,
+      lamports: bn(res.result.value.lamports),
       data: { tlvElements: res.result.value.data },
       hash: utxoHash,
       merkleTree: res.result.value.merkleTree,
-      leafIndex: res.result.value.leafIndex,
-      address: res.result.value.address,
-      stateNullifierQueue: res.result.value.stateNullifierQueue,
+      leafIndex: bn(res.result.value.leafIndex),
+      address: res.result.value.address || null,
+      nullifierQueue: res.result.value.nullifierQueue,
     };
 
     return { context, value };
@@ -141,133 +137,58 @@ export class Rpc extends Connection implements CompressionApiInterface {
       hash: utxoHash,
       merkleTree: res.result.value.merkleTree,
       leafIndex: res.result.value.leafIndex,
-      merkleProof: res.result.value.proof.map((proof) =>
-        PublicKeyToBN254(proof),
-      ),
-      stateNullifierQueue: res.result.value.stateNullifierQueue,
+      merkleProof: res.result.value.proof.map((proof) => createBN254(proof)),
+      nullifierQueue: res.result.value.nullifierQueue,
       rootIndex: res.result.value.rootIndex,
     };
     return value;
   }
 
-  /** Retrieve a compressed account */
-  async getCompressedAccount(
-    address: PublicKey,
-    config?: GetCompressedAccountConfig,
-  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null> {
-    const unsafeRes = await rpcRequest(
-      this.rpcEndpoint,
-      'getCompressedAccount',
-      [address.toString(), config?.encoding || 'base64'],
-    );
-    const res = create(
-      unsafeRes,
-      jsonRpcResultAndContext(nullable(CompressedAccountResult)),
-    );
-    if ('error' in res) {
-      throw new SolanaJSONRPCError(
-        res.error,
-        `failed to get info about utxo ${address.toString()}`,
-      );
-    }
-
-    if (res.result.value === null) {
-      return null;
-    }
-
-    const context: MerkleUpdateContext = {
-      slotUpdated: res.result.value.slotUpdated,
-      seq: res.result.value.seq,
-    };
-
-    const value: UtxoWithMerkleContext = {
-      owner: res.result.value.owner,
-      lamports: res.result.value.lamports,
-      data: { tlvElements: res.result.value.data },
-      hash: PublicKeyToBN254(res.result.value.hash),
-      merkleTree: res.result.value.merkleTree,
-      stateNullifierQueue: res.result.value.stateNullifierQueue,
-      leafIndex: res.result.value.leafIndex,
-      address,
-    };
-    return { context, value };
-  }
-
-  /** Retrieve a recent Merkle proof for a compressed account */
-  async getCompressedAccountProof(
-    address: PublicKey,
-  ): Promise<MerkleContextWithMerkleProof | null> {
-    const unsafeRes = await rpcRequest(
-      this.rpcEndpoint,
-      'getCompressedAccountProof',
-      [address.toString()],
-    );
-    const res = create(
-      unsafeRes,
-      jsonRpcResultAndContext(nullable(CompressedAccountMerkleProofResult)),
-    );
-    if ('error' in res) {
-      throw new SolanaJSONRPCError(
-        res.error,
-        `failed to get proof for compressed account ${address.toString()}`,
-      );
-    }
-    if (res.result.value === null) {
-      return null;
-    }
-
-    const value = {
-      hash: PublicKeyToBN254(res.result.value.utxoHash),
-      merkleTree: res.result.value.merkleTree,
-      leafIndex: res.result.value.leafIndex,
-      merkleProof: res.result.value.proof.map((proof) =>
-        PublicKeyToBN254(proof),
-      ),
-      stateNullifierQueue: res.result.value.stateNullifierQueue,
-      rootIndex: res.result.value.rootIndex,
-    };
-
-    return value;
-  }
-
-  /** Retrieve all compressed accounts for a given owner */
-  async getCompressedAccounts(
+  /** Retrieve a utxo with context */
+  async getUtxos(
     owner: PublicKey,
-    config?: GetCompressedAccountsConfig,
+    config?: GetUtxoConfig,
   ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]> {
-    const unsafeRes = await rpcRequest(
-      this.rpcEndpoint,
-      'getCompressedAccounts',
-      [owner.toString(), config?.encoding || 'base64', config?.filters],
+    const unsafeRes = await rpcRequest(this.rpcEndpoint, 'getUtxos', [
+      owner.toString(),
+      config?.encoding || 'base64',
+    ]);
+    const res = create(
+      unsafeRes,
+      jsonRpcResultAndContext(nullable(UtxosResult)),
     );
-    const baseSchema = array(CompressedAccountsResult);
-    const res = create(unsafeRes, jsonRpcResultAndContext(baseSchema));
+
     if ('error' in res) {
       throw new SolanaJSONRPCError(
         res.error,
-        `failed to get compressed accounts for owner ${owner.toString()}`,
+        `failed to get info about utxos for owner ${owner.toString()}`,
       );
     }
 
-    const values = res.result.value.map((value) => {
-      const context: MerkleUpdateContext = {
-        slotUpdated: value.slotUpdated,
-        seq: value.seq,
-      };
-      return {
-        context,
-        value: {
-          owner: value.owner,
-          lamports: value.lamports,
-          data: { tlvElements: value.data },
-          hash: PublicKeyToBN254(value.hash),
-          merkleTree: value.merkleTree,
-          stateNullifierQueue: value.stateNullifierQueue,
-          leafIndex: value.leafIndex,
-          address: value.address,
-        },
-      };
-    });
-    return values;
+    if (res.result.value === null) {
+      return [];
+    }
+
+    const utxosWithMerkleContext: WithMerkleUpdateContext<UtxoWithMerkleContext>[] =
+      res.result.value.map((utxo) => {
+        const context: MerkleUpdateContext = {
+          slotCreated: utxo.slotCreated,
+          seq: utxo.seq,
+        };
+
+        const value: UtxoWithMerkleContext = {
+          owner: owner,
+          lamports: bn(utxo.lamports),
+          data: { tlvElements: utxo.data },
+          hash: utxo.hash, // Assuming utxoHash is defined elsewhere or needs to be handled per utxo basis
+          merkleTree: utxo.merkleTree,
+          leafIndex: bn(utxo.leafIndex),
+          address: utxo.address || null,
+          nullifierQueue: utxo.nullifierQueue,
+        };
+
+        return { context, value };
+      });
+    return utxosWithMerkleContext;
   }
 }

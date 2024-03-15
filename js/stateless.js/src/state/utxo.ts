@@ -1,38 +1,39 @@
 import { PublicKey } from '@solana/web3.js';
-import { Tlv, TlvDataElement, createTlvDataElement } from './utxo-data';
+import { createTlvDataElement } from './utxo-data';
 import { BN254, bn, createBN254 } from './BN254';
 import { BN } from '@coral-xyz/anchor';
+import { TlvDataElement_IdlType, Tlv_IdlType } from './types';
 
 /** Describe the generic utxo details applicable to every utxo. */
 export type Utxo = {
   /** Public key of program or user that owns the utxo */
   owner: PublicKey;
   /** Optional lamports attached to the utxo */
-  lamports: number | BN;
+  lamports: BN;
   /** Optional data attached to the utxo */
-  data: Tlv | null;
+  data: Tlv_IdlType | null;
   /**
    * TODO: Implement address functionality Optional unique account ID that is
    * persistent across transactions.
    */
-  address?: PublicKey;
+  address: PublicKey | null;
 };
 
 /** Context for utxos inserted into a state Merkle tree */
 export type MerkleContext = {
-  /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
-  hash: BN254;
   /** State Merkle tree */
   merkleTree: PublicKey;
-  /** 'hash' position within the Merkle tree */
-  leafIndex: number;
   /** the state nullfier queue belonging to merkleTree */
-  stateNullifierQueue: PublicKey;
+  nullifierQueue: PublicKey;
+  /** Poseidon hash of the utxo preimage. Is a leaf in state merkle tree  */
+  hash: BN254;
+  /** 'hash' position within the Merkle tree */
+  leafIndex: number | BN;
 };
 
 export type MerkleUpdateContext = {
   /** Slot that the utxo was appended at */
-  slotUpdated: number;
+  slotCreated: number;
   /** Sequence */
   seq: number;
 };
@@ -54,14 +55,27 @@ export type UtxoWithMerkleProof = Utxo & MerkleContextWithMerkleProof;
 export const createUtxo = (
   owner: PublicKey,
   lamports: number | BN,
-  data: Tlv | null = null,
+  data: Tlv_IdlType | null = null,
   address?: PublicKey,
-  merkleContext?: MerkleContext,
-): Utxo | UtxoWithMerkleContext => ({
+): Utxo => ({
   owner,
-  lamports,
+  lamports: bn(lamports),
   data,
-  address,
+  address: address ?? null,
+});
+
+/** UtxoWithMerkleContext object factory */
+export const createUtxoWithMerkleContext = (
+  owner: PublicKey,
+  lamports: number | BN,
+  data: Tlv_IdlType | null = null,
+  merkleContext: MerkleContext,
+  address?: PublicKey,
+): UtxoWithMerkleContext => ({
+  owner,
+  lamports: bn(lamports),
+  data,
+  address: address ?? null,
   ...merkleContext,
 });
 
@@ -70,14 +84,14 @@ export const addMerkleContextToUtxo = (
   utxo: Utxo,
   hash: BN254,
   merkleTree: PublicKey,
-  leafIndex: number,
-  stateNullifierQueue: PublicKey,
+  leafIndex: number | BN,
+  nullifierQueue: PublicKey,
 ): UtxoWithMerkleContext => ({
   ...utxo,
   leafIndex,
   hash,
   merkleTree,
-  stateNullifierQueue,
+  nullifierQueue,
 });
 
 /** Append a merkle proof to a utxo */
@@ -118,15 +132,15 @@ if (import.meta.vitest) {
   //@ts-ignore
   const { it, expect, describe } = import.meta.vitest;
 
-  const mockTlvDataElement = (): TlvDataElement =>
+  const mockTlvDataElement = (): TlvDataElement_IdlType =>
     createTlvDataElement(
-      new Uint8Array([1, 2, 3]),
+      [1, 2, 3],
       new PublicKey(new Uint8Array([1, 2, 3])),
       new Uint8Array([1, 2, 3]),
-      createBN254(1),
+      [1, 2, 3],
     );
 
-  const mockTlv = (): Tlv => ({
+  const mockTlv = (): Tlv_IdlType => ({
     tlvElements: [mockTlvDataElement()],
   });
 

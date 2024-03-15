@@ -1,4 +1,9 @@
-import { Utxo, bn } from '../../src/state';
+import {
+  CompressedProof_IdlType,
+  Utxo,
+  Utxo_IdlType,
+  bn,
+} from '../../src/state';
 import { describe, it } from 'vitest';
 import { byteArrayToKeypair } from '../../src/test-utils/init-accounts';
 import {
@@ -7,11 +12,7 @@ import {
   VersionedTransaction,
   Keypair,
 } from '@solana/web3.js';
-import {
-  MockProof,
-  createExecuteCompressedInstruction,
-  UtxoWithBlinding,
-} from '../../src/instruction/pack-nop-instruction';
+import { createExecuteCompressedInstruction } from '../../src/instruction/pack-nop-instruction';
 import { FIELD_SIZE, defaultTestStateTreeAccounts } from '../../src/constants';
 import { confirmTx, sendAndConfirmTx } from '../../src/test-utils';
 import crypto from 'crypto';
@@ -41,7 +42,7 @@ describe('Emit events', () => {
       /// Get testing keys. tree and queue are auto-initialized with the test-validator env.
       const keys = defaultTestStateTreeAccounts();
       const merkleTree = keys.merkleTree;
-      const queue = keys.stateNullifierQueue;
+      const queue = keys.nullifierQueue;
 
       const alice = FIXED_PAYER;
       const bob = Keypair.generate();
@@ -56,18 +57,20 @@ describe('Emit events', () => {
       /// In this example, Alice has their compressed sol in 2 utxos.
       /// This is a mock since the only check we're running is a sumcheck.
       /// Merkle Inclusion is mocked for now.
-      const in_utxos: UtxoWithBlinding[] = [
+      const in_utxos: Utxo_IdlType[] = [
         {
           owner: alice.publicKey,
-          lamports: aliceBalance / 2,
+          lamports: bn(aliceBalance / 2),
           blinding: rndMockedBlinding(),
           data: null,
+          address: null,
         },
         {
           owner: alice.publicKey,
-          lamports: aliceBalance / 2,
+          lamports: bn(aliceBalance / 2),
           blinding: rndMockedBlinding(),
           data: null,
+          address: null,
         },
       ];
 
@@ -80,17 +83,19 @@ describe('Emit events', () => {
       const out_utxos: Utxo[] = [
         {
           owner: bob.publicKey,
-          lamports: lamportsToSend,
+          lamports: bn(lamportsToSend),
           data: null,
+          address: null,
         },
         {
           owner: alice.publicKey,
-          lamports: aliceBalance - lamportsToSend,
+          lamports: bn(aliceBalance - lamportsToSend),
           data: null,
+          address: null,
         },
       ];
 
-      const proof_mock: MockProof = {
+      const proof_mock: CompressedProof_IdlType = {
         a: Array.from({ length: 32 }, () => 0),
         b: Array.from({ length: 64 }, () => 0),
         c: Array.from({ length: 32 }, () => 0),
@@ -143,7 +148,7 @@ describe('Emit events', () => {
   });
 });
 
-const printUtxos = (utxos: UtxoWithBlinding[]) => {
+const printUtxos = (utxos: Utxo_IdlType[]) => {
   const formattedUtxos = utxos.map((utxo) => ({
     ...utxo,
     owner: utxo.owner.toBase58(),

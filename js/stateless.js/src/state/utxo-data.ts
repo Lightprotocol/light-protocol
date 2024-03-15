@@ -1,43 +1,20 @@
 import { PublicKey } from '@solana/web3.js';
 import { LightSystemProgram } from '../programs/compressed-pda';
 import { Buffer } from 'buffer';
-import { BN254, createBN254 } from './BN254';
-
-/** Describe the generic details applicable to every data block */
-export type TlvDataElement = {
-  discriminator: Uint8Array;
-  /** Public key of the ownerProgram of the data block */
-  owner: PublicKey;
-  /** Variable-length data */
-  data: Uint8Array;
-  /** Poseidon hash of data */
-  dataHash: BN254; // Consider using BN254
-};
-
-export type TlvDataElementSerial = {
-  discriminator: number[];
-  /** Index of the owner in the pubkey_array */
-  owner: number;
-  data: number[];
-  dataHash: number[];
-};
-
-/// must match on-chain
-export type Tlv = {
-  tlvElements: TlvDataElement[];
-};
-
-export type TlvSerial = {
-  tlvElements: TlvDataElementSerial[];
-};
+import {
+  TlvDataElementSerializable_IdlType,
+  TlvDataElement_IdlType,
+  TlvSerializable_IdlType,
+  Tlv_IdlType,
+} from './types';
 
 /** Factory for TLV data elements */
 export const createTlvDataElement = (
-  discriminator: Uint8Array,
+  discriminator: number[],
   owner: PublicKey,
   data: Uint8Array,
-  dataHash: BN254,
-): TlvDataElement => ({
+  dataHash: number[],
+): TlvDataElement_IdlType => ({
   discriminator,
   owner,
   data,
@@ -45,7 +22,10 @@ export const createTlvDataElement = (
 });
 
 /** Decode system-level utxo data into tlvs from a buffer */
-export function decodeUtxoData(buffer: Buffer, accounts?: PublicKey[]): Tlv {
+export function decodeUtxoData(
+  buffer: Buffer,
+  accounts?: PublicKey[],
+): Tlv_IdlType {
   const { coder } = LightSystemProgram.program;
   const serial = coder.types.decode('TlvSerializable', buffer);
   // TODO: check if need to unpack return deserializeTlv(serial, accounts);
@@ -54,7 +34,7 @@ export function decodeUtxoData(buffer: Buffer, accounts?: PublicKey[]): Tlv {
 
 /** Encode tlv blocks into a buffer  */
 export function encodeUtxoData(
-  data: Tlv,
+  data: Tlv_IdlType,
   pubkeyArray: PublicKey[],
   accounts: PublicKey[],
 ): Buffer {
@@ -64,7 +44,9 @@ export function encodeUtxoData(
   return coder.types.encode('TlvSerializable', serial);
 }
 
-export const isValidTlvDataElement = (value: any): value is TlvDataElement => {
+export const isValidTlvDataElement = (
+  value: any,
+): value is TlvDataElement_IdlType => {
   if (!value) return false;
   if (typeof value !== 'object') return false;
   if (!(value.discriminator instanceof Uint8Array)) return false;
@@ -75,11 +57,11 @@ export const isValidTlvDataElement = (value: any): value is TlvDataElement => {
 };
 
 export function serializeTlv(
-  tlv: Tlv,
+  tlv: Tlv_IdlType,
   pubkeyArray: PublicKey[],
   accounts: PublicKey[],
-): TlvSerial {
-  const tlvElementsSerializable: TlvDataElementSerial[] = [];
+): TlvSerializable_IdlType {
+  const tlvElementsSerializable: TlvDataElementSerializable_IdlType[] = [];
 
   tlv.tlvElements.forEach((element) => {
     let ownerIndex = accounts.findIndex((acc) => acc.equals(element.owner));
@@ -95,11 +77,11 @@ export function serializeTlv(
       }
     }
 
-    const serializableElement: TlvDataElementSerial = {
+    const serializableElement: TlvDataElementSerializable_IdlType = {
       discriminator: Array.from(element.discriminator),
       owner: ownerIndex,
-      data: Array.from(element.data),
-      dataHash: element.dataHash.toArrayLike([], 'be'),
+      data: element.data,
+      dataHash: element.dataHash,
     };
 
     tlvElementsSerializable.push(serializableElement);
@@ -111,17 +93,17 @@ export function serializeTlv(
 // TODO: check how events get emitted on-chain!
 // we might not need to unpack the tlvs
 export function deserializeTlv(
-  serializable: TlvSerial,
+  serializable: TlvSerializable_IdlType,
   accounts: PublicKey[],
-): Tlv {
-  const tlvElements: TlvDataElement[] = serializable.tlvElements.map(
+): Tlv_IdlType {
+  const tlvElements: TlvDataElement_IdlType[] = serializable.tlvElements.map(
     (element) => {
       const owner = accounts[element.owner];
       return {
-        discriminator: new Uint8Array(element.discriminator),
+        discriminator: element.discriminator,
         owner,
         data: new Uint8Array(element.data),
-        dataHash: createBN254(element.dataHash),
+        dataHash: element.dataHash,
       };
     },
   );

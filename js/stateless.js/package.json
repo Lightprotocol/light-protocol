@@ -19,7 +19,7 @@
     "dist"
   ],
   "scripts": {
-    "test": "pnpm run test-validator:silent && pnpm test:program",
+    "test": "pnpm test:program",
     "test-all": "vitest run",
     "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
     "test-validator": "./../../cli/test_bin/run test-validator",

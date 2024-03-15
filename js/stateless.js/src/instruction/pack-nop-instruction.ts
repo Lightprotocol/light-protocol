@@ -5,54 +5,36 @@ import {
   AccountMeta,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { BN, BorshCoder } from '@coral-xyz/anchor';
+import { BorshCoder } from '@coral-xyz/anchor';
 
-import { Utxo } from '../state';
+import {
+  CompressedProof_IdlType,
+  InUtxoTuple_IdlType,
+  OutUtxoTuple_IdlType,
+  Utxo,
+  Utxo_IdlType,
+} from '../state';
 
 import { defaultStaticAccountsStruct } from '../constants';
 import { LightSystemProgram } from '../programs/compressed-pda';
 
-/// Temporary fix for congruence with the current anchor IDL while we're
-/// switching to use leafindex+mt as part of the UtxoWithMerkleContext type.
-export type UtxoWithBlinding = Utxo & {
-  blinding: number[]; // 32 bytes, leafIndex
-};
-
-export type InUtxoTuple = {
-  inUtxo: UtxoWithBlinding; // think we need to attach leafIndex as blinding here!
-  indexMtAccount: number;
-  indexNullifierArrayAccount: number;
-};
-
-export type OutUtxoTuple = {
-  outUtxo: Utxo;
-  indexMtAccount: number;
-};
-
-export type MockProof = {
-  a: number[];
-  b: number[];
-  c: number[];
-};
-
 export async function createExecuteCompressedInstruction(
   payer: PublicKey,
-  inUtxos: Utxo[],
+  inUtxos: Utxo_IdlType[],
   outUtxos: Utxo[],
   inUtxoMerkleTreePubkeys: PublicKey[],
   nullifierArrayPubkeys: PublicKey[],
   outUtxoMerkleTreePubkeys: PublicKey[],
   rootIndices: number[],
-  proof: MockProof,
+  proof: CompressedProof_IdlType,
 ): Promise<TransactionInstruction> {
   const remainingAccounts = new Map<PublicKey, number>();
-  const _inUtxos: InUtxoTuple[] = [];
+  const _inUtxos: InUtxoTuple_IdlType[] = [];
   inUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, remainingAccounts.size);
     }
     _inUtxos.push({
-      //@ts-ignore
       inUtxo: inUtxos[i],
       indexMtAccount: remainingAccounts.get(mt)!,
       indexNullifierArrayAccount: 0, // TODO: dynamic!
@@ -66,7 +48,7 @@ export async function createExecuteCompressedInstruction(
     _inUtxos[i].indexNullifierArrayAccount = remainingAccounts.get(mt)!;
   });
   len = remainingAccounts.size;
-  const _outUtxos: OutUtxoTuple[] = [];
+  const _outUtxos: OutUtxoTuple_IdlType[] = [];
   outUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, len + i);
@@ -77,26 +59,13 @@ export async function createExecuteCompressedInstruction(
     });
   });
 
-  // hack!
   const rawInputs = {
-    lowElementIndices: new Array(inUtxos.length).fill(0),
-    relayFee: null,
-    inUtxos: _inUtxos.map((utxo) => ({
-      ...utxo,
-      inUtxo: {
-        ...utxo.inUtxo,
-        lamports: new BN(utxo.inUtxo.lamports.toString()),
-      },
-    })),
-    outUtxos: _outUtxos.map((utxo) => ({
-      ...utxo,
-      outUtxo: {
-        ...utxo.outUtxo,
-        lamports: new BN(utxo.outUtxo.lamports.toString()),
-      },
-    })),
-    rootIndices: [...rootIndices],
     proof,
+    lowElementIndices: new Array(inUtxos.length).fill(0), // TODO: remove
+    rootIndices: [...rootIndices],
+    relayFee: null,
+    inUtxos: _inUtxos,
+    outUtxos: _outUtxos,
   };
 
   const staticAccounts = { ...defaultStaticAccountsStruct(), signer: payer };
