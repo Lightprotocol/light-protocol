@@ -37,9 +37,11 @@ export const parseEvents = <T>(
         ) {
           const data = bs58.decode(ixInner.data);
 
+          console.log('DATA', JSON.stringify(data));
           const decodedEvent = deserializeFn(data, tx);
 
           if (decodedEvent !== null && decodedEvent !== undefined) {
+            console.log('DECODED EVENT');
             transactions.push(decodedEvent as NonNullable<T>);
           }
         }

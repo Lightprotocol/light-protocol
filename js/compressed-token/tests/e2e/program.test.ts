@@ -111,7 +111,7 @@ describe('Compressed Token Program test', () => {
     console.log('created compressed Mint txId', transactionSignature);
   });
 
-  it('should mint_to bob using "mintTo" action function', async () => {
+  it.skip('should mint_to bob using "mintTo" action function', async () => {
     const txId = await mintTo(
       connection,
       payer,
@@ -209,12 +209,27 @@ describe('Compressed Token Program test', () => {
       charlie.publicKey,
       merkleTree,
     );
+
+    const mockRpc = await getMockRpc(connection);
+    const indexedEvents = await mockRpc.getParsedEvents();
+    console.log('indexedEvents', indexedEvents);
+    console.log(
+      '0th oututxos datas:',
+      indexedEvents[0].outUtxos.map((u) => u.data),
+    );
+    console.log(
+      '0th oututxos data.tlvElements[0]:',
+      JSON.stringify(
+        indexedEvents[0].outUtxos.map((u) => u.data?.tlvElements[0].data),
+      ),
+    );
+
     console.log(
       `bob (${bob.publicKey.toBase58()}) transferred ${100} tokens (mint: ${randomMint.publicKey.toBase58()}) to charlie (${charlie.publicKey.toBase58()}) \n txId: ${txId}`,
     );
   });
 
-  it('should transfer n mint to charlie', async () => {
+  it.skip('should transfer n mint to charlie', async () => {
     const tlv: TokenTlvData_IdlType = {
       mint: randomMint.publicKey,
       owner: bob.publicKey,

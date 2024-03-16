@@ -27,6 +27,7 @@
     "emit-event:create_mint": "vitest run tests/e2e/emit-create_mint.test.ts",
     "emit-event:mint_to": "vitest run tests/e2e/emit-mint_to.test.ts",
     "emit-event:transfer": "vitest run tests/e2e/emit-transfer.test.ts",
+    "test:serde": "vitest run tests/e2e/serialization.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
     "pull-idl": "../../scripts/push-compressed-token-idl.sh",
     "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
