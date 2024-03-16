@@ -80,7 +80,6 @@ export class MockRpc implements CompressionApiInterface {
    *                              public default test nullifier queue.
    * @param depth                 depth of tree. Defaults to the public default
    *                              test state tree depth.
-
    */
   constructor({
     connection,

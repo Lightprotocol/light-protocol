@@ -334,15 +334,3 @@ export function computeTlvDataHash(
 
   return hash;
 }
-
-// let tlv_data_hash = match &self.data {
-//   Some(data) => {
-//       let hashes = data
-//           .tlv_elements
-//           .iter()
-//           .map(|d| d.data_hash.as_slice())
-//           .collect::<Vec<&[u8]>>();
-//       Poseidon::hashv(hashes.as_slice()).unwrap()
-//   }
-//   None => [0u8; 32],
-// };

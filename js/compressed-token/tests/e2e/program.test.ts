@@ -7,7 +7,6 @@ import {
   TransactionMessage,
   VersionedTransaction,
   PublicKey,
-  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
   bn,
@@ -15,20 +14,11 @@ import {
   confirmTx,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
-  getMockRpc,
-  Utxo_IdlType,
-  TlvDataElement_IdlType,
-  CompressedProof_IdlType,
-  buildAndSignTx,
 } from '@lightprotocol/stateless.js';
-import { createTransferInstruction } from '../../src/instructions/transfer';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import { createMint, mintTo, transfer } from '../../src/actions';
-import {
-  TokenTlvData_IdlType,
-  TokenTransferOutUtxo_IdlType,
-} from '../../src/types';
+
 import {
   UtxoWithParsedTokenTlvData,
   getCompressedTokenAccountsFromMockRpc,
@@ -141,7 +131,6 @@ async function assertMintCreated(
 describe('Compressed Token Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
-  const queue = keys.nullifierQueue;
   const payer = byteArrayToKeypair([
     122, 239, 192, 18, 21, 29, 237, 120, 104, 95, 247, 150, 181, 218, 207, 60,
     158, 110, 200, 246, 74, 226, 30, 223, 142, 138, 133, 194, 30, 254, 132, 236,
@@ -153,7 +142,6 @@ describe('Compressed Token Program test', () => {
   const randomMint = Keypair.generate();
   const mintDecimals = 2;
   const charlie = Keypair.generate();
-  const transferAmount = 5 * mintDecimals;
 
   beforeAll(async () => {
     const sig = await connection.requestAirdrop(payer.publicKey, 3e9);
@@ -202,6 +190,46 @@ describe('Compressed Token Program test', () => {
       bn(100),
       bob.publicKey,
     );
+  });
+
+  it('should transfer using "transfer" action ', async () => {
+    const bobPreCompressedTokenAccounts =
+      await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        bob.publicKey,
+        randomMint.publicKey,
+      );
+
+    await transfer(
+      connection,
+      payer,
+      randomMint.publicKey,
+      70,
+      bob,
+      charlie.publicKey,
+      merkleTree,
+    );
+
+    await assertTransfer(
+      connection,
+      bobPreCompressedTokenAccounts,
+      randomMint.publicKey,
+      bn(70),
+      bob.publicKey,
+      charlie.publicKey,
+    );
+
+    await expect(
+      transfer(
+        connection,
+        payer,
+        randomMint.publicKey,
+        31,
+        bob,
+        charlie.publicKey,
+        merkleTree,
+      ),
+    ).rejects.toThrow('Not enough balance for transfer');
   });
 
   /// TODO: move these as unit tests to program.ts
@@ -273,127 +301,5 @@ describe('Compressed Token Program test', () => {
       } tokens (mint: ${randomMint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
     );
     /// TODO: assert output utxos after implementing proper beet serde
-  });
-  /// TODO: refactor
-
-  it('should transfer using "transfer" action ', async () => {
-    const bobPreCompressedTokenAccounts =
-      await getCompressedTokenAccountsFromMockRpc(
-        connection,
-        bob.publicKey,
-        randomMint.publicKey,
-      );
-
-    await transfer(
-      connection,
-      payer,
-      randomMint.publicKey,
-      70,
-      bob,
-      charlie.publicKey,
-      merkleTree,
-    );
-
-    await assertTransfer(
-      connection,
-      bobPreCompressedTokenAccounts,
-      randomMint.publicKey,
-      bn(70),
-      bob.publicKey,
-      charlie.publicKey,
-    );
-
-    await expect(
-      transfer(
-        connection,
-        payer,
-        randomMint.publicKey,
-        31,
-        bob,
-        charlie.publicKey,
-        merkleTree,
-      ),
-    ).rejects.toThrow('Not enough balance for transfer');
-  });
-
-  it.skip('should transfer n mint to charlie', async () => {
-    const tlv: TokenTlvData_IdlType = {
-      mint: randomMint.publicKey,
-      owner: bob.publicKey,
-      amount: bn(1000 + transferAmount),
-      delegate: null,
-      state: 1, //'Initialized',
-      isNative: null,
-      delegatedAmount: bn(0),
-    };
-
-    const tlvData = CompressedTokenProgram.program.coder.types.encode(
-      'TokenTlvDataClient',
-      tlv,
-    );
-
-    const tlvDataElement: TlvDataElement_IdlType = {
-      discriminator: Array(8).fill(2),
-      owner: bob.publicKey,
-      data: Uint8Array.from(tlvData),
-      dataHash: Array(32).fill(0), // mock
-    };
-
-    const inUtxo: Utxo_IdlType = {
-      owner: bob.publicKey,
-      blinding: Array.from({ length: 32 }, () => 0),
-      lamports: new BN(0),
-      data: { tlvElements: [tlvDataElement] },
-      address: null,
-    };
-
-    const changeUtxo: TokenTransferOutUtxo_IdlType = {
-      amount: bn(1000),
-      owner: bob.publicKey,
-      lamports: null,
-      index_mt_account: 0,
-    };
-
-    const charlieOutUtxo: TokenTransferOutUtxo_IdlType = {
-      amount: bn(transferAmount),
-      owner: charlie.publicKey,
-      lamports: null,
-      index_mt_account: 0,
-    };
-
-    const proof_mock: CompressedProof_IdlType = {
-      a: Array.from({ length: 32 }, () => 0),
-      b: Array.from({ length: 64 }, () => 0),
-      c: Array.from({ length: 32 }, () => 0),
-    };
-
-    const ix = await createTransferInstruction(
-      payer.publicKey,
-      bob.publicKey,
-      [merkleTree],
-      [queue],
-      [merkleTree, merkleTree],
-      [inUtxo],
-      [charlieOutUtxo, changeUtxo],
-      [0], // input state root indices
-      proof_mock,
-    );
-
-    const ixs = [
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-      ix,
-    ];
-    const { blockhash } = await connection.getLatestBlockhash();
-
-    const signedTx = buildAndSignTx(ixs, payer, blockhash, [bob]);
-
-    const txId = await sendAndConfirmTx(connection, signedTx);
-
-    console.log(
-      `bob (${bob.publicKey.toBase58()}) transferred ${transferAmount} tokens (mint: ${randomMint.publicKey.toBase58()}) to charlie (${charlie.publicKey.toBase58()}) \n txId: ${txId}`,
-    );
-    const mockRpc = await getMockRpc(connection);
-    const indexedEvents = await mockRpc.getParsedEvents();
-    assert.equal(indexedEvents.length, 3);
   });
 });

@@ -5,28 +5,22 @@ import {
   Signer,
   TransactionSignature,
   ComputeBudgetProgram,
-  SystemProgram,
 } from '@solana/web3.js';
-import { CompressedTokenProgram } from '../program';
 import {
   CompressedProof_IdlType,
-  TlvDataElement_IdlType,
-  Utxo_IdlType,
   bn,
-  createUtxoHash,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { buildAndSignTx } from '@lightprotocol/stateless.js';
 import { BN } from '@coral-xyz/anchor';
 import { createTransferInstruction } from '../instructions';
-import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
+import { TokenTransferOutUtxo_IdlType } from '../types';
 import { getSigners } from './mint-to';
 import {
   UtxoWithParsedTokenTlvData,
   getCompressedTokenAccountsFromMockRpc,
 } from '../token-serde';
-import { WasmFactory } from '../../../../account.rs/dist/types/main/wasm';
 
 /**
  * @internal
