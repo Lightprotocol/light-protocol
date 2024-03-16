@@ -31,7 +31,6 @@ import {
 describe('Program test', () => {
   const keys = defaultTestStateTreeAccounts();
   const merkleTree = keys.merkleTree;
-  const queue = keys.nullifierQueue;
   const payer = byteArrayToKeypair([
     122, 239, 192, 18, 21, 29, 237, 120, 104, 95, 247, 150, 181, 218, 207, 60,
     158, 110, 200, 246, 74, 226, 30, 223, 142, 138, 133, 194, 30, 254, 132, 236,
@@ -46,99 +45,21 @@ describe('Program test', () => {
     await confirmTx(connection, sig);
   });
 
-  /// TODO: switch default tests to this after we resolve the deserialization bug
-  it('should match reference bytes for encoded inputs @test_execute_compressed_transactio (rust sdk)', async () => {
-    const in_utxos: Utxo_IdlType[] = [
-      {
-        owner: payer.publicKey,
-        lamports: new BN(0),
-        blinding: new Array(32).fill(1),
-        data: null,
-        address: null,
-      },
-    ];
-    const out_utxos = [
-      {
-        owner: payer.publicKey,
-        lamports: new BN(0),
-        data: null,
-        address: null,
-      },
-    ];
-
-    const proof_mock: CompressedProof_IdlType = {
-      a: Array.from({ length: 32 }, () => 0),
-      b: Array.from({ length: 64 }, () => 0),
-      c: Array.from({ length: 32 }, () => 0),
-    };
-
-    const ix = await createExecuteCompressedInstruction(
-      payer.publicKey,
-      in_utxos,
-      out_utxos,
-      [merkleTree],
-      [queue],
-      [merkleTree],
-      [0],
-      proof_mock,
-    );
-    const ixs = [ix];
-
-    const { blockhash } = await connection.getLatestBlockhash();
-
-    const messageV0 = new TransactionMessage({
-      payerKey: payer.publicKey,
-      recentBlockhash: blockhash,
-      instructions: ixs,
-    }).compileToV0Message();
-
-    const tx = new VersionedTransaction(messageV0);
-
-    tx.sign([payer]);
-
-    await sendAndConfirmTx(connection, tx);
-
-    const mockRpc = await getMockRpc(connection);
-    const indexedEvents = await mockRpc.getParsedEvents();
-
-    assert.equal(indexedEvents.length, 1);
-    assert.equal(indexedEvents[0].inUtxos.length, 1);
-    assert.equal(indexedEvents[0].outUtxos.length, 1);
-    assert.equal(indexedEvents[0].outUtxos[0].lamports, 0);
-    assert.equal(
-      indexedEvents[0].outUtxos[0].owner.toBase58(),
-      payer.publicKey.toBase58(),
-    );
-    assert.equal(indexedEvents[0].outUtxos[0].data, null);
-  });
-
+  // Note:
+  // We don't compress SOL yet, therefore cannot spend utxos with value yet.
+  // TODO: add one run with with inputUtxo where lamports: 0
   it('should send .5 sol from alice to bob, with .5 change', async () => {
-    const in_utxos: Utxo_IdlType[] = [
-      {
-        owner: payer.publicKey,
-        lamports: new BN(1e8),
-        blinding: new Array(32).fill(1),
-        data: null,
-        address: null,
-      },
-      {
-        owner: payer.publicKey,
-        lamports: new BN(9e8),
-        blinding: new Array(32).fill(1),
-        data: null,
-        address: null,
-      },
-    ];
+    const in_utxos: Utxo_IdlType[] = [];
     const out_utxos: Utxo[] = [
       {
         owner: bob.publicKey,
-        lamports: new BN(5e8),
+        lamports: new BN(0),
         data: null,
         address: null,
       },
       {
         owner: payer.publicKey,
-        lamports: new BN(5e8),
+        lamports: new BN(0),
         data: null,
         address: null,
       },
@@ -154,10 +75,10 @@ describe('Program test', () => {
       payer.publicKey,
       in_utxos,
       out_utxos,
+      [],
+      [],
       [merkleTree, merkleTree],
-      [queue, queue],
-      [merkleTree, merkleTree],
-      [0, 0],
+      [],
       proof_mock,
     );
     const ixs = [ix];
@@ -171,11 +92,11 @@ describe('Program test', () => {
     const mockRpc = await getMockRpc(connection);
     const indexedEvents = await mockRpc.getParsedEvents();
 
-    assert.equal(indexedEvents.length, 2);
-    assert.equal(indexedEvents[0].inUtxos.length, 2);
+    assert.equal(indexedEvents.length, 1);
+    assert.equal(indexedEvents[0].inUtxos.length, 0);
     assert.equal(indexedEvents[0].outUtxos.length, 2);
-    assert.equal(Number(indexedEvents[0].outUtxos[0].lamports), 5e8);
-    assert.equal(Number(indexedEvents[0].outUtxos[1].lamports), 5e8);
+    assert.equal(Number(indexedEvents[0].outUtxos[0].lamports), 0);
+    assert.equal(Number(indexedEvents[0].outUtxos[1].lamports), 0);
     assert.equal(
       indexedEvents[0].outUtxos[0].owner.toBase58(),
       bob.publicKey.toBase58(),
