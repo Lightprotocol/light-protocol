@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 // Implement refactor
+// Note: not a utxo but rater tlv data + lamports
 export type TokenTransferOutUtxo_IdlType = {
   owner: PublicKey;
   amount: BN;

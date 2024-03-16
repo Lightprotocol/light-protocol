@@ -15,6 +15,7 @@ import {
   InUtxoSerializable_IdlType,
   OutUtxoSerializableTuple,
   OutUtxoSerializable_IdlType,
+  TlvDataElement_IdlType,
   Tlv_IdlType,
 } from './types';
 
@@ -285,7 +286,7 @@ const computeBlinding = async (
   return createBN254(hashStr);
 };
 
-/// TODO: bunch of redundant conversions. optimize. add unit test.
+// TODO: add unit tests!
 /**
  * Hashes a UTXO preimage. Hash inputs: owner, blinding(merkleTree,leafIndex),
  * lamports, tlvDataHash
@@ -298,7 +299,6 @@ export async function createUtxoHash(
   leafIndex: number | BN,
 ): Promise<BN254> {
   const { owner, lamports, data } = utxo;
-
   /// hash all tlv elements into a single hash
   const tlvDataHash = computeTlvDataHash(data, hasher);
 
@@ -306,8 +306,7 @@ export async function createUtxoHash(
   const ownerHash = await hashToBn254FieldSizeLe(owner.toBuffer());
   if (!ownerHash) throw new Error('Failed to hash owner public key');
   const ownerDecStr = bufToDecStr(ownerHash[0]);
-
-  const lamportsDecStr = bn(lamports).toString();
+  const lamportsDecStr = lamports.toString();
 
   const blindingDecStr = (
     await computeBlinding(hasher, merkleTree, bn(leafIndex))
@@ -319,6 +318,7 @@ export async function createUtxoHash(
     lamportsDecStr,
     tlvDataHash,
   ]);
+
   return createBN254(hash);
 }
 
@@ -326,9 +326,11 @@ export function computeTlvDataHash(
   data: Tlv_IdlType | null,
   hasher: LightWasm,
 ) {
-  return data
+  const hash = data
     ? hasher.poseidonHashString(
-        data.tlvElements.map((d) => d.dataHash.toString()),
+        data.tlvElements.map((d: TlvDataElement_IdlType) => bn(d.dataHash)),
       )
     : bn(0).toString();
+
+  return hash;
 }

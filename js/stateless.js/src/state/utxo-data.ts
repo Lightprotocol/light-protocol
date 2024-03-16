@@ -91,7 +91,7 @@ export function serializeTlv(
 }
 
 // TODO: check how events get emitted on-chain!
-// we might not need to unpack the tlvs
+// TODO: remove. TLVS get parsed inside PublicTransactionEvent.
 export function deserializeTlv(
   serializable: TlvSerializable_IdlType,
   accounts: PublicKey[],

@@ -84,7 +84,7 @@ export async function createTransferInstruction(
     inTlvData: inUtxoTlvData,
     outUtxos,
   };
-  /// TODO: check!
+
   const data = CompressedTokenProgram.program.coder.types.encode(
     'InstructionDataTransfer',
     rawInputs,
