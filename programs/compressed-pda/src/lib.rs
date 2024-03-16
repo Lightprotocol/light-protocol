@@ -10,6 +10,8 @@ pub mod sdk;
 pub mod tlv;
 pub mod utxo;
 pub mod verify_state;
+pub mod verifying_keys;
+
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 
 #[error_code]
@@ -36,6 +38,18 @@ pub enum ErrorCode {
     NullifierArrayPubkeysMissmatch,
     #[msg("InvalidNoopPubkey")]
     InvalidNoopPubkey,
+    #[msg("InvalidPublicInputsLength")]
+    InvalidPublicInputsLength,
+    #[msg("Decompress G1 Failed")]
+    DecompressG1Failed,
+    #[msg("Decompress G2 Failed")]
+    DecompressG2Failed,
+    #[msg("CreateGroth16VerifierFailed")]
+    CreateGroth16VerifierFailed,
+    #[msg("ProofVerificationFailed")]
+    ProofVerificationFailed,
+    #[msg("PublicInputsTryIntoFailed")]
+    PublicInputsTryIntoFailed,
 }
 
 #[program]
