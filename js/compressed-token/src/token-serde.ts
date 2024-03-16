@@ -3,7 +3,6 @@ import {
   Utxo_IdlType,
   getMockRpc,
   PublicTransactionEvent_IdlType,
-  addMerkleContextToUtxo,
   MerkleContext,
   defaultTestStateTreeAccounts,
   createUtxoHash,
@@ -35,7 +34,8 @@ export function parseTokenLayoutWithIdl(
 
   if (utxo.data.tlvElements.length === 0) return null;
   if (
-    /// We can assume 0th element is token
+    /// TODO: adapt to support cPDA feature.
+    /// We currently assume 0th element is token
     utxo.data.tlvElements[0].owner.toBase58() !==
     CompressedTokenProgram.programId.toBase58()
   ) {
@@ -88,7 +88,7 @@ const parseOutUtxos = async (utxos: Utxo_IdlType[], outUtxoIndices: BN[]) => {
       if (leafIndex === undefined) {
         throw new Error('OutUtxoIndices must be same length as outUtxos');
       }
-      const { merkleTree, nullifierQueue } = defaultTestStateTreeAccounts();
+      const { merkleTree, nullifierQueue } = defaultTestStateTreeAccounts(); // TODO: pass or read from event
       const utxoHash = await createUtxoHash(
         lightWasm,
         utxo,
@@ -125,7 +125,6 @@ export async function getCompressedTokenAccountsFromMockRpc(
     events.map((event) => parseEventWithTokenTlvData(event)),
   );
 
-  console.log('eventsWithParsedTokenTlvData', eventsWithParsedTokenTlvData);
   /// strip spent utxos if an outUtxo of tx n is an inUtxo of tx n+m, it is
   /// spent
   const allOutUtxos = eventsWithParsedTokenTlvData.flatMap(

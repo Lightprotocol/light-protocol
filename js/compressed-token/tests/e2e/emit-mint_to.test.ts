@@ -49,11 +49,10 @@ describe('Emit events for mint and mint_to', () => {
   const merkleTree = keys.merkleTree;
   const payer = FIXED_PAYER;
   const bob = FIXED_BOB;
-  const mintToAmount = 100;
+  const mintToAmount = 10000;
   const connection = new Connection('http://localhost:8899', 'confirmed');
 
   const mint = FIXED_MINT;
-  const mintDecimals = 1e2; // 2 decimals
 
   beforeAll(async () => {
     const sig = await connection.requestAirdrop(payer.publicKey, 3e9);
@@ -68,7 +67,7 @@ describe('Emit events for mint and mint_to', () => {
         feePayer: payer.publicKey,
         mint: mint.publicKey,
         authority: payer.publicKey,
-        amount: mintToAmount * mintDecimals,
+        amount: mintToAmount,
         toPubkey: bob.publicKey,
         merkleTree,
       });
@@ -86,9 +85,7 @@ describe('Emit events for mint and mint_to', () => {
       const txId = await sendAndConfirmTx(connection, tx);
 
       console.log(
-        `minted ${
-          mintToAmount * mintDecimals
-        } compressed tokens (mint: ${mint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
+        `minted ${mintToAmount} compressed tokens (mint: ${mint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
       );
       /// TODO(swen): assert output and print output utxos after implementing proper beet serde
     }
