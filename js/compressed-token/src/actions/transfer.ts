@@ -13,6 +13,7 @@ import {
   TlvDataElement_IdlType,
   Utxo_IdlType,
   bn,
+  createUtxoHash,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
@@ -21,7 +22,37 @@ import { BN } from '@coral-xyz/anchor';
 import { createTransferInstruction } from '../instructions';
 import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
 import { getSigners } from './mint-to';
+import {
+  UtxoWithParsedTokenTlvData,
+  getCompressedTokenAccountsFromMockRpc,
+} from '../token-serde';
+import { WasmFactory } from '../../../../account.rs/dist/types/main/wasm';
 
+/**
+ * @internal
+ *
+ * Selects the minimal number of compressed token accounts for a transfer
+ * 1. Sorts the accounts by amount in descending order
+ * 2. Accumulates the amount until it is greater than or equal to the transfer
+ *    amount
+ */
+function pickMinCompressedTokenAccountsForTransfer(
+  accounts: UtxoWithParsedTokenTlvData[],
+  transferAmount: BN,
+): UtxoWithParsedTokenTlvData[] {
+  let accumulatedAmount = bn(0);
+  const selectedAccounts = [];
+  accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
+  for (const account of accounts) {
+    if (accumulatedAmount.gte(bn(transferAmount))) break;
+    accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
+    selectedAccounts.push(account);
+  }
+  if (accumulatedAmount.lt(bn(transferAmount))) {
+    throw new Error('Not enough balance for transfer');
+  }
+  return selectedAccounts;
+}
 /**
  * Transfer compressed tokens from one owner to another
  *
@@ -51,59 +82,47 @@ export async function transfer(
   confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
   const keys = defaultTestStateTreeAccounts();
-  const queue = keys.nullifierQueue; /// FIXME: Should fetch or provide
-
-  // returns signers = [currentOwner] here
+  const queue = keys.nullifierQueue; /// FIXME: Should fetch or pass
   const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
 
-  /// TODO: don't mock input state + proof.
-  /// Also: refactor createTransferInstruction
-  const tlv: TokenTlvData_IdlType = {
-    mint: mint,
-    owner: currentOwnerPublicKey,
-    amount: bn(amount).add(bn(42)), // +42
-    delegate: null,
-    state: 1,
-    isNative: null,
-    delegatedAmount: bn(0),
-  };
-
-  const tlvData = CompressedTokenProgram.program.coder.types.encode(
-    'TokenTlvDataClient',
-    tlv,
+  const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
+    connection,
+    currentOwnerPublicKey,
+    mint,
   );
 
-  const tlvDataElement: TlvDataElement_IdlType = {
-    discriminator: Array(8).fill(2),
-    owner: CompressedTokenProgram.programId, // tok
-    data: Uint8Array.from(tlvData),
-    dataHash: Array(32).fill(0), // mock
-  };
-
-  const inUtxo: Utxo_IdlType = {
-    owner: CompressedTokenProgram.programId,
-    blinding: Array(32).fill(0),
-    lamports: new BN(0),
-    data: { tlvElements: [tlvDataElement] },
-    address: null,
-  };
+  const inUtxos = pickMinCompressedTokenAccountsForTransfer(
+    compressedTokenAccounts,
+    bn(amount),
+  );
 
   /// Create output utxos
+  const changeAmount = inUtxos
+    .reduce((acc, utxo) => acc.add(utxo.parsed.amount), bn(0))
+    .sub(bn(amount));
+
+  /// We don't send lamports and don't have rent
+  const changeLamportsAmount = inUtxos.reduce(
+    (acc, utxo) => acc.add(utxo.utxo.lamports),
+    // TODO: add optional rent
+    bn(0),
+  );
 
   const changeUtxo: TokenTransferOutUtxo_IdlType = {
-    amount: bn(42), // mocked input state value
-    owner: currentOwnerPublicKey, /// FIXME: on-chain must accept tokenprogramowner
-    lamports: null,
-    index_mt_account: 0,
+    amount: changeAmount,
+    owner: currentOwnerPublicKey,
+    lamports: changeLamportsAmount.gt(bn(0)) ? changeLamportsAmount : null,
+    index_mt_account: 0, // FIXME: dynamic!
   };
 
   const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
     amount: bn(amount),
     owner: toAddress,
     lamports: null,
-    index_mt_account: 0,
+    index_mt_account: 0, // FIXME: dynamic!
   };
 
+  // TODO: replace with actual proof!
   const proof_mock: CompressedProof_IdlType = {
     a: Array.from({ length: 32 }, () => 0),
     b: Array.from({ length: 64 }, () => 0),
@@ -116,26 +135,28 @@ export async function transfer(
     [merkleTree],
     [queue],
     [merkleTree, merkleTree],
-    [inUtxo],
+    inUtxos.map((utxo) => utxo.utxo),
     [recipientOutUtxo, changeUtxo],
-    [0], // input state root indices
+    // TODO: replace with actual recent state root index!
+    // This will only work with sequential state updates and no cranking!
+    inUtxos.map((utxo) => Number(utxo.merkleContext?.leafIndex)), // input state root indices
     proof_mock,
   );
 
   const ixs = [
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+    // TODO: adjust CU down to min!
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }),
     ix,
   ];
   const { blockhash } = await connection.getLatestBlockhash();
 
-  /// TODO: find more elegant solution for this.
-  /// Probably buildAndSignTx should just dedupe by itself
+  // TODO: find more elegant solution for this.
+  // Probably buildAndSignTx should just dedupe by itself
   const filteredSigners = currentOwnerPublicKey.equals(payer.publicKey)
     ? signers.filter(
         (signer) => !signer.publicKey.equals(currentOwnerPublicKey),
       )
     : [...signers];
-  console.log('filteredSigners', filteredSigners);
   const signedTx = buildAndSignTx(ixs, payer, blockhash, filteredSigners);
   const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
 

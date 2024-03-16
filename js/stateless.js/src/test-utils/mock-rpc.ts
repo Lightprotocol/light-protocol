@@ -35,13 +35,11 @@ import { BN } from '@coral-xyz/anchor';
  * @param merkleTreeAddress address of the state tree to index. Defaults to the
  * public default test state tree.
  * @param lightWasm light wasm hasher instance
- * @param dataDeserializer optional custom deserializer for the data field of the events
  */
 export async function getMockRpc(
   connection: Connection,
   lightWasm?: LightWasm,
   merkleTreeAddress?: PublicKey,
-  dataDeserializer?: <T>(data: Buffer) => T,
 ) {
   if (!lightWasm) lightWasm = await WasmFactory.getInstance();
 
@@ -49,7 +47,6 @@ export async function getMockRpc(
     connection,
     lightWasm: lightWasm!,
     merkleTreeAddress,
-    dataDeserializer,
   });
 }
 
@@ -69,7 +66,6 @@ export class MockRpc implements CompressionApiInterface {
   nullifierQueueAddress: PublicKey;
   lightWasm: LightWasm;
   depth: number;
-  dataDeserializer: (<T>(data: Utxo_IdlType) => T) | undefined;
 
   /**
    * Instantiate a mock RPC simulating the compression rpc interface.
@@ -84,8 +80,7 @@ export class MockRpc implements CompressionApiInterface {
    *                              public default test nullifier queue.
    * @param depth                 depth of tree. Defaults to the public default
    *                              test state tree depth.
-   * @param dataDeserializer      optional custom deserializer for the data
-   *                              field of the events
+
    */
   constructor({
     connection,
@@ -93,14 +88,12 @@ export class MockRpc implements CompressionApiInterface {
     merkleTreeAddress,
     nullifierQueueAddress,
     depth,
-    dataDeserializer,
   }: {
     connection: Connection;
     lightWasm: LightWasm;
     merkleTreeAddress?: PublicKey;
     nullifierQueueAddress?: PublicKey;
     depth?: number;
-    dataDeserializer?: <T>(data: Utxo_IdlType) => T;
   }) {
     const { merkleTree, nullifierQueue, merkleTreeHeight } =
       defaultTestStateTreeAccounts();
@@ -109,7 +102,6 @@ export class MockRpc implements CompressionApiInterface {
     this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
     this.lightWasm = lightWasm;
     this.depth = depth ?? merkleTreeHeight;
-    this.dataDeserializer = dataDeserializer ?? undefined;
   }
 
   /**

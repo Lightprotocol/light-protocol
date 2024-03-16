@@ -29,8 +29,83 @@ import {
   TokenTlvData_IdlType,
   TokenTransferOutUtxo_IdlType,
 } from '../../src/types';
+import {
+  UtxoWithParsedTokenTlvData,
+  getCompressedTokenAccountsFromMockRpc,
+} from '../../src/token-serde';
 
-/// Asserts that createMint() creates a new spl mint account + the respective system pool account
+/**
+ * Asserts that mintTo() creates a new compressed token account for the
+ * recipient
+ */
+async function assertMintTo(
+  connection: Connection,
+  refMint: PublicKey,
+  refAmount: BN,
+  refTo: PublicKey,
+) {
+  const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
+    connection,
+    refTo,
+    refMint,
+  );
+  const compressedTokenAccount = compressedTokenAccounts[0];
+  expect(compressedTokenAccount.parsed.mint.toBase58()).toBe(
+    refMint.toBase58(),
+  );
+  expect(compressedTokenAccount.parsed.amount.eq(refAmount)).toBe(true);
+  expect(compressedTokenAccount.parsed.owner.equals(refTo)).toBe(true);
+  expect(compressedTokenAccount.parsed.delegate).toBe(null);
+}
+
+/**
+ * Assert that we created recipient and change ctokens for the sender, with all
+ * amounts correctly accounted for
+ */
+async function assertTransfer(
+  connection: Connection,
+  senderPreCompressedTokenAccounts: UtxoWithParsedTokenTlvData[], // all
+  refMint: PublicKey,
+  refAmount: BN,
+  refSender: PublicKey,
+  refRecipient: PublicKey,
+  // TODO: add ...refValues
+) {
+  /// Transfer can merge input utxos therefore we need to pass all as ref
+  const senderPostCompressedTokenAccounts =
+    await getCompressedTokenAccountsFromMockRpc(connection, refSender, refMint);
+
+  /// pre = post-amount
+  const sumPre = senderPreCompressedTokenAccounts.reduce(
+    (acc, curr) => bn(acc).add(curr.parsed.amount),
+    bn(0),
+  );
+  const sumPost = senderPostCompressedTokenAccounts.reduce(
+    (acc, curr) => bn(acc).add(curr.parsed.amount),
+    bn(0),
+  );
+
+  expect(sumPre.sub(refAmount).eq(sumPost)).toBe(true);
+
+  const recipientCompressedTokenAccounts =
+    await getCompressedTokenAccountsFromMockRpc(
+      connection,
+      refRecipient,
+      refMint,
+    );
+
+  /// recipient should have received the amount
+  const recipientCompressedTokenAccount = recipientCompressedTokenAccounts[0];
+  expect(recipientCompressedTokenAccount.parsed.amount.eq(refAmount)).toBe(
+    true,
+  );
+  expect(recipientCompressedTokenAccount.parsed.delegate).toBe(null);
+}
+
+/**
+ * Asserts that createMint() creates a new spl mint account + the respective
+ * system pool account
+ */
 async function assertMintCreated(
   mint: PublicKey,
   authority: PublicKey,
@@ -41,7 +116,6 @@ async function assertMintCreated(
   const mintAcc = await connection.getAccountInfo(mint);
   const unpackedMint = unpackMint(mint, mintAcc);
 
-  // for mint account
   const mintAuthority = CompressedTokenProgram.deriveMintAuthorityPda(
     authority,
     mint,
@@ -54,13 +128,12 @@ async function assertMintCreated(
   expect(unpackedMint.freezeAuthority).toBe(null);
   expect(unpackedMint.tlvData.length).toBe(0);
 
-  // for pool
+  /// Pool (omnibus) account is a regular SPL Token account
   const poolAccountInfo = await connection.getAccountInfo(poolAccount);
   const unpackedPoolAccount = unpackAccount(poolAccount, poolAccountInfo);
-
-  expect(unpackedPoolAccount.mint.toBase58()).toBe(mint.toBase58());
-  expect(unpackedPoolAccount.amount).toBe(0n); // deal with bigint
-  expect(unpackedPoolAccount.owner.toBase58()).toBe(mintAuthority.toBase58());
+  expect(unpackedPoolAccount.mint.equals(mint)).toBe(true);
+  expect(unpackedPoolAccount.amount).toBe(0n);
+  expect(unpackedPoolAccount.owner.equals(mintAuthority)).toBe(true);
   expect(unpackedPoolAccount.delegate).toBe(null);
 }
 
@@ -90,7 +163,7 @@ describe('Compressed Token Program test', () => {
   });
 
   it("should create mint using 'createMint' action function", async () => {
-    const { mint, transactionSignature } = await createMint(
+    const { mint } = await createMint(
       connection,
       payer,
       payer.publicKey,
@@ -108,22 +181,26 @@ describe('Compressed Token Program test', () => {
       mintDecimals,
       poolAccount,
     );
-    console.log('created compressed Mint txId', transactionSignature);
   });
 
-  it.skip('should mint_to bob using "mintTo" action function', async () => {
-    const txId = await mintTo(
+  it('should mint_to bob using "mintTo" action function', async () => {
+    await mintTo(
       connection,
       payer,
       randomMint.publicKey,
       bob.publicKey,
       payer.publicKey,
-      100,
+      100, // 2 dec
       [],
       merkleTree,
     );
-    console.log(
-      `minted ${100} tokens (mint: ${randomMint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
+    console.log('assertMintTo');
+
+    await assertMintTo(
+      connection,
+      randomMint.publicKey,
+      bn(100),
+      bob.publicKey,
     );
   });
 
@@ -200,33 +277,43 @@ describe('Compressed Token Program test', () => {
   /// TODO: refactor
 
   it('should transfer using "transfer" action ', async () => {
-    const txId = await transfer(
+    const bobPreCompressedTokenAccounts =
+      await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        bob.publicKey,
+        randomMint.publicKey,
+      );
+
+    await transfer(
       connection,
       payer,
       randomMint.publicKey,
-      100,
+      70,
       bob,
       charlie.publicKey,
       merkleTree,
     );
 
-    const mockRpc = await getMockRpc(connection);
-    const indexedEvents = await mockRpc.getParsedEvents();
-    console.log('indexedEvents', indexedEvents);
-    console.log(
-      '0th oututxos datas:',
-      indexedEvents[0].outUtxos.map((u) => u.data),
-    );
-    console.log(
-      '0th oututxos data.tlvElements[0]:',
-      JSON.stringify(
-        indexedEvents[0].outUtxos.map((u) => u.data?.tlvElements[0].data),
-      ),
+    await assertTransfer(
+      connection,
+      bobPreCompressedTokenAccounts,
+      randomMint.publicKey,
+      bn(70),
+      bob.publicKey,
+      charlie.publicKey,
     );
 
-    console.log(
-      `bob (${bob.publicKey.toBase58()}) transferred ${100} tokens (mint: ${randomMint.publicKey.toBase58()}) to charlie (${charlie.publicKey.toBase58()}) \n txId: ${txId}`,
-    );
+    await expect(
+      transfer(
+        connection,
+        payer,
+        randomMint.publicKey,
+        31,
+        bob,
+        charlie.publicKey,
+        merkleTree,
+      ),
+    ).rejects.toThrow('Not enough balance for transfer');
   });
 
   it.skip('should transfer n mint to charlie', async () => {

@@ -13,28 +13,30 @@ function isSmallerThanBn254FieldSizeLe(bytes: Buffer): boolean {
   const bigint = bn(bytes);
   return bigint.lt(FIELD_SIZE);
 }
-
 export async function hashToBn254FieldSizeLe(
   bytes: Buffer,
 ): Promise<[Buffer, number] | null> {
-  /// FIXME: why are we assuming the need for a bump seed?
-  let bumpSeed = 255; // Start with the max value for a byte
+  let bumpSeed = 255;
   while (bumpSeed >= 0) {
     let hashedValue: Buffer;
+
+    // Check if running in a browser environment
     if (typeof crypto.subtle !== 'undefined') {
-      // Browser
       hashedValue = Buffer.from(await crypto.subtle.digest('SHA-256', bytes));
-    } else {
-      // Node.js
-      const hash = crypto.createHash('sha256');
+    } else if (typeof require !== 'undefined') {
+      // Fallback to Node.js require
+      const nodeCrypto = require('crypto');
+      const hash = nodeCrypto.createHash('sha256');
       hash.update(bytes);
       hashedValue = hash.digest();
+    } else {
+      throw new Error(
+        'No crypto implementation found. Please use a browser or Node.js.',
+      );
     }
 
-    // Truncate to 31 bytes so that value is less than bn254 Fr modulo field size
     hashedValue[0] = 0;
     hashedValue[1] = 0;
-    // truncateToBn254FieldSize(hashedValue); // TODO: less blunt truncation
 
     if (isSmallerThanBn254FieldSizeLe(hashedValue)) {
       return [hashedValue, bumpSeed];
