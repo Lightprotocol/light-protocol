@@ -42,37 +42,20 @@ describe('Emit events', () => {
       /// Get testing keys. tree and queue are auto-initialized with the test-validator env.
       const keys = defaultTestStateTreeAccounts();
       const merkleTree = keys.merkleTree;
-      const queue = keys.nullifierQueue;
 
       const alice = FIXED_PAYER;
       const bob = Keypair.generate();
       const connection = new Connection('http://localhost:8899', 'confirmed');
-      const aliceBalance = 1e9;
-      const lamportsToSend = 42e7;
+      const lamportsToSend = 0;
 
       const sig = await connection.requestAirdrop(FIXED_PAYER.publicKey, 2e9);
       await confirmTx(connection, sig);
 
       /// Define input state (current state that the tx consumes)
-      /// In this example, Alice has their compressed sol in 2 utxos.
-      /// This is a mock since the only check we're running is a sumcheck.
-      /// Merkle Inclusion is mocked for now.
-      const in_utxos: Utxo_IdlType[] = [
-        {
-          owner: alice.publicKey,
-          lamports: bn(aliceBalance / 2),
-          blinding: rndMockedBlinding(),
-          data: null,
-          address: null,
-        },
-        {
-          owner: alice.publicKey,
-          lamports: bn(aliceBalance / 2),
-          blinding: rndMockedBlinding(),
-          data: null,
-          address: null,
-        },
-      ];
+      // Note:
+      // We don't compress SOL yet, therefore cannot spend utxos with value yet.
+      // TODO: add one run with with inputUtxo where lamports: 0
+      const in_utxos: Utxo_IdlType[] = [];
 
       /// Define output state (new state that the tx creates)
       /// In this example, Alice sends 42e7 lamports to Bob and keeps the rest back.
@@ -89,7 +72,7 @@ describe('Emit events', () => {
         },
         {
           owner: alice.publicKey,
-          lamports: bn(aliceBalance - lamportsToSend),
+          lamports: bn(0),
           data: null,
           address: null,
         },
@@ -108,10 +91,10 @@ describe('Emit events', () => {
         alice.publicKey,
         in_utxos,
         out_utxos,
+        [],
+        [],
         [merkleTree, merkleTree],
-        [queue, queue],
-        [merkleTree, merkleTree],
-        [0, 0], // mock root indices
+        [], // mock root indices
         proof_mock, // mock zkp
       );
       const ixs = [ix];
