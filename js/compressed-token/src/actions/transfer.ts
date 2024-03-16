@@ -5,6 +5,7 @@ import {
   Signer,
   TransactionSignature,
   ComputeBudgetProgram,
+  SystemProgram,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
 import {
@@ -22,14 +23,14 @@ import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
 import { getSigners } from './mint-to';
 
 /**
- * Transfer compressed tokens from one address to another
+ * Transfer compressed tokens from one owner to another
  *
  * @param connection     Connection to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint of the compressed token
  * @param amount         Number of tokens to transfer
- * @param currentOwner   Source address
- * @param newOwner       Destination address
+ * @param owner          Owner of the compressed tokens
+ * @param toAddress      Destination address of the recipient
  * @param merkleTree     State tree account that the compressed tokens should be
  *                       inserted into. Defaults to the default state tree account.
  * @param multiSigners   Signing accounts if `currentOwner` is a multisig
@@ -43,8 +44,8 @@ export async function transfer(
   payer: Signer,
   mint: PublicKey,
   amount: number | BN,
-  currentOwner: Signer | PublicKey,
-  newOwner: PublicKey,
+  owner: Signer | PublicKey,
+  toAddress: PublicKey,
   merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
   multiSigners: Signer[] = [],
   confirmOptions?: ConfirmOptions,
@@ -53,10 +54,7 @@ export async function transfer(
   const queue = keys.nullifierQueue; /// FIXME: Should fetch or provide
 
   // returns signers = [currentOwner] here
-  const [currentOwnerPublicKey, signers] = getSigners(
-    currentOwner,
-    multiSigners,
-  );
+  const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
 
   /// TODO: don't mock input state + proof.
   /// Also: refactor createTransferInstruction
@@ -101,7 +99,7 @@ export async function transfer(
 
   const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
     amount: bn(amount),
-    owner: newOwner,
+    owner: toAddress,
     lamports: null,
     index_mt_account: 0,
   };
