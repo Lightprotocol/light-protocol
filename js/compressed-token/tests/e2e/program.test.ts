@@ -14,6 +14,7 @@ import {
   confirmTx,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
+  getMockRpc,
 } from '@lightprotocol/stateless.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
@@ -232,6 +233,13 @@ describe('Compressed Token Program test', () => {
     ).rejects.toThrow('Not enough balance for transfer');
   });
 
+  it('should return validityProof from prover server', async () => {
+    const rpc = await getMockRpc(connection);
+    const utxos = await rpc.getUtxos(payer.publicKey);
+    const utxoHashes = utxos.map((utxo) => utxo.value.hash);
+    await rpc.getValidityProof(utxoHashes);
+    console.log('HELLO!');
+  });
   /// TODO: move these as unit tests to program.ts
   it.skip('should create mint', async () => {
     const rentExemptBalance = SPL_TOKEN_MINT_RENT_EXEMPT_BALANCE;

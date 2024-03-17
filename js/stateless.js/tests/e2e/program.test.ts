@@ -45,6 +45,7 @@ describe('Program test', () => {
     await confirmTx(connection, sig);
   });
 
+
   // Note:
   // We don't compress SOL yet, therefore cannot spend utxos with value yet.
   // TODO: add one run with with inputUtxo where lamports: 0

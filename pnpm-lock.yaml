@@ -501,6 +501,9 @@ importers:
       '@solana/web3.js':
         specifier: ^1.87.6
         version: 1.87.6
+      axios:
+        specifier: ^1.5.0
+        version: 1.5.0
       buffer:
         specifier: ^6.0.3
         version: 6.0.3

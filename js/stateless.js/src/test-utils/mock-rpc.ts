@@ -27,6 +27,7 @@ import {
   createUtxoWithMerkleContext,
 } from '../state';
 import { BN } from '@coral-xyz/anchor';
+import axios from 'axios';
 
 /**
  * Returns a mock rpc instance. use for unit tests
@@ -313,4 +314,100 @@ export class MockRpc implements CompressionApiInterface {
     };
     return value;
   }
+
+  /** Retrieve the proof for a utxo */
+  async getValidityProof(utxoHashes: BN254[]): Promise<void> {
+    /// rebuild tree
+    const events: PublicTransactionEvent_IdlType[] =
+      await this.getParsedEvents();
+
+    const leaves = (
+      await Promise.all(
+        events.flatMap((event) =>
+          event.outUtxos.map((utxo, index) =>
+            createUtxoHash(
+              this.lightWasm,
+              utxo,
+              this.merkleTreeAddress,
+              event.outUtxoIndices[index],
+            ),
+          ),
+        ),
+      )
+    ).flat();
+
+    const tree = new MerkleTree(
+      this.depth,
+      this.lightWasm,
+      leaves.map((leaf) => leaf.toString()),
+    );
+
+    /// merkle proofs
+    const hexPathElementsAll = utxoHashes.map((utxoHash) => {
+      const pathEements: string[] = tree.path(
+        tree.indexOf(utxoHash.toString()),
+      ).pathElements;
+      const hexPathElements = pathEements.map((value) => toHex(value));
+
+      return hexPathElements;
+    });
+
+    const leafIndices = utxoHashes.map((utxoHash) =>
+      tree.indexOf(utxoHash.toString()),
+    );
+
+    let inputs = {
+      /// roots
+      root: new Array(utxoHashes.length).fill(toHex(tree.root())),
+      /// array of leafIndices
+      inPathIndices: leafIndices,
+      /// array of array of pathElements
+      inPathElements: hexPathElementsAll,
+      /// array of leafs
+      leaf: utxoHashes.map((utxoHash) => toHex(utxoHash.toString())),
+    };
+
+    const inputsData = JSON.stringify(inputs);
+    const SERVER_URL = 'http://localhost:3001';
+    const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
+    const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
+    console.log('PROVER SERVER RES: ', response.data);
+    console.log('JSON', JSON.stringify(response.data));
+    // console.timeEnd(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
+
+    // assert.equal(response.status, 200);
+    // assert.isNotEmpty(response.data.toString());
+
+    // const value: MerkleContextWithMerkleProof = {
+    //   hash: utxoHash,
+    //   merkleTree: this.merkleTreeAddress,
+    //   leafIndex: leafIndex,
+    //   merkleProof: proof,
+    //   nullifierQueue: this.nullifierQueueAddress,
+    //   rootIndex,
+    // };
+    // return value;
+  }
+}
+
+// const pathEements: string[] = merkleTree.path(
+//   merkleTree.indexOf(leaf),
+// ).pathElements;
+// const hexPathElements = pathEements.map((value) => toHex(value));
+// let inputs = {
+//   root: new Array(utxos[j]).fill(toHex(merkleTree.root())),
+//   inPathIndices: new Array(utxos[j]).fill(merkleTree.indexOf(leaf)),
+//   inPathElements: new Array(utxos[j]).fill(hexPathElements),
+//   leaf: new Array(utxos[j]).fill(toHex(leaf)),
+// };
+// const inputsData = JSON.stringify(inputs);
+// console.time(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
+// const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
+// console.timeEnd(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
+
+// assert.equal(response.status, 200);
+// assert.isNotEmpty(response.data.toString());
+
+function toHex(bnString: string) {
+  return '0x' + new BN(bnString).toString(16);
 }
