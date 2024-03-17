@@ -11,6 +11,7 @@ import {
   bn,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
+  getMockRpc,
 } from '@lightprotocol/stateless.js';
 import { buildAndSignTx } from '@lightprotocol/stateless.js';
 import { BN } from '@coral-xyz/anchor';
@@ -117,11 +118,20 @@ export async function transfer(
   };
 
   // TODO: replace with actual proof!
-  const proof_mock: CompressedProof_IdlType = {
-    a: Array.from({ length: 32 }, () => 0),
-    b: Array.from({ length: 64 }, () => 0),
-    c: Array.from({ length: 32 }, () => 0),
-  };
+  // const proof_mock: CompressedProof_IdlType = {
+  //   a: Array.from({ length: 32 }, () => 0),
+  //   b: Array.from({ length: 64 }, () => 0),
+  //   c: Array.from({ length: 32 }, () => 0),
+  // };
+  const rpc = await getMockRpc(connection);
+  console.log(
+    'PICKED INUTXOS TRANFER',
+    inUtxos.map((utxo) => utxo.merkleContext.hash),
+  );
+  const proof = await rpc.getValidityProof(
+    inUtxos.map((utxo) => utxo.merkleContext.hash as BN),
+  );
+  console.log('proof in @transfer', proof);
 
   const ix = await createTransferInstruction(
     payer.publicKey,
@@ -134,7 +144,7 @@ export async function transfer(
     // TODO: replace with actual recent state root index!
     // This will only work with sequential state updates and no cranking!
     inUtxos.map((utxo) => Number(utxo.merkleContext?.leafIndex)), // input state root indices
-    proof_mock,
+    proof.compressedProof,
   );
 
   const ixs = [

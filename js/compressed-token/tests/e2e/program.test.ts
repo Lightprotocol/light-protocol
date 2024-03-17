@@ -66,6 +66,10 @@ async function assertTransfer(
   const senderPostCompressedTokenAccounts =
     await getCompressedTokenAccountsFromMockRpc(connection, refSender, refMint);
 
+  console.log(
+    'senderPostCompressedTokenAccounts',
+    senderPostCompressedTokenAccounts.map((x) => x.merkleContext.leafIndex),
+  );
   /// pre = post-amount
   const sumPre = senderPreCompressedTokenAccounts.reduce(
     (acc, curr) => bn(acc).add(curr.parsed.amount),
@@ -193,7 +197,7 @@ describe('Compressed Token Program test', () => {
     );
   });
 
-  it.skip('should transfer using "transfer" action ', async () => {
+  it('should transfer using "transfer" action ', async () => {
     const bobPreCompressedTokenAccounts =
       await getCompressedTokenAccountsFromMockRpc(
         connection,
@@ -201,6 +205,7 @@ describe('Compressed Token Program test', () => {
         randomMint.publicKey,
       );
 
+    console.log('1st transfer');
     await transfer(
       connection,
       payer,
@@ -216,6 +221,27 @@ describe('Compressed Token Program test', () => {
       bobPreCompressedTokenAccounts,
       randomMint.publicKey,
       bn(70),
+      bob.publicKey,
+      charlie.publicKey,
+    );
+
+    console.log('2nd transfer');
+
+    await transfer(
+      connection,
+      payer,
+      randomMint.publicKey,
+      10,
+      bob,
+      charlie.publicKey,
+      merkleTree,
+    );
+
+    await assertTransfer(
+      connection,
+      bobPreCompressedTokenAccounts,
+      randomMint.publicKey,
+      bn(10),
       bob.publicKey,
       charlie.publicKey,
     );
@@ -237,7 +263,7 @@ describe('Compressed Token Program test', () => {
     const rpc = await getMockRpc(connection);
     const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
       connection,
-      bob.publicKey,
+      charlie.publicKey,
       randomMint.publicKey,
     );
     const utxoHashes = compressedTokenAccounts.map(

@@ -326,8 +326,10 @@ export class MockRpc implements CompressionApiInterface {
   ): Promise<CompressedProofWithContext> {
     /// rebuild tree
     const events: PublicTransactionEvent_IdlType[] =
-      await this.getParsedEvents();
+      await this.getParsedEvents().then((events) => events.reverse());
 
+    console.log('EVENTS', events);
+    console.log('JSON EVENTS', JSON.stringify(events));
     const leaves = (
       await Promise.all(
         events.flatMap((event) =>
@@ -343,29 +345,37 @@ export class MockRpc implements CompressionApiInterface {
       )
     ).flat();
 
+    console.log('@mockrpc leaves', leaves);
+
     const tree = new MerkleTree(
       this.depth,
       this.lightWasm,
       leaves.map((leaf) => leaf.toString()),
     );
 
-    /// merkle proofs
-    const hexPathElementsAll = utxoHashes.map((utxoHash) => {
-      const pathEements: string[] = tree.path(
-        tree.indexOf(utxoHash.toString()),
-      ).pathElements;
-      const hexPathElements = pathEements.map((value) => toHex(value));
-
-      return hexPathElements;
-    });
+    console.log('built tree', tree);
 
     const leafIndices = utxoHashes.map((utxoHash) =>
       tree.indexOf(utxoHash.toString()),
     );
+    
+    console.log('leafIndices (tree.indexOf)', leafIndices);
+    console.log(
+      'leafIndices (events out)',
+      events.flatMap((e) => e.outUtxoIndices),
+    );
+
+    /// merkle proofs
+    const hexPathElementsAll = utxoHashes.map((utxoHash, i) => {
+      const pathElements: string[] = tree.path(leafIndices[i]).pathElements;
+      const hexPathElements = pathElements.map((value) => toHex(value));
+
+      return hexPathElements;
+    });
 
     const roots = new Array(utxoHashes.length).fill(toHex(tree.root()));
 
-    let inputs = {
+    const inputs = {
       /// roots
       root: roots,
       /// array of leafIndices
@@ -377,6 +387,8 @@ export class MockRpc implements CompressionApiInterface {
     };
 
     const inputsData = JSON.stringify(inputs);
+
+    console.log('inputsData', inputsData);
 
     const logTime = `Proof generation for depth:${this.depth} n:${utxoHashes.length}`;
     console.time(logTime);

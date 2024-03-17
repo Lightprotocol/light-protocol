@@ -83,7 +83,7 @@ export function negateAndCompressProof(
 function deserializeHexStringToBeBytes(hexStr: string): Uint8Array {
   const trimmedStr = hexStr.startsWith('0x') ? hexStr.substring(2) : hexStr;
   const bigInt = BigInt(`0x${trimmedStr}`);
-  let bigIntBytes = new Uint8Array(
+  const bigIntBytes = new Uint8Array(
     bigInt
       .toString(16)
       .padStart(64, '0')
@@ -91,7 +91,7 @@ function deserializeHexStringToBeBytes(hexStr: string): Uint8Array {
       .map((byte) => parseInt(byte, 16)),
   );
   if (bigIntBytes.length < 32) {
-    let result = new Uint8Array(32);
+    const result = new Uint8Array(32);
     result.set(bigIntBytes, 32 - bigIntBytes.length);
     return result;
   } else {

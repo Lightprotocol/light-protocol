@@ -45,7 +45,6 @@ describe('Program test', () => {
     await confirmTx(connection, sig);
   });
 
-
   // Note:
   // We don't compress SOL yet, therefore cannot spend utxos with value yet.
   // TODO: add one run with with inputUtxo where lamports: 0
@@ -71,6 +70,10 @@ describe('Program test', () => {
       b: Array.from({ length: 64 }, () => 0),
       c: Array.from({ length: 32 }, () => 0),
     };
+    // const rpc = await getMockRpc(connection);
+    // const proof = await rpc.getValidityProof(
+    //   inUtxos.map((utxo) => utxo.merkleContext.hash as BN),
+    // );
 
     const ix = await createExecuteCompressedInstruction(
       payer.publicKey,
