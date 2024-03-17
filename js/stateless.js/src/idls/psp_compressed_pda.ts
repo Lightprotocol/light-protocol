@@ -743,6 +743,36 @@ export type PspCompressedPda = {
       name: 'InvalidNoopPubkey';
       msg: 'InvalidNoopPubkey';
     },
+    {
+      code: 6011;
+      name: 'InvalidPublicInputsLength';
+      msg: 'InvalidPublicInputsLength';
+    },
+    {
+      code: 6012;
+      name: 'DecompressG1Failed';
+      msg: 'Decompress G1 Failed';
+    },
+    {
+      code: 6013;
+      name: 'DecompressG2Failed';
+      msg: 'Decompress G2 Failed';
+    },
+    {
+      code: 6014;
+      name: 'CreateGroth16VerifierFailed';
+      msg: 'CreateGroth16VerifierFailed';
+    },
+    {
+      code: 6015;
+      name: 'ProofVerificationFailed';
+      msg: 'ProofVerificationFailed';
+    },
+    {
+      code: 6016;
+      name: 'PublicInputsTryIntoFailed';
+      msg: 'PublicInputsTryIntoFailed';
+    },
   ];
 };
 
@@ -1490,6 +1520,36 @@ export const IDL: PspCompressedPda = {
       code: 6010,
       name: 'InvalidNoopPubkey',
       msg: 'InvalidNoopPubkey',
+    },
+    {
+      code: 6011,
+      name: 'InvalidPublicInputsLength',
+      msg: 'InvalidPublicInputsLength',
+    },
+    {
+      code: 6012,
+      name: 'DecompressG1Failed',
+      msg: 'Decompress G1 Failed',
+    },
+    {
+      code: 6013,
+      name: 'DecompressG2Failed',
+      msg: 'Decompress G2 Failed',
+    },
+    {
+      code: 6014,
+      name: 'CreateGroth16VerifierFailed',
+      msg: 'CreateGroth16VerifierFailed',
+    },
+    {
+      code: 6015,
+      name: 'ProofVerificationFailed',
+      msg: 'ProofVerificationFailed',
+    },
+    {
+      code: 6016,
+      name: 'PublicInputsTryIntoFailed',
+      msg: 'PublicInputsTryIntoFailed',
     },
   ],
 };

@@ -50,7 +50,7 @@ fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
     // should not cause panic. Returning an error would not be compatible with
     // usafe of `once_cell::sync::Lazy` as a static variable.
     let in_path_elements = merkle_tree
-        .get_proof_of_leaf(0)
+        .get_proof_of_leaf(0, true)
         .unwrap()
         .iter()
         .map(|el| BigInt::from_bytes_be(Sign::Plus, el))
@@ -105,7 +105,7 @@ pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
     let leaf_index = new_element.index;
     let leaf_higher_range_value = new_element.value.to_bytes_be();
     let merkle_proof_hashed_indexed_element_leaf = indexed_tree
-        .get_proof_of_leaf(new_low_element.index)
+        .get_proof_of_leaf(new_low_element.index, true)
         .ok()
         .map(|bounded_vec| {
             bounded_vec

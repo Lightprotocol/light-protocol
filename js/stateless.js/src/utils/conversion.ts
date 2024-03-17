@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
-import crypto from 'crypto';
 import { bn, createBN254 } from '../state';
 import { FIELD_SIZE } from '../constants';
+import { keccak_256 } from '@noble/hashes/sha3';
 
 export const toArray = <T>(value: T | T[]) =>
   Array.isArray(value) ? value : [value];
@@ -10,36 +10,25 @@ export const bufToDecStr = (buf: Buffer): string => {
   return createBN254(buf).toString();
 };
 function isSmallerThanBn254FieldSizeLe(bytes: Buffer): boolean {
-  const bigint = bn(bytes);
+  const bigint = bn(bytes, undefined, 'le');
   return bigint.lt(FIELD_SIZE);
 }
+
 export async function hashToBn254FieldSizeLe(
   bytes: Buffer,
 ): Promise<[Buffer, number] | null> {
   let bumpSeed = 255;
   while (bumpSeed >= 0) {
-    let hashedValue: Buffer;
-
-    // Check if running in a browser environment
-    if (typeof crypto.subtle !== 'undefined') {
-      hashedValue = Buffer.from(await crypto.subtle.digest('SHA-256', bytes));
-    } else if (typeof require !== 'undefined') {
-      // Fallback to Node.js require
-      const nodeCrypto = require('crypto');
-      const hash = nodeCrypto.createHash('sha256');
-      hash.update(bytes);
-      hashedValue = hash.digest();
-    } else {
-      throw new Error(
-        'No crypto implementation found. Please use a browser or Node.js.',
-      );
+    const inputWithBumpSeed = Buffer.concat([bytes, Buffer.from([bumpSeed])]);
+    const hash = keccak_256(inputWithBumpSeed);
+    if (hash.length !== 32) {
+      throw new Error('Invalid hash length');
     }
+    hash[0] = 0;
+    hash[1] = 0;
 
-    hashedValue[0] = 0;
-    hashedValue[1] = 0;
-
-    if (isSmallerThanBn254FieldSizeLe(hashedValue)) {
-      return [hashedValue, bumpSeed];
+    if (isSmallerThanBn254FieldSizeLe(Buffer.from(hash))) {
+      return [Buffer.from(hash), bumpSeed];
     }
 
     bumpSeed -= 1;
@@ -108,6 +97,22 @@ if (import.meta.vitest) {
   });
 
   describe('hashToBn254FieldSizeLe function', () => {
+    const refBumpSeed = [252];
+    const bytes = [
+      131, 219, 249, 246, 221, 196, 33, 3, 114, 23, 121, 235, 18, 229, 71, 152,
+      39, 87, 169, 208, 143, 101, 43, 128, 245, 59, 22, 134, 182, 231, 116, 33,
+    ];
+    const refResult = [
+      0, 0, 138, 224, 71, 10, 16, 226, 30, 104, 100, 251, 232, 59, 50, 168, 21,
+      78, 218, 191, 159, 16, 119, 17, 30, 55, 194, 230, 138, 128, 18, 44,
+    ];
+
+    it.only('should return a valid value for initial buffer', async () => {
+      const result = await hashToBn254FieldSizeLe(Buffer.from(bytes));
+
+      expect(Array.from(result![0])).toEqual(refResult);
+    });
+
     it('should return a valid value for initial buffer', async () => {
       const buf = Buffer.from(
         '0000000000000000000000000000000000000000000000000000000000000000',

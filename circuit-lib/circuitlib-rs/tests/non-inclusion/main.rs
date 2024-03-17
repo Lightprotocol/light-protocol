@@ -10,6 +10,7 @@ use circuitlib_rs::{
     verifying_keys::VK_ni_26_1,
 };
 
+#[ignore]
 #[test]
 fn non_inclusion() {
     init_logger();

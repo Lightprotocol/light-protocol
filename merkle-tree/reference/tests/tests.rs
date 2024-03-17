@@ -68,7 +68,10 @@ where
     merkle_tree.update(&leaf1, 0).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(0).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(0, false).unwrap(),
+        expected_proof
+    );
 
     // Appending the 2nd leaf should result in recomputing the root due to the
     // change of the `h1`, which now is a hash of the two non-zero leafs. So
@@ -102,7 +105,10 @@ where
     merkle_tree.update(&leaf2, 1).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(1).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(1, false).unwrap(),
+        expected_proof
+    );
 
     // Appending the 3rd leaf alters the next subtree on the right.
     // Instead of using Z[1], we will end up with the hash of the new leaf and
@@ -136,7 +142,10 @@ where
     merkle_tree.update(&leaf3, 2).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(2).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(2, false).unwrap(),
+        expected_proof
+    );
 
     // Appending the 4th leaf alters the next subtree on the right.
     // Instead of using Z[1], we will end up with the hash of the new leaf and
@@ -166,7 +175,10 @@ where
     merkle_tree.update(&leaf4, 3).unwrap();
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(3).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(3, false).unwrap(),
+        expected_proof
+    );
 
     // Update `leaf1`.
     let new_leaf1 = [9u8; 32];
@@ -200,7 +212,10 @@ where
         BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(0).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(0, false).unwrap(),
+        expected_proof
+    );
 
     // Update `leaf2`.
     let new_leaf2 = H::hash(&[8u8; 32]).unwrap();
@@ -230,7 +245,10 @@ where
         BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(1).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(1, false).unwrap(),
+        expected_proof
+    );
 
     // Update `leaf3`.
     let new_leaf3 = H::hash(&[7u8; 32]).unwrap();
@@ -260,7 +278,10 @@ where
         BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(2).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(2, false).unwrap(),
+        expected_proof
+    );
 
     // Update `leaf4`.
     let new_leaf4 = H::hash(&[6u8; 32]).unwrap();
@@ -290,7 +311,10 @@ where
         BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.get_proof_of_leaf(3).unwrap(), expected_proof);
+    assert_eq!(
+        merkle_tree.get_proof_of_leaf(3, false).unwrap(),
+        expected_proof
+    );
 }
 
 #[test]

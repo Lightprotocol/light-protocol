@@ -20,8 +20,9 @@
   ],
   "scripts": {
     "test": "pnpm run test:program",
+    "gnark-prover": "../../circuit-lib/circuit-lib.js/scripts/prover.sh",
     "test-all": "vitest run",
-    "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
+    "test-validator:silent": "./../../cli/test_bin/run test-validator -b && pnpm gnark-prover",
     "test-validator": "./../../cli/test_bin/run test-validator",
     "test:program": "pnpm run test-validator:silent && vitest run tests/e2e/program.test.ts",
     "emit-event:create_mint": "vitest run tests/e2e/emit-create_mint.test.ts",

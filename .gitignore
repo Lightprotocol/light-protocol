@@ -74,3 +74,5 @@ node_modules
 **/.pnpm-store/
 **/.DS_Store
 /web/webapp/public/build-circuits
+
+light-zk.js

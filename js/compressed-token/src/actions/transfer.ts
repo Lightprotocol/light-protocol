@@ -7,10 +7,10 @@ import {
   ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
-  CompressedProof_IdlType,
   bn,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
+  getMockRpc,
 } from '@lightprotocol/stateless.js';
 import { buildAndSignTx } from '@lightprotocol/stateless.js';
 import { BN } from '@coral-xyz/anchor';
@@ -116,30 +116,29 @@ export async function transfer(
     index_mt_account: 0, // FIXME: dynamic!
   };
 
-  // TODO: replace with actual proof!
-  const proof_mock: CompressedProof_IdlType = {
-    a: Array.from({ length: 32 }, () => 0),
-    b: Array.from({ length: 64 }, () => 0),
-    c: Array.from({ length: 32 }, () => 0),
-  };
+  const rpc = await getMockRpc(connection);
+
+  const proof = await rpc.getValidityProof(
+    inUtxos.map((utxo) => utxo.merkleContext!.hash as BN),
+  );
 
   const ix = await createTransferInstruction(
     payer.publicKey,
     currentOwnerPublicKey,
-    [merkleTree],
-    [queue],
+    inUtxos.map((_) => merkleTree),
+    inUtxos.map((_) => queue),
     [merkleTree, merkleTree],
     inUtxos.map((utxo) => utxo.utxo),
     [recipientOutUtxo, changeUtxo],
     // TODO: replace with actual recent state root index!
     // This will only work with sequential state updates and no cranking!
-    inUtxos.map((utxo) => Number(utxo.merkleContext?.leafIndex)), // input state root indices
-    proof_mock,
+    proof.rootIndices, // input state root indices
+    proof.compressedProof,
   );
 
   const ixs = [
     // TODO: adjust CU down to min!
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }),
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
     ix,
   ];
   const { blockhash } = await connection.getLatestBlockhash();

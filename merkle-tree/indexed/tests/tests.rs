@@ -124,7 +124,7 @@ where
             .new_element_with_low_element_index(old_low_nullifier.index, lowest_from_queue.value)
             .unwrap();
         let mut low_nullifier_proof = relayer_merkle_tree
-            .get_proof_of_leaf(usize::from(old_low_nullifier.index))
+            .get_proof_of_leaf(usize::from(old_low_nullifier.index),false)
             .unwrap();
 
         // Update on-chain tree.
@@ -163,7 +163,7 @@ where
                 .hash::<H>(&nullifier_bundle.new_element.value)
                 .unwrap();
             let low_nullifier_proof = relayer_merkle_tree
-                .get_proof_of_leaf(nullifier_bundle.new_low_element.index())
+                .get_proof_of_leaf(nullifier_bundle.new_low_element.index(),false)
                 .unwrap();
             merkle_tree
                 .validate_proof(
@@ -178,7 +178,7 @@ where
                 .hash::<H>(&nullifier_bundle.new_element_next_value)
                 .unwrap();
             let new_nullifier_proof = relayer_merkle_tree
-                .get_proof_of_leaf(nullifier_bundle.new_element.index())
+                .get_proof_of_leaf(nullifier_bundle.new_element.index(),false)
                 .unwrap();
             merkle_tree
                 .validate_proof(
@@ -413,7 +413,7 @@ where
         .cloned()
         .unwrap()
         .value;
-    let mut low_nullifier_proof = local_merkle_tree.get_proof_of_leaf(1).unwrap();
+    let mut low_nullifier_proof = local_merkle_tree.get_proof_of_leaf(1,false).unwrap();
     assert!(matches!(
         program_update(
             &mut onchain_queue.borrow_mut(),
@@ -450,7 +450,7 @@ where
         .cloned()
         .unwrap()
         .value;
-    let mut low_nullifier_proof = local_merkle_tree.get_proof_of_leaf(0).unwrap();
+    let mut low_nullifier_proof = local_merkle_tree.get_proof_of_leaf(0,false).unwrap();
     assert!(matches!(
         program_update(
             &mut onchain_queue.borrow_mut(),
