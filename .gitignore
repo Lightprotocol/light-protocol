@@ -15,6 +15,8 @@
 
 **/light-test-cache/
 
+**/light-zk.js
+
 /cli/bin
 
 # Yarn
