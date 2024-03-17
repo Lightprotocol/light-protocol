@@ -358,7 +358,7 @@ export class MockRpc implements CompressionApiInterface {
     const leafIndices = utxoHashes.map((utxoHash) =>
       tree.indexOf(utxoHash.toString()),
     );
-    
+
     console.log('leafIndices (tree.indexOf)', leafIndices);
     console.log(
       'leafIndices (events out)',

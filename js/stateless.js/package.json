@@ -28,6 +28,7 @@
     "test:serialize": "vitest run tests/e2e/serialization.test.ts",
     "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
     "test:verbose": "vitest run --reporter=verbose",
+    "test:json": "vitest run src/test-utils/parse-validity-proof.ts",
     "pull-idls": "../../scripts/push-stateless-js-idls.sh",
     "build": "rimraf dist && pnpm run pull-idls && pnpm build:bundle",
     "build:bundle": "rollup -c --bundleConfigAsCjs",
