@@ -1,5 +1,6 @@
 *.tgz
 
+light-zk.js/
 **/test-ledger/
 
 # CLI
