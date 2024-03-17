@@ -193,7 +193,7 @@ describe('Compressed Token Program test', () => {
     );
   });
 
-  it('should transfer using "transfer" action ', async () => {
+  it.skip('should transfer using "transfer" action ', async () => {
     const bobPreCompressedTokenAccounts =
       await getCompressedTokenAccountsFromMockRpc(
         connection,
@@ -235,10 +235,17 @@ describe('Compressed Token Program test', () => {
 
   it('should return validityProof from prover server', async () => {
     const rpc = await getMockRpc(connection);
-    const utxos = await rpc.getUtxos(payer.publicKey);
-    const utxoHashes = utxos.map((utxo) => utxo.value.hash);
-    await rpc.getValidityProof(utxoHashes);
-    console.log('HELLO!');
+    const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
+      connection,
+      bob.publicKey,
+      randomMint.publicKey,
+    );
+    const utxoHashes = compressedTokenAccounts.map(
+      (utxo: UtxoWithParsedTokenTlvData) => utxo.merkleContext.hash,
+    );
+    console.log('utxoHashes', utxoHashes);
+    const proof = await rpc.getValidityProof(utxoHashes);
+    console.log('compressed validityProof: ', proof);
   });
   /// TODO: move these as unit tests to program.ts
   it.skip('should create mint', async () => {

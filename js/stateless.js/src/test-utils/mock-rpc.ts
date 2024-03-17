@@ -18,6 +18,7 @@ import {
 } from '../rpc-interface';
 import {
   BN254,
+  CompressedProof_IdlType,
   MerkleContextWithMerkleProof,
   PublicTransactionEvent_IdlType,
   UtxoWithMerkleContext,
@@ -28,6 +29,10 @@ import {
 } from '../state';
 import { BN } from '@coral-xyz/anchor';
 import axios from 'axios';
+import {
+  negateAndCompressProof,
+  proofFromJsonStruct,
+} from './parse-validity-proof';
 
 /**
  * Returns a mock rpc instance. use for unit tests
@@ -316,7 +321,9 @@ export class MockRpc implements CompressionApiInterface {
   }
 
   /** Retrieve the proof for a utxo */
-  async getValidityProof(utxoHashes: BN254[]): Promise<void> {
+  async getValidityProof(
+    utxoHashes: BN254[],
+  ): Promise<CompressedProofWithContext> {
     /// rebuild tree
     const events: PublicTransactionEvent_IdlType[] =
       await this.getParsedEvents();
@@ -356,9 +363,11 @@ export class MockRpc implements CompressionApiInterface {
       tree.indexOf(utxoHash.toString()),
     );
 
+    const roots = new Array(utxoHashes.length).fill(toHex(tree.root()));
+
     let inputs = {
       /// roots
-      root: new Array(utxoHashes.length).fill(toHex(tree.root())),
+      root: roots,
       /// array of leafIndices
       inPathIndices: leafIndices,
       /// array of array of pathElements
@@ -368,45 +377,43 @@ export class MockRpc implements CompressionApiInterface {
     };
 
     const inputsData = JSON.stringify(inputs);
+
+    const logTime = `Proof generation for depth:${this.depth} n:${utxoHashes.length}`;
+    console.time(logTime);
+    // TODO: pass url into rpc constructor
     const SERVER_URL = 'http://localhost:3001';
     const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
     const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
-    console.log('PROVER SERVER RES: ', response.data);
-    console.log('JSON', JSON.stringify(response.data));
-    // console.timeEnd(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
 
-    // assert.equal(response.status, 200);
-    // assert.isNotEmpty(response.data.toString());
+    const parsed = proofFromJsonStruct(response.data);
 
-    // const value: MerkleContextWithMerkleProof = {
-    //   hash: utxoHash,
-    //   merkleTree: this.merkleTreeAddress,
-    //   leafIndex: leafIndex,
-    //   merkleProof: proof,
-    //   nullifierQueue: this.nullifierQueueAddress,
-    //   rootIndex,
-    // };
-    // return value;
+    const compressedProof = negateAndCompressProof(parsed);
+    console.timeEnd(logTime);
+
+    const value: CompressedProofWithContext = {
+      compressedProof,
+      roots: roots,
+      rootIndices: leafIndices,
+      leafIndices,
+      leafs: utxoHashes, // not hex
+      merkleTree: this.merkleTreeAddress,
+      nullifierQueue: this.nullifierQueueAddress,
+    };
+    return value;
   }
 }
 
-// const pathEements: string[] = merkleTree.path(
-//   merkleTree.indexOf(leaf),
-// ).pathElements;
-// const hexPathElements = pathEements.map((value) => toHex(value));
-// let inputs = {
-//   root: new Array(utxos[j]).fill(toHex(merkleTree.root())),
-//   inPathIndices: new Array(utxos[j]).fill(merkleTree.indexOf(leaf)),
-//   inPathElements: new Array(utxos[j]).fill(hexPathElements),
-//   leaf: new Array(utxos[j]).fill(toHex(leaf)),
-// };
-// const inputsData = JSON.stringify(inputs);
-// console.time(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
-// const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
-// console.timeEnd(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
-
-// assert.equal(response.status, 200);
-// assert.isNotEmpty(response.data.toString());
+// TODO: consistent types
+// for now we assume = leafIndices
+type CompressedProofWithContext = {
+  compressedProof: CompressedProof_IdlType;
+  roots: string[];
+  rootIndices: number[];
+  leafIndices: number[];
+  leafs: BN[];
+  merkleTree: PublicKey;
+  nullifierQueue: PublicKey;
+};
 
 function toHex(bnString: string) {
   return '0x' + new BN(bnString).toString(16);
