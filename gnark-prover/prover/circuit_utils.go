@@ -41,21 +41,6 @@ func (gadget ProofRound) DefineGadget(api frontend.API) interface{} {
 	return sum
 }
 
-// VerifyProof recovers the Merkle Tree using Proof[] and Path[] and returns the tree Root
-// Proof[0] corresponds to the Leaf which is why len(Proof) === len(Path) + 1
-type VerifyProof struct {
-	Proof []frontend.Variable
-	Path  []frontend.Variable
-}
-
-func (gadget VerifyProof) DefineGadget(api frontend.API) interface{} {
-	sum := gadget.Proof[0]
-	for i := 1; i < len(gadget.Proof); i++ {
-		sum = abstractor.Call(api, ProofRound{Direction: gadget.Path[i-1], Hash: gadget.Proof[i], Sibling: sum})
-	}
-	return sum
-}
-
 type InclusionProof struct {
 	Root           []frontend.Variable
 	Leaf           []frontend.Variable
@@ -69,9 +54,10 @@ type InclusionProof struct {
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
 	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
+		currentPath := api.ToBinary(gadget.InPathIndices[proofIndex], gadget.Depth)
 		currentHash[proofIndex] = gadget.Leaf[proofIndex]
 		for j := 0; j < gadget.Depth; j++ {
-			currentHash[proofIndex] = abstractor.Call(api, ProofRound{Direction: gadget.InPathIndices[proofIndex], Hash: currentHash[proofIndex], Sibling: gadget.InPathElements[proofIndex][j]})
+			currentHash[proofIndex] = abstractor.Call(api, ProofRound{Direction: currentPath[j], Hash: currentHash[proofIndex], Sibling: gadget.InPathElements[proofIndex][j]})
 		}
 	}
 	return currentHash

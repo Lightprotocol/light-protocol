@@ -110,7 +110,7 @@ export const TESTNET_LOOK_UP_TABLE = new PublicKey(
 );
 
 export const FEE_ASSET = SystemProgram.programId;
-export const DEFAULT_MERKLE_TREE_HEIGHT = 22;
+export const DEFAULT_MERKLE_TREE_HEIGHT = 26;
 export const DEFAULT_MERKLE_TREE_ROOTS = 2800;
 /** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */
 export const UTXO_MERGE_THRESHOLD = 20;

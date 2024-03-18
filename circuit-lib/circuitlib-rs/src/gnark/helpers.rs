@@ -9,17 +9,17 @@ use num_traits::ToPrimitive;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::constants::{HEALTH_CHECK, SERVER_ADDRESS};
+use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 
-pub fn spawn_gnark_server() -> Child {
+pub fn spawn_gnark_server(path: &str, wait_time: u64) -> Child {
     let server_process = Command::new("sh")
         .arg("-c")
-        .arg("scripts/prover.sh")
+        .arg(path)
         .spawn()
         .expect("Failed to start server process");
 
     // Wait for the server to launch before proceeding.
-    thread::sleep(Duration::from_secs(5));
+    thread::sleep(Duration::from_secs(wait_time));
 
     server_process
 }

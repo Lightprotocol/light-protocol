@@ -3,7 +3,6 @@ import { CompressedTokenProgram } from '../../src/program';
 import { SPL_TOKEN_MINT_RENT_EXEMPT_BALANCE } from '../../src/constants';
 import {
   Connection,
-  Keypair,
   TransactionMessage,
   VersionedTransaction,
   PublicKey,
@@ -14,6 +13,7 @@ import {
   confirmTx,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
+  getMockRpc,
 } from '@lightprotocol/stateless.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
@@ -39,6 +39,7 @@ async function assertMintTo(
     refTo,
     refMint,
   );
+
   const compressedTokenAccount = compressedTokenAccounts[0];
   expect(compressedTokenAccount.parsed.mint.toBase58()).toBe(
     refMint.toBase58(),
@@ -137,11 +138,30 @@ describe('Compressed Token Program test', () => {
     227, 130, 162, 184, 215, 227, 81, 211, 134, 73, 118, 71, 219, 163, 243, 41,
     118, 21, 155, 87, 11, 53, 153, 130, 178, 126, 151, 86, 225, 36, 251, 130,
   ]);
-  const bob = Keypair.generate();
+  /// BNoVw1biCyJBkxGCtApddNCoTUa4UXy9TPDFgASbuvSk
+  const bob = byteArrayToKeypair([
+    254, 71, 194, 50, 63, 12, 211, 223, 250, 117, 253, 123, 220, 10, 100, 8,
+    202, 254, 108, 65, 0, 153, 72, 157, 114, 212, 53, 112, 127, 206, 246, 153,
+    154, 42, 164, 131, 114, 72, 61, 70, 40, 220, 171, 100, 231, 0, 42, 35, 249,
+    7, 159, 126, 160, 250, 184, 187, 190, 120, 5, 31, 21, 130, 70, 233,
+  ]);
   const connection = new Connection('http://localhost:8899', 'confirmed');
-  const randomMint = Keypair.generate();
+  /// DUgneYZ2Ly7w9yxUbbv9GZb9ngArc9qguoZYw2hCxwYw
+  const fixedMint = byteArrayToKeypair([
+    94, 171, 36, 11, 49, 160, 190, 169, 184, 238, 207, 210, 81, 218, 17, 112,
+    149, 254, 184, 202, 86, 210, 205, 167, 80, 252, 195, 69, 178, 205, 96, 202,
+    185, 99, 233, 139, 233, 54, 110, 239, 130, 16, 253, 78, 46, 210, 110, 241,
+    63, 35, 100, 98, 171, 164, 116, 59, 163, 104, 7, 62, 220, 50, 192, 92,
+  ]);
+
   const mintDecimals = 2;
-  const charlie = Keypair.generate();
+  /// CUi16vFHptJ6qXCbfZyepE6nhZxpQYjafRQHJq7Rao27
+  const charlie = byteArrayToKeypair([
+    252, 121, 214, 211, 80, 145, 243, 18, 162, 210, 72, 174, 50, 106, 10, 171,
+    216, 87, 101, 150, 28, 120, 246, 165, 148, 165, 63, 37, 187, 248, 141, 89,
+    170, 137, 153, 79, 170, 147, 114, 99, 238, 127, 126, 118, 0, 157, 231, 171,
+    213, 164, 122, 159, 81, 253, 145, 182, 136, 224, 236, 255, 0, 208, 123, 160,
+  ]);
 
   beforeAll(async () => {
     const sig = await connection.requestAirdrop(payer.publicKey, 3e9);
@@ -156,14 +176,14 @@ describe('Compressed Token Program test', () => {
       payer,
       payer.publicKey,
       mintDecimals,
-      randomMint,
+      fixedMint,
     );
     const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(
-      randomMint.publicKey,
+      fixedMint.publicKey,
     );
-    assert(mint.equals(randomMint.publicKey));
+    assert(mint.equals(fixedMint.publicKey));
     await assertMintCreated(
-      randomMint.publicKey,
+      fixedMint.publicKey,
       payer.publicKey,
       connection,
       mintDecimals,
@@ -175,35 +195,29 @@ describe('Compressed Token Program test', () => {
     await mintTo(
       connection,
       payer,
-      randomMint.publicKey,
+      fixedMint.publicKey,
       bob.publicKey,
       payer.publicKey,
       100, // 2 dec
       [],
       merkleTree,
     );
-    console.log('assertMintTo');
 
-    await assertMintTo(
-      connection,
-      randomMint.publicKey,
-      bn(100),
-      bob.publicKey,
-    );
+    await assertMintTo(connection, fixedMint.publicKey, bn(100), bob.publicKey);
   });
 
-  it('should transfer using "transfer" action ', async () => {
+  it('should transfer using "transfer" action b->c, b->c, c->b, b<<', async () => {
     const bobPreCompressedTokenAccounts =
       await getCompressedTokenAccountsFromMockRpc(
         connection,
         bob.publicKey,
-        randomMint.publicKey,
+        fixedMint.publicKey,
       );
 
     await transfer(
       connection,
       payer,
-      randomMint.publicKey,
+      fixedMint.publicKey,
       70,
       bob,
       charlie.publicKey,
@@ -213,18 +227,103 @@ describe('Compressed Token Program test', () => {
     await assertTransfer(
       connection,
       bobPreCompressedTokenAccounts,
-      randomMint.publicKey,
+      fixedMint.publicKey,
       bn(70),
       bob.publicKey,
       charlie.publicKey,
+    );
+
+    const bobPreCompressedTokenAccounts2 =
+      await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        bob.publicKey,
+        fixedMint.publicKey,
+      );
+    await transfer(
+      connection,
+      payer,
+      fixedMint.publicKey,
+      10,
+      bob,
+      charlie.publicKey,
+      merkleTree,
+    );
+
+    await assertTransfer(
+      connection,
+      bobPreCompressedTokenAccounts2,
+      fixedMint.publicKey,
+      bn(10),
+      bob.publicKey,
+      charlie.publicKey,
+    );
+
+    const charliePreCompressedTokenAccounts3 =
+      await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        charlie.publicKey,
+        fixedMint.publicKey,
+      );
+    await transfer(
+      connection,
+      payer,
+      fixedMint.publicKey,
+      5,
+      charlie,
+      bob.publicKey,
+      merkleTree,
+    );
+
+    await assertTransfer(
+      connection,
+      charliePreCompressedTokenAccounts3,
+      fixedMint.publicKey,
+      bn(5),
+      charlie.publicKey,
+      bob.publicKey,
+    );
+
+    /// c->b #2
+    const charliePreCompressedTokenAccounts2 =
+      await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        charlie.publicKey,
+        fixedMint.publicKey,
+      );
+    console.log(
+      JSON.stringify(
+        charliePreCompressedTokenAccounts2.map((x) =>
+          x.parsed.amount.toString(),
+        ),
+      ),
+    );
+
+    /// c->b #3 (merge 2 utxos)
+    await transfer(
+      connection,
+      payer,
+      fixedMint.publicKey,
+      74, // all rem -1
+      charlie,
+      bob.publicKey,
+      merkleTree,
+    );
+
+    await assertTransfer(
+      connection,
+      charliePreCompressedTokenAccounts2,
+      fixedMint.publicKey,
+      bn(74),
+      charlie.publicKey,
+      bob.publicKey,
     );
 
     await expect(
       transfer(
         connection,
         payer,
-        randomMint.publicKey,
-        31,
+        fixedMint.publicKey,
+        10000,
         bob,
         charlie.publicKey,
         merkleTree,
@@ -232,13 +331,25 @@ describe('Compressed Token Program test', () => {
     ).rejects.toThrow('Not enough balance for transfer');
   });
 
+  it.skip('should return validityProof from prover server', async () => {
+    const rpc = await getMockRpc(connection);
+    const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
+      connection,
+      charlie.publicKey,
+      fixedMint.publicKey,
+    );
+    const utxoHashes = compressedTokenAccounts.map(
+      (utxo: UtxoWithParsedTokenTlvData) => utxo.merkleContext.hash,
+    );
+    await rpc.getValidityProof(utxoHashes);
+  });
   /// TODO: move these as unit tests to program.ts
   it.skip('should create mint', async () => {
     const rentExemptBalance = SPL_TOKEN_MINT_RENT_EXEMPT_BALANCE;
 
     const ixs = await CompressedTokenProgram.createMint({
       feePayer: payer.publicKey,
-      mint: randomMint.publicKey,
+      mint: fixedMint.publicKey,
       decimals: mintDecimals,
       authority: payer.publicKey,
       freezeAuthority: null,
@@ -255,15 +366,15 @@ describe('Compressed Token Program test', () => {
     }).compileToV0Message();
 
     const tx = new VersionedTransaction(messageV0);
-    tx.sign([payer, randomMint]);
+    tx.sign([payer, fixedMint]);
 
     const txId = await sendAndConfirmTx(connection, tx);
 
     const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(
-      randomMint.publicKey,
+      fixedMint.publicKey,
     );
     await assertMintCreated(
-      randomMint.publicKey,
+      fixedMint.publicKey,
       payer.publicKey,
       connection,
       mintDecimals,
@@ -276,7 +387,7 @@ describe('Compressed Token Program test', () => {
   it.skip('should mint_to bob', async () => {
     const ix = await CompressedTokenProgram.mintTo({
       feePayer: payer.publicKey,
-      mint: randomMint.publicKey,
+      mint: fixedMint.publicKey,
       authority: payer.publicKey,
       amount: 100 * mintDecimals,
       toPubkey: bob.publicKey,
@@ -298,7 +409,7 @@ describe('Compressed Token Program test', () => {
     console.log(
       `minted ${
         1 * mintDecimals
-      } tokens (mint: ${randomMint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
+      } tokens (mint: ${fixedMint.publicKey.toBase58()}) to bob \n txId: ${txId}`,
     );
     /// TODO: assert output utxos after implementing proper beet serde
   });

@@ -68,6 +68,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         inputs.in_utxos,
         inputs.root_indices,
         &out_utxos,
+        inputs.proof,
     )?;
     Ok(())
 }
@@ -97,6 +98,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     in_utxos: Vec<InUtxoTuple>,
     root_indices: Vec<u16>,
     out_utxos: &[OutUtxo],
+    proof: Option<CompressedProof>,
 ) -> Result<()> {
     let mut _out_utxos = Vec::<OutUtxoTuple>::new();
     for utxo in out_utxos.iter() {
@@ -112,7 +114,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         in_utxos,
         out_utxos: _out_utxos,
         root_indices,
-        proof: None,
+        proof,
     };
 
     let mut inputs = Vec::new();

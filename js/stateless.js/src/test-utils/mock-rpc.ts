@@ -18,6 +18,7 @@ import {
 } from '../rpc-interface';
 import {
   BN254,
+  CompressedProof_IdlType,
   MerkleContextWithMerkleProof,
   PublicTransactionEvent_IdlType,
   UtxoWithMerkleContext,
@@ -27,6 +28,11 @@ import {
   createUtxoWithMerkleContext,
 } from '../state';
 import { BN } from '@coral-xyz/anchor';
+import axios from 'axios';
+import {
+  negateAndCompressProof,
+  proofFromJsonStruct,
+} from './parse-validity-proof';
 
 /**
  * Returns a mock rpc instance. use for unit tests
@@ -178,6 +184,7 @@ export class MockRpc implements CompressionApiInterface {
       /// just have to look at the outUtxos
       for (const outUtxo of event.outUtxos) {
         const leafIndex = leafIndices.shift();
+
         const utxoHashComputed = await createUtxoHash(
           this.lightWasm,
           outUtxo,
@@ -233,7 +240,7 @@ export class MockRpc implements CompressionApiInterface {
       const leafIndices = [...event.outUtxoIndices]; // Clone to prevent mutation
       for (const outUtxo of event.outUtxos) {
         const leafIndex = leafIndices.shift();
-        if (!leafIndex) continue; // Safety check
+        if (leafIndex === undefined) continue;
 
         const utxoHashComputed = await createUtxoHash(
           this.lightWasm,
@@ -313,4 +320,118 @@ export class MockRpc implements CompressionApiInterface {
     };
     return value;
   }
+
+  /** Retrieve the proof for a utxo */
+  async getValidityProof(
+    utxoHashes: BN254[],
+  ): Promise<CompressedProofWithContext> {
+    /// rebuild tree
+    const events: PublicTransactionEvent_IdlType[] =
+      await this.getParsedEvents().then((events) => events.reverse());
+
+    const leaves = [];
+    const outUtxoIndices = [];
+    for (const event of events) {
+      for (let index = 0; index < event.outUtxos.length; index++) {
+        const utxo = event.outUtxos[index];
+
+        // FIXME:
+        // computedBlinding is inconsistent with what's emitted on-chain
+        // check: leafindex, tree seem inconsistent
+        const hash = await createUtxoHash(
+          this.lightWasm,
+          utxo,
+          this.merkleTreeAddress,
+          event.outUtxoIndices[index],
+        );
+        leaves.push(hash);
+        outUtxoIndices.push(event.outUtxoIndices[index]);
+      }
+    }
+
+    const tree = new MerkleTree(
+      this.depth,
+      this.lightWasm,
+      leaves.map((leaf) => leaf.toString()),
+    );
+
+    const leafIndices = utxoHashes.map((utxoHash) =>
+      tree.indexOf(utxoHash.toString()),
+    );
+
+    /// merkle proofs
+    const hexPathElementsAll = leafIndices.map((leafIndex) => {
+      const pathElements: string[] = tree.path(leafIndex).pathElements;
+
+      const hexPathElements = pathElements.map((value) => toHex(value));
+
+      return hexPathElements;
+    });
+
+    const roots = new Array(utxoHashes.length).fill(toHex(tree.root()));
+
+    const inputs = {
+      /// roots
+      root: roots,
+      /// array of leafIndices
+      inPathIndices: leafIndices,
+      /// array of array of pathElements
+      inPathElements: hexPathElementsAll,
+      /// array of leafs
+      leaf: utxoHashes.map((utxoHash) => toHex(utxoHash.toString())),
+    };
+
+    utxoHashes.forEach((utxoHash, index) => {
+      const leafIndex = leafIndices[index];
+      const computedHash = tree.elements()[leafIndex].toString();
+      if (computedHash !== utxoHash.toString()) {
+        throw new Error(
+          `Mismatch at index ${index}: expected ${utxoHash.toString()}, got ${computedHash}`,
+        );
+      }
+    });
+
+    const inputsData = JSON.stringify(inputs);
+
+    const logTime = `Proof generation for depth:${this.depth} n:${utxoHashes.length}`;
+    console.time(logTime);
+    // TODO: pass url into rpc constructor
+    const SERVER_URL = 'http://localhost:3001';
+    const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
+    const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
+
+    const parsed = proofFromJsonStruct(response.data);
+
+    const compressedProof = negateAndCompressProof(parsed);
+    console.timeEnd(logTime);
+
+    // TODO: in prover server, fix property names
+    const value: CompressedProofWithContext = {
+      compressedProof,
+      roots: roots,
+      // TODO: temporary
+      rootIndices: leafIndices.map((_) => leaves.length),
+      leafIndices,
+      leafs: utxoHashes,
+      merkleTree: this.merkleTreeAddress,
+      nullifierQueue: this.nullifierQueueAddress,
+    };
+    return value;
+  }
+}
+
+// TODO: consistent types
+type CompressedProofWithContext = {
+  compressedProof: CompressedProof_IdlType;
+  roots: string[];
+  // for now we assume latest root = allLeaves.length
+  rootIndices: number[];
+  leafIndices: number[];
+  leafs: BN[];
+  merkleTree: PublicKey;
+  nullifierQueue: PublicKey;
+};
+
+function toHex(bnString: string) {
+  return '0x' + new BN(bnString).toString(16);
 }

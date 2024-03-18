@@ -39,6 +39,11 @@ solana-sdk = "1.17.4"
 [dev-dependencies]
 solana-program-test = "1.17.4"
 light-test-utils = { version = "0.1.0", path = "../../test-utils"}
+reqwest = "0.11.26"
 tokio = "1.36.0"
+circuitlib-rs = {path = "../../circuit-lib/circuitlib-rs"}
+num-bigint = "0.4.4"
+num-traits = "0.2.18"
 light-merkle-tree-reference = { version = "0.1.0", path = "../../merkle-tree/reference" }
 light-concurrent-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/concurrent" }
+lazy_static = "1.4.0"

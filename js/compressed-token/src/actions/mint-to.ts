@@ -1,4 +1,5 @@
 import {
+  ComputeBudgetProgram,
   ConfirmOptions,
   Connection,
   PublicKey,
@@ -48,7 +49,12 @@ export async function mintTo(
 
   const { blockhash } = await connection.getLatestBlockhash();
 
-  const tx = buildAndSignTx([ix], payer, blockhash, additionalSigners);
+  const tx = buildAndSignTx(
+    [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+    payer,
+    blockhash,
+    additionalSigners,
+  );
 
   const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
 

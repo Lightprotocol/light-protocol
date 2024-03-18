@@ -11,7 +11,7 @@ use crate::{
     tlv::TlvDataElement,
     utils::CompressedProof,
     utxo::{InUtxoTuple, OutUtxoTuple, SerializedUtxos, Utxo},
-    verify_state::{fetch_roots, hash_in_utxos, sum_check},
+    verify_state::{fetch_roots, hash_in_utxos, sum_check, verify_merkle_proof_zkp},
     ErrorCode,
 };
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
@@ -88,8 +88,10 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // TODO: add heap neutral
     hash_in_utxos(inputs, &mut utxo_hashes)?;
     // TODO: add heap neutral
-    // TODO: verify inclusion proof ---------------------------------------------------
-
+    // verify inclusion proof ---------------------------------------------------
+    if !inputs.in_utxos.is_empty() {
+        verify_merkle_proof_zkp(&roots, &utxo_hashes, inputs.proof.as_ref().unwrap())?;
+    }
     // insert nullifiers (in utxo hashes)---------------------------------------------------
     if !inputs.in_utxos.is_empty() {
         insert_nullifiers(inputs, ctx, &utxo_hashes)?;
