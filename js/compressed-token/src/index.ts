@@ -4,3 +4,4 @@ export * from './constants';
 export * from './program';
 export * from './token-serde';
 export * from './types';
+export * from './actions';
