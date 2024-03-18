@@ -13,8 +13,11 @@ jobs:
     runs-on: buildjet-16vcpu-ubuntu-2204
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build

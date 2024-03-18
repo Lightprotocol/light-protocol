@@ -16,8 +16,11 @@ jobs:
     name: Release (Linux)
     runs-on:  buildjet-16vcpu-ubuntu-2204
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -61,8 +64,11 @@ jobs:
     name: Release (macOS)
     runs-on: macos-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1

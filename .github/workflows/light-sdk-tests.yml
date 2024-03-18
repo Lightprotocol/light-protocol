@@ -48,6 +48,9 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build

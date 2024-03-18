@@ -9,8 +9,11 @@ jobs:
   auto-tag:
     runs-on: buildjet-16vcpu-ubuntu-2204
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
 
       - name: Auto Tag
         run: |
