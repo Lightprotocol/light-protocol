@@ -124,14 +124,10 @@ export async function transfer(
   //   c: Array.from({ length: 32 }, () => 0),
   // };
   const rpc = await getMockRpc(connection);
-  console.log(
-    'PICKED INUTXOS TRANFER',
-    inUtxos.map((utxo) => utxo.merkleContext.hash),
-  );
+
   const proof = await rpc.getValidityProof(
     inUtxos.map((utxo) => utxo.merkleContext.hash as BN),
   );
-  // console.log('proof in @transfer', proof);
 
   const ix = await createTransferInstruction(
     payer.publicKey,
@@ -140,7 +136,7 @@ export async function transfer(
     [queue],
     [merkleTree, merkleTree],
     inUtxos.map((utxo) => utxo.utxo),
-    [changeUtxo, recipientOutUtxo],
+    [recipientOutUtxo, changeUtxo],
     // TODO: replace with actual recent state root index!
     // This will only work with sequential state updates and no cranking!
     inUtxos.map((utxo) => Number(utxo.merkleContext?.leafIndex)), // input state root indices
