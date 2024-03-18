@@ -787,7 +787,7 @@ impl MockIndexer {
             let leaf_index = self.merkle_tree.get_leaf_index(&utxo.element).unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
-                .get_proof_of_leaf(leaf_index, true)
+                .get_proof_of_leaf(leaf_index, false)
                 .unwrap()
                 .to_array::<16>()
                 .unwrap()
