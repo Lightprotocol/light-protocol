@@ -79,4 +79,3 @@ describe('Token serde test', () => {
     console.log('DECODED', decodedTok);
   });
 });
-
