@@ -1,6 +1,6 @@
-import { spawn, SpawnOptionsWithoutStdio } from "child_process";
+import { spawn, SpawnOptionsWithoutStdio, exec as execCb } from "child_process";
 import path from "path";
-
+import { promisify } from "util";
 /**
  * Executes a command and logs the output to the console.
  * @param command - Path to the command to be executed.
@@ -62,4 +62,24 @@ export async function executeCommand({
       }
     });
   });
+}
+
+const exec = promisify(execCb);
+/**
+ * Executes a shell command and returns a promise that resolves to the output of the shell command, or an error.
+ *
+ * @param command A shell command to execute
+ * @returns Promise that resolves to string output of shell command
+ * @throws {Error} If shell command execution fails
+ * @example const output = await execute("ls -alh");
+ */
+export async function execute(command: string): Promise<string> {
+  try {
+    const { stdout, stderr } = await exec(command);
+    if (!stdout.trim() && stderr.trim()) throw new Error(stderr);
+    return stdout;
+  } catch (e) {
+    console.log("Error in `execute`: ", e);
+    return "";
+  }
 }

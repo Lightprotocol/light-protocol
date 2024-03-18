@@ -262,7 +262,7 @@ func runCli() {
 						return err
 					}
 
-					logging.Logger().Info().Msg("reading params from stdin")
+					logging.Logger().Info().Msg("Reading params from stdin")
 					bytes, err := io.ReadAll(os.Stdin)
 					if err != nil {
 						return err
@@ -276,6 +276,10 @@ func runCli() {
 					}
 
 					treeDepth := params.TreeDepth()
+					if treeDepth != 26 {
+						return fmt.Errorf("tree depth must be 26, got %d", treeDepth)
+					}
+
 					utxos := params.NumberOfUTXOs()
 
 					for _, provingSystem := range ps {
@@ -297,34 +301,34 @@ func runCli() {
 				Name: "verify",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "keys-file", Aliases: []string{"k"}, Usage: "proving system file", Required: true},
-					&cli.StringFlag{Name: "root", Usage: "array of roots", Required: true},
-					&cli.StringFlag{Name: "leaf", Usage: "array of leafs", Required: true},
+					&cli.StringFlag{Name: "roots", Usage: "array of roots", Required: true},
+					&cli.StringFlag{Name: "leafs", Usage: "array of leafs", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					keys := context.String("keys-file")
 
-					rootInputString := context.String("root")
+					rootInputString := context.String("roots")
 					rootStrings := strings.Split(rootInputString, ",")
-					root := make([]big.Int, len(rootStrings))
+					roots := make([]big.Int, len(rootStrings))
 
 					for i, rootString := range rootStrings {
 						rootString = strings.ToLower(strings.TrimSpace(rootString))
 						rootString = strings.TrimPrefix(rootString, "0x")
 						val := new(big.Int)
 						val.SetString(rootString, 16)
-						root[i] = *val
+						roots[i] = *val
 					}
 
-					leafInputString := context.String("root")
+					leafInputString := context.String("leafs")
 					leafStrings := strings.Split(leafInputString, ",")
-					leaf := make([]big.Int, len(leafStrings))
+					leafs := make([]big.Int, len(leafStrings))
 
 					for i, leafString := range leafStrings {
 						leafString = strings.ToLower(strings.TrimSpace(leafString))
 						leafString = strings.TrimPrefix(leafString, "0x")
 						val := new(big.Int)
 						val.SetString(leafString, 16)
-						root[i] = *val
+						leafs[i] = *val
 					}
 
 					ps, err := prover.ReadSystemFromFile(keys)
@@ -332,20 +336,21 @@ func runCli() {
 						return err
 					}
 					logging.Logger().Info().Uint32("treeDepth", ps.TreeDepth).Uint32("utxos", ps.NumberOfUtxos).Msg("Read proving system")
-					logging.Logger().Info().Msg("reading proof from stdin")
+					logging.Logger().Info().Msg("Reading proof from stdin")
 					bytes, err := io.ReadAll(os.Stdin)
 					if err != nil {
+						logging.Logger().Err(err).Msg("error reading proof from stdin")
 						return err
 					}
+					logging.Logger().Info().Msg("Parsing proof from stdin")
 					var proof prover.Proof
 					err = json.Unmarshal(bytes, &proof)
 					if err != nil {
+						logging.Logger().Err(err).Msg("error unmarshalling proof from stdin")
 						return err
 					}
-					logging.Logger().Info().Msg("proof read successfully")
-
-					err = ps.VerifyInclusion(root, leaf, &proof)
-
+					logging.Logger().Info().Msg("Proof read successfully")
+					err = ps.VerifyInclusion(roots, leafs, &proof)
 					if err != nil {
 						return err
 					}
