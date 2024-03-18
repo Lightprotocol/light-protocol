@@ -330,22 +330,24 @@ export class MockRpc implements CompressionApiInterface {
 
     console.log('EVENTS', events);
     console.log('JSON EVENTS', JSON.stringify(events));
-    const leaves = (
-      await Promise.all(
-        events.flatMap((event) =>
-          event.outUtxos.map((utxo, index) =>
-            createUtxoHash(
-              this.lightWasm,
-              utxo,
-              this.merkleTreeAddress,
-              event.outUtxoIndices[index],
-            ),
+    const leaves = [];
+    const outUtxoIndices = [];
+    for (const event of events) {
+      for (let index = 0; index < event.outUtxos.length; index++) {
+        const utxo = event.outUtxos[index];
+        leaves.push(
+          await createUtxoHash(
+            this.lightWasm,
+            utxo,
+            this.merkleTreeAddress,
+            event.outUtxoIndices[index],
           ),
-        ),
-      )
-    ).flat();
-
-    console.log('@mockrpc leaves', leaves);
+        );
+        outUtxoIndices.push(event.outUtxoIndices[index]);
+      }
+    }
+    console.log('@mockrpc all leaves from events', leaves);
+    console.log('@mockrpc all leafIndices From events', outUtxoIndices);
 
     const tree = new MerkleTree(
       this.depth,
@@ -353,21 +355,30 @@ export class MockRpc implements CompressionApiInterface {
       leaves.map((leaf) => leaf.toString()),
     );
 
-    console.log('built tree', tree);
+    // console.log('built tree', tree);
 
     const leafIndices = utxoHashes.map((utxoHash) =>
       tree.indexOf(utxoHash.toString()),
     );
-    
-    console.log('leafIndices (tree.indexOf)', leafIndices);
+
+    // assert that leafIndices
+
+    console.log(
+      'leafIndex PICKED (tree.indexOf)',
+      leafIndices,
+      'for uxohashes[0]',
+      utxoHashes.map((utxoHash) => utxoHash.toString()),
+    );
     console.log(
       'leafIndices (events out)',
       events.flatMap((e) => e.outUtxoIndices),
     );
 
     /// merkle proofs
-    const hexPathElementsAll = utxoHashes.map((utxoHash, i) => {
-      const pathElements: string[] = tree.path(leafIndices[i]).pathElements;
+    const hexPathElementsAll = leafIndices.map((leafIndex) => {
+      console.log('@merklproof leafIndex', leafIndex);
+      const pathElements: string[] = tree.path(leafIndex).pathElements;
+      console.log('@merklproof pathElements', pathElements);
       const hexPathElements = pathElements.map((value) => toHex(value));
 
       return hexPathElements;
@@ -375,6 +386,10 @@ export class MockRpc implements CompressionApiInterface {
 
     const roots = new Array(utxoHashes.length).fill(toHex(tree.root()));
 
+    console.log(
+      'roots',
+      roots.map((r) => r.toString()),
+    );
     const inputs = {
       /// roots
       root: roots,
@@ -385,6 +400,16 @@ export class MockRpc implements CompressionApiInterface {
       /// array of leafs
       leaf: utxoHashes.map((utxoHash) => toHex(utxoHash.toString())),
     };
+
+    utxoHashes.forEach((utxoHash, index) => {
+      const leafIndex = leafIndices[index];
+      const computedHash = tree.elements()[leafIndex].toString();
+      if (computedHash !== utxoHash.toString()) {
+        throw new Error(
+          `Mismatch at index ${index}: expected ${utxoHash.toString()}, got ${computedHash}`,
+        );
+      }
+    });
 
     const inputsData = JSON.stringify(inputs);
 

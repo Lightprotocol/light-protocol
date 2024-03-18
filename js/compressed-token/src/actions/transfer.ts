@@ -131,7 +131,7 @@ export async function transfer(
   const proof = await rpc.getValidityProof(
     inUtxos.map((utxo) => utxo.merkleContext.hash as BN),
   );
-  console.log('proof in @transfer', proof);
+  // console.log('proof in @transfer', proof);
 
   const ix = await createTransferInstruction(
     payer.publicKey,
@@ -140,7 +140,7 @@ export async function transfer(
     [queue],
     [merkleTree, merkleTree],
     inUtxos.map((utxo) => utxo.utxo),
-    [recipientOutUtxo, changeUtxo],
+    [changeUtxo, recipientOutUtxo],
     // TODO: replace with actual recent state root index!
     // This will only work with sequential state updates and no cranking!
     inUtxos.map((utxo) => Number(utxo.merkleContext?.leafIndex)), // input state root indices
