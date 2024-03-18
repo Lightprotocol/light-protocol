@@ -42,11 +42,9 @@ class CreateMintCommand extends Command {
     loader.start();
     try {
       const payer = getPayer();
-
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = this.getMintKeypair(flags);
       const mintAuthority = this.getMintAuthority(flags, payer);
-
       const connection = new Connection(getSolanaRpcUrl());
       const { mint, transactionSignature } = await createMint(
         connection,
@@ -68,17 +66,17 @@ class CreateMintCommand extends Command {
   }
 
   getMintDecimals(flags: any): number {
-    return flags["mintDecimals"] ?? DEFAULT_DECIMAL_COUNT;
+    return flags["mint-decimals"] ?? DEFAULT_DECIMAL_COUNT;
   }
 
   getMintKeypair(flags: any): Keypair | undefined {
-    const mint58: string | undefined = flags["mint"];
+    const mint58: string | undefined = flags["mint-keypair"];
     return mint58 ? Keypair.fromSecretKey(bs58.decode(mint58)) : undefined;
   }
 
   getMintAuthority(flags: any, payer: any) {
-    return flags["mintAuthority"]
-      ? new PublicKey(flags["mintAuthority"])
+    return flags["mint-authority"]
+      ? new PublicKey(flags["mint-authority"])
       : payer.publicKey;
   }
 }
