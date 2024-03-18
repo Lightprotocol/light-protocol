@@ -14,6 +14,13 @@ describe("mint-to", () => {
     84, 182, 157, 45, 133, 253, 230, 193, 176, 160, 72, 249,
   ]);
 
+  const MINT_AUTHORITY = byteArrayToKeypair([
+    122, 239, 192, 18, 21, 29, 237, 120, 104, 95, 247, 150, 181, 218, 207, 60,
+    158, 110, 200, 246, 74, 226, 30, 223, 142, 138, 133, 194, 30, 254, 132, 236,
+    227, 130, 162, 184, 215, 227, 81, 211, 134, 73, 118, 71, 219, 163, 243, 41,
+    118, 21, 155, 87, 11, 53, 153, 130, 178, 126, 151, 86, 225, 36, 251, 130,
+  ]);
+
   test.it("Should mint token", async () => {
     await initTestEnvIfNeeded();
     await requestAirdrop(getPayer().publicKey);
@@ -46,7 +53,7 @@ describe("mint-to", () => {
       await requestAirdrop(getPayer().publicKey);
 
       const mintAmount = 100;
-      const mintAuthority = getPayer().publicKey.toBase58();
+      const mintAuthority = MINT_AUTHORITY.publicKey.toBase58();
       const mintTo = FIXED_BOB.publicKey.toBase58();
       const mintAddress = await createTestMint();
       return test
