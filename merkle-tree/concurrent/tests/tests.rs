@@ -950,7 +950,7 @@ async fn test_spl_compat() {
             let root = concurrent_mt.root().unwrap();
             let changelog_index = concurrent_mt.changelog_index();
             let old_leaf = reference_tree.leaf(0);
-            let mut proof = reference_tree.get_proof_of_leaf(0,false).unwrap();
+            let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
 
             concurrent_mt
                 .update(changelog_index, &old_leaf, &new_leaf, 0, &mut proof)
@@ -974,7 +974,7 @@ async fn test_spl_compat() {
         let root = concurrent_mt.root().unwrap();
         let changelog_index = concurrent_mt.changelog_index();
         let old_leaf = reference_tree.leaf(i);
-        let mut proof = reference_tree.get_proof_of_leaf(i,false).unwrap();
+        let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         concurrent_mt
             .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
