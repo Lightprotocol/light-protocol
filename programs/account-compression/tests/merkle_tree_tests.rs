@@ -605,7 +605,7 @@ async fn test_nullify_leaves() {
     concurrent_merkle_tree.root().unwrap();
 
     let proof: Vec<[u8; 32]> = reference_merkle_tree
-        .get_proof_of_leaf(0, true)
+        .get_proof_of_leaf(0, false)
         .unwrap()
         .to_array::<16>()
         .unwrap()

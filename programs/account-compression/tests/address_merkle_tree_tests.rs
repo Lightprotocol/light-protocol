@@ -277,7 +277,7 @@ async fn relayer_update(
 
         // Get the Merkle proof for updaring low element.
         let low_address_proof = relayer_merkle_tree
-            .get_proof_of_leaf(usize::from(old_low_address.index))
+            .get_proof_of_leaf(usize::from(old_low_address.index), false)
             .unwrap();
         let old_low_address: RawIndexingElement<usize, 32> = old_low_address.try_into().unwrap();
 
@@ -467,7 +467,7 @@ async fn test_insert_invalid_low_element() {
         .cloned()
         .unwrap()
         .value;
-    let low_element_proof = local_merkle_tree.get_proof_of_leaf(1).unwrap();
+    let low_element_proof = local_merkle_tree.get_proof_of_leaf(1, false).unwrap();
     assert!(update_merkle_tree(
         &mut context,
         address_queue_keypair.pubkey(),
@@ -503,7 +503,7 @@ async fn test_insert_invalid_low_element() {
         .cloned()
         .unwrap()
         .value;
-    let low_element_proof = local_merkle_tree.get_proof_of_leaf(0).unwrap();
+    let low_element_proof = local_merkle_tree.get_proof_of_leaf(0, false).unwrap();
     assert!(update_merkle_tree(
         &mut context,
         address_queue_keypair.pubkey(),
