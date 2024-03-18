@@ -1,17 +1,16 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import { getPayer } from "../../../src";
+import { defaultSolanaWalletKeypair, getPayer } from "../../../src";
 import { requestAirdrop } from "../../helpers/helpers";
+import { Keypair } from "@solana/web3.js";
 
 describe("create-mint", () => {
   test.it(async () => {
     await initTestEnvIfNeeded();
-    await requestAirdrop(getPayer().publicKey);
-
-    const mintAuthority = getPayer().publicKey.toBase58();
     const mintDecimals = 5;
-    const mintKeypair = getPayer();
-
+    const mintKeypair = defaultSolanaWalletKeypair() || Keypair.generate();
+    const mintAuthority = mintKeypair.publicKey.toBase58();
+    await requestAirdrop(mintKeypair.publicKey);
     return test
       .stdout()
       .command([

@@ -1,19 +1,24 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import { getPayer, getSolanaRpcUrl } from "../../../src";
-import { Connection, PublicKey } from "@solana/web3.js";
+import {
+  defaultSolanaWalletKeypair,
+  getPayer,
+  getSolanaRpcUrl,
+} from "../../../src";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { createMint, mintTo } from "@lightprotocol/compressed-token";
 import { requestAirdrop } from "../../helpers/helpers";
 describe("transfer", () => {
   test.it(async () => {
     await initTestEnvIfNeeded();
-    await requestAirdrop(getPayer().publicKey);
-
+    const mintKeypair = defaultSolanaWalletKeypair() || Keypair.generate();
+    await requestAirdrop(mintKeypair.publicKey);
     const mintAmount = 10;
-    const mintAuthority = getPayer().publicKey;
-    const mintDestination = getPayer().publicKey;
-    const mintAddress = await createTestMint();
+    const mintAuthority = mintKeypair.publicKey;
+    const mintDestination = mintKeypair.publicKey;
+    const mintAddress = await createTestMint(mintKeypair);
     await testMintTo(
+      mintKeypair,
       mintAddress,
       mintDestination,
       mintAuthority,
@@ -36,12 +41,12 @@ describe("transfer", () => {
       );
   });
 
-  async function createTestMint() {
+  async function createTestMint(payer: Keypair) {
     const connection = new Connection(getSolanaRpcUrl());
     const { mint, transactionSignature } = await createMint(
       connection,
-      getPayer(),
-      getPayer().publicKey,
+      payer,
+      payer.publicKey,
       9,
       undefined,
       {
@@ -52,6 +57,7 @@ describe("transfer", () => {
   }
 
   async function testMintTo(
+    payer: Keypair,
     mintAddress: PublicKey,
     mintDestination: PublicKey,
     mintAuthority: PublicKey,
@@ -60,7 +66,7 @@ describe("transfer", () => {
     const connection = new Connection(getSolanaRpcUrl());
     const txId = await mintTo(
       connection,
-      getPayer(),
+      payer,
       mintAddress,
       mintDestination,
       mintAuthority,

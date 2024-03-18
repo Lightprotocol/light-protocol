@@ -14,11 +14,21 @@ import {
 } from "@lightprotocol/zk.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
+import { Keypair } from "@solana/web3.js";
 
 require("dotenv").config();
 
 let provider: Provider;
 let rpc: Rpc;
+
+export const defaultSolanaWalletKeypair = (): Keypair | undefined => {
+  const walletPath = process.env.HOME + "/.config/solana/id.json";
+  if (fs.existsSync(walletPath)) {
+    return Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))),
+    );
+  }
+};
 
 export const readWalletFromFile = () => {
   try {
@@ -42,7 +52,6 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   );
 
   anchor.setProvider(anchorProvider);
-
   return anchorProvider;
 };
 
