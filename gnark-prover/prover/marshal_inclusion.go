@@ -31,9 +31,7 @@ func (p *InclusionParameters) MarshalJSON() ([]byte, error) {
 	}
 
 	paramsJson.InPathIndices = make([]uint32, len(p.InPathIndices))
-	for i := 0; i < len(p.InPathIndices); i++ {
-		paramsJson.InPathIndices[i] = p.InPathIndices[i]
-	}
+	paramsJson.InPathIndices = p.InPathIndices
 
 	paramsJson.InPathElements = make([][]string, len(p.InPathElements))
 	for i := 0; i < len(p.InPathElements); i++ {
@@ -77,9 +75,7 @@ func (p *InclusionParameters) UnmarshalJSON(data []byte) error {
 	}
 
 	p.InPathIndices = make([]uint32, len(params.InPathIndices))
-	for i := 0; i < len(params.InPathIndices); i++ {
-		p.InPathIndices[i] = params.InPathIndices[i]
-	}
+	p.InPathIndices = params.InPathIndices
 
 	p.InPathElements = make([][]big.Int, len(params.InPathElements))
 	for i := 0; i < len(params.InPathElements); i++ {

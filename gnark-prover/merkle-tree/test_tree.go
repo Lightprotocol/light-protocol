@@ -1,9 +1,10 @@
 package merkle_tree
 
 import (
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"light/light-prover/prover"
 	"math/big"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type PoseidonNode interface {

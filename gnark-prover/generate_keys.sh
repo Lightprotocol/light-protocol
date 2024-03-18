@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 DEPTH="26"
 
@@ -13,10 +13,9 @@ generate() {
     mkdir -p circuits
     CIRCUIT_FILE="./circuits/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.key"
 
-    if [ ! -f "${CIRCUIT_FILE}" ]; then
-        echo "Generating ${CIRCUIT_TYPE} circuit for ${UTXOS} UTXOs..."
-        gnark setup --circuit "${CIRCUIT_TYPE}" --utxos "$UTXOS" --tree-depth "$DEPTH" --output "${CIRCUIT_FILE}"
-    fi
+    echo "Generating ${CIRCUIT_TYPE} circuit for ${UTXOS} UTXOs..."
+    gnark setup --utxos "$UTXOS" --tree-depth "$DEPTH" --output "${CIRCUIT_FILE}"
+    
 }
 
 declare -a utxos_arr=("1" "2" "3" "4" "8")

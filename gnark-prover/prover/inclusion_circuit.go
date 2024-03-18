@@ -45,10 +45,6 @@ func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string,
 	inPathIndices := make([]frontend.Variable, numberOfUtxos)
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
 
-	for i := 0; i < int(numberOfUtxos); i++ {
-		inPathElements[i] = make([]frontend.Variable, treeDepth)
-	}
-
 	circuit := InclusionCircuit{
 		Depth:          int(treeDepth),
 		NumberOfUtxos:  int(numberOfUtxos),
