@@ -227,6 +227,12 @@ describe('Compressed Token Program test', () => {
 
     console.log('2nd transfer');
 
+    const bobPreCompressedTokenAccounts2 =
+      await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        bob.publicKey,
+        randomMint.publicKey,
+      );
     await transfer(
       connection,
       payer,
@@ -239,24 +245,24 @@ describe('Compressed Token Program test', () => {
 
     await assertTransfer(
       connection,
-      bobPreCompressedTokenAccounts,
+      bobPreCompressedTokenAccounts2,
       randomMint.publicKey,
       bn(10),
       bob.publicKey,
       charlie.publicKey,
     );
 
-    // await expect(
-    //   transfer(
-    //     connection,
-    //     payer,
-    //     randomMint.publicKey,
-    //     31,
-    //     bob,
-    //     charlie.publicKey,
-    //     merkleTree,
-    //   ),
-    // ).rejects.toThrow('Not enough balance for transfer');
+    await expect(
+      transfer(
+        connection,
+        payer,
+        randomMint.publicKey,
+        31,
+        bob,
+        charlie.publicKey,
+        merkleTree,
+      ),
+    ).rejects.toThrow('Not enough balance for transfer');
   });
 
   it.skip('should return validityProof from prover server', async () => {
@@ -269,9 +275,7 @@ describe('Compressed Token Program test', () => {
     const utxoHashes = compressedTokenAccounts.map(
       (utxo: UtxoWithParsedTokenTlvData) => utxo.merkleContext.hash,
     );
-    console.log('utxoHashes', utxoHashes);
-    const proof = await rpc.getValidityProof(utxoHashes);
-    console.log('compressed validityProof: ', proof);
+    await rpc.getValidityProof(utxoHashes);
   });
   /// TODO: move these as unit tests to program.ts
   it.skip('should create mint', async () => {

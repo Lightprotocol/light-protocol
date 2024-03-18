@@ -117,12 +117,6 @@ export async function transfer(
     index_mt_account: 0, // FIXME: dynamic!
   };
 
-  // TODO: replace with actual proof!
-  // const proof_mock: CompressedProof_IdlType = {
-  //   a: Array.from({ length: 32 }, () => 0),
-  //   b: Array.from({ length: 64 }, () => 0),
-  //   c: Array.from({ length: 32 }, () => 0),
-  // };
   const rpc = await getMockRpc(connection);
 
   const proof = await rpc.getValidityProof(
@@ -136,7 +130,7 @@ export async function transfer(
     [queue],
     [merkleTree, merkleTree],
     inUtxos.map((utxo) => utxo.utxo),
-    [recipientOutUtxo, changeUtxo],
+    [recipientOutUtxo, changeUtxo].reverse(),
     // TODO: replace with actual recent state root index!
     // This will only work with sequential state updates and no cranking!
     inUtxos.map((utxo) => Number(utxo.merkleContext?.leafIndex)), // input state root indices

@@ -389,8 +389,6 @@ export class MockRpc implements CompressionApiInterface {
 
     const inputsData = JSON.stringify(inputs);
 
-    console.log('inputsData', inputsData);
-
     const logTime = `Proof generation for depth:${this.depth} n:${utxoHashes.length}`;
     console.time(logTime);
     // TODO: pass url into rpc constructor
