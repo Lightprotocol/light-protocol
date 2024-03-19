@@ -6,11 +6,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 600
     steps:
-      - name: Checkout repo
+      - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           lfs: true
+          submodules: true
+
       - name: Cache dependencies
         uses: actions/cache@v3
       - name: Set up Go
