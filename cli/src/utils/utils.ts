@@ -21,12 +21,14 @@ require("dotenv").config();
 let provider: Provider;
 let rpc: Rpc;
 
-export const defaultSolanaWalletKeypair = (): Keypair | undefined => {
+export const defaultSolanaWalletKeypair = (): Keypair => {
   const walletPath = process.env.HOME + "/.config/solana/id.json";
   if (fs.existsSync(walletPath)) {
     return Keypair.fromSecretKey(
       new Uint8Array(JSON.parse(fs.readFileSync(walletPath, "utf-8"))),
     );
+  } else {
+    throw new Error("Wallet file not found");
   }
 };
 

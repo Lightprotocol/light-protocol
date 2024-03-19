@@ -1,15 +1,14 @@
-import { Args, Command, Flags } from "@oclif/core";
+import { Command, Flags } from "@oclif/core";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
   CustomLoader,
+  defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getPayer,
-  getRpc,
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { transfer } from "@lightprotocol/compressed-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { confirmTx } from "@lightprotocol/stateless.js";
+
 class TransferCommand extends Command {
   static summary = "Transfer tokens from one account to another.";
 
@@ -54,18 +53,16 @@ class TransferCommand extends Command {
       const mintPublicKey = new PublicKey(mint);
       const toPublicKey = new PublicKey(to);
 
-      const payer = getPayer();
-
-      let feePayer = payer;
+      let payer = defaultSolanaWalletKeypair();
       if (flags["fee-payer"]) {
-        const decoded = bs58.decode(flags["fee-payer"]);
-        feePayer = Keypair.fromSecretKey(decoded);
+        const decoded = bs58.decode(<string>flags["fee-payer"]);
+        payer = Keypair.fromSecretKey(decoded);
       }
       const connection = new Connection(getSolanaRpcUrl());
 
       const txId = await transfer(
         connection,
-        feePayer,
+        payer,
         mintPublicKey,
         amount,
         payer,

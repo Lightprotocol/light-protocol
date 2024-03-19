@@ -2,6 +2,7 @@ import { Command, Flags } from "@oclif/core";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import {
   CustomLoader,
+  defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
   getPayer,
   getSolanaRpcUrl,
@@ -17,8 +18,8 @@ class CreateMintCommand extends Command {
   static examples = ["$ light create-mint --mint-decimals 5"];
 
   static flags = {
-    "mint-keypair": Flags.string({
-      description: "Provide the mint keypair to use for minting",
+    "mint-secret-key": Flags.string({
+      description: "Provide the mint secret key to use for minting",
       required: false,
     }),
     "mint-authority": Flags.string({
@@ -41,7 +42,7 @@ class CreateMintCommand extends Command {
     const loader = new CustomLoader(`Performing create-mint...\n`);
     loader.start();
     try {
-      const payer = getPayer();
+      const payer = defaultSolanaWalletKeypair();
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = this.getMintKeypair(flags);
       const mintAuthority = this.getMintAuthority(flags, payer);
@@ -70,7 +71,7 @@ class CreateMintCommand extends Command {
   }
 
   getMintKeypair(flags: any): Keypair | undefined {
-    const mint58: string | undefined = flags["mint-keypair"];
+    const mint58: string | undefined = flags["mint-secret-key"];
     return mint58 ? Keypair.fromSecretKey(bs58.decode(mint58)) : undefined;
   }
 
