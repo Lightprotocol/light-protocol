@@ -22,7 +22,11 @@ jobs:
         run: |
           cd gnark-prover
           go build
-      - name: Test
+      - name: Prover unit tests
+        run: |
+          cd gnark-prover
+          go test ./prover
+      - name: Integration tests
         run: |
           cd gnark-prover
           go test

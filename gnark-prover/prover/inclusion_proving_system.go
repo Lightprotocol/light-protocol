@@ -20,6 +20,60 @@ type InclusionParameters struct {
 	Leaf           []big.Int
 }
 
+func (p *InclusionParameters) ToJSON() string {
+	// convert params to string of hex values like: {"root":["0x0"],"inPathIndices":[0],"inPathElements":[["0x0"]],"leaf":["0x0"]}
+	// create json string variable
+	var jsonStr string
+	jsonStr += fmt.Sprintf("{\"root\": [")
+	// convert root to string of hex values
+	for i, v := range p.Root {
+		jsonStr += fmt.Sprintf("\"0x%s\"", v.Text(16))
+		if i < len(p.Root)-1 {
+			jsonStr += ","
+		}
+	}
+	jsonStr += fmt.Sprintf("],")
+
+	jsonStr += fmt.Sprintf("\"inPathIndices\": [")
+	// convert inPathIndices to string of uint32 values
+	for i, v := range p.InPathIndices {
+		jsonStr += fmt.Sprintf("%d", v)
+		if i < len(p.InPathIndices)-1 {
+			jsonStr += ","
+		}
+	}
+	jsonStr += fmt.Sprintf("],")
+
+	jsonStr += fmt.Sprintf("\"inPathElements\": [")
+	// convert inPathElements to string of array of hex values
+	for i, v := range p.InPathElements {
+		jsonStr += "["
+		for j, w := range v {
+			jsonStr += fmt.Sprintf("\"0x%s\"", w.Text(16))
+			if j < len(v)-1 {
+				jsonStr += ","
+			}
+		}
+		jsonStr += "]"
+		if i < len(p.InPathElements)-1 {
+			jsonStr += ","
+		}
+	}
+	jsonStr += fmt.Sprintf("],")
+
+	jsonStr += fmt.Sprintf("\"leaf\": [")
+	// convert leaf to string of hex values
+	for i, v := range p.Leaf {
+		jsonStr += fmt.Sprintf("\"0x%s\"", v.Text(16))
+		if i < len(p.Leaf)-1 {
+			jsonStr += ","
+		}
+	}
+	jsonStr += fmt.Sprintf("]}")
+
+	return jsonStr
+}
+
 func (p *InclusionParameters) NumberOfUTXOs() uint32 {
 	return uint32(len(p.Root))
 }
