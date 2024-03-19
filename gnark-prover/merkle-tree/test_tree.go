@@ -3,6 +3,8 @@ package merkle_tree
 import (
 	"light/light-prover/prover"
 	"math/big"
+	"math/rand"
+	"time"
 
 	"github.com/iden3/go-iden3-crypto/poseidon"
 )
@@ -136,10 +138,20 @@ func NewTree(depth int) PoseidonTree {
 	return PoseidonTree{root: &PoseidonEmptyNode{dep: depth, emptyTreeValues: initHashes}}
 }
 
-func BuildTestTree(depth int, numberOfUtxos int) prover.InclusionParameters {
+func BuildTestTree(depth int, numberOfUtxos int, random bool) prover.InclusionParameters {
 	tree := NewTree(depth)
-	leaf, _ := poseidon.Hash([]*big.Int{big.NewInt(1)})
-	inPathIndices := 0
+
+	rand.Seed(time.Now().UnixNano())
+	var leaf *big.Int
+	var inPathIndices int
+	if random {
+		leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(rand.Int63())})
+		inPathIndices = rand.Intn(depth)
+	} else {
+		leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(1)})
+		inPathIndices = 0
+	}
+
 	inPathElements := tree.Update(inPathIndices, *leaf)
 	root := tree.Root()
 
