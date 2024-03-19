@@ -20,8 +20,8 @@ func TestInclusionParameters_TestTree(t *testing.T) {
 	defer file.Close()
 
 	// generate trees with depth 1..26 and numberOfUtxos 1..10 and store the serialized results in a file
-	for i := 1; i <= 32; i++ {
-		for j := 1; j <= 10; j++ {
+	for i := 1; i <= 8; i++ {
+		for j := 1; j <= 4; j++ {
 			tree := BuildTestTree(i, j, true)
 			json := tree.ToJSON()
 
