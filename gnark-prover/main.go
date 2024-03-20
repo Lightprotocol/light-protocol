@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
-	"bytes"
 	"light/light-prover/config"
 	"light/light-prover/logging"
 	merkle_tree "light/light-prover/merkle-tree"
@@ -208,7 +208,7 @@ func runCli() {
 					var r []byte
 					var err error
 
-					params := merkle_tree.BuildTestTree(treeDepth, utxos)
+					params := merkle_tree.BuildTestTree(treeDepth, utxos, false)
 
 					r, err = json.Marshal(&params)
 
@@ -465,10 +465,10 @@ func createFileAndWriteBytes(filePath string, data []byte) error {
 	defer file.Close() // Ensure the file is closed when the function completes
 
 	// Write the bytes to the file
-	_, err = io.WriteString(file, fmt.Sprintf("%d",data))
+	_, err = io.WriteString(file, fmt.Sprintf("%d", data))
 	if err != nil {
 		return err // Return any error that occurs during writing
 	}
 	fmt.Println("Wrote", len(data), "bytes to", filePath) // Write a log message
-	return nil // No errors, return nil
+	return nil                                            // No errors, return nil
 }

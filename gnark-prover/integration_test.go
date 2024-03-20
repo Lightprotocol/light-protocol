@@ -89,7 +89,7 @@ func TestWrongMethod(t *testing.T) {
 }
 
 func TestInclusionHappyPath26_1(t *testing.T) {
-	tree := merkletree.BuildTestTree(26, 1)
+	tree := merkletree.BuildTestTree(26, 1, false)
 
 	// convert tree t to json
 	jsonBytes, _ := tree.MarshalJSON()
@@ -107,7 +107,7 @@ func TestInclusionHappyPath26_1(t *testing.T) {
 func TestInclusionHappyPath26_12348(t *testing.T) {
 	// create array with values [1,2,3,4,8], iterate over it and print value
 	for _, utxos := range []int{1, 2, 3, 4, 8} {
-		tree := merkletree.BuildTestTree(26, utxos)
+		tree := merkletree.BuildTestTree(26, utxos, false)
 		// convert tree t to json
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
@@ -262,7 +262,7 @@ func TestParsingEmptyTreeWithOneLeaf(t *testing.T) {
 		t.Errorf("error parsing input: %v", err)
 	}
 
-	tree := merkletree.BuildTestTree(22, 1)
+	tree := merkletree.BuildTestTree(22, 1, false)
 
 	if len(tree.Root) != len(proofData.Root) || len(tree.Leaf) != len(proofData.Leaf) || len(tree.InPathElements) != len(proofData.InPathElements) || len(tree.InPathIndices) != len(proofData.InPathIndices) {
 		t.Errorf("Invalid shape: expected %d, got %d", len(tree.Root), len(proofData.Root))
