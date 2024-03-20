@@ -18,7 +18,7 @@ describe("create-mint", () => {
         "create-mint",
         `--mint-decimals=${mintDecimals}`,
         `--mint-authority=${mintAuthority.publicKey.toBase58()}`,
-        `--mint-secret-key=${mintSecretKey}`,
+        `--mint-keypair=${mintSecretKey}`,
       ])
       .it(`create mint for ${mintAuthority} with 2 decimals`, (ctx: any) => {
         expect(ctx.stdout).to.contain("create-mint successful");

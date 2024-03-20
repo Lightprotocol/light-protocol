@@ -8,6 +8,7 @@ import {
 } from "../../utils/utils";
 import { transfer } from "@lightprotocol/compressed-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { getKeypairFromFile } from "@solana-developers/helpers";
 
 class TransferCommand extends Command {
   static summary = "Transfer tokens from one account to another.";
@@ -37,7 +38,7 @@ class TransferCommand extends Command {
   };
 
   async run() {
-    const { args, flags } = await this.parse(TransferCommand);
+    const { flags } = await this.parse(TransferCommand);
 
     const loader = new CustomLoader(`Performing mint-to...\n`);
     loader.start();
@@ -54,9 +55,8 @@ class TransferCommand extends Command {
       const toPublicKey = new PublicKey(to);
 
       let payer = defaultSolanaWalletKeypair();
-      if (flags["fee-payer"]) {
-        const decoded = bs58.decode(<string>flags["fee-payer"]);
-        payer = Keypair.fromSecretKey(decoded);
+      if (flags["fee-payer"] !== undefined) {
+        payer = await getKeypairFromFile(flags["fee-payer"]);
       }
       const connection = new Connection(getSolanaRpcUrl());
 

@@ -1,15 +1,13 @@
-import { Args, Command, Flags } from "@oclif/core";
+import { Command, Flags } from "@oclif/core";
 import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getPayer,
-  getRpc,
   getSolanaRpcUrl,
 } from "../../utils/utils";
+import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
-import { confirmTx } from "@lightprotocol/stateless.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 class MintToCommand extends Command {
@@ -22,7 +20,7 @@ class MintToCommand extends Command {
   static flags = {
     "mint-authority": Flags.string({
       description:
-        "Specify the mint authority address. Defaults to the client keypair address.",
+        "Specify the mint authority keypair. Defaults to the client keypair address.",
       required: false,
     }),
     mint: Flags.string({
@@ -42,7 +40,7 @@ class MintToCommand extends Command {
   static args = {};
 
   async run() {
-    const { args, flags } = await this.parse(MintToCommand);
+    const { flags } = await this.parse(MintToCommand);
     const mint = flags["mint"];
     const to = flags["to"];
     const amount = flags["amount"];
@@ -58,9 +56,10 @@ class MintToCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const mintAuthority = flags["mint-authority"]
-        ? Keypair.fromSecretKey(bs58.decode(flags["mint-authority"]))
-        : payer.publicKey;
+      let mintAuthority: Keypair | PublicKey = payer.publicKey;
+      if (flags["mint-authority"] !== undefined) {
+        mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
+      }
 
       const connection = new Connection(getSolanaRpcUrl());
 
