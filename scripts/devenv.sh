@@ -7,6 +7,7 @@ deactivate () {
     PATH="${LIGHT_PROTOCOL_OLD_PATH}"
     unset LIGHT_PROTOCOL_DEVENV
     unset LIGHT_PROTOCOL_TOPLEVEL
+    unset GOROOT
 }
 
 # Stop early if already in devenv.
@@ -42,3 +43,6 @@ PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global/bin:${PATH}"
 
 # Define alias of `light` to use the CLI built from source.
 alias light="${LIGHT_PROTOCOL_TOPLEVEL}/cli/test_bin/run"
+
+# Define GOROOT for Go.
+GOROOT="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go"
