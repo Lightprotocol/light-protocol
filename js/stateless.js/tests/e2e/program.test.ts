@@ -70,7 +70,6 @@ describe('Program test', () => {
       b: Array.from({ length: 64 }, () => 0),
       c: Array.from({ length: 32 }, () => 0),
     };
-
     const ix = await createExecuteCompressedInstruction(
       payer.publicKey,
       in_utxos,
