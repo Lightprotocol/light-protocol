@@ -25,8 +25,8 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
-    let mut inputs: InstructionDataTransfer =
-        InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
+    let mut inputs: CompressedTokenInstructionDataTransfer =
+        CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
 
     let is_delegate =
         check_signer_or_delegate(&ctx.accounts.authority.key(), &inputs.input_token_data)?;
@@ -259,7 +259,7 @@ pub struct TransferInstruction<'info> {
 // TODO: parse compressed_accounts a more efficient way, since owner is sent multiple times this way
 // This struct is equivalent to the InstructionDataTransfer, but uses the imported types from the psp_compressed_pda
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InstructionDataTransfer {
+pub struct CompressedTokenInstructionDataTransfer {
     proof: Option<CompressedProof>,
     root_indices: Vec<u16>,
     input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
@@ -395,7 +395,7 @@ pub mod transfer_sdk {
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::{InstructionDataTransfer, TokenTransferOutputData};
+    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     #[allow(clippy::too_many_arguments)]
     pub fn create_transfer_instruction(
         fee_payer: &Pubkey,
@@ -480,7 +480,7 @@ pub mod transfer_sdk {
             .map(|(k, _)| k.clone())
             .collect::<Vec<AccountMeta>>();
 
-        let inputs_struct = InstructionDataTransfer {
+        let inputs_struct = CompressedTokenInstructionDataTransfer {
             input_compressed_accounts_with_merkle_context,
             output_compressed_accounts: output_compressed_accounts.to_vec(),
             root_indices: root_indices.to_vec(),
@@ -490,7 +490,7 @@ pub mod transfer_sdk {
             output_state_merkle_tree_account_indices,
         };
         let mut inputs = Vec::new();
-        InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
         let instruction_data = crate::instruction::Transfer { inputs };

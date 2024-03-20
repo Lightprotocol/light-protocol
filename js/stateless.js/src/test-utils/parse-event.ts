@@ -2,7 +2,7 @@ import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import { ParsedTransactionWithMeta } from '@solana/web3.js';
 import { LightSystemProgram } from '../programs';
 import { defaultStaticAccountsStruct } from '../constants';
-import { PublicTransactionEvent_IdlType } from '../state';
+import { PublicTransactionEvent } from '../state';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 
@@ -13,7 +13,7 @@ export const parseEvents = <T>(
   const { noopProgram } = defaultStaticAccountsStruct();
 
   const transactions: NonNullable<T>[] = [];
-  indexerEventsTransactions.forEach((tx) => {
+  indexerEventsTransactions.forEach(tx => {
     if (
       !tx ||
       !tx.meta ||
@@ -26,7 +26,7 @@ export const parseEvents = <T>(
 
     /// We only care about the very last inner instruction as it contains the
     /// PublicTransactionEvent
-    tx.meta.innerInstructions.forEach((ix) => {
+    tx.meta.innerInstructions.forEach(ix => {
       if (ix.instructions.length > 0) {
         const ixInner = ix.instructions[ix.instructions.length - 1];
         // Type guard for partially parsed web3js types.
@@ -53,8 +53,8 @@ export const parseEvents = <T>(
 // TODO: make it type safe. have to reimplement the types from the IDL.
 export const parsePublicTransactionEventWithIdl = (
   data: Buffer,
-): PublicTransactionEvent_IdlType | null => {
-  const numericData = Buffer.from(data.map((byte) => byte));
+): PublicTransactionEvent | null => {
+  const numericData = Buffer.from(data.map(byte => byte));
 
   try {
     return LightSystemProgram.program.coder.types.decode(

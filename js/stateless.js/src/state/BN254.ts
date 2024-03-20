@@ -69,7 +69,7 @@ export function bigint254ToPublicKey(bigintNumber: BN254): PublicKey {
 export function PublicKeyToBN254(publicKey: PublicKey): BN254 {
   const buffer = publicKey.toBuffer();
   // Remove leading zeros from the buffer
-  const trimmedBuffer = buffer.subarray(buffer.findIndex((byte) => byte !== 0));
+  const trimmedBuffer = buffer.subarray(buffer.findIndex(byte => byte !== 0));
   return createBN254(trimmedBuffer);
 }
 
@@ -111,7 +111,6 @@ if (import.meta.vitest) {
 
     it('should create a BN254 from a base58 string', () => {
       const bigint = createBN254('2j', 'base58');
-      console.log('bigint', bigint, bigint.toString());
       expect(bigint.toNumber()).toBe(bn(100).toNumber());
     });
   });

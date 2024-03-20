@@ -1,10 +1,11 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair, getSolanaRpcUrl } from "../../../src";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { createMint, mintTo } from "@lightprotocol/compressed-token";
 import { requestAirdrop } from "../../helpers/helpers";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 describe("Get balance", () => {
   test.it(async () => {
     await initTestEnvIfNeeded();
@@ -42,17 +43,10 @@ describe("Get balance", () => {
   });
 
   async function createTestMint(payer: Keypair) {
-    const connection = new Connection(getSolanaRpcUrl());
-    const { mint } = await createMint(
-      connection,
-      payer,
-      payer.publicKey,
-      9,
-      undefined,
-      {
-        commitment: "finalized",
-      },
-    );
+    const rpc = await getTestRpc(getSolanaRpcUrl());
+    const { mint } = await createMint(rpc, payer, payer, 9, undefined, {
+      commitment: "finalized",
+    });
     return mint;
   }
 
@@ -63,9 +57,9 @@ describe("Get balance", () => {
     mintAuthority: PublicKey | Keypair,
     mintAmount: number,
   ) {
-    const connection = new Connection(getSolanaRpcUrl());
+    const rpc = await getTestRpc(getSolanaRpcUrl());
     const txId = await mintTo(
-      connection,
+      rpc,
       payer,
       mintAddress,
       mintDestination,

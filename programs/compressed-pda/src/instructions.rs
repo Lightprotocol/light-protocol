@@ -179,8 +179,7 @@ pub struct CpiSignatureAccount {
 }
 
 // TODO: add checks for lengths of vectors
-#[derive(Debug)]
-#[account]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub input_root_indices: Vec<u16>,

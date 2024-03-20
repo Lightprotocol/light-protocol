@@ -7,7 +7,7 @@ import {
 } from "../../../src";
 import { Connection, Keypair } from "@solana/web3.js";
 import { createMint } from "@lightprotocol/compressed-token";
-import { confirmTx } from "@lightprotocol/stateless.js";
+import { confirmTx, getTestRpc } from "@lightprotocol/stateless.js";
 import { requestAirdrop } from "../../helpers/helpers";
 
 describe("mint-to", () => {
@@ -37,15 +37,20 @@ describe("mint-to", () => {
   });
 
   async function createTestMint() {
-    const connection = new Connection(getSolanaRpcUrl(), "finalized");
-    const payer = await getPayer();
+    const rpc = await getTestRpc(
+      getSolanaRpcUrl(),
+      undefined,
+      undefined,
+      undefined,
+    );
+
     const { mint, transactionSignature } = await createMint(
-      connection,
-      payer,
-      payer.publicKey,
+      rpc,
+      await getPayer(),
+      await getPayer(),
       9,
     );
-    await confirmTx(connection, transactionSignature);
+    await confirmTx(rpc, transactionSignature);
     return mint;
   }
 });

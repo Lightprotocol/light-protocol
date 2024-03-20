@@ -63,7 +63,7 @@ class MintToCommand extends Command {
       const connection = new Connection(getSolanaRpcUrl());
 
       const txId = await mintTo(
-        connection,
+        connection as Rpc,
         payer,
         mintPublicKey,
         toPublicKey,

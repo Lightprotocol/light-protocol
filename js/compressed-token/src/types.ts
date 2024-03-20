@@ -1,16 +1,29 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-// Implement refactor
-// Note: not a utxo but rater tlv data + lamports
-export type TokenTransferOutUtxo_IdlType = {
+import {
+  CompressedProof,
+  PackedCompressedAccountWithMerkleContext,
+} from '@lightprotocol/stateless.js';
+
+/// TODO: remove index_mt_account on-chain. passed as part of
+/// CompressedTokenInstructionDataTransfer
+export type TokenTransferOutputData = {
   owner: PublicKey;
   amount: BN;
   lamports: BN | null;
   index_mt_account: number;
 };
 
-// TODO: CHECK that u8 is fine here for AccountState
-export type TokenTlvData_IdlType = {
+export type CompressedTokenInstructionDataTransfer = {
+  proof: CompressedProof | null;
+  rootIndices: number[];
+  inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
+  inputTokenData: TokenData[];
+  outputCompressedAccounts: TokenTransferOutputData[];
+  outputStateMerkleTreeAccountIndices: Buffer;
+};
+
+export type TokenData = {
   /// The mint associated with this account
   mint: PublicKey;
   /// The owner of this account.

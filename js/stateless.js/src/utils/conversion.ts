@@ -1,7 +1,12 @@
 import { Buffer } from 'buffer';
-import { bn, createBN254 } from '../state';
+import { bn, createBN254 } from '../state/BN254';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
+import { Keypair } from '@solana/web3.js';
+
+export function byteArrayToKeypair(byteArray: number[]): Keypair {
+  return Keypair.fromSecretKey(Uint8Array.from(byteArray));
+}
 
 export const toArray = <T>(value: T | T[]) =>
   Array.isArray(value) ? value : [value];
@@ -38,7 +43,7 @@ export async function hashToBn254FieldSizeLe(
 
 /** Mutates array in place */
 export function pushUniqueItems<T>(items: T[], map: T[]): void {
-  items.forEach((item) => {
+  items.forEach(item => {
     if (!map.includes(item)) {
       map.push(item);
     }
@@ -49,10 +54,10 @@ export function toCamelCase(
   obj: Array<any> | unknown | any,
 ): Array<any> | unknown | any {
   if (Array.isArray(obj)) {
-    return obj.map((v) => toCamelCase(v));
+    return obj.map(v => toCamelCase(v));
   } else if (obj !== null && obj.constructor === Object) {
     return Object.keys(obj).reduce((result, key) => {
-      const camelCaseKey = key.replace(/([-_][a-z])/gi, ($1) => {
+      const camelCaseKey = key.replace(/([-_][a-z])/gi, $1 => {
         return $1.toUpperCase().replace('-', '').replace('_', '');
       });
       result[camelCaseKey] = toCamelCase(obj[key]);

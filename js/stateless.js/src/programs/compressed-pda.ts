@@ -1,57 +1,73 @@
 import { Program, AnchorProvider, setProvider, BN } from '@coral-xyz/anchor';
 import {
   PublicKey,
-  TransactionInstruction,
   Keypair,
   Connection,
+  TransactionInstruction,
+  AccountMeta,
+  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { IDL, PspCompressedPda } from '../idls/psp_compressed_pda';
-import { confirmConfig, defaultStaticAccounts } from '../constants';
 import { useWallet } from '../wallet';
 import {
-  UtxoWithMerkleContext,
-  UtxoWithMerkleProof,
-  addMerkleContextToUtxo,
+  CompressedAccount,
+  CompressedAccountWithMerkleContext,
+  CompressedProof,
   bn,
-  coerceIntoUtxoWithMerkleContext,
-  createUtxo,
+  createCompressedAccount,
 } from '../state';
-import { toArray } from '../utils/conversion';
-import { packInstruction } from '../instruction/pack-instruction';
-import { pipe } from '../utils/pipe';
-import { placeholderValidityProof } from '../instruction/validity-proof';
+import { packCompressedAccounts } from '../instruction';
+import { defaultStaticAccountsStruct } from '../constants';
+import {
+  validateSameOwner,
+  validateSufficientBalance,
+} from '../utils/validation';
 
-export type CompressedTransferParams = {
-  /** Utxos with lamports to spend as transaction inputs */
-  fromBalance: // TODO: selection upfront
-  | UtxoWithMerkleContext
-    | UtxoWithMerkleProof
-    | (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-  /** Solana Account that will receive transferred compressed lamports as utxo  */
-  toPubkey: PublicKey;
-  /** Amount of compressed lamports to transfer */
-  lamports: number | BN;
-  // TODO: add
-  // /** Optional: if different feepayer than owner of utxos */
-  // payer?: PublicKey;
+const sumupLamports = (accounts: CompressedAccountWithMerkleContext[]): BN => {
+  return accounts.reduce(
+    (acc, account) => acc.add(bn(account.lamports)),
+    bn(0),
+  );
 };
 
 /**
- * Create compressed account system transaction params
+ * Defines the parameters for the transfer method
  */
-export type CreateCompressedAccountParams = {
-  /*
-   * Optional utxos with lamports to spend as transaction inputs.
-   * Not required unless 'lamports' are specified, as Light doesn't
-   * enforce rent on the protocol level.
+type TransferParams = {
+  /**
+   * The payer of the transaction.
    */
-  fromBalance: UtxoWithMerkleContext[] | UtxoWithMerkleContext;
-  /** Public key of the created account */
-  newAccountPubkey: PublicKey;
-  /** Amount of lamports to transfer to the created compressed account */
-  lamports: number | bigint;
-  /** Public key of the program or user to assign as the owner of the created compressed account */
-  newAccountOwner: PublicKey;
+  payer: PublicKey;
+  /**
+   * The input state to be consumed.
+   */
+  inputCompressedAccounts: CompressedAccountWithMerkleContext[];
+  /**
+   * Recipient address
+   */
+  toAddress: PublicKey;
+  /**
+   * amount of lamports to transfer.
+   */
+  lamports: number | BN;
+  /**
+   * The recent state root indices of the input state. The expiry is tied to
+   * the proof.
+   *
+   * TODO: Add support for passing recent-values after instruction creation.
+   */
+  recentInputStateRootIndices: number[];
+  /**
+   * The recent validity proof for state inclusion of the input state. It
+   * expires after n slots.
+   */
+  recentValidityProof: CompressedProof;
+  /**
+   * The state trees that the tx output should be inserted into. This can be a
+   * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
+   * of input state.
+   */
+  outputStateTrees?: PublicKey[] | PublicKey;
 };
 
 export class LightSystemProgram {
@@ -84,167 +100,152 @@ export class LightSystemProgram {
     if (!this._program) {
       const mockKeypair = Keypair.generate();
       const mockConnection = new Connection(
-        'http://localhost:8899',
+        'http://127.0.0.1:8899',
         'confirmed',
       );
       const mockProvider = new AnchorProvider(
         mockConnection,
         useWallet(mockKeypair),
-        confirmConfig,
+        {
+          commitment: 'confirmed',
+          preflightCommitment: 'confirmed',
+        },
       );
       setProvider(mockProvider);
       this._program = new Program(IDL, this.programId, mockProvider);
     }
   }
 
+  static createTransferOutputState(
+    inputCompressedAccounts: CompressedAccountWithMerkleContext[],
+    toAddress: PublicKey,
+    lamports: number | BN,
+  ): CompressedAccount[] {
+    lamports = bn(lamports);
+    const inputLamports = sumupLamports(inputCompressedAccounts);
+    const changeLamports = inputLamports.sub(lamports);
+
+    validateSufficientBalance(changeLamports);
+
+    if (changeLamports.eq(bn(0))) {
+      return [createCompressedAccount(toAddress, lamports)];
+    }
+
+    validateSameOwner(inputCompressedAccounts);
+
+    const outputCompressedAccounts: CompressedAccount[] = [
+      createCompressedAccount(toAddress, lamports),
+      createCompressedAccount(inputCompressedAccounts[0].owner, changeLamports),
+    ];
+    return outputCompressedAccounts;
+  }
+
   /**
-   * Generate a transaction instruction that transfers compressed
-   * lamports from one compressed balance to another solana address
+   * Creates a transaction instruction that transfers compressed lamports from
+   * one owner to another.
    */
-  /// TODO: should just define the createoutput utxo selection + packing
   static async transfer(
-    params: CompressedTransferParams,
-  ): Promise<TransactionInstruction> {
-    const recipientUtxo = createUtxo(params.toPubkey, params.lamports);
-
-    // unnecessary if after
-    const fromUtxos = pipe(
-      toArray<UtxoWithMerkleContext | UtxoWithMerkleProof>,
-      coerceIntoUtxoWithMerkleContext,
-    )(params.fromBalance);
-
-    // TODO: move outside of transfer, selection and (getting merkleproofs and zkp) should happen BEFORE call
-    /// find sort utxos by size, then add utxos up until the amount is at least reached, return the selected utxos
-    if (new Set(fromUtxos.map((utxo) => utxo.owner.toString())).size > 1) {
-      throw new Error('All input utxos must have the same owner');
-    }
-    const selectedInputUtxos = fromUtxos
-      .sort((a, b) => Number(bn(a.lamports).sub(bn(b.lamports))))
-      .reduce<{
-        utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-        total: BN;
-      }>(
-        (acc, utxo) => {
-          if (bn(acc.total).lt(bn(params.lamports))) {
-            acc.utxos.push(utxo);
-            acc.total = bn(acc.total).add(bn(utxo.lamports));
-          }
-          return acc;
-        },
-        { utxos: [], total: bn(0) },
-      );
-
-    /// transfer logic
-    let changeUtxo;
-    const changeAmount = bn(selectedInputUtxos.total).sub(bn(params.lamports));
-    if (bn(changeAmount).gt(bn(0))) {
-      changeUtxo = createUtxo(selectedInputUtxos.utxos[0].owner, changeAmount);
-    }
-
-    const outputUtxos = changeUtxo
-      ? [recipientUtxo, changeUtxo]
-      : [recipientUtxo];
-
-    // TODO: move zkp, merkleproof generation, and rootindices outside of transfer
-    const recentValidityProof = placeholderValidityProof();
-    const recentInputStateRootIndices = selectedInputUtxos.utxos.map((_) => 0);
-    const staticAccounts = defaultStaticAccounts();
-
-    const ix = await packInstruction({
-      inputState: coerceIntoUtxoWithMerkleContext(selectedInputUtxos.utxos),
-      outputState: outputUtxos,
+    params: TransferParams,
+  ): Promise<TransactionInstruction[]> {
+    const {
+      payer,
       recentValidityProof,
       recentInputStateRootIndices,
-      payer: selectedInputUtxos.utxos[0].owner, // TODO: dynamic payer,
-      staticAccounts,
+      inputCompressedAccounts,
+      lamports,
+      outputStateTrees,
+    } = params;
+
+    /// Create output state
+    const outputCompressedAccounts = this.createTransferOutputState(
+      inputCompressedAccounts,
+      params.toAddress,
+      lamports,
+    );
+
+    /// Pack accounts
+    const {
+      packedInputCompressedAccounts,
+      outputStateMerkleTreeIndices,
+      remainingAccounts,
+    } = packCompressedAccounts(
+      inputCompressedAccounts,
+      outputCompressedAccounts.length,
+      outputStateTrees,
+    );
+
+    /// Encode instruction data
+    const data = this.program.coder.types.encode('InstructionDataTransfer', {
+      proof: recentValidityProof,
+      inputRootIndices: recentInputStateRootIndices,
+      inputCompressedAccountsWithMerkleContext: packedInputCompressedAccounts,
+      outputCompressedAccounts,
+      outputStateMerkleTreeAccountIndices: Buffer.from(
+        outputStateMerkleTreeIndices,
+      ),
+      relayFee: null,
     });
-    return ix;
+
+    /// Format accounts
+    const staticAccounts = {
+      ...defaultStaticAccountsStruct(),
+      signer: payer,
+      invokingProgram: this.programId,
+    };
+
+    const remainingAccountMetas = remainingAccounts.map(
+      (account): AccountMeta => ({
+        pubkey: account,
+        isWritable: true,
+        isSigner: false,
+      }),
+    );
+
+    /// Build anchor instruction
+    const instruction = await this.program.methods
+      .executeCompressedTransaction(data)
+      .accounts(staticAccounts)
+      .remainingAccounts(remainingAccountMetas)
+      .instruction();
+
+    const instructions = [
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+      instruction,
+    ];
+
+    return instructions;
   }
 }
 
-//@ts-ignore
-if (import.meta.vitest) {
-  //@ts-ignore
-  const { it, expect, describe } = import.meta.vitest;
+// /**
+//  * @internal
+//  *
+//  * Selects the minimal number of compressed accounts for a transfer
+//  * 1. Sorts the accounts by amount in descending order
+//  * 2. Accumulates the lamports amount until it is greater than or equal to the transfer
+//  *    amount
+//  */
+// function _selectMinCompressedAccountsForTransfer(
+//     compressedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[],
+//     transferAmount: BN,
+// ): {
+//     selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
+//     total: BN;
+// } {
+//     let accumulatedAmount = bn(0);
+//     const selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[] =
+//         [];
 
-  // const mockTlvDataElement = (): TlvDataElement =>
-  //   createTlvDataElement(
-  //     new Uint8Array([1, 2, 3]),
-  //     new PublicKey(new Uint8Array([1, 2, 3])),
-  //     new Uint8Array([1, 2, 3]),
-  //     createBigint254(1)
-  //   );
-
-  describe('LightSystemProgram.transfer function', () => {
-    it('should return a transaction instruction that transfers compressed lamports from one compressed balance to another solana address', async () => {
-      const randomPubKeys = [
-        PublicKey.unique(),
-        PublicKey.unique(),
-        PublicKey.unique(),
-        PublicKey.unique(),
-        PublicKey.unique(), // 4th
-      ];
-      const fromBalance = [
-        addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], bn(1)),
-          bn(0),
-          randomPubKeys[3],
-          0,
-          randomPubKeys[4],
-        ),
-        addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], bn(2)),
-          bn(0),
-          randomPubKeys[3],
-          1,
-          randomPubKeys[4],
-        ),
-      ];
-      const toPubkey = PublicKey.unique();
-      const lamports = bn(2);
-      const ix = await LightSystemProgram.transfer({
-        fromBalance,
-        toPubkey,
-        lamports,
-      });
-
-      console.log('ix', ix.data, ix.data.length);
-
-      expect(ix).toBeDefined();
-    });
-
-    it('should throw an error when the input utxos have different owners', async () => {
-      const randomPubKeys = [
-        PublicKey.unique(),
-        PublicKey.unique(),
-        PublicKey.unique(),
-        PublicKey.unique(),
-      ];
-      const fromBalance = [
-        addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[0], bn(1)),
-          bn(0),
-          randomPubKeys[3],
-          0,
-          randomPubKeys[4],
-        ),
-        addMerkleContextToUtxo(
-          createUtxo(randomPubKeys[1], bn(2)), // diff owner key
-          bn(0),
-          randomPubKeys[3],
-          1,
-          randomPubKeys[4],
-        ),
-      ];
-      const toPubkey = PublicKey.unique();
-      const lamports = bn(2);
-      await expect(
-        LightSystemProgram.transfer({
-          fromBalance,
-          toPubkey,
-          lamports,
-        }),
-      ).rejects.toThrow('All input utxos must have the same owner');
-    });
-  });
-}
+//     compressedAccounts.sort((a, b) =>
+//         Number(bn(b.lamports).sub(bn(a.lamports))),
+//     );
+//     for (const utxo of compressedAccounts) {
+//         if (accumulatedAmount.gte(bn(transferAmount))) break;
+//         accumulatedAmount = accumulatedAmount.add(bn(utxo.lamports));
+//         selectedAccounts.push(utxo);
+//     }
+//     if (accumulatedAmount.lt(bn(transferAmount))) {
+//         throw new Error('Not enough balance for transfer');
+//     }
+//     return { selectedAccounts, total: accumulatedAmount };
+// }

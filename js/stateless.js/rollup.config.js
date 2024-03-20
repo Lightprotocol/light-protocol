@@ -2,7 +2,7 @@ import typescript from '@rollup/plugin-typescript';
 import pkg from './package.json';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
 
-const rolls = (fmt) => ({
+const rolls = fmt => ({
   input: 'src/index.ts',
   output: {
     dir: 'dist',
