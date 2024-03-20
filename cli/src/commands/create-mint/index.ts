@@ -1,10 +1,9 @@
 import { Command, Flags } from "@oclif/core";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { getKeypairFromFile } from "@solana-developers/helpers";
 import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getPayer,
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
@@ -18,13 +17,13 @@ class CreateMintCommand extends Command {
   static examples = ["$ light create-mint --mint-decimals 5"];
 
   static flags = {
-    "mint-secret-key": Flags.string({
-      description: "Provide the mint secret key to use for minting",
+    "mint-keypair": Flags.string({
+      description: "Provide the mint keypair to use for minting",
       required: false,
     }),
     "mint-authority": Flags.string({
       description:
-        "Specify the mint authority address. Defaults to the client keypair address",
+        "Specify the mint authority public key. Defaults to the client keypair address",
       required: false,
     }),
     "mint-decimals": Flags.integer({
@@ -37,14 +36,14 @@ class CreateMintCommand extends Command {
   static args = {};
 
   async run() {
-    const { args, flags } = await this.parse(CreateMintCommand);
+    const { flags } = await this.parse(CreateMintCommand);
 
     const loader = new CustomLoader(`Performing create-mint...\n`);
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
       const mintDecimals = this.getMintDecimals(flags);
-      const mintKeypair = this.getMintKeypair(flags);
+      const mintKeypair = await this.getMintKeypair(flags);
       const mintAuthority = this.getMintAuthority(flags, payer);
       const connection = new Connection(getSolanaRpcUrl());
       const { mint, transactionSignature } = await createMint(
@@ -70,9 +69,13 @@ class CreateMintCommand extends Command {
     return flags["mint-decimals"] ?? DEFAULT_DECIMAL_COUNT;
   }
 
-  getMintKeypair(flags: any): Keypair | undefined {
-    const mint58: string | undefined = flags["mint-secret-key"];
-    return mint58 ? Keypair.fromSecretKey(bs58.decode(mint58)) : undefined;
+  private async getMintKeypair(flags: any): Promise<Keypair | undefined> {
+    const mintKeypairFilePath = flags["mint-keypair"];
+    if (!mintKeypairFilePath) {
+      return undefined;
+    }
+    const keypair = await getKeypairFromFile(mintKeypairFilePath);
+    return keypair;
   }
 
   getMintAuthority(flags: any, payer: any) {
