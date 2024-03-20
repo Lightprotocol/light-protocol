@@ -81,7 +81,7 @@ pub fn decompress_spl_cpi<'a, 'b>(
 #[allow(clippy::too_many_arguments)]
 #[allow(unused_variables)]
 #[inline(never)]
-pub fn insert_two_leaves_cpi<'a, 'b>(
+pub fn append_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,

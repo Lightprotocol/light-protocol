@@ -49,7 +49,7 @@ pub mod psp_compressed_token {
         process_transfer::process_transfer(ctx, inputs)
     }
 
-    // TODO: implement update mint, freeze utxo, thaw utxo
+    // TODO: implement update mint, freeze compressed_account, thaw compressed_account
     // pub fn update_mint<'info>(
     //     ctx: Context<'_, '_, '_, 'info, InstructionUpdateMint<'info>>,
     //     decimals: u64,
@@ -106,7 +106,7 @@ pub mod psp_compressed_token {
     //     merkle_root_index: u16,
     // ) -> Result<()> {
 
-    //     let utxo = Utxo {
+    //     let compressed_account = CompressedAccount {
     //         version: utxo_version,
     //         pool_type: utxo_pool_type,
     //         amounts: [utxo_amount_sol, utxo_amount_spl],
@@ -212,35 +212,3 @@ pub enum ErrorCode {
     #[msg("SumCheckFailed")]
     SumCheckFailed,
 }
-
-// // TODO: unify these structures one way would be to put them into the registry program and import that into verifier sdk
-// // so that all accounts we use for serializeation in ts come from the registry program
-// #[account]
-// pub struct ParsingUtxo {
-//     pub version: u64,
-//     pub pool_type: u64,
-//     pub amounts: [u64; 2],
-//     pub spl_asset_mint: Pubkey,
-//     pub owner: [u8; 32],
-//     pub blinding: [u8; 31],
-//     pub data_hash: [u8; 32],
-//     pub meta_hash: [u8; 32],
-//     pub address: [u8; 32],
-//     pub message: Option<Vec<u8>>,
-// }
-
-// #[account]
-// pub struct ParsingPublicTransactionEvent {
-//     pub in_utxo_hashes: Vec<[u8; 32]>,
-//     pub out_utxos: Vec<ParsingUtxo>,
-//     pub out_utxo_indexes: Vec<u64>,
-
-//     // Fields used when (de)compression
-//     pub public_amount_sol: Option<[u8; 32]>,
-//     pub public_amount_spl: Option<[u8; 32]>,
-//     pub relay_fee: Option<u64>,
-//     // Program utxo fields
-//     pub message: Option<Vec<u8>>,
-//     pub transaction_hash: Option<[u8; 32]>,
-//     pub program_id: Option<Pubkey>,
-// }

@@ -10,10 +10,9 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     nullifiers: &'a [[u8; 32]],
 ) -> anchor_lang::Result<()> {
     let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
-    for in_utxo_tuple in inputs.in_utxos.iter() {
-        indexed_array_account_infos.push(
-            ctx.remaining_accounts[in_utxo_tuple.index_nullifier_array_account as usize].clone(),
-        );
+    for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
+        indexed_array_account_infos
+            .push(ctx.remaining_accounts[account.index_nullifier_array_account as usize].clone());
     }
 
     insert_nullifiers_cpi(

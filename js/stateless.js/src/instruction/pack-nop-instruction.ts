@@ -48,30 +48,26 @@ export async function createExecuteCompressedInstruction(
     _inUtxos[i].indexNullifierArrayAccount = remainingAccounts.get(mt)!;
   });
   len = remainingAccounts.size;
-  const _outUtxos: OutUtxoTuple_IdlType[] = [];
+  const outputStateMerkleTreeAccountIndices: number[] = [];
   outUtxoMerkleTreePubkeys.forEach((mt, i) => {
     if (!remainingAccounts.has(mt)) {
       remainingAccounts.set(mt, len + i);
     }
-    _outUtxos.push({
-      outUtxo: outUtxos[i],
-      indexMtAccount: remainingAccounts.get(mt)!,
-    });
+    outputStateMerkleTreeAccountIndices.push(remainingAccounts.get(mt)!);
   });
 
   const rawInputs = {
     proof,
-    lowElementIndices: new Array(inUtxos.length).fill(0), // TODO: remove
-    rootIndices: [...rootIndices],
+    inputRootIndices: [...rootIndices],
     relayFee: null,
-    inUtxos: _inUtxos,
-    outUtxos: _outUtxos,
+    inputCompressedAccountWithMerkleContext: _inUtxos,
+    outputCompressedAccounts: outUtxos,
+    outputStateMerkleTreeAccountIndices,
   };
 
   const staticAccounts = { ...defaultStaticAccountsStruct(), signer: payer };
 
   const accCoder = new BorshCoder(LightSystemProgram.program.idl);
-
   // remove disc
   const data = (
     await accCoder.accounts.encode('instructionDataTransfer', rawInputs)

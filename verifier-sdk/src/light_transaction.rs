@@ -31,7 +31,7 @@ use light_utils::{change_endianness, truncate_to_circuit};
 use crate::{
     accounts::LightAccounts,
     cpi_instructions::{
-        decompress_sol_cpi, decompress_spl_cpi, insert_nullifiers_cpi, insert_two_leaves_cpi,
+        append_leaves_cpi, decompress_sol_cpi, decompress_spl_cpi, insert_nullifiers_cpi,
         insert_two_leaves_event_cpi,
     },
     errors::VerifierSdkError,
@@ -567,7 +567,7 @@ impl<
     #[inline(never)]
     pub fn insert_leaves(&self) -> Result<()> {
         // check account integrities
-        insert_two_leaves_cpi(
+        append_leaves_cpi(
             self.input.ctx.program_id,
             &self
                 .input
