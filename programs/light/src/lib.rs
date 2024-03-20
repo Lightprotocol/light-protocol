@@ -115,9 +115,9 @@ pub mod light {
     // cpi to account compression program rollover lookup table
     // increment points in registered relayer account
 
-    // TODO: add nullify utxo with rewards
+    // TODO: add nullify compressed_account with rewards
     // signer is registered relayer
-    // cpi to account compression program nullify utxo
+    // cpi to account compression program nullify compressed_account
     // increment points in registered relayer account
 }
 
