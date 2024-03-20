@@ -1,6 +1,7 @@
 import { Args, Command, Flags } from "@oclif/core";
 import {
   CustomLoader,
+  defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
   getPayer,
   getRpc,
@@ -9,6 +10,7 @@ import {
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
 import { confirmTx } from "@lightprotocol/stateless.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 class MintToCommand extends Command {
   static summary = "Mint tokens to an account.";
@@ -54,10 +56,10 @@ class MintToCommand extends Command {
     try {
       const mintPublicKey = new PublicKey(mint);
       const toPublicKey = new PublicKey(to);
-      const payer = getPayer();
+      const payer = defaultSolanaWalletKeypair();
 
-      const mintAuthority = flags["mintAuthority"]
-        ? new PublicKey(flags["mintAuthority"])
+      const mintAuthority = flags["mint-authority"]
+        ? Keypair.fromSecretKey(bs58.decode(flags["mint-authority"]))
         : payer.publicKey;
 
       const connection = new Connection(getSolanaRpcUrl());

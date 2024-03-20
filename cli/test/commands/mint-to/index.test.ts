@@ -1,7 +1,11 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import { getPayer, getSolanaRpcUrl } from "../../../src";
-import { Connection } from "@solana/web3.js";
+import {
+  defaultSolanaWalletKeypair,
+  getPayer,
+  getSolanaRpcUrl,
+} from "../../../src";
+import { Connection, Keypair } from "@solana/web3.js";
 import { createMint } from "@lightprotocol/compressed-token";
 import { confirmTx } from "@lightprotocol/stateless.js";
 import { requestAirdrop } from "../../helpers/helpers";
@@ -9,10 +13,10 @@ import { requestAirdrop } from "../../helpers/helpers";
 describe("mint-to", () => {
   test.it(async () => {
     await initTestEnvIfNeeded();
-    await requestAirdrop(getPayer().publicKey);
-
+    const mintKeypair = defaultSolanaWalletKeypair() || Keypair.generate();
+    await requestAirdrop(mintKeypair.publicKey);
     const mintAmount = 100;
-    const mintAuthority = getPayer().publicKey.toBase58();
+    const mintAuthority = mintKeypair.publicKey.toBase58();
     const mintTo = mintAuthority;
     const mintAddress = await createTestMint();
     return test
