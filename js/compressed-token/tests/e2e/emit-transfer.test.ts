@@ -16,6 +16,7 @@ import {
 } from '@lightprotocol/stateless.js';
 
 import { transfer } from '../../src/actions';
+import { BN } from '@coral-xyz/anchor';
 
 /// static testing key. don't use in prod.
 const FIXED_PAYER = byteArrayToKeypair([
@@ -94,7 +95,7 @@ describe('Emit events for transfer', () => {
 const printTableFn = (
   txId: string,
   fromPublicKey: PublicKey,
-  transferAmount: BN,
+  transferAmount: BN | number,
   mintPublicKey,
   toPublicKey,
 ) => {
