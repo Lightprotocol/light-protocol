@@ -13,7 +13,6 @@ import {
 import { CompressedTokenProgram } from '../program';
 import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
 
-// NOTE: this is currently akin to createExecuteCompressedInstruction on-chain
 export async function createTransferInstruction(
     feePayer: PublicKey,
     authority: PublicKey,

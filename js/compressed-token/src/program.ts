@@ -26,22 +26,6 @@ import {
 import { MINT_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { Buffer } from 'buffer';
 
-export type CompressedTransferParams = {
-    /** Utxos with lamports to spend as transaction inputs */
-    fromBalance: // TODO: selection upfront
-    | UtxoWithMerkleContext
-        | UtxoWithMerkleProof
-        | (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-    /** Solana Account that will receive transferred compressed lamports as utxo  */
-    toPubkey: PublicKey;
-    /** Amount of compressed lamports to transfer */
-    amount: number | BN;
-    /** Mint public key */
-    mint: PublicKey;
-    // /** TODO: Optional: if different feepayer than owner of utxos */
-    // payer?: PublicKey;
-};
-
 /** Create Mint account for compressed Tokens */
 export type CreateMintParams = {
     /** Tx feepayer */

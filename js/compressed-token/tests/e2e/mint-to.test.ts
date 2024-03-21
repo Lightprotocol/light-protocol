@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { Connection, PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { createMint, mintTo } from '../../src/actions';
-import { getCompressedTokenAccountsFromMockRpc } from '../../src/token-serde';
+import { getCompressedTokenAccountsFromMockRpc } from '../../src/get-compressed-token-accounts';
 import {
     getTestKeypair,
     newAccountWithLamports,

@@ -12,7 +12,6 @@ import { TokenTlvData_IdlType } from './types';
 import { WasmFactory } from '@lightprotocol/account.rs';
 import { BN } from '@coral-xyz/anchor';
 
-// TODO: later consider to implement a coherent struct (test with ix creation)
 export type UtxoWithParsedTokenTlvData = {
     utxo: Utxo_IdlType;
     parsed: TokenTlvData_IdlType;
@@ -25,7 +24,7 @@ export type EventWithParsedTokenTlvData = {
 };
 
 /** @internal */
-export function parseTokenLayoutWithIdl(
+function parseTokenLayoutWithIdl(
     utxo: Utxo_IdlType,
 ): TokenTlvData_IdlType | null {
     if (utxo.data === null) {

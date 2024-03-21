@@ -19,7 +19,7 @@ import { TokenTransferOutUtxo_IdlType } from '../types';
 import {
     UtxoWithParsedTokenTlvData,
     getCompressedTokenAccountsFromMockRpc,
-} from '../token-serde';
+} from '../get-compressed-token-accounts';
 import { dedupeSigner, getSigners } from './common';
 
 /**
