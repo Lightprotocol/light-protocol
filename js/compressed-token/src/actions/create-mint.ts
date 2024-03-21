@@ -1,10 +1,10 @@
 import {
-  ConfirmOptions,
-  Connection,
-  Keypair,
-  PublicKey,
-  Signer,
-  TransactionSignature,
+    ConfirmOptions,
+    Connection,
+    Keypair,
+    PublicKey,
+    Signer,
+    TransactionSignature,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
 import { MINT_SIZE } from '@solana/spl-token';
@@ -24,30 +24,30 @@ import { buildAndSignTx } from '@lightprotocol/stateless.js';
  * @return Address of the new mint and the transaction signature
  */
 export async function createMint(
-  connection: Connection,
-  payer: Signer,
-  mintAuthority: PublicKey,
-  decimals: number,
-  keypair = Keypair.generate(),
-  confirmOptions?: ConfirmOptions,
+    connection: Connection,
+    payer: Signer,
+    mintAuthority: PublicKey,
+    decimals: number,
+    keypair = Keypair.generate(),
+    confirmOptions?: ConfirmOptions,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
-  const rentExemptBalance =
-    await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+    const rentExemptBalance =
+        await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
 
-  const ixs = await CompressedTokenProgram.createMint({
-    feePayer: payer.publicKey,
-    mint: keypair.publicKey,
-    decimals,
-    authority: mintAuthority,
-    freezeAuthority: null, // TODO: add feature
-    rentExemptBalance,
-  });
+    const ixs = await CompressedTokenProgram.createMint({
+        feePayer: payer.publicKey,
+        mint: keypair.publicKey,
+        decimals,
+        authority: mintAuthority,
+        freezeAuthority: null, // TODO: add feature
+        rentExemptBalance,
+    });
 
-  const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = await connection.getLatestBlockhash();
 
-  const tx = buildAndSignTx(ixs, payer, blockhash, [keypair]);
+    const tx = buildAndSignTx(ixs, payer, blockhash, [keypair]);
 
-  const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
+    const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
 
-  return { mint: keypair.publicKey, transactionSignature: txId };
+    return { mint: keypair.publicKey, transactionSignature: txId };
 }

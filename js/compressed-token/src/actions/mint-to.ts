@@ -1,10 +1,10 @@
 import {
-  ComputeBudgetProgram,
-  ConfirmOptions,
-  Connection,
-  PublicKey,
-  Signer,
-  TransactionSignature,
+    ComputeBudgetProgram,
+    ConfirmOptions,
+    Connection,
+    PublicKey,
+    Signer,
+    TransactionSignature,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
 /**
@@ -24,45 +24,45 @@ import { CompressedTokenProgram } from '../program';
  * @return Signature of the confirmed transaction
  */
 export async function mintTo(
-  connection: Connection,
-  payer: Signer,
-  mint: PublicKey,
-  destination: PublicKey,
-  authority: Signer | PublicKey,
-  amount: number | BN,
-  multiSigners: Signer[] = [],
-  merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
-  confirmOptions?: ConfirmOptions,
+    connection: Connection,
+    payer: Signer,
+    mint: PublicKey,
+    destination: PublicKey,
+    authority: Signer | PublicKey,
+    amount: number | BN,
+    multiSigners: Signer[] = [],
+    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
+    confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-  const [authorityPubkey, additionalSigners] = getSigners(
-    authority,
-    multiSigners,
-  );
-  const ix = await CompressedTokenProgram.mintTo({
-    feePayer: payer.publicKey,
-    mint: mint,
-    authority: authorityPubkey,
-    amount: amount,
-    toPubkey: destination,
-    merkleTree,
-  });
+    const [authorityPubkey, additionalSigners] = getSigners(
+        authority,
+        multiSigners,
+    );
+    const ix = await CompressedTokenProgram.mintTo({
+        feePayer: payer.publicKey,
+        mint: mint,
+        authority: authorityPubkey,
+        amount: amount,
+        toPubkey: destination,
+        merkleTree,
+    });
 
-  const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = await connection.getLatestBlockhash();
 
-  const tx = buildAndSignTx(
-    [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
-    payer,
-    blockhash,
-    additionalSigners,
-  );
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
 
-  const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
+    const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
 
-  return txId;
+    return txId;
 }
 import {
-  defaultTestStateTreeAccounts,
-  sendAndConfirmTx,
+    defaultTestStateTreeAccounts,
+    sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { buildAndSignTx } from '@lightprotocol/stateless.js';
 
@@ -70,10 +70,10 @@ import { BN } from '@coral-xyz/anchor';
 
 /** @internal */
 export function getSigners(
-  signerOrMultisig: Signer | PublicKey,
-  multiSigners: Signer[],
+    signerOrMultisig: Signer | PublicKey,
+    multiSigners: Signer[],
 ): [PublicKey, Signer[]] {
-  return signerOrMultisig instanceof PublicKey
-    ? [signerOrMultisig, multiSigners]
-    : [signerOrMultisig.publicKey, [signerOrMultisig]];
+    return signerOrMultisig instanceof PublicKey
+        ? [signerOrMultisig, multiSigners]
+        : [signerOrMultisig.publicKey, [signerOrMultisig]];
 }

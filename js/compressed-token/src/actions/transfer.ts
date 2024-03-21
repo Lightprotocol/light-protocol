@@ -1,16 +1,16 @@
 import {
-  ConfirmOptions,
-  Connection,
-  PublicKey,
-  Signer,
-  TransactionSignature,
-  ComputeBudgetProgram,
+    ConfirmOptions,
+    Connection,
+    PublicKey,
+    Signer,
+    TransactionSignature,
+    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
-  bn,
-  defaultTestStateTreeAccounts,
-  sendAndConfirmTx,
-  getMockRpc,
+    bn,
+    defaultTestStateTreeAccounts,
+    sendAndConfirmTx,
+    getMockRpc,
 } from '@lightprotocol/stateless.js';
 import { buildAndSignTx } from '@lightprotocol/stateless.js';
 import { BN } from '@coral-xyz/anchor';
@@ -18,8 +18,8 @@ import { createTransferInstruction } from '../instructions';
 import { TokenTransferOutUtxo_IdlType } from '../types';
 import { getSigners } from './mint-to';
 import {
-  UtxoWithParsedTokenTlvData,
-  getCompressedTokenAccountsFromMockRpc,
+    UtxoWithParsedTokenTlvData,
+    getCompressedTokenAccountsFromMockRpc,
 } from '../token-serde';
 
 /**
@@ -31,21 +31,21 @@ import {
  *    amount
  */
 function pickMinCompressedTokenAccountsForTransfer(
-  accounts: UtxoWithParsedTokenTlvData[],
-  transferAmount: BN,
+    accounts: UtxoWithParsedTokenTlvData[],
+    transferAmount: BN,
 ): UtxoWithParsedTokenTlvData[] {
-  let accumulatedAmount = bn(0);
-  const selectedAccounts = [];
-  accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
-  for (const account of accounts) {
-    if (accumulatedAmount.gte(bn(transferAmount))) break;
-    accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
-    selectedAccounts.push(account);
-  }
-  if (accumulatedAmount.lt(bn(transferAmount))) {
-    throw new Error('Not enough balance for transfer');
-  }
-  return selectedAccounts;
+    let accumulatedAmount = bn(0);
+    const selectedAccounts = [];
+    accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
+    for (const account of accounts) {
+        if (accumulatedAmount.gte(bn(transferAmount))) break;
+        accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
+        selectedAccounts.push(account);
+    }
+    if (accumulatedAmount.lt(bn(transferAmount))) {
+        throw new Error('Not enough balance for transfer');
+    }
+    return selectedAccounts;
 }
 /**
  * Transfer compressed tokens from one owner to another
@@ -65,93 +65,93 @@ function pickMinCompressedTokenAccountsForTransfer(
  * @return Signature of the confirmed transaction
  */
 export async function transfer(
-  connection: Connection,
-  payer: Signer,
-  mint: PublicKey,
-  amount: number | BN,
-  owner: Signer | PublicKey,
-  toAddress: PublicKey,
-  merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
-  multiSigners: Signer[] = [],
-  confirmOptions?: ConfirmOptions,
+    connection: Connection,
+    payer: Signer,
+    mint: PublicKey,
+    amount: number | BN,
+    owner: Signer | PublicKey,
+    toAddress: PublicKey,
+    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
+    multiSigners: Signer[] = [],
+    confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-  const keys = defaultTestStateTreeAccounts();
-  const queue = keys.nullifierQueue; /// FIXME: Should fetch or pass
-  const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
+    const keys = defaultTestStateTreeAccounts();
+    const queue = keys.nullifierQueue; /// FIXME: Should fetch or pass
+    const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
 
-  const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
-    connection,
-    currentOwnerPublicKey,
-    mint,
-  );
+    const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
+        connection,
+        currentOwnerPublicKey,
+        mint,
+    );
 
-  const inUtxos = pickMinCompressedTokenAccountsForTransfer(
-    compressedTokenAccounts,
-    bn(amount),
-  );
+    const inUtxos = pickMinCompressedTokenAccountsForTransfer(
+        compressedTokenAccounts,
+        bn(amount),
+    );
 
-  /// Create output utxos
-  const changeAmount = inUtxos
-    .reduce((acc, utxo) => acc.add(utxo.parsed.amount), bn(0))
-    .sub(bn(amount));
+    /// Create output utxos
+    const changeAmount = inUtxos
+        .reduce((acc, utxo) => acc.add(utxo.parsed.amount), bn(0))
+        .sub(bn(amount));
 
-  /// We don't send lamports and don't have rent
-  const changeLamportsAmount = inUtxos.reduce(
-    (acc, utxo) => acc.add(utxo.utxo.lamports),
-    // TODO: add optional rent
-    bn(0),
-  );
+    /// We don't send lamports and don't have rent
+    const changeLamportsAmount = inUtxos.reduce(
+        (acc, utxo) => acc.add(utxo.utxo.lamports),
+        // TODO: add optional rent
+        bn(0),
+    );
 
-  const changeUtxo: TokenTransferOutUtxo_IdlType = {
-    amount: changeAmount,
-    owner: currentOwnerPublicKey,
-    lamports: changeLamportsAmount.gt(bn(0)) ? changeLamportsAmount : null,
-    index_mt_account: 0, // FIXME: dynamic!
-  };
+    const changeUtxo: TokenTransferOutUtxo_IdlType = {
+        amount: changeAmount,
+        owner: currentOwnerPublicKey,
+        lamports: changeLamportsAmount.gt(bn(0)) ? changeLamportsAmount : null,
+        index_mt_account: 0, // FIXME: dynamic!
+    };
 
-  const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
-    amount: bn(amount),
-    owner: toAddress,
-    lamports: null,
-    index_mt_account: 0, // FIXME: dynamic!
-  };
+    const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
+        amount: bn(amount),
+        owner: toAddress,
+        lamports: null,
+        index_mt_account: 0, // FIXME: dynamic!
+    };
 
-  const rpc = await getMockRpc(connection);
+    const rpc = await getMockRpc(connection);
 
-  const proof = await rpc.getValidityProof(
-    inUtxos.map((utxo) => utxo.merkleContext!.hash as BN),
-  );
+    const proof = await rpc.getValidityProof(
+        inUtxos.map(utxo => utxo.merkleContext!.hash as BN),
+    );
 
-  const ix = await createTransferInstruction(
-    payer.publicKey,
-    currentOwnerPublicKey,
-    inUtxos.map((_) => merkleTree),
-    inUtxos.map((_) => queue),
-    [merkleTree, merkleTree],
-    inUtxos.map((utxo) => utxo.utxo),
-    [recipientOutUtxo, changeUtxo],
-    // TODO: replace with actual recent state root index!
-    // This will only work with sequential state updates and no cranking!
-    proof.rootIndices, // input state root indices
-    proof.compressedProof,
-  );
+    const ix = await createTransferInstruction(
+        payer.publicKey,
+        currentOwnerPublicKey,
+        inUtxos.map(_ => merkleTree),
+        inUtxos.map(_ => queue),
+        [merkleTree, merkleTree],
+        inUtxos.map(utxo => utxo.utxo),
+        [recipientOutUtxo, changeUtxo],
+        // TODO: replace with actual recent state root index!
+        // This will only work with sequential state updates and no cranking!
+        proof.rootIndices, // input state root indices
+        proof.compressedProof,
+    );
 
-  const ixs = [
-    // TODO: adjust CU down to min!
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-    ix,
-  ];
-  const { blockhash } = await connection.getLatestBlockhash();
+    const ixs = [
+        // TODO: adjust CU down to min!
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+        ix,
+    ];
+    const { blockhash } = await connection.getLatestBlockhash();
 
-  // TODO: find more elegant solution for this.
-  // Probably buildAndSignTx should just dedupe by itself
-  const filteredSigners = currentOwnerPublicKey.equals(payer.publicKey)
-    ? signers.filter(
-        (signer) => !signer.publicKey.equals(currentOwnerPublicKey),
-      )
-    : [...signers];
-  const signedTx = buildAndSignTx(ixs, payer, blockhash, filteredSigners);
-  const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
+    // TODO: find more elegant solution for this.
+    // Probably buildAndSignTx should just dedupe by itself
+    const filteredSigners = currentOwnerPublicKey.equals(payer.publicKey)
+        ? signers.filter(
+              signer => !signer.publicKey.equals(currentOwnerPublicKey),
+          )
+        : [...signers];
+    const signedTx = buildAndSignTx(ixs, payer, blockhash, filteredSigners);
+    const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
 
-  return txId;
+    return txId;
 }

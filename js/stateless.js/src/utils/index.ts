@@ -1,5 +1,4 @@
 export * from './conversion';
 export * from './pipe';
-
-export const sleep = (ms: number) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+export * from './send-and-confirm';
+export * from './sleep';
