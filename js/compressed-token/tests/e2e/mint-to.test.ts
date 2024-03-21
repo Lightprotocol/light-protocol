@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Connection, PublicKey, Signer, Keypair } from '@solana/web3.js';
-import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
-import { bn, defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
-import { CompressedTokenProgram } from '../../src/program';
 import { createMint, mintTo } from '../../src/actions';
 import { getCompressedTokenAccountsFromMockRpc } from '../../src/token-serde';
-import { getConnection, newAccountWithLamports } from './common';
+import {
+    getTestKeypair,
+    newAccountWithLamports,
+    getConnection,
+    bn,
+    defaultTestStateTreeAccounts,
+} from '@lightprotocol/stateless.js';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the
@@ -46,6 +49,7 @@ describe('mintTo', () => {
     beforeAll(async () => {
         connection = getConnection();
         payer = await newAccountWithLamports(connection);
+        bob = getTestKeypair();
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
@@ -53,7 +57,7 @@ describe('mintTo', () => {
             await createMint(
                 connection,
                 payer,
-                mintAuthority.publicKey,
+                mintAuthority,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -77,7 +81,7 @@ describe('mintTo', () => {
         /// wrong authority
         await expect(
             mintTo(connection, payer, mint, bob.publicKey, payer, amount, []),
-        ).rejects.toThrow();
+        ).rejects.toThrowError(/custom program error: 0x7d3/);
 
         /// with output state merkle tree defined
         await mintTo(
@@ -85,7 +89,7 @@ describe('mintTo', () => {
             payer,
             mint,
             bob.publicKey,
-            payer,
+            mintAuthority,
             amount,
             [],
             merkleTree,

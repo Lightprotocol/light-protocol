@@ -78,5 +78,6 @@ export function buildAndSignTx(
 
     const tx = new VersionedTransaction(messageV0);
     tx.sign(allSigners);
+
     return tx;
 }

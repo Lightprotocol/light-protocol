@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { Connection, PublicKey, Keypair, Signer } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { bn, defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
+import {
+    bn,
+    defaultTestStateTreeAccounts,
+    getConnection,
+    newAccountWithLamports,
+} from '@lightprotocol/stateless.js';
 import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     UtxoWithParsedTokenTlvData,
     getCompressedTokenAccountsFromMockRpc,
 } from '../../src/token-serde';
-import { getConnection, newAccountWithLamports } from './common';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -21,6 +25,8 @@ async function assertTransfer(
     refAmount: BN,
     refSender: PublicKey,
     refRecipient: PublicKey,
+    expectedAccountCountSenderPost?: number,
+    expectedAccountCountRecipientPost?: number,
     // TODO: add ...refValues
 ) {
     /// Transfer can merge input utxos therefore we need to pass all as ref
@@ -41,6 +47,12 @@ async function assertTransfer(
         bn(0),
     );
 
+    if (expectedAccountCountSenderPost) {
+        expect(senderPostCompressedTokenAccounts.length).toBe(
+            expectedAccountCountSenderPost,
+        );
+    }
+
     expect(sumPre.sub(refAmount).eq(sumPost)).toBe(true);
 
     const recipientCompressedTokenAccounts =
@@ -49,6 +61,12 @@ async function assertTransfer(
             refRecipient,
             refMint,
         );
+
+    if (expectedAccountCountRecipientPost) {
+        expect(recipientCompressedTokenAccounts.length).toBe(
+            expectedAccountCountRecipientPost,
+        );
+    }
 
     /// recipient should have received the amount
     const recipientCompressedTokenAccount = recipientCompressedTokenAccounts[0];
@@ -79,7 +97,7 @@ describe('transfer', () => {
             await createMint(
                 connection,
                 payer,
-                mintAuthority.publicKey,
+                mintAuthority,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -129,6 +147,8 @@ describe('transfer', () => {
             bn(700),
             bob.publicKey,
             charlie.publicKey,
+            1,
+            1,
         );
 
         /// send 200 from bob -> charlie
@@ -156,6 +176,8 @@ describe('transfer', () => {
             bn(200),
             bob.publicKey,
             charlie.publicKey,
+            1,
+            2,
         );
 
         /// send 5 from charlie -> bob
@@ -183,11 +205,13 @@ describe('transfer', () => {
             bn(5),
             charlie.publicKey,
             bob.publicKey,
+            2,
+            2,
         );
 
         /// send 700 from charlie -> bob, 2 compressed account inputs
         /// bob: (100+5+700), charlie: (195)
-        const charliePreCompressedTokenAccounts2 =
+        const charliePreCompressedTokenAccounts4 =
             await getCompressedTokenAccountsFromMockRpc(
                 connection,
                 charlie.publicKey,
@@ -206,11 +230,13 @@ describe('transfer', () => {
 
         await assertTransfer(
             connection,
-            charliePreCompressedTokenAccounts2,
+            charliePreCompressedTokenAccounts4,
             mint,
             bn(700),
             charlie.publicKey,
             bob.publicKey,
+            1,
+            3,
         );
 
         await expect(

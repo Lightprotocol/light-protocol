@@ -72,6 +72,7 @@ export class MockRpc implements CompressionApiInterface {
     nullifierQueueAddress: PublicKey;
     lightWasm: LightWasm;
     depth: number;
+    log = false;
 
     /**
      * Instantiate a mock RPC simulating the compression rpc interface.
@@ -93,12 +94,14 @@ export class MockRpc implements CompressionApiInterface {
         merkleTreeAddress,
         nullifierQueueAddress,
         depth,
+        log,
     }: {
         connection: Connection;
         lightWasm: LightWasm;
         merkleTreeAddress?: PublicKey;
         nullifierQueueAddress?: PublicKey;
         depth?: number;
+        log?: boolean;
     }) {
         const { merkleTree, nullifierQueue, merkleTreeHeight } =
             defaultTestStateTreeAccounts();
@@ -107,6 +110,7 @@ export class MockRpc implements CompressionApiInterface {
         this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
         this.lightWasm = lightWasm;
         this.depth = depth ?? merkleTreeHeight;
+        this.log = log ?? false;
     }
 
     /**
@@ -331,8 +335,8 @@ export class MockRpc implements CompressionApiInterface {
         const events: PublicTransactionEvent_IdlType[] =
             await this.getParsedEvents().then(events => events.reverse());
 
-        const leaves = [];
-        const outUtxoIndices = [];
+        const leaves: BN[] = [];
+        const outUtxoIndices: BN[] = [];
         for (const event of events) {
             for (let index = 0; index < event.outUtxos.length; index++) {
                 const utxo = event.outUtxos[index];
@@ -395,8 +399,11 @@ export class MockRpc implements CompressionApiInterface {
 
         const inputsData = JSON.stringify(inputs);
 
-        const logTime = `Proof generation for depth:${this.depth} n:${utxoHashes.length}`;
-        console.time(logTime);
+        let logMsg: string = '';
+        if (this.log) {
+            logMsg = `Proof generation for depth:${this.depth} n:${utxoHashes.length}`;
+            console.time(logMsg);
+        }
         // TODO: pass url into rpc constructor
         const SERVER_URL = 'http://localhost:3001';
         const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
@@ -405,7 +412,8 @@ export class MockRpc implements CompressionApiInterface {
         const parsed = proofFromJsonStruct(response.data);
 
         const compressedProof = negateAndCompressProof(parsed);
-        console.timeEnd(logTime);
+
+        if (this.log) console.timeEnd(logMsg);
 
         // TODO: in prover server, fix property names
         const value: CompressedProofWithContext = {

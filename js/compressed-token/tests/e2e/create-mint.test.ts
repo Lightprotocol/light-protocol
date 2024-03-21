@@ -3,7 +3,10 @@ import { CompressedTokenProgram } from '../../src/program';
 import { Connection, PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
-import { getConnection, newAccountWithLamports } from './common';
+import {
+    getConnection,
+    newAccountWithLamports,
+} from '@lightprotocol/stateless.js';
 
 /**
  * Asserts that createMint() creates a new spl mint account + the respective
@@ -43,7 +46,6 @@ async function assertCreateMint(
 }
 
 const TEST_TOKEN_DECIMALS = 2;
-
 describe('createMint', () => {
     let connection: Connection;
     let payer: Signer;
@@ -63,7 +65,7 @@ describe('createMint', () => {
             await createMint(
                 connection,
                 payer,
-                mintAuthority.publicKey,
+                mintAuthority,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -82,10 +84,10 @@ describe('createMint', () => {
 
         /// Mint already exists
         await expect(
-            await createMint(
+            createMint(
                 connection,
                 payer,
-                mintAuthority.publicKey,
+                mintAuthority,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             ),
@@ -97,7 +99,7 @@ describe('createMint', () => {
             await createMint(
                 connection,
                 payer,
-                payer.publicKey,
+                payer,
                 TEST_TOKEN_DECIMALS,
                 // random mint
             )

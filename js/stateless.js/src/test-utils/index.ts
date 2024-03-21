@@ -1,4 +1,4 @@
-export * from './get-test-keypair';
+export * from './common';
 export * from './merkle-tree';
 export * from './mock-rpc';
 export * from './parse-event';

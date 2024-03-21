@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { LightSystemProgram } from '../../src/programs';
+import { Utxo_IdlType, bn } from '../../src';
+import { PublicKey } from '@solana/web3.js';
+import { uint8Array } from '@metaplex-foundation/beet';
 
 describe.only('Serialization test', () => {
-    it('serialize utxo ', async () => {
+    it.only('serialize utxo ', async () => {
         const utxoData = [
             81, 108, 50, 181, 0, 73, 91, 197, 221, 215, 106, 69, 5, 107, 146,
             252, 37, 252, 123, 175, 62, 200, 168, 230, 111, 6, 217, 71, 108,
@@ -10,14 +13,25 @@ describe.only('Serialization test', () => {
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0,
             0,
         ];
-        const datalen = utxoData.length;
 
-        const deserializedUtxo = LightSystemProgram.program.coder.types.decode(
-            'Utxo',
-            Buffer.from(utxoData),
-        );
+        const deserializedUtxo: Utxo_IdlType =
+            LightSystemProgram.program.coder.types.decode(
+                'Utxo',
+                Buffer.from(utxoData),
+            );
 
-        expect(deserializedUtxo.length).toBe(datalen);
+        expect(deserializedUtxo.data).toBe(null);
+        expect(deserializedUtxo.address).toBe(null);
+        expect(deserializedUtxo.lamports.eq(bn(3))).toBe(true);
+        expect(
+            deserializedUtxo.owner.equals(
+                new PublicKey('6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ'),
+            ),
+        ).toBe(true);
+        expect(
+            JSON.stringify(deserializedUtxo.blinding) ===
+                JSON.stringify(new Array(32).fill(1)),
+        ).toBe(true);
     });
 
     it('serialize out utxo ', async () => {

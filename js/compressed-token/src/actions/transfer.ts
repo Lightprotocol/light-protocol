@@ -16,11 +16,11 @@ import { buildAndSignTx } from '@lightprotocol/stateless.js';
 import { BN } from '@coral-xyz/anchor';
 import { createTransferInstruction } from '../instructions';
 import { TokenTransferOutUtxo_IdlType } from '../types';
-import { getSigners } from './mint-to';
 import {
     UtxoWithParsedTokenTlvData,
     getCompressedTokenAccountsFromMockRpc,
 } from '../token-serde';
+import { dedupeSigner, getSigners } from './common';
 
 /**
  * @internal
@@ -143,14 +143,9 @@ export async function transfer(
     ];
     const { blockhash } = await connection.getLatestBlockhash();
 
-    // TODO: find more elegant solution for this.
-    // Probably buildAndSignTx should just dedupe by itself
-    const filteredSigners = currentOwnerPublicKey.equals(payer.publicKey)
-        ? signers.filter(
-              signer => !signer.publicKey.equals(currentOwnerPublicKey),
-          )
-        : [...signers];
-    const signedTx = buildAndSignTx(ixs, payer, blockhash, filteredSigners);
+    const additionalSigners = dedupeSigner(payer, signers);
+
+    const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
     const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
 
     return txId;

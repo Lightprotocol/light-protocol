@@ -6,7 +6,15 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
+import {
+    defaultTestStateTreeAccounts,
+    sendAndConfirmTx,
+    buildAndSignTx,
+} from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
+import { dedupeSigner, getSigners } from './common';
+
 /**
  * Mint compressed tokens to a solana address
  *
@@ -34,10 +42,12 @@ export async function mintTo(
     merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const [authorityPubkey, additionalSigners] = getSigners(
+    const [authorityPubkey, authoritySigners] = getSigners(
         authority,
         multiSigners,
     );
+    const additionalSigners = dedupeSigner(payer, authoritySigners);
+
     const ix = await CompressedTokenProgram.mintTo({
         feePayer: payer.publicKey,
         mint: mint,
@@ -59,21 +69,4 @@ export async function mintTo(
     const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
 
     return txId;
-}
-import {
-    defaultTestStateTreeAccounts,
-    sendAndConfirmTx,
-} from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
-
-import { BN } from '@coral-xyz/anchor';
-
-/** @internal */
-export function getSigners(
-    signerOrMultisig: Signer | PublicKey,
-    multiSigners: Signer[],
-): [PublicKey, Signer[]] {
-    return signerOrMultisig instanceof PublicKey
-        ? [signerOrMultisig, multiSigners]
-        : [signerOrMultisig.publicKey, [signerOrMultisig]];
 }
