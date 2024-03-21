@@ -1,80 +1,81 @@
 {
-  "name": "@lightprotocol/stateless.js",
-  "version": "0.0.1",
-  "description": "The Light Protocol core client library.",
-  "sideEffects": false,
-  "type": "module",
-  "main": "./dist/umd/index.js",
-  "module": "./dist/es/index.js",
-  "exports": {
-    ".": {
-      "types": "./dist/types/main/index.d.ts",
-      "import": "./dist/es/index.js",
-      "default": "./dist/cjs/index.cjs"
+    "name": "@lightprotocol/stateless.js",
+    "version": "0.0.1",
+    "description": "The Light Protocol core client library.",
+    "sideEffects": false,
+    "type": "module",
+    "main": "./dist/umd/index.js",
+    "module": "./dist/es/index.js",
+    "exports": {
+        ".": {
+            "types": "./dist/types/main/index.d.ts",
+            "import": "./dist/es/index.js",
+            "default": "./dist/cjs/index.cjs"
+        },
+        "./package.json": "./package.json"
     },
-    "./package.json": "./package.json"
-  },
-  "types": "./dist/types/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "test": "pnpm test:program",
-    "test-all": "vitest run",
-    "test-validator:silent": "./../../cli/test_bin/run test-validator -b",
-    "test-validator": "./../../cli/test_bin/run test-validator",
-    "test:program": "pnpm run test-validator:silent && vitest run tests/e2e/program.test.ts",
-    "test:index": "vitest run tests/e2e/program.test.ts",
-    "test:serialize": "vitest run tests/e2e/serialization.test.ts",
-    "emit-event:transfer": "vitest run tests/e2e/transfer-emit-events.test.ts",
-    "test:verbose": "vitest run --reporter=verbose",
-    "pull-idls": "../../scripts/push-stateless-js-idls.sh",
-    "build": "rimraf dist && pnpm run pull-idls && pnpm build:bundle",
-    "build:bundle": "rollup -c --bundleConfigAsCjs",
-    "format": "prettier --write .",
-    "lint": "eslint ."
-  },
-  "keywords": [
-    "zk",
-    "stateless",
-    "solana"
-  ],
-  "author": "",
-  "license": "Apache-2.0",
-  "devDependencies": {
-    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-    "@rollup/plugin-typescript": "^11.1.5",
-    "@types/node": "^20.10.2",
-    "@typescript-eslint/eslint-plugin": "^6.7.3",
-    "eslint": "^8.50.0",
-    "eslint-config-standard-with-typescript": "^39.1.0",
-    "eslint-plugin-import": "^2.25.2",
-    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
-    "eslint-plugin-promise": "^6.0.0",
-    "eslint-plugin-vitest": "^0.3.26",
-    "prettier": "^3.0.3",
-    "rimraf": "^5.0.5",
-    "rollup": "^4.6.1",
-    "rollup-plugin-polyfill-node": "^0.13.0",
-    "ts-node": "^10.9.1",
-    "tslib": "^2.6.2",
-    "typescript": "5.3.2",
-    "vitest": "^0.34.6"
-  },
-  "dependencies": {
-    "@coral-xyz/anchor": "0.29.0",
-    "@lightprotocol/account.rs": "workspace:*",
-    "@lightprotocol/prover.js": "workspace:*",
-    "@metaplex-foundation/beet": "0.7.1",
-    "@metaplex-foundation/beet-solana": "^0.4.1",
-    "@noble/hashes": "^1.3.2",
-    "@solana/buffer-layout": "^4.0.1",
-    "@solana/buffer-layout-utils": "^0.2.0",
-    "@solana/spl-account-compression": "^0.1.8",
-    "@solana/web3.js": "^1.87.6",
-    "axios": "^1.5.0",
-    "buffer": "^6.0.3",
-    "superstruct": "^1.0.3",
-    "tweetnacl": "^1.0.3"
-  }
+    "types": "./dist/types/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "test": "pnpm test:unit:all && pnpm test:e2e:all",
+        "test-all": "vitest run",
+        "test:unit:all": "EXCLUDE_E2E=true vitest run",
+        "test-validator": "./../../cli/test_bin/run test-validator",
+        "pretest:e2e": "./../../cli/test_bin/run test-validator -b ",
+        "test:e2e:transfer": "pnpm pretest:e2e && vitest run tests/e2e/transfer.test.ts",
+        "test:e2e:all": "pnpm pretest:e2e && vitest run tests/e2e/*.test.ts",
+        "test:index": "vitest run tests/e2e/program.test.ts",
+        "test:e2e:serde": "vitest run tests/e2e/serde.test.ts",
+        "test:verbose": "vitest run --reporter=verbose",
+        "pull-idls": "../../scripts/push-stateless-js-idls.sh",
+        "build": "rimraf dist && pnpm run pull-idls && pnpm build:bundle",
+        "build:bundle": "rollup -c --bundleConfigAsCjs",
+        "format": "prettier --write .",
+        "lint": "eslint ."
+    },
+    "keywords": [
+        "zk",
+        "stateless",
+        "solana"
+    ],
+    "author": "",
+    "license": "Apache-2.0",
+    "devDependencies": {
+        "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@rollup/plugin-typescript": "^11.1.5",
+        "@types/node": "^20.10.2",
+        "@typescript-eslint/eslint-plugin": "^6.7.3",
+        "eslint": "^8.50.0",
+        "eslint-config-standard-with-typescript": "^39.1.0",
+        "eslint-plugin-import": "^2.25.2",
+        "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+        "eslint-plugin-promise": "^6.0.0",
+        "eslint-plugin-vitest": "^0.3.26",
+        "prettier": "^3.0.3",
+        "rimraf": "^5.0.5",
+        "rollup": "^4.6.1",
+        "rollup-plugin-polyfill-node": "^0.13.0",
+        "ts-node": "^10.9.1",
+        "tslib": "^2.6.2",
+        "typescript": "5.3.2",
+        "vitest": "^0.34.6"
+    },
+    "dependencies": {
+        "@coral-xyz/anchor": "0.29.0",
+        "@lightprotocol/account.rs": "workspace:*",
+        "@lightprotocol/prover.js": "workspace:*",
+        "@metaplex-foundation/beet": "0.7.1",
+        "@metaplex-foundation/beet-solana": "^0.4.1",
+        "@noble/hashes": "^1.3.2",
+        "@solana/buffer-layout": "^4.0.1",
+        "@solana/buffer-layout-utils": "^0.2.0",
+        "@solana/spl-account-compression": "^0.1.8",
+        "@solana/web3.js": "^1.87.6",
+        "axios": "^1.5.0",
+        "buffer": "^6.0.3",
+        "superstruct": "^1.0.3",
+        "tweetnacl": "^1.0.3"
+    }
 }

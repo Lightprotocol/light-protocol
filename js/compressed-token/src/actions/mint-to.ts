@@ -1,16 +1,24 @@
 import {
-  ComputeBudgetProgram,
-  ConfirmOptions,
-  Connection,
-  PublicKey,
-  Signer,
-  TransactionSignature,
+    ComputeBudgetProgram,
+    ConfirmOptions,
+    PublicKey,
+    Signer,
+    TransactionSignature,
 } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
+import {
+    defaultTestStateTreeAccounts,
+    sendAndConfirmTx,
+    buildAndSignTx,
+    Rpc,
+} from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
+import { dedupeSigner, getSigners } from './common';
+
 /**
  * Mint compressed tokens to a solana address
  *
- * @param connection     Connection to use
+ * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint for the account
  * @param destination    Address of the account to mint to
@@ -24,56 +32,41 @@ import { CompressedTokenProgram } from '../program';
  * @return Signature of the confirmed transaction
  */
 export async function mintTo(
-  connection: Connection,
-  payer: Signer,
-  mint: PublicKey,
-  destination: PublicKey,
-  authority: Signer | PublicKey,
-  amount: number | BN,
-  multiSigners: Signer[] = [],
-  merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
-  confirmOptions?: ConfirmOptions,
+    rpc: Rpc,
+    payer: Signer,
+    mint: PublicKey,
+    destination: PublicKey,
+    authority: Signer | PublicKey,
+    amount: number | BN,
+    multiSigners: Signer[] = [],
+    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
+    confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-  const [authorityPubkey, additionalSigners] = getSigners(
-    authority,
-    multiSigners,
-  );
-  const ix = await CompressedTokenProgram.mintTo({
-    feePayer: payer.publicKey,
-    mint: mint,
-    authority: authorityPubkey,
-    amount: amount,
-    toPubkey: destination,
-    merkleTree,
-  });
+    const [authorityPubkey, authoritySigners] = getSigners(
+        authority,
+        multiSigners,
+    );
+    const additionalSigners = dedupeSigner(payer, authoritySigners);
 
-  const { blockhash } = await connection.getLatestBlockhash();
+    const ix = await CompressedTokenProgram.mintTo({
+        feePayer: payer.publicKey,
+        mint: mint,
+        authority: authorityPubkey,
+        amount: amount,
+        toPubkey: destination,
+        merkleTree,
+    });
 
-  const tx = buildAndSignTx(
-    [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
-    payer,
-    blockhash,
-    additionalSigners,
-  );
+    const { blockhash } = await rpc.getLatestBlockhash();
 
-  const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
 
-  return txId;
-}
-import {
-  defaultTestStateTreeAccounts,
-  sendAndConfirmTx,
-} from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
+    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-import { BN } from '@coral-xyz/anchor';
-
-/** @internal */
-export function getSigners(
-  signerOrMultisig: Signer | PublicKey,
-  multiSigners: Signer[],
-): [PublicKey, Signer[]] {
-  return signerOrMultisig instanceof PublicKey
-    ? [signerOrMultisig, multiSigners]
-    : [signerOrMultisig.publicKey, [signerOrMultisig]];
+    return txId;
 }
