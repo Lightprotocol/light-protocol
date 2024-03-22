@@ -15,6 +15,7 @@ import {
     bn,
     confirmConfig,
     defaultStaticAccountsStruct,
+    getConnection,
     toArray,
     useWallet,
 } from '@lightprotocol/stateless.js';
@@ -91,10 +92,7 @@ export class CompressedTokenProgram {
             /// We can use a mock connection because we're using the program only for
             /// serde and building instructions, not for interacting with the network.
             const mockKeypair = Keypair.generate();
-            const mockConnection = new Connection(
-                'http://localhost:8899',
-                'confirmed',
-            );
+            const mockConnection = getConnection();
             const mockProvider = new AnchorProvider(
                 mockConnection,
                 useWallet(mockKeypair),

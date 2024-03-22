@@ -9,6 +9,7 @@ import { IDL, PspCompressedPda } from '../idls/psp_compressed_pda';
 import { confirmConfig, defaultStaticAccounts } from '../constants';
 import { useWallet } from '../wallet';
 import {
+    Utxo,
     UtxoWithMerkleContext,
     UtxoWithMerkleProof,
     addMerkleContextToUtxo,
@@ -113,37 +114,18 @@ export class LightSystemProgram {
             coerceIntoUtxoWithMerkleContext,
         )(params.fromBalance);
 
-        // TODO: move outside of transfer, selection and (getting merkleproofs and zkp) should happen BEFORE call
-        /// find sort utxos by size, then add utxos up until the amount is at least reached, return the selected utxos
-        if (new Set(fromUtxos.map(utxo => utxo.owner.toString())).size > 1) {
-            throw new Error('All input utxos must have the same owner');
-        }
-        const selectedInputUtxos = fromUtxos
-            .sort((a, b) => Number(bn(a.lamports).sub(bn(b.lamports))))
-            .reduce<{
-                utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-                total: BN;
-            }>(
-                (acc, utxo) => {
-                    if (bn(acc.total).lt(bn(params.lamports))) {
-                        acc.utxos.push(utxo);
-                        acc.total = bn(acc.total).add(bn(utxo.lamports));
-                    }
-                    return acc;
-                },
-                { utxos: [], total: bn(0) },
-            );
+        const lamports = bn(params.lamports);
+
+        const { selectedAccounts, total } =
+            selectMinCompressedAccountsForTransfer(fromUtxos, lamports);
 
         /// transfer logic
-        let changeUtxo;
-        const changeAmount = bn(selectedInputUtxos.total).sub(
-            bn(params.lamports),
-        );
+        let changeUtxo: Utxo | undefined = undefined;
+
+        const changeAmount = bn(total).sub(lamports);
+
         if (bn(changeAmount).gt(bn(0))) {
-            changeUtxo = createUtxo(
-                selectedInputUtxos.utxos[0].owner,
-                changeAmount,
-            );
+            changeUtxo = createUtxo(selectedAccounts[0].owner, changeAmount);
         }
 
         const outputUtxos = changeUtxo
@@ -152,19 +134,16 @@ export class LightSystemProgram {
 
         // TODO: move zkp, merkleproof generation, and rootindices outside of transfer
         const recentValidityProof = placeholderValidityProof();
-        const recentInputStateRootIndices = selectedInputUtxos.utxos.map(
-            _ => 0,
-        );
+        const recentInputStateRootIndices = selectedAccounts.map(_ => 0);
+
         const staticAccounts = defaultStaticAccounts();
 
         const ix = await packInstruction({
-            inputState: coerceIntoUtxoWithMerkleContext(
-                selectedInputUtxos.utxos,
-            ),
+            inputState: coerceIntoUtxoWithMerkleContext(selectedAccounts),
             outputState: outputUtxos,
             recentValidityProof,
             recentInputStateRootIndices,
-            payer: selectedInputUtxos.utxos[0].owner, // TODO: dynamic payer,
+            payer: selectedAccounts[0].owner, // TODO: dynamic payer,
             staticAccounts,
         });
         return ix;
@@ -175,14 +154,6 @@ export class LightSystemProgram {
 if (import.meta.vitest) {
     //@ts-ignore
     const { it, expect, describe } = import.meta.vitest;
-
-    // const mockTlvDataElement = (): TlvDataElement =>
-    //   createTlvDataElement(
-    //     new Uint8Array([1, 2, 3]),
-    //     new PublicKey(new Uint8Array([1, 2, 3])),
-    //     new Uint8Array([1, 2, 3]),
-    //     createBigint254(1)
-    //   );
 
     describe('LightSystemProgram.transfer function', () => {
         it('should return a transaction instruction that transfers compressed lamports from one compressed balance to another solana address', async () => {
@@ -256,4 +227,37 @@ if (import.meta.vitest) {
             ).rejects.toThrow('All input utxos must have the same owner');
         });
     });
+}
+
+/**
+ * @internal
+ *
+ * Selects the minimal number of compressed accounts for a transfer
+ * 1. Sorts the accounts by amount in descending order
+ * 2. Accumulates the lamports amount until it is greater than or equal to the transfer
+ *    amount
+ */
+function selectMinCompressedAccountsForTransfer(
+    compressedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[],
+    transferAmount: BN,
+): {
+    selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
+    total: BN;
+} {
+    let accumulatedAmount = bn(0);
+    const selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[] =
+        [];
+
+    compressedAccounts.sort((a, b) =>
+        Number(bn(b.lamports).sub(bn(a.lamports))),
+    );
+    for (const utxo of compressedAccounts) {
+        if (accumulatedAmount.gte(bn(transferAmount))) break;
+        accumulatedAmount = accumulatedAmount.add(bn(utxo.lamports));
+        selectedAccounts.push(utxo);
+    }
+    if (accumulatedAmount.lt(bn(transferAmount))) {
+        throw new Error('Not enough balance for transfer');
+    }
+    return { selectedAccounts, total: accumulatedAmount };
 }

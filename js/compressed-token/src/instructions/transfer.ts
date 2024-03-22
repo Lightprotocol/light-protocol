@@ -9,6 +9,7 @@ import {
     PublicKey,
     TransactionInstruction,
     AccountMeta,
+    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
 import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
@@ -23,7 +24,7 @@ export async function createTransferInstruction(
     outUtxos: TokenTransferOutUtxo_IdlType[], // tlv missing
     rootIndices: number[],
     proof: CompressedProof_IdlType,
-): Promise<TransactionInstruction> {
+): Promise<TransactionInstruction[]> {
     const outputUtxos = outUtxos.map(utxo => ({ ...utxo }));
     const remainingAccountsMap = new Map<PublicKey, number>();
     const inUtxosWithIndex: InUtxoTuple_IdlType[] = [];
@@ -107,5 +108,8 @@ export async function createTransferInstruction(
         .remainingAccounts(remainingAccountMetas)
         .instruction();
 
-    return instruction;
+    return [
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+        instruction,
+    ];
 }

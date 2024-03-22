@@ -30,23 +30,39 @@ import { dedupeSigner, getSigners } from './common';
  * 2. Accumulates the amount until it is greater than or equal to the transfer
  *    amount
  */
-function pickMinCompressedTokenAccountsForTransfer(
+function selectMinCompressedTokenAccountsForTransfer(
     accounts: UtxoWithParsedTokenTlvData[],
     transferAmount: BN,
-): UtxoWithParsedTokenTlvData[] {
+): [
+    selectedAccounts: UtxoWithParsedTokenTlvData[],
+    total: BN,
+    totalLamports: BN | null,
+] {
     let accumulatedAmount = bn(0);
-    const selectedAccounts = [];
+    let accumulatedLamports = bn(0);
+
+    const selectedAccounts: UtxoWithParsedTokenTlvData[] = [];
+
     accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
+
     for (const account of accounts) {
         if (accumulatedAmount.gte(bn(transferAmount))) break;
         accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
+        accumulatedLamports = accumulatedLamports.add(account.utxo.lamports);
         selectedAccounts.push(account);
     }
+
     if (accumulatedAmount.lt(bn(transferAmount))) {
         throw new Error('Not enough balance for transfer');
     }
-    return selectedAccounts;
+
+    return [
+        selectedAccounts,
+        accumulatedAmount,
+        accumulatedLamports.lt(bn(0)) ? accumulatedLamports : null,
+    ];
 }
+
 /**
  * Transfer compressed tokens from one owner to another
  *
@@ -71,13 +87,14 @@ export async function transfer(
     amount: number | BN,
     owner: Signer | PublicKey,
     toAddress: PublicKey,
+    /// TODO: pass output state trees.
     merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
     multiSigners: Signer[] = [],
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const keys = defaultTestStateTreeAccounts();
-    const queue = keys.nullifierQueue; /// FIXME: Should fetch or pass
     const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
+
+    amount = bn(amount);
 
     const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
         connection,
@@ -85,32 +102,26 @@ export async function transfer(
         mint,
     );
 
-    const inUtxos = pickMinCompressedTokenAccountsForTransfer(
-        compressedTokenAccounts,
-        bn(amount),
-    );
+    const [inputAccounts, inputAmount, inputLamports] =
+        selectMinCompressedTokenAccountsForTransfer(
+            compressedTokenAccounts,
+            amount,
+        );
 
     /// Create output utxos
-    const changeAmount = inUtxos
-        .reduce((acc, utxo) => acc.add(utxo.parsed.amount), bn(0))
-        .sub(bn(amount));
-
+    const changeAmount = inputAmount.sub(amount);
     /// We don't send lamports and don't have rent
-    const changeLamportsAmount = inUtxos.reduce(
-        (acc, utxo) => acc.add(utxo.utxo.lamports),
-        // TODO: add optional rent
-        bn(0),
-    );
+    const changeLamportsAmount = inputLamports;
 
     const changeUtxo: TokenTransferOutUtxo_IdlType = {
         amount: changeAmount,
         owner: currentOwnerPublicKey,
-        lamports: changeLamportsAmount.gt(bn(0)) ? changeLamportsAmount : null,
+        lamports: changeLamportsAmount,
         index_mt_account: 0, // FIXME: dynamic!
     };
 
     const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
-        amount: bn(amount),
+        amount,
         owner: toAddress,
         lamports: null,
         index_mt_account: 0, // FIXME: dynamic!
@@ -119,16 +130,16 @@ export async function transfer(
     const rpc = await getMockRpc(connection);
 
     const proof = await rpc.getValidityProof(
-        inUtxos.map(utxo => utxo.merkleContext!.hash as BN),
+        inputAccounts.map(account => account.merkleContext!.hash as BN),
     );
 
-    const ix = await createTransferInstruction(
+    const ixs = await createTransferInstruction(
         payer.publicKey,
         currentOwnerPublicKey,
-        inUtxos.map(_ => merkleTree),
-        inUtxos.map(_ => queue),
+        inputAccounts.map(account => account.merkleContext!.merkleTree),
+        inputAccounts.map(account => account.merkleContext!.nullifierQueue),
         [merkleTree, merkleTree],
-        inUtxos.map(utxo => utxo.utxo),
+        inputAccounts.map(utxo => utxo.utxo),
         [recipientOutUtxo, changeUtxo],
         // TODO: replace with actual recent state root index!
         // This will only work with sequential state updates and no cranking!
@@ -136,15 +147,8 @@ export async function transfer(
         proof.compressedProof,
     );
 
-    const ixs = [
-        // TODO: adjust CU down to min!
-        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-        ix,
-    ];
     const { blockhash } = await connection.getLatestBlockhash();
-
     const additionalSigners = dedupeSigner(payer, signers);
-
     const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
     const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
 

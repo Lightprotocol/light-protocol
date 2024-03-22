@@ -11,7 +11,7 @@ import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     UtxoWithParsedTokenTlvData,
     getCompressedTokenAccountsFromMockRpc,
-} from '../../src/token-serde';
+} from '../../src/get-compressed-token-accounts';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all

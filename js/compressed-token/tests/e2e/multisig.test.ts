@@ -4,7 +4,7 @@ import { Connection, PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { bn, defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
 import { createMint, mintTo } from '../../src/actions';
-import { getCompressedTokenAccountsFromMockRpc } from '../../src/token-serde';
+import { getCompressedTokenAccountsFromMockRpc } from '../../src/get-compressed-token-accounts';
 
 const TEST_TOKEN_DECIMALS = 2;
 
