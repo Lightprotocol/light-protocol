@@ -112,7 +112,6 @@ if (import.meta.vitest) {
 
         it('should create a BN254 from a base58 string', () => {
             const bigint = createBN254('2j', 'base58');
-            console.log('bigint', bigint, bigint.toString());
             expect(bigint.toNumber()).toBe(bn(100).toNumber());
         });
     });

@@ -80,22 +80,12 @@ export function negateAndCompressProof(
 }
 
 function deserializeHexStringToBeBytes(hexStr: string): Uint8Array {
-    const trimmedStr = hexStr.startsWith('0x') ? hexStr.substring(2) : hexStr;
-    const bigInt = BigInt(`0x${trimmedStr}`);
-    const bigIntBytes = new Uint8Array(
-        bigInt
-            .toString(16)
-            .padStart(64, '0')
-            .match(/.{1,2}/g)!
-            .map(byte => parseInt(byte, 16)),
+    // Using BN for simpler conversion from hex string to byte array
+    const bn = new BN(
+        hexStr.startsWith('0x') ? hexStr.substring(2) : hexStr,
+        'hex',
     );
-    if (bigIntBytes.length < 32) {
-        const result = new Uint8Array(32);
-        result.set(bigIntBytes, 32 - bigIntBytes.length);
-        return result;
-    } else {
-        return bigIntBytes.slice(0, 32);
-    }
+    return new Uint8Array(bn.toArray('be', 32));
 }
 
 function yElementIsPositiveG1(yElement: BN): boolean {
