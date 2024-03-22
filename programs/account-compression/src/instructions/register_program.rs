@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 
 use crate::{errors::AccountCompressionErrorCode, GroupAuthority};
 
+#[derive(Debug)]
 #[account]
 #[aligned_sized(anchor)]
 pub struct RegisteredProgram {

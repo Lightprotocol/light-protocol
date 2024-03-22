@@ -6,10 +6,6 @@ use light_hasher::Hasher;
 pub mod changelog;
 pub mod errors;
 pub mod hash;
-
-#[cfg(target_os = "solana")]
-use solana_program::msg;
-
 use crate::{
     changelog::{ChangelogEntry, MerklePaths},
     errors::ConcurrentMerkleTreeError,
@@ -770,8 +766,6 @@ where
         // with the following print set the expected and computed roots are the same
         // comment the statment to reproduce the error with test programs/account-compression/tests/merkle_tree_tests.rs
         // in accounts-compression run cargo test-sbf test_nullify_leaves
-        #[cfg(target_os = "solana")]
-        msg!("leaf: {:?}", leaf);
         if computed_root == expected_root {
             Ok(())
         } else {

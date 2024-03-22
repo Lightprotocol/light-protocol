@@ -4,7 +4,13 @@ use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use bytemuck::{Pod, Zeroable};
 
-use crate::{utils::constants::STATE_INDEXED_ARRAY_SIZE, RegisteredProgram};
+use crate::{
+    utils::{
+        check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
+        constants::STATE_INDEXED_ARRAY_SIZE,
+    },
+    RegisteredProgram,
+};
 
 #[derive(Accounts)]
 pub struct InsertIntoIndexedArrays<'info> {
@@ -38,6 +44,7 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
                 array_map.insert(mt.key(), (mt, Vec::new()));
             }
         };
+
         array_map.get_mut(&mt.key()).unwrap().1.push(elements[i]);
     }
 
@@ -45,6 +52,10 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
         msg!("Inserting into indexed array {:?}", mt.key());
         let array = AccountLoader::<IndexedArrayAccount>::try_from(mt).unwrap();
         let mut array_account = array.load_mut()?;
+        check_registered_or_signer::<InsertIntoIndexedArrays, IndexedArrayAccount>(
+            &ctx,
+            &array_account,
+        )?;
         for element in elements.iter() {
             msg!("Inserting element {:?}", element);
             let insert_index = array_account.non_inclusion(element, &0usize)?;
@@ -62,11 +73,13 @@ pub fn process_initialize_indexed_array<'info>(
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
+    associated_merkle_tree: Option<Pubkey>,
 ) -> Result<()> {
     let mut indexed_array_account = ctx.accounts.indexed_array.load_init()?;
     indexed_array_account.index = index;
     indexed_array_account.owner = owner;
     indexed_array_account.delegate = delegate.unwrap_or(owner);
+    indexed_array_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
     // Explicitly initializing the indexed array is not necessary as defautl values are all zero.
     Ok(())
 }
@@ -86,10 +99,28 @@ pub struct IndexedArrayAccount {
     pub index: u64,
     pub owner: Pubkey,
     pub delegate: Pubkey,
-    pub array: Pubkey,
+    pub associated_merkle_tree: Pubkey,
     pub indexed_array: [QueueArrayElement; STATE_INDEXED_ARRAY_SIZE],
 }
 
+impl GroupAccess for IndexedArrayAccount {
+    fn get_owner(&self) -> &Pubkey {
+        &self.owner
+    }
+
+    fn get_delegate(&self) -> &Pubkey {
+        &self.delegate
+    }
+}
+
+impl<'info> GroupAccounts<'info> for InsertIntoIndexedArrays<'info> {
+    fn get_signing_address(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
+}
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Copy, AnchorSerialize, AnchorDeserialize, Zeroable, Pod)]
 pub struct QueueArrayElement {
@@ -139,12 +170,14 @@ pub mod indexed_array_sdk {
         payer: Pubkey,
         indexed_array_pubkey: Pubkey,
         index: u64,
+        associated_merkle_tree: Option<Pubkey>,
     ) -> Instruction {
         let instruction_data: crate::instruction::InitializeIndexedArray =
             crate::instruction::InitializeIndexedArray {
                 index,
                 owner: payer,
                 delegate: None,
+                associated_merkle_tree,
             };
         Instruction {
             program_id: crate::ID,

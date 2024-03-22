@@ -6,11 +6,10 @@ use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
-    utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
+    utils::check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
     ChangelogEvent, ChangelogEventV1, Changelogs, RegisteredProgram,
 };
 
-// TODO: implement group access control
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
@@ -69,13 +68,10 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
     let mut changelog_events = Vec::new();
     for (mt, leaves) in merkle_tree_map.values() {
-        let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
-        let mut merkle_tree = merkle_tree.load_mut()?;
-        // TODO: activate when group access control is implemented
-        // check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
-        //     &ctx,
-        //     &merkle_tree_account,
-        // )?;
+        let merkle_tree_account = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
+        let mut merkle_tree = merkle_tree_account.load_mut()?;
+
+        check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(&ctx, &merkle_tree)?;
 
         msg!("inserting leaves: {:?}", leaves);
         let changelog_entries = merkle_tree
@@ -118,6 +114,7 @@ pub mod sdk {
     pub fn create_initialize_merkle_tree_instruction(
         payer: Pubkey,
         merkle_tree_pubkey: Pubkey,
+        associated_queue: Option<Pubkey>,
     ) -> Instruction {
         let instruction_data: crate::instruction::InitializeStateMerkleTree =
             crate::instruction::InitializeStateMerkleTree {
@@ -128,6 +125,7 @@ pub mod sdk {
                 changelog_size: STATE_MERKLE_TREE_CHANGELOG as u64,
                 roots_size: STATE_MERKLE_TREE_ROOTS as u64,
                 canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH as u64,
+                associated_queue,
             };
         Instruction {
             program_id: crate::ID,

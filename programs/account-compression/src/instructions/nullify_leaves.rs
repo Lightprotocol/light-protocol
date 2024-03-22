@@ -6,7 +6,7 @@ use crate::{
     emit_indexer_event, errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
     ChangelogEvent, ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
 };
-// TODO: implement group access control
+
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
@@ -28,23 +28,36 @@ pub struct NullifyLeaves<'info> {
 pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],
-    leaves_indices: &'a [u16],
+    leaves_queue_indices: &'a [u16],
     indices: &'a [u64],
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
-    // TODO: activate when group access control is implemented
-    // check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
-    //     &ctx,
-    //     &merkle_tree_account,
-    // )?;
     let mut array_account = ctx.accounts.indexed_array.load_mut()?;
-    let leaf: [u8; 32] = array_account.indexed_array[leaves_indices[0] as usize].element;
+    let mut merkle_tree_account = ctx.accounts.merkle_tree.load_mut()?;
+    if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
+        msg!(
+            "merkle tree and indexed array are not associated {} != {}",
+            array_account.associated_merkle_tree,
+            ctx.accounts.merkle_tree.key()
+        );
+        return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
+    }
+    if merkle_tree_account.associated_queue != ctx.accounts.indexed_array.key() {
+        msg!(
+            "merkle tree and indexed array are not associated {} != {}",
+            merkle_tree_account.associated_queue,
+            ctx.accounts.indexed_array.key()
+        );
+        return Err(AccountCompressionErrorCode::InvalidIndexedArray.into());
+    }
+
+    let leaf: [u8; 32] = array_account.indexed_array[leaves_queue_indices[0] as usize].element;
     msg!("leaf {:?}", leaf);
     if change_log_indices.len() != 1 {
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfChangeLogIndicesMismatch.into());
     }
-    if leaves_indices.len() != change_log_indices.len() {
+    if leaves_queue_indices.len() != change_log_indices.len() {
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfLeavesMismatch.into());
     }
@@ -52,9 +65,26 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfIndicesMismatch.into());
     }
+    if proofs.len() != change_log_indices.len() {
+        msg!("only implemented for 1 nullifier update");
+        return Err(AccountCompressionErrorCode::NumberOfProofsMismatch.into());
+    }
+
     let mut changelog_events: Vec<ChangelogEvent> = Vec::new();
-    let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-    let loaded_merkle_tree = merkle_tree.load_merkle_tree_mut()?;
+    let loaded_merkle_tree = merkle_tree_account.load_merkle_tree_mut()?;
+
+    let allowed_proof_size = loaded_merkle_tree.height - loaded_merkle_tree.canopy_depth;
+    if proofs[0].len() != allowed_proof_size {
+        msg!(
+            "Invalid Proof Length {} allowed height {} - canopy {} {}",
+            proofs[0].len(),
+            loaded_merkle_tree.height,
+            loaded_merkle_tree.canopy_depth,
+            allowed_proof_size,
+        );
+        return Err(AccountCompressionErrorCode::InvalidMerkleProof.into());
+    }
+
     let mut bounded_vec = from_vec(proofs[0].as_slice())?;
     let changelog_entries = loaded_merkle_tree
         .update(
@@ -81,9 +111,9 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.authority,
     )?;
     // TODO: replace with root history sequence number
-    array_account.indexed_array[leaves_indices[0] as usize].merkle_tree_overwrite_sequence_number =
-        loaded_merkle_tree.sequence_number as u64
-            + crate::utils::constants::STATE_MERKLE_TREE_ROOTS as u64;
+    array_account.indexed_array[leaves_queue_indices[0] as usize]
+        .merkle_tree_overwrite_sequence_number = loaded_merkle_tree.sequence_number as u64
+        + crate::utils::constants::STATE_MERKLE_TREE_ROOTS as u64;
 
     Ok(())
 }
@@ -103,7 +133,7 @@ pub mod sdk_nullify {
 
     pub fn create_nullify_instruction(
         change_log_indices: &[u64],
-        leaves_indices: &[u16],
+        leaves_queue_indices: &[u16],
         indices: &[u64],
         proofs: &[Vec<[u8; 32]>],
         payer: &Pubkey,
@@ -111,7 +141,7 @@ pub mod sdk_nullify {
         indexed_array_pubkey: &Pubkey,
     ) -> Instruction {
         let instruction_data = crate::instruction::NullifyLeaves {
-            leaves_indices: leaves_indices.to_vec(),
+            leaves_queue_indices: leaves_queue_indices.to_vec(),
             indices: indices.to_vec(),
             change_log_indices: change_log_indices.to_vec(),
             proofs: proofs.to_vec(),

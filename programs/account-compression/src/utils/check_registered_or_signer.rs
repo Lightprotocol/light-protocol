@@ -28,15 +28,19 @@ pub fn check_registered_or_signer<
     match ctx.accounts.get_registered_program_pda() {
         Some(account) => {
             let derived_address = Pubkey::find_program_address(
-                &[ctx.program_id.to_bytes().as_ref()],
+                &[b"cpi_authority", ctx.program_id.to_bytes().as_ref()],
                 &account.pubkey,
             )
             .0;
-            if ctx.accounts.get_signing_address().key() == derived_address
-                && derived_address == *checked_account.get_owner()
-            {
+            if ctx.accounts.get_signing_address().key() == derived_address {
                 Ok(())
             } else {
+                msg!("registered program check failed");
+                msg!("derived_address: {:?}", account.key());
+                msg!(
+                    "signing_address: {:?}",
+                    ctx.accounts.get_signing_address().key()
+                );
                 Err(AccountCompressionErrorCode::InvalidAuthority.into())
             }
         }
