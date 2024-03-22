@@ -24,6 +24,7 @@ import {
 } from '@solana/spl-token';
 import { MINT_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { Buffer } from 'buffer';
+import { TokenTlvData_IdlType } from './types';
 
 /** Create Mint account for compressed Tokens */
 export type CreateMintParams = {
@@ -225,7 +226,7 @@ export class CompressedTokenProgram {
 
 // TODO: move to serde
 if (import.meta.vitest) {
-    const { it, describe } = import.meta.vitest;
+    const { it, describe, expect, assert } = import.meta.vitest;
 
     describe('Program serde', () => {
         it('should decode token layout from tlvDataElement correctly', () => {
@@ -242,7 +243,15 @@ if (import.meta.vitest) {
                 tlvDataElementData,
             );
 
-            console.log(decoded);
+            expect(decoded.amount.eq(bn(100)));
+            expect(
+                decoded.mint.equals(
+                    new PublicKey(
+                        '2e5fmpPB3dFp4Qod3RhWDxckFD92a4s8E9hLaCpzCatT',
+                    ),
+                ),
+            );
+            expect(decoded.state === 1).toBe(true);
         });
         it("should decode 'PublicTransactionEvent' from data correctly + TokenTlvDataClient", () => {
             const PublicTransactionEventData = Buffer.from([
@@ -302,12 +311,21 @@ if (import.meta.vitest) {
                     'PublicTransactionEvent',
                     PublicTransactionEventData,
                 );
-            const decodedTok =
+            const decodedTok: TokenTlvData_IdlType =
                 CompressedTokenProgram.program.coder.types.decode(
                     'TokenTlvDataClient',
                     Buffer.from(decoded.outUtxos[0].data!.tlvElements[0].data),
                 );
-            console.log('DECODED', decodedTok);
+
+            expect(decodedTok.amount.eq(bn(100)));
+            expect(
+                decodedTok.mint.equals(
+                    new PublicKey(
+                        'J2jgMg7kYqVYpHQxuwdnaWn2pZBcQYVv2itD8gT8Ud1S',
+                    ),
+                ),
+            );
+            expect(decodedTok.state === 1).toBe(true);
         });
     });
 }

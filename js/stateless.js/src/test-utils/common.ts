@@ -3,7 +3,7 @@ import { confirmTx } from '../utils';
 import { Rpc } from '../rpc';
 import { LightWasm, WasmFactory } from '@lightprotocol/account.rs';
 import { defaultTestStateTreeAccounts } from '../constants';
-import { TestRpc, TestRpcConfig } from '.';
+import { TestRpc } from './test-rpc';
 
 let c = 1;
 

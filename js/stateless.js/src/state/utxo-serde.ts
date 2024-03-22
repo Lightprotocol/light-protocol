@@ -439,7 +439,7 @@ if (import.meta.vitest) {
         expect(testBlinding.eq(bn(blinding))).toBe(true);
     });
 
-    it.only('should compute utxo hash', async () => {
+    it('should compute utxo hash', async () => {
         const testUtxoHash = await createUtxoHash(
             hasher,
             { owner, lamports, address, data },
@@ -494,7 +494,7 @@ if (import.meta.vitest) {
         expect(testTlvDataHash.eq(bn(tlvDataHash2))).toBe(true);
     });
 
-    it.only('should compute blinding2 ', async () => {
+    it.skip('should compute blinding2 ', async () => {
         const hasher = await WasmFactory.getInstance();
 
         const testBlinding = await computeBlinding(

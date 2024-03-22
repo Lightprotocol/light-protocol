@@ -18,7 +18,6 @@ import {
 } from '../rpc-interface';
 import {
     BN254,
-    CompressedProof_IdlType,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent_IdlType,
     UtxoWithMerkleContext,

@@ -1,60 +1,11 @@
 import { Program, AnchorProvider, setProvider, BN } from '@coral-xyz/anchor';
-import {
-    PublicKey,
-    TransactionInstruction,
-    Keypair,
-    Connection,
-} from '@solana/web3.js';
+import { PublicKey, Keypair, Connection } from '@solana/web3.js';
 import { IDL, PspCompressedPda } from '../idls/psp_compressed_pda';
-import { confirmConfig, defaultStaticAccounts } from '../constants';
+import { confirmConfig } from '../constants';
 import { useWallet } from '../wallet';
-import {
-    Utxo,
-    UtxoWithMerkleContext,
-    UtxoWithMerkleProof,
-    addMerkleContextToUtxo,
-    bn,
-    coerceIntoUtxoWithMerkleContext,
-    createUtxo,
-} from '../state';
-import { toArray } from '../utils/conversion';
-import { packInstruction } from '../instruction/pack-instruction';
-import { pipe } from '../utils/pipe';
-import { placeholderValidityProof } from '../instruction/validity-proof';
+import { UtxoWithMerkleContext, UtxoWithMerkleProof, bn } from '../state';
 
-export type CompressedTransferParams = {
-    /** Utxos with lamports to spend as transaction inputs */
-    fromBalance: // TODO: selection upfront
-    | UtxoWithMerkleContext
-        | UtxoWithMerkleProof
-        | (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-    /** Solana Account that will receive transferred compressed lamports as utxo  */
-    toPubkey: PublicKey;
-    /** Amount of compressed lamports to transfer */
-    lamports: number | BN;
-    // TODO: add
-    // /** Optional: if different feepayer than owner of utxos */
-    // payer?: PublicKey;
-};
-
-/**
- * Create compressed account system transaction params
- */
-export type CreateCompressedAccountParams = {
-    /*
-     * Optional utxos with lamports to spend as transaction inputs.
-     * Not required unless 'lamports' are specified, as Light doesn't
-     * enforce rent on the protocol level.
-     */
-    fromBalance: UtxoWithMerkleContext[] | UtxoWithMerkleContext;
-    /** Public key of the created account */
-    newAccountPubkey: PublicKey;
-    /** Amount of lamports to transfer to the created compressed account */
-    lamports: number | bigint;
-    /** Public key of the program or user to assign as the owner of the created compressed account */
-    newAccountOwner: PublicKey;
-};
-
+/// TODO: add transfer
 export class LightSystemProgram {
     /**
      * @internal
@@ -97,136 +48,6 @@ export class LightSystemProgram {
             this._program = new Program(IDL, this.programId, mockProvider);
         }
     }
-
-    /**
-     * Generate a transaction instruction that transfers compressed
-     * lamports from one compressed balance to another solana address
-     */
-    /// TODO: should just define the createoutput utxo selection + packing
-    static async transfer(
-        params: CompressedTransferParams,
-    ): Promise<TransactionInstruction> {
-        const recipientUtxo = createUtxo(params.toPubkey, params.lamports);
-
-        // unnecessary if after
-        const fromUtxos = pipe(
-            toArray<UtxoWithMerkleContext | UtxoWithMerkleProof>,
-            coerceIntoUtxoWithMerkleContext,
-        )(params.fromBalance);
-
-        const lamports = bn(params.lamports);
-
-        const { selectedAccounts, total } =
-            selectMinCompressedAccountsForTransfer(fromUtxos, lamports);
-
-        /// transfer logic
-        let changeUtxo: Utxo | undefined = undefined;
-
-        const changeAmount = bn(total).sub(lamports);
-
-        if (bn(changeAmount).gt(bn(0))) {
-            changeUtxo = createUtxo(selectedAccounts[0].owner, changeAmount);
-        }
-
-        const outputUtxos = changeUtxo
-            ? [recipientUtxo, changeUtxo]
-            : [recipientUtxo];
-
-        // TODO: move zkp, merkleproof generation, and rootindices outside of transfer
-        const recentValidityProof = placeholderValidityProof();
-        const recentInputStateRootIndices = selectedAccounts.map(_ => 0);
-
-        const staticAccounts = defaultStaticAccounts();
-
-        const ix = await packInstruction({
-            inputState: coerceIntoUtxoWithMerkleContext(selectedAccounts),
-            outputState: outputUtxos,
-            recentValidityProof,
-            recentInputStateRootIndices,
-            payer: selectedAccounts[0].owner, // TODO: dynamic payer,
-            staticAccounts,
-        });
-        return ix;
-    }
-}
-
-//@ts-ignore
-if (import.meta.vitest) {
-    //@ts-ignore
-    const { it, expect, describe } = import.meta.vitest;
-
-    describe('LightSystemProgram.transfer function', () => {
-        it('should return a transaction instruction that transfers compressed lamports from one compressed balance to another solana address', async () => {
-            const randomPubKeys = [
-                PublicKey.unique(),
-                PublicKey.unique(),
-                PublicKey.unique(),
-                PublicKey.unique(),
-                PublicKey.unique(), // 4th
-            ];
-            const fromBalance = [
-                addMerkleContextToUtxo(
-                    createUtxo(randomPubKeys[0], bn(1)),
-                    bn(0),
-                    randomPubKeys[3],
-                    0,
-                    randomPubKeys[4],
-                ),
-                addMerkleContextToUtxo(
-                    createUtxo(randomPubKeys[0], bn(2)),
-                    bn(0),
-                    randomPubKeys[3],
-                    1,
-                    randomPubKeys[4],
-                ),
-            ];
-            const toPubkey = PublicKey.unique();
-            const lamports = bn(2);
-            const ix = await LightSystemProgram.transfer({
-                fromBalance,
-                toPubkey,
-                lamports,
-            });
-
-            console.log('ix', ix.data, ix.data.length);
-
-            expect(ix).toBeDefined();
-        });
-
-        it('should throw an error when the input utxos have different owners', async () => {
-            const randomPubKeys = [
-                PublicKey.unique(),
-                PublicKey.unique(),
-                PublicKey.unique(),
-                PublicKey.unique(),
-            ];
-            const fromBalance = [
-                addMerkleContextToUtxo(
-                    createUtxo(randomPubKeys[0], bn(1)),
-                    bn(0),
-                    randomPubKeys[3],
-                    0,
-                    randomPubKeys[4],
-                ),
-                addMerkleContextToUtxo(
-                    createUtxo(randomPubKeys[1], bn(2)), // diff owner key
-                    bn(0),
-                    randomPubKeys[3],
-                    1,
-                    randomPubKeys[4],
-                ),
-            ];
-            const toPubkey = PublicKey.unique();
-            const lamports = bn(2);
-            await expect(
-                LightSystemProgram.transfer({
-                    fromBalance,
-                    toPubkey,
-                    lamports,
-                }),
-            ).rejects.toThrow('All input utxos must have the same owner');
-        });
-    });
 }
 
 /**
@@ -237,7 +58,7 @@ if (import.meta.vitest) {
  * 2. Accumulates the lamports amount until it is greater than or equal to the transfer
  *    amount
  */
-function selectMinCompressedAccountsForTransfer(
+function _selectMinCompressedAccountsForTransfer(
     compressedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[],
     transferAmount: BN,
 ): {

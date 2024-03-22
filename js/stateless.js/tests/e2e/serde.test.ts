@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { LightSystemProgram } from '../../src/programs';
 import { Utxo_IdlType, bn } from '../../src';
 import { PublicKey } from '@solana/web3.js';
-import { uint8Array } from '@metaplex-foundation/beet';
 
 describe.only('Serialization test', () => {
     it.only('serialize utxo ', async () => {

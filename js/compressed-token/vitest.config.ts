@@ -4,8 +4,9 @@ import { resolve } from 'path';
 export default defineConfig({
     logLevel: 'info',
     test: {
-        // Include both src and tests directories as well as inline tests
-        include: ['src/**/__tests__/*.test.ts', 'tests/**/*.test.ts'],
+        include: process.env.EXCLUDE_E2E
+            ? []
+            : ['src/**/__tests__/*.test.ts', 'tests/**/*.test.ts'],
         includeSource: ['src/**/*.{js,ts}'],
         testTimeout: 350000,
     },

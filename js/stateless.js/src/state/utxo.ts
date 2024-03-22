@@ -109,12 +109,9 @@ export const addMerkleProofToUtxo = (
 /** Filter utxos with compressed lamports. Excludes PDAs and token accounts */
 export function getCompressedSolUtxos(utxos: Utxo[]): Utxo[] {
     return utxos.filter(
-        utxo =>
-            new BN(utxo.lamports) > new BN(0) &&
-            utxo.data?.tlvElements.length === 0,
+        utxo => new BN(utxo.lamports).gt(new BN(0)) && utxo.data === null,
     );
 }
-
 /** Converts into UtxoWithMerkleContext[] type */
 export function coerceIntoUtxoWithMerkleContext(
     utxos: (UtxoWithMerkleContext | UtxoWithMerkleProof)[],
