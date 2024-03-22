@@ -1,16 +1,17 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import { Connection, PublicKey, Keypair, Signer } from '@solana/web3.js';
+import { PublicKey, Keypair, Signer } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
+    Rpc,
     bn,
     defaultTestStateTreeAccounts,
-    getConnection,
+    getTestRpc,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
 import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     UtxoWithParsedTokenTlvData,
-    getCompressedTokenAccountsFromMockRpc,
+    getCompressedTokenAccountsForTest,
 } from '../../src/get-compressed-token-accounts';
 
 /**
@@ -19,7 +20,7 @@ import {
  */
 // TODO: assert individual account amounts in balance
 async function assertTransfer(
-    connection: Connection,
+    rpc: Rpc,
     senderPreCompressedTokenAccounts: UtxoWithParsedTokenTlvData[], // all
     refMint: PublicKey,
     refAmount: BN,
@@ -31,11 +32,7 @@ async function assertTransfer(
 ) {
     /// Transfer can merge input utxos therefore we need to pass all as ref
     const senderPostCompressedTokenAccounts =
-        await getCompressedTokenAccountsFromMockRpc(
-            connection,
-            refSender,
-            refMint,
-        );
+        await getCompressedTokenAccountsForTest(rpc, refSender, refMint);
 
     /// pre = post-amount
     const sumPre = senderPreCompressedTokenAccounts.reduce(
@@ -56,11 +53,7 @@ async function assertTransfer(
     expect(sumPre.sub(refAmount).eq(sumPost)).toBe(true);
 
     const recipientCompressedTokenAccounts =
-        await getCompressedTokenAccountsFromMockRpc(
-            connection,
-            refRecipient,
-            refMint,
-        );
+        await getCompressedTokenAccountsForTest(rpc, refRecipient, refMint);
 
     if (expectedAccountCountRecipientPost) {
         expect(recipientCompressedTokenAccounts.length).toBe(
@@ -79,7 +72,7 @@ async function assertTransfer(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('transfer', () => {
-    let connection: Connection;
+    let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
     let charlie: Signer;
@@ -88,14 +81,14 @@ describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        connection = getConnection();
-        payer = await newAccountWithLamports(connection);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
         mint = (
             await createMint(
-                connection,
+                rpc,
                 payer,
                 mintAuthority,
                 TEST_TOKEN_DECIMALS,
@@ -105,11 +98,11 @@ describe('transfer', () => {
     });
 
     beforeEach(async () => {
-        bob = await newAccountWithLamports(connection);
-        charlie = await newAccountWithLamports(connection);
+        bob = await newAccountWithLamports(rpc);
+        charlie = await newAccountWithLamports(rpc);
 
         await mintTo(
-            connection,
+            rpc,
             payer,
             mint,
             bob.publicKey,
@@ -124,14 +117,10 @@ describe('transfer', () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
         const bobPreCompressedTokenAccounts =
-            await getCompressedTokenAccountsFromMockRpc(
-                connection,
-                bob.publicKey,
-                mint,
-            );
+            await getCompressedTokenAccountsForTest(rpc, bob.publicKey, mint);
 
         await transfer(
-            connection,
+            rpc,
             payer,
             mint,
             bn(700),
@@ -141,7 +130,7 @@ describe('transfer', () => {
         );
 
         await assertTransfer(
-            connection,
+            rpc,
             bobPreCompressedTokenAccounts,
             mint,
             bn(700),
@@ -154,13 +143,9 @@ describe('transfer', () => {
         /// send 200 from bob -> charlie
         /// bob: 100, charlie: (700+200)
         const bobPreCompressedTokenAccounts2 =
-            await getCompressedTokenAccountsFromMockRpc(
-                connection,
-                bob.publicKey,
-                mint,
-            );
+            await getCompressedTokenAccountsForTest(rpc, bob.publicKey, mint);
         await transfer(
-            connection,
+            rpc,
             payer,
             mint,
             bn(200),
@@ -170,7 +155,7 @@ describe('transfer', () => {
         );
 
         await assertTransfer(
-            connection,
+            rpc,
             bobPreCompressedTokenAccounts2,
             mint,
             bn(200),
@@ -182,14 +167,15 @@ describe('transfer', () => {
 
         /// send 5 from charlie -> bob
         /// bob: (100+5), charlie: (695+200)
+
         const charliePreCompressedTokenAccounts3 =
-            await getCompressedTokenAccountsFromMockRpc(
-                connection,
+            await getCompressedTokenAccountsForTest(
+                rpc,
                 charlie.publicKey,
                 mint,
             );
         await transfer(
-            connection,
+            rpc,
             payer,
             mint,
             bn(5),
@@ -199,7 +185,7 @@ describe('transfer', () => {
         );
 
         await assertTransfer(
-            connection,
+            rpc,
             charliePreCompressedTokenAccounts3,
             mint,
             bn(5),
@@ -211,15 +197,16 @@ describe('transfer', () => {
 
         /// send 700 from charlie -> bob, 2 compressed account inputs
         /// bob: (100+5+700), charlie: (195)
+
         const charliePreCompressedTokenAccounts4 =
-            await getCompressedTokenAccountsFromMockRpc(
-                connection,
+            await getCompressedTokenAccountsForTest(
+                rpc,
                 charlie.publicKey,
                 mint,
             );
 
         await transfer(
-            connection,
+            rpc,
             payer,
             mint,
             bn(700),
@@ -229,7 +216,7 @@ describe('transfer', () => {
         );
 
         await assertTransfer(
-            connection,
+            rpc,
             charliePreCompressedTokenAccounts4,
             mint,
             bn(700),
@@ -241,7 +228,7 @@ describe('transfer', () => {
 
         await expect(
             transfer(
-                connection,
+                rpc,
                 payer,
                 mint,
                 10000,

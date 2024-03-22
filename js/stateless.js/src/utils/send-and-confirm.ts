@@ -1,5 +1,4 @@
 import {
-    Connection,
     VersionedTransaction,
     TransactionConfirmationStrategy,
     SignatureResult,
@@ -10,44 +9,46 @@ import {
     ConfirmOptions,
     TransactionSignature,
 } from '@solana/web3.js';
+import { Rpc } from '../rpc';
 
 /** Sends a versioned transaction and confirms it. */
 export async function sendAndConfirmTx(
-    connection: Connection,
+    rpc: Rpc,
     tx: VersionedTransaction,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const txId = await connection.sendTransaction(tx, confirmOptions);
-    const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash(confirmOptions?.commitment);
+    const txId = await rpc.sendTransaction(tx, confirmOptions);
+    const { blockhash, lastValidBlockHeight } = await rpc.getLatestBlockhash(
+        confirmOptions?.commitment,
+    );
     const transactionConfirmationStrategy0: TransactionConfirmationStrategy = {
         signature: txId,
         blockhash,
         lastValidBlockHeight,
     };
-    await connection.confirmTransaction(
+    await rpc.confirmTransaction(
         transactionConfirmationStrategy0,
-        confirmOptions?.commitment || connection.commitment || 'confirmed',
+        confirmOptions?.commitment || rpc.commitment || 'confirmed',
     );
     return txId;
 }
 
 /** @internal */
 export async function confirmTx(
-    connection: Connection,
+    rpc: Rpc,
     txId: string,
     blockHashCtx?: { blockhash: string; lastValidBlockHeight: number },
 ): Promise<RpcResponseAndContext<SignatureResult>> {
-    if (!blockHashCtx) blockHashCtx = await connection.getLatestBlockhash();
+    if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
 
     const transactionConfirmationStrategy: TransactionConfirmationStrategy = {
         signature: txId,
         blockhash: blockHashCtx.blockhash,
         lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
     };
-    const res = await connection.confirmTransaction(
+    const res = await rpc.confirmTransaction(
         transactionConfirmationStrategy,
-        connection.commitment || 'confirmed',
+        rpc.commitment || 'confirmed',
     );
     return res;
 }

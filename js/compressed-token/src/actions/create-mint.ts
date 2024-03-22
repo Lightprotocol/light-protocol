@@ -1,6 +1,5 @@
 import {
     ConfirmOptions,
-    Connection,
     Keypair,
     PublicKey,
     Signer,
@@ -8,14 +7,17 @@ import {
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
 import { MINT_SIZE } from '@solana/spl-token';
-import { sendAndConfirmTx } from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
+import {
+    Rpc,
+    buildAndSignTx,
+    sendAndConfirmTx,
+} from '@lightprotocol/stateless.js';
 import { dedupeSigner } from './common';
 
 /**
  * Create and initialize a new compressed token mint
  *
- * @param connection      Connection to use
+ * @param rpc             RPC to use
  * @param payer           Payer of the transaction and initialization fees
  * @param mintAuthority   Account or multisig that will control minting. Is signer.
  * @param decimals        Location of the decimal place
@@ -25,7 +27,7 @@ import { dedupeSigner } from './common';
  * @return Address of the new mint and the transaction signature
  */
 export async function createMint(
-    connection: Connection,
+    rpc: Rpc,
     payer: Signer,
     mintAuthority: Signer,
     decimals: number,
@@ -33,7 +35,7 @@ export async function createMint(
     confirmOptions?: ConfirmOptions,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
-        await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+        await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
 
     const ixs = await CompressedTokenProgram.createMint({
         feePayer: payer.publicKey,
@@ -44,13 +46,13 @@ export async function createMint(
         rentExemptBalance,
     });
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = await rpc.getLatestBlockhash();
 
     const additionalSigners = dedupeSigner(payer, [mintAuthority, keypair]);
 
     const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
 
-    const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
+    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
     return { mint: keypair.publicKey, transactionSignature: txId };
 }

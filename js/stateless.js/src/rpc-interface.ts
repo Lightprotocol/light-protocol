@@ -24,9 +24,21 @@ import {
     BN254,
     createBN254,
     TlvDataElement_IdlType,
+    CompressedProof_IdlType,
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+// TODO: consistent types
+export type CompressedProofWithContext = {
+    compressedProof: CompressedProof_IdlType;
+    roots: string[];
+    // for now we assume latest root = allLeaves.length
+    rootIndices: number[];
+    leafIndices: number[];
+    leafs: BN[];
+    merkleTree: PublicKey;
+    nullifierQueue: PublicKey;
+};
 export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
 
 export type GetUtxoConfig = {
@@ -210,4 +222,6 @@ export interface CompressionApiInterface {
         owner: PublicKey,
         config?: GetUtxoConfig,
     ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]>;
+
+    getValidityProof(utxoHashes: BN254[]): Promise<CompressedProofWithContext>;
 }

@@ -1,10 +1,10 @@
 import {
-    Connection,
+    ConnectionConfig,
     ParsedMessageAccount,
     ParsedTransactionWithMeta,
     PublicKey,
 } from '@solana/web3.js';
-import { LightWasm, WasmFactory } from '@lightprotocol/account.rs';
+import { LightWasm } from '@lightprotocol/account.rs';
 import {
     defaultStaticAccountsStruct,
     defaultTestStateTreeAccounts,
@@ -12,7 +12,7 @@ import {
 import { parseEvents, parsePublicTransactionEventWithIdl } from './parse-event';
 import { MerkleTree } from './merkle-tree';
 import {
-    CompressionApiInterface,
+    CompressedProofWithContext,
     GetUtxoConfig,
     WithMerkleUpdateContext,
 } from '../rpc-interface';
@@ -33,27 +33,22 @@ import {
     negateAndCompressProof,
     proofFromJsonStruct,
 } from './parse-validity-proof';
+import { Rpc } from '../rpc';
 
-/**
- * Returns a mock rpc instance. use for unit tests
- *
- * @param connection connection to the solana cluster (use for localnet only)
- * @param merkleTreeAddress address of the state tree to index. Defaults to the
- * public default test state tree.
- * @param lightWasm light wasm hasher instance
- */
-export async function getMockRpc(
-    connection: Connection,
-    lightWasm?: LightWasm,
-    merkleTreeAddress?: PublicKey,
-) {
-    if (!lightWasm) lightWasm = await WasmFactory.getInstance();
+function toHex(bnString: string) {
+    return '0x' + new BN(bnString).toString(16);
+}
 
-    return new MockRpc({
-        connection,
-        lightWasm: lightWasm!,
-        merkleTreeAddress,
-    });
+export interface TestRpcConfig {
+    /** Address of the state tree to index. Default: public default test state
+     * tree */
+    merkleTreeAddress?: PublicKey;
+    /** Nullifier queue associated with merkleTreeAddress */
+    nullifierQueueAddress?: PublicKey;
+    /** Depth of state tree. Defaults to the public default test state tree depth */
+    depth?: number;
+    /** Log proof generation time */
+    log?: boolean;
 }
 
 /**
@@ -65,9 +60,8 @@ export async function getMockRpc(
  *
  * For advanced testing use photon: https://github.com/helius-labs/photon
  */
-export class MockRpc implements CompressionApiInterface {
-    indexedTransactions: any[] = [];
-    connection: Connection;
+
+export class TestRpc extends Rpc {
     merkleTreeAddress: PublicKey;
     nullifierQueueAddress: PublicKey;
     lightWasm: LightWasm;
@@ -77,38 +71,32 @@ export class MockRpc implements CompressionApiInterface {
     /**
      * Instantiate a mock RPC simulating the compression rpc interface.
      *
-     * @param connection            connection to the solana cluster (use for
+     * @param endpoint              endpoint to the solana cluster (use for
      *                              localnet only)
-     * @param lightWasm             light wasm hasher instance
-     * @param merkleTreeAddress     address of the state tree to index. Defaults
-     *                              to the public default test state tree.
-     * @param nullifierQueueAddress address of the nullifier queue belonging to
-     *                              the state tree to index. Defaults to the
-     *                              public default test nullifier queue.
-     * @param depth                 depth of tree. Defaults to the public default
-     *                              test state tree depth.
+     * @param hasher                light wasm hasher instance
+     * @param testRpcConfig         Config for the mock rpc
+     * @param proverEndpoint        Optional endpoint to the prover server.
+     *                              defaults to endpoint
+     * @param connectionConfig      Optional connection config
      */
-    constructor({
-        connection,
-        lightWasm,
-        merkleTreeAddress,
-        nullifierQueueAddress,
-        depth,
-        log,
-    }: {
-        connection: Connection;
-        lightWasm: LightWasm;
-        merkleTreeAddress?: PublicKey;
-        nullifierQueueAddress?: PublicKey;
-        depth?: number;
-        log?: boolean;
-    }) {
+    constructor(
+        endpoint: string,
+        hasher: LightWasm,
+        testRpcConfig?: TestRpcConfig,
+        proverEndpoint?: string,
+        connectionConfig?: ConnectionConfig,
+    ) {
+        super(endpoint, proverEndpoint, connectionConfig);
+
+        const { merkleTreeAddress, nullifierQueueAddress, depth, log } =
+            testRpcConfig ?? {};
+
         const { merkleTree, nullifierQueue, merkleTreeHeight } =
             defaultTestStateTreeAccounts();
-        this.connection = connection;
+
+        this.lightWasm = hasher;
         this.merkleTreeAddress = merkleTreeAddress ?? merkleTree;
         this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
-        this.lightWasm = lightWasm;
         this.depth = depth ?? merkleTreeHeight;
         this.log = log ?? false;
     }
@@ -118,19 +106,18 @@ export class MockRpc implements CompressionApiInterface {
      * Returns newest first
      * */
     async getParsedEvents(): Promise<PublicTransactionEvent_IdlType[]> {
-        const { connection } = this;
         const { noopProgram, accountCompressionProgram } =
             defaultStaticAccountsStruct();
 
         /// Get raw transactions
         const signatures = (
-            await connection.getConfirmedSignaturesForAddress2(
+            await this.getConfirmedSignaturesForAddress2(
                 accountCompressionProgram,
                 undefined,
                 'confirmed',
             )
         ).map(s => s.signature);
-        const txs = await connection.getParsedTransactions(signatures, {
+        const txs = await this.getParsedTransactions(signatures, {
             maxSupportedTransactionVersion: 0,
             commitment: 'confirmed',
         });
@@ -428,20 +415,4 @@ export class MockRpc implements CompressionApiInterface {
         };
         return value;
     }
-}
-
-// TODO: consistent types
-type CompressedProofWithContext = {
-    compressedProof: CompressedProof_IdlType;
-    roots: string[];
-    // for now we assume latest root = allLeaves.length
-    rootIndices: number[];
-    leafIndices: number[];
-    leafs: BN[];
-    merkleTree: PublicKey;
-    nullifierQueue: PublicKey;
-};
-
-function toHex(bnString: string) {
-    return '0x' + new BN(bnString).toString(16);
 }

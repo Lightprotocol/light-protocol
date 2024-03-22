@@ -2,25 +2,22 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { CompressedProof_IdlType, Utxo, Utxo_IdlType } from '../../src/state';
 import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
 
-import { Connection, Keypair, Signer } from '@solana/web3.js';
+import { Keypair, Signer } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { createExecuteCompressedInstruction } from '../../src/instruction/pack-nop-instruction';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import {
-    getConnection,
-    getMockRpc,
-    newAccountWithLamports,
-} from '../../src/test-utils';
+import { getTestRpc, newAccountWithLamports } from '../../src/test-utils';
+import { Rpc } from '../../src';
 
 describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
-    let connection: Connection;
+    let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
 
     beforeAll(async () => {
-        connection = getConnection();
-        payer = await newAccountWithLamports(connection);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate();
     });
     // Note:
@@ -62,13 +59,12 @@ describe('transfer', () => {
         const ixs = [ix];
 
         /// Send
-        const { blockhash } = await connection.getLatestBlockhash();
+        const { blockhash } = await rpc.getLatestBlockhash();
         const signedTx = buildAndSignTx(ixs, payer, blockhash);
-        await sendAndConfirmTx(connection, signedTx);
+        await sendAndConfirmTx(rpc, signedTx);
 
-        /// Assert emitted events
-        const mockRpc = await getMockRpc(connection);
-        const indexedEvents = await mockRpc.getParsedEvents();
+        /// @ts-ignore
+        const indexedEvents = await rpc.getParsedEvents();
 
         assert.equal(indexedEvents.length, 1);
         assert.equal(indexedEvents[0].inUtxos.length, 0);

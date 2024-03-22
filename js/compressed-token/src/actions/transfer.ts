@@ -1,24 +1,23 @@
 import {
     ConfirmOptions,
-    Connection,
     PublicKey,
     Signer,
     TransactionSignature,
-    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
     bn,
     defaultTestStateTreeAccounts,
     sendAndConfirmTx,
-    getMockRpc,
+    buildAndSignTx,
+    Rpc,
 } from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
+
 import { BN } from '@coral-xyz/anchor';
 import { createTransferInstruction } from '../instructions';
 import { TokenTransferOutUtxo_IdlType } from '../types';
 import {
     UtxoWithParsedTokenTlvData,
-    getCompressedTokenAccountsFromMockRpc,
+    getCompressedTokenAccountsForTest,
 } from '../get-compressed-token-accounts';
 import { dedupeSigner, getSigners } from './common';
 
@@ -66,7 +65,7 @@ function selectMinCompressedTokenAccountsForTransfer(
 /**
  * Transfer compressed tokens from one owner to another
  *
- * @param connection     Connection to use
+ * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint of the compressed token
  * @param amount         Number of tokens to transfer
@@ -81,23 +80,25 @@ function selectMinCompressedTokenAccountsForTransfer(
  * @return Signature of the confirmed transaction
  */
 export async function transfer(
-    connection: Connection,
+    rpc: Rpc,
     payer: Signer,
     mint: PublicKey,
     amount: number | BN,
     owner: Signer | PublicKey,
     toAddress: PublicKey,
-    /// TODO: pass output state trees.
+    /// TODO: allow multiple
     merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
     multiSigners: Signer[] = [],
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
 
-    amount = bn(amount);
+    if (!(amount instanceof BN)) amount = bn(amount);
 
-    const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
-        connection,
+    /// TODO: refactor RPC and TestRPC to (1)support extensions (2)implement
+    /// token layout, or (3)implement 'getCompressedProgramAccounts'
+    const compressedTokenAccounts = await getCompressedTokenAccountsForTest(
+        rpc,
         currentOwnerPublicKey,
         mint,
     );
@@ -127,8 +128,6 @@ export async function transfer(
         index_mt_account: 0, // FIXME: dynamic!
     };
 
-    const rpc = await getMockRpc(connection);
-
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => account.merkleContext!.hash as BN),
     );
@@ -147,10 +146,10 @@ export async function transfer(
         proof.compressedProof,
     );
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, signers);
     const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
-    const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
+    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
 
     return txId;
 }

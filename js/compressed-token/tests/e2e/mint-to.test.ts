@@ -1,14 +1,15 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { Connection, PublicKey, Signer, Keypair } from '@solana/web3.js';
+import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { createMint, mintTo } from '../../src/actions';
-import { getCompressedTokenAccountsFromMockRpc } from '../../src/get-compressed-token-accounts';
+import { getCompressedTokenAccountsForTest } from '../../src/get-compressed-token-accounts';
 import {
     getTestKeypair,
     newAccountWithLamports,
-    getConnection,
     bn,
     defaultTestStateTreeAccounts,
+    getTestRpc,
+    Rpc,
 } from '@lightprotocol/stateless.js';
 
 /**
@@ -16,13 +17,13 @@ import {
  * recipient
  */
 async function assertMintTo(
-    connection: Connection,
+    rpc: Rpc,
     refMint: PublicKey,
     refAmount: BN,
     refTo: PublicKey,
 ) {
-    const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
-        connection,
+    const compressedTokenAccounts = await getCompressedTokenAccountsForTest(
+        rpc,
         refTo,
         refMint,
     );
@@ -39,7 +40,7 @@ async function assertMintTo(
 const TEST_TOKEN_DECIMALS = 2;
 
 describe('mintTo', () => {
-    let connection: Connection;
+    let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
     let mint: PublicKey;
@@ -47,15 +48,15 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        connection = getConnection();
-        payer = await newAccountWithLamports(connection);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
         mint = (
             await createMint(
-                connection,
+                rpc,
                 payer,
                 mintAuthority,
                 TEST_TOKEN_DECIMALS,
@@ -67,7 +68,7 @@ describe('mintTo', () => {
     it('should mint to bob', async () => {
         const amount = bn(1000);
         await mintTo(
-            connection,
+            rpc,
             payer,
             mint,
             bob.publicKey,
@@ -76,16 +77,16 @@ describe('mintTo', () => {
             [],
         );
 
-        await assertMintTo(connection, mint, amount, bob.publicKey);
+        await assertMintTo(rpc, mint, amount, bob.publicKey);
 
         /// wrong authority
         await expect(
-            mintTo(connection, payer, mint, bob.publicKey, payer, amount, []),
+            mintTo(rpc, payer, mint, bob.publicKey, payer, amount, []),
         ).rejects.toThrowError(/custom program error: 0x7d3/);
 
         /// with output state merkle tree defined
         await mintTo(
-            connection,
+            rpc,
             payer,
             mint,
             bob.publicKey,

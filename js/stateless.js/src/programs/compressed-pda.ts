@@ -85,7 +85,7 @@ export class LightSystemProgram {
         if (!this._program) {
             const mockKeypair = Keypair.generate();
             const mockConnection = new Connection(
-                'http://localhost:8899',
+                'http://127.0.0.1:8899',
                 'confirmed',
             );
             const mockProvider = new AnchorProvider(

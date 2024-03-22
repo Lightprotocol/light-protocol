@@ -1,7 +1,8 @@
 import { Command, Flags } from "@oclif/core";
 import { CustomLoader, getSolanaRpcUrl } from "../../utils/utils";
-import { getCompressedTokenAccountsFromMockRpc } from "@lightprotocol/compressed-token";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { getCompressedTokenAccountsForTest } from "@lightprotocol/compressed-token";
+import { PublicKey } from "@solana/web3.js";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 
 class BalanceCommand extends Command {
   static summary = "Get balance";
@@ -28,9 +29,9 @@ class BalanceCommand extends Command {
     try {
       const refMint = new PublicKey(flags["mint"]);
       const refOwner = new PublicKey(flags["owner"]);
-      const connection = new Connection(getSolanaRpcUrl());
-      const tokenAccounts = await getCompressedTokenAccountsFromMockRpc(
-        connection,
+      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const tokenAccounts = await getCompressedTokenAccountsForTest(
+        rpc,
         refOwner,
         refMint,
       );

@@ -1,7 +1,6 @@
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import {
     Utxo_IdlType,
-    getMockRpc,
     PublicTransactionEvent_IdlType,
     MerkleContext,
     defaultTestStateTreeAccounts,
@@ -11,6 +10,7 @@ import { CompressedTokenProgram } from './program';
 import { TokenTlvData_IdlType } from './types';
 import { WasmFactory } from '@lightprotocol/account.rs';
 import { BN } from '@coral-xyz/anchor';
+import { Rpc, TestRpc } from '@lightprotocol/stateless.js/src';
 
 export type UtxoWithParsedTokenTlvData = {
     utxo: Utxo_IdlType;
@@ -110,19 +110,19 @@ const parseOutUtxos = async (utxos: Utxo_IdlType[], outUtxoIndices: BN[]) => {
 };
 
 /**
- * Retrieve all compressed token accounts for mint by owner
- * @param connection    Connection to use
- * @param owner         Publickey of the compressed token owner
- * @param mint          Mint of the compressed token account
+ * Retrieves all compressed token accounts for a given mint and owner.
+ *
+ * Note: This function is intended for testing purposes only. For production, use rpc.getCompressedTokenAccounts.
+ *
+ * @param events    Public transaction events
+ * @param owner     PublicKey of the token owner
+ * @param mint      PublicKey of the token mint
  */
-export async function getCompressedTokenAccountsFromMockRpc(
-    connection: Connection,
+export async function getCompressedTokenAccounts(
+    events: PublicTransactionEvent_IdlType[],
     owner: PublicKey,
     mint: PublicKey,
 ): Promise<UtxoWithParsedTokenTlvData[]> {
-    const rpc = await getMockRpc(connection);
-    const events = await rpc.getParsedEvents();
-
     const eventsWithParsedTokenTlvData = await Promise.all(
         events.map(event => parseEventWithTokenTlvData(event)),
     );
@@ -149,4 +149,20 @@ export async function getCompressedTokenAccountsFromMockRpc(
         utxo =>
             utxo.parsed.owner.equals(owner) && utxo.parsed.mint.equals(mint),
     );
+}
+
+/** @internal */
+export async function getCompressedTokenAccountsForTest(
+    rpc: Rpc,
+    refSender: PublicKey,
+    refMint: PublicKey,
+) {
+    // @ts-ignore
+    const events = await rpc.getParsedEvents();
+    const compressedTokenAccounts = await getCompressedTokenAccounts(
+        events,
+        refSender,
+        refMint,
+    );
+    return compressedTokenAccounts;
 }

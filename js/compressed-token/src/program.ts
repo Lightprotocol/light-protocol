@@ -1,17 +1,15 @@
 import {
     PublicKey,
     Keypair,
-    Connection,
     TransactionInstruction,
     SystemProgram,
+    Connection,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, PspCompressedToken } from './idl/psp_compressed_token';
 import {
     LightSystemProgram,
     PublicTransactionEvent_IdlType,
-    UtxoWithMerkleContext,
-    UtxoWithMerkleProof,
     bn,
     confirmConfig,
     defaultStaticAccountsStruct,
@@ -92,7 +90,10 @@ export class CompressedTokenProgram {
             /// We can use a mock connection because we're using the program only for
             /// serde and building instructions, not for interacting with the network.
             const mockKeypair = Keypair.generate();
-            const mockConnection = getConnection();
+            const mockConnection = new Connection(
+                'http://127.0.0.1:8899',
+                'confirmed',
+            );
             const mockProvider = new AnchorProvider(
                 mockConnection,
                 useWallet(mockKeypair),

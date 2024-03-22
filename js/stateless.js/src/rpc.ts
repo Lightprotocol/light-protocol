@@ -5,6 +5,7 @@ import {
     PublicKey,
 } from '@solana/web3.js';
 import {
+    CompressedProofWithContext,
     CompressionApiInterface,
     GetUtxoConfig,
     MerkleProofResult,
@@ -29,9 +30,9 @@ export function createRpc(
     config?: ConnectionConfig,
 ): Rpc {
     if (typeof endpointOrWeb3JsConnection === 'string') {
-        return new Rpc(endpointOrWeb3JsConnection, config);
+        return new Rpc(endpointOrWeb3JsConnection, undefined, config);
     }
-    return new Rpc(endpointOrWeb3JsConnection.rpcEndpoint, config);
+    return new Rpc(endpointOrWeb3JsConnection.rpcEndpoint, undefined, config);
 }
 
 const rpcRequest = async (
@@ -65,8 +66,13 @@ const rpcRequest = async (
 };
 
 export class Rpc extends Connection implements CompressionApiInterface {
-    constructor(endpoint: string, config?: ConnectionConfig) {
-        super(endpoint, config);
+    constructor(
+        endpoint: string,
+        // TODO: implement
+        proverEndpoint?: string,
+        config?: ConnectionConfig,
+    ) {
+        super(endpoint, config || 'confirmed');
     }
 
     /** Retrieve a utxo with context */
@@ -192,5 +198,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 return { context, value };
             });
         return utxosWithMerkleContext;
+    }
+    async getValidityProof(
+        /// TODO: Implement
+        utxoHashes: BN254[],
+    ): Promise<CompressedProofWithContext> {
+        throw new Error('Method not implemented.');
     }
 }

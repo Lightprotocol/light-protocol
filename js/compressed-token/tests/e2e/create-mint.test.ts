@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll, assert } from 'vitest';
 import { CompressedTokenProgram } from '../../src/program';
-import { Connection, PublicKey, Signer, Keypair } from '@solana/web3.js';
+import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
 import {
-    getConnection,
+    Rpc,
+    getTestRpc,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
 
@@ -15,11 +16,11 @@ import {
 async function assertCreateMint(
     mint: PublicKey,
     authority: PublicKey,
-    connection: Connection,
+    rpc: Rpc,
     decimals: number,
     poolAccount: PublicKey,
 ) {
-    const mintAcc = await connection.getAccountInfo(mint);
+    const mintAcc = await rpc.getAccountInfo(mint);
     const unpackedMint = unpackMint(mint, mintAcc);
 
     const mintAuthority = CompressedTokenProgram.deriveMintAuthorityPda(
@@ -37,7 +38,7 @@ async function assertCreateMint(
     expect(unpackedMint.tlvData.length).toBe(0);
 
     /// Pool (omnibus) account is a regular SPL Token account
-    const poolAccountInfo = await connection.getAccountInfo(poolAccount);
+    const poolAccountInfo = await rpc.getAccountInfo(poolAccount);
     const unpackedPoolAccount = unpackAccount(poolAccount, poolAccountInfo);
     expect(unpackedPoolAccount.mint.equals(mint)).toBe(true);
     expect(unpackedPoolAccount.amount).toBe(0n);
@@ -47,14 +48,14 @@ async function assertCreateMint(
 
 const TEST_TOKEN_DECIMALS = 2;
 describe('createMint', () => {
-    let connection: Connection;
+    let rpc: Rpc;
     let payer: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        connection = getConnection();
-        payer = await newAccountWithLamports(connection);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc);
     });
 
     it('should create mint', async () => {
@@ -63,7 +64,7 @@ describe('createMint', () => {
 
         mint = (
             await createMint(
-                connection,
+                rpc,
                 payer,
                 mintAuthority,
                 TEST_TOKEN_DECIMALS,
@@ -77,7 +78,7 @@ describe('createMint', () => {
         await assertCreateMint(
             mint,
             mintAuthority.publicKey,
-            connection,
+            rpc,
             TEST_TOKEN_DECIMALS,
             poolAccount,
         );
@@ -85,7 +86,7 @@ describe('createMint', () => {
         /// Mint already exists
         await expect(
             createMint(
-                connection,
+                rpc,
                 payer,
                 mintAuthority,
                 TEST_TOKEN_DECIMALS,
@@ -97,7 +98,7 @@ describe('createMint', () => {
     it('should create mint with payer as authority', async () => {
         mint = (
             await createMint(
-                connection,
+                rpc,
                 payer,
                 payer,
                 TEST_TOKEN_DECIMALS,
@@ -110,7 +111,7 @@ describe('createMint', () => {
         await assertCreateMint(
             mint,
             payer.publicKey,
-            connection,
+            rpc,
             TEST_TOKEN_DECIMALS,
             poolAccount,
         );
