@@ -1,9 +1,9 @@
 import { Program, AnchorProvider, setProvider, BN } from '@coral-xyz/anchor';
 import { PublicKey, Keypair, Connection } from '@solana/web3.js';
 import { IDL, PspCompressedPda } from '../idls/psp_compressed_pda';
-import { confirmConfig } from '../constants';
 import { useWallet } from '../wallet';
-import { UtxoWithMerkleContext, UtxoWithMerkleProof, bn } from '../state';
+import { bn } from '../state/BN254';
+import { UtxoWithMerkleContext, UtxoWithMerkleProof } from '../state/utxo';
 
 /// TODO: add transfer
 export class LightSystemProgram {
@@ -42,7 +42,10 @@ export class LightSystemProgram {
             const mockProvider = new AnchorProvider(
                 mockConnection,
                 useWallet(mockKeypair),
-                confirmConfig,
+                {
+                    commitment: 'confirmed',
+                    preflightCommitment: 'confirmed',
+                },
             );
             setProvider(mockProvider);
             this._program = new Program(IDL, this.programId, mockProvider);

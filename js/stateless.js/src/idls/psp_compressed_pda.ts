@@ -84,57 +84,6 @@ export type PspCompressedPda = {
                 ];
             };
         },
-        {
-            name: 'instructionDataTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccount';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ];
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
     ];
     types: [
         {
@@ -286,6 +235,58 @@ export type PspCompressedPda = {
                         name: 'message';
                         type: {
                             option: 'bytes';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'InstructionDataTransfer';
+            docs: ['(swen): as type into IDL'];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'inputRootIndices';
+                        type: {
+                            vec: 'u16';
+                        };
+                    },
+                    {
+                        name: 'inputCompressedAccountsWithMerkleContext';
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccountWithMerkleContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputCompressedAccounts';
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccount';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputStateMerkleTreeAccountIndices';
+                        docs: [
+                            'The indices of the accounts in the output state merkle tree.',
+                        ];
+                        type: 'bytes';
+                    },
+                    {
+                        name: 'relayFee';
+                        type: {
+                            option: 'u64';
                         };
                     },
                 ];
@@ -498,57 +499,6 @@ export const IDL: PspCompressedPda = {
                 ],
             },
         },
-        {
-            name: 'instructionDataTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccount',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ],
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
-        },
     ],
     types: [
         {
@@ -700,6 +650,58 @@ export const IDL: PspCompressedPda = {
                         name: 'message',
                         type: {
                             option: 'bytes',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'InstructionDataTransfer',
+            docs: ['(swen): as type into IDL'],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'inputRootIndices',
+                        type: {
+                            vec: 'u16',
+                        },
+                    },
+                    {
+                        name: 'inputCompressedAccountsWithMerkleContext',
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccountWithMerkleContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputCompressedAccounts',
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccount',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputStateMerkleTreeAccountIndices',
+                        docs: [
+                            'The indices of the accounts in the output state merkle tree.',
+                        ],
+                        type: 'bytes',
+                    },
+                    {
+                        name: 'relayFee',
+                        type: {
+                            option: 'u64',
                         },
                     },
                 ],

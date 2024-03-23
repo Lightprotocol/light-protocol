@@ -1,5 +1,5 @@
 import { Buffer } from 'buffer';
-import { bn, createBN254 } from '../state';
+import { bn, createBN254 } from '../state/BN254';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair } from '@solana/web3.js';
