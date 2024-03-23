@@ -163,8 +163,10 @@ pub struct CpiSignatureAccount {
     pub signatures: Vec<InstructionDataTransfer>,
 }
 
-#[derive(Debug)]
-#[account]
+/// (swen): as type into IDL
+// #[account]
+// #[derive(Debug)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub input_root_indices: Vec<u16>,
@@ -174,6 +176,7 @@ pub struct InstructionDataTransfer {
     pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub relay_fee: Option<u64>,
 }
+
 
 // TODO: refactor to compressed_account
 // #[derive(Debug)]

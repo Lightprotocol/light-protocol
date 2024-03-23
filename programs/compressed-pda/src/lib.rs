@@ -70,9 +70,13 @@ pub mod psp_compressed_pda {
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<crate::event::PublicTransactionEvent> {
+        // TODO: confirm this.
+        // Note: using AnchorDeserialize which is eq to Account.try_deserialize_unchecked
+        // No need for discriminator padding
         msg!("execute_compressed_transaction");
-        let inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
-            &mut [vec![0u8; 8], inputs].concat().as_slice(),
+        let inputs: InstructionDataTransfer = InstructionDataTransfer::deserialize(
+            // &mut [vec![0u8; 8], inputs].concat().as_slice(),
+            &mut inputs.as_slice(),
         )?;
         msg!("deserialized inputs");
         process_execute_compressed_transaction(&inputs, &ctx)
@@ -84,7 +88,7 @@ pub mod psp_compressed_pda {
     //     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     //     inputs: Vec<u8>,
     // ) -> Result<crate::event::PublicTransactionEvent> {
-    //     let inputs: InstructionDataTransfer2 = InstructionDataTransfer2::try_deserialize_unchecked(
+    //     let inputs: InstructionDataTransfer2 = InstructionDataTransfer2::try_deserialize_unchecked(ok
     //         &mut [vec![0u8; 8], inputs].concat().as_slice(),
     //     )?;
     //     let inputs = into_inputs(
