@@ -34,7 +34,8 @@
     "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
     "build:bundle": "rollup -c --bundleConfigAsCjs",
     "format": "prettier --write .",
-    "lint": "eslint ."
+    "lint": "eslint . && pnpm check-circular-deps",
+    "check-circular-deps": "madge src/**.ts -c"
   },
   "keywords": [
     "zk",

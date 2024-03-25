@@ -41,7 +41,7 @@
     "test-wasm": "cd zk-rs && cargo test -- --nocapture",
     "bench-blake": "node_modules/.bin/tsx ./benches/blake.test.ts",
     "bench-poseidon": "node_modules/.bin/tsx ./benches/poseidon.test.ts",
-    "bench": "pnpm run bench-blake && pnpm run bench-poseidon"
+    "bench": "pnpm run bench-blake && pnpm run bench-poseidon",
   },
   "devDependencies": {
     "@coral-xyz/anchor": "0.28.0",
