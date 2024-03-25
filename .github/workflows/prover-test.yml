@@ -18,6 +18,10 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version-file: './gnark-prover/go.mod'
+      - name: Download prover keys
+        run: |
+          cd gnark-prover
+          ./scripts/download_keys.sh
       - name: Build
         run: |
           cd gnark-prover
