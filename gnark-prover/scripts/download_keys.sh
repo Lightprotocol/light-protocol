@@ -26,5 +26,17 @@ for FILE in "${FILES[@]}"
 do
   URL="https://${BUCKET}.ipfs.w3s.link/${FILE}"
   echo "Downloading" "$URL"
-  curl "$URL" -o "$KEYS_DIR/$FILE"
+  MAX_RETRIES=5
+  attempt=0
+  while ! curl -s -o "$KEYS_DIR/$FILE" "$URL" && (( attempt < MAX_RETRIES )); do
+    echo "Download failed for $FILE (attempt $((attempt + 1))). Retrying..."
+    sleep 2
+    ((attempt++))
+  done
+  if (( attempt == MAX_RETRIES )); then
+    echo "Failed to download $FILE after multiple retries."
+    exit 1
+  else
+    echo "$FILE downloaded successfully"
+  fi
 done
