@@ -1,7 +1,7 @@
 import { MerkleTree } from "../src";
 import { readFileSync, writeFileSync } from "fs";
 import { BN } from "@coral-xyz/anchor";
-import { WasmFactory } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 const snarkjs = require("snarkjs");
 

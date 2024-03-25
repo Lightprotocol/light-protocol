@@ -1,5 +1,5 @@
 {
-  "name": "@lightprotocol/account.rs",
+  "name": "@lightprotocol/hasher.rs",
   "version": "0.1.0",
   "description": "",
   "keywords": [],
@@ -20,8 +20,8 @@
       "import": "./dist/browser-slim/es/index_browser_slim.js",
       "default": "./dist/browser-slim/cjs/index_browser_slim.cjs"
     },
-    "./sisd.wasm": "./dist/account_wasm_bg.wasm",
-    "./simd.wasm": "./dist/account_wasm_simd_bg.wasm",
+    "./sisd.wasm": "./dist/hasher_wasm_bg.wasm",
+    "./simd.wasm": "./dist/hasher_wasm_simd_bg.wasm",
     "./package.json": "./package.json"
   },
   "types": "./dist/types/main/index_browser_fat.d.ts",
@@ -31,7 +31,7 @@
   "scripts": {
     "build:wasm": "wasm-pack build -t web --out-dir ../main/wasm src/wasm",
     "build:wasm-simd": "RUSTFLAGS='-C target-feature=+simd128' npm run build:wasm-simd-ci",
-    "build:wasm-simd-ci": "wasm-pack build -t web --out-name account_wasm_simd --out-dir ../main/wasm-simd src/wasm",
+    "build:wasm-simd-ci": "wasm-pack build -t web --out-name hasher_wasm_simd --out-dir ../main/wasm-simd src/wasm",
     "build:bundle": "rollup -c --bundleConfigAsCjs",
     "build": "rm -rf dist/ && pnpm build:wasm && pnpm build:wasm-simd && pnpm build:bundle",
     "test": "pnpm test:native",

@@ -1,8 +1,6 @@
 import { blake2b } from "@noble/hashes/blake2b";
 import { WasmFactory } from "..";
 import {BN} from "@coral-xyz/anchor";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { Account as AccountWasm } from "../src/main/wasm/account_wasm";
 
 function isNode() {
     return (
@@ -12,7 +10,7 @@ function isNode() {
     );
 }
 
-describe("Test Account Functional", () => {
+describe("Test hasher", () => {
 
     beforeEach(() => {
         WasmFactory.resetModule();
@@ -24,19 +22,6 @@ describe("Test Account Functional", () => {
         } else {
             expect(WasmFactory.name).toContain("WasmAccountHash");
         }
-    });
-
-    it("test account", async () => {
-        const seed32 = (): string => {
-            return bs58.encode(new Uint8Array(32).fill(1));
-        };
-
-        const mod = await WasmFactory.loadModule();
-        const hash = mod.create();
-
-        const account: AccountWasm = hash.seedAccount(seed32());
-        const account2: AccountWasm = hash.seedAccount(seed32());
-        expect(account2.getPrivateKey()).toEqual(account.getPrivateKey());
     });
 
     it("Test poseidon216", async () => {

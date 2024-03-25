@@ -69,7 +69,7 @@ runs:
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        npx nx build @lightprotocol/account.rs
+        npx nx build @lightprotocol/hasher.rs
 
     - name: Check for git changes
       shell: bash

@@ -1,7 +1,7 @@
-account.rs/ @sergeytimoshin
 assets/ @SwenSchaeferjohann
 circuit-lib/ @ananas-block @sergeytimoshin
 cli/ @ananas-block @sergeytimoshin
+hasher.rs/ @sergeytimoshin
 macro-circom/ @ananas-block
 macros/ @vadorovsky
 merkle-tree/ @ananas-block @vadorovsky

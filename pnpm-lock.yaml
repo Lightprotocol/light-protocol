@@ -33,79 +33,6 @@ importers:
         specifier: 5.3.2
         version: 5.3.2
 
-  account.rs:
-    devDependencies:
-      '@coral-xyz/anchor':
-        specifier: 0.28.0
-        version: 0.28.0
-      '@lightprotocol/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@noble/hashes':
-        specifier: ^1.3.2
-        version: 1.3.2
-      '@rollup/plugin-typescript':
-        specifier: ^11.1.5
-        version: 11.1.5(rollup@4.6.1)(tslib@2.6.2)(typescript@5.3.2)
-      '@rollup/plugin-wasm':
-        specifier: ^6.2.2
-        version: 6.2.2(rollup@4.6.1)
-      '@types/chai':
-        specifier: ^4.3.9
-        version: 4.3.9
-      '@types/mocha':
-        specifier: ^10.0.3
-        version: 10.0.3
-      '@vitest/browser':
-        specifier: ^0.34.6
-        version: 0.34.6(esbuild@0.18.20)(rollup@4.6.1)(vitest@0.34.6)
-      chai:
-        specifier: ^4.3.10
-        version: 4.3.10
-      chai-as-promised:
-        specifier: ^7.1.1
-        version: 7.1.1(chai@4.3.10)
-      circomlibjs:
-        specifier: ^0.1.7
-        version: 0.1.7
-      ffjavascript:
-        specifier: ^0.2.62
-        version: 0.2.62
-      mocha:
-        specifier: ^10.2.0
-        version: 10.2.0
-      playwright:
-        specifier: ^1.40.1
-        version: 1.40.1
-      rollup:
-        specifier: ^4.6.1
-        version: 4.6.1
-      tinybench:
-        specifier: ^2.5.1
-        version: 2.5.1
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@10.2.0)
-      ts-node:
-        specifier: ^10.9.1
-        version: 10.9.1(@types/node@20.10.4)(typescript@5.3.2)
-      tsx:
-        specifier: ^4.1.2
-        version: 4.1.2
-      tweetnacl:
-        specifier: ^1.0.3
-        version: 1.0.3
-      vite-plugin-env-compatible:
-        specifier: ^1.1.1
-        version: 1.1.1
-      vitest:
-        specifier: ^0.34.6
-        version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
-
-  account.rs/src/main/wasm: {}
-
-  account.rs/src/main/wasm-simd: {}
-
   circuit-lib/circuit-lib.circom:
     devDependencies:
       '@coral-xyz/anchor':
@@ -165,9 +92,9 @@ importers:
 
   circuit-lib/circuit-lib.js:
     dependencies:
-      '@lightprotocol/account.rs':
+      '@lightprotocol/hasher.rs':
         specifier: workspace:*
-        version: link:../../account.rs
+        version: link:../../hasher.rs
       '@noble/curves':
         specifier: ^1.2.0
         version: 1.2.0
@@ -238,12 +165,12 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.28.0
         version: 0.28.0
-      '@lightprotocol/account.rs':
-        specifier: workspace:*
-        version: link:../account.rs
       '@lightprotocol/compressed-token':
         specifier: workspace:*
         version: link:../js/compressed-token
+      '@lightprotocol/hasher.rs':
+        specifier: workspace:*
+        version: link:../hasher.rs
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../js/stateless.js
@@ -384,14 +311,87 @@ importers:
         specifier: 5.3.2
         version: 5.3.2
 
+  hasher.rs:
+    devDependencies:
+      '@coral-xyz/anchor':
+        specifier: 0.28.0
+        version: 0.28.0
+      '@lightprotocol/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@noble/hashes':
+        specifier: ^1.3.2
+        version: 1.3.2
+      '@rollup/plugin-typescript':
+        specifier: ^11.1.5
+        version: 11.1.5(rollup@4.6.1)(tslib@2.6.2)(typescript@5.3.2)
+      '@rollup/plugin-wasm':
+        specifier: ^6.2.2
+        version: 6.2.2(rollup@4.6.1)
+      '@types/chai':
+        specifier: ^4.3.9
+        version: 4.3.9
+      '@types/mocha':
+        specifier: ^10.0.3
+        version: 10.0.3
+      '@vitest/browser':
+        specifier: ^0.34.6
+        version: 0.34.6(esbuild@0.18.20)(rollup@4.6.1)(vitest@0.34.6)
+      chai:
+        specifier: ^4.3.10
+        version: 4.3.10
+      chai-as-promised:
+        specifier: ^7.1.1
+        version: 7.1.1(chai@4.3.10)
+      circomlibjs:
+        specifier: ^0.1.7
+        version: 0.1.7
+      ffjavascript:
+        specifier: ^0.2.62
+        version: 0.2.62
+      mocha:
+        specifier: ^10.2.0
+        version: 10.2.0
+      playwright:
+        specifier: ^1.40.1
+        version: 1.40.1
+      rollup:
+        specifier: ^4.6.1
+        version: 4.6.1
+      tinybench:
+        specifier: ^2.5.1
+        version: 2.5.1
+      ts-mocha:
+        specifier: ^10.0.0
+        version: 10.0.0(mocha@10.2.0)
+      ts-node:
+        specifier: ^10.9.1
+        version: 10.9.1(@types/node@20.10.4)(typescript@5.3.2)
+      tsx:
+        specifier: ^4.1.2
+        version: 4.1.2
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
+      vite-plugin-env-compatible:
+        specifier: ^1.1.1
+        version: 1.1.1
+      vitest:
+        specifier: ^0.34.6
+        version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
+
+  hasher.rs/src/main/wasm: {}
+
+  hasher.rs/src/main/wasm-simd: {}
+
   js/compressed-token:
     dependencies:
       '@coral-xyz/anchor':
         specifier: 0.28.0
         version: 0.28.0
-      '@lightprotocol/account.rs':
+      '@lightprotocol/hasher.rs':
         specifier: workspace:*
-        version: link:../../account.rs
+        version: link:../../hasher.rs
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
@@ -474,9 +474,9 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.29.0
         version: 0.29.0
-      '@lightprotocol/account.rs':
+      '@lightprotocol/hasher.rs':
         specifier: workspace:*
-        version: link:../../account.rs
+        version: link:../../hasher.rs
       '@lightprotocol/prover.js':
         specifier: workspace:*
         version: link:../../prover.js
@@ -589,9 +589,9 @@ importers:
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.18.20)
-      '@lightprotocol/account.rs':
+      '@lightprotocol/hasher.rs':
         specifier: workspace:*
-        version: link:../account.rs
+        version: link:../hasher.rs
       '@lightprotocol/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

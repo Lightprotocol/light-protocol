@@ -1,5 +1,5 @@
 import { MerkleTree } from "../src";
-import { WasmFactory } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 import axios from "axios";
 import { BN } from "@coral-xyz/anchor";
 import { assert } from "chai";

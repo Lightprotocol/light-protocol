@@ -1,4 +1,4 @@
-import { LightWasm } from '@lightprotocol/account.rs';
+import { LightWasm } from '@lightprotocol/hasher.rs';
 
 export const DEFAULT_ZERO = '0';
 
