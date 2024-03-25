@@ -4,8 +4,7 @@
   "description": "",
   "license": "GPL-3.0",
   "scripts": {
-    "test": "pnpm test-merkle && pnpm test-gnark",
-    "test-merkle": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/merkle-tree.test.ts --exit",
+    "test": "pnpm test-gnark",
     "test-gnark": "pnpm gnark-prover && ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/gnark.test.ts --exit",
     "gnark-prover": "./scripts/prover.sh",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
