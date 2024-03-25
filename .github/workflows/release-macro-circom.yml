@@ -19,7 +19,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          lfs: true
           submodules: true
 
       - name: Install Rust toolchain
@@ -67,7 +66,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          lfs: true
           submodules: true
 
       - name: Install Rust toolchain
