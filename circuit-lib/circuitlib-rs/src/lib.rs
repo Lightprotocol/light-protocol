@@ -1,4 +1,3 @@
-pub mod arkworks_prover;
 pub mod errors;
 #[cfg(feature = "gnark")]
 pub mod gnark;
