@@ -36,26 +36,6 @@ available [here](https://github.com/Lightprotocol/breakpoint-workshop).
 
 Otherwise, to work with this Monorepo, read below:
 
-## Git Large File Storage (LFS)
-
-This project uses Git LFS to manage and version large files. Before you can clone the project and fetch all the
-necessary data, you need to install and configure Git LFS on your machine.
-
-If you already have Git installed, run the following command:
-
-```
-git lfs install
-```
-
-To verify that Git LFS is properly configured, use:
-
-```
-git lfs env
-```
-
-The output should show that Git LFS is installed and configured correctly. After setting up Git LFS, you can proceed to
-clone the project.
-
 ## Development environment
 
 There are three ways of setting up the development environment:

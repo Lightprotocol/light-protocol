@@ -11,7 +11,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
-          lfs: true
           submodules: true
 
       - name: Set up Go
