@@ -1,11 +1,5 @@
-import {
-  ADMIN_AUTH_KEY,
-  ADMIN_AUTH_KEYPAIR,
-  airdropSol,
-  sleep,
-} from "@lightprotocol/zk.js";
-import { setAnchorProvider, setRpcRecipient } from "./utils";
-import { Keypair } from "@solana/web3.js";
+import { airdropSol, sleep } from "@lightprotocol/stateless.js";
+import { getPayer, setAnchorProvider } from "./utils";
 import {
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
   SPL_NOOP_PROGRAM_TAG,
@@ -32,27 +26,12 @@ export async function initTestEnv({
   const initAccounts = async () => {
     await sleep(10000);
     const anchorProvider = await setAnchorProvider();
+    const payer = await getPayer();
     await airdropSol({
       connection: anchorProvider.connection,
       lamports: 100e9,
-      recipientPublicKey: ADMIN_AUTH_KEYPAIR.publicKey,
+      recipientPublicKey: payer.publicKey,
     });
-
-    // leaving this here for now maybe we can use it for
-    // await createTestAccounts(anchorProvider.connection);
-
-    // const lookupTable = await initLookUpTableFromFile(anchorProvider);
-
-    // setLookUpTable(lookupTable.toString());
-
-    const rpcRecipientSol = Keypair.generate().publicKey;
-
-    setRpcRecipient(rpcRecipientSol.toString());
-
-    await anchorProvider.connection.requestAirdrop(
-      rpcRecipientSol,
-      2_000_000_000,
-    );
   };
   initAccounts();
   if (!background) {
@@ -73,7 +52,8 @@ export async function initTestEnvIfNeeded({
   try {
     const anchorProvider = await setAnchorProvider();
     // this request will fail if there is no local test validator running
-    await anchorProvider.connection.getBalance(ADMIN_AUTH_KEY);
+    const payer = await getPayer();
+    await anchorProvider.connection.getBalance(payer.publicKey);
   } catch (error) {
     // launch local test validator and initialize test environment
     await initTestEnv({

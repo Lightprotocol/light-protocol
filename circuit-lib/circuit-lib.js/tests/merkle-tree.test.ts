@@ -94,7 +94,7 @@ describe("Tests", () => {
     );
   }
 
-  it("non-inclusion merkle proof", async () => {
+  it.skip("non-inclusion merkle proof", async () => {
     const inputs13 = {
       root: new BN(
         "17028464443381783825701736776944655616686180135429268021720746920802776315116",

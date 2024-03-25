@@ -9,27 +9,6 @@ describe("config", () => {
   });
   test
     .stdout()
-    .command(["config", "--rpcUrl=http://localhost:3332"])
-    .it("runs rpc url update cmd", (ctx) => {
-      expect(ctx.stdout).to.contain(
-        "Configuration values updated successfully",
-      );
-    });
-
-  test
-    .stdout()
-    .command([
-      "config",
-      "--secretKey=LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8",
-    ])
-    .it("runs user update cmd", (ctx) => {
-      expect(ctx.stdout).to.contain(
-        "Configuration values updated successfully",
-      );
-    });
-
-  test
-    .stdout()
     .command(["config", "--solanaRpcUrl=http://127.0.0.1:8899"])
     .it("runs solana rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
@@ -46,8 +25,6 @@ describe("config with env variable", () => {
     process.env.LIGHT_PROTOCOL_CONFIG = filePath;
     let data = {
       ...DEFAULT_CONFIG,
-      secretKey:
-        "LsYPAULcTDhjnECes7qhwAdeEUVYgbpX5ri5zijUceTQXCwkxP94zKdG4pmDQmicF7Zbj1AqB44t8qfGE8RuUk8",
     };
 
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));

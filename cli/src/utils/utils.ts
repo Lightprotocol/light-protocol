@@ -1,25 +1,16 @@
 import * as fs from "fs";
+import { existsSync } from "fs";
 import * as path from "path";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
-const spinner = require("cli-spinners");
-import { BN } from "@coral-xyz/anchor";
-import {
-  confirmConfig,
-  Provider,
-  Rpc,
-  RPC_FEE,
-  TestRpc,
-  TOKEN_ACCOUNT_FEE,
-} from "@lightprotocol/zk.js";
+import { Keypair } from "@solana/web3.js";
+import { confirmConfig } from "@lightprotocol/stateless.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
-import { Keypair } from "@solana/web3.js";
+import { getKeypairFromFile } from "@solana-developers/helpers";
+import spinner from "cli-spinners";
 
 require("dotenv").config();
-
-let provider: Provider;
-let rpc: Rpc;
 
 export const defaultSolanaWalletKeypair = (): Keypair => {
   const walletPath = process.env.HOME + "/.config/solana/id.json";
@@ -32,24 +23,14 @@ export const defaultSolanaWalletKeypair = (): Keypair => {
   }
 };
 
-export const readWalletFromFile = () => {
-  try {
-    const secretKey = bs58.decode(getSecretKey());
-    const keypair = solana.Keypair.fromSecretKey(new Uint8Array(secretKey));
-
-    return keypair;
-  } catch (error) {
-    throw new Error("Secret key not found or corrupted!");
-  }
-};
-
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
-  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+  process.env.ANCHOR_WALLET = getWalletPath();
   process.env.ANCHOR_PROVIDER_URL = getSolanaRpcUrl();
   const connection = new solana.Connection(getSolanaRpcUrl(), "confirmed");
+  const payer = await getPayer();
   const anchorProvider = new anchor.AnchorProvider(
     connection,
-    new anchor.Wallet(getPayer()),
+    new anchor.Wallet(payer),
     confirmConfig,
   );
 
@@ -57,114 +38,30 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   return anchorProvider;
 };
 
-export const getLightProvider = async (localTestRpc?: boolean) => {
-  if (!provider) {
-    const rpc = await getRpc(localTestRpc);
+function getWalletPath(): string {
+  return process.env.HOME + "/.config/solana/id.json";
+}
 
-    await setAnchorProvider();
-
-    provider = await Provider.init({
-      wallet: readWalletFromFile(),
-      rpc,
-      url: getSolanaRpcUrl(),
-      confirmConfig,
-      versionedTransactionLookupTable: getLookUpTable(),
-    });
-    return provider;
-  }
-  return provider;
-};
+export async function getPayer() {
+  return await getKeypairFromFile(getWalletPath());
+}
 
 export function generateSolanaTransactionURL(
   transactionType: "tx" | "address",
   transactionHash: string,
   cluster: string,
 ): string {
-  const url = `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
-  return url;
+  return `https://explorer.solana.com/${transactionType}/${transactionHash}?cluster=${cluster}`;
 }
-
-/** TODO: use non-local testrpc once we have a proper one */
-export const getRpc = async (localTestRpc?: boolean) => {
-  if (!rpc) {
-    if (localTestRpc) {
-      const wallet = readWalletFromFile();
-
-      rpc = new TestRpc({
-        rpcPubkey: wallet.publicKey,
-        rpcRecipientSol: wallet.publicKey,
-        rpcFee: RPC_FEE,
-        highRpcFee: TOKEN_ACCOUNT_FEE,
-        payer: wallet,
-        connection: new solana.Connection(getSolanaRpcUrl(), "confirmed"),
-        lightWasm: (await getLightProvider()).lightWasm,
-      });
-      return rpc;
-    } else {
-      const config = getConfig();
-      rpc = new Rpc({
-        rpcPubkey: new solana.PublicKey(config.rpcPublicKey),
-        rpcRecipientSol: new solana.PublicKey(config.rpcRecipient),
-        rpcFee: new BN(config.rpcFee),
-        highRpcFee: new BN(config.highRpcFee),
-        url: config.rpcUrl,
-      });
-    }
-  }
-  return rpc;
-};
 
 type Config = {
   solanaRpcUrl: string;
-  rpcUrl: string;
-  secretKey: string;
-  rpcRecipient: string;
-  rpcPublicKey: string;
-  rpcFee: string;
-  highRpcFee: string;
-  payer: string;
-  lookUpTable: string;
 };
 
 export const getSolanaRpcUrl = (): string => {
   const config = getConfig();
   return config.solanaRpcUrl;
 };
-
-export const getRpcUrl = (): string => {
-  const config = getConfig();
-  return config.rpcUrl;
-};
-
-export const getSecretKey = () => {
-  const config = getConfig();
-  return config.secretKey;
-};
-
-export const setRpcRecipient = (address: string) => {
-  setConfig({ rpcRecipient: address });
-};
-
-export const getLookUpTable = () => {
-  const config = getConfig();
-
-  if (config.solanaRpcUrl.includes(":8899")) {
-    console.log("CLI on localhost: creating new LookUpTable");
-    return undefined;
-  }
-  return new solana.PublicKey(config.lookUpTable);
-};
-
-export const getPayer = () => {
-  const secretKey = bs58.decode(getSecretKey());
-
-  const asUint8Array: Uint8Array = new Uint8Array(secretKey);
-  const keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
-
-  return keypair;
-};
-
-import { existsSync } from "fs";
 
 function getConfigPath(): string {
   // Check for the environment variable
@@ -182,9 +79,7 @@ function getConfigPath(): string {
   }
 
   // Default path
-  const defaultConfigPath = process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
-
-  return defaultConfigPath;
+  return process.env.HOME + CONFIG_PATH + CONFIG_FILE_NAME;
 }
 
 export const getConfig = (filePath?: string): Config => {

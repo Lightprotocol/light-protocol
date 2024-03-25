@@ -38,10 +38,6 @@
 **/yarn-error.log
 
 **/lookUpTable.txt
-# zk.js
-/zk.js/node_modules/
-/zk.js/lib/
-/zk.js/lookUpTable.txt
 
 # other
 /anchor_programs/build/*

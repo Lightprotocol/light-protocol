@@ -4,7 +4,6 @@ packages:
   - "prover.js/**"
   - "circuit-lib/**"
   - "account.rs/**"
-  - "zk.js/**"
   - "cli/**"
   - "web/webapp/**"
   - "account-compression/programs/**"

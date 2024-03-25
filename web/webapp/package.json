@@ -16,7 +16,6 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@emotion/react": "^11.11.1",
-    "@lightprotocol/zk.js": "workspace:*",
     "@mantine/core": "^7.1.5",
     "@mantine/form": "^7.1.5",
     "@mantine/hooks": "^7.1.5",

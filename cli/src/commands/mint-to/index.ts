@@ -8,7 +8,6 @@ import {
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 class MintToCommand extends Command {
   static summary = "Mint tokens to an account.";
