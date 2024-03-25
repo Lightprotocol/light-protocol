@@ -38,10 +38,11 @@ describe("mint-to", () => {
 
   async function createTestMint() {
     const connection = new Connection(getSolanaRpcUrl(), "finalized");
+    const payer = await getPayer();
     const { mint, transactionSignature } = await createMint(
       connection,
-      getPayer(),
-      getPayer().publicKey,
+      payer,
+      payer.publicKey,
       9,
     );
     await confirmTx(connection, transactionSignature);

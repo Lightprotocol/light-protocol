@@ -18,7 +18,6 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/account.rs": "workspace:*",
-    "@lightprotocol/zk.js": "workspace:*",
     "@lightprotocol/stateless.js": "workspace:*",
     "@lightprotocol/compressed-token": "workspace:*",
     "@oclif/core": "^2.15",

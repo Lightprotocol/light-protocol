@@ -4,25 +4,11 @@
   "description": "",
   "license": "GPL-3.0",
   "scripts": {
-    "build-merkle": "./scripts/buildMerkle.sh",
-    "build-private-2in": "sh scripts/buildCircuit.sh private 2 2",
-    "build-private-10in": "sh scripts/buildCircuit.sh private 10 2",
-    "build-private-4in-program": "sh scripts/buildCircuit.sh private 4 4 Program",
-    "build-public-2in": "sh scripts/buildCircuit.sh public 2 2 Program",
-    "build-public-10in": "sh scripts/buildCircuit.sh public 10 2",
-    "test-elgamal": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 --require mocha-suppress-logs tests/elgamal-babyjubjub/circuits.test.ts --exit",
-    "test-light-circuits": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/light-circuits.test.ts --exit",
-    "test-build-light-circuits": "pnpm build-all && ./scripts/checkBuildCircuit.sh",
-    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**/*.ts --exit",
-    "format": "prettier --write \"tests/**/*.{ts,js,circom}\"",
-    "build-all": "pnpm build-private-2in && pnpm build-private-10in && pnpm build-private-4in-program && pnpm build-public-2in && pnpm build-public-10in",
-    "lint": "pnpm prettier \"tests/**/*.ts\" --check",
-    "build": "pnpm tsc"
+    "build-merkle": "./scripts/buildMerkle.sh"
   },
   "author": "",
   "devDependencies": {
     "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/zk.js": "workspace:*",
     "@types/chai": "^4.3.9",
     "@types/chai-as-promised": "^7.1.6",
     "@types/mocha": "^10.0.3",

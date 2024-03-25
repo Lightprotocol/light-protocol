@@ -29,7 +29,6 @@ jobs:
             programs
             verifier-sdk
             circuits
-            zk.js
             cli
             scripts
             macros

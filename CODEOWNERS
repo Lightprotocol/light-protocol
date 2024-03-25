@@ -17,4 +17,3 @@ utils/ @vadorovsky
 verifier-sdk/ @ananas-block @vadorovsky
 web/ @SwenSchaeferjohann
 xtask/ @vadorovsky
-zk.js/ @ananas-block @sergeytimoshin @SwenSchaeferjohann
