@@ -53,7 +53,7 @@ impl CompressedAccount {
 
         if let Some(data) = &self.data {
             // TODO: double check that it is impossible to create a hash collisions for different sized poseidon hash inputs
-            // Otherwise we could use padding so prevent a theoretical attack producing a hash collision
+            // Otherwise we could use padding to prevent a theoretical attack producing a hash collision
             // if self.address.is_none() {
             //     vec.push(&[0u8; 32]);
             // }
