@@ -80,7 +80,7 @@ pub fn process_initialize_indexed_array<'info>(
     indexed_array_account.owner = owner;
     indexed_array_account.delegate = delegate.unwrap_or(owner);
     indexed_array_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
-    // Explicitly initializing the indexed array is not necessary as defautl values are all zero.
+    // Explicitly initializing the indexed array is not necessary as default values are all zero.
     Ok(())
 }
 

@@ -36,15 +36,15 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     let mut merkle_tree_account = ctx.accounts.merkle_tree.load_mut()?;
     if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
         msg!(
-            "merkle tree and indexed array are not associated {} != {}",
+            "Nullifier queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
             array_account.associated_merkle_tree,
-            ctx.accounts.merkle_tree.key()
+            ctx.accounts.merkle_tree.key(),
         );
         return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
     }
     if merkle_tree_account.associated_queue != ctx.accounts.indexed_array.key() {
         msg!(
-            "merkle tree and indexed array are not associated {} != {}",
+            "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
             merkle_tree_account.associated_queue,
             ctx.accounts.indexed_array.key()
         );
