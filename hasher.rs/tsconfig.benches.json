@@ -8,6 +8,6 @@
       "target": "ESNext",
       "module": "ESNext"
     },
-    "extends": "account.rs/zk-rs/tsconfig.json",
+    "extends": "tsconfig.json",
     "include": ["benches"]
 }

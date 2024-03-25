@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "account.rs/src/wasm",
+    "hasher.rs/src/wasm",
     "circuit-lib/circuitlib-rs",
     "macros/aligned-sized",
     "macros/light",

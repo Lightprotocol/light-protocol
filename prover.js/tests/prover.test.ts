@@ -1,7 +1,7 @@
 import { Prover } from "../src";
 import { IDL } from "./circuits/idl";
 import { describe, it, expect, afterAll } from "vitest";
-import { WasmFactory } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 import { assert } from "chai";
 import { BN } from "@coral-xyz/anchor";
 

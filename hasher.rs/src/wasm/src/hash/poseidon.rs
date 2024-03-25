@@ -4,7 +4,7 @@ use light_poseidon::{Poseidon, PoseidonBytesHasher, PoseidonError};
 use num_bigint::BigUint;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
-use crate::utils::set_panic_hook;
+use crate::set_panic_hook;
 
 #[wasm_bindgen]
 pub fn poseidon(inputs: &Array) -> Result<Uint8Array, JsValue> {

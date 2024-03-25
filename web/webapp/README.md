@@ -18,7 +18,7 @@ pnpm run dev
 Open:
 
 - [ ] using solana wallet adapter
-- [ ] compatibility with zk-enabled wallets (account.rs)
+- [ ] compatibility with zk-enabled wallets (hasher.rs)
 - [ ] permissionless SPL/NFTs
 - [ ] caching
 - [ ] migrate to use releases, localnet

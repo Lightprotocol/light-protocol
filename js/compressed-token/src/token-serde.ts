@@ -9,7 +9,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from './program';
 import { TokenTlvData_IdlType } from './types';
-import { WasmFactory } from '@lightprotocol/account.rs';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { BN } from '@coral-xyz/anchor';
 
 // TODO: later consider to implement a coherent struct (test with ix creation)

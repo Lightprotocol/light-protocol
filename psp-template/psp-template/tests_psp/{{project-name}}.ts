@@ -26,7 +26,7 @@ import {
   createOutUtxo,
   createDataHashWithDefaultHashingSchema,
 } from "@lightprotocol/zk.js";
-import { WasmFactory } from "@lightprotocol/account.rs";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 import { SystemProgram, PublicKey, Keypair } from "@solana/web3.js";
 
 import { BN } from "@coral-xyz/anchor";

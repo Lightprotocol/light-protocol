@@ -3,7 +3,7 @@ packages:
   - "programs/**"
   - "prover.js/**"
   - "circuit-lib/**"
-  - "account.rs/**"
+  - "hasher.rs/**"
   - "cli/**"
   - "web/webapp/**"
   - "account-compression/programs/**"
