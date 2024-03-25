@@ -1,2 +1,0 @@
-*.key filter=lfs diff=lfs merge=lfs -text
-test-data/*.csv filter=lfs diff=lfs merge=lfs -text
