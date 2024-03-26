@@ -61,6 +61,14 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             .map(|data: &TokenTransferOutputData| data.amount)
             .collect::<Vec<u64>>()
             .as_slice(),
+        Some(
+            inputs
+                .output_compressed_accounts
+                .iter()
+                .map(|data: &TokenTransferOutputData| data.lamports)
+                .collect::<Vec<Option<u64>>>()
+                .as_slice(),
+        ),
     );
     // TODO: add create delegate change compressed_accounts
     add_token_data_to_input_compressed_accounts(
@@ -79,6 +87,9 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     Ok(())
 }
 
+/// Create output compressed accounts
+/// 1. enforces discriminator
+/// 2. hashes token data
 pub fn add_token_data_to_input_compressed_accounts(
     input_compressed_accounts_with_merkle_context: &mut [CompressedAccountWithMerkleContext],
     input_token_data: &[TokenData],
@@ -288,10 +299,10 @@ pub struct TokenData {
     /// drop below this threshold.
     pub is_native: Option<u64>,
     /// The amount delegated
-    pub delegated_amount: u64,
-    // TODO: validate that we don't need close authority
-    // /// Optional authority to close the account.
-    // pub close_authority: Option<Pubkey>,
+    pub delegated_amount: u64, // TODO: make instruction data optional
+                               // TODO: validate that we don't need close authority
+                               // /// Optional authority to close the account.
+                               // pub close_authority: Option<Pubkey>,
 }
 // keeping this client struct for now because ts encoding is complaining about the enum, state is replaced with u8 in this struct
 #[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
@@ -337,7 +348,13 @@ impl DataHasher for TokenData {
         //     }
         //     None => [0u8; 32],
         // };
+        // TODO: implement a trait hash_default value for Option<u64> and use it for other optional values
+        let option_value: u8 = match self.is_native {
+            Some(_) => 1,
+            None => 0,
+        };
 
+        // TODO: optimize hashing scheme, to not hash rarely used values
         Poseidon::hashv(&[
             &hash_to_bn254_field_size_le(self.mint.to_bytes().as_slice())
                 .unwrap()
@@ -348,7 +365,11 @@ impl DataHasher for TokenData {
             &self.amount.to_le_bytes(),
             &delegate,
             &(self.state as u8).to_le_bytes(),
-            &self.is_native.unwrap_or_default().to_le_bytes(),
+            &[
+                &[option_value][..],
+                &self.is_native.unwrap_or_default().to_le_bytes(),
+            ]
+            .concat(),
             &self.delegated_amount.to_le_bytes(),
             // &close_authority,
         ])

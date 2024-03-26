@@ -48,7 +48,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         ctx.program_id,
         &ctx.accounts.account_compression_program,
         &ctx.accounts.psp_account_compression_authority,
-        &ctx.accounts.registered_program_pda,
+        &ctx.accounts.registered_program_pda.to_account_info(),
         &ctx.accounts.noop_program,
         out_merkle_trees_account_infos,
         output_compressed_account_hashes.to_vec(),
@@ -83,6 +83,7 @@ pub fn append_leaves_cpi<'a, 'b>(
     account_compression::cpi::append_leaves_to_merkle_trees(cpi_ctx, leaves)?;
     Ok(())
 }
+
 #[inline(never)]
 pub fn get_seeds<'a>(program_id: &'a Pubkey, cpi_signer: &'a Pubkey) -> Result<([u8; 32], u8)> {
     let seed = account_compression::ID.key().to_bytes();

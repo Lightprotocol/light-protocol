@@ -47,6 +47,13 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         .iter()
         .enumerate()
     {
+        if input_compressed_account_with_context
+            .compressed_account
+            .address
+            .is_some()
+        {
+            unimplemented!("Address is not supported yet")
+        }
         leaves[j] = input_compressed_account_with_context
             .compressed_account
             .hash(
