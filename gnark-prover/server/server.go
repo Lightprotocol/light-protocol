@@ -80,7 +80,9 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 	logging.Logger().Info().Str("addr", config.MetricsAddress).Msg("metrics server started")
 
 	proverMux := http.NewServeMux()
-	proverMux.Handle("/inclusion", proveHandler{provingSystem: provingSystem})
+	proverMux.Handle("/inclusion", proveHandler{provingSystem: provingSystem, inclusion: true})
+	proverMux.Handle("/noninclusion", proveHandler{provingSystem: provingSystem, inclusion: false})
+
 	proverMux.Handle("/health", healthHandler{})
 	proverServer := &http.Server{Addr: config.ProverAddress, Handler: proverMux}
 	proverJob := spawnServerJob(proverServer, "prover server")
@@ -91,6 +93,7 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 
 type proveHandler struct {
 	provingSystem []*prover.ProvingSystem
+	inclusion     bool
 }
 
 type healthHandler struct {
@@ -112,45 +115,69 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var proof *prover.Proof
 
-	var params prover.InclusionParameters
+	if handler.inclusion {
+		logging.Logger().Info().Msg("inclusion proof")
+		var params prover.InclusionParameters
 
-	err = json.Unmarshal(buf, &params)
-	if err != nil {
-		logging.Logger().Info().Msg("error Unmarshal")
-		logging.Logger().Info().Msg(err.Error())
-		malformedBodyError(err).send(w)
-		return
-	}
-
-	var numberOfUtxos = uint32(len(params.Root))
-
-	var ps *prover.ProvingSystem
-	for _, provingSystem := range handler.provingSystem {
-		if provingSystem.Inclusion && provingSystem.NumberOfUtxos == numberOfUtxos {
-			ps = provingSystem
-			break
+		err = json.Unmarshal(buf, &params)
+		if err != nil {
+			logging.Logger().Info().Msg("error Unmarshal")
+			logging.Logger().Info().Msg(err.Error())
+			malformedBodyError(err).send(w)
+			return
 		}
+
+		var numberOfUtxos = uint32(len(params.Root))
+
+		var ps *prover.ProvingSystem
+		for _, provingSystem := range handler.provingSystem {
+			if provingSystem.Inclusion && provingSystem.NumberOfUtxos == numberOfUtxos {
+				ps = provingSystem
+				break
+			}
+		}
+
+		if ps == nil {
+			logging.Logger().Info().Msg(fmt.Sprintf("no proving system for %d utxos", numberOfUtxos))
+			provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos)).send(w)
+			return
+		}
+
+		proof, err = ps.ProveInclusion(&params)
+	} else {
+		logging.Logger().Info().Msg("non-inclusion proof")
+		var params prover.NonInclusionParameters
+
+		err = json.Unmarshal(buf, &params)
+		if err != nil {
+			malformedBodyError(err).send(w)
+			return
+		}
+
+		var numberOfUtxos = uint32(len(params.Root))
+		var ps *prover.ProvingSystem
+		for _, provingSystem := range handler.provingSystem {
+			if !provingSystem.Inclusion && provingSystem.NumberOfUtxos == numberOfUtxos {
+				ps = provingSystem
+				break
+			}
+		}
+
+		if ps == nil {
+			provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos)).send(w)
+			return
+		}
+		proof, err = ps.ProveNonInclusion(&params)
 	}
-
-	if ps == nil {
-		logging.Logger().Info().Msg(fmt.Sprintf("no proving system for %d utxos", numberOfUtxos))
-		provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos)).send(w)
-		return
-	}
-
-	proof, err = ps.ProveInclusion(&params)
-
 	if err != nil {
-		logging.Logger().Info().Msg("error ProveInclusion")
-		logging.Logger().Info().Msg(err.Error())
+		logging.Logger().Err(err)
 		provingError(err).send(w)
 		return
 	}
 
 	responseBytes, err := json.Marshal(&proof)
 	if err != nil {
-		logging.Logger().Info().Msg("Error marshal response bytes")
-		logging.Logger().Info().Msg(err.Error())
+		logging.Logger().Err(err)
 		unexpectedError(err).send(w)
 		return
 	}
@@ -159,8 +186,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(responseBytes)
 
 	if err != nil {
-		logging.Logger().Error().Err(err).Msg("error writing response")
-		logging.Logger().Info().Msg(err.Error())
+		logging.Logger().Err(err)
 	}
 }
 

@@ -103,16 +103,3 @@ for ((i=1; i<=MAX_COUNT; i++)); do
 done
 
 execute_commands "non-inclusion" "$MERKLE_TREE_HEIGHT" 8 "$POWERS_OF_TAU" || exit
-
-
-for ((i=1; i<=MAX_COUNT; i++)); do
-    execute_commands "combined" "$MERKLE_TREE_HEIGHT" "$i" "$POWERS_OF_TAU" 1 || exit
-done
-
-execute_commands "combined" "$MERKLE_TREE_HEIGHT" 8 "$POWERS_OF_TAU" 1 || exit
-
-for ((i=1; i<=MAX_COUNT; i++)); do
-    execute_commands "combined" "$MERKLE_TREE_HEIGHT" "$i" "$POWERS_OF_TAU" 2 || exit
-done
-
-execute_commands "combined" "$MERKLE_TREE_HEIGHT" 8 "$POWERS_OF_TAU" 2 || exit

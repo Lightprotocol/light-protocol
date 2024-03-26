@@ -8,7 +8,7 @@ if [ ! -d "$KEYS_DIR" ]; then
   mkdir -p "$KEYS_DIR"
 fi
 
-BUCKET="bafybeidml266k4d62vu5gpvvv3qejwokuok5oveabjtzomdrm7oxu5z7su"
+BUCKET="bafybeiajdiftjk4fkqkzan4oy4qbc3tmhdniyrxof5lwjbms4p24ft6lwy"
 FILES=(
   "inclusion_26_1.key"
   "inclusion_26_1.vkey"
@@ -20,6 +20,16 @@ FILES=(
   "inclusion_26_4.vkey"
   "inclusion_26_8.key"
   "inclusion_26_8.vkey"
+  "non-inclusion_26_1.key"
+  "non-inclusion_26_1.vkey"
+  "non-inclusion_26_2.key"
+  "non-inclusion_26_2.vkey"
+  "non-inclusion_26_3.key"
+  "non-inclusion_26_3.vkey"
+  "non-inclusion_26_4.key"
+  "non-inclusion_26_4.vkey"
+  "non-inclusion_26_8.key"
+  "non-inclusion_26_8.vkey"
 )
 
 for FILE in "${FILES[@]}"
