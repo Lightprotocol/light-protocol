@@ -58,28 +58,48 @@ where
         }
     }
 
+    pub unsafe fn from_bytes_copy(bytes: &[u8]) -> Result<Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_copy(bytes)?;
+
+        Ok(Self {
+            merkle_tree,
+            _index: PhantomData,
+            _bigint: PhantomData,
+        })
+    }
+
     /// Casts byte slices into `ConcurrentMerkleTree`.
     ///
     /// # Safety
     ///
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slices is the caller's responsibility.
-    pub unsafe fn from_bytes<'b>(
-        bytes_struct: &'b [u8],
-        bytes_filled_subtrees: &'b [u8],
-        bytes_changelog: &'b [u8],
-        bytes_roots: &'b [u8],
-        bytes_canopy: &'b [u8],
-    ) -> Result<&'b Self, ConcurrentMerkleTreeError> {
-        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-        )?;
+    pub unsafe fn from_bytes_zero_copy(bytes: &'a [u8]) -> Result<Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_zero_copy(bytes)?;
 
-        Ok(&*(merkle_tree as *const ConcurrentMerkleTree<H, HEIGHT> as *const Self))
+        Ok(Self {
+            merkle_tree,
+            _index: PhantomData,
+            _bigint: PhantomData,
+        })
+    }
+
+    /// Casts byte slices into `ConcurrentMerkleTree`.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the size and alignment of the byte
+    /// slices is the caller's responsibility.
+    pub unsafe fn from_bytes_zero_copy_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_zero_copy_mut(bytes)?;
+
+        Ok(Self {
+            merkle_tree,
+            _index: PhantomData,
+            _bigint: PhantomData,
+        })
     }
 
     /// Casts byte slices into `ConcurrentMerkleTree`.
@@ -89,54 +109,26 @@ where
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slices is the caller's responsibility.
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn from_bytes_init(
-        bytes_struct: &'a mut [u8],
-        bytes_filled_subtrees: &'a mut [u8],
-        bytes_changelog: &'a mut [u8],
-        bytes_roots: &'a mut [u8],
-        bytes_canopy: &'a mut [u8],
+    pub unsafe fn from_bytes_zero_copy_init(
+        bytes: &'a mut [u8],
         height: usize,
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
-        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_zero_copy_init(
+            bytes,
             height,
             changelog_size,
             roots_size,
             canopy_depth,
         )?;
 
-        Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
-    }
-
-    /// Casts byte slices into `ConcurrentMerkleTree`.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. Ensuring the size and alignment of the byte
-    /// slices is the caller's responsibility.
-    pub unsafe fn from_bytes_mut<'b>(
-        bytes_struct: &'b mut [u8],
-        bytes_filled_subtrees: &'b mut [u8],
-        bytes_changelog: &'b mut [u8],
-        bytes_roots: &'b mut [u8],
-        bytes_canopy: &'b mut [u8],
-    ) -> Result<&'b mut Self, ConcurrentMerkleTreeError> {
-        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-        )?;
-
-        Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
+        Ok(Self {
+            merkle_tree,
+            _index: PhantomData,
+            _bigint: PhantomData,
+        })
     }
 
     pub fn init(&mut self) -> Result<(), IndexedMerkleTreeError> {

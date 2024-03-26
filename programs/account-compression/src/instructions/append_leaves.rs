@@ -6,6 +6,7 @@ use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
+    state_mt_from_bytes_zero_copy_mut,
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
     ChangelogEvent, ChangelogEventV1, Changelogs, RegisteredProgram,
 };
@@ -70,7 +71,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     let mut changelog_events = Vec::new();
     for (mt, leaves) in merkle_tree_map.values() {
         let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
-        let mut merkle_tree = merkle_tree.load_mut()?;
+        let mut merkle_tree = state_mt_from_bytes_zero_copy_mut(merkle_tree)?;
         // TODO: activate when group access control is implemented
         // check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
         //     &ctx,
@@ -79,10 +80,9 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
         msg!("inserting leaves: {:?}", leaves);
         let changelog_entries = merkle_tree
-            .load_merkle_tree_mut()?
             .append_batch(&leaves[..])
             .map_err(ProgramError::from)?;
-        let sequence_number = u64::try_from(merkle_tree.load_merkle_tree()?.sequence_number)
+        let sequence_number = u64::try_from(merkle_tree.sequence_number)
             .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
         changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
             mt.key(),

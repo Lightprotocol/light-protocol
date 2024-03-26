@@ -1,6 +1,9 @@
 pub use anchor_lang::prelude::*;
 
-use crate::{errors::AccountCompressionErrorCode, state::AddressMerkleTreeAccount};
+use crate::{
+    address_mt_from_bytes_zero_copy_init, errors::AccountCompressionErrorCode,
+    state::AddressMerkleTreeAccount,
+};
 
 #[derive(Accounts)]
 pub struct InitializeAddressMerkleTree<'info> {
@@ -26,22 +29,14 @@ pub fn process_initialize_address_merkle_tree<'info>(
     address_merkle_tree.owner = owner;
     address_merkle_tree.delegate = delegate.unwrap_or(owner);
 
-    address_merkle_tree
-        .load_merkle_tree_init(
-            height
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            changelog_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            roots_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            canopy_depth
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-        )
-        .map_err(ProgramError::from)?;
+    address_mt_from_bytes_zero_copy_init(
+        ctx.accounts.merkle_tree,
+        height as usize,
+        changelog_size as usize,
+        roots_size as usize,
+        canopy_depth as usize,
+    )
+    .map_err(ProgramError::from)?;
 
     Ok(())
 }

@@ -1,6 +1,11 @@
+use std::borrow::BorrowMut;
+
 use anchor_lang::prelude::*;
 
-use crate::{errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount};
+use crate::{
+    errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
+    state_mt_from_bytes_zero_copy_init,
+};
 
 #[derive(Accounts)]
 pub struct InitializeStateMerkleTree<'info> {
@@ -22,6 +27,7 @@ pub fn process_initialize_state_merkle_tree(
     roots_size: u64,
     canopy_depth: u64,
 ) -> Result<()> {
+    let foo = ctx.accounts.merkle_tree.to_account_info();
     // Initialize new Merkle trees.
     let mut merkle_tree = ctx.accounts.merkle_tree.load_init()?;
 
@@ -33,22 +39,13 @@ pub fn process_initialize_state_merkle_tree(
     // we could create a group which has ownership over a set of Merkle trees same registration process as for pool program
     // this needs to be the delegate and or owner
     // if part of a group we can apply the same registration model as for the pool program
-    merkle_tree
-        .load_merkle_tree_init(
-            height
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            changelog_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            roots_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            canopy_depth
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-        )
-        .map_err(ProgramError::from)?;
+    state_mt_from_bytes_zero_copy_init(
+        ctx.accounts.merkle_tree,
+        height as usize,
+        changelog_size as usize,
+        roots_size as usize,
+        canopy_depth as usize,
+    )?;
 
     Ok(())
 }

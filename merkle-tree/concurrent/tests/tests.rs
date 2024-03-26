@@ -1009,7 +1009,7 @@ where
     ];
 
     let merkle_tree = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
+        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_zero_copy_init(
             bytes_struct.as_mut_slice(),
             bytes_filled_subtrees.as_mut_slice(),
             bytes_changelog.as_mut_slice(),
@@ -1042,7 +1042,7 @@ where
     }
 
     let merkle_tree = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
+        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_zero_copy(
             bytes_struct.as_slice(),
             bytes_filled_subtrees.as_slice(),
             bytes_changelog.as_slice(),

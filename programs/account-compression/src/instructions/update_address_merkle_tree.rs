@@ -6,6 +6,7 @@ use light_indexed_merkle_tree::array::{IndexingElement, RawIndexingElement};
 use light_utils::bigint::be_bytes_to_bigint;
 
 use crate::{
+    address_mt_from_bytes_zero_copy_mut,
     errors::AccountCompressionErrorCode,
     state::address::{AddressMerkleTreeAccount, AddressQueueAccount},
 };
@@ -43,7 +44,8 @@ pub fn process_update_address_merkle_tree<'info>(
 ) -> Result<()> {
     let mut address_queue = ctx.accounts.queue.load_mut()?;
     let address_queue = address_queue_from_bytes_mut(&mut address_queue.queue);
-    let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+    // let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+    let mut merkle_tree = address_mt_from_bytes_zero_copy_mut(ctx.accounts.merkle_tree)?;
 
     // Remove the address from the queue.
     let address = address_queue
@@ -53,7 +55,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the address with ranges adjusted to the Merkle tree state.
     let address: IndexingElement<usize, BigInteger256> = IndexingElement {
-        index: merkle_tree.load_merkle_tree()?.merkle_tree.next_index,
+        index: merkle_tree.merkle_tree.next_index,
         value: address.value,
         next_index: address_next_index,
     };
@@ -69,7 +71,6 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the Merkle tree.
     merkle_tree
-        .load_merkle_tree_mut()?
         .update(
             usize::from(changelog_index),
             address,

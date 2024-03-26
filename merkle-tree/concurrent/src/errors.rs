@@ -36,16 +36,8 @@ pub enum ConcurrentMerkleTreeError {
         "Found an empty node in the Merkle path buffer, where we expected all nodes to be filled"
     )]
     MerklePathsEmptyNode,
-    #[error("Invalid struct buffer size, expected {0}, got {1}")]
-    StructBufferSize(usize, usize),
-    #[error("Invalid filled subtrees buffer size, expected {0}, got {1}")]
-    FilledSubtreesBufferSize(usize, usize),
-    #[error("Invalid changelog buffer size, expected {0}, got {1}")]
-    ChangelogBufferSize(usize, usize),
-    #[error("Invalid root buffer size, expected {0}, got {1}")]
-    RootBufferSize(usize, usize),
-    #[error("Invalid canopy buffer size, expected {0}, got {1}")]
-    CanopyBufferSize(usize, usize),
+    #[error("Invalid buffer size, expected {0}, got {1}")]
+    BufferSize(usize, usize),
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
     #[error("Bounded vector error: {0}")]
@@ -73,11 +65,7 @@ impl From<ConcurrentMerkleTreeError> for u32 {
             ConcurrentMerkleTreeError::EmptyLeaves => 2013,
             ConcurrentMerkleTreeError::EmptyChangelogEntries => 2014,
             ConcurrentMerkleTreeError::MerklePathsEmptyNode => 2015,
-            ConcurrentMerkleTreeError::StructBufferSize(_, _) => 2016,
-            ConcurrentMerkleTreeError::FilledSubtreesBufferSize(_, _) => 2017,
-            ConcurrentMerkleTreeError::ChangelogBufferSize(_, _) => 2018,
-            ConcurrentMerkleTreeError::RootBufferSize(_, _) => 2019,
-            ConcurrentMerkleTreeError::CanopyBufferSize(_, _) => 2020,
+            ConcurrentMerkleTreeError::BufferSize(_, _) => 2016,
             ConcurrentMerkleTreeError::Hasher(e) => e.into(),
             ConcurrentMerkleTreeError::BoundedVec(e) => e.into(),
         }

@@ -94,6 +94,52 @@ where
         (1 << (canopy_depth + 1)) - 2
     }
 
+    /// Size of the struct **without** dynamically sized fields (`BoundedVec`,
+    /// `CyclicBoundedVec`).
+    pub fn non_dyn_fields_size() -> usize {
+        // height
+        8
+        // changelog_capacity
+        + 8
+        // changelog_length
+        + 8
+        // current_changelog_index
+        + 8
+        // roots_capacity
+        + 8
+        // roots_length
+        + 8
+        // current_root_index
+        + 8
+        // canopy_depth
+        + 8
+        // next_index
+        + 8
+        // sequence_number
+        + 8
+        // rightmost_leaf
+        + 32
+    }
+
+    // TODO(vadorovsky): Make a macro for that.
+    pub fn size(
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+    ) -> usize {
+        // non-dynamic fields
+        Self::non_dyn_fields_size()
+        // filled_subtrees
+        + mem::size_of::<[u8; 32]>() * height
+        // changelog
+        + mem::size_of::<ChangelogEntry<HEIGHT>>() * changelog_size
+        // roots
+        + mem::size_of::<[u8; 32]>() * roots_size
+        // canopy
+        + mem::size_of::<[u8; 32]>() * Self::canopy_size(canopy_depth)
+    }
+
     pub fn new(
         height: usize,
         changelog_size: usize,
@@ -151,88 +197,53 @@ where
     /// Merkle tree is the caller's responsibility.
     ///
     /// It can be used correctly in async Rust.
-    pub unsafe fn copy_from_bytes(
-        bytes_struct: &[u8],
-        bytes_filled_subtrees: &[u8],
-        bytes_changelog: &[u8],
-        bytes_roots: &[u8],
-    ) -> Result<Self, ConcurrentMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<Self>();
-        if bytes_struct.len() != expected_bytes_struct_size {
-            return Err(ConcurrentMerkleTreeError::StructBufferSize(
-                expected_bytes_struct_size,
-                bytes_struct.len(),
+    pub unsafe fn from_bytes_copy(bytes: &[u8]) -> Result<Self, ConcurrentMerkleTreeError> {
+        if bytes.len() < Self::non_dyn_fields_size() {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                Self::non_dyn_fields_size(),
+                bytes.len(),
             ));
         }
-        let struct_ref: *mut Self = bytes_struct.as_ptr() as _;
 
-        let mut merkle_tree = unsafe {
-            Self {
-                height: (*struct_ref).height,
+        let mut merkle_tree = Self::struct_from_bytes(&bytes[..Self::non_dyn_fields_size()])?;
 
-                changelog_capacity: (*struct_ref).changelog_capacity,
-                changelog_length: (*struct_ref).changelog_length,
-                current_changelog_index: (*struct_ref).current_changelog_index,
-
-                roots_capacity: (*struct_ref).roots_capacity,
-                roots_length: (*struct_ref).roots_length,
-                current_root_index: (*struct_ref).current_root_index,
-
-                canopy_depth: (*struct_ref).canopy_depth,
-
-                next_index: (*struct_ref).next_index,
-                sequence_number: (*struct_ref).sequence_number,
-                rightmost_leaf: (*struct_ref).rightmost_leaf,
-
-                filled_subtrees: BoundedVec::with_capacity((*struct_ref).height),
-                changelog: CyclicBoundedVec::with_capacity((*struct_ref).changelog_capacity),
-                roots: CyclicBoundedVec::with_capacity((*struct_ref).roots_capacity),
-                canopy: BoundedVec::with_capacity(Self::canopy_size((*struct_ref).canopy_depth)),
-
-                _hasher: PhantomData,
-            }
-        };
-
-        let expected_bytes_filled_subtrees_size = mem::size_of::<[u8; 32]>() * (*struct_ref).height;
-        if bytes_filled_subtrees.len() != expected_bytes_filled_subtrees_size {
-            return Err(ConcurrentMerkleTreeError::FilledSubtreesBufferSize(
-                expected_bytes_filled_subtrees_size,
-                bytes_filled_subtrees.len(),
-            ));
-        }
-        let filled_subtrees: &[[u8; 32]] = slice::from_raw_parts(
-            bytes_filled_subtrees.as_ptr() as *const _,
-            (*struct_ref).height,
+        let expected_size = Self::size(
+            merkle_tree.height,
+            merkle_tree.changelog_capacity,
+            merkle_tree.roots_capacity,
+            merkle_tree.canopy_depth,
         );
+        if bytes.len() != expected_size {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                expected_size,
+                bytes.len(),
+            ));
+        }
+
+        let offset = Self::non_dyn_fields_size();
+        let filled_subtrees_size = mem::size_of::<[u8; 32]>() * merkle_tree.height;
+        let filled_subtrees: &[[u8; 32]] =
+            slice::from_raw_parts(bytes.as_ptr().add(offset) as *const _, merkle_tree.height);
         for subtree in filled_subtrees.iter() {
             merkle_tree.filled_subtrees.push(*subtree)?;
         }
 
-        let expected_bytes_changelog_size =
-            mem::size_of::<ChangelogEntry<HEIGHT>>() * (*struct_ref).changelog_capacity;
-        if bytes_changelog.len() != expected_bytes_changelog_size {
-            return Err(ConcurrentMerkleTreeError::ChangelogBufferSize(
-                expected_bytes_changelog_size,
-                bytes_changelog.len(),
-            ));
-        }
+        let offset = offset + filled_subtrees_size;
+        let changelog_size =
+            mem::size_of::<ChangelogEntry<HEIGHT>>() * merkle_tree.changelog_capacity;
         let changelog: &[ChangelogEntry<HEIGHT>] = slice::from_raw_parts(
-            bytes_changelog.as_ptr() as *const _,
-            (*struct_ref).changelog_length,
+            bytes.as_ptr().add(offset) as *const _,
+            merkle_tree.changelog_length,
         );
         for changelog_entry in changelog.iter() {
             merkle_tree.changelog.push(changelog_entry.clone())?;
         }
 
-        let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * (*struct_ref).roots_capacity;
-        if bytes_roots.len() != expected_bytes_roots_size {
-            return Err(ConcurrentMerkleTreeError::RootBufferSize(
-                expected_bytes_roots_size,
-                bytes_roots.len(),
-            ));
-        }
-        let roots: &[[u8; 32]] =
-            slice::from_raw_parts(bytes_roots.as_ptr() as *const _, (*struct_ref).roots_length);
+        let offset = offset + changelog_size;
+        let roots: &[[u8; 32]] = slice::from_raw_parts(
+            bytes.as_ptr().add(offset) as *const _,
+            merkle_tree.roots_length,
+        );
         for root in roots.iter() {
             merkle_tree.roots.push(*root)?;
         }
@@ -240,81 +251,103 @@ where
         Ok(merkle_tree)
     }
 
-    /// Casts a byte slice into `ConcurrentMerkleTree`.
+    /// Instantiantes a `ConcurrentMerkleTree` from the given slice of bytes.
+    ///
+    /// This method handles only primitive fields of `ConcurrentMerkleTree`.
+    /// Dynamic fields (of type `BoundedVec` and `CyclicBoundedeVec`) need to
+    /// be handled separately.
     ///
     /// # Safety
     ///
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slice is the caller's responsibility.
-    pub unsafe fn struct_from_bytes(
-        bytes_struct: &'a [u8],
-    ) -> Result<&'a Self, ConcurrentMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<Self>();
-        if bytes_struct.len() != expected_bytes_struct_size {
-            return Err(ConcurrentMerkleTreeError::StructBufferSize(
-                expected_bytes_struct_size,
-                bytes_struct.len(),
-            ));
-        }
-        let tree: *const Self = bytes_struct.as_ptr() as _;
-        Ok(&*tree)
-    }
+    unsafe fn struct_from_bytes(bytes_struct: &[u8]) -> Result<Self, ConcurrentMerkleTreeError> {
+        // let expected_bytes_struct_size = Self::non_dyn_fields_size();
+        // if bytes_struct.len() != expected_bytes_struct_size {
+        //     return Err(ConcurrentMerkleTreeError::BufferSize(
+        //         expected_bytes_struct_size,
+        //         bytes_struct.len(),
+        //     ));
+        // }
 
-    /// Casts a byte slice into `ConcurrentMerkleTree`.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. Ensuring the size and alignment of the byte
-    /// slice is the caller's responsibility.
-    pub unsafe fn struct_from_bytes_mut(
-        bytes_struct: &[u8],
-    ) -> Result<&mut Self, ConcurrentMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<Self>();
-        if bytes_struct.len() != expected_bytes_struct_size {
-            return Err(ConcurrentMerkleTreeError::StructBufferSize(
-                expected_bytes_struct_size,
-                bytes_struct.len(),
-            ));
-        }
-        let tree: *mut Self = bytes_struct.as_ptr() as _;
-        Ok(&mut *tree)
-    }
+        let height = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, height)]
+                .try_into()
+                .unwrap(),
+        );
+        let changelog_capacity = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, changelog_capacity)]
+                .try_into()
+                .unwrap(),
+        );
+        let changelog_length = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, changelog_length)]
+                .try_into()
+                .unwrap(),
+        );
+        let current_changelog_index = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, current_changelog_index)]
+                .try_into()
+                .unwrap(),
+        );
+        let roots_capacity = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, roots_capacity)]
+                .try_into()
+                .unwrap(),
+        );
+        let roots_length = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, roots_length)]
+                .try_into()
+                .unwrap(),
+        );
+        let current_root_index = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, current_root_index)]
+                .try_into()
+                .unwrap(),
+        );
+        let canopy_depth = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, canopy_depth)]
+                .try_into()
+                .unwrap(),
+        );
+        let next_index = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, next_index)]
+                .try_into()
+                .unwrap(),
+        );
+        let sequence_number = usize::from_ne_bytes(
+            bytes_struct[memoffset::span_of!(Self, sequence_number)]
+                .try_into()
+                .unwrap(),
+        );
+        let rightmost_leaf = bytes_struct[memoffset::span_of!(Self, rightmost_leaf)]
+            .try_into()
+            .unwrap();
 
-    /// Casts a byte slice into a `CyclicBoundedVec` containing MErkle tree
-    /// roots.
-    ///
-    /// # Purpose
-    ///
-    /// This method is meant to be used mostly in Solana programs, where memory
-    /// constraints are tight and we want to make sure no data is copied.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. This method validates only sizes of slices.
-    /// Ensuring the alignment and that the slices provide actual data of the
-    /// Merkle tree is the caller's responsibility.
-    ///
-    /// Calling it in async context (or anywhere where the underlying data can
-    /// be moved in the memory) is certainly going to cause undefined behavior.
-    pub unsafe fn roots_from_bytes(
-        bytes_roots: &[u8],
-        next_index: usize,
-        length: usize,
-        capacity: usize,
-    ) -> Result<CyclicBoundedVec<[u8; 32]>, ConcurrentMerkleTreeError> {
-        let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * capacity;
-        if bytes_roots.len() != expected_bytes_roots_size {
-            return Err(ConcurrentMerkleTreeError::RootBufferSize(
-                expected_bytes_roots_size,
-                bytes_roots.len(),
-            ));
-        }
-        Ok(CyclicBoundedVec::from_raw_parts(
-            bytes_roots.as_ptr() as _,
+        Ok(Self {
+            height,
+
+            changelog_capacity,
+            changelog_length,
+            current_changelog_index,
+
+            roots_capacity,
+            roots_length,
+            current_root_index,
+
+            canopy_depth,
+
             next_index,
-            length,
-            capacity,
-        ))
+            sequence_number,
+            rightmost_leaf,
+
+            filled_subtrees: BoundedVec::with_capacity(height),
+            changelog: CyclicBoundedVec::with_capacity(changelog_capacity),
+            roots: CyclicBoundedVec::with_capacity(roots_capacity),
+            canopy: BoundedVec::with_capacity(canopy_depth),
+
+            _hasher: PhantomData,
+        })
     }
 
     /// Casts byte slices into `ConcurrentMerkleTree`.
@@ -341,77 +374,32 @@ where
     ///
     /// Calling it in async context (or anywhere where the underlying data can
     /// be moved in the memory) is certainly going to cause undefined behavior.
-    pub unsafe fn from_bytes(
-        bytes_struct: &'a [u8],
-        bytes_filled_subtrees: &'a [u8],
-        bytes_changelog: &'a [u8],
-        bytes_roots: &'a [u8],
-        bytes_canopy: &'a [u8],
-    ) -> Result<&'a Self, ConcurrentMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<Self>();
-        if bytes_struct.len() != expected_bytes_struct_size {
-            return Err(ConcurrentMerkleTreeError::StructBufferSize(
-                expected_bytes_struct_size,
-                bytes_struct.len(),
+    pub unsafe fn from_bytes_zero_copy(bytes: &'a [u8]) -> Result<Self, ConcurrentMerkleTreeError> {
+        if bytes.len() < Self::non_dyn_fields_size() {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                Self::non_dyn_fields_size(),
+                bytes.len(),
             ));
         }
-        let tree = Self::struct_from_bytes_mut(bytes_struct)?;
 
-        // Restore the vectors correctly, by pointing them to the appropriate
-        // byte slices as underlying data. The most unsafe part of this code.
-        // Here be dragons!
-        let expected_bytes_filled_subtrees_size = mem::size_of::<[u8; 32]>() * tree.height;
-        if bytes_filled_subtrees.len() != expected_bytes_filled_subtrees_size {
-            return Err(ConcurrentMerkleTreeError::FilledSubtreesBufferSize(
-                expected_bytes_filled_subtrees_size,
-                bytes_filled_subtrees.len(),
-            ));
-        }
-        tree.filled_subtrees = BoundedVec::from_raw_parts(
-            bytes_filled_subtrees.as_ptr() as _,
-            tree.height,
-            tree.height,
-        );
+        let mut tree = Self::struct_from_bytes(bytes)?;
+        tree.fill_vectors(bytes)?;
 
-        let expected_bytes_changelog_size =
-            mem::size_of::<ChangelogEntry<HEIGHT>>() * tree.changelog_capacity;
-        if bytes_changelog.len() != expected_bytes_changelog_size {
-            return Err(ConcurrentMerkleTreeError::ChangelogBufferSize(
-                expected_bytes_changelog_size,
-                bytes_changelog.len(),
-            ));
-        }
-        tree.changelog = CyclicBoundedVec::from_raw_parts(
-            bytes_changelog.as_ptr() as _,
-            tree.current_changelog_index + 1,
-            tree.changelog_length,
-            tree.changelog_capacity,
-        );
+        Ok(tree)
+    }
 
-        let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * tree.roots_capacity;
-        if bytes_roots.len() != expected_bytes_roots_size {
-            return Err(ConcurrentMerkleTreeError::RootBufferSize(
-                expected_bytes_roots_size,
-                bytes_roots.len(),
+    pub unsafe fn from_bytes_zero_copy_mut(
+        bytes: &'a mut [u8],
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        if bytes.len() < Self::non_dyn_fields_size() {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                Self::non_dyn_fields_size(),
+                bytes.len(),
             ));
         }
-        tree.roots = Self::roots_from_bytes(
-            bytes_roots,
-            tree.current_root_index + 1,
-            tree.roots_length,
-            tree.roots_capacity,
-        )?;
 
-        let canopy_size = Self::canopy_size(tree.canopy_depth);
-        let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
-        if bytes_canopy.len() != expected_canopy_size {
-            return Err(ConcurrentMerkleTreeError::CanopyBufferSize(
-                expected_canopy_size,
-                bytes_canopy.len(),
-            ));
-        }
-        tree.canopy =
-            BoundedVec::from_raw_parts(bytes_canopy.as_ptr() as _, canopy_size, canopy_size);
+        let mut tree = Self::struct_from_bytes(&bytes)?;
+        tree.fill_vectors_mut(bytes)?;
 
         Ok(tree)
     }
@@ -423,74 +411,117 @@ where
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slices is the caller's responsibility.
     #[allow(clippy::too_many_arguments)]
-    unsafe fn fill_vectors_mut<'b>(
+    unsafe fn fill_vectors<'b>(
         &'b mut self,
-        bytes_filled_subtrees: &'b mut [u8],
-        bytes_changelog: &'b mut [u8],
-        bytes_roots: &'b mut [u8],
-        bytes_canopy: &'b mut [u8],
-        subtrees_length: usize,
-        changelog_next_index: usize,
-        changelog_length: usize,
-        roots_next_index: usize,
-        roots_length: usize,
-        canopy_length: usize,
+        bytes: &'b [u8],
     ) -> Result<(), ConcurrentMerkleTreeError> {
+        let expected_size = Self::size(
+            self.height,
+            self.changelog_capacity,
+            self.roots_capacity,
+            self.canopy_depth,
+        );
+        if bytes.len() != expected_size {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                expected_size,
+                bytes.len(),
+            ));
+        }
+
         // Restore the vectors correctly, by pointing them to the appropriate
         // byte slices as underlying data. The most unsafe part of this code.
         // Here be dragons!
-        let expected_bytes_filled_subtrees_size = mem::size_of::<[u8; 32]>() * self.height;
-        if bytes_filled_subtrees.len() != expected_bytes_filled_subtrees_size {
-            return Err(ConcurrentMerkleTreeError::FilledSubtreesBufferSize(
-                expected_bytes_filled_subtrees_size,
-                bytes_filled_subtrees.len(),
-            ));
-        }
-        self.filled_subtrees = BoundedVec::from_raw_parts(
-            bytes_filled_subtrees.as_mut_ptr() as _,
-            subtrees_length,
-            self.height,
-        );
+        let offset = Self::non_dyn_fields_size();
+        let filled_subtrees_size = mem::size_of::<[u8; 32]>() * self.height;
+        self.filled_subtrees =
+            BoundedVec::from_raw_parts(bytes.as_ptr().add(offset) as _, self.height, self.height);
 
-        let expected_bytes_changelog_size =
-            mem::size_of::<ChangelogEntry<HEIGHT>>() * self.changelog_capacity;
-        if bytes_changelog.len() != expected_bytes_changelog_size {
-            return Err(ConcurrentMerkleTreeError::ChangelogBufferSize(
-                expected_bytes_changelog_size,
-                bytes_changelog.len(),
-            ));
-        }
+        let offset = offset + filled_subtrees_size;
+        let changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * self.changelog_capacity;
         self.changelog = CyclicBoundedVec::from_raw_parts(
-            bytes_changelog.as_mut_ptr() as _,
-            changelog_next_index,
-            changelog_length,
+            bytes.as_ptr().add(offset) as _,
+            self.current_changelog_index + 1,
+            self.changelog_length,
             self.changelog_capacity,
         );
 
-        let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * self.roots_capacity;
-        if bytes_roots.len() != expected_bytes_roots_size {
-            return Err(ConcurrentMerkleTreeError::RootBufferSize(
-                expected_bytes_roots_size,
-                bytes_roots.len(),
-            ));
-        }
+        let offset = offset + changelog_size;
+        let roots_size = mem::size_of::<[u8; 32]>() * self.roots_capacity;
         self.roots = CyclicBoundedVec::from_raw_parts(
-            bytes_roots.as_mut_ptr() as _,
-            roots_next_index,
-            roots_length,
+            bytes.as_ptr().add(offset) as _,
+            self.current_root_index + 1,
+            self.roots_length,
             self.roots_capacity,
         );
 
+        let offset = offset + roots_size;
         let canopy_size = Self::canopy_size(self.canopy_depth);
-        let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
-        if bytes_canopy.len() != expected_canopy_size {
-            return Err(ConcurrentMerkleTreeError::CanopyBufferSize(
-                expected_canopy_size,
-                bytes_canopy.len(),
+        self.canopy =
+            BoundedVec::from_raw_parts(bytes.as_ptr().add(offset) as _, canopy_size, canopy_size);
+
+        Ok(())
+    }
+
+    /// Assigns byte slices into vectors belonging to `ConcurrentMerkleTree`.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the size and alignment of the byte
+    /// slices is the caller's responsibility.
+    #[allow(clippy::too_many_arguments)]
+    unsafe fn fill_vectors_mut<'b>(
+        &'b mut self,
+        bytes: &'b mut [u8],
+    ) -> Result<(), ConcurrentMerkleTreeError> {
+        let expected_size = Self::size(
+            self.height,
+            self.changelog_capacity,
+            self.roots_capacity,
+            self.canopy_depth,
+        );
+        if bytes.len() != expected_size {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                expected_size,
+                bytes.len(),
             ));
         }
-        self.canopy =
-            BoundedVec::from_raw_parts(bytes_canopy.as_mut_ptr() as _, canopy_length, canopy_size);
+
+        // Restore the vectors correctly, by pointing them to the appropriate
+        // byte slices as underlying data. The most unsafe part of this code.
+        // Here be dragons!
+        let offset = Self::non_dyn_fields_size();
+        let filled_subtrees_size = mem::size_of::<[u8; 32]>() * self.height;
+        self.filled_subtrees = BoundedVec::from_raw_parts(
+            bytes.as_mut_ptr().add(offset) as _,
+            self.height,
+            self.height,
+        );
+
+        let offset = offset + filled_subtrees_size;
+        let changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * self.changelog_capacity;
+        self.changelog = CyclicBoundedVec::from_raw_parts(
+            bytes.as_mut_ptr().add(offset) as _,
+            self.current_changelog_index + 1,
+            self.changelog_length,
+            self.changelog_capacity,
+        );
+
+        let offset = offset + changelog_size;
+        let roots_size = mem::size_of::<[u8; 32]>() * self.roots_capacity;
+        self.roots = CyclicBoundedVec::from_raw_parts(
+            bytes.as_mut_ptr().add(offset) as _,
+            self.current_root_index + 1,
+            self.roots_length,
+            self.roots_capacity,
+        );
+
+        let offset = offset + roots_size;
+        let canopy_size = Self::canopy_size(self.canopy_depth);
+        self.canopy = BoundedVec::from_raw_parts(
+            bytes.as_mut_ptr().add(offset) as _,
+            canopy_size,
+            canopy_size,
+        );
 
         Ok(())
     }
@@ -520,90 +551,44 @@ where
     /// Calling it in async context (or anywhere where the underlying data can
     /// be moved in the memory) is certainly going to cause undefined behavior.
     #[allow(clippy::too_many_arguments)]
-    pub unsafe fn from_bytes_init(
-        bytes_struct: &'a mut [u8],
-        bytes_filled_subtrees: &'a mut [u8],
-        bytes_changelog: &'a mut [u8],
-        bytes_roots: &'a mut [u8],
-        bytes_canopy: &'a mut [u8],
+    pub unsafe fn from_bytes_zero_copy_init(
+        bytes: &'a mut [u8],
         height: usize,
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
-        let tree = ConcurrentMerkleTree::struct_from_bytes_mut(bytes_struct)?;
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        if bytes.len() < Self::non_dyn_fields_size() {
+            return Err(ConcurrentMerkleTreeError::BufferSize(
+                Self::non_dyn_fields_size(),
+                bytes.len(),
+            ));
+        }
 
-        tree.height = height;
+        bytes[memoffset::span_of!(Self, height)].copy_from_slice(height.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, changelog_capacity)]
+            .copy_from_slice(changelog_size.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, changelog_length)]
+            .copy_from_slice(0_usize.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, current_changelog_index)]
+            .copy_from_slice(0_usize.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, roots_capacity)]
+            .copy_from_slice(roots_size.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, roots_length)]
+            .copy_from_slice(0_usize.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, current_root_index)]
+            .copy_from_slice(0_usize.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, canopy_depth)]
+            .copy_from_slice(canopy_depth.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, next_index)]
+            .copy_from_slice(0_usize.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, sequence_number)]
+            .copy_from_slice(0_usize.to_ne_bytes().as_slice());
+        bytes[memoffset::span_of!(Self, rightmost_leaf)].copy_from_slice(&[0u8; 32]);
 
-        tree.changelog_capacity = changelog_size;
-        tree.changelog_length = 0;
-        tree.current_changelog_index = 0;
+        let mut tree = ConcurrentMerkleTree::struct_from_bytes(bytes)?;
 
-        tree.roots_capacity = roots_size;
-        tree.roots_length = 0;
-        tree.current_root_index = 0;
-
-        tree.canopy_depth = canopy_depth;
-
-        tree.fill_vectors_mut(
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        )?;
-        Ok(tree)
-    }
-
-    /// Casts byte slices into `ConcurrentMerkleTree`.
-    ///
-    /// * `bytes_struct` is casted directly into a reference of
-    ///   `ConcurrentMerkleTree`.
-    /// * `bytes_filled_subtrees` is used to create a `BoundedVec` directly.
-    ///   That `BoundedVec` is assigned to the struct.
-    /// * `bytes_changelog` is used to create a `CyclicBoundedVec` directly.
-    ///   That `CyclicBoundedVec` is assigned to the struct.
-    /// * `bytes_roots` is used to create a `CyclicBoundedVec` directly. That
-    ///   `CyclicBoundedVec` is assigned to the struct.
-    ///
-    /// # Purpose
-    ///
-    /// This method is meant to be used mostly in Solana programs, where memory
-    /// constraints are tight and we want to make sure no data is copied.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. This method validates only sizes of slices.
-    /// Ensuring the alignment and that the slices provide actual data of the
-    /// Merkle tree is the caller's responsibility.
-    ///
-    /// Calling it in async context (or anywhere where the underlying data can
-    /// be moved in the memory) is certainly going to cause undefined behavior.
-    pub unsafe fn from_bytes_mut<'b>(
-        bytes_struct: &'b mut [u8],
-        bytes_filled_subtrees: &'b mut [u8],
-        bytes_changelog: &'b mut [u8],
-        bytes_roots: &'b mut [u8],
-        bytes_canopy: &'b mut [u8],
-    ) -> Result<&'b mut Self, ConcurrentMerkleTreeError> {
-        let tree = ConcurrentMerkleTree::struct_from_bytes_mut(bytes_struct)?;
-        tree.fill_vectors_mut(
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-            tree.height,
-            tree.current_changelog_index + 1,
-            tree.changelog_length,
-            tree.current_root_index + 1,
-            tree.roots_length,
-            Self::canopy_size(tree.canopy_depth),
-        )?;
+        tree.fill_vectors(bytes)?;
         Ok(tree)
     }
 
