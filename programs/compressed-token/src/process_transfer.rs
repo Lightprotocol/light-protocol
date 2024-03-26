@@ -124,6 +124,10 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         input_root_indices,
         output_state_merkle_tree_account_indices,
         proof,
+        new_address_seeds: Vec::new(),
+        address_merkle_tree_root_indices: Vec::new(),
+        address_merkle_tree_account_indices: Vec::new(),
+        address_queue_account_indices: Vec::new(),
     };
 
     let mut inputs = Vec::new();

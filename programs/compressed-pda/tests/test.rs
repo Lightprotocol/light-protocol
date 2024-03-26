@@ -24,15 +24,19 @@ use light_test_utils::{
 use num_bigint::BigInt;
 use num_traits::ops::bytes::FromBytes;
 use psp_compressed_pda::{
-    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
     sdk::create_execute_compressed_instruction,
     utils::CompressedProof,
+    ErrorCode,
 };
 use reqwest::Client;
 use solana_cli_output::CliAccount;
 use solana_program_test::ProgramTestContext;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{
+    instruction::InstructionError, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
@@ -81,6 +85,10 @@ async fn test_execute_compressed_transaction() {
         &Vec::new(),
         &vec![merkle_tree_pubkey],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
@@ -125,6 +133,10 @@ async fn test_execute_compressed_transaction() {
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
@@ -149,6 +161,10 @@ async fn test_execute_compressed_transaction() {
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
@@ -182,6 +198,10 @@ async fn test_execute_compressed_transaction() {
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof,
     );
     let transaction = Transaction::new_signed_with_payer(
@@ -224,6 +244,10 @@ async fn test_execute_compressed_transaction() {
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof,
     );
     let res =
@@ -245,6 +269,10 @@ async fn test_execute_compressed_transaction() {
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof,
     );
     let res =
@@ -252,6 +280,192 @@ async fn test_execute_compressed_transaction() {
     assert!(res.is_err());
 }
 
+/// Tests Execute compressed transaction with address:
+/// 1. should fail: create out compressed account with address without input compressed account with address or created address
+/// 2. should succeed: create out compressed account with new created address
+#[tokio::test]
+async fn test_with_address() {
+    let env: light_test_utils::test_env::EnvWithAccounts =
+        setup_test_programs_with_accounts().await;
+    let mut context = env.context;
+    let payer = context.payer.insecure_clone();
+
+    let payer_pubkey = payer.pubkey();
+
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let mock_indexer = MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+        None,
+    );
+    let address_seed = [1u8; 32];
+    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let output_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: payer_pubkey,
+        data: None,
+        address: Some(derived_address), // this should not be sent, only derived onchain
+    }];
+    let proof_mock = CompressedProof {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
+    };
+
+    let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
+        &Vec::new(),
+        &output_compressed_accounts,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &vec![merkle_tree_pubkey],
+        &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &proof_mock,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        res.result,
+        Err(solana_sdk::transaction::TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(ErrorCode::InvalidAddress.into())
+        ))
+    );
+    let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
+        &Vec::new(),
+        &output_compressed_accounts,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &vec![merkle_tree_pubkey],
+        &vec![0u16],
+        &vec![0u16],
+        &vec![env.address_merkle_tree_queue_pubkey],
+        &vec![env.address_merkle_tree_pubkey],
+        &vec![address_seed],
+        &proof_mock,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+    // Wait until now to reduce startup lag by prover server
+    let mut mock_indexer = mock_indexer.await;
+    mock_indexer.add_lamport_compressed_accounts(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert_eq!(mock_indexer.compressed_accounts.len(), 1);
+    assert_eq!(
+        mock_indexer.compressed_accounts[0]
+            .compressed_account
+            .address
+            .unwrap(),
+        derived_address
+    );
+    let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
+    let (root_indices, proof) = mock_indexer
+        .create_proof_for_compressed_accounts(
+            &[compressed_account_with_context
+                .compressed_account
+                .hash(
+                    &merkle_tree_pubkey,
+                    &compressed_account_with_context.leaf_index,
+                )
+                .unwrap()],
+            &mut context,
+        )
+        .await;
+    let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
+    let recipient_pubkey = Pubkey::new_unique();
+    let output_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: recipient_pubkey,
+        data: None,
+        address: Some(derived_address),
+    }];
+    let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
+        &input_compressed_accounts,
+        &output_compressed_accounts,
+        &vec![merkle_tree_pubkey],
+        &vec![0u32],
+        &vec![indexed_array_pubkey],
+        &vec![merkle_tree_pubkey],
+        &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &proof,
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    println!("Transaction with zkp -------------------------");
+
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+    mock_indexer.add_lamport_compressed_accounts(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert_eq!(mock_indexer.compressed_accounts.len(), 1);
+    assert_eq!(
+        mock_indexer.compressed_accounts[0]
+            .compressed_account
+            .address
+            .unwrap(),
+        derived_address
+    );
+    assert_eq!(
+        mock_indexer.compressed_accounts[0].compressed_account.owner,
+        recipient_pubkey
+    );
+}
 #[ignore = "this is a helper function to regenerate accounts"]
 #[tokio::test]
 async fn regenerate_accounts() {

@@ -6,6 +6,7 @@ pub mod instructions;
 pub mod utils;
 pub use instructions::*;
 pub mod compressed_account;
+pub mod create_address;
 pub mod nullify_state;
 pub mod sdk;
 pub mod verify_state;
@@ -51,6 +52,14 @@ pub enum ErrorCode {
     PublicInputsTryIntoFailed,
     #[msg("CompressedAccountHashError")]
     CompressedAccountHashError,
+    #[msg("InvalidAddress")]
+    InvalidAddress,
+    #[msg("InvalidAddressQueue")]
+    InvalidAddressQueue,
+    #[msg("InvalidNullifierQueue")]
+    InvalidNullifierQueue,
+    #[msg("DeriveAddressError")]
+    DeriveAddressError,
 }
 
 #[program]

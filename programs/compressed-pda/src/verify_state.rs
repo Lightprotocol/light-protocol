@@ -1,4 +1,4 @@
-use account_compression::StateMerkleTreeAccount;
+use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use anchor_lang::prelude::*;
 use groth16_solana::{
     decompression::{decompress_g1, decompress_g2},
@@ -36,24 +36,54 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
+// TODO: unify fetch roots and fetch_roots_address_merkle_tree
+#[inline(never)]
+pub fn fetch_roots_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+    inputs: &'a InstructionDataTransfer,
+    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    root_account_indices: &[u16],
+    roots: &'a mut [[u8; 32]],
+) -> Result<()> {
+    for (j, index_mt_account) in root_account_indices.iter().enumerate() {
+        let merkle_tree = AccountLoader::<AddressMerkleTreeAccount>::try_from(
+            &ctx.remaining_accounts[*index_mt_account as usize],
+        )
+        .unwrap();
+        let merkle_tree = merkle_tree.load()?;
+        let fetched_roots = merkle_tree.load_roots()?;
+
+        roots[j] = fetched_roots[inputs.input_root_indices[j] as usize];
+    }
+    Ok(())
+}
+
 #[inline(never)]
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: &'a InstructionDataTransfer,
     leaves: &'a mut [[u8; 32]],
+    addresses: &'a mut [Option<[u8; 32]>],
 ) -> anchor_lang::Result<()> {
+    let mut none_counter = 0;
     for (j, input_compressed_account_with_context) in inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
     {
-        if input_compressed_account_with_context
+        // TODO: revisit whether we can find a prettier solution
+        // For heap neutrality we cannot allocate new heap memory in this function.
+        // For efficiency we want to remove None elements from the addresses vector.
+        match &input_compressed_account_with_context
             .compressed_account
             .address
-            .is_some()
         {
-            unimplemented!("Address is not supported yet")
-        }
+            Some(address) => addresses[j - none_counter] = Some(*address),
+            None => {
+                none_counter += 1;
+                // Vec::remove(addresses, j);
+            }
+        };
+
         leaves[j] = input_compressed_account_with_context
             .compressed_account
             .hash(
@@ -98,6 +128,190 @@ pub fn sum_check(
         Ok(())
     } else {
         Err(ErrorCode::SumCheckFailed.into())
+    }
+}
+
+#[inline(never)]
+pub fn signer_check(
+    inputs: &InstructionDataTransfer,
+    ctx: &Context<'_, '_, '_, '_, TransferInstruction<'_>>,
+) -> Result<()> {
+    inputs
+    .input_compressed_accounts_with_merkle_context
+    .iter()
+    .try_for_each(|compressed_accounts: &CompressedAccountWithMerkleContext| {
+        // TODO(@ananas-block): revisit program signer check
+        // Two options: (1 is currently implemented)
+        // 1. we require the program as an account and reconstruct the cpi signer to check that the cpi signer is a pda of the program
+        //   - The advantage is that the compressed account can be owned by the program_id
+        // 2. we set a deterministic pda signer for every program eg seeds = [b"cpi_authority"]
+        //   - The advantages are that the program does not need to be an account, and we don't need to reconstruct the pda -> more efficient (costs are just low hundreds of cu though)
+        //   - The drawback is that the pda signer is the owner of the compressed account which is confusing
+        if compressed_accounts.compressed_account.data.is_some() {
+            let invoking_program_id = ctx.accounts.invoking_program.as_ref().unwrap().key();
+            let signer = anchor_lang::prelude::Pubkey::find_program_address(
+                &[b"cpi_authority"],
+                &invoking_program_id,
+            )
+            .0;
+            if signer != ctx.accounts.signer.key()
+                && invoking_program_id != compressed_accounts.compressed_account.owner
+            {
+                msg!(
+                    "program signer check failed derived cpi signer {} !=  signer {}",
+                    compressed_accounts.compressed_account.owner,
+                    ctx.accounts.signer.key()
+                );
+                msg!(
+                    "program signer check failed compressed account owner {} !=  invoking_program_id {}",
+                    compressed_accounts.compressed_account.owner,
+                    invoking_program_id
+                );
+                err!(ErrorCode::SignerCheckFailed)
+            } else {
+                Ok(())
+            }
+        } else if compressed_accounts.compressed_account.owner != ctx.accounts.signer.key()
+        {
+            msg!(
+                "signer check failed compressed account owner {} !=  signer {}",
+                compressed_accounts.compressed_account.owner,
+                ctx.accounts.signer.key()
+            );
+            err!(ErrorCode::SignerCheckFailed)
+        } else {
+            Ok(())
+        }
+    })?;
+    Ok(())
+}
+
+pub fn verify_state_proof(
+    roots: &[[u8; 32]],
+    leaves: &[[u8; 32]],
+    address_roots: &[[u8; 32]],
+    addresses: &[[u8; 32]],
+    compressed_proof: &CompressedProof,
+) -> Result<()> {
+    if !addresses.is_empty() && !leaves.is_empty() {
+        verify_create_addresses_and_merkle_proof_zkp(
+            roots,
+            leaves,
+            address_roots,
+            addresses,
+            compressed_proof,
+        )
+    } else if !addresses.is_empty() {
+        msg!("create address verification currently not checked");
+        // verify_create_addresses_zkp(addresses, compressed_proof)
+        Ok(())
+    } else {
+        verify_merkle_proof_zkp(roots, leaves, compressed_proof)
+    }
+}
+
+pub fn verify_create_addresses_zkp(
+    addresses: &[[u8; 32]],
+    compressed_proof: &CompressedProof,
+) -> Result<()> {
+    // TODO: this is currently mock code, add correct verifying keys
+    match addresses.len() {
+        1 => verify::<1>(
+            &addresses
+                .try_into()
+                .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+        ),
+        2 => verify::<2>(
+            &addresses
+                .try_into()
+                .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY,
+        ),
+        _ => Err(crate::ErrorCode::InvalidPublicInputsLength.into()),
+    }
+}
+
+// TODO: this is currently mock code, add correct verifying keys
+#[inline(never)]
+pub fn verify_create_addresses_and_merkle_proof_zkp(
+    roots: &[[u8; 32]],
+    leaves: &[[u8; 32]],
+    address_roots: &[[u8; 32]],
+    addresses: &[[u8; 32]],
+    compressed_proof: &CompressedProof,
+) -> Result<()> {
+    let public_inputs = [roots, leaves, address_roots, addresses].concat();
+
+    // The public inputs are expected to be a multiple of 2
+    // 4 inputs means 1 inclusion proof (1 root, 1 leaf, 1 address root, 1 created address)
+    // 6 inputs means 1 inclusion proof (1 root, 1 leaf, 2 address roots, 2 created address) or
+    // 6 inputs means 2 inclusion proofs (2 roots and 2 leaves, 1 address root, 1 created address)
+    // 8 inputs means 2 inclusion proofs (2 roots and 2 leaves, 2 address roots, 2 created address) or
+    // 8 inputs means 3 inclusion proofs (3 roots and 3 leaves, 1 address root, 1 created address)
+    // 10 inputs means 3 inclusion proofs (3 roots and 3 leaves, 2 address roots, 2 created address) or
+    // 10 inputs means 4 inclusion proofs (4 roots and 4 leaves, 1 address root, 1 created address)
+    // 12 inputs means 4 inclusion proofs (4 roots and 4 leaves, 2 address roots, 2 created address)
+    match public_inputs.len() {
+        4 => verify::<4>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+        ),
+        6 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY
+            };
+            verify::<6>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        8 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY
+            };
+            verify::<6>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        10 => {
+            let verifying_key = if address_roots.len() == 1 {
+                &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY
+            };
+            verify::<6>(
+                &public_inputs
+                    .try_into()
+                    .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+                compressed_proof,
+                verifying_key,
+            )
+        }
+        12 => verify::<12>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+        ),
+        _ => Err(crate::ErrorCode::InvalidPublicInputsLength.into()),
     }
 }
 
