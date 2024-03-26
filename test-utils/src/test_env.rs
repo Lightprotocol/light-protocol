@@ -160,9 +160,11 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         Some(&merkle_tree_keypair),
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
+    let indexed_array_keypair = Keypair::from_bytes(&INDEXED_ARRAY_TEST_KEYPAIR).unwrap();
+    let indexed_array_pubkey = indexed_array_keypair.pubkey();
 
     let instruction =
-        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey);
+        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(indexed_array_pubkey));
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -175,7 +177,6 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let indexed_array_keypair = Keypair::from_bytes(&INDEXED_ARRAY_TEST_KEYPAIR).unwrap();
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         account_compression::IndexedArrayAccount::LEN,
@@ -188,11 +189,11 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         &ACCOUNT_COMPRESSION_ID,
         Some(&indexed_array_keypair),
     );
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
     let instruction = create_initialize_indexed_array_instruction(
         payer.pubkey(),
         indexed_array_keypair.pubkey(),
         0,
+        Some(merkle_tree_pubkey),
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],

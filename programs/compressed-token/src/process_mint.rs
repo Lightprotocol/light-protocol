@@ -46,11 +46,14 @@ pub fn process_mint_to<'info>(
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
     }
     mint_spl_to_pool_pda(&ctx, &amounts)?;
+
     let output_compressed_accounts = create_output_compressed_accounts(
         ctx.accounts.mint.to_account_info().key(),
         compression_public_keys.as_slice(),
         &amounts,
+        None,
     );
+
     cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts)?;
     Ok(())
 }
@@ -59,11 +62,15 @@ pub fn create_output_compressed_accounts(
     mint_pubkey: Pubkey,
     pubkeys: &[Pubkey],
     amounts: &[u64],
+    lamports: Option<&[Option<u64>]>,
 ) -> Vec<CompressedAccount> {
+    let defaul = vec![None; pubkeys.len()];
+    let lamports = lamports.unwrap_or(defaul.as_slice());
     pubkeys
         .iter()
         .zip(amounts.iter())
-        .map(|(pubkey, amount)| {
+        .zip(lamports.iter())
+        .map(|((pubkey, amount), lamports_amount)| {
             let token_data = TokenData {
                 mint: mint_pubkey,
                 owner: *pubkey,
@@ -83,7 +90,7 @@ pub fn create_output_compressed_accounts(
             };
             CompressedAccount {
                 owner: crate::ID,
-                lamports: 0,
+                lamports: lamports_amount.unwrap_or(0u64),
                 data: Some(data),
                 address: None,
             }
