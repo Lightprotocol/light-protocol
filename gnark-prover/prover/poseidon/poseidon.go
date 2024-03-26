@@ -25,12 +25,21 @@ var CFG_3 = cfg{
 	mds:       MDS_3,
 }
 
+var CFG_4 = cfg{
+	RF:        8,
+	RP:        56,
+	constants: CONSTANTS_4,
+	mds:       MDS_4,
+}
+
 func cfgFor(t int) *cfg {
 	switch t {
 	case 2:
 		return &CFG_2
 	case 3:
 		return &CFG_3
+	case 4:
+		return &CFG_4
 	}
 	panic("Poseidon: unsupported arg count")
 }
@@ -135,5 +144,6 @@ func (h fullRound) DefineGadget(api frontend.API) interface{} {
 	for i := 0; i < len(h.Inp); i += 1 {
 		h.Inp[i] = abstractor.Call(api, sbox{h.Inp[i]})
 	}
-	return abstractor.Call1(api, mds{h.Inp})
+	result := abstractor.Call1(api, mds{h.Inp})
+	return result
 }

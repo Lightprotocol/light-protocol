@@ -8,49 +8,164 @@ import (
 )
 
 func TestInclusionParameters_TestTree(t *testing.T) {
-	var tree = BuildTestTree(3, 1, true)
-	var json = tree.ToJSON()
-	fmt.Println(json)
-
-	file, err := os.OpenFile("../test-data/inclusion2.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("../test-data/inclusion_tmp.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			t.Errorf("Error closing file: %v", err)
+		}
+	}(file)
 
 	// generate trees with depth 1..26 and numberOfUtxos 1..10 and store the serialized results in a file
 	for i := 1; i <= 8; i++ {
 		for j := 1; j <= 4; j++ {
 			tree := BuildTestTree(i, j, true)
-			json := tree.ToJSON()
+			var json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 1, json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
 
-			_, err = file.WriteString(fmt.Sprintf("%d;%s\n", 1, json))
+			tree = BuildTestTree(i, j, true)
+			invalidValue := big.NewInt(999)
+			tree.Root[0] = *invalidValue
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
+
+			tree = BuildTestTree(i, j, true)
+			tree.Leaf[0] = *invalidValue
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
+
+			tree = BuildTestTree(i, j, true)
+			tree.InPathIndices[0] = 999
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
+
+			tree = BuildTestTree(i, j, true)
+			tree.InPathElements[0][0] = *invalidValue
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
 
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
+		}
+	}
+}
 
-			invalidValue := big.NewInt(999)
-			tree.Root[0] = *invalidValue
-			json = tree.ToJSON()
-			_, err = file.WriteString(fmt.Sprintf("%d;%s\n", 0, json))
+func TestNonInclusionParameters_TestTree(t *testing.T) {
+	file, err := os.OpenFile("../test-data/non-inclusion_tmp.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Errorf("Error opening file: %v", err)
+		return
+	}
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			t.Errorf("Error closing file: %v", err)
+		}
+	}(file)
 
-			tree.Leaf[0] = *invalidValue
-			json = tree.ToJSON()
-			_, err = file.WriteString(fmt.Sprintf("%d;%s\n", 0, json))
-
-			tree.InPathIndices[0] = 999
-			json = tree.ToJSON()
-			_, err = file.WriteString(fmt.Sprintf("%d;%s\n", 0, json))
-
-			tree.InPathElements[0][0] = *invalidValue
-			json = tree.ToJSON()
-			_, err = file.WriteString(fmt.Sprintf("%d;%s\n", 0, json))
+	// generate trees with depth 1..26 and numberOfUtxos 1..10 and store the serialized results in a file
+	for i := 1; i <= 8; i++ {
+		for j := 1; j <= 4; j++ {
+			tree := BuildTestNonInclusionTree(i, j, true, true)
+			var json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 1, json)
 
 			if err != nil {
-				fmt.Println(err)
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
+			tree = BuildTestNonInclusionTree(i, j, true, true)
+			invalidValue := big.NewInt(9999)
+			tree.Root[0] = *invalidValue
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
+				return
+			}
+
+			tree = BuildTestNonInclusionTree(i, j, true, false)
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+
+			tree = BuildTestNonInclusionTree(i, j, true, true)
+			tree.InPathIndices[0] = 9999
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+
+			tree = BuildTestNonInclusionTree(i, j, true, true)
+			tree.InPathElements[0][0] = *invalidValue
+			json, err = tree.MarshalJSON()
+			if err != nil {
+				t.Errorf("Error marshalling JSON: %v", err)
+				return
+			}
+			_, err = fmt.Fprintf(file, "%d;%s\n", 0, json)
+			if err != nil {
+				t.Errorf("Error writing to file: %v", err)
 				return
 			}
 

@@ -42,10 +42,10 @@ describe("Tests", () => {
         const leaf = hasher.poseidonHashString(["1"]);
         const merkleTree = new MerkleTree(merkleHeights[i], hasher, [leaf]);
 
-        const pathEements: string[] = merkleTree.path(
+        const pathElements: string[] = merkleTree.path(
           merkleTree.indexOf(leaf),
         ).pathElements;
-        const hexPathElements = pathEements.map((value) => toHex(value));
+        const hexPathElements = pathElements.map((value) => toHex(value));
         let inputs = {
           root: new Array(utxos[j]).fill(toHex(merkleTree.root())),
           inPathIndices: new Array(utxos[j]).fill(merkleTree.indexOf(leaf)),
