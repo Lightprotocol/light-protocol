@@ -3,7 +3,6 @@ use std::borrow::Borrow;
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 
-// use light_verifier_sdk::light_transaction::CompressedProof;
 use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
@@ -34,7 +33,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // TODO: add check that if compressed account is program owned that it is signed by the program (if an account has data it is program owned, if the program account is set compressed accounts are program owned)
     match ctx.accounts.cpi_signature_account.borrow() {
         Some(_cpi_signature_account) => {
-            // needs to check every compredssed account and make sure that signaures exist in cpi_signature_account
+            // needs to check every compressed account and make sure that signaures exist in cpi_signature_account
             msg!("cpi_signature check is not implemented");
             err!(ErrorCode::CpiSignerCheckFailed)
         }
@@ -142,8 +141,11 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
 pub struct TransferInstruction<'info> {
     pub signer: Signer<'info>,
     /// CHECK: this account
-    #[account(mut)]
-    pub registered_program_pda: UncheckedAccount<'info>,
+    #[account(
+    seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
+    )]
+    pub registered_program_pda:
+        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
