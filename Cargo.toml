@@ -9,7 +9,6 @@ members = [
     "state",
     "test-utils",
     "utils",
-    "verifier-sdk",
     "xtask",
 ]
 
