@@ -22,7 +22,7 @@ type InclusionCircuit struct {
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
 	// Actual merkle proof verification.
-	roots := abstractor.Call1(api, InclusionProof{
+	abstractor.Call1(api, InclusionProof{
 		Root:           circuit.Root,
 		Leaf:           circuit.Leaf,
 		InPathElements: circuit.InPathElements,
@@ -31,11 +31,6 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 		NumberOfUtxos: circuit.NumberOfUtxos,
 		Depth:         circuit.Depth,
 	})
-
-	for i := 0; i < circuit.NumberOfUtxos; i++ {
-		api.AssertIsEqual(roots[i], circuit.Root[i])
-	}
-
 	return nil
 }
 
@@ -70,5 +65,5 @@ func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string,
 		return nil, err
 	}
 
-	return &ProvingSystem{treeDepth, numberOfUtxos, true, pk, vk, ccs}, nil
+	return &ProvingSystem{treeDepth, numberOfUtxos, 0, 0, pk, vk, ccs}, nil
 }

@@ -12,7 +12,7 @@ use anchor_lang::AnchorDeserialize;
 use circuitlib_rs::{
     gnark::{
         constants::{INCLUSION_PATH, SERVER_ADDRESS},
-        helpers::{health_check, spawn_gnark_server},
+        helpers::spawn_gnark_server,
         inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
@@ -44,8 +44,23 @@ use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
 
+async fn init_mock_indexer() -> MockIndexer {
+    let env: light_test_utils::test_env::EnvWithAccounts =
+        setup_test_programs_with_accounts().await;
+    let context = env.context;
+    let payer = context.payer.insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let indexed_array_pubkey = env.indexed_array_pubkey;
+    MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+    )
+    .await
+}
+
 /// Tests Execute compressed transaction:
-/// 1. should succeed: with out compressed account(0 lamports), no in compressed account
+/// 1. should succeed: without compressed account(0 lamports), no in compressed account
 /// 2. should fail: in compressed account and invalid zkp
 /// 3. should fail: in compressed account and invalid signer
 /// 4. should succeed: in compressed account inserted in (1.) and valid zkp
@@ -60,12 +75,8 @@ async fn test_execute_compressed_transaction() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
-    let mock_indexer = MockIndexer::new(
-        merkle_tree_pubkey,
-        indexed_array_pubkey,
-        payer.insecure_clone(),
-        None,
-    );
+
+    let mut mock_indexer = init_mock_indexer().await;
 
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -86,8 +97,8 @@ async fn test_execute_compressed_transaction() {
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -103,15 +114,14 @@ async fn test_execute_compressed_transaction() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
         transaction,
     )
     .await;
-    // Wait until now to reduce startup lag by prover server
-    let mut mock_indexer = mock_indexer.await;
+
     mock_indexer.add_lamport_compressed_accounts(
         res.unwrap()
             .metadata
@@ -134,11 +144,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -165,11 +175,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -205,10 +215,10 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
         &Vec::new(),
@@ -223,7 +233,7 @@ async fn test_execute_compressed_transaction() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     println!("Transaction with zkp -------------------------");
 
@@ -254,10 +264,10 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
         &Vec::new(),
@@ -282,10 +292,10 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![1u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
+        &[merkle_tree_pubkey],
+        &[1u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
         &Vec::new(),
@@ -315,12 +325,9 @@ async fn test_with_address() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
-    let mock_indexer = MockIndexer::new(
-        merkle_tree_pubkey,
-        indexed_array_pubkey,
-        payer.insecure_clone(),
-        None,
-    );
+
+    let mut mock_indexer = init_mock_indexer().await;
+
     let address_seed = [1u8; 32];
     let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
@@ -342,8 +349,8 @@ async fn test_with_address() {
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -358,7 +365,7 @@ async fn test_with_address() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
@@ -380,12 +387,12 @@ async fn test_with_address() {
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
-        &vec![0u16],
-        &vec![env.address_merkle_tree_queue_pubkey],
-        &vec![env.address_merkle_tree_pubkey],
-        &vec![address_seed],
+        &[merkle_tree_pubkey],
+        &[0u16],
+        &[0u16],
+        &[env.address_merkle_tree_queue_pubkey],
+        &[env.address_merkle_tree_pubkey],
+        &[address_seed],
         &proof_mock,
         None,
         false,
@@ -396,15 +403,14 @@ async fn test_with_address() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
         transaction,
     )
     .await;
-    // Wait until now to reduce startup lag by prover server
-    let mut mock_indexer = mock_indexer.await;
+
     mock_indexer.add_lamport_compressed_accounts(
         res.unwrap()
             .metadata
@@ -447,10 +453,10 @@ async fn test_with_address() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
         &Vec::new(),
@@ -465,7 +471,7 @@ async fn test_with_address() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     println!("Transaction with zkp -------------------------");
 
@@ -512,7 +518,6 @@ async fn test_with_compression() {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
-        None,
     );
     let instruction_data = psp_compressed_pda::instruction::InitCompressSolPda {};
     let accounts = psp_compressed_pda::accounts::InitializeCompressedSolPda {
@@ -565,7 +570,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
@@ -604,7 +609,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
@@ -644,7 +649,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let res = solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
@@ -723,7 +728,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     println!("Transaction with zkp -------------------------");
 
@@ -765,7 +770,7 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     println!("Transaction with zkp -------------------------");
 
@@ -854,24 +859,18 @@ pub struct MockIndexer {
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
-    pub gnark_server: Option<std::process::Child>,
 }
 
 impl MockIndexer {
-    async fn new(
-        merkle_tree_pubkey: Pubkey,
-        indexed_array_pubkey: Pubkey,
-        payer: Keypair,
-        startup_time: Option<u64>,
-    ) -> Self {
-        let gnark_server = if startup_time.is_some() {
-            Some(spawn_gnark_server(
-                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-                0,
-            ))
-        } else {
-            None
-        };
+    async fn new(merkle_tree_pubkey: Pubkey, indexed_array_pubkey: Pubkey, payer: Keypair) -> Self {
+        spawn_gnark_server(
+            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+            true,
+            true,
+            false,
+            false,
+        )
+        .await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT,
@@ -879,9 +878,7 @@ impl MockIndexer {
             STATE_MERKLE_TREE_CANOPY_DEPTH,
         )
         .unwrap();
-        if startup_time.is_some() {
-            tokio::time::sleep(tokio::time::Duration::from_secs(startup_time.unwrap())).await;
-        }
+
         Self {
             merkle_tree_pubkey,
             indexed_array_pubkey,
@@ -890,7 +887,6 @@ impl MockIndexer {
             nullified_compressed_accounts: vec![],
             events: vec![],
             merkle_tree,
-            gnark_server,
         }
     }
 
@@ -899,17 +895,6 @@ impl MockIndexer {
         compressed_accounts: &[[u8; 32]],
         context: &mut ProgramTestContext,
     ) -> (Vec<u16>, CompressedProof) {
-        self.gnark_server = if self.gnark_server.is_none() {
-            Some(spawn_gnark_server(
-                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-                4,
-            ))
-        } else {
-            None
-        };
-        // waiting for server to start
-        health_check().await;
-
         let client = Client::new();
 
         let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
@@ -943,11 +928,8 @@ impl MockIndexer {
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
-        let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
-            context,
-            self.merkle_tree_pubkey,
-        )
-        .await;
+        let merkle_tree_account =
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
             .deserialized()
             .copy_merkle_tree()
@@ -1000,7 +982,7 @@ impl MockIndexer {
             self.compressed_accounts
                 .push(CompressedAccountWithMerkleContext {
                     compressed_account: compressed_account.clone(),
-                    leaf_index: event.output_leaf_indices[i as usize],
+                    leaf_index: event.output_leaf_indices[i],
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                 });
@@ -1008,10 +990,7 @@ impl MockIndexer {
             self.merkle_tree
                 .append(
                     &compressed_account
-                        .hash(
-                            &self.merkle_tree_pubkey,
-                            &event.output_leaf_indices[i as usize],
-                        )
+                        .hash(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
                         .unwrap(),
                 )
                 .expect("insert failed");
@@ -1030,11 +1009,8 @@ impl MockIndexer {
         )
         .await;
         let indexed_array = array.deserialized().indexed_array;
-        let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
-            context,
-            self.merkle_tree_pubkey,
-        )
-        .await;
+        let merkle_tree_account =
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
             .deserialized()
             .copy_merkle_tree()
@@ -1093,11 +1069,8 @@ impl MockIndexer {
                 compressed_account.element
             );
             let merkle_tree_account =
-                light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
-                    context,
-                    self.merkle_tree_pubkey,
-                )
-                .await;
+                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
+                    .await;
             assert_eq!(
                 indexed_array[*index_in_indexed_array].merkle_tree_overwrite_sequence_number,
                 merkle_tree_account
@@ -1105,7 +1078,7 @@ impl MockIndexer {
                     .load_merkle_tree()
                     .unwrap()
                     .sequence_number as u64
-                    + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as u64
+                    + STATE_MERKLE_TREE_ROOTS as u64
             );
         }
     }

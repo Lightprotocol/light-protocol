@@ -84,33 +84,33 @@ func SetupNonInclusion(treeDepth uint32, numberOfUtxos uint32) (*ProvingSystem, 
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{treeDepth, numberOfUtxos, false, pk, vk, ccs}, nil
+	return &ProvingSystem{0, 0, treeDepth, numberOfUtxos, pk, vk, ccs}, nil
 }
 
 func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Proof, error) {
-	if err := params.ValidateShape(ps.TreeDepth, ps.NumberOfUtxos); err != nil {
+	if err := params.ValidateShape(ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfUtxos); err != nil {
 		return nil, err
 	}
 
-	root := make([]frontend.Variable, ps.NumberOfUtxos)
-	value := make([]frontend.Variable, ps.NumberOfUtxos)
+	root := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	value := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
-	leafLowerRangeValue := make([]frontend.Variable, ps.NumberOfUtxos)
-	leafHigherRangeValue := make([]frontend.Variable, ps.NumberOfUtxos)
-	leafIndex := make([]frontend.Variable, ps.NumberOfUtxos)
+	leafLowerRangeValue := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	leafHigherRangeValue := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	leafIndex := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
-	inPathElements := make([][]frontend.Variable, ps.NumberOfUtxos)
-	inPathIndices := make([]frontend.Variable, ps.NumberOfUtxos)
+	inPathElements := make([][]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
-	for i := 0; i < int(ps.NumberOfUtxos); i++ {
+	for i := 0; i < int(ps.NonInclusionNumberOfUtxos); i++ {
 		root[i] = params.Root[i]
 		value[i] = params.Value[i]
 		leafLowerRangeValue[i] = params.LeafLowerRangeValue[i]
 		leafHigherRangeValue[i] = params.LeafHigherRangeValue[i]
 		leafIndex[i] = params.LeafIndex[i]
 		inPathIndices[i] = params.InPathIndices[i]
-		inPathElements[i] = make([]frontend.Variable, ps.TreeDepth)
-		for j := 0; j < int(ps.TreeDepth); j++ {
+		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
+		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
 			inPathElements[i][j] = params.InPathElements[i][j]
 		}
 	}
@@ -130,7 +130,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		return nil, err
 	}
 
-	logging.Logger().Info().Msg("Proof non-inclusion" + strconv.Itoa(int(ps.TreeDepth)) + " " + strconv.Itoa(int(ps.NumberOfUtxos)))
+	logging.Logger().Info().Msg("Proof non-inclusion" + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfUtxos)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {
 		logging.Logger().Error().Msg("non-inclusion prove error: " + err.Error())

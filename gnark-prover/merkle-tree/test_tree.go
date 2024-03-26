@@ -180,7 +180,11 @@ func rangeIn(low, hi int) int {
 	return low + rand.Intn(hi-low)
 }
 
-func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid bool) prover.NonInclusionParameters {
+func BuildValidTestNonInclusionTree(depth int, numberOfUtxos int, random bool) prover.NonInclusionParameters {
+	return BuildTestNonInclusionTree(depth, numberOfUtxos, random, true, false)
+}
+
+func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid bool, lowValue bool) prover.NonInclusionParameters {
 	tree := NewTree(depth)
 
 	rand.Seed(time.Now().UnixNano())
@@ -197,8 +201,7 @@ func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid 
 		if valid {
 			value.Add(leafLower, big.NewInt(1))
 		} else {
-			var valueIsLower = rand.Intn(2)
-			if valueIsLower == 1 {
+			if lowValue {
 				value.Add(leafLower, big.NewInt(-1))
 			} else {
 				value.Add(leafUpper, big.NewInt(1))

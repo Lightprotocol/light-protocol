@@ -18,9 +18,10 @@ type Proof struct {
 }
 
 type ProvingSystem struct {
-	TreeDepth        uint32
-	NumberOfUtxos    uint32
-	Inclusion        bool
+	InclusionTreeDepth        uint32
+	InclusionNumberOfUtxos    uint32
+	NonInclusionTreeDepth     uint32
+	NonInclusionNumberOfUtxos uint32
 	ProvingKey       groth16.ProvingKey
 	VerifyingKey     groth16.VerifyingKey
 	ConstraintSystem constraint.ConstraintSystem
@@ -51,6 +52,20 @@ type InclusionProof struct {
 	Depth         int
 }
 
+func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
+	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
+	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
+		hash := MerkleRootGadget{
+			Hash:  gadget.Leaf[proofIndex],
+			Index: gadget.InPathIndices[proofIndex],
+			Path:  gadget.InPathElements[proofIndex],
+			Depth: gadget.Depth}
+		currentHash[proofIndex] = abstractor.Call(api, hash)
+		api.AssertIsEqual(currentHash[proofIndex], gadget.Root[proofIndex])
+		}
+	return currentHash
+}
+
 type NonInclusionProof struct {
 	Root  []frontend.Variable
 	Value []frontend.Variable
@@ -64,19 +79,6 @@ type NonInclusionProof struct {
 
 	NumberOfUtxos int
 	Depth         int
-}
-
-func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
-	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
-	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
-		hash := MerkleRootGadget{
-			Hash:  gadget.Leaf[proofIndex],
-			Index: gadget.InPathIndices[proofIndex],
-			Path:  gadget.InPathElements[proofIndex],
-			Depth: gadget.Depth}
-		currentHash[proofIndex] = abstractor.Call(api, hash)
-	}
-	return currentHash
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -95,8 +97,23 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			Path:  gadget.InPathElements[proofIndex],
 			Depth: gadget.Depth}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
+		api.AssertIsEqual(currentHash[proofIndex], gadget.Root[proofIndex])
 	}
 	return currentHash
+}
+
+type CombinedProof struct {
+	InclusionProof    InclusionProof
+	NonInclusionProof NonInclusionProof
+}
+
+func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
+	x := abstractor.Call(api, gadget.InclusionProof)
+	y := abstractor.Call(api, gadget.NonInclusionProof)
+	if x == nil || y == nil {
+		return nil
+		}
+	return nil
 }
 
 type LeafHashGadget struct {

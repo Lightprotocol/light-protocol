@@ -6,7 +6,7 @@
   "scripts": {
     "test": "pnpm test-gnark",
     "test-gnark": "pnpm gnark-prover && ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/gnark.test.ts --exit",
-    "gnark-prover": "./scripts/prover.sh",
+    "gnark-prover": "./scripts/prover.sh \"inclusion non-inclusion\"",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
     "build": "rimraf lib && pnpm tsc"

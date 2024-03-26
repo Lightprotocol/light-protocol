@@ -10,7 +10,7 @@ use anchor_lang::AnchorSerialize;
 use circuitlib_rs::{
     gnark::{
         constants::{INCLUSION_PATH, SERVER_ADDRESS},
-        helpers::{health_check, spawn_gnark_server},
+        helpers::spawn_gnark_server,
         inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
@@ -183,7 +183,6 @@ async fn test_mint_to() {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
-        None,
     );
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut context, &payer).await;
@@ -200,7 +199,7 @@ async fn test_mint_to() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
@@ -251,7 +250,6 @@ async fn test_transfer() {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
-        Some(0),
     );
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut context, &payer).await;
@@ -268,7 +266,7 @@ async fn test_transfer() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
@@ -360,7 +358,7 @@ async fn test_transfer() {
         &[instruction],
         Some(&payer_pubkey),
         [&payer, &recipient_keypair].as_slice(),
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
@@ -424,7 +422,6 @@ async fn test_invalid_inputs() {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
-        Some(0),
     );
     let recipient_keypair = Keypair::new();
     airdrop_lamports(&mut context, &recipient_keypair.pubkey(), 1_000_000_000)
@@ -444,7 +441,7 @@ async fn test_invalid_inputs() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
@@ -906,7 +903,7 @@ async fn create_transfer_out_utxo_test(
         &[instruction],
         Some(&payer.pubkey()),
         [&payer].as_slice(),
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     solana_program_test::BanksClient::process_transaction_with_metadata(
         &mut context.banks_client,
@@ -1150,7 +1147,6 @@ pub struct MockIndexer {
     pub token_nullified_compressed_accounts: Vec<TokenDataWithContext>,
     pub events: Vec<PublicTransactionEvent>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
-    pub gnark_server: Option<std::process::Child>,
 }
 
 #[derive(Debug, Clone)]
@@ -1160,20 +1156,15 @@ pub struct TokenDataWithContext {
 }
 
 impl MockIndexer {
-    async fn new(
-        merkle_tree_pubkey: Pubkey,
-        indexed_array_pubkey: Pubkey,
-        payer: Keypair,
-        startup_time: Option<u64>,
-    ) -> Self {
-        let gnark_server = if startup_time.is_some() {
-            Some(spawn_gnark_server(
-                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-                0,
-            ))
-        } else {
-            None
-        };
+    async fn new(merkle_tree_pubkey: Pubkey, indexed_array_pubkey: Pubkey, payer: Keypair) -> Self {
+        spawn_gnark_server(
+            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+            true,
+            true,
+            false,
+            false,
+        )
+        .await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT,
@@ -1181,9 +1172,7 @@ impl MockIndexer {
             STATE_MERKLE_TREE_CANOPY_DEPTH,
         )
         .unwrap();
-        if startup_time.is_some() {
-            tokio::time::sleep(tokio::time::Duration::from_secs(startup_time.unwrap())).await;
-        }
+
         Self {
             merkle_tree_pubkey,
             indexed_array_pubkey,
@@ -1194,7 +1183,6 @@ impl MockIndexer {
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
             merkle_tree,
-            gnark_server,
         }
     }
 
@@ -1203,17 +1191,6 @@ impl MockIndexer {
         compressed_accounts: &[[u8; 32]],
         context: &mut ProgramTestContext,
     ) -> (Vec<u16>, CompressedProof) {
-        self.gnark_server = if self.gnark_server.is_none() {
-            Some(spawn_gnark_server(
-                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-                4,
-            ))
-        } else {
-            None
-        };
-        // waiting for server to start
-        health_check().await;
-
         let client = Client::new();
 
         let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
