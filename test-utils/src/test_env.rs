@@ -310,7 +310,7 @@ pub async fn create_and_initialize_address_merkle_tree(
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, initialize_ix],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &address_merkle_tree_keypair],
+        &[&context.payer, address_merkle_tree_keypair],
         context.last_blockhash,
     );
     context.banks_client.process_transaction(transaction).await
