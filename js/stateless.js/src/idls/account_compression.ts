@@ -166,77 +166,6 @@ export type AccountCompression = {
       ];
     },
     {
-      name: 'updateAddressMerkleTree';
-      accounts: [
-        {
-          name: 'authority';
-          isMut: true;
-          isSigner: true;
-        },
-        {
-          name: 'queue';
-          isMut: true;
-          isSigner: false;
-        },
-        {
-          name: 'merkleTree';
-          isMut: true;
-          isSigner: false;
-        },
-      ];
-      args: [
-        {
-          name: 'changelogIndex';
-          type: 'u16';
-        },
-        {
-          name: 'queueIndex';
-          type: 'u16';
-        },
-        {
-          name: 'addressNextIndex';
-          type: {
-            defined: 'usize';
-          };
-        },
-        {
-          name: 'addressNextValue';
-          type: {
-            array: ['u8', 32];
-          };
-        },
-        {
-          name: 'lowAddress';
-          type: {
-            defined: 'RawIndexingElement<usize,32>';
-          };
-        },
-        {
-          name: 'lowAddressNextValue';
-          type: {
-            array: ['u8', 32];
-          };
-        },
-        {
-          name: 'lowAddressProof';
-          type: {
-            array: [
-              {
-                array: ['u8', 32];
-              },
-              22,
-            ];
-          };
-        },
-        {
-          name: 'nextAddressProof';
-          type: {
-            array: ['u8', 128];
-          };
-        },
-      ];
-    },
-    {
       name: 'initializeGroupAuthority';
       docs: [
         'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
@@ -327,7 +256,8 @@ export type AccountCompression = {
       name: 'initializeStateMerkleTree';
       docs: [
         'Initializes a new Merkle tree from config bytes.',
-        'Can only be called from the merkle_tree_authority.',
+        'Index is an optional identifier and not checked by the program.',
+        'TODO: think the index over',
       ];
       accounts: [
         {
@@ -376,6 +306,12 @@ export type AccountCompression = {
         {
           name: 'canopyDepth';
           type: 'u64';
+        },
+        {
+          name: 'associatedQueue';
+          type: {
+            option: 'publicKey';
+          };
         },
       ];
     },
@@ -448,7 +384,7 @@ export type AccountCompression = {
           };
         },
         {
-          name: 'leavesIndices';
+          name: 'leavesQueueIndices';
           type: {
             vec: 'u16';
           };
@@ -501,6 +437,12 @@ export type AccountCompression = {
         },
         {
           name: 'delegate';
+          type: {
+            option: 'publicKey';
+          };
+        },
+        {
+          name: 'associatedMerkleTree';
           type: {
             option: 'publicKey';
           };
@@ -571,7 +513,7 @@ export type AccountCompression = {
             type: 'publicKey';
           },
           {
-            name: 'array';
+            name: 'associatedMerkleTree';
             type: 'publicKey';
           },
           {
@@ -702,6 +644,10 @@ export type AccountCompression = {
             docs: [
               'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
             ];
+            type: 'publicKey';
+          },
+          {
+            name: 'associatedQueue';
             type: 'publicKey';
           },
           {
@@ -948,6 +894,26 @@ export type AccountCompression = {
       name: 'HashSetFull';
       msg: 'HashSetFull';
     },
+    {
+      code: 6017;
+      name: 'NumberOfProofsMismatch';
+      msg: 'NumberOfProofsMismatch';
+    },
+    {
+      code: 6018;
+      name: 'InvalidMerkleProof';
+      msg: 'InvalidMerkleProof';
+    },
+    {
+      code: 6019;
+      name: 'InvalidIndexedArray';
+      msg: 'InvalidIndexedArray';
+    },
+    {
+      code: 6020;
+      name: 'InvalidMerkleTree';
+      msg: 'InvalidMerkleTree';
+    },
   ];
 };
 
@@ -1120,77 +1086,6 @@ export const IDL: AccountCompression = {
       ],
     },
     {
-      name: 'updateAddressMerkleTree',
-      accounts: [
-        {
-          name: 'authority',
-          isMut: true,
-          isSigner: true,
-        },
-        {
-          name: 'queue',
-          isMut: true,
-          isSigner: false,
-        },
-        {
-          name: 'merkleTree',
-          isMut: true,
-          isSigner: false,
-        },
-      ],
-      args: [
-        {
-          name: 'changelogIndex',
-          type: 'u16',
-        },
-        {
-          name: 'queueIndex',
-          type: 'u16',
-        },
-        {
-          name: 'addressNextIndex',
-          type: {
-            defined: 'usize',
-          },
-        },
-        {
-          name: 'addressNextValue',
-          type: {
-            array: ['u8', 32],
-          },
-        },
-        {
-          name: 'lowAddress',
-          type: {
-            defined: 'RawIndexingElement<usize,32>',
-          },
-        },
-        {
-          name: 'lowAddressNextValue',
-          type: {
-            array: ['u8', 32],
-          },
-        },
-        {
-          name: 'lowAddressProof',
-          type: {
-            array: [
-              {
-                array: ['u8', 32],
-              },
-              22,
-            ],
-          },
-        },
-        {
-          name: 'nextAddressProof',
-          type: {
-            array: ['u8', 128],
-          },
-        },
-      ],
-    },
-    {
       name: 'initializeGroupAuthority',
       docs: [
         'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
@@ -1281,7 +1176,8 @@ export const IDL: AccountCompression = {
       name: 'initializeStateMerkleTree',
       docs: [
         'Initializes a new Merkle tree from config bytes.',
-        'Can only be called from the merkle_tree_authority.',
+        'Index is an optional identifier and not checked by the program.',
+        'TODO: think the index over',
       ],
       accounts: [
         {
@@ -1330,6 +1226,12 @@ export const IDL: AccountCompression = {
         {
           name: 'canopyDepth',
           type: 'u64',
+        },
+        {
+          name: 'associatedQueue',
+          type: {
+            option: 'publicKey',
+          },
         },
       ],
     },
@@ -1402,7 +1304,7 @@ export const IDL: AccountCompression = {
           },
         },
         {
-          name: 'leavesIndices',
+          name: 'leavesQueueIndices',
           type: {
             vec: 'u16',
           },
@@ -1455,6 +1357,12 @@ export const IDL: AccountCompression = {
         },
         {
           name: 'delegate',
+          type: {
+            option: 'publicKey',
+          },
+        },
+        {
+          name: 'associatedMerkleTree',
           type: {
             option: 'publicKey',
           },
@@ -1525,7 +1433,7 @@ export const IDL: AccountCompression = {
             type: 'publicKey',
           },
           {
-            name: 'array',
+            name: 'associatedMerkleTree',
             type: 'publicKey',
           },
           {
@@ -1656,6 +1564,10 @@ export const IDL: AccountCompression = {
             docs: [
               'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
             ],
+            type: 'publicKey',
+          },
+          {
+            name: 'associatedQueue',
             type: 'publicKey',
           },
           {
@@ -1901,6 +1813,26 @@ export const IDL: AccountCompression = {
       code: 6016,
       name: 'HashSetFull',
       msg: 'HashSetFull',
+    },
+    {
+      code: 6017,
+      name: 'NumberOfProofsMismatch',
+      msg: 'NumberOfProofsMismatch',
+    },
+    {
+      code: 6018,
+      name: 'InvalidMerkleProof',
+      msg: 'InvalidMerkleProof',
+    },
+    {
+      code: 6019,
+      name: 'InvalidIndexedArray',
+      msg: 'InvalidIndexedArray',
+    },
+    {
+      code: 6020,
+      name: 'InvalidMerkleTree',
+      msg: 'InvalidMerkleTree',
     },
   ],
 };

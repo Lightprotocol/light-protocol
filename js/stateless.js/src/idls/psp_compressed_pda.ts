@@ -17,7 +17,7 @@ export type PspCompressedPda = {
         },
         {
           name: 'registeredProgramPda';
-          isMut: true;
+          isMut: false;
           isSigner: false;
         },
         {
@@ -149,7 +149,7 @@ export type PspCompressedPda = {
             };
           },
           {
-            name: 'indexMtAccount';
+            name: 'indexMerkleTreeAccount';
             type: 'u8';
           },
           {
@@ -231,7 +231,7 @@ export type PspCompressedPda = {
             };
           },
           {
-            name: 'outputAccountHashes';
+            name: 'outputCompressedAccountHashes';
             type: {
               vec: {
                 array: ['u8', 32];
@@ -266,6 +266,12 @@ export type PspCompressedPda = {
           },
           {
             name: 'relayFee';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'deCompressAmount';
             type: {
               option: 'u64';
             };
@@ -425,7 +431,7 @@ export const IDL: PspCompressedPda = {
         },
         {
           name: 'registeredProgramPda',
-          isMut: true,
+          isMut: false,
           isSigner: false,
         },
         {
@@ -557,7 +563,7 @@ export const IDL: PspCompressedPda = {
             },
           },
           {
-            name: 'indexMtAccount',
+            name: 'indexMerkleTreeAccount',
             type: 'u8',
           },
           {
@@ -639,7 +645,7 @@ export const IDL: PspCompressedPda = {
             },
           },
           {
-            name: 'outputAccountHashes',
+            name: 'outputCompressedAccountHashes',
             type: {
               vec: {
                 array: ['u8', 32],
@@ -674,6 +680,12 @@ export const IDL: PspCompressedPda = {
           },
           {
             name: 'relayFee',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'deCompressAmount',
             type: {
               option: 'u64',
             },

@@ -318,13 +318,11 @@ async fn test_transfer() {
         amount: input_compressed_account_token_data.amount - 1000,
         owner: recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     let transfer_recipient_out_compressed_account = TokenTransferOutputData {
         amount: 1000,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     let (root_indices, proof) = mock_indexer
         .create_proof_for_compressed_accounts(
@@ -503,13 +501,11 @@ async fn test_invalid_inputs() {
         amount: input_compressed_account_token_data.amount - 1000,
         owner: recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     let transfer_recipient_out_compressed_account_0 = TokenTransferOutputData {
         amount: 1000 + 1,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     // invalid token data amount (+ 1)
     let res = create_transfer_out_utxo_test(
@@ -537,7 +533,6 @@ async fn test_invalid_inputs() {
         amount: 1000 - 1,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     // invalid token data amount (- 1)
     let res = create_transfer_out_utxo_test(
@@ -565,7 +560,6 @@ async fn test_invalid_inputs() {
         amount: 0,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     // invalid token data zero out amount
     let res = create_transfer_out_utxo_test(
@@ -592,7 +586,6 @@ async fn test_invalid_inputs() {
         amount: input_compressed_account_token_data.amount,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     // invalid double token data  amount
     let res = create_transfer_out_utxo_test(
@@ -620,7 +613,6 @@ async fn test_invalid_inputs() {
         amount: 1000,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: Some(1),
-        index_mt_account: 0,
     };
 
     // invalid_lamports_amount
@@ -667,13 +659,11 @@ async fn test_invalid_inputs() {
         amount: input_compressed_account_token_data.amount - 1000,
         owner: recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
     let transfer_recipient_out_compressed_account_0 = TokenTransferOutputData {
         amount: 1000,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
-        index_mt_account: 0,
     };
 
     let res = create_transfer_out_utxo_test(
@@ -1329,7 +1319,7 @@ impl MockIndexer {
                 .push(CompressedAccountWithMerkleContext {
                     compressed_account: compressed_account.clone(),
                     leaf_index: event.output_leaf_indices[i as usize],
-                    index_mt_account: 0,
+                    index_merkle_tree_account: 0,
                     index_nullifier_array_account: 0,
                 });
             indices.push(self.compressed_accounts.len() - 1);

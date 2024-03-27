@@ -1,6 +1,3 @@
-#![allow(clippy::too_many_arguments)]
-use light_indexed_merkle_tree::array::RawIndexingElement;
-
 pub mod errors;
 pub mod instructions;
 pub use instructions::*;
@@ -51,38 +48,39 @@ pub mod account_compression {
         process_insert_addresses(ctx, addresses)
     }
 
-    pub fn update_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
-        // Index of the Merkle tree changelog.
-        changelog_index: u16,
-        // Index of the address to dequeue.
-        queue_index: u16,
-        // Index of the next address.
-        address_next_index: usize,
-        // Value of the next address.
-        address_next_value: [u8; 32],
-        // Low address.
-        low_address: RawIndexingElement<usize, 32>,
-        // Value of the next address.
-        low_address_next_value: [u8; 32],
-        // Merkle proof for updating the low address.
-        low_address_proof: [[u8; 32]; 22],
-        // ZK proof for integrity of provided `address_next_index` and
-        // `address_next_value`.
-        next_address_proof: [u8; 128],
-    ) -> Result<()> {
-        process_update_address_merkle_tree(
-            ctx,
-            changelog_index,
-            queue_index,
-            address_next_index,
-            address_next_value,
-            low_address,
-            low_address_next_value,
-            low_address_proof,
-            next_address_proof,
-        )
-    }
+    // Commented because usize breaks the idl
+    // pub fn update_address_merkle_tree<'info>(
+    //     ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
+    //     // Index of the Merkle tree changelog.
+    //     changelog_index: u16,
+    //     // Index of the address to dequeue.
+    //     queue_index: u16,
+    //     // Index of the next address.
+    //     address_next_index: usize,
+    //     // Value of the next address.
+    //     address_next_value: [u8; 32],
+    //     // Low address.
+    //     low_address: RawIndexingElement<usize, 32>,
+    //     // Value of the next address.
+    //     low_address_next_value: [u8; 32],
+    //     // Merkle proof for updating the low address.
+    //     low_address_proof: [[u8; 32]; 22],
+    //     // ZK proof for integrity of provided `address_next_index` and
+    //     // `address_next_value`.
+    //     next_address_proof: [u8; 128],
+    // ) -> Result<()> {
+    //     process_update_address_merkle_tree(
+    //         ctx,
+    //         changelog_index,
+    //         queue_index,
+    //         address_next_index,
+    //         address_next_value,
+    //         low_address,
+    //         low_address_next_value,
+    //         low_address_proof,
+    //         next_address_proof,
+    //     )
+    // }
     /// initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,

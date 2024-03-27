@@ -38,7 +38,7 @@ pub fn create_execute_compressed_instruction(
         };
         _input_compressed_accounts.push(CompressedAccountWithMerkleContext {
             compressed_account: input_compressed_accounts[i].clone(),
-            index_mt_account: *remaining_accounts.get(mt).unwrap() as u8,
+            index_merkle_tree_account: *remaining_accounts.get(mt).unwrap() as u8,
             index_nullifier_array_account: 0,
             leaf_index: input_compressed_accounts_leaf_indices[i],
         });
@@ -359,13 +359,13 @@ mod test {
         assert_eq!(
             instruction.accounts[7 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[0]
-                .index_mt_account as usize],
+                .index_merkle_tree_account as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
             instruction.accounts[7 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[1]
-                .index_mt_account as usize],
+                .index_merkle_tree_account as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(

@@ -13,7 +13,7 @@ use crate::{
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PublicTransactionEvent {
     pub input_compressed_account_hashes: Vec<[u8; 32]>,
-    pub output_account_hashes: Vec<[u8; 32]>,
+    pub output_compressed_account_hashes: Vec<[u8; 32]>,
     pub input_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub output_compressed_accounts: Vec<CompressedAccount>,
     // index of Merkle tree account in remaining accounts
@@ -54,7 +54,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
     // TODO: add message and de_compress_amount
     let event = PublicTransactionEvent {
         input_compressed_account_hashes: input_compressed_account_hashes.to_vec(),
-        output_account_hashes: output_compressed_account_hashes.to_vec(),
+        output_compressed_account_hashes: output_compressed_account_hashes.to_vec(),
         input_compressed_accounts: inputs.input_compressed_accounts_with_merkle_context.clone(),
         output_compressed_accounts: inputs.output_compressed_accounts.to_vec(),
         output_state_merkle_tree_account_indices: inputs

@@ -441,7 +441,7 @@ impl MockIndexer {
                 .push(CompressedAccountWithMerkleContext {
                     compressed_account: compressed_account.clone(),
                     leaf_index: event.output_leaf_indices[i as usize],
-                    index_mt_account: 0,
+                    index_merkle_tree_account: 0,
                     index_nullifier_array_account: 0,
                 });
             indices.push(self.compressed_accounts.len() - 1);
