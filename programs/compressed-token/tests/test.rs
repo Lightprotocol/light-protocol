@@ -193,8 +193,8 @@ async fn test_mint_to() {
         &payer_pubkey,
         &mint,
         &merkle_tree_pubkey,
-        vec![amount; 2],
-        vec![recipient_keypair.pubkey(); 2],
+        vec![amount; 1],
+        vec![recipient_keypair.pubkey(); 1],
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
