@@ -110,6 +110,10 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
         input_root_indices: Vec::new(),
         proof: None,
+        new_address_seeds: Vec::new(),
+        address_merkle_tree_root_indices: Vec::new(),
+        address_merkle_tree_account_indices: Vec::new(),
+        address_queue_account_indices: Vec::new(),
     };
 
     let mut inputs = Vec::new();

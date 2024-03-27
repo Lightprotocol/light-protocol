@@ -10,6 +10,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
+    addresses: &'a mut Vec<Option<[u8; 32]>>,
 ) -> anchor_lang::Result<()> {
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
@@ -36,6 +37,16 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
                     .insert(ctx.remaining_accounts[*mt_index as usize].key(), index + 1);
 
                 output_compressed_account_indices[j] = index as u32;
+            }
+        }
+        // Address has to be created or a compressed account with this address has to be provided as transaction input.
+        if let Some(address) = inputs.output_compressed_accounts[j].address {
+            if let Some(position) = addresses.iter().position(|&x| x.unwrap() == address) {
+                addresses.remove(position);
+            } else {
+                msg!("Address {:?}, has not been created and no compressed account with this address was provided as transaction input", address);
+                msg!("Remaining addresses: {:?}", addresses);
+                return Err(crate::ErrorCode::InvalidAddress.into());
             }
         }
         output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j].hash(

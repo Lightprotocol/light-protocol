@@ -101,6 +101,7 @@ impl ChangelogEventV1 {
     }
 }
 
+#[inline(never)]
 pub fn emit_indexer_event<'info>(
     data: Vec<u8>,
     noop_program: &AccountInfo<'info>,

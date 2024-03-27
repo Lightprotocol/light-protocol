@@ -5,12 +5,13 @@ use anchor_lang::prelude::*;
 
 use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
-    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    create_address::insert_addresses_into_address_merkle_tree_queue,
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     utils::CompressedProof,
     verify_state::{
-        fetch_roots, hash_input_compressed_accounts, sum_check, verify_merkle_proof_zkp,
+        fetch_roots, hash_input_compressed_accounts, signer_check, sum_check, verify_state_proof,
     },
     ErrorCode,
 };
@@ -19,6 +20,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> anchor_lang::Result<PublicTransactionEvent> {
     // sum check ---------------------------------------------------
+    // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
     sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
@@ -26,7 +28,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     )?;
     msg!("sum check success");
     // signer check ---------------------------------------------------
-    // TODO: remove match statement to use the same signer check always
+    signer_check(inputs, ctx)?;
     // TODO: if not proof store the instruction in cpi_signature_account and set cpi account slot to current slot, if slot is not current slot override the vector with a new vector
     // TODO: add security check that only data from the current transaction stored in cpi account can be used in the current transaction
     // TODO: add check that cpi account was derived from a Merkle tree account in the current transaction
@@ -37,74 +39,59 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             msg!("cpi_signature check is not implemented");
             err!(ErrorCode::CpiSignerCheckFailed)
         }
-        None => inputs
-            .input_compressed_accounts_with_merkle_context
-            .iter()
-            .try_for_each(|compressed_accounts: &CompressedAccountWithMerkleContext| {
-                // TODO(@ananas-block): revisit program signer check
-                // Two options:
-                // 1. we require the program as an account and reconstruct the cpi signer to check that the cpi signer is a pda of the program
-                //   - The advantage is that the compressed account can be owned by the program_id
-                // 2. we set a deterministic pda signer for every program eg seeds = [b"cpi_authority"]
-                //   - The advantages are that the program does not need to be an account, and we don't need to reconstruct the pda -> more efficient (costs are just low hundreds of cu though)
-                //   - The drawback is that the pda signer is the owner of the compressed account which is confusing
-                if compressed_accounts.compressed_account.data.is_some() {
-                    let invoking_program_id = ctx.accounts.invoking_program.as_ref().unwrap().key();
-                    let signer = anchor_lang::prelude::Pubkey::find_program_address(
-                        &[b"cpi_authority"],
-                        &invoking_program_id,
-                    )
-                    .0;
-                    if signer != ctx.accounts.signer.key()
-                        && invoking_program_id != compressed_accounts.compressed_account.owner
-                    {
-                        msg!(
-                            "program signer check failed derived cpi signer {} !=  signer {}",
-                            compressed_accounts.compressed_account.owner,
-                            ctx.accounts.signer.key()
-                        );
-                        msg!(
-                            "program signer check failed compressed account owner {} !=  invoking_program_id {}",
-                            compressed_accounts.compressed_account.owner,
-                            invoking_program_id
-                        );
-                        err!(ErrorCode::SignerCheckFailed)
-                    } else {
-                        Ok(())
-                    }
-                } else if compressed_accounts.compressed_account.owner != ctx.accounts.signer.key()
-                {
-                    msg!(
-                        "signer check failed compressed account owner {} !=  signer {}",
-                        compressed_accounts.compressed_account.owner,
-                        ctx.accounts.signer.key()
-                    );
-                    err!(ErrorCode::SignerCheckFailed)
-                } else {
-                    Ok(())
-                }
-            }),
+        None => Ok(()),
     }?;
 
     let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     fetch_roots(inputs, ctx, &mut roots)?;
+    let address_roots = vec![[0u8; 32]; inputs.address_merkle_tree_root_indices.len()];
+    // TODO: enable once address merkle tree init is debugged
+    // fetch_roots_address_merkle_tree(
+    //     inputs,
+    //     ctx,
+    //     &inputs.address_merkle_tree_root_indices,
+    //     &mut address_roots,
+    // )?;
 
     let mut input_compressed_account_hashes =
         vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
+    let mut input_compressed_account_addresses: Vec<Option<[u8; 32]>> =
+        vec![None; inputs.input_compressed_accounts_with_merkle_context.len()];
+
     let mut output_leaf_indices = vec![0u32; inputs.output_compressed_accounts.len()];
     let mut output_compressed_account_hashes =
         vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
+    let mut new_addresses = vec![[0u8; 32]; inputs.new_address_seeds.len()];
+    // insert addresses into address merkle tree queue ---------------------------------------------------
+    if !inputs.new_address_seeds.is_empty() {
+        derive_new_addresses(
+            inputs,
+            ctx,
+            &mut input_compressed_account_addresses,
+            &mut new_addresses,
+        );
+        insert_addresses_into_address_merkle_tree_queue(inputs, ctx, &new_addresses)?;
+    }
     // TODO: add heap neutral
-    hash_input_compressed_accounts(ctx, inputs, &mut input_compressed_account_hashes)?;
+    hash_input_compressed_accounts(
+        ctx,
+        inputs,
+        &mut input_compressed_account_hashes,
+        &mut input_compressed_account_addresses,
+    )?;
+
     // TODO: add heap neutral
     // verify inclusion proof ---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
+        || !inputs.new_address_seeds.is_empty()
     {
-        verify_merkle_proof_zkp(
+        verify_state_proof(
             &roots,
             &input_compressed_account_hashes,
+            &address_roots,
+            new_addresses.as_slice(),
             inputs.proof.as_ref().unwrap(),
         )?;
     }
@@ -115,6 +102,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     {
         insert_nullifiers(inputs, ctx, &input_compressed_account_hashes)?;
     }
+
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         insert_output_compressed_accounts_into_state_merkle_tree(
@@ -122,9 +110,11 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             ctx,
             &mut output_leaf_indices,
             &mut output_compressed_account_hashes,
+            &mut input_compressed_account_addresses,
         )?;
     }
 
+    // emit state transition event ---------------------------------------------------
     emit_state_transition_event(
         inputs,
         ctx,
@@ -132,6 +122,29 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &output_compressed_account_hashes,
         &output_leaf_indices,
     )
+}
+
+// DO NOT MAKE HEAP NEUTRAL: this function allocates new heap memory
+pub fn derive_new_addresses(
+    inputs: &InstructionDataTransfer,
+    ctx: &Context<'_, '_, '_, '_, TransferInstruction<'_>>,
+    input_compressed_account_addresses: &mut Vec<Option<[u8; 32]>>,
+    new_addresses: &mut [[u8; 32]],
+) {
+    inputs
+        .new_address_seeds
+        .iter()
+        .enumerate()
+        .for_each(|(i, seed)| {
+            let address = derive_address(
+                &ctx.remaining_accounts[inputs.address_merkle_tree_account_indices[i] as usize]
+                    .key(),
+                seed,
+            )
+            .unwrap();
+            input_compressed_account_addresses.push(Some(address));
+            new_addresses[i] = address;
+        });
 }
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
@@ -165,11 +178,16 @@ pub struct CpiSignatureAccount {
     pub signatures: Vec<InstructionDataTransfer>,
 }
 
+// TODO: add checks for lengths of vectors
 #[derive(Debug)]
 #[account]
 pub struct InstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub input_root_indices: Vec<u16>,
+    pub new_address_seeds: Vec<[u8; 32]>,
+    pub address_queue_account_indices: Vec<u8>,
+    pub address_merkle_tree_account_indices: Vec<u8>,
+    pub address_merkle_tree_root_indices: Vec<u16>,
     pub input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
     pub output_compressed_accounts: Vec<CompressedAccount>,
     /// The indices of the accounts in the output state merkle tree.

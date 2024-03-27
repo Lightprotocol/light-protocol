@@ -33,7 +33,6 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
     let mut array_account = ctx.accounts.indexed_array.load_mut()?;
-    let mut merkle_tree_account = ctx.accounts.merkle_tree.load_mut()?;
     if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
         msg!(
             "Nullifier queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
@@ -41,14 +40,6 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
             ctx.accounts.merkle_tree.key(),
         );
         return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
-    }
-    if merkle_tree_account.associated_queue != ctx.accounts.indexed_array.key() {
-        msg!(
-            "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
-            merkle_tree_account.associated_queue,
-            ctx.accounts.indexed_array.key()
-        );
-        return Err(AccountCompressionErrorCode::InvalidIndexedArray.into());
     }
 
     let leaf: [u8; 32] = array_account.indexed_array[leaves_queue_indices[0] as usize].element;
@@ -69,10 +60,43 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfProofsMismatch.into());
     }
+    let changelog_event = insert_nullifier(
+        proofs,
+        change_log_indices,
+        leaf,
+        indices,
+        ctx,
+        &mut array_account,
+        leaves_queue_indices,
+    )?;
+    emit_indexer_event(
+        changelog_event.try_to_vec()?,
+        &ctx.accounts.log_wrapper,
+        &ctx.accounts.authority,
+    )
+}
 
-    let mut changelog_events: Vec<ChangelogEvent> = Vec::new();
+#[inline(never)]
+fn insert_nullifier(
+    proofs: &[Vec<[u8; 32]>],
+    change_log_indices: &[u64],
+    leaf: [u8; 32],
+    indices: &[u64],
+    ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
+    array_account: &mut std::cell::RefMut<'_, IndexedArrayAccount>,
+    leaves_queue_indices: &[u16],
+) -> Result<Changelogs> {
+    let mut merkle_tree_account = ctx.accounts.merkle_tree.load_mut()?;
+
+    if merkle_tree_account.associated_queue != ctx.accounts.indexed_array.key() {
+        msg!(
+            "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
+            merkle_tree_account.associated_queue,
+            ctx.accounts.indexed_array.key()
+        );
+        return Err(AccountCompressionErrorCode::InvalidIndexedArray.into());
+    }
     let loaded_merkle_tree = merkle_tree_account.load_merkle_tree_mut()?;
-
     let allowed_proof_size = loaded_merkle_tree.height - loaded_merkle_tree.canopy_depth;
     if proofs[0].len() != allowed_proof_size {
         msg!(
@@ -86,6 +110,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     }
 
     let mut bounded_vec = from_vec(proofs[0].as_slice())?;
+
     let changelog_entries = loaded_merkle_tree
         .update(
             change_log_indices[0] as usize,
@@ -97,25 +122,17 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         .map_err(ProgramError::from)?;
     let sequence_number = u64::try_from(loaded_merkle_tree.sequence_number)
         .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
-    changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
-        ctx.accounts.merkle_tree.key(),
-        &[changelog_entries],
-        sequence_number,
-    )?));
-    let changelog_event = Changelogs {
-        changelogs: changelog_events,
-    };
-    emit_indexer_event(
-        changelog_event.try_to_vec()?,
-        &ctx.accounts.log_wrapper,
-        &ctx.accounts.authority,
-    )?;
     // TODO: replace with root history sequence number
     array_account.indexed_array[leaves_queue_indices[0] as usize]
         .merkle_tree_overwrite_sequence_number = loaded_merkle_tree.sequence_number as u64
         + crate::utils::constants::STATE_MERKLE_TREE_ROOTS as u64;
-
-    Ok(())
+    Ok(Changelogs {
+        changelogs: vec![ChangelogEvent::V1(ChangelogEventV1::new(
+            ctx.accounts.merkle_tree.key(),
+            &[changelog_entries],
+            sequence_number,
+        )?)],
+    })
 }
 
 #[inline(never)]
