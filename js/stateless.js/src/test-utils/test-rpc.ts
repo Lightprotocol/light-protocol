@@ -4,7 +4,7 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from '@solana/web3.js';
-import { LightWasm } from '@lightprotocol/account.rs';
+import { LightWasm } from '@lightprotocol/hasher.rs';
 import {
   defaultStaticAccountsStruct,
   defaultTestStateTreeAccounts,

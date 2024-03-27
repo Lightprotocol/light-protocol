@@ -234,7 +234,9 @@ export type PspCompressedToken = {
           {
             name: 'address';
             type: {
-              option: 'publicKey';
+              option: {
+                array: ['u8', 32];
+              };
             };
           },
           {
@@ -347,6 +349,79 @@ export type PspCompressedToken = {
       };
     },
     {
+      name: 'InstructionDataTransfer';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'proof';
+            type: {
+              option: {
+                defined: 'CompressedProof';
+              };
+            };
+          },
+          {
+            name: 'inputRootIndices';
+            type: {
+              vec: 'u16';
+            };
+          },
+          {
+            name: 'newAddressSeeds';
+            type: {
+              vec: {
+                array: ['u8', 32];
+              };
+            };
+          },
+          {
+            name: 'addressQueueAccountIndices';
+            type: 'bytes';
+          },
+          {
+            name: 'addressMerkleTreeAccountIndices';
+            type: 'bytes';
+          },
+          {
+            name: 'addressMerkleTreeRootIndices';
+            type: {
+              vec: 'u16';
+            };
+          },
+          {
+            name: 'inputCompressedAccountsWithMerkleContext';
+            type: {
+              vec: {
+                defined: 'CompressedAccountWithMerkleContext';
+              };
+            };
+          },
+          {
+            name: 'outputCompressedAccounts';
+            type: {
+              vec: {
+                defined: 'CompressedAccount';
+              };
+            };
+          },
+          {
+            name: 'outputStateMerkleTreeAccountIndices';
+            docs: [
+              'The indices of the accounts in the output state merkle tree.',
+            ];
+            type: 'bytes';
+          },
+          {
+            name: 'relayFee';
+            type: {
+              option: 'u64';
+            };
+          },
+        ];
+      };
+    },
+    {
       name: 'CompressedProof';
       type: {
         kind: 'struct';
@@ -373,7 +448,7 @@ export type PspCompressedToken = {
       };
     },
     {
-      name: 'InstructionDataTransfer';
+      name: 'CompressedTokenInstructionDataTransfer';
       type: {
         kind: 'struct';
         fields: [
@@ -440,10 +515,6 @@ export type PspCompressedToken = {
             type: {
               option: 'u64';
             };
-          },
-          {
-            name: 'indexMerkleTreeAccount';
-            type: 'u8';
           },
         ];
       };
@@ -862,7 +933,9 @@ export const IDL: PspCompressedToken = {
           {
             name: 'address',
             type: {
-              option: 'publicKey',
+              option: {
+                array: ['u8', 32],
+              },
             },
           },
           {
@@ -975,6 +1048,79 @@ export const IDL: PspCompressedToken = {
       },
     },
     {
+      name: 'InstructionDataTransfer',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'proof',
+            type: {
+              option: {
+                defined: 'CompressedProof',
+              },
+            },
+          },
+          {
+            name: 'inputRootIndices',
+            type: {
+              vec: 'u16',
+            },
+          },
+          {
+            name: 'newAddressSeeds',
+            type: {
+              vec: {
+                array: ['u8', 32],
+              },
+            },
+          },
+          {
+            name: 'addressQueueAccountIndices',
+            type: 'bytes',
+          },
+          {
+            name: 'addressMerkleTreeAccountIndices',
+            type: 'bytes',
+          },
+          {
+            name: 'addressMerkleTreeRootIndices',
+            type: {
+              vec: 'u16',
+            },
+          },
+          {
+            name: 'inputCompressedAccountsWithMerkleContext',
+            type: {
+              vec: {
+                defined: 'CompressedAccountWithMerkleContext',
+              },
+            },
+          },
+          {
+            name: 'outputCompressedAccounts',
+            type: {
+              vec: {
+                defined: 'CompressedAccount',
+              },
+            },
+          },
+          {
+            name: 'outputStateMerkleTreeAccountIndices',
+            docs: [
+              'The indices of the accounts in the output state merkle tree.',
+            ],
+            type: 'bytes',
+          },
+          {
+            name: 'relayFee',
+            type: {
+              option: 'u64',
+            },
+          },
+        ],
+      },
+    },
+    {
       name: 'CompressedProof',
       type: {
         kind: 'struct',
@@ -1001,7 +1147,7 @@ export const IDL: PspCompressedToken = {
       },
     },
     {
-      name: 'InstructionDataTransfer',
+      name: 'CompressedTokenInstructionDataTransfer',
       type: {
         kind: 'struct',
         fields: [
@@ -1068,10 +1214,6 @@ export const IDL: PspCompressedToken = {
             type: {
               option: 'u64',
             },
-          },
-          {
-            name: 'indexMerkleTreeAccount',
-            type: 'u8',
           },
         ],
       },

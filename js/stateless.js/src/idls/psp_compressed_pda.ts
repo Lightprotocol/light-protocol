@@ -84,57 +84,6 @@ export type PspCompressedPda = {
         ];
       };
     },
-    {
-      name: 'instructionDataTransfer';
-      type: {
-        kind: 'struct';
-        fields: [
-          {
-            name: 'proof';
-            type: {
-              option: {
-                defined: 'CompressedProof';
-              };
-            };
-          },
-          {
-            name: 'inputRootIndices';
-            type: {
-              vec: 'u16';
-            };
-          },
-          {
-            name: 'inputCompressedAccountsWithMerkleContext';
-            type: {
-              vec: {
-                defined: 'CompressedAccountWithMerkleContext';
-              };
-            };
-          },
-          {
-            name: 'outputCompressedAccounts';
-            type: {
-              vec: {
-                defined: 'CompressedAccount';
-              };
-            };
-          },
-          {
-            name: 'outputStateMerkleTreeAccountIndices';
-            docs: [
-              'The indices of the accounts in the output state merkle tree.',
-            ];
-            type: 'bytes';
-          },
-          {
-            name: 'relayFee';
-            type: {
-              option: 'u64';
-            };
-          },
-        ];
-      };
-    },
   ];
   types: [
     {
@@ -179,7 +128,9 @@ export type PspCompressedPda = {
           {
             name: 'address';
             type: {
-              option: 'publicKey';
+              option: {
+                array: ['u8', 32];
+              };
             };
           },
           {
@@ -286,6 +237,79 @@ export type PspCompressedPda = {
             name: 'message';
             type: {
               option: 'bytes';
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: 'InstructionDataTransfer';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'proof';
+            type: {
+              option: {
+                defined: 'CompressedProof';
+              };
+            };
+          },
+          {
+            name: 'inputRootIndices';
+            type: {
+              vec: 'u16';
+            };
+          },
+          {
+            name: 'newAddressSeeds';
+            type: {
+              vec: {
+                array: ['u8', 32];
+              };
+            };
+          },
+          {
+            name: 'addressQueueAccountIndices';
+            type: 'bytes';
+          },
+          {
+            name: 'addressMerkleTreeAccountIndices';
+            type: 'bytes';
+          },
+          {
+            name: 'addressMerkleTreeRootIndices';
+            type: {
+              vec: 'u16';
+            };
+          },
+          {
+            name: 'inputCompressedAccountsWithMerkleContext';
+            type: {
+              vec: {
+                defined: 'CompressedAccountWithMerkleContext';
+              };
+            };
+          },
+          {
+            name: 'outputCompressedAccounts';
+            type: {
+              vec: {
+                defined: 'CompressedAccount';
+              };
+            };
+          },
+          {
+            name: 'outputStateMerkleTreeAccountIndices';
+            docs: [
+              'The indices of the accounts in the output state merkle tree.',
+            ];
+            type: 'bytes';
+          },
+          {
+            name: 'relayFee';
+            type: {
+              option: 'u64';
             };
           },
         ];
@@ -409,6 +433,26 @@ export type PspCompressedPda = {
       name: 'CompressedAccountHashError';
       msg: 'CompressedAccountHashError';
     },
+    {
+      code: 6018;
+      name: 'InvalidAddress';
+      msg: 'InvalidAddress';
+    },
+    {
+      code: 6019;
+      name: 'InvalidAddressQueue';
+      msg: 'InvalidAddressQueue';
+    },
+    {
+      code: 6020;
+      name: 'InvalidNullifierQueue';
+      msg: 'InvalidNullifierQueue';
+    },
+    {
+      code: 6021;
+      name: 'DeriveAddressError';
+      msg: 'DeriveAddressError';
+    },
   ];
 };
 
@@ -498,57 +542,6 @@ export const IDL: PspCompressedPda = {
         ],
       },
     },
-    {
-      name: 'instructionDataTransfer',
-      type: {
-        kind: 'struct',
-        fields: [
-          {
-            name: 'proof',
-            type: {
-              option: {
-                defined: 'CompressedProof',
-              },
-            },
-          },
-          {
-            name: 'inputRootIndices',
-            type: {
-              vec: 'u16',
-            },
-          },
-          {
-            name: 'inputCompressedAccountsWithMerkleContext',
-            type: {
-              vec: {
-                defined: 'CompressedAccountWithMerkleContext',
-              },
-            },
-          },
-          {
-            name: 'outputCompressedAccounts',
-            type: {
-              vec: {
-                defined: 'CompressedAccount',
-              },
-            },
-          },
-          {
-            name: 'outputStateMerkleTreeAccountIndices',
-            docs: [
-              'The indices of the accounts in the output state merkle tree.',
-            ],
-            type: 'bytes',
-          },
-          {
-            name: 'relayFee',
-            type: {
-              option: 'u64',
-            },
-          },
-        ],
-      },
-    },
   ],
   types: [
     {
@@ -593,7 +586,9 @@ export const IDL: PspCompressedPda = {
           {
             name: 'address',
             type: {
-              option: 'publicKey',
+              option: {
+                array: ['u8', 32],
+              },
             },
           },
           {
@@ -700,6 +695,79 @@ export const IDL: PspCompressedPda = {
             name: 'message',
             type: {
               option: 'bytes',
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: 'InstructionDataTransfer',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'proof',
+            type: {
+              option: {
+                defined: 'CompressedProof',
+              },
+            },
+          },
+          {
+            name: 'inputRootIndices',
+            type: {
+              vec: 'u16',
+            },
+          },
+          {
+            name: 'newAddressSeeds',
+            type: {
+              vec: {
+                array: ['u8', 32],
+              },
+            },
+          },
+          {
+            name: 'addressQueueAccountIndices',
+            type: 'bytes',
+          },
+          {
+            name: 'addressMerkleTreeAccountIndices',
+            type: 'bytes',
+          },
+          {
+            name: 'addressMerkleTreeRootIndices',
+            type: {
+              vec: 'u16',
+            },
+          },
+          {
+            name: 'inputCompressedAccountsWithMerkleContext',
+            type: {
+              vec: {
+                defined: 'CompressedAccountWithMerkleContext',
+              },
+            },
+          },
+          {
+            name: 'outputCompressedAccounts',
+            type: {
+              vec: {
+                defined: 'CompressedAccount',
+              },
+            },
+          },
+          {
+            name: 'outputStateMerkleTreeAccountIndices',
+            docs: [
+              'The indices of the accounts in the output state merkle tree.',
+            ],
+            type: 'bytes',
+          },
+          {
+            name: 'relayFee',
+            type: {
+              option: 'u64',
             },
           },
         ],
@@ -822,6 +890,26 @@ export const IDL: PspCompressedPda = {
       code: 6017,
       name: 'CompressedAccountHashError',
       msg: 'CompressedAccountHashError',
+    },
+    {
+      code: 6018,
+      name: 'InvalidAddress',
+      msg: 'InvalidAddress',
+    },
+    {
+      code: 6019,
+      name: 'InvalidAddressQueue',
+      msg: 'InvalidAddressQueue',
+    },
+    {
+      code: 6020,
+      name: 'InvalidNullifierQueue',
+      msg: 'InvalidNullifierQueue',
+    },
+    {
+      code: 6021,
+      name: 'DeriveAddressError',
+      msg: 'DeriveAddressError',
     },
   ],
 };

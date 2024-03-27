@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey, Signer } from '@solana/web3.js';
 import { confirmTx } from '../utils';
 import { Rpc } from '../rpc';
-import { LightWasm, WasmFactory } from '@lightprotocol/account.rs';
+import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
 import { defaultTestStateTreeAccounts } from '../constants';
 import { TestRpc } from './test-rpc';
 
