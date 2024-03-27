@@ -15,7 +15,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     let state_merkle_tree_pubkeys = inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
-        .map(|account| ctx.remaining_accounts[account.index_mt_account as usize].key())
+        .map(|account| ctx.remaining_accounts[account.index_merkle_tree_account as usize].key())
         .collect::<Vec<Pubkey>>();
     let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
