@@ -1,10 +1,13 @@
 use anchor_lang::prelude::*;
 
+pub mod process_create_compressed_mint;
 pub mod process_mint;
 pub mod process_transfer;
 
+pub use process_create_compressed_mint::*;
 pub use process_mint::*;
 pub use process_transfer::*;
+use psp_compressed_pda::utils::CompressedProof;
 
 declare_id!("9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE");
 
@@ -32,6 +35,20 @@ pub mod psp_compressed_token {
         _ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
         Ok(())
+    }
+
+    /// Currently has no functionality
+    /// Test case to create a compressed account with address
+    pub fn create_compressed_mint_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, CreateCompressedMintAccountInstruction<'info>>,
+        address_non_inclusion_proof: CompressedProof,
+        address_merkle_tree_root_index: u16,
+    ) -> Result<()> {
+        process_create_compressed_mint_account(
+            ctx,
+            address_non_inclusion_proof,
+            address_merkle_tree_root_index,
+        )
     }
 
     pub fn mint_to<'info>(

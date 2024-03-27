@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use account_compression::{
     utils::constants::{
@@ -6,7 +6,7 @@ use account_compression::{
     },
     StateMerkleTreeAccount,
 };
-use anchor_lang::AnchorSerialize;
+use anchor_lang::{AccountDeserialize, AnchorSerialize};
 use circuitlib_rs::{
     gnark::{
         constants::{INCLUSION_PATH, SERVER_ADDRESS},
@@ -29,6 +29,7 @@ use psp_compressed_pda::{
     utils::CompressedProof,
 };
 use psp_compressed_token::{
+    create_compressed_mint_sdk::create_compressed_mint_account_to_instruction,
     get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
     transfer_sdk, AccountState, ErrorCode, TokenData, TokenTransferOutputData,
@@ -127,13 +128,97 @@ async fn assert_create_mint(
     assert_eq!(mint_account.owner, mint_authority);
 }
 
+async fn assert_create_compressed_mint(
+    context: &mut ProgramTestContext,
+    authority: &Pubkey,
+    mint: &Pubkey,
+    mock_indexer: &MockIndexer,
+) {
+    let mint_account: spl_token::state::Mint = spl_token::state::Mint::unpack(
+        &context
+            .banks_client
+            .get_account(*mint)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+    )
+    .unwrap();
+    let mint_authority = get_token_authority_pda(authority, mint);
+    assert_eq!(mint_account.supply, 0);
+    assert_eq!(mint_account.decimals, 2);
+    assert_eq!(mint_account.mint_authority.unwrap(), mint_authority);
+    assert_eq!(mint_account.freeze_authority, None.into());
+    assert_eq!(mint_account.is_initialized, true);
+    assert_eq!(
+        mock_indexer.compressed_accounts.len(),
+        1,
+        "Compressed account not created"
+    );
+    let compressed_account = mock_indexer.compressed_accounts[0]
+        .compressed_account
+        .clone();
+    println!("{:?}", compressed_account);
+    assert_eq!(
+        compressed_account.owner,
+        psp_compressed_token::ID,
+        "Owner not set correctly"
+    );
+    assert_eq!(
+        compressed_account.lamports, 0u64,
+        "Lamports not set correctly"
+    );
+    assert_eq!(
+        compressed_account.data.as_ref().unwrap().discriminator,
+        1u64.to_le_bytes(),
+        "Discriminator not set correctly"
+    );
+    assert_eq!(
+        compressed_account.data.as_ref().unwrap().data.len(),
+        anchor_spl::token::Mint::LEN,
+        "Data not set correctly"
+    );
+
+    let deserialized_compressed_mint_account = anchor_spl::token::Mint::try_deserialize_unchecked(
+        &mut compressed_account.data.as_ref().unwrap().data.as_slice(),
+    )
+    .unwrap();
+    assert_eq!(
+        mint_account.decimals,
+        deserialized_compressed_mint_account.decimals
+    );
+    assert_eq!(
+        mint_account.supply,
+        deserialized_compressed_mint_account.supply
+    );
+    assert_eq!(
+        mint_account.mint_authority.unwrap(),
+        deserialized_compressed_mint_account.mint_authority.unwrap()
+    );
+    assert_eq!(
+        mint_account.freeze_authority,
+        deserialized_compressed_mint_account.freeze_authority
+    );
+    assert_eq!(
+        mint_account.is_initialized,
+        deserialized_compressed_mint_account.is_initialized
+    );
+}
+
 #[tokio::test]
 async fn test_create_mint() {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts().await;
     let mut context = env.context;
+
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
+    let mock_indexer = MockIndexer::new(
+        env.merkle_tree_pubkey,
+        env.indexed_array_pubkey,
+        payer.insecure_clone(),
+        None,
+    );
     let rent = context
         .banks_client
         .get_rent()
@@ -148,6 +233,42 @@ async fn test_create_mint() {
         .await
         .unwrap();
     assert_create_mint(&mut context, &payer_pubkey, &mint.pubkey(), &pool).await;
+
+    let mock_inclusion_proof = CompressedProof {
+        a: [0u8; 32],
+        b: [0u8; 64],
+        c: [0u8; 32],
+    };
+    let instruction = create_compressed_mint_account_to_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &mint.pubkey(),
+        &env.merkle_tree_pubkey,
+        &env.address_merkle_tree_pubkey,
+        &env.address_merkle_tree_queue_pubkey,
+        mock_inclusion_proof,
+        0u16,
+    );
+    // create_and_send_transaction(&mut context, &[instruction], &payer_pubkey, &[&payer])
+    //     .await
+    //     .unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await
+    .unwrap();
+    let mut mock_indexer = mock_indexer.await;
+    mock_indexer
+        .add_lamport_compressed_accounts(res.metadata.unwrap().return_data.unwrap().data.to_vec());
+
+    assert_create_compressed_mint(&mut context, &payer_pubkey, &mint.pubkey(), &mock_indexer).await;
 }
 
 async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -> Pubkey {
