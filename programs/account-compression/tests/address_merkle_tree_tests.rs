@@ -93,6 +93,7 @@ fn initialize_address_merkle_tree_ix(
         index: 1u64,
         owner: payer,
         delegate: None,
+        // TODO: check what's used since many types onchain use height 22
         height: 26,
         changelog_size: 1400,
         roots_size: 2800,

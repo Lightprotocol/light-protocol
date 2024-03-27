@@ -14,7 +14,7 @@ pub struct CompressedAccountWithMerkleContext {
 pub struct CompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
-    pub address: Option<Pubkey>,
+    pub address: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
 }
 
@@ -33,6 +33,8 @@ impl CompressedAccount {
             .unwrap()
             .0;
         vec.push(truncated_owner.as_slice());
+
+        // leaf index and merkle tree pubkey are used to make every compressed account hash unique
         let leaf_index = leaf_index.to_le_bytes();
         vec.push(leaf_index.as_slice());
         let truncated_merkle_tree_pubkey =
@@ -42,13 +44,9 @@ impl CompressedAccount {
         vec.push(truncated_merkle_tree_pubkey.as_slice());
         let lamports = self.lamports.to_le_bytes();
         vec.push(lamports.as_slice());
-        #[allow(unused_assignments)]
-        let mut truncated_address = [0u8; 32];
+
         if self.address.is_some() {
-            truncated_address = hash_to_bn254_field_size_le(&self.address.unwrap().to_bytes())
-                .unwrap()
-                .0;
-            vec.push(truncated_address.as_slice());
+            vec.push(self.address.as_ref().unwrap().as_slice());
         }
 
         if let Some(data) = &self.data {
@@ -66,6 +64,17 @@ impl CompressedAccount {
     }
 }
 
+pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
+    let hash = match hash_to_bn254_field_size_le(
+        [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
+    ) {
+        Some(hash) => Ok::<[u8; 32], crate::Error>(hash.0),
+        None => return Err(crate::ErrorCode::DeriveAddressError.into()),
+    }?;
+
+    Ok(hash)
+}
+
 #[cfg(test)]
 mod tests {
     use anchor_lang::solana_program::pubkey::Pubkey;
@@ -75,7 +84,7 @@ mod tests {
     #[test]
     fn test_compressed_account_hash() {
         let owner = Pubkey::new_unique();
-        let address = Pubkey::new_unique();
+        let address = [1u8; 32];
         let data = CompressedAccountData {
             discriminator: [1u8; 8],
             data: vec![2u8; 32],
@@ -104,10 +113,7 @@ mod tests {
                 .0
                 .as_slice(),
             lamports.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_le(&address.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            address.as_slice(),
             &data.discriminator,
             &data.data_hash,
         ])
@@ -137,10 +143,7 @@ mod tests {
                 .0
                 .as_slice(),
             lamports.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_le(&address.to_bytes())
-                .unwrap()
-                .0
-                .as_slice(),
+            address.as_slice(),
         ])
         .unwrap();
         assert_eq!(no_data_hash, hash_manual);
