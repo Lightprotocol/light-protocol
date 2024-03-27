@@ -83,10 +83,8 @@ pub mod psp_compressed_pda {
         // Note: using AnchorDeserialize which is eq to Account.try_deserialize_unchecked
         // No need for discriminator padding
         msg!("execute_compressed_transaction");
-        let inputs: InstructionDataTransfer = InstructionDataTransfer::deserialize(
-            // &mut [vec![0u8; 8], inputs].concat().as_slice(),
-            &mut inputs.as_slice(),
-        )?;
+        let inputs: InstructionDataTransfer =
+            InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         msg!("deserialized inputs");
         process_execute_compressed_transaction(&inputs, &ctx)
     }

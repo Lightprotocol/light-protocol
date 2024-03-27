@@ -327,11 +327,8 @@ mod test {
         use account_compression::AccountDeserialize;
 
         let deserialized_instruction_data: InstructionDataTransfer =
-            InstructionDataTransfer::deserialize(
-                // &mut [vec![0u8; 8], instruction.data[12..].to_vec()]
-                &mut [instruction.data[12..].to_vec()].concat().as_slice(),
-            )
-            .unwrap();
+            InstructionDataTransfer::deserialize(&mut instruction.data[12..].to_vec().as_slice())
+                .unwrap();
         deserialized_instruction_data
             .input_compressed_accounts_with_merkle_context
             .iter()

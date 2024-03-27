@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { LightSystemProgram } from '../../src/programs';
-import { Utxo_IdlType, bn, useWallet } from '../../src';
+import {
+  CompressedAccount,
+  PublicTransactionEvent,
+  bn,
+  useWallet,
+} from '../../src';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { AnchorProvider, Program, setProvider } from '@coral-xyz/anchor';
-import { IDL, AccountCompression } from '../../src/idls/account_compression';
+import { IDL } from '../../src/idls/account_compression';
 
-describe.skip('ACP test', () => {
-  it('serialize compressed account', async () => {
+describe('account compression program', () => {
+  it('instantiate using IDL', async () => {
     const mockKeypair = Keypair.generate();
     const mockConnection = new Connection('http://127.0.0.1:8899', 'confirmed');
     const mockProvider = new AnchorProvider(
@@ -18,71 +23,57 @@ describe.skip('ACP test', () => {
       },
     );
     setProvider(mockProvider);
-    const ACP = new Program(
+    const program = new Program(
       IDL,
       new PublicKey('5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN'),
       mockProvider,
     );
+
+    expect(program).toBeDefined();
   });
 });
 
-describe.skip('Serialization test', () => {
-  it('serialize utxo ', async () => {
-    const utxoData = [
-      81, 108, 50, 181, 0, 73, 91, 197, 221, 215, 106, 69, 5, 107, 146, 252, 37,
-      252, 123, 175, 62, 200, 168, 230, 111, 6, 217, 71, 108, 186, 184, 83, 1,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+describe('serde', () => {
+  it('decode output compressed account ', async () => {
+    const compressedAccount = [
+      88, 8, 48, 185, 124, 227, 14, 195, 230, 152, 61, 39, 56, 191, 13, 126, 54,
+      43, 47, 131, 175, 16, 52, 167, 129, 174, 200, 118, 174, 9, 254, 80, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0,
     ];
 
-    const deserializedUtxo: Utxo_IdlType =
+    const deserializedCompressedAccount: CompressedAccount =
       LightSystemProgram.program.coder.types.decode(
-        'Utxo',
-        Buffer.from(utxoData),
+        'CompressedAccount',
+        Buffer.from(compressedAccount),
       );
 
-    expect(deserializedUtxo.data).toBe(null);
-    expect(deserializedUtxo.address).toBe(null);
-    expect(deserializedUtxo.lamports.eq(bn(3))).toBe(true);
-    expect(
-      deserializedUtxo.owner.equals(
-        new PublicKey('6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ'),
-      ),
-    ).toBe(true);
-    expect(
-      JSON.stringify(deserializedUtxo.blinding) ===
-        JSON.stringify(new Array(32).fill(1)),
-    ).toBe(true);
+    expect(deserializedCompressedAccount.data).toBe(null);
+    expect(deserializedCompressedAccount.address).toBe(null);
+    expect(deserializedCompressedAccount.lamports.eq(bn(0))).toBe(true);
   });
 
-  it('serialize out utxo ', async () => {
-    const utxoData = [
-      65, 108, 61, 176, 52, 117, 234, 133, 198, 175, 67, 171, 12, 47, 143, 190,
-      40, 85, 133, 139, 248, 63, 224, 103, 49, 223, 64, 138, 92, 25, 160, 29, 2,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    LightSystemProgram.program.coder.types.decode(
-      'Compr',
-      Buffer.from(utxoData),
-    );
-  });
-
-  it('serialize event ', async () => {
+  it('decode event ', async () => {
     const data = [
-      1, 0, 0, 0, 81, 108, 50, 181, 0, 73, 91, 197, 221, 215, 106, 69, 5, 107,
-      146, 252, 37, 252, 123, 175, 62, 200, 168, 230, 111, 6, 217, 71, 108, 186,
-      184, 83, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
-      65, 108, 61, 176, 52, 117, 234, 133, 198, 175, 67, 171, 12, 47, 143, 190,
-      40, 85, 133, 139, 248, 63, 224, 103, 49, 223, 64, 138, 92, 25, 160, 29, 2,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 1, 0, 0, 0, 21, 2, 159, 146, 115, 243, 27, 245, 225, 130, 22,
+      145, 247, 216, 21, 84, 136, 140, 91, 209, 249, 136, 44, 124, 235, 209,
+      230, 254, 72, 190, 187, 107, 0, 0, 0, 0, 1, 0, 0, 0, 191, 190, 219, 108,
+      109, 150, 78, 142, 89, 168, 144, 217, 102, 58, 224, 64, 118, 152, 19, 51,
+      97, 198, 36, 158, 140, 153, 125, 208, 187, 78, 107, 249, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 68,
+      77, 125, 32, 76, 128, 61, 180, 1, 207, 69, 44, 121, 118, 153, 17, 179,
+      183, 115, 34, 163, 127, 102, 214, 1, 87, 175, 177, 95, 49, 65, 69, 0,
     ];
-    LightSystemProgram.program.coder.types.decode(
-      'PublicTransactionEvent',
-      Buffer.from(data),
-    );
+    const event: PublicTransactionEvent =
+      LightSystemProgram.program.coder.types.decode(
+        'PublicTransactionEvent',
+        Buffer.from(data),
+      );
+
+    const ref = [
+      21, 2, 159, 146, 115, 243, 27, 245, 225, 130, 22, 145, 247, 216, 21, 84,
+      136, 140, 91, 209, 249, 136, 44, 124, 235, 209, 230, 254, 72, 190, 187,
+      107,
+    ];
+    expect(bn(event.outputCompressedAccountHashes[0]).eq(bn(ref))).toBe(true);
   });
 });
