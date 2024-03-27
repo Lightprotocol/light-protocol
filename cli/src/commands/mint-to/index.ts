@@ -8,6 +8,7 @@ import {
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
+import { Rpc } from "@lightprotocol/stateless.js";
 
 class MintToCommand extends Command {
   static summary = "Mint tokens to an account.";
@@ -63,7 +64,7 @@ class MintToCommand extends Command {
       const connection = new Connection(getSolanaRpcUrl());
 
       const txId = await mintTo(
-        connection,
+        connection as Rpc,
         payer,
         mintPublicKey,
         toPublicKey,

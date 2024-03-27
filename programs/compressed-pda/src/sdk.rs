@@ -257,6 +257,8 @@ pub fn create_execute_compressed_instruction(
 
 #[cfg(test)]
 mod test {
+    use anchor_lang::AnchorDeserialize;
+
     use super::*;
     use crate::utils::CompressedProof;
     #[test]
@@ -322,15 +324,8 @@ mod test {
         );
         assert_eq!(instruction.program_id, crate::ID);
 
-        use account_compression::AccountDeserialize;
-
         let deserialized_instruction_data: InstructionDataTransfer =
-            InstructionDataTransfer::try_deserialize_unchecked(
-                &mut [vec![0u8; 8], instruction.data[12..].to_vec()]
-                    .concat()
-                    .as_slice(),
-            )
-            .unwrap();
+            InstructionDataTransfer::deserialize(&mut instruction.data[12..].as_ref()).unwrap();
         deserialized_instruction_data
             .input_compressed_accounts_with_merkle_context
             .iter()

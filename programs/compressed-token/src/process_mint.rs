@@ -46,14 +46,12 @@ pub fn process_mint_to<'info>(
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
     }
     mint_spl_to_pool_pda(&ctx, &amounts)?;
-
     let output_compressed_accounts = create_output_compressed_accounts(
         ctx.accounts.mint.to_account_info().key(),
         compression_public_keys.as_slice(),
         &amounts,
         None,
     );
-
     cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts)?;
     Ok(())
 }

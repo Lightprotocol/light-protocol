@@ -80,9 +80,8 @@ pub mod psp_compressed_pda {
         inputs: Vec<u8>,
     ) -> Result<crate::event::PublicTransactionEvent> {
         msg!("execute_compressed_transaction");
-        let inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
-            &mut [vec![0u8; 8], inputs].concat().as_slice(),
-        )?;
+        let inputs: InstructionDataTransfer =
+            InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         msg!("deserialized inputs");
         process_execute_compressed_transaction(&inputs, &ctx)
     }

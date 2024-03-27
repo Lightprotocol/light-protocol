@@ -1,3 +1,4 @@
+// TODO: Clean up
 export enum UtxoErrorCode {
   NEGATIVE_LAMPORTS = 'NEGATIVE_LAMPORTS',
   NOT_U64 = 'NOT_U64',

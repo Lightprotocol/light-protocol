@@ -9,6 +9,7 @@ import {
 import { transfer } from "@lightprotocol/compressed-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { getKeypairFromFile } from "@solana-developers/helpers";
+import { Rpc } from "@lightprotocol/stateless.js";
 
 class TransferCommand extends Command {
   static summary = "Transfer tokens from one account to another.";
@@ -61,7 +62,7 @@ class TransferCommand extends Command {
       const connection = new Connection(getSolanaRpcUrl());
 
       const txId = await transfer(
-        connection,
+        connection as Rpc,
         payer,
         mintPublicKey,
         amount,

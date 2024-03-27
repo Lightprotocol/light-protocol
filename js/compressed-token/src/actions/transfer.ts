@@ -1,26 +1,25 @@
 import {
   ConfirmOptions,
-  Connection,
   PublicKey,
   Signer,
   TransactionSignature,
-  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
   bn,
   defaultTestStateTreeAccounts,
   sendAndConfirmTx,
-  getMockRpc,
+  buildAndSignTx,
+  Rpc,
 } from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
+
 import { BN } from '@coral-xyz/anchor';
 import { createTransferInstruction } from '../instructions';
-import { TokenTransferOutUtxo_IdlType } from '../types';
-import { getSigners } from './mint-to';
+import { TokenTransferOutputData } from '../types';
 import {
-  UtxoWithParsedTokenTlvData,
-  getCompressedTokenAccountsFromMockRpc,
-} from '../token-serde';
+  CompressedAccountWithParsedTokenData,
+  getCompressedTokenAccountsForTest,
+} from '../get-compressed-token-accounts';
+import { dedupeSigner, getSigners } from './common';
 
 /**
  * @internal
@@ -30,27 +29,45 @@ import {
  * 2. Accumulates the amount until it is greater than or equal to the transfer
  *    amount
  */
-function pickMinCompressedTokenAccountsForTransfer(
-  accounts: UtxoWithParsedTokenTlvData[],
+function selectMinCompressedTokenAccountsForTransfer(
+  accounts: CompressedAccountWithParsedTokenData[],
   transferAmount: BN,
-): UtxoWithParsedTokenTlvData[] {
+): [
+  selectedAccounts: CompressedAccountWithParsedTokenData[],
+  total: BN,
+  totalLamports: BN | null,
+] {
   let accumulatedAmount = bn(0);
-  const selectedAccounts = [];
+  let accumulatedLamports = bn(0);
+
+  const selectedAccounts: CompressedAccountWithParsedTokenData[] = [];
+
   accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
+
   for (const account of accounts) {
     if (accumulatedAmount.gte(bn(transferAmount))) break;
     accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
+    accumulatedLamports = accumulatedLamports.add(
+      account.compressedAccountWithMerkleContext.lamports,
+    );
     selectedAccounts.push(account);
   }
+
   if (accumulatedAmount.lt(bn(transferAmount))) {
     throw new Error('Not enough balance for transfer');
   }
-  return selectedAccounts;
+
+  return [
+    selectedAccounts,
+    accumulatedAmount,
+    accumulatedLamports.lt(bn(0)) ? accumulatedLamports : null,
+  ];
 }
+
 /**
  * Transfer compressed tokens from one owner to another
  *
- * @param connection     Connection to use
+ * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint of the compressed token
  * @param amount         Number of tokens to transfer
@@ -65,93 +82,81 @@ function pickMinCompressedTokenAccountsForTransfer(
  * @return Signature of the confirmed transaction
  */
 export async function transfer(
-  connection: Connection,
+  rpc: Rpc,
   payer: Signer,
   mint: PublicKey,
   amount: number | BN,
   owner: Signer | PublicKey,
   toAddress: PublicKey,
+  /// TODO: allow multiple
   merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
   multiSigners: Signer[] = [],
   confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-  const keys = defaultTestStateTreeAccounts();
-  const queue = keys.nullifierQueue; /// FIXME: Should fetch or pass
   const [currentOwnerPublicKey, signers] = getSigners(owner, multiSigners);
 
-  const compressedTokenAccounts = await getCompressedTokenAccountsFromMockRpc(
-    connection,
+  amount = bn(amount);
+
+  /// TODO: refactor RPC and TestRPC to (1)support extensions (2)implement
+  /// token layout, or (3)implement 'getCompressedProgramAccounts'
+  const compressedTokenAccounts = await getCompressedTokenAccountsForTest(
+    rpc,
     currentOwnerPublicKey,
     mint,
   );
 
-  const inUtxos = pickMinCompressedTokenAccountsForTransfer(
-    compressedTokenAccounts,
-    bn(amount),
-  );
+  const [inputAccounts, inputAmount, inputLamports] =
+    selectMinCompressedTokenAccountsForTransfer(
+      compressedTokenAccounts,
+      amount,
+    );
 
-  /// Create output utxos
-  const changeAmount = inUtxos
-    .reduce((acc, utxo) => acc.add(utxo.parsed.amount), bn(0))
-    .sub(bn(amount));
-
+  /// TODO: refactor into createOutputState
+  /// Create output compressed accounts
+  const changeAmount = inputAmount.sub(amount);
   /// We don't send lamports and don't have rent
-  const changeLamportsAmount = inUtxos.reduce(
-    (acc, utxo) => acc.add(utxo.utxo.lamports),
-    // TODO: add optional rent
-    bn(0),
-  );
+  const changeLamportsAmount = inputLamports;
 
-  const changeUtxo: TokenTransferOutUtxo_IdlType = {
+  const changeCompressedAccount: TokenTransferOutputData = {
     amount: changeAmount,
     owner: currentOwnerPublicKey,
-    lamports: changeLamportsAmount.gt(bn(0)) ? changeLamportsAmount : null,
-    index_mt_account: 0, // FIXME: dynamic!
+    lamports: changeLamportsAmount,
   };
 
-  const recipientOutUtxo: TokenTransferOutUtxo_IdlType = {
-    amount: bn(amount),
+  const recipientCompressedAccount: TokenTransferOutputData = {
+    amount,
     owner: toAddress,
     lamports: null,
-    index_mt_account: 0, // FIXME: dynamic!
   };
 
-  const rpc = await getMockRpc(connection);
-
   const proof = await rpc.getValidityProof(
-    inUtxos.map((utxo) => utxo.merkleContext!.hash as BN),
+    inputAccounts.map(account =>
+      bn(account.compressedAccountWithMerkleContext.hash),
+    ),
   );
 
-  const ix = await createTransferInstruction(
-    payer.publicKey,
-    currentOwnerPublicKey,
-    inUtxos.map((_) => merkleTree),
-    inUtxos.map((_) => queue),
-    [merkleTree, merkleTree],
-    inUtxos.map((utxo) => utxo.utxo),
-    [recipientOutUtxo, changeUtxo],
+  const ixs = await createTransferInstruction(
+    payer.publicKey, // fee payer
+    currentOwnerPublicKey, // authority
+    inputAccounts.map(
+      account => account.compressedAccountWithMerkleContext.merkleTree, // in state trees
+    ),
+    inputAccounts.map(
+      account => account.compressedAccountWithMerkleContext.nullifierQueue, // in nullifier queues
+    ),
+    [merkleTree, merkleTree], // out state trees
+    inputAccounts.map(account => account.compressedAccountWithMerkleContext), // input compressed accounts
+    [recipientCompressedAccount, changeCompressedAccount], // output compressed accounts
     // TODO: replace with actual recent state root index!
     // This will only work with sequential state updates and no cranking!
     proof.rootIndices, // input state root indices
     proof.compressedProof,
   );
 
-  const ixs = [
-    // TODO: adjust CU down to min!
-    ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-    ix,
-  ];
-  const { blockhash } = await connection.getLatestBlockhash();
-
-  // TODO: find more elegant solution for this.
-  // Probably buildAndSignTx should just dedupe by itself
-  const filteredSigners = currentOwnerPublicKey.equals(payer.publicKey)
-    ? signers.filter(
-        (signer) => !signer.publicKey.equals(currentOwnerPublicKey),
-      )
-    : [...signers];
-  const signedTx = buildAndSignTx(ixs, payer, blockhash, filteredSigners);
-  const txId = await sendAndConfirmTx(connection, signedTx, confirmOptions);
+  const { blockhash } = await rpc.getLatestBlockhash();
+  const additionalSigners = dedupeSigner(payer, signers);
+  const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+  const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
 
   return txId;
 }

@@ -5,20 +5,19 @@ import {
   PublicKey,
 } from '@solana/web3.js';
 import {
+  CompressedProofWithContext,
   CompressionApiInterface,
   GetUtxoConfig,
   MerkleProofResult,
-  UtxoResult,
-  UtxosResult,
   WithMerkleUpdateContext,
   jsonRpcResultAndContext,
 } from './rpc-interface';
 import {
-  UtxoWithMerkleContext,
   MerkleContextWithMerkleProof,
   MerkleUpdateContext,
   BN254,
   bn,
+  CompressedAccountWithMerkleContext,
   createBN254,
 } from './state';
 import { create, nullable } from 'superstruct';
@@ -29,9 +28,9 @@ export function createRpc(
   config?: ConnectionConfig,
 ): Rpc {
   if (typeof endpointOrWeb3JsConnection === 'string') {
-    return new Rpc(endpointOrWeb3JsConnection, config);
+    return new Rpc(endpointOrWeb3JsConnection, undefined, config);
   }
-  return new Rpc(endpointOrWeb3JsConnection.rpcEndpoint, config);
+  return new Rpc(endpointOrWeb3JsConnection.rpcEndpoint, undefined, config);
 }
 
 const rpcRequest = async (
@@ -65,52 +64,13 @@ const rpcRequest = async (
 };
 
 export class Rpc extends Connection implements CompressionApiInterface {
-  constructor(endpoint: string, config?: ConnectionConfig) {
-    super(endpoint, config);
-  }
-
-  /** Retrieve a utxo with context */
-  async getUtxo(
-    utxoHash: BN254,
-    config?: GetUtxoConfig,
-  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null> {
-    const unsafeRes = await rpcRequest(this.rpcEndpoint, 'getUtxo', [
-      utxoHash.toString(),
-      config?.encoding || 'base64',
-    ]);
-    const res = create(
-      unsafeRes,
-      jsonRpcResultAndContext(nullable(UtxoResult)),
-    );
-
-    if ('error' in res) {
-      throw new SolanaJSONRPCError(
-        res.error,
-        `failed to get info about utxo ${utxoHash.toString()}`,
-      );
-    }
-
-    if (res.result.value === null) {
-      return null;
-    }
-
-    const context: MerkleUpdateContext = {
-      slotCreated: res.result.value.slotCreated,
-      seq: res.result.value.seq,
-    };
-
-    const value: UtxoWithMerkleContext = {
-      owner: res.result.value.owner,
-      lamports: bn(res.result.value.lamports),
-      data: { tlvElements: res.result.value.data },
-      hash: utxoHash,
-      merkleTree: res.result.value.merkleTree,
-      leafIndex: bn(res.result.value.leafIndex),
-      address: res.result.value.address || null,
-      nullifierQueue: res.result.value.nullifierQueue,
-    };
-
-    return { context, value };
+  constructor(
+    endpoint: string,
+    // TODO: implement
+    proverEndpoint?: string,
+    config?: ConnectionConfig,
+  ) {
+    super(endpoint, config || 'confirmed');
   }
 
   /** Retrieve the proof for a utxo */
@@ -134,10 +94,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
       return null;
     }
     const value: MerkleContextWithMerkleProof = {
-      hash: utxoHash,
+      hash: utxoHash as any, // FIXME
       merkleTree: res.result.value.merkleTree,
       leafIndex: res.result.value.leafIndex,
-      merkleProof: res.result.value.proof.map((proof) => createBN254(proof)),
+      merkleProof: res.result.value.proof.map(proof => createBN254(proof)),
       nullifierQueue: res.result.value.nullifierQueue,
       rootIndex: res.result.value.rootIndex,
     };
@@ -148,15 +108,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
   async getUtxos(
     owner: PublicKey,
     config?: GetUtxoConfig,
-  ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]> {
+  ): Promise<WithMerkleUpdateContext<CompressedAccountWithMerkleContext>[]> {
     const unsafeRes = await rpcRequest(this.rpcEndpoint, 'getUtxos', [
       owner.toString(),
       config?.encoding || 'base64',
     ]);
-    const res = create(
-      unsafeRes,
-      jsonRpcResultAndContext(nullable(UtxosResult)),
-    );
+    // const res: any = create(
+    //     unsafeRes,
+    //     jsonRpcResultAndContext(nullable(UtxosResult)),
+    // );
+    const res: any = unsafeRes;
 
     if ('error' in res) {
       throw new SolanaJSONRPCError(
@@ -169,26 +130,32 @@ export class Rpc extends Connection implements CompressionApiInterface {
       return [];
     }
 
-    const utxosWithMerkleContext: WithMerkleUpdateContext<UtxoWithMerkleContext>[] =
-      res.result.value.map((utxo) => {
+    const utxosWithMerkleContext: WithMerkleUpdateContext<CompressedAccountWithMerkleContext>[] =
+      res.result.value.map((account: any) => {
         const context: MerkleUpdateContext = {
-          slotCreated: utxo.slotCreated,
-          seq: utxo.seq,
+          slotCreated: account.slotCreated,
+          seq: account.seq,
         };
 
-        const value: UtxoWithMerkleContext = {
+        const value: CompressedAccountWithMerkleContext = {
           owner: owner,
-          lamports: bn(utxo.lamports),
-          data: { tlvElements: utxo.data },
-          hash: utxo.hash, // Assuming utxoHash is defined elsewhere or needs to be handled per utxo basis
-          merkleTree: utxo.merkleTree,
-          leafIndex: bn(utxo.leafIndex),
-          address: utxo.address || null,
-          nullifierQueue: utxo.nullifierQueue,
+          lamports: bn(account.lamports),
+          data: account.data,
+          hash: account.hash, // Assuming utxoHash is defined elsewhere or needs to be handled per utxo basis
+          merkleTree: account.merkleTree,
+          leafIndex: account.leafIndex,
+          address: account.address || null,
+          nullifierQueue: account.nullifierQueue,
         };
 
         return { context, value };
       });
     return utxosWithMerkleContext;
+  }
+  async getValidityProof(
+    /// TODO: Implement
+    utxoHashes: BN254[],
+  ): Promise<CompressedProofWithContext> {
+    throw new Error('Method not implemented.');
   }
 }

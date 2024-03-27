@@ -1,69 +1,76 @@
 import {
-  CompressedProof_IdlType,
+  CompressedProof,
   defaultStaticAccountsStruct,
-  InUtxoTuple_IdlType,
+  CompressedAccountWithMerkleContext,
   LightSystemProgram,
-  Utxo_IdlType,
+  PackedCompressedAccountWithMerkleContext,
 } from '@lightprotocol/stateless.js';
 import {
   PublicKey,
   TransactionInstruction,
   AccountMeta,
+  ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { CompressedTokenProgram } from '../program';
-import { TokenTlvData_IdlType, TokenTransferOutUtxo_IdlType } from '../types';
+import {
+  CompressedTokenInstructionDataTransfer,
+  TokenData,
+  TokenTransferOutputData,
+} from '../types';
 
-// NOTE: this is currently akin to createExecuteCompressedInstruction on-chain
+/// TODO: refactor akin to lightsystemprogram.transfer()
 export async function createTransferInstruction(
   feePayer: PublicKey,
   authority: PublicKey,
-  inUtxoMerkleTreePubkeys: PublicKey[],
-  nullifierArrayPubkeys: PublicKey[],
-  outUtxoMerkleTreePubkeys: PublicKey[],
-  inUtxos: Utxo_IdlType[],
-  outUtxos: TokenTransferOutUtxo_IdlType[], // tlv missing
-  rootIndices: number[],
-  proof: CompressedProof_IdlType,
-): Promise<TransactionInstruction> {
-  const outputUtxos = outUtxos.map((utxo) => ({ ...utxo }));
+  inputStateTrees: PublicKey[],
+  inputNullifierQueues: PublicKey[],
+  outputStateTrees: PublicKey[],
+  inputCompressedAccounts: CompressedAccountWithMerkleContext[],
+  outputCompressedAccounts: TokenTransferOutputData[],
+  recentStateRootIndices: number[],
+  recentValidityproof: CompressedProof,
+): Promise<TransactionInstruction[]> {
   const remainingAccountsMap = new Map<PublicKey, number>();
-  const inUtxosWithIndex: InUtxoTuple_IdlType[] = [];
-  const inUtxoTlvData: TokenTlvData_IdlType[] = [];
+  const packedInputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
+    [];
+  const inputTokenData: TokenData[] = [];
 
   const coder = CompressedTokenProgram.program.coder;
 
-  inUtxoMerkleTreePubkeys.forEach((mt, i) => {
+  /// packs, extracts data into inputTokenData and sets data.data zero
+  inputStateTrees.forEach((mt, i) => {
     if (!remainingAccountsMap.has(mt)) {
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
     }
-    const inUtxo = inUtxos[i];
-    const tokenTlvData: TokenTlvData_IdlType = coder.types.decode(
-      'TokenTlvData',
-      Buffer.from(inUtxo.data!.tlvElements[0].data), // FIXME: handle null
+    const inputCompressedAccount = inputCompressedAccounts[i];
+    const tokenData: TokenData = coder.types.decode(
+      'TokenData',
+      Buffer.from(inputCompressedAccount.data!.data), // FIXME: handle null
     );
 
-    inUtxoTlvData.push(tokenTlvData);
-    inUtxo.data = null;
-    inUtxosWithIndex.push({
-      inUtxo,
-      indexMtAccount: remainingAccountsMap.get(mt)!,
+    inputTokenData.push(tokenData);
+    inputCompressedAccount.data = null;
+    packedInputCompressedAccountsWithMerkleContext.push({
+      compressedAccount: inputCompressedAccount,
+      indexMerkleTreeAccount: remainingAccountsMap.get(mt)!,
       indexNullifierArrayAccount: 0, // Will be set in the next loop
+      leafIndex: inputCompressedAccount.leafIndex,
     });
   });
 
-  nullifierArrayPubkeys.forEach((mt, i) => {
+  inputNullifierQueues.forEach((mt, i) => {
     if (!remainingAccountsMap.has(mt)) {
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
     }
-    inUtxosWithIndex[i].indexNullifierArrayAccount =
-      remainingAccountsMap.get(mt)!;
+    packedInputCompressedAccountsWithMerkleContext[
+      i
+    ].indexNullifierArrayAccount = remainingAccountsMap.get(mt)!;
   });
 
-  outUtxoMerkleTreePubkeys.forEach((mt, i) => {
+  outputStateTrees.forEach((mt, i) => {
     if (!remainingAccountsMap.has(mt)) {
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
     }
-    outputUtxos[i].index_mt_account = remainingAccountsMap.get(mt)!;
   });
 
   const remainingAccountMetas = Array.from(remainingAccountsMap.entries())
@@ -71,31 +78,36 @@ export async function createTransferInstruction(
     .map(
       ([account]): AccountMeta => ({
         pubkey: account,
-        isWritable: true, // TODO: input Merkle trees should be read-only, output Merkle trees should be writable, if a Merkle tree is for in and out utxos it should be writable
+        isWritable: true, // TODO: input Merkle trees should be read-only, output Merkle trees should be writable, if a Merkle tree is for in and out c-accounts it should be writable
         isSigner: false,
       }),
     );
   const staticsAccounts = defaultStaticAccountsStruct();
 
-  const rawInputs = {
-    proof,
-    rootIndices,
-    inUtxos: inUtxosWithIndex,
-    inTlvData: inUtxoTlvData,
-    outUtxos,
+  const rawInputs: CompressedTokenInstructionDataTransfer = {
+    proof: recentValidityproof,
+    rootIndices: recentStateRootIndices,
+    inputCompressedAccountsWithMerkleContext:
+      packedInputCompressedAccountsWithMerkleContext,
+    inputTokenData,
+    outputCompressedAccounts,
+    outputStateMerkleTreeAccountIndices: Buffer.from(
+      outputStateTrees.map(mt => remainingAccountsMap.get(mt)!),
+    ),
   };
 
   const data = CompressedTokenProgram.program.coder.types.encode(
-    'InstructionDataTransfer',
+    'CompressedTokenInstructionDataTransfer',
     rawInputs,
   );
+
   /// FIXME:  why are static account params optional?
   const instruction = await CompressedTokenProgram.program.methods
     .transfer(data)
     .accounts({
       feePayer: feePayer!,
       authority: authority!,
-      cpiAuthorityPda: CompressedTokenProgram.cpiAuthorityPda,
+      cpiAuthorityPda: CompressedTokenProgram.deriveCpiAuthorityPda,
       compressedPdaProgram: LightSystemProgram.programId,
       registeredProgramPda: staticsAccounts.registeredProgramPda,
       noopProgram: staticsAccounts.noopProgram,
@@ -107,5 +119,8 @@ export async function createTransferInstruction(
     .remainingAccounts(remainingAccountMetas)
     .instruction();
 
-  return instruction;
+  return [
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+    instruction,
+  ];
 }

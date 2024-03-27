@@ -1,16 +1,24 @@
 import {
   ComputeBudgetProgram,
   ConfirmOptions,
-  Connection,
   PublicKey,
   Signer,
   TransactionSignature,
 } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
+import {
+  defaultTestStateTreeAccounts,
+  sendAndConfirmTx,
+  buildAndSignTx,
+  Rpc,
+} from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
+import { dedupeSigner, getSigners } from './common';
+
 /**
  * Mint compressed tokens to a solana address
  *
- * @param connection     Connection to use
+ * @param rpc            Rpc to use
  * @param payer          Payer of the transaction fees
  * @param mint           Mint for the account
  * @param destination    Address of the account to mint to
@@ -24,7 +32,7 @@ import { CompressedTokenProgram } from '../program';
  * @return Signature of the confirmed transaction
  */
 export async function mintTo(
-  connection: Connection,
+  rpc: Rpc,
   payer: Signer,
   mint: PublicKey,
   destination: PublicKey,
@@ -34,10 +42,12 @@ export async function mintTo(
   merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
   confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-  const [authorityPubkey, additionalSigners] = getSigners(
+  const [authorityPubkey, authoritySigners] = getSigners(
     authority,
     multiSigners,
   );
+  const additionalSigners = dedupeSigner(payer, authoritySigners);
+
   const ix = await CompressedTokenProgram.mintTo({
     feePayer: payer.publicKey,
     mint: mint,
@@ -47,7 +57,7 @@ export async function mintTo(
     merkleTree,
   });
 
-  const { blockhash } = await connection.getLatestBlockhash();
+  const { blockhash } = await rpc.getLatestBlockhash();
 
   const tx = buildAndSignTx(
     [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
@@ -56,24 +66,7 @@ export async function mintTo(
     additionalSigners,
   );
 
-  const txId = await sendAndConfirmTx(connection, tx, confirmOptions);
+  const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
   return txId;
-}
-import {
-  defaultTestStateTreeAccounts,
-  sendAndConfirmTx,
-} from '@lightprotocol/stateless.js';
-import { buildAndSignTx } from '@lightprotocol/stateless.js';
-
-import { BN } from '@coral-xyz/anchor';
-
-/** @internal */
-export function getSigners(
-  signerOrMultisig: Signer | PublicKey,
-  multiSigners: Signer[],
-): [PublicKey, Signer[]] {
-  return signerOrMultisig instanceof PublicKey
-    ? [signerOrMultisig, multiSigners]
-    : [signerOrMultisig.publicKey, [signerOrMultisig]];
 }
