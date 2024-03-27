@@ -11,7 +11,6 @@ export type TokenTransferOutputData = {
   owner: PublicKey;
   amount: BN;
   lamports: BN | null;
-  index_mt_account: number;
 };
 
 export type CompressedTokenInstructionDataTransfer = {

@@ -121,14 +121,14 @@ export async function transfer(
     amount: changeAmount,
     owner: currentOwnerPublicKey,
     lamports: changeLamportsAmount,
-    index_mt_account: 0, // FIXME: dynamic!
+    // index_mt_account: 0, // FIXME: dynamic!
   };
 
   const recipientCompressedAccount: TokenTransferOutputData = {
     amount,
     owner: toAddress,
     lamports: null,
-    index_mt_account: 0, // FIXME: dynamic!
+    // index_mt_account: 0, // FIXME: dynamic!
   };
 
   const proof = await rpc.getValidityProof(

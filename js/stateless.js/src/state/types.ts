@@ -4,7 +4,7 @@ import { PublicKey } from '@solana/web3.js';
 /// TODO: Consider flattening and implementing an IR in Beet.
 export interface PackedCompressedAccountWithMerkleContext {
   compressedAccount: CompressedAccount;
-  indexMtAccount: number; // u8
+  indexMerkleTreeAccount: number; // u8
   indexNullifierArrayAccount: number; // u8
   leafIndex: number; // u32 FIXME: switch on-chain to u64.
   // Missing: hash
@@ -36,7 +36,7 @@ export interface CompressedAccountData {
 
 export interface PublicTransactionEvent {
   inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
-  outputAccountHashes: number[][]; // Vec<[u8; 32]>
+  outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
   inputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
   outputCompressedAccounts: CompressedAccount[];
   outputStateMerkleTreeAccountIndices: Uint8Array; // bytes

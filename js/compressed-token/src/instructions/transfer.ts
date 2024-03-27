@@ -52,7 +52,7 @@ export async function createTransferInstruction(
     inputCompressedAccount.data = null; // FIXME
     packedInputCompressedAccountsWithMerkleContext.push({
       compressedAccount: inputCompressedAccount,
-      indexMtAccount: remainingAccountsMap.get(mt)!,
+      indexMerkleTreeAccount: remainingAccountsMap.get(mt)!,
       indexNullifierArrayAccount: 0, // Will be set in the next loop
       leafIndex: inputCompressedAccount.leafIndex,
     });
@@ -71,8 +71,6 @@ export async function createTransferInstruction(
     if (!remainingAccountsMap.has(mt)) {
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
     }
-    outputCompressedAccounts[i].index_mt_account =
-      remainingAccountsMap.get(mt)!;
   });
 
   const remainingAccountMetas = Array.from(remainingAccountsMap.entries())

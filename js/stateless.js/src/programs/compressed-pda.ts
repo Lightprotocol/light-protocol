@@ -178,6 +178,11 @@ export class LightSystemProgram {
     const data = this.program.coder.types.encode('InstructionDataTransfer', {
       proof: recentValidityProof,
       inputRootIndices: recentInputStateRootIndices,
+      /// TODO: here and on-chain: option<newAddressInputs> or similar.
+      newAddressSeeds: [],
+      addressQueueAccountIndices: Buffer.from([]),
+      addressMerkleTreeAccountIndices: Buffer.from([]),
+      addressMerkleTreeRootIndices: [],
       inputCompressedAccountsWithMerkleContext: packedInputCompressedAccounts,
       outputCompressedAccounts,
       outputStateMerkleTreeAccountIndices: Buffer.from(

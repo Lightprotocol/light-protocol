@@ -102,7 +102,7 @@ export function packCompressedAccounts(
         address: account.address,
         data: account.data,
       },
-      indexMtAccount: indexMerkleTree,
+      indexMerkleTreeAccount: indexMerkleTree,
       indexNullifierArrayAccount: indexNullifierQueue,
       leafIndex: account.leafIndex,
     });

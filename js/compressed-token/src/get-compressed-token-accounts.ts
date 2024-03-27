@@ -60,7 +60,7 @@ async function parseEventWithTokenTlvData(
   const inputCompressedAccountWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
     event.inputCompressedAccounts.map((compressedAccount, i) => {
       const merkleContext: MerkleContext = {
-        merkleTree: pubkeyArray[compressedAccount.indexMtAccount],
+        merkleTree: pubkeyArray[compressedAccount.indexMerkleTreeAccount],
         nullifierQueue:
           pubkeyArray[compressedAccount.indexNullifierArrayAccount],
         hash: inputHashes[i],
@@ -88,7 +88,7 @@ async function parseEventWithTokenTlvData(
       };
     });
 
-  const outputHashes = event.outputAccountHashes;
+  const outputHashes = event.outputCompressedAccountHashes;
   const outputCompressedAccountsWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
     event.outputCompressedAccounts.map((compressedAccount, i) => {
       const merkleContext: MerkleContext = {

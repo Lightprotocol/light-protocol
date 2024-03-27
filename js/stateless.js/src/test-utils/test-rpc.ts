@@ -256,7 +256,7 @@ export class TestRpc extends Rpc {
         index < event.outputCompressedAccounts.length;
         index++
       ) {
-        const hash = event.outputAccountHashes[index];
+        const hash = event.outputCompressedAccountHashes[index];
 
         allLeaves.push(hash);
         allLeafIndices.push(event.outputLeafIndices[index]);
