@@ -5,8 +5,8 @@ use light_utils::hash_to_bn254_field_size_le;
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
-    pub index_merkle_tree_account: u8,
-    pub index_nullifier_array_account: u8,
+    pub merkle_tree_pubkey_index: u8,
+    pub index_nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
 }
 

@@ -15,14 +15,15 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     let state_merkle_tree_pubkeys = inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
-        .map(|account| ctx.remaining_accounts[account.index_merkle_tree_account as usize].key())
+        .map(|account| ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize].key())
         .collect::<Vec<Pubkey>>();
     let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
-        indexed_array_account_infos
-            .push(ctx.remaining_accounts[account.index_nullifier_array_account as usize].clone());
+        indexed_array_account_infos.push(
+            ctx.remaining_accounts[account.index_nullifier_queue_pubkey_index as usize].clone(),
+        );
         let unpacked_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(
-            &ctx.remaining_accounts[account.index_nullifier_array_account as usize],
+            &ctx.remaining_accounts[account.index_nullifier_queue_pubkey_index as usize],
         )
         .unwrap();
         let array_account = unpacked_queue_account.load()?;
@@ -34,7 +35,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         if !account_is_associated_with_state_merkle_tree {
             msg!(
                 "Nullifier queue account {:?} is not associated with any state Merkle tree. Provided state Merkle trees {:?}",
-                ctx.remaining_accounts[account.index_nullifier_array_account as usize].key(), state_merkle_tree_pubkeys);
+                ctx.remaining_accounts[account.index_nullifier_queue_pubkey_index as usize].key(), state_merkle_tree_pubkeys);
             return Err(crate::ErrorCode::InvalidNullifierQueue.into());
         }
     }

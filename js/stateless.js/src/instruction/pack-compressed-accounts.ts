@@ -102,8 +102,8 @@ export function packCompressedAccounts(
         address: account.address,
         data: account.data,
       },
-      indexMerkleTreeAccount: indexMerkleTree,
-      indexNullifierArrayAccount: indexNullifierQueue,
+      merkleTreePubkeyIndex: indexMerkleTree,
+      nullifierQueuePubkeyIndex: indexNullifierQueue,
       leafIndex: account.leafIndex,
     });
   });

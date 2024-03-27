@@ -20,6 +20,7 @@ pub struct PublicTransactionEvent {
     pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub output_leaf_indices: Vec<u32>,
     pub relay_fee: Option<u64>,
+    pub is_compress: bool,
     pub de_compress_amount: Option<u64>,
     pub pubkey_array: Vec<Pubkey>,
     pub message: Option<Vec<u8>>,
@@ -65,6 +66,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
         de_compress_amount: None,
         message: None,
+        is_compress: false,
     };
     invoke_indexer_transaction_event(&event, &ctx.accounts.noop_program)?;
     Ok(event)

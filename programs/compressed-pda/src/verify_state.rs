@@ -25,7 +25,7 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
     {
         let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
             &ctx.remaining_accounts
-                [input_compressed_account_with_context.index_merkle_tree_account as usize],
+                [input_compressed_account_with_context.merkle_tree_pubkey_index as usize],
         )
         .unwrap();
         let merkle_tree = merkle_tree.load()?;
@@ -88,7 +88,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             .compressed_account
             .hash(
                 &ctx.remaining_accounts
-                    [input_compressed_account_with_context.index_merkle_tree_account as usize]
+                    [input_compressed_account_with_context.merkle_tree_pubkey_index as usize]
                     .key(),
                 &input_compressed_account_with_context.leaf_index,
             )?;
@@ -465,8 +465,8 @@ mod test {
                     address: None,
                     data: None,
                 },
-                index_merkle_tree_account: 0,
-                index_nullifier_array_account: 0,
+                merkle_tree_pubkey_index: 0,
+                index_nullifier_queue_pubkey_index: 0,
                 leaf_index: 0,
             },
             CompressedAccountWithMerkleContext {
@@ -476,8 +476,8 @@ mod test {
                     address: None,
                     data: None,
                 },
-                index_merkle_tree_account: 0,
-                index_nullifier_array_account: 0,
+                merkle_tree_pubkey_index: 0,
+                index_nullifier_queue_pubkey_index: 0,
                 leaf_index: 1,
             },
         ];
@@ -510,8 +510,8 @@ mod test {
                     address: None,
                     data: None,
                 },
-                index_merkle_tree_account: 0,
-                index_nullifier_array_account: 0,
+                merkle_tree_pubkey_index: 0,
+                index_nullifier_queue_pubkey_index: 0,
                 leaf_index: 0,
             },
             CompressedAccountWithMerkleContext {
@@ -521,8 +521,8 @@ mod test {
                     address: None,
                     data: None,
                 },
-                index_merkle_tree_account: 0,
-                index_nullifier_array_account: 0,
+                merkle_tree_pubkey_index: 0,
+                index_nullifier_queue_pubkey_index: 0,
                 leaf_index: 1,
             },
         ];

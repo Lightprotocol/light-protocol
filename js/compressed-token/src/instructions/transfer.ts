@@ -52,8 +52,8 @@ export async function createTransferInstruction(
     inputCompressedAccount.data = null;
     packedInputCompressedAccountsWithMerkleContext.push({
       compressedAccount: inputCompressedAccount,
-      indexMerkleTreeAccount: remainingAccountsMap.get(mt)!,
-      indexNullifierArrayAccount: 0, // Will be set in the next loop
+      merkleTreePubkeyIndex: remainingAccountsMap.get(mt)!,
+      nullifierQueuePubkeyIndex: 0, // Will be set in the next loop
       leafIndex: inputCompressedAccount.leafIndex,
     });
   });
@@ -64,7 +64,7 @@ export async function createTransferInstruction(
     }
     packedInputCompressedAccountsWithMerkleContext[
       i
-    ].indexNullifierArrayAccount = remainingAccountsMap.get(mt)!;
+    ].nullifierQueuePubkeyIndex = remainingAccountsMap.get(mt)!;
   });
 
   outputStateTrees.forEach((mt, i) => {

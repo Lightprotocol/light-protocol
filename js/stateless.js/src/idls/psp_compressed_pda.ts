@@ -98,11 +98,11 @@ export type PspCompressedPda = {
             };
           },
           {
-            name: 'indexMerkleTreeAccount';
+            name: 'merkleTreePubkeyIndex';
             type: 'u8';
           },
           {
-            name: 'indexNullifierArrayAccount';
+            name: 'indexNullifierQueuePubkeyIndex';
             type: 'u8';
           },
           {
@@ -220,6 +220,10 @@ export type PspCompressedPda = {
             type: {
               option: 'u64';
             };
+          },
+          {
+            name: 'isCompress';
+            type: 'bool';
           },
           {
             name: 'deCompressAmount';
@@ -556,11 +560,11 @@ export const IDL: PspCompressedPda = {
             },
           },
           {
-            name: 'indexMerkleTreeAccount',
+            name: 'merkleTreePubkeyIndex',
             type: 'u8',
           },
           {
-            name: 'indexNullifierArrayAccount',
+            name: 'indexNullifierQueuePubkeyIndex',
             type: 'u8',
           },
           {
@@ -678,6 +682,10 @@ export const IDL: PspCompressedPda = {
             type: {
               option: 'u64',
             },
+          },
+          {
+            name: 'isCompress',
+            type: 'bool',
           },
           {
             name: 'deCompressAmount',

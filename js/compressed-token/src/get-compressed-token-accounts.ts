@@ -60,9 +60,9 @@ async function parseEventWithTokenTlvData(
   const inputCompressedAccountWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
     event.inputCompressedAccounts.map((compressedAccount, i) => {
       const merkleContext: MerkleContext = {
-        merkleTree: pubkeyArray[compressedAccount.indexMerkleTreeAccount],
+        merkleTree: pubkeyArray[compressedAccount.merkleTreePubkeyIndex],
         nullifierQueue:
-          pubkeyArray[compressedAccount.indexNullifierArrayAccount],
+          pubkeyArray[compressedAccount.nullifierQueuePubkeyIndex],
         hash: inputHashes[i],
         leafIndex: compressedAccount.leafIndex,
       };

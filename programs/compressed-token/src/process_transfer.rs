@@ -435,8 +435,8 @@ pub mod transfer_sdk {
             input_compressed_accounts_with_merkle_context.push(
                 CompressedAccountWithMerkleContext {
                     compressed_account: input_compressed_account,
-                    index_merkle_tree_account: *remaining_accounts.get(mt).unwrap() as u8,
-                    index_nullifier_array_account: 0,
+                    merkle_tree_pubkey_index: *remaining_accounts.get(mt).unwrap() as u8,
+                    index_nullifier_queue_pubkey_index: 0,
                     leaf_index: *leaf_index,
                 },
             );
@@ -449,7 +449,7 @@ pub mod transfer_sdk {
                     remaining_accounts.insert(*mt, i + len);
                 }
             };
-            input_compressed_accounts_with_merkle_context[i].index_nullifier_array_account =
+            input_compressed_accounts_with_merkle_context[i].index_nullifier_queue_pubkey_index =
                 *remaining_accounts.get(mt).unwrap() as u8;
         }
         let len: usize = remaining_accounts.len();

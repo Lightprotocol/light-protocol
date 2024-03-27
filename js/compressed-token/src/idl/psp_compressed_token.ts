@@ -204,11 +204,11 @@ export type PspCompressedToken = {
             };
           },
           {
-            name: 'indexMerkleTreeAccount';
+            name: 'merkleTreePubkeyIndex';
             type: 'u8';
           },
           {
-            name: 'indexNullifierArrayAccount';
+            name: 'indexNullifierQueuePubkeyIndex';
             type: 'u8';
           },
           {
@@ -326,6 +326,10 @@ export type PspCompressedToken = {
             type: {
               option: 'u64';
             };
+          },
+          {
+            name: 'isCompress';
+            type: 'bool';
           },
           {
             name: 'deCompressAmount';
@@ -903,11 +907,11 @@ export const IDL: PspCompressedToken = {
             },
           },
           {
-            name: 'indexMerkleTreeAccount',
+            name: 'merkleTreePubkeyIndex',
             type: 'u8',
           },
           {
-            name: 'indexNullifierArrayAccount',
+            name: 'indexNullifierQueuePubkeyIndex',
             type: 'u8',
           },
           {
@@ -1025,6 +1029,10 @@ export const IDL: PspCompressedToken = {
             type: {
               option: 'u64',
             },
+          },
+          {
+            name: 'isCompress',
+            type: 'bool',
           },
           {
             name: 'deCompressAmount',
