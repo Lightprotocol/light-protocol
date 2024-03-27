@@ -47,7 +47,7 @@ function parseTokenLayoutWithIdl(
 }
 
 /**
- * parse utxos of an event with token layout
+ * parse compressed accounts of an event with token layout
  * @internal
  * TODO: refactor
  */
@@ -143,8 +143,8 @@ export async function getCompressedTokenAccounts(
   const eventsWithParsedTokenTlvData: EventWithParsedTokenTlvData[] =
     await Promise.all(events.map(event => parseEventWithTokenTlvData(event)));
 
-  /// strip spent utxos if an outUtxo of tx n is an inUtxo of tx n+m, it is
-  /// spent
+  /// strip spent compressed accounts if an output compressed account of tx n is
+  /// an input compressed account of tx n+m, it is spent
   const allOutCompressedAccounts = eventsWithParsedTokenTlvData.flatMap(
     event => event.outputCompressedAccounts,
   );
@@ -152,11 +152,15 @@ export async function getCompressedTokenAccounts(
     event => event.inputCompressedAccounts,
   );
   const unspentCompressedAccounts = allOutCompressedAccounts.filter(
-    outUtxo =>
+    outputCompressedAccount =>
       !allInCompressedAccounts.some(
-        inUtxo =>
-          JSON.stringify(inUtxo.compressedAccountWithMerkleContext.hash) ===
-          JSON.stringify(outUtxo.compressedAccountWithMerkleContext.hash),
+        inCompressedAccount =>
+          JSON.stringify(
+            inCompressedAccount.compressedAccountWithMerkleContext.hash,
+          ) ===
+          JSON.stringify(
+            outputCompressedAccount.compressedAccountWithMerkleContext.hash,
+          ),
       ),
   );
 
