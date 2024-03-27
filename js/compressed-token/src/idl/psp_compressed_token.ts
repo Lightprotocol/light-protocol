@@ -204,7 +204,7 @@ export type PspCompressedToken = {
             };
           },
           {
-            name: 'indexMtAccount';
+            name: 'indexMerkleTreeAccount';
             type: 'u8';
           },
           {
@@ -286,7 +286,7 @@ export type PspCompressedToken = {
             };
           },
           {
-            name: 'outputAccountHashes';
+            name: 'outputCompressedAccountHashes';
             type: {
               vec: {
                 array: ['u8', 32];
@@ -321,6 +321,12 @@ export type PspCompressedToken = {
           },
           {
             name: 'relayFee';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'deCompressAmount';
             type: {
               option: 'u64';
             };
@@ -436,7 +442,7 @@ export type PspCompressedToken = {
             };
           },
           {
-            name: 'indexMtAccount';
+            name: 'indexMerkleTreeAccount';
             type: 'u8';
           },
         ];
@@ -826,7 +832,7 @@ export const IDL: PspCompressedToken = {
             },
           },
           {
-            name: 'indexMtAccount',
+            name: 'indexMerkleTreeAccount',
             type: 'u8',
           },
           {
@@ -908,7 +914,7 @@ export const IDL: PspCompressedToken = {
             },
           },
           {
-            name: 'outputAccountHashes',
+            name: 'outputCompressedAccountHashes',
             type: {
               vec: {
                 array: ['u8', 32],
@@ -943,6 +949,12 @@ export const IDL: PspCompressedToken = {
           },
           {
             name: 'relayFee',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'deCompressAmount',
             type: {
               option: 'u64',
             },
@@ -1058,7 +1070,7 @@ export const IDL: PspCompressedToken = {
             },
           },
           {
-            name: 'indexMtAccount',
+            name: 'indexMerkleTreeAccount',
             type: 'u8',
           },
         ],

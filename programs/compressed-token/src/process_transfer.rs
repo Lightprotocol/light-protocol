@@ -269,7 +269,6 @@ pub struct TokenTransferOutputData {
     pub owner: Pubkey,
     pub amount: u64,
     pub lamports: Option<u64>,
-    pub index_mt_account: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -406,7 +405,6 @@ pub mod transfer_sdk {
         leaf_indices: &[u32],
         proof: &CompressedProof,
     ) -> Instruction {
-        let mut output_compressed_accounts = output_compressed_accounts.to_vec();
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         let mut input_compressed_accounts_with_merkle_context: Vec<
             CompressedAccountWithMerkleContext,
@@ -433,7 +431,7 @@ pub mod transfer_sdk {
             input_compressed_accounts_with_merkle_context.push(
                 CompressedAccountWithMerkleContext {
                     compressed_account: input_compressed_account,
-                    index_mt_account: *remaining_accounts.get(mt).unwrap() as u8,
+                    index_merkle_tree_account: *remaining_accounts.get(mt).unwrap() as u8,
                     index_nullifier_array_account: 0,
                     leaf_index: *leaf_index,
                 },
@@ -451,7 +449,8 @@ pub mod transfer_sdk {
                 *remaining_accounts.get(mt).unwrap() as u8;
         }
         let len: usize = remaining_accounts.len();
-
+        let mut output_state_merkle_tree_account_indices: Vec<u8> =
+            vec![0u8; output_compressed_account_merkle_tree_pubkeys.len()];
         for (i, mt) in output_compressed_account_merkle_tree_pubkeys
             .iter()
             .enumerate()
@@ -462,7 +461,7 @@ pub mod transfer_sdk {
                     remaining_accounts.insert(*mt, i + len);
                 }
             };
-            output_compressed_accounts[i].index_mt_account =
+            output_state_merkle_tree_account_indices[i] =
                 *remaining_accounts.get(mt).unwrap() as u8;
         }
 
@@ -484,8 +483,7 @@ pub mod transfer_sdk {
             proof: Some(proof.clone()),
             input_token_data: input_compressed_account_token_data,
             // TODO: support multiple output state merkle trees
-            output_state_merkle_tree_account_indices:
-                vec![0u8; output_compressed_account_merkle_tree_pubkeys.len()],
+            output_state_merkle_tree_account_indices,
         };
         let mut inputs = Vec::new();
         InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
