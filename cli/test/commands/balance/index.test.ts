@@ -13,7 +13,7 @@ describe("Get balance", () => {
 
     const mintKeypair = Keypair.generate();
     await requestAirdrop(mintKeypair.publicKey);
-    const mintAuthority = payerKeypair.publicKey;
+    const mintAuthority = payerKeypair;
 
     const mintAmount = 10;
     const mintDestination = Keypair.generate().publicKey;
@@ -54,7 +54,7 @@ describe("Get balance", () => {
     payer: Keypair,
     mintAddress: PublicKey,
     mintDestination: PublicKey,
-    mintAuthority: PublicKey | Keypair,
+    mintAuthority: Keypair,
     mintAmount: number,
   ) {
     const rpc = await getTestRpc(getSolanaRpcUrl());

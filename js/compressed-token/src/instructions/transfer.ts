@@ -37,7 +37,7 @@ export async function createTransferInstruction(
 
   const coder = CompressedTokenProgram.program.coder;
 
-  /// packs, also sets data zero, so if they have data they need to extract it beforehand
+  /// packs, extracts data into inputTokenData and sets data.data zero
   inputStateTrees.forEach((mt, i) => {
     if (!remainingAccountsMap.has(mt)) {
       remainingAccountsMap.set(mt, remainingAccountsMap.size);
@@ -49,7 +49,7 @@ export async function createTransferInstruction(
     );
 
     inputTokenData.push(tokenData);
-    inputCompressedAccount.data = null; // FIXME
+    inputCompressedAccount.data = null;
     packedInputCompressedAccountsWithMerkleContext.push({
       compressedAccount: inputCompressedAccount,
       indexMerkleTreeAccount: remainingAccountsMap.get(mt)!,
