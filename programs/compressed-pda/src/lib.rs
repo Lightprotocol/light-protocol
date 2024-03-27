@@ -79,9 +79,6 @@ pub mod psp_compressed_pda {
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<crate::event::PublicTransactionEvent> {
-        // TODO: confirm this.
-        // Note: using AnchorDeserialize which is eq to Account.try_deserialize_unchecked
-        // No need for discriminator padding
         msg!("execute_compressed_transaction");
         let inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;

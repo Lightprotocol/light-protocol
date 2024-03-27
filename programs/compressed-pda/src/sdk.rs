@@ -324,11 +324,8 @@ mod test {
         );
         assert_eq!(instruction.program_id, crate::ID);
 
-        use account_compression::AccountDeserialize;
-
         let deserialized_instruction_data: InstructionDataTransfer =
-            InstructionDataTransfer::deserialize(&mut instruction.data[12..].to_vec().as_slice())
-                .unwrap();
+            InstructionDataTransfer::deserialize(&mut instruction.data[12..].as_ref()).unwrap();
         deserialized_instruction_data
             .input_compressed_accounts_with_merkle_context
             .iter()
