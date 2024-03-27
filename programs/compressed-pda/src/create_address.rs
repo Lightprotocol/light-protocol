@@ -34,12 +34,6 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
             return Err(crate::ErrorCode::InvalidAddressQueue.into());
         }
     }
-    msg!("inputs {:?}", inputs);
-    msg!("addresses: {:?}", addresses);
-    msg!(
-        "indexed_array_account_infos: {:?}",
-        indexed_array_account_infos
-    );
     insert_nullifiers_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,

@@ -65,17 +65,6 @@ impl CompressedAccount {
 }
 
 pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
-    #[cfg(target_os = "solana")]
-    msg!(
-        "Deriving address from seed: {:?} and merkle tree pubkey: {:?}",
-        seed,
-        merkle_tree_pubkey
-    );
-    #[cfg(not(target_os = "solana"))]
-    println!(
-        "Deriving address from seed: {:?} and merkle tree pubkey: {:?}",
-        seed, merkle_tree_pubkey
-    );
     let hash = match hash_to_bn254_field_size_le(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
