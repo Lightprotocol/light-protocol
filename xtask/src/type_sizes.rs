@@ -27,66 +27,61 @@ struct Type {
 
 pub fn type_sizes() -> anyhow::Result<()> {
     let accounts = vec![
-        Type {
-            name: "StateMerkleTreeAccount (with discriminator)".to_owned(),
-            space: mem::size_of::<StateMerkleTreeAccount>() + 8,
-        },
-        Type {
-            name: "StateMerkleTree".to_owned(),
-            space: mem::size_of::<StateMerkleTree>(),
-        },
-        Type {
-            name: "StateMerkleTree->filled_subtrees".to_owned(),
-            space: mem::size_of::<[u8; 32]>() * STATE_MERKLE_TREE_HEIGHT,
-        },
-        Type {
-            name: "StateMerkleTree->changelog".to_owned(),
-            space: mem::size_of::<ChangelogEntry26>() * STATE_MERKLE_TREE_CHANGELOG,
-        },
-        Type {
-            name: "StateMerkleTree->roots".to_owned(),
-            space: mem::size_of::<[u8; 32]>() * STATE_MERKLE_TREE_ROOTS,
-        },
-        Type {
-            name: "StateMerkleTree->canopy".to_owned(),
-            space: mem::size_of::<[u8; 32]>()
-                * ConcurrentMerkleTree26::<Poseidon>::canopy_size(STATE_MERKLE_TREE_CANOPY_DEPTH),
-        },
-        Type {
-            name: "IndexedArray".to_owned(),
-            space: mem::size_of::<
-                IndexingArray<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>,
-            >(),
-        },
-        Type {
-            name: "AddressQueue".to_owned(),
-            space: mem::size_of::<AddressQueue>(),
-        },
-        Type {
-            name: "AddressMerkleTreeAccount (with discriminator)".to_owned(),
-            space: mem::size_of::<AddressMerkleTreeAccount>() + 8,
-        },
-        Type {
-            name: "AddressMerkleTree".to_owned(),
-            space: mem::size_of::<AddressMerkleTree>(),
-        },
-        Type {
-            name: "AddressMerkleTree->filled_subtrees".to_owned(),
-            space: mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_HEIGHT,
-        },
-        Type {
-            name: "AddressMerkleTree->changelog".to_owned(),
-            space: mem::size_of::<ChangelogEntry22>() * ADDRESS_MERKLE_TREE_CHANGELOG,
-        },
-        Type {
-            name: "AddressMerkleTree->roots".to_owned(),
-            space: mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_ROOTS,
-        },
-        Type {
-            name: "AddressMerkleTree->canopy".to_owned(),
-            space: mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-        },
-    ];
+            Type {
+                name: "StateMerkleTreeAccount (with discriminator)".to_owned(),
+                space: mem::size_of::<StateMerkleTreeAccount>() + 8,
+            },
+            Type {
+                name: "StateMerkleTree".to_owned(),
+                space: mem::size_of::<StateMerkleTree>(),
+            },
+            Type {
+                name: "StateMerkleTree->filled_subtrees".to_owned(),
+                space: mem::size_of::<[u8; 32]>() * STATE_MERKLE_TREE_HEIGHT,
+            },
+            Type {
+                name: "StateMerkleTree->changelog".to_owned(),
+                space: mem::size_of::<ChangelogEntry26>() * STATE_MERKLE_TREE_CHANGELOG,
+            },
+            Type {
+                name: "StateMerkleTree->roots".to_owned(),
+                space: mem::size_of::<[u8; 32]>() * STATE_MERKLE_TREE_ROOTS,
+            },
+            Type {
+                name: "StateMerkleTree->canopy".to_owned(),
+                space: mem::size_of::<[u8; 32]>()
+                    * ConcurrentMerkleTree26::<Poseidon>::canopy_size(STATE_MERKLE_TREE_CANOPY_DEPTH),
+            },
+            Type {
+                name: "IndexedArray".to_owned(),
+                space: mem::size_of::<
+                    IndexingArray<Poseidon, u16, BigInteger256, STATE_INDEXED_ARRAY_SIZE>,
+                >(),
+            },
+            Type {
+                name: "AddressQueue".to_owned(),
+                space: mem::size_of::<AddressQueue>(),
+            },
+            Type {
+                name: "AddressMerkleTreeAccount (with discriminator and tree)".to_owned(),
+                space: mem::size_of::<AddressMerkleTreeAccount>() + 8
+
+    + mem::size_of::<AddressMerkleTree>()
+                    + mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_HEIGHT
+                    + mem::size_of::<ChangelogEntry22>() * ADDRESS_MERKLE_TREE_CHANGELOG
+                    + mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_ROOTS,
+                    + mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                ,
+            },
+            Type {
+                name: "AddressMerkleTree".to_owned(),
+                space: mem::size_of::<AddressMerkleTree>()
+                    + mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_HEIGHT
+                    + mem::size_of::<ChangelogEntry22>() * ADDRESS_MERKLE_TREE_CHANGELOG
+                    + mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_ROOTS,
+                    + mem::size_of::<[u8; 32]>() * ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+            },
+        ];
 
     let table = Table::new(accounts);
     println!("{table}");

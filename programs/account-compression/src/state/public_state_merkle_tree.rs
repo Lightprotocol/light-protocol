@@ -1,3 +1,5 @@
+use std::{borrow::BorrowMut, mem};
+
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_bounded_vec::CyclicBoundedVec;
@@ -19,106 +21,53 @@ pub struct StateMerkleTreeAccount {
     pub owner: Pubkey,
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
-
-    /// Merkle tree for the transaction state.
-    pub state_merkle_tree_struct: [u8; 256],
-    pub state_merkle_tree_filled_subtrees: [u8; 832],
-    pub state_merkle_tree_changelog: [u8; 1220800],
-    pub state_merkle_tree_roots: [u8; 76800],
-    pub state_merkle_tree_canopy: [u8; 65472],
 }
 
-impl StateMerkleTreeAccount {
-    pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
-        let tree = unsafe {
-            ConcurrentMerkleTree26::copy_from_bytes(
-                &self.state_merkle_tree_struct,
-                &self.state_merkle_tree_filled_subtrees,
-                &self.state_merkle_tree_changelog,
-                &self.state_merkle_tree_roots,
-            )
-            .map_err(ProgramError::from)?
-        };
-        Ok(tree)
-    }
+pub unsafe fn state_mt_from_bytes_copy(account: AccountInfo) -> Result<StateMerkleTree> {
+    let data = &account.try_borrow_mut_data()?[8 + mem::size_of::<StateMerkleTreeAccount>()..];
+    let tree = StateMerkleTree::from_bytes_copy(data).map_err(ProgramError::from)?;
+    Ok(tree)
+}
 
-    pub fn load_merkle_tree(&self) -> Result<&ConcurrentMerkleTree26<Poseidon>> {
-        let tree = unsafe {
-            ConcurrentMerkleTree26::<Poseidon>::from_bytes(
-                &self.state_merkle_tree_struct,
-                &self.state_merkle_tree_filled_subtrees,
-                &self.state_merkle_tree_changelog,
-                &self.state_merkle_tree_roots,
-                &self.state_merkle_tree_canopy,
-            )
-            .map_err(ProgramError::from)?
-        };
-        Ok(tree)
-    }
+pub fn state_mt_from_bytes_zero_copy<'info>(
+    account: AccountLoader<'info, StateMerkleTreeAccount>,
+) -> Result<StateMerkleTree> {
+    let data = &account.to_account_info().try_borrow_mut_data()?
+        [8 + mem::size_of::<StateMerkleTreeAccount>()..];
+    let tree = unsafe { StateMerkleTree::from_bytes_zero_copy(data).map_err(ProgramError::from)? };
+    Ok(tree)
+}
 
-    pub fn load_merkle_tree_init(
-        &mut self,
-        height: usize,
-        changelog_size: usize,
-        roots_size: usize,
-        canopy_depth: usize,
-    ) -> Result<&mut ConcurrentMerkleTree26<Poseidon>> {
-        let tree = unsafe {
-            ConcurrentMerkleTree26::<Poseidon>::from_bytes_init(
-                &mut self.state_merkle_tree_struct,
-                &mut self.state_merkle_tree_filled_subtrees,
-                &mut self.state_merkle_tree_changelog,
-                &mut self.state_merkle_tree_roots,
-                &mut self.state_merkle_tree_canopy,
-                height,
-                changelog_size,
-                roots_size,
-                canopy_depth,
-            )
-            .map_err(ProgramError::from)?
-        };
-        tree.init().map_err(ProgramError::from)?;
-        Ok(tree)
-    }
+pub fn state_mt_from_bytes_zero_copy_mut<'info>(
+    account: AccountLoader<'info, StateMerkleTreeAccount>,
+) -> Result<StateMerkleTree> {
+    let data = &mut account.to_account_info().try_borrow_mut_data()?
+        [8 + mem::size_of::<StateMerkleTreeAccount>()..];
+    let tree =
+        unsafe { StateMerkleTree::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)? };
+    Ok(tree)
+}
 
-    pub fn load_merkle_tree_mut(&mut self) -> Result<&mut ConcurrentMerkleTree26<Poseidon>> {
-        let tree = unsafe {
-            ConcurrentMerkleTree26::<Poseidon>::from_bytes_mut(
-                &mut self.state_merkle_tree_struct,
-                &mut self.state_merkle_tree_filled_subtrees,
-                &mut self.state_merkle_tree_changelog,
-                &mut self.state_merkle_tree_roots,
-                &mut self.state_merkle_tree_canopy,
-            )
-            .map_err(ProgramError::from)?
-        };
-        Ok(tree)
-    }
-
-    pub fn load_next_index(&self) -> Result<usize> {
-        let tree = unsafe {
-            ConcurrentMerkleTree26::<Poseidon>::struct_from_bytes(&self.state_merkle_tree_struct)
-                .map_err(ProgramError::from)?
-        };
-        Ok(tree.next_index)
-    }
-
-    pub fn load_roots(&self) -> Result<CyclicBoundedVec<[u8; 32]>> {
-        let tree = unsafe {
-            ConcurrentMerkleTree26::<Poseidon>::struct_from_bytes(&self.state_merkle_tree_struct)
-                .map_err(ProgramError::from)?
-        };
-        let roots = unsafe {
-            ConcurrentMerkleTree26::<Poseidon>::roots_from_bytes(
-                &self.state_merkle_tree_roots,
-                tree.current_root_index + 1,
-                tree.roots_length,
-                tree.roots_capacity,
-            )
-            .map_err(ProgramError::from)?
-        };
-        Ok(roots)
-    }
+pub fn state_mt_from_bytes_zero_copy_init<'info>(
+    account: AccountLoader<'info, StateMerkleTreeAccount>,
+    height: usize,
+    changelog_size: usize,
+    roots_size: usize,
+    canopy_depth: usize,
+) -> Result<StateMerkleTree> {
+    let data = &mut account.to_account_info().try_borrow_mut_data()?
+        [8 + mem::size_of::<StateMerkleTreeAccount>()..];
+    let tree = unsafe {
+        StateMerkleTree::from_bytes_zero_copy_init(
+            data,
+            height,
+            changelog_size,
+            roots_size,
+            canopy_depth,
+        )
+        .map_err(ProgramError::from)?
+    };
+    Ok(tree)
 }
 
 #[cfg(test)]
@@ -136,11 +85,6 @@ mod test {
             next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
             owner: Pubkey::new_from_array([2u8; 32]),
             delegate: Pubkey::new_from_array([3u8; 32]),
-            state_merkle_tree_struct: [0u8; 256],
-            state_merkle_tree_filled_subtrees: [0u8; 832],
-            state_merkle_tree_changelog: [0u8; 1220800],
-            state_merkle_tree_roots: [0u8; 76800],
-            state_merkle_tree_canopy: [0u8; 65472],
         };
 
         let merkle_tree = account

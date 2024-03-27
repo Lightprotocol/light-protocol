@@ -3,8 +3,9 @@ use light_bounded_vec::BoundedVec;
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 
 use crate::{
-    emit_indexer_event, errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount,
-    ChangelogEvent, ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
+    address_mt_from_bytes_zero_copy_mut, emit_indexer_event, errors::AccountCompressionErrorCode,
+    state::StateMerkleTreeAccount, state_mt_from_bytes_zero_copy_mut, ChangelogEvent,
+    ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
 };
 // TODO: implement group access control
 #[derive(Accounts)]
@@ -53,10 +54,9 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         return Err(AccountCompressionErrorCode::NumberOfIndicesMismatch.into());
     }
     let mut changelog_events: Vec<ChangelogEvent> = Vec::new();
-    let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-    let loaded_merkle_tree = merkle_tree.load_merkle_tree_mut()?;
+    let mut merkle_tree = state_mt_from_bytes_zero_copy_mut(ctx.accounts.merkle_tree)?;
     let mut bounded_vec = from_vec(proofs[0].as_slice())?;
-    let changelog_entries = loaded_merkle_tree
+    let changelog_entries = merkle_tree
         .update(
             change_log_indices[0] as usize,
             &leaf,
@@ -65,7 +65,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
             &mut bounded_vec,
         )
         .map_err(ProgramError::from)?;
-    let sequence_number = u64::try_from(loaded_merkle_tree.sequence_number)
+    let sequence_number = u64::try_from(merkle_tree.sequence_number)
         .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
     changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
         ctx.accounts.merkle_tree.key(),
@@ -82,8 +82,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     )?;
     // TODO: replace with root history sequence number
     array_account.indexed_array[leaves_indices[0] as usize].merkle_tree_overwrite_sequence_number =
-        loaded_merkle_tree.sequence_number as u64
-            + crate::utils::constants::STATE_MERKLE_TREE_ROOTS as u64;
+        merkle_tree.sequence_number as u64 + crate::utils::constants::STATE_MERKLE_TREE_ROOTS as u64;
 
     Ok(())
 }
