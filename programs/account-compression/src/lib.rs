@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments)]
 pub mod errors;
 pub mod instructions;
 pub use instructions::*;
