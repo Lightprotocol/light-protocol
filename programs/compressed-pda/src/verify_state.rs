@@ -466,7 +466,7 @@ mod test {
                     data: None,
                 },
                 merkle_tree_pubkey_index: 0,
-                index_nullifier_queue_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 0,
                 leaf_index: 0,
             },
             CompressedAccountWithMerkleContext {
@@ -477,7 +477,7 @@ mod test {
                     data: None,
                 },
                 merkle_tree_pubkey_index: 0,
-                index_nullifier_queue_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 0,
                 leaf_index: 1,
             },
         ];
@@ -511,7 +511,7 @@ mod test {
                     data: None,
                 },
                 merkle_tree_pubkey_index: 0,
-                index_nullifier_queue_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 0,
                 leaf_index: 0,
             },
             CompressedAccountWithMerkleContext {
@@ -522,7 +522,7 @@ mod test {
                     data: None,
                 },
                 merkle_tree_pubkey_index: 0,
-                index_nullifier_queue_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 0,
                 leaf_index: 1,
             },
         ];

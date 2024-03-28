@@ -656,7 +656,7 @@ impl MockIndexer {
                     compressed_account: compressed_account.clone(),
                     leaf_index: event.output_leaf_indices[i as usize],
                     merkle_tree_pubkey_index: 0,
-                    index_nullifier_queue_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
                 });
             indices.push(self.compressed_accounts.len() - 1);
             self.merkle_tree
