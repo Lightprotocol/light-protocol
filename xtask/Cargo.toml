@@ -12,6 +12,7 @@ ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.2"
 light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.1.0" }
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.0" }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.0" }
 light-utils = { path = "../utils", version = "0.1.0" }

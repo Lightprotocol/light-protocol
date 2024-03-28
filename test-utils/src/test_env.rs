@@ -5,7 +5,6 @@ use account_compression::{
     instruction::InitializeAddressMerkleTree, state::AddressMerkleTreeAccount, GroupAuthority,
     RegisteredProgram,
 };
-use anchor_lang::{system_program, InstructionData};
 #[cfg(feature = "light_program")]
 use light::sdk::{
     create_initialize_governance_authority_instruction,
@@ -13,17 +12,11 @@ use light::sdk::{
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 use light_macros::pubkey;
-use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    signature::Keypair,
-    transaction::Transaction,
-};
+use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 #[cfg(feature = "light_program")]
 use solana_sdk::{signature::Signer, system_instruction};
 
-use crate::create_account_instruction;
 #[cfg(feature = "light_program")]
 use crate::{create_and_send_transaction, get_account};
 
@@ -247,15 +240,20 @@ pub async fn create_queue_account(
     indexed_array_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
 ) {
+    let size = account_compression::IndexedArrayAccount::size(
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+    )
+    .unwrap();
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
-        account_compression::IndexedArrayAccount::LEN,
+        size,
         context
             .banks_client
             .get_rent()
             .await
             .unwrap()
-            .minimum_balance(account_compression::IndexedArrayAccount::LEN),
+            .minimum_balance(size),
         &ACCOUNT_COMPRESSION_ID,
         Some(indexed_array_keypair),
     );
@@ -264,6 +262,9 @@ pub async fn create_queue_account(
         indexed_array_keypair.pubkey(),
         0,
         Some(*merkle_tree_pubkey),
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES,
+        account_compression::utils::constants::STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],

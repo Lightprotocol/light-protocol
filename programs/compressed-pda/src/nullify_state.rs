@@ -5,6 +5,7 @@ use crate::{
     append_state::get_seeds,
     instructions::{InstructionDataTransfer, TransferInstruction},
 };
+
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Inserts nullifiers into the queue.
 pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(

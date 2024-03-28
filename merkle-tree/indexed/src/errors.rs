@@ -1,6 +1,7 @@
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::errors::HasherError,
 };
+use light_utils::UtilsError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -19,6 +20,8 @@ pub enum IndexedMerkleTreeError {
     Hasher(#[from] HasherError),
     #[error("Concurrent Merkle tree error: {0}")]
     ConcurrentMerkleTree(#[from] ConcurrentMerkleTreeError),
+    #[error("Utils error {0}")]
+    Utils(#[from] UtilsError),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -34,6 +37,7 @@ impl From<IndexedMerkleTreeError> for u32 {
             IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 3005,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
+            IndexedMerkleTreeError::Utils(e) => e.into(),
         }
     }
 }
