@@ -85,6 +85,21 @@ pub const PAYER_KEYPAIR: [u8; 64] = [
     211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62,
     255, 166, 81,
 ];
+
+pub const ADDRESS_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
+    145, 184, 150, 187, 7, 48, 33, 191, 136, 115, 127, 243, 135, 119, 163, 99, 186, 21, 67, 161,
+    22, 211, 102, 149, 158, 51, 182, 231, 97, 28, 77, 118, 165, 62, 148, 222, 135, 123, 222, 189,
+    109, 46, 57, 112, 159, 209, 86, 59, 62, 139, 159, 208, 193, 206, 130, 48, 119, 195, 103, 235,
+    231, 94, 83, 227,
+];
+
+pub const ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR: [u8; 64] = [
+    177, 80, 56, 144, 179, 178, 209, 143, 125, 134, 80, 75, 74, 156, 241, 156, 228, 50, 210, 35,
+    149, 0, 28, 198, 132, 157, 54, 197, 173, 200, 104, 156, 243, 76, 173, 207, 166, 74, 210, 59,
+    59, 211, 75, 180, 111, 40, 13, 151, 57, 237, 103, 145, 136, 105, 65, 143, 250, 50, 64, 94, 214,
+    184, 217, 99,
+];
+
 /// Setup test programs with accounts
 /// deploys:
 /// 1. light program
@@ -196,12 +211,16 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
     )
     .await;
 
-    let address_merkle_tree_keypair = Keypair::new();
+    let address_merkle_tree_keypair =
+        Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
+
     // TODO: enable, currently failing because we didn't maintain the address merkle tree account
     // create_and_initialize_address_merkle_tree(&mut context, &address_merkle_tree_keypair)
     //     .await
     //     .unwrap();
-    let address_merkle_tree_queue_keypair = Keypair::new();
+    let address_merkle_tree_queue_keypair =
+        Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
+
     create_queue_account(
         &payer,
         &mut context,

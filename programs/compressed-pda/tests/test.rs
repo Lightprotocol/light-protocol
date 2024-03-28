@@ -480,6 +480,11 @@ async fn regenerate_accounts() {
         ("governance_authority_pda", env.governance_authority_pda),
         ("group_pda", env.group_pda),
         ("registered_program_pda", env.registered_program_pda),
+        // ("address_merkle_tree", env.address_merkle_tree_pubkey),
+        (
+            "address_merkle_tree_queue",
+            env.address_merkle_tree_queue_pubkey,
+        ),
     ];
 
     for (name, pubkey) in pubkeys {
