@@ -1,67 +1,67 @@
 import { PublicKey, DataSizeFilter, MemcmpFilter } from '@solana/web3.js';
 
 import {
-  type as pick,
-  number,
-  string,
-  array,
-  literal,
-  union,
-  optional,
-  coerce,
-  instance,
-  create,
-  tuple,
-  unknown,
-  any,
+    type as pick,
+    number,
+    string,
+    array,
+    literal,
+    union,
+    optional,
+    coerce,
+    instance,
+    create,
+    tuple,
+    unknown,
+    any,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
 import {
-  MerkleUpdateContext,
-  BN254,
-  createBN254,
-  CompressedProof,
-  CompressedAccountWithMerkleContext,
+    MerkleUpdateContext,
+    BN254,
+    createBN254,
+    CompressedProof,
+    CompressedAccountWithMerkleContext,
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
 // TODO: consistent types
 export type CompressedProofWithContext = {
-  compressedProof: CompressedProof;
-  roots: string[];
-  // for now we assume latest root = allLeaves.length
-  rootIndices: number[];
-  leafIndices: number[];
-  leafs: BN[];
-  merkleTree: PublicKey;
-  nullifierQueue: PublicKey;
+    compressedProof: CompressedProof;
+    roots: string[];
+    // for now we assume latest root = allLeaves.length
+    rootIndices: number[];
+    leafIndices: number[];
+    leafs: BN[];
+    merkleTree: PublicKey;
+    nullifierQueue: PublicKey;
 };
 export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
 
 export type GetUtxoConfig = {
-  encoding?: string;
+    encoding?: string;
 };
 export type GetCompressedAccountConfig = GetUtxoConfig;
 
 export type GetCompressedAccountsConfig = {
-  encoding?: string;
-  filters?: GetCompressedAccountsFilter[];
+    encoding?: string;
+    filters?: GetCompressedAccountsFilter[];
 };
 
 export type WithMerkleUpdateContext<T> = {
-  /** merkle update context */
-  context: MerkleUpdateContext | null;
-  /** response value */
-  value: T;
+    /** merkle update context */
+    context: MerkleUpdateContext | null;
+    /** response value */
+    value: T;
 };
 
 /**
  * @internal
  */
 const PublicKeyFromString = coerce(
-  instance(PublicKey),
-  string(),
-  value => new PublicKey(value),
+    instance(PublicKey),
+    string(),
+    value => new PublicKey(value),
 );
 
 /**
@@ -69,7 +69,7 @@ const PublicKeyFromString = coerce(
  */
 // TODO: use a BN254 class here for the 1st parameter
 const BN254FromString = coerce(instance(BN), string(), value =>
-  createBN254(value),
+    createBN254(value),
 );
 
 /**
@@ -97,22 +97,22 @@ const Base64EncodedUtxoDataResult = tuple([string(), literal('base64')]);
  * @internal
  */
 export function createRpcResult<T, U>(result: Struct<T, U>) {
-  return union([
-    pick({
-      jsonrpc: literal('2.0'),
-      id: string(),
-      result,
-    }),
-    pick({
-      jsonrpc: literal('2.0'),
-      id: string(),
-      error: pick({
-        code: unknown(),
-        message: string(),
-        data: optional(any()),
-      }),
-    }),
-  ]);
+    return union([
+        pick({
+            jsonrpc: literal('2.0'),
+            id: string(),
+            result,
+        }),
+        pick({
+            jsonrpc: literal('2.0'),
+            id: string(),
+            error: pick({
+                code: unknown(),
+                message: string(),
+                data: optional(any()),
+            }),
+        }),
+    ]);
 }
 
 /**
@@ -124,30 +124,30 @@ const UnknownRpcResult = createRpcResult(unknown());
  * @internal
  */
 export function jsonRpcResult<T, U>(schema: Struct<T, U>) {
-  return coerce(createRpcResult(schema), UnknownRpcResult, value => {
-    if ('error' in value) {
-      return value;
-    } else {
-      return {
-        ...value,
-        result: create(value.result, schema),
-      };
-    }
-  });
+    return coerce(createRpcResult(schema), UnknownRpcResult, value => {
+        if ('error' in value) {
+            return value;
+        } else {
+            return {
+                ...value,
+                result: create(value.result, schema),
+            };
+        }
+    });
 }
 
 /**
  * @internal
  */
 export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
-  return jsonRpcResult(
-    pick({
-      context: pick({
-        slot: number(),
-      }),
-      value,
-    }),
-  );
+    return jsonRpcResult(
+        pick({
+            context: pick({
+                slot: number(),
+            }),
+            value,
+        }),
+    );
 }
 
 /**
@@ -187,38 +187,38 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
  * @internal
  */
 export const MerkleProofResult = pick({
-  merkleTree: PublicKeyFromString,
-  nullifierQueue: PublicKeyFromString,
-  leafIndex: number(),
-  proof: array(BN254FromString),
-  rootIndex: number(),
+    merkleTree: PublicKeyFromString,
+    nullifierQueue: PublicKeyFromString,
+    leafIndex: number(),
+    proof: array(BN254FromString),
+    rootIndex: number(),
 });
 
 /**
  * @internal
  */
 export const CompressedAccountMerkleProofResult = pick({
-  utxoHash: PublicKeyFromString,
-  merkleTree: PublicKeyFromString,
-  nullifierQueue: PublicKeyFromString,
-  leafIndex: number(),
-  proof: array(BN254FromString),
-  rootIndex: number(),
+    utxoHash: PublicKeyFromString,
+    merkleTree: PublicKeyFromString,
+    nullifierQueue: PublicKeyFromString,
+    leafIndex: number(),
+    proof: array(BN254FromString),
+    rootIndex: number(),
 });
 
 export interface CompressionApiInterface {
-  /** Retrieve a utxo */
-  // getUtxo(
-  //     utxoHash: BN254,
-  //     config?: GetUtxoConfig,
-  // ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
-  /** Retrieve the proof for a utxo */
-  // getUtxoProof(utxoHash: BN254): Promise<MerkleContext | null>;
-  /** Retrieve utxos by owner */
-  getUtxos(
-    owner: PublicKey,
-    config?: GetUtxoConfig,
-  ): Promise<WithMerkleUpdateContext<CompressedAccountWithMerkleContext>[]>;
+    /** Retrieve a utxo */
+    // getUtxo(
+    //     utxoHash: BN254,
+    //     config?: GetUtxoConfig,
+    // ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
+    /** Retrieve the proof for a utxo */
+    // getUtxoProof(utxoHash: BN254): Promise<MerkleContext | null>;
+    /** Retrieve utxos by owner */
+    getUtxos(
+        owner: PublicKey,
+        config?: GetUtxoConfig,
+    ): Promise<WithMerkleUpdateContext<CompressedAccountWithMerkleContext>[]>;
 
-  getValidityProof(utxoHashes: BN254[]): Promise<CompressedProofWithContext>;
+    getValidityProof(utxoHashes: BN254[]): Promise<CompressedProofWithContext>;
 }

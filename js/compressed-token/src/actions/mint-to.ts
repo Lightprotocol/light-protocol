@@ -1,16 +1,16 @@
 import {
-  ComputeBudgetProgram,
-  ConfirmOptions,
-  PublicKey,
-  Signer,
-  TransactionSignature,
+    ComputeBudgetProgram,
+    ConfirmOptions,
+    PublicKey,
+    Signer,
+    TransactionSignature,
 } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
-  defaultTestStateTreeAccounts,
-  sendAndConfirmTx,
-  buildAndSignTx,
-  Rpc,
+    defaultTestStateTreeAccounts,
+    sendAndConfirmTx,
+    buildAndSignTx,
+    Rpc,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
 import { dedupeSigner, getSigners } from './common';
@@ -32,41 +32,41 @@ import { dedupeSigner, getSigners } from './common';
  * @return Signature of the confirmed transaction
  */
 export async function mintTo(
-  rpc: Rpc,
-  payer: Signer,
-  mint: PublicKey,
-  destination: PublicKey,
-  authority: Signer | PublicKey,
-  amount: number | BN,
-  multiSigners: Signer[] = [],
-  merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
-  confirmOptions?: ConfirmOptions,
+    rpc: Rpc,
+    payer: Signer,
+    mint: PublicKey,
+    destination: PublicKey,
+    authority: Signer | PublicKey,
+    amount: number | BN,
+    multiSigners: Signer[] = [],
+    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
+    confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-  const [authorityPubkey, authoritySigners] = getSigners(
-    authority,
-    multiSigners,
-  );
-  const additionalSigners = dedupeSigner(payer, authoritySigners);
+    const [authorityPubkey, authoritySigners] = getSigners(
+        authority,
+        multiSigners,
+    );
+    const additionalSigners = dedupeSigner(payer, authoritySigners);
 
-  const ix = await CompressedTokenProgram.mintTo({
-    feePayer: payer.publicKey,
-    mint: mint,
-    authority: authorityPubkey,
-    amount: amount,
-    toPubkey: destination,
-    merkleTree,
-  });
+    const ix = await CompressedTokenProgram.mintTo({
+        feePayer: payer.publicKey,
+        mint: mint,
+        authority: authorityPubkey,
+        amount: amount,
+        toPubkey: destination,
+        merkleTree,
+    });
 
-  const { blockhash } = await rpc.getLatestBlockhash();
+    const { blockhash } = await rpc.getLatestBlockhash();
 
-  const tx = buildAndSignTx(
-    [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
-    payer,
-    blockhash,
-    additionalSigners,
-  );
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
 
-  const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
+    const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 
-  return txId;
+    return txId;
 }
