@@ -4,7 +4,7 @@
   "description": "",
   "license": "GPL-3.0",
   "scripts": {
-    "build-merkle": "./scripts/buildMerkle.sh"
+    "build-circuits": "./scripts/buildCircuits.sh"
   },
   "author": "",
   "devDependencies": {
