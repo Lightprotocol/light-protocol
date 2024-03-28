@@ -2,9 +2,10 @@ use anchor_lang::{prelude::*, AnchorDeserialize};
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
 use psp_compressed_pda::{
-    tlv::{Tlv, TlvDataElement},
+    compressed_account::{
+        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+    },
     utils::CompressedProof,
-    utxo::{InUtxoTuple, OutUtxo, OutUtxoTuple},
     InstructionDataTransfer as PspCompressedPdaInstructionDataTransfer,
 };
 
@@ -13,81 +14,96 @@ use crate::ErrorCode;
 /// Process a token transfer instruction
 ///
 /// 1. check signer / delegate
-/// 2. if is delegate check delegated amount and decrease it, there needs to be an out utxo with the same utxo data as the in utxo
-/// 3. check in utxos are of same mint
-/// 4. check sum of in utxo is equal to sum of out utxos
-/// 5.1 create_out_utxos
-/// 5.2 create delegate change utxos
-/// 6. serialize and add tlv data to in utxos
+/// 2. if is delegate check delegated amount and decrease it, there needs to be an output compressed account with the same compressed account data as the input compressed account
+/// 3. check in compressed_accounts are of same mint
+/// 4. check sum of input compressed account is equal to sum of output compressed accounts
+/// 5.1 create_output_compressed_accounts
+/// 5.2 create delegate change compressed_accounts
+/// 6. serialize and add token_data data to in compressed_accounts
 /// 7. invoke psp_compressed_pda::execute_compressed_transaction
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
-    let mut inputs: InstructionDataTransfer =
-        InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
+    let mut inputs: CompressedTokenInstructionDataTransfer =
+        CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
 
-    let is_delegate = check_signer_or_delegate(&ctx.accounts.authority.key(), &inputs.in_tlv_data)?;
+    let is_delegate =
+        check_signer_or_delegate(&ctx.accounts.authority.key(), &inputs.input_token_data)?;
     if is_delegate {
         unimplemented!("delegate check not implemented");
     }
 
-    let mint = check_mint(&inputs.in_tlv_data)?;
+    let mint = check_mint(&inputs.input_token_data)?;
 
     sum_check(
-        &inputs.in_tlv_data,
+        &inputs.input_token_data,
         &inputs
-            .out_utxos
+            .output_compressed_accounts
             .iter()
-            .map(|utxo| utxo.amount)
+            .map(|data| data.amount)
             .collect::<Vec<u64>>(),
         None,
         true,
     )?;
 
-    let out_utxos = crate::create_out_utxos(
+    let output_compressed_accounts = crate::create_output_compressed_accounts(
         mint,
         inputs
-            .out_utxos
+            .output_compressed_accounts
             .iter()
-            .map(|utxo| utxo.owner)
+            .map(|data| data.owner)
             .collect::<Vec<Pubkey>>()
             .as_slice(),
         inputs
-            .out_utxos
+            .output_compressed_accounts
             .iter()
-            .map(|utxo: &TokenTransferOutUtxo| utxo.amount)
+            .map(|data: &TokenTransferOutputData| data.amount)
             .collect::<Vec<u64>>()
             .as_slice(),
+        Some(
+            inputs
+                .output_compressed_accounts
+                .iter()
+                .map(|data: &TokenTransferOutputData| data.lamports)
+                .collect::<Vec<Option<u64>>>()
+                .as_slice(),
+        ),
     );
-    // TODO: add create delegate change utxos
-    add_tlv_to_in_utxos(&mut inputs.in_utxos, inputs.in_tlv_data.as_slice())?;
+    // TODO: add create delegate change compressed_accounts
+    add_token_data_to_input_compressed_accounts(
+        &mut inputs.input_compressed_accounts_with_merkle_context,
+        inputs.input_token_data.as_slice(),
+    )?;
 
     cpi_execute_compressed_transaction_transfer(
         &ctx,
-        inputs.in_utxos,
+        inputs.input_compressed_accounts_with_merkle_context,
         inputs.root_indices,
-        &out_utxos,
+        &output_compressed_accounts,
+        inputs.output_state_merkle_tree_account_indices,
         inputs.proof,
     )?;
     Ok(())
 }
 
-pub fn add_tlv_to_in_utxos(
-    in_utxos: &mut [InUtxoTuple],
-    in_tlv_data: &[TokenTlvData],
+/// Create output compressed accounts
+/// 1. enforces discriminator
+/// 2. hashes token data
+pub fn add_token_data_to_input_compressed_accounts(
+    input_compressed_accounts_with_merkle_context: &mut [CompressedAccountWithMerkleContext],
+    input_token_data: &[TokenData],
 ) -> Result<()> {
-    for (i, in_utxo) in in_utxos.iter_mut().enumerate() {
-        let tlv_data = TlvDataElement {
+    for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
+        .iter_mut()
+        .enumerate()
+    {
+        let data = CompressedAccountData {
             discriminator: 2u64.to_le_bytes(),
-            owner: in_utxo.in_utxo.owner,
-            data: in_tlv_data[i].try_to_vec().unwrap(),
-            data_hash: in_tlv_data[i].hash().unwrap(),
+            data: input_token_data[i].try_to_vec().unwrap(),
+            data_hash: input_token_data[i].hash().unwrap(),
         };
-        let tlv = Tlv {
-            tlv_elements: vec![tlv_data],
-        };
-        in_utxo.in_utxo.data = Some(tlv);
+        compressed_account_with_context.compressed_account.data = Some(data);
     }
     Ok(())
 }
@@ -95,26 +111,23 @@ pub fn add_tlv_to_in_utxos(
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
-    in_utxos: Vec<InUtxoTuple>,
-    root_indices: Vec<u16>,
-    out_utxos: &[OutUtxo],
+    input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
+    input_root_indices: Vec<u16>,
+    output_compressed_accounts: &[CompressedAccount],
+    output_state_merkle_tree_account_indices: Vec<u8>,
     proof: Option<CompressedProof>,
 ) -> Result<()> {
-    let mut _out_utxos = Vec::<OutUtxoTuple>::new();
-    for utxo in out_utxos.iter() {
-        _out_utxos.push(OutUtxoTuple {
-            out_utxo: utxo.clone(),
-            index_mt_account: 0,
-        });
-    }
-
     let inputs_struct = PspCompressedPdaInstructionDataTransfer {
-        low_element_indices: Vec::new(),
         relay_fee: None,
-        in_utxos,
-        out_utxos: _out_utxos,
-        root_indices,
+        input_compressed_accounts_with_merkle_context,
+        output_compressed_accounts: output_compressed_accounts.to_vec(),
+        input_root_indices,
+        output_state_merkle_tree_account_indices,
         proof,
+        new_address_seeds: Vec::new(),
+        address_merkle_tree_root_indices: Vec::new(),
+        address_merkle_tree_account_indices: Vec::new(),
+        address_queue_account_indices: Vec::new(),
     };
 
     let mut inputs = Vec::new();
@@ -148,16 +161,16 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     Ok(())
 }
 
-fn check_signer_or_delegate(signer: &Pubkey, tlv: &[TokenTlvData]) -> Result<bool> {
+fn check_signer_or_delegate(signer: &Pubkey, token_data_elements: &[TokenData]) -> Result<bool> {
     let mut is_delegate = false;
-    for utxo in tlv {
-        if utxo.owner == *signer {
-        } else if utxo.delegate.is_some() && utxo.delegate.unwrap() == *signer {
+    for token_data in token_data_elements {
+        if token_data.owner == *signer {
+        } else if token_data.delegate.is_some() && token_data.delegate.unwrap() == *signer {
             is_delegate = true;
         } else {
             msg!(
-                "Signer check failed utxo.owner {:?} != authority {:?}",
-                utxo.owner,
+                "Signer check failed token_data.owner {:?} != authority {:?}",
+                token_data.owner,
                 signer
             );
             return Err(ErrorCode::SignerCheckFailed.into());
@@ -166,10 +179,10 @@ fn check_signer_or_delegate(signer: &Pubkey, tlv: &[TokenTlvData]) -> Result<boo
     Ok(is_delegate)
 }
 
-fn check_mint(tlv: &[TokenTlvData]) -> Result<Pubkey> {
-    let mint = tlv[0].mint;
-    for utxo in tlv {
-        if utxo.mint != mint {
+fn check_mint(token_data_elemets: &[TokenData]) -> Result<Pubkey> {
+    let mint = token_data_elemets[0].mint;
+    for token_data in token_data_elemets {
+        if token_data.mint != mint {
             return Err(ErrorCode::MintCheckFailed.into());
         }
     }
@@ -177,20 +190,20 @@ fn check_mint(tlv: &[TokenTlvData]) -> Result<Pubkey> {
 }
 
 pub fn sum_check(
-    in_tlvs: &[TokenTlvData],
-    out_amounts: &[u64],
+    input_token_data_elements: &[TokenData],
+    output_amounts: &[u64],
     compression_amount: Option<&u64>,
     is_compress: bool,
 ) -> anchor_lang::Result<()> {
     let mut sum: u64 = 0;
-    for in_tlv in in_tlvs.iter() {
+    for input_token_data in input_token_data_elements.iter() {
         sum = sum
-            .checked_add(in_tlv.amount)
+            .checked_add(input_token_data.amount)
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| ErrorCode::ComputeInputSumFailed)?;
     }
 
-    for amount in out_amounts.iter() {
+    for amount in output_amounts.iter() {
         sum = sum
             .checked_sub(*amount)
             .ok_or(ProgramError::ArithmeticOverflow)
@@ -243,23 +256,23 @@ pub struct TransferInstruction<'info> {
     pub self_program: Program<'info, crate::program::PspCompressedToken>,
 }
 
-// TODO: parse utxos a more efficient way, since owner is sent multiple times this way
+// TODO: parse compressed_accounts a more efficient way, since owner is sent multiple times this way
 // This struct is equivalent to the InstructionDataTransfer, but uses the imported types from the psp_compressed_pda
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct InstructionDataTransfer {
+pub struct CompressedTokenInstructionDataTransfer {
     proof: Option<CompressedProof>,
     root_indices: Vec<u16>,
-    in_utxos: Vec<InUtxoTuple>,
-    in_tlv_data: Vec<TokenTlvData>,
-    out_utxos: Vec<TokenTransferOutUtxo>,
+    input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
+    input_token_data: Vec<TokenData>,
+    output_compressed_accounts: Vec<TokenTransferOutputData>,
+    output_state_merkle_tree_account_indices: Vec<u8>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-pub struct TokenTransferOutUtxo {
+pub struct TokenTransferOutputData {
     pub owner: Pubkey,
     pub amount: u64,
     pub lamports: Option<u64>,
-    pub index_mt_account: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -271,7 +284,7 @@ pub enum AccountState {
 }
 
 #[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct TokenTlvData {
+pub struct TokenData {
     /// The mint associated with this account
     pub mint: Pubkey,
     /// The owner of this account.
@@ -289,14 +302,14 @@ pub struct TokenTlvData {
     /// drop below this threshold.
     pub is_native: Option<u64>,
     /// The amount delegated
-    pub delegated_amount: u64,
-    // TODO: validate that we don't need close authority
-    // /// Optional authority to close the account.
-    // pub close_authority: Option<Pubkey>,
+    pub delegated_amount: u64, // TODO: make instruction data optional
+                               // TODO: validate that we don't need close authority
+                               // /// Optional authority to close the account.
+                               // pub close_authority: Option<Pubkey>,
 }
 // keeping this client struct for now because ts encoding is complaining about the enum, state is replaced with u8 in this struct
 #[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct TokenTlvDataClient {
+pub struct TokenDataClient {
     /// The mint associated with this account
     pub mint: Pubkey,
     /// The owner of this account.
@@ -320,7 +333,7 @@ pub struct TokenTlvDataClient {
     // pub close_authority: Option<Pubkey>,
 }
 
-impl DataHasher for TokenTlvData {
+impl DataHasher for TokenData {
     fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
         let delegate = match self.delegate {
             Some(delegate) => {
@@ -338,7 +351,13 @@ impl DataHasher for TokenTlvData {
         //     }
         //     None => [0u8; 32],
         // };
+        // TODO: implement a trait hash_default value for Option<u64> and use it for other optional values
+        let option_value: u8 = match self.is_native {
+            Some(_) => 1,
+            None => 0,
+        };
 
+        // TODO: optimize hashing scheme, to not hash rarely used values
         Poseidon::hashv(&[
             &hash_to_bn254_field_size_le(self.mint.to_bytes().as_slice())
                 .unwrap()
@@ -349,7 +368,11 @@ impl DataHasher for TokenTlvData {
             &self.amount.to_le_bytes(),
             &delegate,
             &(self.state as u8).to_le_bytes(),
-            &self.is_native.unwrap_or_default().to_le_bytes(),
+            &[
+                &[option_value][..],
+                &self.is_native.unwrap_or_default().to_le_bytes(),
+            ]
+            .concat(),
             &self.delegated_amount.to_le_bytes(),
             // &close_authority,
         ])
@@ -367,47 +390,56 @@ pub mod transfer_sdk {
     use account_compression::{AccountMeta, NOOP_PROGRAM_ID};
     use anchor_lang::{AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas};
     use psp_compressed_pda::{
+        compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
         utils::CompressedProof,
-        utxo::{InUtxoTuple, Utxo},
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::{InstructionDataTransfer, TokenTransferOutUtxo};
+    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     #[allow(clippy::too_many_arguments)]
     pub fn create_transfer_instruction(
         fee_payer: &Pubkey,
         authority: &Pubkey,
-        in_utxo_merkle_tree_pubkeys: &[Pubkey],
+        input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         nullifier_array_pubkeys: &[Pubkey],
-        out_utxo_merkle_tree_pubkeys: &[Pubkey],
-        in_utxos: &[Utxo],
-        out_utxos: &[TokenTransferOutUtxo],
+        output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
+        input_compressed_accounts: &[CompressedAccount],
+        output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
+        leaf_indices: &[u32],
         proof: &CompressedProof,
     ) -> Instruction {
-        let mut out_utxos = out_utxos.to_vec();
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
-        let mut _in_utxos: Vec<InUtxoTuple> = Vec::<InUtxoTuple>::new();
-        let mut in_utxo_tlv_data: Vec<crate::TokenTlvData> = Vec::new();
-        for (i, mt) in in_utxo_merkle_tree_pubkeys.iter().enumerate() {
+        let mut input_compressed_accounts_with_merkle_context: Vec<
+            CompressedAccountWithMerkleContext,
+        > = Vec::<CompressedAccountWithMerkleContext>::new();
+        let mut input_compressed_account_token_data: Vec<crate::TokenData> = Vec::new();
+        for (i, (mt, leaf_index)) in input_compressed_account_merkle_tree_pubkeys
+            .iter()
+            .zip(leaf_indices)
+            .enumerate()
+        {
             match remaining_accounts.get(mt) {
                 Some(_) => {}
                 None => {
                     remaining_accounts.insert(*mt, i);
                 }
             };
-            let mut in_utxo = in_utxos[i].clone();
-            let token_tlv_data = crate::TokenTlvData::deserialize(
-                &mut in_utxo.data.unwrap().tlv_elements[0].data.as_slice(),
+            let mut input_compressed_account = input_compressed_accounts[i].clone();
+            let token_data = crate::TokenData::deserialize(
+                &mut input_compressed_account.data.unwrap().data.as_slice(),
             )
             .unwrap();
-            in_utxo_tlv_data.push(token_tlv_data);
-            in_utxo.data = None;
-            _in_utxos.push(InUtxoTuple {
-                in_utxo,
-                index_mt_account: *remaining_accounts.get(mt).unwrap() as u8,
-                index_nullifier_array_account: 0,
-            });
+            input_compressed_account_token_data.push(token_data);
+            input_compressed_account.data = None;
+            input_compressed_accounts_with_merkle_context.push(
+                CompressedAccountWithMerkleContext {
+                    compressed_account: input_compressed_account,
+                    merkle_tree_pubkey_index: *remaining_accounts.get(mt).unwrap() as u8,
+                    index_nullifier_queue_pubkey_index: 0,
+                    leaf_index: *leaf_index,
+                },
+            );
         }
         let len: usize = remaining_accounts.len();
         for (i, mt) in nullifier_array_pubkeys.iter().enumerate() {
@@ -417,18 +449,24 @@ pub mod transfer_sdk {
                     remaining_accounts.insert(*mt, i + len);
                 }
             };
-            _in_utxos[i].index_nullifier_array_account = *remaining_accounts.get(mt).unwrap() as u8;
+            input_compressed_accounts_with_merkle_context[i].index_nullifier_queue_pubkey_index =
+                *remaining_accounts.get(mt).unwrap() as u8;
         }
         let len: usize = remaining_accounts.len();
-
-        for (i, mt) in out_utxo_merkle_tree_pubkeys.iter().enumerate() {
+        let mut output_state_merkle_tree_account_indices: Vec<u8> =
+            vec![0u8; output_compressed_account_merkle_tree_pubkeys.len()];
+        for (i, mt) in output_compressed_account_merkle_tree_pubkeys
+            .iter()
+            .enumerate()
+        {
             match remaining_accounts.get(mt) {
                 Some(_) => {}
                 None => {
                     remaining_accounts.insert(*mt, i + len);
                 }
             };
-            out_utxos[i].index_mt_account = *remaining_accounts.get(mt).unwrap() as u8;
+            output_state_merkle_tree_account_indices[i] =
+                *remaining_accounts.get(mt).unwrap() as u8;
         }
 
         let mut remaining_accounts = remaining_accounts
@@ -442,15 +480,17 @@ pub mod transfer_sdk {
             .map(|(k, _)| k.clone())
             .collect::<Vec<AccountMeta>>();
 
-        let inputs_struct = InstructionDataTransfer {
-            in_utxos: _in_utxos,
-            out_utxos: out_utxos.to_vec(),
+        let inputs_struct = CompressedTokenInstructionDataTransfer {
+            input_compressed_accounts_with_merkle_context,
+            output_compressed_accounts: output_compressed_accounts.to_vec(),
             root_indices: root_indices.to_vec(),
             proof: Some(proof.clone()),
-            in_tlv_data: in_utxo_tlv_data,
+            input_token_data: input_compressed_account_token_data,
+            // TODO: support multiple output state merkle trees
+            output_state_merkle_tree_account_indices,
         };
         let mut inputs = Vec::new();
-        InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
         let instruction_data = crate::instruction::Transfer { inputs };
@@ -477,151 +517,5 @@ pub mod transfer_sdk {
 
             data: instruction_data.data(),
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use psp_compressed_pda::{
-        tlv::{Tlv, TlvDataElement},
-        utxo::{OutUtxo, SerializedUtxos, Utxo},
-    };
-
-    use super::*;
-
-    #[test]
-    fn test_add_utxos_with_token_tlv_data() {
-        let mut serialized_utxos = SerializedUtxos {
-            pubkey_array: vec![],
-            u64_array: vec![],
-            in_utxos: vec![],
-            out_utxos: vec![],
-        };
-
-        let token_program = Pubkey::new_unique();
-        let merkle_tree_pda = Pubkey::new_unique();
-        let owner_pubkey = Pubkey::new_unique();
-        let mint_pubkey = Pubkey::new_unique();
-        let delegate_pubkey = Pubkey::new_unique(); // Assuming there's a delegate for this example
-        let accounts = vec![owner_pubkey, mint_pubkey, token_program];
-        let merkle_tree_pubkey_0 = Pubkey::new_unique();
-        let nullifier_array_pubkey_0 = Pubkey::new_unique();
-        let in_utxo_merkle_tree_pubkeys = vec![merkle_tree_pubkey_0];
-        let nullifier_array_pubkeys = vec![nullifier_array_pubkey_0];
-        let remaing_accounts_pubkeys = vec![merkle_tree_pubkey_0, nullifier_array_pubkey_0];
-        // Creating TokenTlvData
-        let token_tlv_data = TokenTlvData {
-            mint: mint_pubkey,
-            owner: owner_pubkey,
-            amount: 10_000_000,
-            delegate: Some(delegate_pubkey),
-            state: AccountState::Initialized,
-            is_native: None,
-            delegated_amount: 5000,
-        };
-
-        // Assuming we have a way to serialize TokenTlvData to Vec<u8>
-        let token_data_serialized = token_tlv_data.try_to_vec().unwrap();
-        let token_data_hash = token_tlv_data.hash().unwrap(); // Assuming hash() returns a Result
-
-        // Creating TLV data element with TokenTlvData
-        let token_tlv_data_element = TlvDataElement {
-            discriminator: 2u64.to_le_bytes(),
-            owner: token_program,
-            data: token_data_serialized,
-            data_hash: token_data_hash,
-        };
-
-        let tlv_data = Tlv {
-            tlv_elements: vec![token_tlv_data_element],
-        };
-
-        // Convert TLV data to a serializable format
-        let mut pubkey_array_for_tlv = Vec::new();
-        let tlv_serializable = tlv_data.to_serializable_tlv(&mut pubkey_array_for_tlv, &accounts);
-
-        let mut utxo = Utxo {
-            owner: owner_pubkey,
-            blinding: [0u8; 32],
-            lamports: 100,
-            data: Some(tlv_data.clone()),
-            address: None,
-        };
-        let leaf_index = 1u32;
-        utxo.update_blinding(merkle_tree_pda, (leaf_index as usize).clone())
-            .unwrap();
-
-        // Assuming add_in_utxos is modified to accept UTXOs with TLV data correctly
-        serialized_utxos
-            .add_in_utxos(
-                &[utxo.clone()],
-                &accounts,
-                &[leaf_index],
-                &in_utxo_merkle_tree_pubkeys,
-                &nullifier_array_pubkeys,
-            )
-            .unwrap();
-
-        // Create OutUtxo
-        let out_utxo = OutUtxo {
-            owner: owner_pubkey,
-            lamports: 100,
-            data: Some(tlv_data),
-            address: None,
-        };
-
-        // Add OutUtxo
-        serialized_utxos
-            .add_out_utxos(
-                &[out_utxo.clone()],
-                &accounts,
-                &remaing_accounts_pubkeys,
-                &[merkle_tree_pubkey_0],
-            )
-            .unwrap();
-
-        assert_eq!(
-            serialized_utxos.in_utxos.len(),
-            1,
-            "Should have added one UTXO with TLV data"
-        );
-        assert!(
-            serialized_utxos.in_utxos[0]
-                .in_utxo_serializable
-                .data
-                .is_some(),
-            "UTXO should contain TLV data"
-        );
-        assert_eq!(
-            serialized_utxos.out_utxos.len(),
-            1,
-            "Should have added one out UTXO with TLV data"
-        );
-        assert!(
-            serialized_utxos.out_utxos[0]
-                .out_utxo_serializable
-                .data
-                .is_some(),
-            "UTXO should contain TLV data"
-        );
-        // Verify that TLV data was serialized correctly
-        let serialized_tlv_data = serialized_utxos.in_utxos[0]
-            .in_utxo_serializable
-            .data
-            .as_ref()
-            .unwrap();
-        assert_eq!(
-            *serialized_tlv_data, tlv_serializable,
-            "Serialized TLV data should match the expected serialized version"
-        );
-        let deserialized_in_utxos = serialized_utxos
-            .in_utxos_from_serialized_utxos(&accounts, &[merkle_tree_pda])
-            .unwrap();
-        assert_eq!(deserialized_in_utxos[0].in_utxo, utxo);
-
-        let deserialized_out_utxos = serialized_utxos
-            .out_utxos_from_serialized_utxos(&accounts)
-            .unwrap();
-        assert_eq!(deserialized_out_utxos[0].out_utxo, out_utxo);
     }
 }

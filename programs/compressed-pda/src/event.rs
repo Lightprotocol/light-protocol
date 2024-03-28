@@ -5,15 +5,24 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, program::invoke},
 };
 
-use crate::{utxo::Utxo, InstructionDataTransfer, TransferInstruction};
+use crate::{
+    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    InstructionDataTransfer, TransferInstruction,
+};
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PublicTransactionEvent {
-    pub in_utxos: Vec<Utxo>,
-    pub out_utxos: Vec<Utxo>,
-    pub de_compress_amount: Option<u64>,
-    pub out_utxo_indices: Vec<u64>,
+    pub input_compressed_account_hashes: Vec<[u8; 32]>,
+    pub output_compressed_account_hashes: Vec<[u8; 32]>,
+    pub input_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+    pub output_compressed_accounts: Vec<CompressedAccount>,
+    // index of Merkle tree account in remaining accounts
+    pub output_state_merkle_tree_account_indices: Vec<u8>,
+    pub output_leaf_indices: Vec<u32>,
     pub relay_fee: Option<u64>,
+    pub is_compress: bool,
+    pub de_compress_amount: Option<u64>,
+    pub pubkey_array: Vec<Pubkey>,
     pub message: Option<Vec<u8>>,
 }
 
@@ -39,53 +48,26 @@ where
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    out_utxos: &[Utxo],
-    out_utxo_indices: &[u32],
+    input_compressed_account_hashes: &[[u8; 32]],
+    output_compressed_account_hashes: &[[u8; 32]],
+    output_leaf_indices: &[u32],
 ) -> anchor_lang::Result<PublicTransactionEvent> {
+    // TODO: add message and de_compress_amount
     let event = PublicTransactionEvent {
-        in_utxos: inputs
-            .in_utxos
-            .iter()
-            .map(|in_utxo_tuple: &crate::utxo::InUtxoTuple| in_utxo_tuple.in_utxo.clone())
-            .collect(),
-        out_utxos: out_utxos.to_vec(),
-        out_utxo_indices: out_utxo_indices.iter().map(|x| *x as u64).collect(),
-        de_compress_amount: None,
+        input_compressed_account_hashes: input_compressed_account_hashes.to_vec(),
+        output_compressed_account_hashes: output_compressed_account_hashes.to_vec(),
+        input_compressed_accounts: inputs.input_compressed_accounts_with_merkle_context.clone(),
+        output_compressed_accounts: inputs.output_compressed_accounts.to_vec(),
+        output_state_merkle_tree_account_indices: inputs
+            .output_state_merkle_tree_account_indices
+            .to_vec(),
+        output_leaf_indices: output_leaf_indices.to_vec(),
         relay_fee: inputs.relay_fee,
+        pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
+        de_compress_amount: None,
         message: None,
+        is_compress: false,
     };
     invoke_indexer_transaction_event(&event, &ctx.accounts.noop_program)?;
     Ok(event)
-}
-
-#[test]
-fn create_test_data_no_tlv() {
-    let in_utxo = Utxo {
-        owner: crate::ID,
-        blinding: [1u8; 32],
-        lamports: 3u64,
-        data: None,
-        address: None,
-    };
-
-    println!("in_utxo data {:?}", in_utxo.try_to_vec().unwrap());
-    let out_utxo = Utxo {
-        owner: account_compression::ID,
-        blinding: [2u8; 32],
-        lamports: 4u64,
-        data: None,
-        address: None,
-    };
-    println!("out_utxo data {:?}", out_utxo.try_to_vec().unwrap());
-
-    let event = PublicTransactionEvent {
-        in_utxos: vec![in_utxo],
-        out_utxos: vec![out_utxo],
-        out_utxo_indices: vec![1],
-        de_compress_amount: None,
-        relay_fee: None,
-        message: None,
-    };
-    let data = event.try_to_vec().unwrap();
-    println!("event data {:?}", data);
 }

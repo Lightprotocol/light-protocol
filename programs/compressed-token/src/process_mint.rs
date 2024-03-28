@@ -2,12 +2,11 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_hasher::DataHasher;
 use psp_compressed_pda::{
-    tlv::{Tlv, TlvDataElement},
-    utxo::{OutUtxo, OutUtxoTuple},
+    compressed_account::{CompressedAccount, CompressedAccountData},
     InstructionDataTransfer,
 };
 
-use crate::{AccountState, TokenTlvData};
+use crate::{AccountState, TokenData};
 pub const POOL_SEED: &[u8] = b"pool";
 pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority_pda";
 
@@ -47,21 +46,30 @@ pub fn process_mint_to<'info>(
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
     }
     mint_spl_to_pool_pda(&ctx, &amounts)?;
-    let out_utxos = create_out_utxos(
+    let output_compressed_accounts = create_output_compressed_accounts(
         ctx.accounts.mint.to_account_info().key(),
         compression_public_keys.as_slice(),
         &amounts,
+        None,
     );
-    cpi_execute_compressed_transaction_mint_to(&ctx, &out_utxos)?;
+    cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts)?;
     Ok(())
 }
 
-pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]) -> Vec<OutUtxo> {
+pub fn create_output_compressed_accounts(
+    mint_pubkey: Pubkey,
+    pubkeys: &[Pubkey],
+    amounts: &[u64],
+    lamports: Option<&[Option<u64>]>,
+) -> Vec<CompressedAccount> {
+    let defaul = vec![None; pubkeys.len()];
+    let lamports = lamports.unwrap_or(defaul.as_slice());
     pubkeys
         .iter()
         .zip(amounts.iter())
-        .map(|(pubkey, amount)| {
-            let token_tlv_data = TokenTlvData {
+        .zip(lamports.iter())
+        .map(|((pubkey, amount), lamports_amount)| {
+            let token_data = TokenData {
                 mint: mint_pubkey,
                 owner: *pubkey,
                 amount: *amount,
@@ -70,20 +78,18 @@ pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]
                 is_native: None,
                 delegated_amount: 0,
             };
-            let mut token_data = Vec::new();
-            token_tlv_data.serialize(&mut token_data).unwrap();
-            let data: TlvDataElement = TlvDataElement {
+
+            let mut token_data_bytes = Vec::new();
+            token_data.serialize(&mut token_data_bytes).unwrap();
+            let data: CompressedAccountData = CompressedAccountData {
                 discriminator: 2u64.to_le_bytes(),
-                owner: crate::ID,
-                data: token_data,
-                data_hash: token_tlv_data.hash().unwrap(),
+                data: token_data_bytes,
+                data_hash: token_data.hash().unwrap(),
             };
-            OutUtxo {
+            CompressedAccount {
                 owner: crate::ID,
-                lamports: 0,
-                data: Some(Tlv {
-                    tlv_elements: vec![data],
-                }),
+                lamports: lamports_amount.unwrap_or(0u64),
+                data: Some(data),
                 address: None,
             }
         })
@@ -93,23 +99,19 @@ pub fn create_out_utxos(mint_pubkey: Pubkey, pubkeys: &[Pubkey], amounts: &[u64]
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    out_utxos: &[OutUtxo],
+    output_compressed_accounts: &[CompressedAccount],
 ) -> Result<()> {
-    let mut _out_utxos = Vec::<OutUtxoTuple>::new();
-    for utxo in out_utxos.iter() {
-        _out_utxos.push(OutUtxoTuple {
-            out_utxo: utxo.clone(),
-            index_mt_account: 0,
-        });
-    }
-
     let inputs_struct = InstructionDataTransfer {
-        low_element_indices: Vec::new(),
         relay_fee: None,
-        in_utxos: Vec::new(),
-        out_utxos: _out_utxos,
-        root_indices: Vec::new(),
+        input_compressed_accounts_with_merkle_context: Vec::new(),
+        output_compressed_accounts: output_compressed_accounts.to_vec(),
+        output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
+        input_root_indices: Vec::new(),
         proof: None,
+        new_address_seeds: Vec::new(),
+        address_merkle_tree_root_indices: Vec::new(),
+        address_merkle_tree_account_indices: Vec::new(),
+        address_queue_account_indices: Vec::new(),
     };
 
     let mut inputs = Vec::new();

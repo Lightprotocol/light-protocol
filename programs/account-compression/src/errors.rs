@@ -38,4 +38,12 @@ pub enum AccountCompressionErrorCode {
     ElementAlreadyExists,
     #[msg("HashSetFull")]
     HashSetFull,
+    #[msg("NumberOfProofsMismatch")]
+    NumberOfProofsMismatch,
+    #[msg("InvalidMerkleProof")]
+    InvalidMerkleProof,
+    #[msg("InvalidIndexedArray")]
+    InvalidIndexedArray,
+    #[msg("InvalidMerkleTree")]
+    InvalidMerkleTree,
 }

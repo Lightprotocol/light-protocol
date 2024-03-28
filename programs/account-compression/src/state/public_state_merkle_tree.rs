@@ -19,6 +19,7 @@ pub struct StateMerkleTreeAccount {
     pub owner: Pubkey,
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
+    pub associated_queue: Pubkey,
 
     /// Merkle tree for the transaction state.
     pub state_merkle_tree_struct: [u8; 256],
@@ -136,6 +137,7 @@ mod test {
             next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
             owner: Pubkey::new_from_array([2u8; 32]),
             delegate: Pubkey::new_from_array([3u8; 32]),
+            associated_queue: Pubkey::new_from_array([4u8; 32]),
             state_merkle_tree_struct: [0u8; 256],
             state_merkle_tree_filled_subtrees: [0u8; 832],
             state_merkle_tree_changelog: [0u8; 1220800],

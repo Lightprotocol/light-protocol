@@ -1,94 +1,64 @@
-/**
- * Implements the IDL types for the stateless.js program for typesafety
- * TODO: unify with core types as beet implementation or similar.
- */
-
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { Utxo } from './utxo';
 
-export type PublicTransactionEvent_IdlType = {
-  inUtxos: Utxo_IdlType[];
-  outUtxos: Utxo_IdlType[];
-  deCompressedAmount: BN | null;
-  outUtxoIndices: BN[];
-  relayFee: BN | null;
-  message: Uint8Array | null;
-};
+/// TODO: Consider flattening and implementing an IR in Beet.
+export interface PackedCompressedAccountWithMerkleContext {
+  compressedAccount: CompressedAccount;
+  merkleTreePubkeyIndex: number; // u8
+  nullifierQueuePubkeyIndex: number; // u8
+  leafIndex: number; // u32 FIXME: switch on-chain to u64.
+  // Missing: hash
+}
 
-/// Utxo types
-
-export type Utxo_IdlType = {
+/**
+ * Describe the generic compressed account details applicable to every
+ * compressed account.
+ * */
+export interface CompressedAccount {
+  /** Public key of program or user that owns the account */
   owner: PublicKey;
-  blinding: number[];
-  lamports: BN;
-  address: PublicKey | null;
-  data: Tlv_IdlType | null;
-};
+  /** Lamports attached to the account */
+  lamports: BN; // u64 // FIXME: optional
+  /**
+   * TODO: Implement address functionality. Optional unique account ID that is
+   * persistent across transactions.
+   */
+  address: PublicKey | null; // Option<PublicKey>
+  /** Optional data attached to the account */
+  data: CompressedAccountData | null; // Option<CompressedAccountData>
+}
 
-export type Tlv_IdlType = {
-  tlvElements: TlvDataElement_IdlType[];
-};
+export interface CompressedAccountData {
+  discriminator: number[]; // [u8; 8] // TODO: test with uint8Array instead
+  data: Buffer; // bytes
+  dataHash: number[]; // [u8; 32]
+}
 
-export type TlvDataElement_IdlType = {
-  discriminator: number[];
-  owner: PublicKey;
-  data: Uint8Array;
-  dataHash: number[];
-};
+export interface PublicTransactionEvent {
+  inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
+  outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
+  inputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
+  outputCompressedAccounts: CompressedAccount[];
+  outputStateMerkleTreeAccountIndices: Uint8Array; // bytes
+  outputLeafIndices: number[]; // Vec<u32>
+  relayFee: BN | null; // Option<u64>
+  deCompressAmount: BN | null; // Option<u64>
+  isCompress: boolean; // bool
+  pubkeyArray: PublicKey[]; // Vec<PublicKey>
+  message: Uint8Array | null; // Option<bytes>
+}
 
-export type InUtxoTuple_IdlType = {
-  inUtxo: Utxo_IdlType; // think we need to attach leafIndex as blinding here!
-  indexMtAccount: number;
-  indexNullifierArrayAccount: number;
-};
+export interface InstructionDataTransfer {
+  proof: CompressedProof | null; // Option<CompressedProof>
+  inputRootIndices: number[]; // Vec<u16>
+  inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
+  outputCompressedAccounts: CompressedAccount[];
+  outputStateMerkleTreeAccountIndices: Buffer; // bytes // FIXME: into Vec<u8> on-chain
+  relayFee: BN | null; // Option<u64>
+}
 
-export type OutUtxoTuple_IdlType = {
-  outUtxo: Utxo;
-  indexMtAccount: number;
-};
-
-/// Serial types
-
-export type TlvSerializable_IdlType = {
-  tlvElements: TlvDataElementSerializable_IdlType[];
-};
-
-export type TlvDataElementSerializable_IdlType = {
-  discriminator: number[];
-  owner: number;
-  data: Uint8Array;
-  dataHash: number[];
-};
-
-export type InUtxoSerializable_IdlType = {
-  owner: number;
-  leafIndex: number;
-  lamports: number;
-  address: PublicKey | null;
-  data: TlvSerializable_IdlType | null;
-};
-
-export type OutUtxoSerializable_IdlType = {
-  owner: number;
-  lamports: number;
-  address: PublicKey | null;
-  data: TlvSerializable_IdlType | null;
-};
-
-export type InUtxoSerializableTuple_IdlType = {
-  inUtxoSerializable: InUtxoSerializable_IdlType;
-  indexMtAccount: number;
-  indexNullifierArrayAccount: number;
-};
-
-export type OutUtxoSerializableTuple = {
-  outUtxoSerializable: OutUtxoSerializable_IdlType;
-  indexMtAccount: number;
-};
-
-export type CompressedProof_IdlType = {
-  a: number[];
-  b: number[];
-  c: number[];
-};
+export interface CompressedProof {
+  a: number[]; // [u8; 32]
+  b: number[]; // [u8; 64]
+  c: number[]; // [u8; 32]
+}

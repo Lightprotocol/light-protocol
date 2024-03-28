@@ -5,10 +5,10 @@ pub mod event;
 pub mod instructions;
 pub mod utils;
 pub use instructions::*;
+pub mod compressed_account;
+pub mod create_address;
 pub mod nullify_state;
 pub mod sdk;
-pub mod tlv;
-pub mod utxo;
 pub mod verify_state;
 pub mod verifying_keys;
 
@@ -50,14 +50,25 @@ pub enum ErrorCode {
     ProofVerificationFailed,
     #[msg("PublicInputsTryIntoFailed")]
     PublicInputsTryIntoFailed,
+    #[msg("CompressedAccountHashError")]
+    CompressedAccountHashError,
+    #[msg("InvalidAddress")]
+    InvalidAddress,
+    #[msg("InvalidAddressQueue")]
+    InvalidAddressQueue,
+    #[msg("InvalidNullifierQueue")]
+    InvalidNullifierQueue,
+    #[msg("DeriveAddressError")]
+    DeriveAddressError,
 }
 
 #[program]
 pub mod psp_compressed_pda {
 
     use self::instructions::{
-        into_inputs, process_execute_compressed_transaction, InstructionDataTransfer,
-        InstructionDataTransfer2,
+        process_execute_compressed_transaction,
+        InstructionDataTransfer,
+        //  into_inputs,InstructionDataTransfer2,
     };
     use super::*;
 
@@ -69,36 +80,35 @@ pub mod psp_compressed_pda {
         inputs: Vec<u8>,
     ) -> Result<crate::event::PublicTransactionEvent> {
         msg!("execute_compressed_transaction");
-        let inputs: InstructionDataTransfer = InstructionDataTransfer::try_deserialize_unchecked(
-            &mut [vec![0u8; 8], inputs].concat().as_slice(),
-        )?;
+        let inputs: InstructionDataTransfer =
+            InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         msg!("deserialized inputs");
         process_execute_compressed_transaction(&inputs, &ctx)
     }
 
-    /// This function can be used to transfer sol and execute any other compressed transaction.
-    /// Instruction data is optimized for space.
-    pub fn execute_compressed_transaction2<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-        inputs: Vec<u8>,
-    ) -> Result<crate::event::PublicTransactionEvent> {
-        let inputs: InstructionDataTransfer2 = InstructionDataTransfer2::try_deserialize_unchecked(
-            &mut [vec![0u8; 8], inputs].concat().as_slice(),
-        )?;
-        let inputs = into_inputs(
-            inputs,
-            &ctx.accounts
-                .to_account_infos()
-                .iter()
-                .map(|a| a.key())
-                .collect::<Vec<Pubkey>>(),
-            &ctx.remaining_accounts
-                .iter()
-                .map(|a| a.key())
-                .collect::<Vec<Pubkey>>(),
-        )?;
-        process_execute_compressed_transaction(&inputs, &ctx)
-    }
+    // /// This function can be used to transfer sol and execute any other compressed transaction.
+    // /// Instruction data is optimized for space.
+    // pub fn execute_compressed_transaction2<'a, 'b, 'c: 'info, 'info>(
+    //     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    //     inputs: Vec<u8>,
+    // ) -> Result<crate::event::PublicTransactionEvent> {
+    //     let inputs: InstructionDataTransfer2 = InstructionDataTransfer2::try_deserialize_unchecked(
+    //         &mut [vec![0u8; 8], inputs].concat().as_slice(),
+    //     )?;
+    //     let inputs = into_inputs(
+    //         inputs,
+    //         &ctx.accounts
+    //             .to_account_infos()
+    //             .iter()
+    //             .map(|a| a.key())
+    //             .collect::<Vec<Pubkey>>(),
+    //         &ctx.remaining_accounts
+    //             .iter()
+    //             .map(|a| a.key())
+    //             .collect::<Vec<Pubkey>>(),
+    //     )?;
+    //     process_execute_compressed_transaction(&inputs, &ctx)
+    // }
 
     // TODO: add compress and decompress sol as a wrapper around process_execute_compressed_transaction
 

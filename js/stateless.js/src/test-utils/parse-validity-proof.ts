@@ -1,6 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
 import { FIELD_SIZE } from '../constants';
-import { CompressedProof_IdlType } from '../state';
+import { CompressedProof } from '../state';
 
 interface GnarkProofJson {
   ar: string[];
@@ -12,6 +12,18 @@ type ProofABC = {
   a: Uint8Array;
   b: Uint8Array;
   c: Uint8Array;
+};
+
+export const placeholderValidityProof = () => ({
+  a: Array.from({ length: 32 }, (_, i) => i + 1),
+  b: Array.from({ length: 64 }, (_, i) => i + 1),
+  c: Array.from({ length: 32 }, (_, i) => i + 1),
+});
+
+export const checkValidityProofShape = (proof: CompressedProof) => {
+  if (proof.a.length !== 32 || proof.b.length !== 64 || proof.c.length !== 32) {
+    throw new Error('ValidityProof has invalid shape');
+  }
 };
 
 export function proofFromJsonStruct(json: GnarkProofJson): ProofABC {
@@ -40,9 +52,7 @@ export function proofFromJsonStruct(json: GnarkProofJson): ProofABC {
 
 // TODO: add unit test for negation
 // TODO: test if LE BE issue. unit test
-export function negateAndCompressProof(
-  proof: ProofABC,
-): CompressedProof_IdlType {
+export function negateAndCompressProof(proof: ProofABC): CompressedProof {
   const proofA = proof.a;
   const proofB = proof.b;
   const proofC = proof.c;
@@ -70,7 +80,7 @@ export function negateAndCompressProof(
   const proofCIsPositive = yElementIsPositiveG1(new BN(cYElement, 32, 'be'));
   cXElement[0] = addBitmaskToByte(cXElement[0], proofCIsPositive);
 
-  const compressedProof: CompressedProof_IdlType = {
+  const compressedProof: CompressedProof = {
     a: Array.from(aXElement),
     b: Array.from(bXElement),
     c: Array.from(cXElement),
@@ -80,22 +90,12 @@ export function negateAndCompressProof(
 }
 
 function deserializeHexStringToBeBytes(hexStr: string): Uint8Array {
-  const trimmedStr = hexStr.startsWith('0x') ? hexStr.substring(2) : hexStr;
-  const bigInt = BigInt(`0x${trimmedStr}`);
-  const bigIntBytes = new Uint8Array(
-    bigInt
-      .toString(16)
-      .padStart(64, '0')
-      .match(/.{1,2}/g)!
-      .map((byte) => parseInt(byte, 16)),
+  // Using BN for simpler conversion from hex string to byte array
+  const bn = new BN(
+    hexStr.startsWith('0x') ? hexStr.substring(2) : hexStr,
+    'hex',
   );
-  if (bigIntBytes.length < 32) {
-    const result = new Uint8Array(32);
-    result.set(bigIntBytes, 32 - bigIntBytes.length);
-    return result;
-  } else {
-    return bigIntBytes.slice(0, 32);
-  }
+  return new Uint8Array(bn.toArray('be', 32));
 }
 
 function yElementIsPositiveG1(yElement: BN): boolean {
@@ -133,4 +133,104 @@ function addBitmaskToByte(byte: number, yIsPositive: boolean): number {
   } else {
     return byte;
   }
+}
+
+//@ts-ignore
+if (import.meta.vitest) {
+  //@ts-ignore
+  const { it, expect, describe } = import.meta.vitest;
+
+  // Unit test for addBitmaskToByte function
+  describe('addBitmaskToByte', () => {
+    it('should add a bitmask to the byte if yIsPositive is false', () => {
+      const byte = 0b00000000;
+      const yIsPositive = false;
+      const result = addBitmaskToByte(byte, yIsPositive);
+      expect(result).toBe(0b10000000); // 128 in binary, which is 1 << 7
+    });
+
+    it('should not modify the byte if yIsPositive is true', () => {
+      const byte = 0b00000000;
+      const yIsPositive = true;
+      const result = addBitmaskToByte(byte, yIsPositive);
+      expect(result).toBe(0b00000000);
+    });
+  });
+
+  describe('test prover server', () => {
+    const TEST_JSON = {
+      ar: [
+        '0x22bdaa3187d8fe294925a66fa0165a11bc9e07678fa2fc72402ebfd33d521c69',
+        '0x2d18ff780b69898b4cdd8d7b6ac72d077799399f0f45e52665426456f3903584',
+      ],
+      bs: [
+        [
+          '0x138cc0962e49f76a701d2871d2799892c9782940095eb0429e979f336d2e162d',
+          '0x2fe1bfbb15cbfb83d7e00ace23e45f890604003783eaf34affa35e0d6f4822bc',
+        ],
+        [
+          '0x1a89264f82cc6e8ef1c696bea0b5803c28c0ba6ab61366bcb71e73a4135cae8d',
+          '0xf778d857b3df01a4100265c9d014ce02d47425f0114685356165fa5ee3f3a26',
+        ],
+      ],
+      krs: [
+        '0x176b6ae9001f66832951e2d43a98a972667447bb1781f534b70cb010270dcdd3',
+        '0xb748d5fac1686db28d94c02250af7eb4f28dfdabc8983305c45bcbc6e163eeb',
+      ],
+    };
+    const COMPRESSED_PROOF_A = [
+      34, 189, 170, 49, 135, 216, 254, 41, 73, 37, 166, 111, 160, 22, 90, 17,
+      188, 158, 7, 103, 143, 162, 252, 114, 64, 46, 191, 211, 61, 82, 28, 105,
+    ];
+    const COMPRESSED_PROOF_B = [
+      147, 140, 192, 150, 46, 73, 247, 106, 112, 29, 40, 113, 210, 121, 152,
+      146, 201, 120, 41, 64, 9, 94, 176, 66, 158, 151, 159, 51, 109, 46, 22, 45,
+      47, 225, 191, 187, 21, 203, 251, 131, 215, 224, 10, 206, 35, 228, 95, 137,
+      6, 4, 0, 55, 131, 234, 243, 74, 255, 163, 94, 13, 111, 72, 34, 188,
+    ];
+    const COMPRESSED_PROOF_C = [
+      23, 107, 106, 233, 0, 31, 102, 131, 41, 81, 226, 212, 58, 152, 169, 114,
+      102, 116, 71, 187, 23, 129, 245, 52, 183, 12, 176, 16, 39, 13, 205, 211,
+    ];
+
+    it('should execute a compressed token mint', async () => {
+      const proof = proofFromJsonStruct(TEST_JSON);
+      const compressedProof = negateAndCompressProof(proof);
+      expect(compressedProof.a).toEqual(COMPRESSED_PROOF_A);
+      expect(compressedProof.b).toEqual(COMPRESSED_PROOF_B);
+      expect(compressedProof.c).toEqual(COMPRESSED_PROOF_C);
+    });
+  });
+  describe('Validity Proof Functions', () => {
+    describe('placeholderValidityProof', () => {
+      it('should create a validity proof with correct shape', () => {
+        const validityProof = placeholderValidityProof();
+        expect(validityProof.a.length).toBe(32);
+        expect(validityProof.b.length).toBe(64);
+        expect(validityProof.c.length).toBe(32);
+      });
+    });
+
+    describe('checkValidityProofShape', () => {
+      it('should not throw an error for valid proof shape', () => {
+        const validProof = {
+          a: Array.from(new Uint8Array(32)),
+          b: Array.from(new Uint8Array(64)),
+          c: Array.from(new Uint8Array(32)),
+        };
+        expect(() => checkValidityProofShape(validProof)).not.toThrow();
+      });
+
+      it('should throw an error for an invalid proof', () => {
+        const invalidProof = {
+          a: Array.from(new Uint8Array(31)), // incorrect length
+          b: Array.from(new Uint8Array(64)),
+          c: Array.from(new Uint8Array(32)),
+        };
+        expect(() => checkValidityProofShape(invalidProof)).toThrow(
+          'ValidityProof has invalid shape',
+        );
+      });
+    });
+  });
 }

@@ -3,15 +3,16 @@ use std::borrow::Borrow;
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 
-// use light_verifier_sdk::light_transaction::CompressedProof;
 use crate::{
-    append_state::insert_out_utxos,
+    append_state::insert_output_compressed_accounts_into_state_merkle_tree,
+    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    create_address::insert_addresses_into_address_merkle_tree_queue,
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
-    tlv::TlvDataElement,
     utils::CompressedProof,
-    utxo::{InUtxoTuple, OutUtxoTuple, SerializedUtxos, Utxo},
-    verify_state::{fetch_roots, hash_in_utxos, sum_check, verify_merkle_proof_zkp},
+    verify_state::{
+        fetch_roots, hash_input_compressed_accounts, signer_check, sum_check, verify_state_proof,
+    },
     ErrorCode,
 };
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
@@ -19,100 +20,145 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> anchor_lang::Result<PublicTransactionEvent> {
     // sum check ---------------------------------------------------
-    sum_check(&inputs.in_utxos, &inputs.out_utxos, &inputs.relay_fee)?;
+    // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
+    sum_check(
+        &inputs.input_compressed_accounts_with_merkle_context,
+        &inputs.output_compressed_accounts,
+        &inputs.relay_fee,
+    )?;
     msg!("sum check success");
     // signer check ---------------------------------------------------
-    // TODO: change the match statement so that we signers for every utxo as soon as any in utxo has tlv
-    // and we need to use the provided tlv in out utxos
-    // TODO: add check that if utxo is program owned that it is signed by the program
+    signer_check(inputs, ctx)?;
+    // TODO: if not proof store the instruction in cpi_signature_account and set cpi account slot to current slot, if slot is not current slot override the vector with a new vector
+    // TODO: add security check that only data from the current transaction stored in cpi account can be used in the current transaction
+    // TODO: add check that cpi account was derived from a Merkle tree account in the current transaction
+    // TODO: add check that if compressed account is program owned that it is signed by the program (if an account has data it is program owned, if the program account is set compressed accounts are program owned)
     match ctx.accounts.cpi_signature_account.borrow() {
         Some(_cpi_signature_account) => {
-            // needs to check every piece of tlv and make sure that signaures exist in cpi_signature_account
+            // needs to check every compressed account and make sure that signaures exist in cpi_signature_account
             msg!("cpi_signature check is not implemented");
             err!(ErrorCode::CpiSignerCheckFailed)
         }
-        None => inputs
-            .in_utxos
-            .iter()
-            .try_for_each(|utxo_tuple: &InUtxoTuple| {
-                // TODO(@ananas-block): revisit program signer check
-                // Two options:
-                // 1. we require the program as an account and reconstruct the cpi signer to check that the cpi signer is a pda of the program
-                //   - The advantage is that the utxo can be owned by the program_id
-                // 2. we set a deterministic pda signer for every program eg seeds = [b"cpi_authority"]
-                //   - The advantages are that the program does not need to be an account, and we don't need to reconstruct the pda -> more efficient (costs are just low hundreds of cu though)
-                //   - The drawback is that the pda signer is the owner of the utxo which is confusing
-                if utxo_tuple.in_utxo.data.is_some() {
-                    let invoking_program_id = ctx.accounts.invoking_program.as_ref().unwrap().key();
-                    let signer = anchor_lang::prelude::Pubkey::find_program_address(
-                        &[b"cpi_authority"],
-                        &invoking_program_id,
-                    )
-                    .0;
-                    if signer != ctx.accounts.signer.key()
-                        && invoking_program_id != utxo_tuple.in_utxo.owner
-                    {
-                        msg!(
-                            "program signer check failed derived cpi signer {} !=  signer {}",
-                            utxo_tuple.in_utxo.owner,
-                            ctx.accounts.signer.key()
-                        );
-                        msg!(
-                            "program signer check failed utxo owner {} !=  invoking_program_id {}",
-                            utxo_tuple.in_utxo.owner,
-                            invoking_program_id
-                        );
-                        err!(ErrorCode::SignerCheckFailed)
-                    } else {
-                        Ok(())
-                    }
-                } else if utxo_tuple.in_utxo.owner != ctx.accounts.signer.key() {
-                    msg!(
-                        "signer check failed utxo owner {} !=  signer {}",
-                        utxo_tuple.in_utxo.owner,
-                        ctx.accounts.signer.key()
-                    );
-                    err!(ErrorCode::SignerCheckFailed)
-                } else {
-                    Ok(())
-                }
-            }),
+        None => Ok(()),
     }?;
 
-    let mut roots = vec![[0u8; 32]; inputs.in_utxos.len()];
+    let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     fetch_roots(inputs, ctx, &mut roots)?;
+    let address_roots = vec![[0u8; 32]; inputs.address_merkle_tree_root_indices.len()];
+    // TODO: enable once address merkle tree init is debugged
+    // fetch_roots_address_merkle_tree(
+    //     inputs,
+    //     ctx,
+    //     &inputs.address_merkle_tree_root_indices,
+    //     &mut address_roots,
+    // )?;
 
-    let mut utxo_hashes = vec![[0u8; 32]; inputs.in_utxos.len()];
-    let mut out_utxos = vec![Utxo::default(); inputs.out_utxos.len()];
-    let mut out_utxo_indices = vec![0u32; inputs.out_utxos.len()];
+    let mut input_compressed_account_hashes =
+        vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
+    let mut input_compressed_account_addresses: Vec<Option<[u8; 32]>> =
+        vec![None; inputs.input_compressed_accounts_with_merkle_context.len()];
+
+    let mut output_leaf_indices = vec![0u32; inputs.output_compressed_accounts.len()];
+    let mut output_compressed_account_hashes =
+        vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
+    let mut new_addresses = vec![[0u8; 32]; inputs.new_address_seeds.len()];
+    // insert addresses into address merkle tree queue ---------------------------------------------------
+    if !inputs.new_address_seeds.is_empty() {
+        derive_new_addresses(
+            inputs,
+            ctx,
+            &mut input_compressed_account_addresses,
+            &mut new_addresses,
+        );
+        insert_addresses_into_address_merkle_tree_queue(inputs, ctx, &new_addresses)?;
+    }
     // TODO: add heap neutral
-    hash_in_utxos(inputs, &mut utxo_hashes)?;
+    hash_input_compressed_accounts(
+        ctx,
+        inputs,
+        &mut input_compressed_account_hashes,
+        &mut input_compressed_account_addresses,
+    )?;
+
     // TODO: add heap neutral
     // verify inclusion proof ---------------------------------------------------
-    if !inputs.in_utxos.is_empty() {
-        verify_merkle_proof_zkp(&roots, &utxo_hashes, inputs.proof.as_ref().unwrap())?;
+    if !inputs
+        .input_compressed_accounts_with_merkle_context
+        .is_empty()
+        || !inputs.new_address_seeds.is_empty()
+    {
+        verify_state_proof(
+            &roots,
+            &input_compressed_account_hashes,
+            &address_roots,
+            new_addresses.as_slice(),
+            inputs.proof.as_ref().unwrap(),
+        )?;
     }
-    // insert nullifiers (in utxo hashes)---------------------------------------------------
-    if !inputs.in_utxos.is_empty() {
-        insert_nullifiers(inputs, ctx, &utxo_hashes)?;
-    }
-    // insert leaves (out utxo hashes) ---------------------------------------------------
-    if !inputs.out_utxos.is_empty() {
-        insert_out_utxos(inputs, ctx, &mut out_utxos, &mut out_utxo_indices)?;
+    // insert nullifiers (input compressed account hashes)---------------------------------------------------
+    if !inputs
+        .input_compressed_accounts_with_merkle_context
+        .is_empty()
+    {
+        insert_nullifiers(inputs, ctx, &input_compressed_account_hashes)?;
     }
 
-    emit_state_transition_event(inputs, ctx, &out_utxos, &out_utxo_indices)
+    // insert leaves (output compressed account hashes) ---------------------------------------------------
+    if !inputs.output_compressed_accounts.is_empty() {
+        insert_output_compressed_accounts_into_state_merkle_tree(
+            inputs,
+            ctx,
+            &mut output_leaf_indices,
+            &mut output_compressed_account_hashes,
+            &mut input_compressed_account_addresses,
+        )?;
+    }
+
+    // emit state transition event ---------------------------------------------------
+    emit_state_transition_event(
+        inputs,
+        ctx,
+        &input_compressed_account_hashes,
+        &output_compressed_account_hashes,
+        &output_leaf_indices,
+    )
+}
+
+// DO NOT MAKE HEAP NEUTRAL: this function allocates new heap memory
+pub fn derive_new_addresses(
+    inputs: &InstructionDataTransfer,
+    ctx: &Context<'_, '_, '_, '_, TransferInstruction<'_>>,
+    input_compressed_account_addresses: &mut Vec<Option<[u8; 32]>>,
+    new_addresses: &mut [[u8; 32]],
+) {
+    inputs
+        .new_address_seeds
+        .iter()
+        .enumerate()
+        .for_each(|(i, seed)| {
+            let address = derive_address(
+                &ctx.remaining_accounts[inputs.address_merkle_tree_account_indices[i] as usize]
+                    .key(),
+                seed,
+            )
+            .unwrap();
+            input_compressed_account_addresses.push(Some(address));
+            new_addresses[i] = address;
+        });
 }
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
 /// These additional accounts are passed as remaining accounts.
-/// 1 Merkle tree for each in utxo one queue and Merkle tree account each for each out utxo.
+/// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
     pub signer: Signer<'info>,
     /// CHECK: this account
-    #[account(mut)]
-    pub registered_program_pda: UncheckedAccount<'info>,
+    #[account(
+    seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
+    )]
+    pub registered_program_pda:
+        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
@@ -124,60 +170,60 @@ pub struct TransferInstruction<'info> {
     pub invoking_program: Option<UncheckedAccount<'info>>,
 }
 
+/// collects invocations without proofs
+/// invocations are collected and processed when an invocation with a proof is received
 #[account]
 pub struct CpiSignatureAccount {
-    pub signatures: Vec<CpiSignature>,
+    pub slot: u64,
+    pub signatures: Vec<InstructionDataTransfer>,
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CpiSignature {
-    pub program: Pubkey,
-    pub tlv_hash: [u8; 32],
-    pub tlv_data: TlvDataElement,
-}
-
-// TODO: parse utxos a more efficient way, since owner is sent multiple times this way
-#[derive(Debug)]
-#[account]
+// TODO: add checks for lengths of vectors
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     pub proof: Option<CompressedProof>,
-    // TODO: remove low_element_indices
-    pub low_element_indices: Vec<u16>,
-    pub root_indices: Vec<u16>,
+    pub input_root_indices: Vec<u16>,
+    pub new_address_seeds: Vec<[u8; 32]>,
+    pub address_queue_account_indices: Vec<u8>,
+    pub address_merkle_tree_account_indices: Vec<u8>,
+    pub address_merkle_tree_root_indices: Vec<u16>,
+    pub input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
+    pub output_compressed_accounts: Vec<CompressedAccount>,
+    /// The indices of the accounts in the output state merkle tree.
+    pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub relay_fee: Option<u64>,
-    pub in_utxos: Vec<InUtxoTuple>, // index of Merkle tree, nullifier queue account in remaining accounts
-    pub out_utxos: Vec<OutUtxoTuple>, // index of Merkle tree account in remaining accounts
-}
-// TODO: add new remaining account indices in SerializedUtxos
-#[derive(Debug)]
-#[account]
-pub struct InstructionDataTransfer2 {
-    pub proof: Option<CompressedProof>,
-    pub low_element_indices: Vec<u16>,
-    pub root_indices: Vec<u16>,
-    pub relay_fee: Option<u64>,
-    pub utxos: SerializedUtxos,
 }
 
-pub fn into_inputs(
-    inputs: InstructionDataTransfer2,
-    accounts: &[Pubkey],
-    remaining_accounts: &[Pubkey],
-) -> Result<InstructionDataTransfer> {
-    let in_utxos = inputs
-        .utxos
-        .in_utxos_from_serialized_utxos(accounts, remaining_accounts)
-        .unwrap();
-    let out_utxos = inputs
-        .utxos
-        .out_utxos_from_serialized_utxos(accounts)
-        .unwrap();
-    Ok(InstructionDataTransfer {
-        proof: inputs.proof,
-        low_element_indices: inputs.low_element_indices,
-        root_indices: inputs.root_indices,
-        relay_fee: inputs.relay_fee,
-        in_utxos,
-        out_utxos,
-    })
-}
+// TODO: refactor to compressed_account
+// #[derive(Debug)]
+// #[account]
+// pub struct InstructionDataTransfer2 {
+//     pub proof: Option<CompressedProof>,
+//     pub low_element_indices: Vec<u16>,
+//     pub root_indices: Vec<u16>,
+//     pub relay_fee: Option<u64>,
+//     pub utxos: SerializedUtxos,
+// }
+
+// pub fn into_inputs(
+//     inputs: InstructionDataTransfer2,
+//     accounts: &[Pubkey],
+//     remaining_accounts: &[Pubkey],
+// ) -> Result<InstructionDataTransfer> {
+//     let input_compressed_accounts_with_merkle_context = inputs
+//         .utxos
+//         .input_compressed_accounts_from_serialized_utxos(accounts, remaining_accounts)
+//         .unwrap();
+//     let output_compressed_accounts = inputs
+//         .utxos
+//         .output_compressed_accounts_from_serialized_utxos(accounts)
+//         .unwrap();
+//     Ok(InstructionDataTransfer {
+//         proof: inputs.proof,
+//         low_element_indices: inputs.low_element_indices,
+//         root_indices: inputs.root_indices,
+//         relay_fee: inputs.relay_fee,
+//         input_compressed_accounts_with_merkle_context,
+//         output_compressed_accounts,
+//     })
+// }

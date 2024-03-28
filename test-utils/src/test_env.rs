@@ -1,5 +1,11 @@
 #[cfg(feature = "light_program")]
-use account_compression::{GroupAuthority, RegisteredProgram};
+use account_compression::indexed_array_sdk::create_initialize_indexed_array_instruction;
+#[cfg(feature = "light_program")]
+use account_compression::{
+    instruction::InitializeAddressMerkleTree, state::AddressMerkleTreeAccount, GroupAuthority,
+    RegisteredProgram,
+};
+use anchor_lang::{system_program, InstructionData};
 #[cfg(feature = "light_program")]
 use light::sdk::{
     create_initialize_governance_authority_instruction,
@@ -7,11 +13,17 @@ use light::sdk::{
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 use light_macros::pubkey;
-use solana_program_test::{ProgramTest, ProgramTestContext};
-use solana_sdk::{pubkey::Pubkey, signature::Keypair};
+use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::Keypair,
+    transaction::Transaction,
+};
 #[cfg(feature = "light_program")]
 use solana_sdk::{signature::Signer, system_instruction};
 
+use crate::create_account_instruction;
 #[cfg(feature = "light_program")]
 use crate::{create_and_send_transaction, get_account};
 
@@ -50,6 +62,8 @@ pub struct EnvWithAccounts {
     pub governance_authority_pda: Pubkey,
     pub group_pda: Pubkey,
     pub registered_program_pda: Pubkey,
+    pub address_merkle_tree_pubkey: Pubkey,
+    pub address_merkle_tree_queue_pubkey: Pubkey,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -85,9 +99,6 @@ pub const PAYER_KEYPAIR: [u8; 64] = [
 /// 8. initializes Merkle tree owned by
 #[cfg(feature = "light_program")]
 pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
-    use account_compression::indexed_array_sdk::create_initialize_indexed_array_instruction;
-    use solana_sdk::transaction::Transaction;
-
     use crate::airdrop_lamports;
 
     let mut context = setup_test_programs().await;
@@ -160,9 +171,11 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         Some(&merkle_tree_keypair),
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
+    let indexed_array_keypair = Keypair::from_bytes(&INDEXED_ARRAY_TEST_KEYPAIR).unwrap();
+    let indexed_array_pubkey = indexed_array_keypair.pubkey();
 
     let instruction =
-        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey);
+        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(indexed_array_pubkey));
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -175,7 +188,46 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let indexed_array_keypair = Keypair::from_bytes(&INDEXED_ARRAY_TEST_KEYPAIR).unwrap();
+    create_queue_account(
+        &payer,
+        &mut context,
+        &indexed_array_keypair,
+        &merkle_tree_pubkey,
+    )
+    .await;
+
+    let address_merkle_tree_keypair = Keypair::new();
+    // TODO: enable, currently failing because we didn't maintain the address merkle tree account
+    // create_and_initialize_address_merkle_tree(&mut context, &address_merkle_tree_keypair)
+    //     .await
+    //     .unwrap();
+    let address_merkle_tree_queue_keypair = Keypair::new();
+    create_queue_account(
+        &payer,
+        &mut context,
+        &address_merkle_tree_queue_keypair,
+        &address_merkle_tree_keypair.pubkey(),
+    )
+    .await;
+    EnvWithAccounts {
+        context,
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        group_pda,
+        governance_authority: payer,
+        governance_authority_pda: authority_pda.0,
+        registered_program_pda,
+        address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
+        address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
+    }
+}
+#[cfg(feature = "light_program")]
+pub async fn create_queue_account(
+    payer: &Keypair,
+    context: &mut ProgramTestContext,
+    indexed_array_keypair: &Keypair,
+    merkle_tree_pubkey: &Pubkey,
+) {
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         account_compression::IndexedArrayAccount::LEN,
@@ -186,13 +238,13 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
             .unwrap()
             .minimum_balance(account_compression::IndexedArrayAccount::LEN),
         &ACCOUNT_COMPRESSION_ID,
-        Some(&indexed_array_keypair),
+        Some(indexed_array_keypair),
     );
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
     let instruction = create_initialize_indexed_array_instruction(
         payer.pubkey(),
         indexed_array_keypair.pubkey(),
         0,
+        Some(*merkle_tree_pubkey),
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -205,14 +257,61 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-
-    EnvWithAccounts {
-        context,
-        merkle_tree_pubkey,
-        indexed_array_pubkey,
-        group_pda,
-        governance_authority: payer,
-        governance_authority_pda: authority_pda.0,
-        registered_program_pda,
+}
+#[cfg(feature = "light_program")]
+pub fn initialize_address_merkle_tree_ix(
+    context: &ProgramTestContext,
+    payer: Pubkey,
+    pubkey: Pubkey,
+) -> Instruction {
+    let instruction_data = InitializeAddressMerkleTree {
+        index: 1u64,
+        owner: payer,
+        delegate: None,
+        height: 26,
+        changelog_size: 1400,
+        roots_size: 2800,
+        canopy_depth: 0,
+    };
+    Instruction {
+        program_id: ACCOUNT_COMPRESSION_ID,
+        accounts: vec![
+            AccountMeta::new(context.payer.pubkey(), true),
+            AccountMeta::new(pubkey, true),
+            AccountMeta::new_readonly(system_program::ID, false),
+        ],
+        data: instruction_data.data(),
     }
+}
+#[cfg(feature = "light_program")]
+pub async fn create_and_initialize_address_merkle_tree(
+    context: &mut ProgramTestContext,
+    address_merkle_tree_keypair: &Keypair,
+) -> Result<(), BanksClientError> {
+    let account_create_ix = create_account_instruction(
+        &context.payer.pubkey(),
+        AddressMerkleTreeAccount::LEN,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
+        &account_compression::ID,
+        Some(address_merkle_tree_keypair),
+    );
+    // Instruction: initialize address Merkle tree.
+    let initialize_ix = initialize_address_merkle_tree_ix(
+        context,
+        context.payer.pubkey(),
+        address_merkle_tree_keypair.pubkey(),
+    );
+    // Transaction: initialize address Merkle tree.
+    let transaction = Transaction::new_signed_with_payer(
+        &[account_create_ix, initialize_ix],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, address_merkle_tree_keypair],
+        context.last_blockhash,
+    );
+    context.banks_client.process_transaction(transaction).await
 }

@@ -8,6 +8,7 @@ import {
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Rpc } from "@lightprotocol/stateless.js/src";
 
 const DEFAULT_DECIMAL_COUNT = 9;
 
@@ -47,7 +48,7 @@ class CreateMintCommand extends Command {
       const mintAuthority = this.getMintAuthority(flags, payer);
       const connection = new Connection(getSolanaRpcUrl());
       const { mint, transactionSignature } = await createMint(
-        connection,
+        connection as Rpc,
         payer,
         mintAuthority,
         mintDecimals,

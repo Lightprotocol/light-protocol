@@ -1,6 +1,7 @@
 import { utils } from '@coral-xyz/anchor';
 
 export const POOL_SEED = Buffer.from('pool');
+
 export const MINT_AUTHORITY_SEED =
   utils.bytes.utf8.encode('mint_authority_pda');
 

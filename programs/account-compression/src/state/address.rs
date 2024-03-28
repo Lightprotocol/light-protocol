@@ -2,6 +2,8 @@ use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use ark_ff::BigInteger256;
 use borsh::{BorshDeserialize, BorshSerialize};
+use light_bounded_vec::CyclicBoundedVec;
+use light_concurrent_merkle_tree::ConcurrentMerkleTree22;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::IndexedMerkleTree22;
 
@@ -86,5 +88,19 @@ impl AddressMerkleTreeAccount {
             .map_err(ProgramError::from)?
         };
         Ok(tree)
+    }
+
+    pub fn load_roots(&self) -> Result<CyclicBoundedVec<[u8; 32]>> {
+        let tree = self.load_merkle_tree()?;
+        let roots = unsafe {
+            ConcurrentMerkleTree22::<Poseidon>::roots_from_bytes(
+                &self.merkle_tree_roots,
+                tree.merkle_tree.current_root_index + 1,
+                tree.merkle_tree.roots_length,
+                tree.merkle_tree.roots_capacity,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(roots)
     }
 }

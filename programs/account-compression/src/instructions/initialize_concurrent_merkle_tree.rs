@@ -21,6 +21,7 @@ pub fn process_initialize_state_merkle_tree(
     changelog_size: u64,
     roots_size: u64,
     canopy_depth: u64,
+    associated_queue: Option<Pubkey>,
 ) -> Result<()> {
     // Initialize new Merkle trees.
     let mut merkle_tree = ctx.accounts.merkle_tree.load_init()?;
@@ -28,6 +29,7 @@ pub fn process_initialize_state_merkle_tree(
     merkle_tree.index = index;
     merkle_tree.owner = owner;
     merkle_tree.delegate = delegate.unwrap_or(owner);
+    merkle_tree.associated_queue = associated_queue.unwrap_or_default();
 
     // TODO: think about whether and if how to use the Merkle tree index in the future
     // we could create a group which has ownership over a set of Merkle trees same registration process as for pool program

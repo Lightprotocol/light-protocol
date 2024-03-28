@@ -12,7 +12,7 @@ use anchor_lang::AnchorDeserialize;
 use circuitlib_rs::{
     gnark::{
         constants::{INCLUSION_PATH, SERVER_ADDRESS},
-        helpers::{health_check, kill_gnark_server, spawn_gnark_server},
+        helpers::{health_check, spawn_gnark_server},
         inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
@@ -24,24 +24,28 @@ use light_test_utils::{
 use num_bigint::BigInt;
 use num_traits::ops::bytes::FromBytes;
 use psp_compressed_pda::{
+    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
-    sdk::{create_execute_compressed_instruction, create_execute_compressed_opt_instruction},
+    sdk::create_execute_compressed_instruction,
     utils::CompressedProof,
-    utxo::{OutUtxo, Utxo},
+    ErrorCode,
 };
 use reqwest::Client;
 use solana_cli_output::CliAccount;
 use solana_program_test::ProgramTestContext;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{
+    instruction::InstructionError, pubkey::Pubkey, signature::Keypair, signer::Signer,
+    transaction::Transaction,
+};
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
 
 /// Tests Execute compressed transaction:
-/// 1. should succeed: with out utxo(0 lamports), no in utxo
-/// 2. should fail: in utxo and invalid zkp
-/// 3. should fail: in utxo and invalid signer
-/// 4. should succeed: in utxo inserted in (1.) and valid zkp
+/// 1. should succeed: with out compressed account(0 lamports), no in compressed account
+/// 2. should fail: in compressed account and invalid zkp
+/// 3. should fail: in compressed account and invalid signer
+/// 4. should succeed: in compressed account inserted in (1.) and valid zkp
 #[tokio::test]
 async fn test_execute_compressed_transaction() {
     let env: light_test_utils::test_env::EnvWithAccounts =
@@ -59,15 +63,8 @@ async fn test_execute_compressed_transaction() {
         payer.insecure_clone(),
         None,
     );
-    let in_utxos = vec![Utxo {
-        lamports: 0,
-        owner: payer_pubkey,
-        blinding: [1u8; 32],
-        data: None,
-        address: None,
-    }];
 
-    let out_utxos = vec![OutUtxo {
+    let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
         data: None,
@@ -82,11 +79,16 @@ async fn test_execute_compressed_transaction() {
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
         &Vec::new(),
-        &out_utxos,
+        &output_compressed_accounts,
+        &Vec::new(),
         &Vec::new(),
         &Vec::new(),
         &vec![merkle_tree_pubkey],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
@@ -104,7 +106,7 @@ async fn test_execute_compressed_transaction() {
     .await;
     // Wait until now to reduce startup lag by prover server
     let mut mock_indexer = mock_indexer.await;
-    mock_indexer.add_lamport_utxos(
+    mock_indexer.add_lamport_compressed_accounts(
         res.unwrap()
             .metadata
             .unwrap()
@@ -113,17 +115,28 @@ async fn test_execute_compressed_transaction() {
             .data
             .to_vec(),
     );
-    assert_eq!(mock_indexer.utxos.len(), 1);
-    // TODO: assert all utxo properties
+    assert_eq!(mock_indexer.compressed_accounts.len(), 1);
+    let input_compressed_accounts = vec![CompressedAccount {
+        lamports: 0,
+        owner: payer_pubkey,
+        data: None,
+        address: None,
+    }];
+    // TODO: assert all compressed account properties
     // check invalid proof
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &in_utxos,
-        &out_utxos,
+        &input_compressed_accounts,
+        &output_compressed_accounts,
         &vec![merkle_tree_pubkey],
+        &vec![0u32],
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
@@ -131,23 +144,27 @@ async fn test_execute_compressed_transaction() {
         create_and_send_transaction(&mut context, &[instruction], &payer_pubkey, &[&payer]).await;
     assert!(res.is_err());
 
-    // check invalid signer for in utxo
-    let invalid_signer_utxos = vec![Utxo {
+    // check invalid signer for in compressed_account
+    let invalid_signer_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: Pubkey::new_unique(),
-        blinding: [1u8; 32],
         data: None,
         address: None,
     }];
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &invalid_signer_utxos,
-        &out_utxos,
+        &invalid_signer_compressed_accounts,
+        &output_compressed_accounts,
         &vec![merkle_tree_pubkey],
+        &vec![0u32],
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
@@ -158,19 +175,33 @@ async fn test_execute_compressed_transaction() {
     // create Merkle proof
     // get zkp from server
     // create instruction as usual with correct zkp
-    let in_utxo = mock_indexer.utxos[0].clone();
+    let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
     let (root_indices, proof) = mock_indexer
-        .create_proof_for_utxos(&[in_utxo.hash()], &mut context)
+        .create_proof_for_compressed_accounts(
+            &[compressed_account_with_context
+                .compressed_account
+                .hash(
+                    &merkle_tree_pubkey,
+                    &compressed_account_with_context.leaf_index,
+                )
+                .unwrap()],
+            &mut context,
+        )
         .await;
-    let mut in_utxos = vec![in_utxo];
+    let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &in_utxos,
-        &out_utxos,
+        &input_compressed_accounts,
+        &output_compressed_accounts,
         &vec![merkle_tree_pubkey],
+        &vec![0u32],
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof,
     );
     let transaction = Transaction::new_signed_with_payer(
@@ -186,7 +217,7 @@ async fn test_execute_compressed_transaction() {
         transaction,
     )
     .await;
-    mock_indexer.add_lamport_utxos(
+    mock_indexer.add_lamport_compressed_accounts(
         res.unwrap()
             .metadata
             .unwrap()
@@ -197,7 +228,7 @@ async fn test_execute_compressed_transaction() {
     );
 
     println!("Double spend -------------------------");
-    let out_utxos = vec![OutUtxo {
+    let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: Pubkey::new_unique(),
         data: None,
@@ -206,33 +237,42 @@ async fn test_execute_compressed_transaction() {
     // double spend
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &in_utxos,
-        &out_utxos,
+        &input_compressed_accounts,
+        &output_compressed_accounts,
         &vec![merkle_tree_pubkey],
+        &vec![0u32],
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof,
     );
     let res =
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
     assert!(res.is_err());
-    let out_utxos = vec![OutUtxo {
+    let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: Pubkey::new_unique(),
         data: None,
         address: None,
     }];
-    in_utxos[0].blinding = [6u8; 32];
-    // invalid utxo
+    // invalid compressed_account
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &in_utxos,
-        &out_utxos,
+        &input_compressed_accounts,
+        &output_compressed_accounts,
         &vec![merkle_tree_pubkey],
+        &vec![1u32],
         &vec![indexed_array_pubkey],
         &vec![merkle_tree_pubkey],
         &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof,
     );
     let res =
@@ -240,32 +280,33 @@ async fn test_execute_compressed_transaction() {
     assert!(res.is_err());
 }
 
-#[ignore = "currently not used, todo maintain"]
+/// Tests Execute compressed transaction with address:
+/// 1. should fail: create out compressed account with address without input compressed account with address or created address
+/// 2. should succeed: create out compressed account with new created address
 #[tokio::test]
-async fn test_create_execute_compressed_transaction_2() {
+async fn test_with_address() {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts().await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
+
     let payer_pubkey = payer.pubkey();
+
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
-    let mut in_utxo = Utxo {
-        lamports: 0,
-        owner: payer_pubkey,
-        blinding: [0u8; 32],
-        data: None,
-        address: None,
-    };
-    in_utxo.update_blinding(merkle_tree_pubkey, 0).unwrap();
-
-    let in_utxos = vec![in_utxo];
-
-    let out_utxos = vec![OutUtxo {
+    let mock_indexer = MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+        None,
+    );
+    let address_seed = [1u8; 32];
+    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
         data: None,
-        address: None,
+        address: Some(derived_address), // this should not be sent, only derived onchain
     }];
     let proof_mock = CompressedProof {
         a: [0u8; 32],
@@ -273,44 +314,158 @@ async fn test_create_execute_compressed_transaction_2() {
         c: [0u8; 32],
     };
 
-    let instruction = create_execute_compressed_opt_instruction(
+    let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &in_utxos,
-        &out_utxos,
+        &Vec::new(),
+        &output_compressed_accounts,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &vec![merkle_tree_pubkey],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
         &vec![0u16],
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
         &proof_mock,
     );
 
-    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
-    let invalid_signer_utxos = vec![Utxo {
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        res.result,
+        Err(solana_sdk::transaction::TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(ErrorCode::InvalidAddress.into())
+        ))
+    );
+    let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
+        &Vec::new(),
+        &output_compressed_accounts,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &vec![merkle_tree_pubkey],
+        &vec![0u16],
+        &vec![0u16],
+        &vec![env.address_merkle_tree_queue_pubkey],
+        &vec![env.address_merkle_tree_pubkey],
+        &vec![address_seed],
+        &proof_mock,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+    // Wait until now to reduce startup lag by prover server
+    let mut mock_indexer = mock_indexer.await;
+    mock_indexer.add_lamport_compressed_accounts(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert_eq!(mock_indexer.compressed_accounts.len(), 1);
+    assert_eq!(
+        mock_indexer.compressed_accounts[0]
+            .compressed_account
+            .address
+            .unwrap(),
+        derived_address
+    );
+    let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
+    let (root_indices, proof) = mock_indexer
+        .create_proof_for_compressed_accounts(
+            &[compressed_account_with_context
+                .compressed_account
+                .hash(
+                    &merkle_tree_pubkey,
+                    &compressed_account_with_context.leaf_index,
+                )
+                .unwrap()],
+            &mut context,
+        )
+        .await;
+    let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
+    let recipient_pubkey = Pubkey::new_unique();
+    let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
-        owner: Pubkey::new_unique(),
-        blinding: [1u8; 32],
+        owner: recipient_pubkey,
         data: None,
-        address: None,
+        address: Some(derived_address),
     }];
-    let instruction = create_execute_compressed_opt_instruction(
+    let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
-        &invalid_signer_utxos,
-        &out_utxos,
-        &vec![merkle_tree_pubkey],
-        &vec![indexed_array_pubkey],
+        &input_compressed_accounts,
+        &output_compressed_accounts,
         &vec![merkle_tree_pubkey],
         &vec![0u32],
-        &vec![0u16],
-        &proof_mock,
+        &vec![indexed_array_pubkey],
+        &vec![merkle_tree_pubkey],
+        &root_indices,
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &proof,
     );
-    let res =
-        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
-    assert!(res.is_err());
-}
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    println!("Transaction with zkp -------------------------");
 
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+    mock_indexer.add_lamport_compressed_accounts(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert_eq!(mock_indexer.compressed_accounts.len(), 1);
+    assert_eq!(
+        mock_indexer.compressed_accounts[0]
+            .compressed_account
+            .address
+            .unwrap(),
+        derived_address
+    );
+    assert_eq!(
+        mock_indexer.compressed_accounts[0].compressed_account.owner,
+        recipient_pubkey
+    );
+}
 #[ignore = "this is a helper function to regenerate accounts"]
 #[tokio::test]
 async fn regenerate_accounts() {
@@ -349,13 +504,11 @@ pub struct MockIndexer {
     pub merkle_tree_pubkey: Pubkey,
     pub indexed_array_pubkey: Pubkey,
     pub payer: Keypair,
-    pub utxos: Vec<Utxo>,
-    pub nullified_utxos: Vec<Utxo>,
-    // pub token_utxos: Vec<TokenUtxo>,
-    // pub token_nullified_utxos: Vec<TokenUtxo>,
+    pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+    pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
-    pub gnark_server: std::process::Child,
+    pub gnark_server: Option<std::process::Child>,
 }
 
 impl MockIndexer {
@@ -365,8 +518,15 @@ impl MockIndexer {
         payer: Keypair,
         startup_time: Option<u64>,
     ) -> Self {
-        let gnark_server =
-            spawn_gnark_server("../../circuit-lib/circuitlib-rs/scripts/prover.sh", 0);
+        let gnark_server = if startup_time.is_some() {
+            Some(spawn_gnark_server(
+                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+                0,
+            ))
+        } else {
+            None
+        };
+
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT,
             STATE_MERKLE_TREE_ROOTS,
@@ -380,39 +540,42 @@ impl MockIndexer {
             merkle_tree_pubkey,
             indexed_array_pubkey,
             payer,
-            utxos: vec![],
-            nullified_utxos: vec![],
+            compressed_accounts: vec![],
+            nullified_compressed_accounts: vec![],
             events: vec![],
-            // token_utxos: vec![],
-            // token_nullified_utxos: vec![],
             merkle_tree,
             gnark_server,
         }
     }
-    pub fn kill_gnark_server(&mut self) {
-        kill_gnark_server(&mut self.gnark_server);
-    }
 
-    pub async fn create_proof_for_utxos(
-        &self,
-        utxos: &[[u8; 32]],
+    pub async fn create_proof_for_compressed_accounts(
+        &mut self,
+        compressed_accounts: &[[u8; 32]],
         context: &mut ProgramTestContext,
     ) -> (Vec<u16>, CompressedProof) {
+        self.gnark_server = if self.gnark_server.is_none() {
+            Some(spawn_gnark_server(
+                "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+                4,
+            ))
+        } else {
+            None
+        };
         // waiting for server to start
         health_check().await;
 
         let client = Client::new();
 
         let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
-        for utxo in utxos.iter() {
-            let leaf_index = self.merkle_tree.get_leaf_index(utxo).unwrap();
+        for compressed_account in compressed_accounts.iter() {
+            let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
             let proof = self
                 .merkle_tree
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
                 root: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
-                leaf: BigInt::from_be_bytes(utxo),
+                leaf: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
@@ -420,7 +583,7 @@ impl MockIndexer {
         let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
         let json_payload =
             InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs).to_string();
-        println!("json_payload: {}", json_payload);
+
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
@@ -428,7 +591,6 @@ impl MockIndexer {
             .send()
             .await
             .expect("Failed to execute request.");
-        println!("response_result: {:?}", response_result);
         assert!(response_result.status().is_success());
         let body = response_result.text().await.unwrap();
         let proof_json = deserialize_gnark_proof_json(&body).unwrap();
@@ -450,7 +612,8 @@ impl MockIndexer {
             "Local Merkle tree root is not equal to latest onchain root"
         );
 
-        let root_indices: Vec<u16> = vec![merkle_tree.current_root_index as u16; utxos.len()];
+        let root_indices: Vec<u16> =
+            vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
         (
             root_indices,
             CompressedProof {
@@ -462,41 +625,49 @@ impl MockIndexer {
     }
 
     /// deserializes an event
-    /// adds the out_utxos to the utxos
-    /// removes the in_utxos from the utxos
-    /// adds the in_utxos to the nullified_utxos
-    pub fn add_lamport_utxos(&mut self, event_bytes: Vec<u8>) {
+    /// adds the output_compressed_accounts to the compressed_accounts
+    /// removes the input_compressed_accounts from the compressed_accounts
+    /// adds the input_compressed_accounts to the nullified_compressed_accounts
+    pub fn add_lamport_compressed_accounts(&mut self, event_bytes: Vec<u8>) {
         let event_bytes = event_bytes.clone();
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
-        self.add_event_and_utxos(event);
+        self.add_event_and_compressed_accounts(event);
     }
 
-    pub fn add_event_and_utxos(&mut self, event: PublicTransactionEvent) -> Vec<usize> {
-        for utxo in event.in_utxos.iter() {
+    pub fn add_event_and_compressed_accounts(
+        &mut self,
+        event: PublicTransactionEvent,
+    ) -> Vec<usize> {
+        for compressed_account in event.input_compressed_accounts.iter() {
             let index = self
-                .utxos
+                .compressed_accounts
                 .iter()
-                .position(|x| x == utxo)
-                .expect("utxo not found");
-            self.utxos.remove(index);
-            // TODO: nullify utxo in Merkle tree, not implemented yet
-            self.nullified_utxos.push(utxo.clone());
-            // let index = self.utxos.iter().position(|x| x == utxo);
-            // match index {
-            //     Some(index) => {
-            //         let token_utxo_element = self.token_utxos[index].clone();
-            //         self.token_utxos.remove(index);
-            //         self.token_nullified_utxos.push(token_utxo_element);
-            //     }
-            //     None => {}
-            // }
+                .position(|x| x.compressed_account == compressed_account.compressed_account)
+                .expect("compressed_account not found");
+            self.compressed_accounts.remove(index);
+            // TODO: nullify compressed_account in Merkle tree, not implemented yet
+            self.nullified_compressed_accounts
+                .push(compressed_account.clone());
         }
-        let mut indices = Vec::with_capacity(event.out_utxos.len());
-        for utxo in event.out_utxos.iter() {
-            self.utxos.push(utxo.clone());
-            indices.push(self.utxos.len() - 1);
+        let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());
+        for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
+            self.compressed_accounts
+                .push(CompressedAccountWithMerkleContext {
+                    compressed_account: compressed_account.clone(),
+                    leaf_index: event.output_leaf_indices[i as usize],
+                    merkle_tree_pubkey_index: 0,
+                    index_nullifier_queue_pubkey_index: 0,
+                });
+            indices.push(self.compressed_accounts.len() - 1);
             self.merkle_tree
-                .append(&utxo.hash())
+                .append(
+                    &compressed_account
+                        .hash(
+                            &self.merkle_tree_pubkey,
+                            &event.output_leaf_indices[i as usize],
+                        )
+                        .unwrap(),
+                )
                 .expect("insert failed");
         }
 
@@ -504,9 +675,9 @@ impl MockIndexer {
         indices
     }
 
-    /// Check utxos in the queue array which are not nullified yet
-    /// Iterate over these utxos and nullify them
-    pub async fn nullify_utxos(&mut self, context: &mut ProgramTestContext) {
+    /// Check compressed_accounts in the queue array which are not nullified yet
+    /// Iterate over these compressed_accounts and nullify them
+    pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
             context,
             self.indexed_array_pubkey,
@@ -524,21 +695,24 @@ impl MockIndexer {
             .unwrap();
         let change_log_index = merkle_tree.current_changelog_index as u64;
 
-        let mut utxo_to_nullify = Vec::new();
+        let mut compressed_account_to_nullify = Vec::new();
 
         for (i, element) in indexed_array.iter().enumerate() {
             if element.merkle_tree_overwrite_sequence_number == 0 && element.element != [0u8; 32] {
-                utxo_to_nullify.push((i, element));
+                compressed_account_to_nullify.push((i, element));
             }
         }
 
-        for (index_in_indexed_array, utxo) in utxo_to_nullify.iter() {
-            let leaf_index = self.merkle_tree.get_leaf_index(&utxo.element).unwrap();
+        for (index_in_indexed_array, compressed_account) in compressed_account_to_nullify.iter() {
+            let leaf_index = self
+                .merkle_tree
+                .get_leaf_index(&compressed_account.element)
+                .unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
-                .get_proof_of_leaf(leaf_index, true)
+                .get_proof_of_leaf(leaf_index, false)
                 .unwrap()
-                .to_array::<26>()
+                .to_array::<16>()
                 .unwrap()
                 .to_vec();
 
@@ -568,7 +742,10 @@ impl MockIndexer {
             )
             .await;
             let indexed_array = array.deserialized().indexed_array;
-            assert_eq!(indexed_array[*index_in_indexed_array].element, utxo.element);
+            assert_eq!(
+                indexed_array[*index_in_indexed_array].element,
+                compressed_account.element
+            );
             let merkle_tree_account =
                 light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
                     context,
