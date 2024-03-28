@@ -1,69 +1,69 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import {
-  CompressedAccount,
-  bn,
-  createCompressedAccount,
+    CompressedAccount,
+    bn,
+    createCompressedAccount,
 } from '../../src/state';
 import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
 
 import { Keypair, Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import {
-  getTestRpc,
-  newAccountWithLamports,
-  placeholderValidityProof,
+    getTestRpc,
+    newAccountWithLamports,
+    placeholderValidityProof,
 } from '../../src/test-utils';
 import { LightSystemProgram, Rpc } from '../../src';
 
 describe('transfer', () => {
-  const { merkleTree } = defaultTestStateTreeAccounts();
-  let rpc: Rpc;
-  let payer: Signer;
-  let bob: Signer;
+    const { merkleTree } = defaultTestStateTreeAccounts();
+    let rpc: Rpc;
+    let payer: Signer;
+    let bob: Signer;
 
-  beforeAll(async () => {
-    rpc = await getTestRpc();
-    payer = await newAccountWithLamports(rpc);
-    bob = Keypair.generate();
-  });
-  // Note:
-  // We don't compress SOL yet, therefore cannot spend utxos with value yet.
-  // TODO: add one run with with inputUtxo where lamports: 0
-  it('should send compressed lamports alice -> bob', async () => {
-    const proof_mock = placeholderValidityProof();
-
-    const ixs = await LightSystemProgram.transfer({
-      payer: payer.publicKey,
-      inputCompressedAccounts: [],
-      toAddress: bob.publicKey,
-      lamports: 0,
-      recentInputStateRootIndices: [],
-      recentValidityProof: proof_mock,
-      outputStateTrees: [merkleTree, merkleTree],
+    beforeAll(async () => {
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc);
+        bob = Keypair.generate();
     });
+    // Note:
+    // We don't compress SOL yet, therefore cannot spend utxos with value yet.
+    // TODO: add one run with with inputUtxo where lamports: 0
+    it('should send compressed lamports alice -> bob', async () => {
+        const proof_mock = placeholderValidityProof();
 
-    /// Send
-    const { blockhash } = await rpc.getLatestBlockhash();
-    const signedTx = buildAndSignTx(ixs, payer, blockhash);
-    await sendAndConfirmTx(rpc, signedTx);
+        const ixs = await LightSystemProgram.transfer({
+            payer: payer.publicKey,
+            inputCompressedAccounts: [],
+            toAddress: bob.publicKey,
+            lamports: 0,
+            recentInputStateRootIndices: [],
+            recentValidityProof: proof_mock,
+            outputStateTrees: [merkleTree, merkleTree],
+        });
 
-    rpc = await getTestRpc();
+        /// Send
+        const { blockhash } = await rpc.getLatestBlockhash();
+        const signedTx = buildAndSignTx(ixs, payer, blockhash);
+        await sendAndConfirmTx(rpc, signedTx);
 
-    // @ts-ignore
-    const indexedEvents = await rpc.getParsedEvents();
-    assert.equal(indexedEvents.length, 1);
-    assert.equal(indexedEvents[0].inputCompressedAccounts.length, 0);
-    assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
-    assert.equal(
-      Number(indexedEvents[0].outputCompressedAccounts[0].lamports),
-      0,
-    );
+        rpc = await getTestRpc();
 
-    assert.equal(
-      indexedEvents[0].outputCompressedAccounts[0].owner.toBase58(),
-      bob.publicKey.toBase58(),
-    );
+        // @ts-ignore
+        const indexedEvents = await rpc.getParsedEvents();
+        assert.equal(indexedEvents.length, 1);
+        assert.equal(indexedEvents[0].inputCompressedAccounts.length, 0);
+        assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
+        assert.equal(
+            Number(indexedEvents[0].outputCompressedAccounts[0].lamports),
+            0,
+        );
 
-    assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
-  });
+        assert.equal(
+            indexedEvents[0].outputCompressedAccounts[0].owner.toBase58(),
+            bob.publicKey.toBase58(),
+        );
+
+        assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
+    });
 });

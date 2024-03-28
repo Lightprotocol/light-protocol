@@ -6,9 +6,9 @@ WIP.
 
 reproduced on mac m2:
 
-- node: v20.9.0
-- rustup 1.26.0, rustc 1.73.0, cargo 1.73.0
-- solana-cli 1.17.5
+-   node: v20.9.0
+-   rustup 1.26.0, rustc 1.73.0, cargo 1.73.0
+-   solana-cli 1.17.5
 
 ## Producing events for indexing
 
@@ -48,13 +48,13 @@ You'll be able to index the emitted events (output utxos) according to the event
 
 If you're having trouble building the project or cli,
 
-- Nuke git clean -xfd (careful)
+-   Nuke git clean -xfd (careful)
 
-- re-run install.sh etc
+-   re-run install.sh etc
 
-- you may want to manually build the programs (anchor build)
-  or manually build the cli (`pnpm run build` in ./cli) before running
-  `./cli/test_bin/run test-validator`
+-   you may want to manually build the programs (anchor build)
+    or manually build the cli (`pnpm run build` in ./cli) before running
+    `./cli/test_bin/run test-validator`
 
 ### Other side notes
 

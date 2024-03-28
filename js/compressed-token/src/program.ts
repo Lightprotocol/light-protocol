@@ -1,26 +1,26 @@
 import {
-  PublicKey,
-  Keypair,
-  TransactionInstruction,
-  SystemProgram,
-  Connection,
+    PublicKey,
+    Keypair,
+    TransactionInstruction,
+    SystemProgram,
+    Connection,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, PspCompressedToken } from './idl/psp_compressed_token';
 import {
-  LightSystemProgram,
-  PublicTransactionEvent,
-  bn,
-  confirmConfig,
-  defaultStaticAccountsStruct,
-  getConnection,
-  toArray,
-  useWallet,
+    LightSystemProgram,
+    PublicTransactionEvent,
+    bn,
+    confirmConfig,
+    defaultStaticAccountsStruct,
+    getConnection,
+    toArray,
+    useWallet,
 } from '@lightprotocol/stateless.js';
 import {
-  MINT_SIZE,
-  TOKEN_PROGRAM_ID,
-  createInitializeMint2Instruction,
+    MINT_SIZE,
+    TOKEN_PROGRAM_ID,
+    createInitializeMint2Instruction,
 } from '@solana/spl-token';
 import { MINT_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { Buffer } from 'buffer';
@@ -28,199 +28,200 @@ import { TokenData } from './types';
 
 /** Create Mint account for compressed Tokens */
 export type CreateMintParams = {
-  /** Tx feepayer */
-  feePayer: PublicKey;
-  /** Mint authority */
-  authority: PublicKey;
-  /** Mint public key */
-  mint: PublicKey;
-  /** Mint decimals */
-  decimals: number;
-  /** Optional: freeze authority */
-  freezeAuthority: PublicKey | null;
-  /** lamport amount for mint account rent exemption */
-  rentExemptBalance: number;
+    /** Tx feepayer */
+    feePayer: PublicKey;
+    /** Mint authority */
+    authority: PublicKey;
+    /** Mint public key */
+    mint: PublicKey;
+    /** Mint decimals */
+    decimals: number;
+    /** Optional: freeze authority */
+    freezeAuthority: PublicKey | null;
+    /** lamport amount for mint account rent exemption */
+    rentExemptBalance: number;
 };
 
 /**
  * Create compressed token accounts
  */
 export type MintToParams = {
-  /** Tx feepayer */
-  feePayer: PublicKey;
-  /** Mint authority */
-  authority: PublicKey;
-  /** Mint public key */
-  mint: PublicKey;
-  /** The Solana Public Keys to mint to. Accepts batches */
-  toPubkey: PublicKey[] | PublicKey;
-  /** The amount of compressed tokens to mint. Accepts batches */
-  amount: BN | BN[] | number | number[]; // TODO: check if considers mint decimals
-  /** Public key of the state tree to mint into. */
-  merkleTree: PublicKey; // TODO: make optional with default system state trees
+    /** Tx feepayer */
+    feePayer: PublicKey;
+    /** Mint authority */
+    authority: PublicKey;
+    /** Mint public key */
+    mint: PublicKey;
+    /** The Solana Public Keys to mint to. Accepts batches */
+    toPubkey: PublicKey[] | PublicKey;
+    /** The amount of compressed tokens to mint. Accepts batches */
+    amount: BN | BN[] | number | number[]; // TODO: check if considers mint decimals
+    /** Public key of the state tree to mint into. */
+    merkleTree: PublicKey; // TODO: make optional with default system state trees
 };
 
 export class CompressedTokenProgram {
-  /**
-   * @internal
-   */
-  constructor() {}
+    /**
+     * @internal
+     */
+    constructor() {}
 
-  /**
-   * Public key that identifies the CompressedPda program
-   */
-  static programId: PublicKey = new PublicKey(
-    // TODO: can add check to ensure its consistent with the idl
-    '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
-  );
+    /**
+     * Public key that identifies the CompressedPda program
+     */
+    static programId: PublicKey = new PublicKey(
+        // TODO: can add check to ensure its consistent with the idl
+        '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
+    );
 
-  private static _program: Program<PspCompressedToken> | null = null;
+    private static _program: Program<PspCompressedToken> | null = null;
 
-  static get program(): Program<PspCompressedToken> {
-    if (!this._program) {
-      this.initializeProgram();
+    static get program(): Program<PspCompressedToken> {
+        if (!this._program) {
+            this.initializeProgram();
+        }
+        return this._program!;
     }
-    return this._program!;
-  }
 
-  /**
-   * Initializes the program statically if not already initialized.
-   */
-  private static initializeProgram() {
-    if (!this._program) {
-      /// We can use a mock connection because we're using the program only for
-      /// serde and building instructions, not for interacting with the network.
-      const mockKeypair = Keypair.generate();
-      const mockConnection = new Connection(
-        'http://127.0.0.1:8899',
-        'confirmed',
-      );
-      const mockProvider = new AnchorProvider(
-        mockConnection,
-        useWallet(mockKeypair),
-        confirmConfig,
-      );
-      setProvider(mockProvider);
-      this._program = new Program(IDL, this.programId, mockProvider);
+    /**
+     * Initializes the program statically if not already initialized.
+     */
+    private static initializeProgram() {
+        if (!this._program) {
+            /// We can use a mock connection because we're using the program only for
+            /// serde and building instructions, not for interacting with the network.
+            const mockKeypair = Keypair.generate();
+            const mockConnection = new Connection(
+                'http://127.0.0.1:8899',
+                'confirmed',
+            );
+            const mockProvider = new AnchorProvider(
+                mockConnection,
+                useWallet(mockKeypair),
+                confirmConfig,
+            );
+            setProvider(mockProvider);
+            this._program = new Program(IDL, this.programId, mockProvider);
+        }
     }
-  }
 
-  /** @internal */
-  static deriveMintAuthorityPda = (
-    authority: PublicKey,
-    mint: PublicKey,
-  ): PublicKey => {
-    const [pubkey] = PublicKey.findProgramAddressSync(
-      [MINT_AUTHORITY_SEED, authority.toBuffer(), mint.toBuffer()],
-      this.programId,
-    );
-    return pubkey;
-  };
+    /** @internal */
+    static deriveMintAuthorityPda = (
+        authority: PublicKey,
+        mint: PublicKey,
+    ): PublicKey => {
+        const [pubkey] = PublicKey.findProgramAddressSync(
+            [MINT_AUTHORITY_SEED, authority.toBuffer(), mint.toBuffer()],
+            this.programId,
+        );
+        return pubkey;
+    };
 
-  /** @internal */
-  static deriveTokenPoolPda(mint: PublicKey): PublicKey {
-    const seeds = [POOL_SEED, mint.toBuffer()];
-    const [address, _] = PublicKey.findProgramAddressSync(
-      seeds,
-      this.programId,
-    );
-    return address;
-  }
+    /** @internal */
+    static deriveTokenPoolPda(mint: PublicKey): PublicKey {
+        const seeds = [POOL_SEED, mint.toBuffer()];
+        const [address, _] = PublicKey.findProgramAddressSync(
+            seeds,
+            this.programId,
+        );
+        return address;
+    }
 
-  /** @internal */
-  static get deriveCpiAuthorityPda(): PublicKey {
-    const [address, _] = PublicKey.findProgramAddressSync(
-      [Buffer.from('cpi_authority')],
-      this.programId,
-    );
-    return address;
-  }
+    /** @internal */
+    static get deriveCpiAuthorityPda(): PublicKey {
+        const [address, _] = PublicKey.findProgramAddressSync(
+            [Buffer.from('cpi_authority')],
+            this.programId,
+        );
+        return address;
+    }
 
-  static async createMint(
-    params: CreateMintParams,
-  ): Promise<TransactionInstruction[]> {
-    const { mint, authority, feePayer, rentExemptBalance } = params;
+    static async createMint(
+        params: CreateMintParams,
+    ): Promise<TransactionInstruction[]> {
+        const { mint, authority, feePayer, rentExemptBalance } = params;
 
-    const createMintAccountInstruction = SystemProgram.createAccount({
-      fromPubkey: feePayer,
-      lamports: rentExemptBalance,
-      newAccountPubkey: mint,
-      programId: TOKEN_PROGRAM_ID,
-      space: MINT_SIZE,
-    });
+        const createMintAccountInstruction = SystemProgram.createAccount({
+            fromPubkey: feePayer,
+            lamports: rentExemptBalance,
+            newAccountPubkey: mint,
+            programId: TOKEN_PROGRAM_ID,
+            space: MINT_SIZE,
+        });
 
-    const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+        const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
 
-    const initializeMintInstruction = createInitializeMint2Instruction(
-      mint,
-      params.decimals,
-      mintAuthorityPda,
-      params.freezeAuthority,
-      TOKEN_PROGRAM_ID,
-    );
+        const initializeMintInstruction = createInitializeMint2Instruction(
+            mint,
+            params.decimals,
+            mintAuthorityPda,
+            params.freezeAuthority,
+            TOKEN_PROGRAM_ID,
+        );
 
-    const fundAuthorityPdaInstruction = SystemProgram.transfer({
-      fromPubkey: feePayer,
-      toPubkey: mintAuthorityPda,
-      lamports: rentExemptBalance, // TODO: check that this is the right PDA size
-    });
+        const fundAuthorityPdaInstruction = SystemProgram.transfer({
+            fromPubkey: feePayer,
+            toPubkey: mintAuthorityPda,
+            lamports: rentExemptBalance, // TODO: check that this is the right PDA size
+        });
 
-    const tokenPoolPda = this.deriveTokenPoolPda(mint);
+        const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
-    const ix = await this.program.methods
-      .createMint()
-      .accounts({
-        mint,
-        feePayer,
-        authority,
-        tokenPoolPda,
-        systemProgram: SystemProgram.programId,
-        mintAuthorityPda,
-        tokenProgram: TOKEN_PROGRAM_ID,
-      })
-      .instruction();
+        const ix = await this.program.methods
+            .createMint()
+            .accounts({
+                mint,
+                feePayer,
+                authority,
+                tokenPoolPda,
+                systemProgram: SystemProgram.programId,
+                mintAuthorityPda,
+                tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .instruction();
 
-    return [
-      createMintAccountInstruction,
-      initializeMintInstruction,
-      fundAuthorityPdaInstruction,
-      ix,
-    ];
-  }
+        return [
+            createMintAccountInstruction,
+            initializeMintInstruction,
+            fundAuthorityPdaInstruction,
+            ix,
+        ];
+    }
 
-  static async mintTo(params: MintToParams): Promise<TransactionInstruction> {
-    const systemKeys = defaultStaticAccountsStruct();
+    static async mintTo(params: MintToParams): Promise<TransactionInstruction> {
+        const systemKeys = defaultStaticAccountsStruct();
 
-    const { mint, feePayer, authority, merkleTree, toPubkey, amount } = params;
+        const { mint, feePayer, authority, merkleTree, toPubkey, amount } =
+            params;
 
-    const tokenPoolPda = this.deriveTokenPoolPda(mint);
-    const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+        const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
 
-    const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
+        const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
-    const toPubkeys = toArray(toPubkey);
+        const toPubkeys = toArray(toPubkey);
 
-    const ix = await this.program.methods
-      .mintTo(toPubkeys, amounts)
-      .accounts({
-        feePayer,
-        authority,
-        mintAuthorityPda,
-        mint,
-        tokenPoolPda,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        compressedPdaProgram: LightSystemProgram.programId,
-        registeredProgramPda: systemKeys.registeredProgramPda,
-        noopProgram: systemKeys.noopProgram,
-        pspAccountCompressionAuthority:
-          systemKeys.pspAccountCompressionAuthority,
-        accountCompressionProgram: systemKeys.accountCompressionProgram,
-        merkleTree,
-      })
-      .instruction();
+        const ix = await this.program.methods
+            .mintTo(toPubkeys, amounts)
+            .accounts({
+                feePayer,
+                authority,
+                mintAuthorityPda,
+                mint,
+                tokenPoolPda,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                compressedPdaProgram: LightSystemProgram.programId,
+                registeredProgramPda: systemKeys.registeredProgramPda,
+                noopProgram: systemKeys.noopProgram,
+                pspAccountCompressionAuthority:
+                    systemKeys.pspAccountCompressionAuthority,
+                accountCompressionProgram: systemKeys.accountCompressionProgram,
+                merkleTree,
+            })
+            .instruction();
 
-    return ix;
-  }
+        return ix;
+    }
 }
 
 // TODO: move to serde

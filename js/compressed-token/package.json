@@ -1,80 +1,80 @@
 {
-  "name": "@lightprotocol/compressed-token",
-  "version": "0.0.1",
-  "description": "JS client to interact with the compressed-token program",
-  "sideEffects": false,
-  "type": "module",
-  "main": "./dist/umd/index.js",
-  "module": "./dist/es/index.js",
-  "exports": {
-    ".": {
-      "types": "./dist/types/main/index.d.ts",
-      "import": "./dist/es/index.js",
-      "default": "./dist/cjs/index.cjs"
+    "name": "@lightprotocol/compressed-token",
+    "version": "0.0.1",
+    "description": "JS client to interact with the compressed-token program",
+    "sideEffects": false,
+    "type": "module",
+    "main": "./dist/umd/index.js",
+    "module": "./dist/es/index.js",
+    "exports": {
+        ".": {
+            "types": "./dist/types/main/index.d.ts",
+            "import": "./dist/es/index.js",
+            "default": "./dist/cjs/index.cjs"
+        },
+        "./package.json": "./package.json"
     },
-    "./package.json": "./package.json"
-  },
-  "types": "./dist/types/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "test": "pnpm test:e2e:all",
-    "test-all": "vitest run",
-    "test:unit:all": "EXCLUDE_E2E=true vitest run",
-    "test-all:verbose": "vitest run --reporter=verbose",
-    "gnark-prover": "../../circuit-lib/circuit-lib.js/scripts/prover.sh",
-    "test-validator": "./../../cli/test_bin/run test-validator",
-    "pretest:e2e": "./../../cli/test_bin/run test-validator -b && pnpm gnark-prover",
-    "test:e2e:create-mint": "pnpm pretest:e2e && vitest run tests/e2e/create-mint.test.ts",
-    "test:e2e:mint-to": "pnpm pretest:e2e && vitest run tests/e2e/mint-to.test.ts",
-    "test:e2e:transfer": "pnpm pretest:e2e && vitest run tests/e2e/transfer.test.ts",
-    "test:e2e:multisig": "pnpm pretest:e2e && vitest run tests/e2e/multisig.test.ts",
-    "test:e2e:all": "pnpm pretest:e2e && vitest run tests/e2e/*.test.ts",
-    "pull-idl": "../../scripts/push-compressed-token-idl.sh",
-    "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
-    "build:bundle": "rollup -c --bundleConfigAsCjs",
-    "format": "prettier --write .",
-    "lint": "eslint ."
-  },
-  "keywords": [
-    "zk",
-    "compression",
-    "zk-compression",
-    "stateless",
-    "solana"
-  ],
-  "author": "",
-  "license": "Apache-2.0",
-  "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/stateless.js": "workspace:*",
-    "@lightprotocol/hasher.rs": "workspace:*",
-    "@metaplex-foundation/beet": "0.7.1",
-    "@metaplex-foundation/beet-solana": "^0.4.1",
-    "@solana/spl-token": "^0.3.7",
-    "@solana/web3.js": "^1.87.6",
-    "buffer": "^6.0.3",
-    "tweetnacl": "^1.0.3"
-  },
-  "devDependencies": {
-    "@types/node": "^20.10.2",
-    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-    "@rollup/plugin-typescript": "^11.1.5",
-    "@typescript-eslint/eslint-plugin": "^6.7.3",
-    "eslint": "^8.50.0",
-    "eslint-config-standard-with-typescript": "^39.1.0",
-    "eslint-plugin-import": "^2.25.2",
-    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
-    "eslint-plugin-promise": "^6.0.0",
-    "eslint-plugin-vitest": "^0.3.26",
-    "prettier": "^3.0.3",
-    "rimraf": "^5.0.5",
-    "rollup": "^4.6.1",
-    "rollup-plugin-polyfill-node": "^0.13.0",
-    "ts-node": "^10.9.1",
-    "tslib": "^2.6.2",
-    "typescript": "5.3.2",
-    "vitest": "^0.34.6"
-  }
+    "types": "./dist/types/index.d.ts",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "test": "pnpm test:e2e:all",
+        "test-all": "vitest run",
+        "test:unit:all": "EXCLUDE_E2E=true vitest run",
+        "test-all:verbose": "vitest run --reporter=verbose",
+        "gnark-prover": "../../circuit-lib/circuit-lib.js/scripts/prover.sh",
+        "test-validator": "./../../cli/test_bin/run test-validator",
+        "pretest:e2e": "./../../cli/test_bin/run test-validator -b && pnpm gnark-prover",
+        "test:e2e:create-mint": "pnpm pretest:e2e && vitest run tests/e2e/create-mint.test.ts",
+        "test:e2e:mint-to": "pnpm pretest:e2e && vitest run tests/e2e/mint-to.test.ts",
+        "test:e2e:transfer": "pnpm pretest:e2e && vitest run tests/e2e/transfer.test.ts",
+        "test:e2e:multisig": "pnpm pretest:e2e && vitest run tests/e2e/multisig.test.ts",
+        "test:e2e:all": "pnpm pretest:e2e && vitest run tests/e2e/*.test.ts",
+        "pull-idl": "../../scripts/push-compressed-token-idl.sh",
+        "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
+        "build:bundle": "rollup -c --bundleConfigAsCjs",
+        "format": "prettier --write .",
+        "lint": "eslint ."
+    },
+    "keywords": [
+        "zk",
+        "compression",
+        "zk-compression",
+        "stateless",
+        "solana"
+    ],
+    "author": "",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "@coral-xyz/anchor": "0.28.0",
+        "@lightprotocol/stateless.js": "workspace:*",
+        "@lightprotocol/hasher.rs": "workspace:*",
+        "@metaplex-foundation/beet": "0.7.1",
+        "@metaplex-foundation/beet-solana": "^0.4.1",
+        "@solana/spl-token": "^0.3.7",
+        "@solana/web3.js": "^1.87.6",
+        "buffer": "^6.0.3",
+        "tweetnacl": "^1.0.3"
+    },
+    "devDependencies": {
+        "@types/node": "^20.10.2",
+        "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@rollup/plugin-typescript": "^11.1.5",
+        "@typescript-eslint/eslint-plugin": "^6.7.3",
+        "eslint": "^8.50.0",
+        "eslint-config-standard-with-typescript": "^39.1.0",
+        "eslint-plugin-import": "^2.25.2",
+        "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+        "eslint-plugin-promise": "^6.0.0",
+        "eslint-plugin-vitest": "^0.3.26",
+        "prettier": "^3.0.3",
+        "rimraf": "^5.0.5",
+        "rollup": "^4.6.1",
+        "rollup-plugin-polyfill-node": "^0.13.0",
+        "ts-node": "^10.9.1",
+        "tslib": "^2.6.2",
+        "typescript": "5.3.2",
+        "vitest": "^0.34.6"
+    }
 }
