@@ -42,8 +42,8 @@ export interface PublicTransactionEvent {
   outputStateMerkleTreeAccountIndices: Uint8Array; // bytes
   outputLeafIndices: number[]; // Vec<u32>
   relayFee: BN | null; // Option<u64>
-  deCompressAmount: BN | null; // Option<u64>
   isCompress: boolean; // bool
+  deCompressAmount: BN | null; // Option<u64>
   pubkeyArray: PublicKey[]; // Vec<PublicKey>
   message: Uint8Array | null; // Option<bytes>
 }

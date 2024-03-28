@@ -86,11 +86,11 @@ export function packCompressedAccounts(
 
   /// input
   inputCompressedAccounts.forEach(account => {
-    const indexMerkleTree = getIndexOrAdd(
+    const merkleTreePubkeyIndex = getIndexOrAdd(
       _remainingAccounts,
       account.merkleTree,
     );
-    const indexNullifierQueue = getIndexOrAdd(
+    const nullifierQueuePubkeyIndex = getIndexOrAdd(
       _remainingAccounts,
       account.nullifierQueue,
     );
@@ -102,8 +102,8 @@ export function packCompressedAccounts(
         address: account.address,
         data: account.data,
       },
-      merkleTreePubkeyIndex: indexMerkleTree,
-      nullifierQueuePubkeyIndex: indexNullifierQueue,
+      merkleTreePubkeyIndex,
+      nullifierQueuePubkeyIndex,
       leafIndex: account.leafIndex,
     });
   });

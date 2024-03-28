@@ -102,7 +102,7 @@ export type PspCompressedPda = {
             type: 'u8';
           },
           {
-            name: 'indexNullifierQueuePubkeyIndex';
+            name: 'nullifierQueuePubkeyIndex';
             type: 'u8';
           },
           {
@@ -564,7 +564,7 @@ export const IDL: PspCompressedPda = {
             type: 'u8',
           },
           {
-            name: 'indexNullifierQueuePubkeyIndex',
+            name: 'nullifierQueuePubkeyIndex',
             type: 'u8',
           },
           {

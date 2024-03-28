@@ -43,7 +43,7 @@ pub fn create_execute_compressed_instruction(
         _input_compressed_accounts.push(CompressedAccountWithMerkleContext {
             compressed_account: input_compressed_accounts[i].clone(),
             merkle_tree_pubkey_index: *remaining_accounts.get(mt).unwrap() as u8,
-            index_nullifier_queue_pubkey_index: 0,
+            nullifier_queue_pubkey_index: 0,
             leaf_index: input_compressed_accounts_leaf_indices[i],
         });
     }
@@ -55,7 +55,7 @@ pub fn create_execute_compressed_instruction(
                 remaining_accounts.insert(*mt, i + len);
             }
         };
-        _input_compressed_accounts[i].index_nullifier_queue_pubkey_index =
+        _input_compressed_accounts[i].nullifier_queue_pubkey_index =
             *remaining_accounts.get(mt).unwrap() as u8;
     }
     let len: usize = remaining_accounts.len();
@@ -376,12 +376,12 @@ mod test {
         assert_eq!(instruction.accounts[0], ref_account_meta);
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
-                .index_nullifier_queue_pubkey_index,
+                .nullifier_queue_pubkey_index,
             1
         );
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
-                .index_nullifier_queue_pubkey_index,
+                .nullifier_queue_pubkey_index,
             1
         );
         assert_eq!(
@@ -399,13 +399,13 @@ mod test {
         assert_eq!(
             instruction.accounts[7 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[0]
-                .index_nullifier_queue_pubkey_index as usize],
+                .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
             instruction.accounts[7 + deserialized_instruction_data
                 .input_compressed_accounts_with_merkle_context[1]
-                .index_nullifier_queue_pubkey_index as usize],
+                .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(

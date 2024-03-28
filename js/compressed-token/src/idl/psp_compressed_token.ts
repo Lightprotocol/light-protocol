@@ -208,7 +208,7 @@ export type PspCompressedToken = {
             type: 'u8';
           },
           {
-            name: 'indexNullifierQueuePubkeyIndex';
+            name: 'nullifierQueuePubkeyIndex';
             type: 'u8';
           },
           {
@@ -911,7 +911,7 @@ export const IDL: PspCompressedToken = {
             type: 'u8',
           },
           {
-            name: 'indexNullifierQueuePubkeyIndex',
+            name: 'nullifierQueuePubkeyIndex',
             type: 'u8',
           },
           {
