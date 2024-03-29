@@ -20,7 +20,7 @@ pub struct InitializeCompressedSolPda<'info> {
     #[account(
         init,
         payer = fee_payer,
-        seeds = [&COMPRESSED_SOL_PDA_SEED],
+        seeds = [COMPRESSED_SOL_PDA_SEED],
         bump,
         space = CompressedSolPda::LEN,
     )]
@@ -86,26 +86,23 @@ pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
 }
 
 pub fn transfer_lamports<'info>(
-    sender: &AccountInfo<'info>,
-    receiver: &AccountInfo<'info>,
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
     msg!("transfer_lamports {}", lamports);
-    msg!("sender lamports: {}", sender.lamports());
-    msg!("receiver lamports: {}", receiver.lamports());
-    let instruction = anchor_lang::solana_program::system_instruction::transfer(
-        sender.key,
-        receiver.key,
-        lamports,
-    );
+    msg!("from lamports: {}", from.lamports());
+    msg!("to lamports: {}", to.lamports());
+    let instruction =
+        anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     let (seed, bump) = get_seeds(&crate::ID, &authority.key())?;
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
 
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
-        &[authority.clone(), sender.clone(), receiver.clone()],
+        &[authority.clone(), from.clone(), to.clone()],
         seeds,
     )?;
     Ok(())
