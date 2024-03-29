@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, AnchorDeserialize};
+use anchor_spl::token::{Token, TokenAccount};
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
 use psp_compressed_pda::{
@@ -9,7 +10,7 @@ use psp_compressed_pda::{
     InstructionDataTransfer as PspCompressedPdaInstructionDataTransfer,
 };
 
-use crate::ErrorCode;
+use crate::{de_compress::de_compress_amount, ErrorCode};
 
 /// Process a token transfer instruction
 ///
@@ -43,6 +44,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         None,
         true,
     )?;
+    de_compress_amount(&inputs, &ctx)?;
 
     let output_compressed_accounts = crate::create_output_compressed_accounts(
         inputs.mint,
@@ -225,6 +227,11 @@ pub struct TransferInstruction<'info> {
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
     pub self_program: Program<'info, crate::program::PspCompressedToken>,
+    #[account(mut)]
+    pub token_pool_pda: Option<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub decompress_token_account: Option<Account<'info, TokenAccount>>,
+    pub token_program: Option<Program<'info, Token>>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -250,14 +257,16 @@ pub struct InputTokenDataWithContext {
 // TODO: enable delegation fully by preserving delegation for every input utxo with a delegate create one output utxo with that delegate, take funds from utxos in reverse input order
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
-    proof: Option<CompressedProof>,
-    root_indices: Vec<u16>,
-    mint: Pubkey, // TODO: truncate mint pubkey offchain
-    signer_is_delegate: bool,
-    input_token_data_with_context: Vec<InputTokenDataWithContext>,
-    output_compressed_accounts: Vec<TokenTransferOutputData>,
-    output_state_merkle_tree_account_indices: Vec<u8>,
-    pubkey_array: Vec<Pubkey>,
+    pub proof: Option<CompressedProof>,
+    pub root_indices: Vec<u16>,
+    pub mint: Pubkey, // TODO: truncate mint pubkey offchain
+    pub signer_is_delegate: bool,
+    pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
+    pub output_compressed_accounts: Vec<TokenTransferOutputData>,
+    pub output_state_merkle_tree_account_indices: Vec<u8>,
+    pub pubkey_array: Vec<Pubkey>,
+    pub is_compress: bool,
+    pub de_compress_amount: Option<u64>,
 }
 
 impl CompressedTokenInstructionDataTransfer {
@@ -438,12 +447,16 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 pub mod transfer_sdk {
     use std::collections::HashMap;
 
+    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     use account_compression::{AccountMeta, NOOP_PROGRAM_ID};
-    use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-    use psp_compressed_pda::utils::CompressedProof;
+    use anchor_lang::{AnchorDeserialize, AnchorSerialize, Id, InstructionData, ToAccountMetas};
+    use anchor_spl::token::Token;
+    use psp_compressed_pda::{
+        compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+        utils::CompressedProof,
+    };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     #[allow(clippy::too_many_arguments)]
     pub fn create_transfer_instruction(
         fee_payer: &Pubkey,
@@ -457,6 +470,10 @@ pub mod transfer_sdk {
         proof: &CompressedProof,
         input_token_data: &[crate::TokenData],
         owner_if_delegate_is_signer: Option<Pubkey>,
+        is_compress: bool,
+        de_compress_amount: Option<u64>,
+        token_pool_pda: Option<Pubkey>,
+        decompress_token_account: Option<Pubkey>,
     ) -> Instruction {
         let mint = input_token_data[0].mint;
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
@@ -557,6 +574,8 @@ pub mod transfer_sdk {
             pubkey_array,
             signer_is_delegate: owner_if_delegate_is_signer.is_some(),
             mint,
+            is_compress,
+            de_compress_amount,
         };
         let mut inputs = Vec::new();
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
@@ -578,6 +597,10 @@ pub mod transfer_sdk {
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
+            token_pool_pda: token_pool_pda.map(|p| crate::get_token_pool_pda(&p)),
+            decompress_token_account: decompress_token_account
+                .map(|p| crate::get_token_pool_pda(&p)),
+            token_program: token_pool_pda.map(|_| Token::id()),
         };
 
         Instruction {

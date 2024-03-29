@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+pub mod de_compress;
 pub mod process_mint;
 pub mod process_transfer;
 
@@ -211,6 +212,14 @@ pub enum ErrorCode {
     ComputeDecompressSumFailed,
     #[msg("SumCheckFailed")]
     SumCheckFailed,
-    #[msg("DelegateUndefined while delegated amount is defined")]
-    DelegateUndefined,
+    #[msg("DecompressRecipientUndefinedForDecompress")]
+    DecompressRecipientUndefinedForDecompress,
+    #[msg("CompressedPdaUndefinedForDecompress")]
+    CompressedPdaUndefinedForDecompress,
+    #[msg("DeCompressAmountUndefinedForDecompress")]
+    DeCompressAmountUndefinedForDecompress,
+    #[msg("CompressedPdaUndefinedForCompress")]
+    CompressedPdaUndefinedForCompress,
+    #[msg("DeCompressAmountUndefinedForCompress")]
+    DeCompressAmountUndefinedForCompress,
 }
