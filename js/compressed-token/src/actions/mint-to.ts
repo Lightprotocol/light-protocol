@@ -11,9 +11,9 @@ import {
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
+    dedupeSigner,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../program';
-import { dedupeSigner, getSigners } from './common';
 
 /**
  * Mint compressed tokens to a solana address
@@ -24,7 +24,6 @@ import { dedupeSigner, getSigners } from './common';
  * @param destination    Address of the account to mint to
  * @param authority      Minting authority
  * @param amount         Amount to mint
- * @param multiSigners   Signing accounts if `authority` is a multisig
  * @param merkleTree     State tree account that the compressed tokens should be
  *                       part of. Defaults to the default state tree account.
  * @param confirmOptions Options for confirming the transaction
@@ -36,22 +35,17 @@ export async function mintTo(
     payer: Signer,
     mint: PublicKey,
     destination: PublicKey,
-    authority: Signer | PublicKey,
+    authority: Signer,
     amount: number | BN,
-    multiSigners: Signer[] = [],
     merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const [authorityPubkey, authoritySigners] = getSigners(
-        authority,
-        multiSigners,
-    );
-    const additionalSigners = dedupeSigner(payer, authoritySigners);
+    const additionalSigners = dedupeSigner(payer, [authority]);
 
     const ix = await CompressedTokenProgram.mintTo({
         feePayer: payer.publicKey,
         mint,
-        authority: authorityPubkey,
+        authority: authority.publicKey,
         amount: amount,
         toPubkey: destination,
         merkleTree,

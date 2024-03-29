@@ -27,7 +27,7 @@ use psp_compressed_pda::{
     utils::CompressedProof,
 };
 use psp_compressed_token::{
-    get_token_authority_pda, get_token_pool_pda,
+    get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
     transfer_sdk, ErrorCode, TokenData, TokenTransferOutputData,
 };
@@ -124,7 +124,7 @@ async fn assert_create_mint(
     assert_eq!(mint_account.amount, 0);
     assert_eq!(mint_account.delegate, None.into());
     assert_eq!(mint_account.mint, *mint);
-    assert_eq!(mint_account.owner, mint_authority);
+    assert_eq!(mint_account.owner, get_cpi_authority_pda().0);
 }
 
 #[tokio::test]
@@ -335,19 +335,25 @@ async fn test_transfer() {
         .collect();
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
-        &recipient_keypair.pubkey(),
-        &[merkle_tree_pubkey],   // input compressed account Merkle trees
-        &[indexed_array_pubkey], // input compressed account indexed arrays
-        &[merkle_tree_pubkey, merkle_tree_pubkey], // output compressed account Merkle trees
+        &recipient_keypair.pubkey(),               // authority
+        &[merkle_tree_pubkey],                     // input_compressed_account_merkle_tree_pubkeys
+        &[indexed_array_pubkey],                   // nullifier_array_pubkeys
+        &[merkle_tree_pubkey, merkle_tree_pubkey], // output_compressed_account_merkle_tree_pubkeys
         &[
+            // output_compressed_accounts
             change_out_compressed_account,
             transfer_recipient_out_compressed_account,
         ],
         &root_indices,
-        &input_compressed_account_indices,
+        &input_compressed_account_indices, // leaf_indices
         &proof,
-        [input_compressed_account_token_data].as_slice(),
-        None,
+        [input_compressed_account_token_data].as_slice(), // input_token_data
+        mint,
+        None,  // owner_if_delegate_is_signer
+        false, // is_compress
+        None,  // compression_amount
+        None,  // token_pool_pda
+        None,  // decompress_token_account
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -388,6 +394,226 @@ async fn test_transfer() {
     )
     .await;
     mock_indexer.nullify_compressed_accounts(&mut context).await;
+}
+
+#[tokio::test]
+async fn test_decompression() {
+    let env: light_test_utils::test_env::EnvWithAccounts =
+        setup_test_programs_with_accounts().await;
+    let mut context = env.context;
+    let payer = context.payer.insecure_clone();
+    let payer_pubkey = payer.pubkey();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let mock_indexer = MockIndexer::new(
+        merkle_tree_pubkey,
+        indexed_array_pubkey,
+        payer.insecure_clone(),
+        // Some(0), // TODO: check if required
+    );
+    let recipient_keypair = Keypair::new();
+    airdrop_lamports(&mut context, &recipient_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut context, &payer).await;
+    let amount = 10000u64;
+    let instruction = create_mint_to_instruction(
+        &payer_pubkey,
+        &payer_pubkey,
+        &mint,
+        &merkle_tree_pubkey,
+        vec![amount],
+        vec![recipient_keypair.pubkey()],
+    );
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.last_blockhash,
+    );
+    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+        &mut context,
+        env.merkle_tree_pubkey,
+    )
+    .await;
+    let old_merkle_tree = old_merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+    let mut mock_indexer = mock_indexer.await;
+    mock_indexer.add_compressed_accounts_with_token_data(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert_mint_to(
+        &mut context,
+        &mock_indexer,
+        &recipient_keypair,
+        mint,
+        amount,
+        &old_merkle_tree,
+    )
+    .await;
+    let recipient_token_account_keypair = Keypair::new();
+
+    let latest_blockhash = context.get_new_latest_blockhash().await.unwrap();
+    create_token_account(
+        &mut context,
+        &mint,
+        &recipient_token_account_keypair,
+        &recipient_keypair,
+    )
+    .await
+    .unwrap();
+
+    let input_compressed_account_token_data =
+        mock_indexer.token_compressed_accounts[0].token_data.clone();
+    let input_compressed_accounts = vec![mock_indexer.compressed_accounts
+        [mock_indexer.token_compressed_accounts[0].index]
+        .clone()];
+    let input_compressed_account_indices: Vec<u32> = input_compressed_accounts
+        .iter()
+        .map(|x| x.leaf_index)
+        .collect();
+
+    let change_out_compressed_account = TokenTransferOutputData {
+        amount: input_compressed_account_token_data.amount - 1000,
+        owner: recipient_keypair.pubkey(),
+        lamports: None,
+    };
+
+    let (root_indices, proof) = mock_indexer
+        .create_proof_for_compressed_accounts(
+            &[input_compressed_accounts[0]
+                .compressed_account
+                .hash(
+                    &merkle_tree_pubkey,
+                    &input_compressed_accounts[0].leaf_index,
+                )
+                .unwrap()],
+            &mut context,
+        )
+        .await;
+    let input_compressed_accounts: Vec<CompressedAccount> = input_compressed_accounts
+        .iter()
+        .map(|x| x.compressed_account.clone())
+        .collect();
+
+    let instruction = transfer_sdk::create_transfer_instruction(
+        &payer_pubkey,
+        &recipient_keypair.pubkey(),          // authority
+        &vec![merkle_tree_pubkey],            // input_compressed_account_merkle_tree_pubkeys
+        &vec![indexed_array_pubkey],          // nullifier_array_pubkeys
+        &vec![merkle_tree_pubkey],            // output_compressed_account_merkle_tree_pubkeys
+        &vec![change_out_compressed_account], // output_compressed_accounts
+        &root_indices,                        // root_indices
+        &input_compressed_account_indices,    // leaf_indices
+        &proof,
+        [input_compressed_account_token_data].as_slice(), // input_token_data
+        mint,                                             // mint
+        None,                                             // owner_if_delegate_is_signer
+        false,                                            // is_compress
+        Some(1000u64),                                    // compression_amount
+        Some(get_token_pool_pda(&mint)),                  // token_pool_pda
+        Some(recipient_token_account_keypair.pubkey()),   // decompress_token_account
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        [&payer, &recipient_keypair].as_slice(),
+        context.last_blockhash,
+    );
+
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+
+    mock_indexer.add_compressed_accounts_with_token_data(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+
+    let compress_out_compressed_account = TokenTransferOutputData {
+        amount: 1000,
+        owner: recipient_keypair.pubkey(),
+        lamports: None,
+    };
+    let approve_instruction = spl_token::instruction::approve(
+        &anchor_spl::token::ID,
+        &recipient_token_account_keypair.pubkey(),
+        &psp_compressed_token::get_cpi_authority_pda().0,
+        &recipient_keypair.pubkey(),
+        &[&recipient_keypair.pubkey()],
+        amount,
+    )
+    .unwrap();
+    // Compression
+    let instruction = transfer_sdk::create_transfer_instruction(
+        &payer_pubkey,
+        &recipient_keypair.pubkey(),            // authority
+        &vec![],                                // input_compressed_account_merkle_tree_pubkeys
+        &vec![],                                // nullifier_array_pubkeys
+        &vec![merkle_tree_pubkey],              // output_compressed_account_merkle_tree_pubkeys
+        &vec![compress_out_compressed_account], // output_compressed_accounts
+        &Vec::new(),                            // root_indices
+        &Vec::new(), // leaf_indices (TODO: why?) input_compressed_account_indices
+        &proof,
+        &Vec::new(),                                    // input_token_data
+        mint,                                           // mint
+        None,                                           // owner_if_delegate_is_signer
+        true,                                           // is_compress
+        Some(1000u64),                                  // compression_amount
+        Some(get_token_pool_pda(&mint)),                // token_pool_pda
+        Some(recipient_token_account_keypair.pubkey()), // decompress_token_account
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[approve_instruction, instruction],
+        Some(&payer_pubkey),
+        [&payer, &recipient_keypair].as_slice(),
+        context.last_blockhash,
+    );
+
+    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await;
+    mock_indexer.add_compressed_accounts_with_token_data(
+        res.unwrap()
+            .metadata
+            .unwrap()
+            .return_data
+            .unwrap()
+            .data
+            .to_vec(),
+    );
+    assert!(mock_indexer
+        .token_compressed_accounts
+        .iter()
+        .any(|x| x.token_data.amount == 1000));
+    assert!(mock_indexer
+        .token_compressed_accounts
+        .iter()
+        .any(|x| x.token_data.owner == recipient_keypair.pubkey()));
 }
 
 /// Failing security tests:
@@ -845,6 +1071,11 @@ async fn create_transfer_out_utxo_test(
         &input_compressed_account_indices,
         proof,
         input_compressed_account_token_data.as_slice(),
+        input_compressed_account_token_data[0].mint,
+        None,
+        false,
+        None,
+        None,
         None,
     );
 
@@ -859,6 +1090,42 @@ async fn create_transfer_out_utxo_test(
         transaction,
     )
     .await
+}
+pub async fn create_token_account(
+    context: &mut ProgramTestContext,
+    mint: &Pubkey,
+    account_keypair: &Keypair,
+    owner: &Keypair,
+) -> Result<(), BanksClientError> {
+    let rent = context
+        .banks_client
+        .get_rent()
+        .await
+        .unwrap()
+        .minimum_balance(anchor_spl::token::TokenAccount::LEN);
+    let account_create_ix = create_account_instruction(
+        &owner.pubkey(),
+        anchor_spl::token::TokenAccount::LEN,
+        rent,
+        &anchor_spl::token::ID,
+        Some(account_keypair),
+    );
+    let instruction = spl_token::instruction::initialize_account(
+        &spl_token::ID,
+        &account_keypair.pubkey(),
+        &mint,
+        &owner.pubkey(),
+    )
+    .unwrap();
+    crate::create_and_send_transaction(
+        context,
+        &[account_create_ix, instruction],
+        &owner.pubkey(),
+        &[account_keypair, owner],
+    )
+    .await
+    .unwrap();
+    Ok(())
 }
 
 async fn assert_mint_to<'a>(
