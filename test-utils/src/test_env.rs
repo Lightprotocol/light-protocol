@@ -228,6 +228,25 @@ pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
         &address_merkle_tree_keypair.pubkey(),
     )
     .await;
+
+    // #[cfg(feature = "psp_compressed_pda")]
+    // {
+    //     let compressed_sol_pda = psp_compressed_pda::de_compression::get_compressed_sol_pda();
+    //     let instruction_data = psp_compressed_pda::instruction::InitCompressSolPda {};
+    //     let accounts = psp_compressed_pda::accounts::InitializeCompressedSolPda {
+    //         fee_payer: payer.pubkey(),
+    //         compressed_sol_pda: compressed_sol_pda,
+    //         system_program: anchor_lang::solana_program::system_program::ID,
+    //     };
+    //     let instruction = Instruction {
+    //         program_id: psp_compressed_pda::ID,
+    //         accounts: accounts.to_account_metas(Some(true)),
+    //         data: instruction_data.data(),
+    //     };
+    //     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
+    //         .await
+    //         .unwrap();
+    // }
     EnvWithAccounts {
         context,
         merkle_tree_pubkey,
