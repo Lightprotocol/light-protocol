@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, AnchorDeserialize};
+use anchor_spl::token::{Token, TokenAccount};
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
 use psp_compressed_pda::{
@@ -9,7 +10,7 @@ use psp_compressed_pda::{
     InstructionDataTransfer as PspCompressedPdaInstructionDataTransfer,
 };
 
-use crate::ErrorCode;
+use crate::{de_compress::de_compress_amount, ErrorCode};
 
 /// Process a token transfer instruction
 ///
@@ -46,6 +47,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         None,
         true,
     )?;
+    de_compress_amount(&inputs, &ctx)?;
 
     let output_compressed_accounts = crate::create_output_compressed_accounts(
         mint,
@@ -259,18 +261,25 @@ pub struct TransferInstruction<'info> {
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
     pub self_program: Program<'info, crate::program::PspCompressedToken>,
+    #[account(mut)]
+    pub token_pool_pda: Option<Account<'info, TokenAccount>>,
+    #[account(mut)]
+    pub decompress_token_account: Option<Account<'info, TokenAccount>>,
+    pub token_program: Option<Program<'info, Token>>,
 }
 
 // TODO: parse compressed_accounts a more efficient way, since owner is sent multiple times this way
 // This struct is equivalent to the InstructionDataTransfer, but uses the imported types from the psp_compressed_pda
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
-    proof: Option<CompressedProof>,
-    root_indices: Vec<u16>,
-    input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
-    input_token_data: Vec<TokenData>,
-    output_compressed_accounts: Vec<TokenTransferOutputData>,
-    output_state_merkle_tree_account_indices: Vec<u8>,
+    pub proof: Option<CompressedProof>,
+    pub root_indices: Vec<u16>,
+    pub input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
+    pub input_token_data: Vec<TokenData>,
+    pub output_compressed_accounts: Vec<TokenTransferOutputData>,
+    pub output_state_merkle_tree_account_indices: Vec<u8>,
+    pub is_compress: bool,
+    pub de_compress_amount: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -392,15 +401,16 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 pub mod transfer_sdk {
     use std::collections::HashMap;
 
+    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     use account_compression::{AccountMeta, NOOP_PROGRAM_ID};
-    use anchor_lang::{AnchorDeserialize, AnchorSerialize, InstructionData, ToAccountMetas};
+    use anchor_lang::{AnchorDeserialize, AnchorSerialize, Id, InstructionData, ToAccountMetas};
+    use anchor_spl::token::Token;
     use psp_compressed_pda::{
         compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
         utils::CompressedProof,
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     #[allow(clippy::too_many_arguments)]
     pub fn create_transfer_instruction(
         fee_payer: &Pubkey,
@@ -413,6 +423,10 @@ pub mod transfer_sdk {
         root_indices: &[u16],
         leaf_indices: &[u32],
         proof: &CompressedProof,
+        is_compress: bool,
+        de_compress_amount: Option<u64>,
+        token_pool_pda: Option<Pubkey>,
+        decompress_token_account: Option<Pubkey>,
     ) -> Instruction {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         let mut input_compressed_accounts_with_merkle_context: Vec<
@@ -493,6 +507,8 @@ pub mod transfer_sdk {
             input_token_data: input_compressed_account_token_data,
             // TODO: support multiple output state merkle trees
             output_state_merkle_tree_account_indices,
+            is_compress,
+            de_compress_amount,
         };
         let mut inputs = Vec::new();
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
@@ -514,6 +530,10 @@ pub mod transfer_sdk {
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
+            token_pool_pda: token_pool_pda.map(|p| crate::get_token_pool_pda(&p)),
+            decompress_token_account: decompress_token_account
+                .map(|p| crate::get_token_pool_pda(&p)),
+            token_program: token_pool_pda.map(|_| Token::id()),
         };
 
         Instruction {
