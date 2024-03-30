@@ -30,9 +30,9 @@ pub fn create_execute_compressed_instruction(
     address_merkle_tree_pubkeys: &[Pubkey],
     new_address_seeds: &[[u8; 32]],
     proof: &CompressedProof,
-    de_compress_lamports: Option<u64>,
+    compression_lamports: Option<u64>,
     is_compress: bool,
-    de_compress_recipient: Option<Pubkey>,
+    compression_recipient: Option<Pubkey>,
 ) -> Instruction {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<CompressedAccountWithMerkleContext> =
@@ -124,7 +124,7 @@ pub fn create_execute_compressed_instruction(
         address_queue_account_indices,
         new_address_seeds: new_address_seeds.to_vec(),
         address_merkle_tree_account_indices,
-        de_compress_lamports,
+        compression_lamports,
         is_compress,
     };
 
@@ -134,7 +134,7 @@ pub fn create_execute_compressed_instruction(
 
     let instruction_data = crate::instruction::ExecuteCompressedTransaction { inputs };
 
-    let compressed_sol_pda = de_compress_lamports.map(|_| get_compressed_sol_pda());
+    let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
 
     let accounts = crate::accounts::TransferInstruction {
         signer: *payer,
@@ -146,7 +146,7 @@ pub fn create_execute_compressed_instruction(
         cpi_signature_account: None,
         invoking_program: None,
         compressed_sol_pda,
-        de_compress_recipient,
+        compression_recipient,
         system_program: Some(solana_sdk::system_program::ID),
     };
     Instruction {
@@ -389,7 +389,7 @@ mod test {
             proof.c
         );
         assert_eq!(
-            deserialized_instruction_data.de_compress_lamports.unwrap(),
+            deserialized_instruction_data.compression_lamports.unwrap(),
             100
         );
         assert_eq!(deserialized_instruction_data.is_compress, true);
