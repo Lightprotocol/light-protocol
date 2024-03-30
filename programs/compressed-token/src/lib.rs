@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 
-pub mod de_compress;
 pub mod process_mint;
 pub mod process_transfer;
+pub mod spl_compression;
 
 pub use process_mint::*;
 pub use process_transfer::*;
@@ -191,7 +191,7 @@ pub mod psp_compressed_token {
 }
 
 // verifier sdk improvements
-// - bundle into verify, get public inputs, de_compress
+// - bundle into verify, get public inputs, compression
 #[error_code]
 pub enum ErrorCode {
     #[msg("public keys and amounts must be of same length")]

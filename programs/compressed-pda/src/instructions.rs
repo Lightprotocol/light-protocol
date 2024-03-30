@@ -6,8 +6,8 @@ use anchor_lang::prelude::*;
 use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    compression_lamports,
     create_address::insert_addresses_into_address_merkle_tree_queue,
-    de_compress_lamports,
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     utils::CompressedProof,
@@ -26,7 +26,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
         &inputs.relay_fee,
-        &inputs.de_compress_lamports,
+        &inputs.compression_lamports,
         &inputs.is_compress,
     )?;
     msg!("sum check success");
@@ -44,8 +44,8 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         }
         None => Ok(()),
     }?;
-    // de_compress_lamports ---------------------------------------------------
-    de_compress_lamports(inputs, ctx)?;
+    // compression_lamports ---------------------------------------------------
+    compression_lamports(inputs, ctx)?;
 
     let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     fetch_roots(inputs, ctx, &mut roots)?;
@@ -177,7 +177,7 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub compressed_sol_pda: Option<Account<'info, CompressedSolPda>>,
     #[account(mut)]
-    pub de_compress_recipient: Option<UncheckedAccount<'info>>,
+    pub compression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Option<Program<'info, System>>,
 }
 
@@ -200,7 +200,7 @@ pub struct InstructionDataTransfer {
     /// The indices of the accounts in the output state merkle tree.
     pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub relay_fee: Option<u64>,
-    pub de_compress_lamports: Option<u64>,
+    pub compression_lamports: Option<u64>,
     pub is_compress: bool,
 }
 

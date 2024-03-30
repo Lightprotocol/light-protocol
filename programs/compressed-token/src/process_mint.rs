@@ -24,7 +24,7 @@ pub struct CreateMintInstruction<'info> {
               bump,
               payer = fee_payer,
               token::mint = mint,
-              token::authority = mint_authority_pda
+              token::authority = cpi_authority_pda,
     )]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
@@ -35,6 +35,8 @@ pub struct CreateMintInstruction<'info> {
     #[account(mut, seeds=[MINT_AUTHORITY_SEED, authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump)]
     pub mint_authority_pda: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
+    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump)]
+    pub cpi_authority_pda: AccountInfo<'info>,
 }
 
 pub fn process_mint_to<'info>(
@@ -115,7 +117,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         input_root_indices: Vec::new(),
         proof: None,
         new_address_params: Vec::new(),
-        de_compress_lamports: None,
+        compression_lamports: None,
         is_compress: false,
     };
 
@@ -151,7 +153,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         cpi_signature_account: None,
         invoking_program: None,
         compressed_sol_pda: None,
-        de_compress_recipient: None,
+        compression_recipient: None,
         system_program: None,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
@@ -265,7 +267,7 @@ pub mod mint_sdk {
     use anchor_spl;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    use crate::{get_token_authority_pda, get_token_pool_pda};
+    use crate::{get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda};
 
     pub fn create_initialize_mint_instruction(
         fee_payer: &Pubkey,
@@ -273,6 +275,7 @@ pub mod mint_sdk {
         mint: &Pubkey,
     ) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
+        println!("token_pool_pda: {:?}", token_pool_pda);
         let mint_authority_pda = get_token_authority_pda(authority, mint);
         let instruction_data = crate::instruction::CreateMint {};
 
@@ -284,6 +287,7 @@ pub mod mint_sdk {
             mint: *mint,
             mint_authority_pda,
             token_program: anchor_spl::token::ID,
+            cpi_authority_pda: get_cpi_authority_pda().0,
         };
 
         Instruction {
