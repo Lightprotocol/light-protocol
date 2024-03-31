@@ -11,7 +11,7 @@ pub struct Changelogs {
 }
 
 /// Event containing the Merkle path of the given
-/// [`StateMerkleTree`](light_merkle_tree_program::state::StateMerkleTree)
+/// [`StateMerkleTree`](account_compression::state::StateMerkleTree)
 /// change. Indexers can use this type of events to re-build a non-sparse
 /// version of state Merkle tree.
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
@@ -28,7 +28,7 @@ pub struct PathNode {
     pub index: u32,
 }
 
-/// Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).
+/// Version 1 of the [`ChangelogEvent`](account_compression::state::ChangelogEvent).
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct ChangelogEventV1 {
     /// Public key of the tree.
