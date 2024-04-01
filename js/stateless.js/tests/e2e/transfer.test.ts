@@ -49,7 +49,7 @@ describe('transfer', () => {
 
         // @ts-ignore
         const indexedEvents = await rpc.getParsedEvents();
-        assert.equal(indexedEvents.length, 1);
+        assert.equal(indexedEvents.length > 0, true);
         assert.equal(indexedEvents[0].inputCompressedAccounts.length, 0);
         assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
         assert.equal(

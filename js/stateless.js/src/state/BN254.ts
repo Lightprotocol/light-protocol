@@ -29,7 +29,7 @@ export const createBN254 = (
     if (base === 'base58') {
         if (typeof number !== 'string')
             throw new Error('Must be a base58 string');
-        return createBN254(Buffer.from(bs58.decode(number)));
+        return createBN254(bs58.decode(number));
     }
 
     const bigintNumber = new BN(number, base);

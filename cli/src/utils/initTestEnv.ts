@@ -217,6 +217,7 @@ export async function startTestValidator({
 
   await new Promise((r) => setTimeout(r, 1000));
 
+  console.log("Starting test validator...", command);
   await executeCommand({
     command,
     args: [...solanaArgs],

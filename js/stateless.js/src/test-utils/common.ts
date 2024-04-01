@@ -57,18 +57,13 @@ export async function getTestRpc(
 
     const defaultAccounts = defaultTestStateTreeAccounts();
 
-    return new TestRpc(
-        endpoint,
-        lightWasm,
-        {
-            merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
-            nullifierQueueAddress:
-                nullifierQueueAddress || defaultAccounts.nullifierQueue,
-            depth: depth || defaultAccounts.merkleTreeHeight,
-            log,
-        },
-        proverEndpoint,
-    );
+    return new TestRpc(endpoint, lightWasm, proverEndpoint, {
+        merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
+        nullifierQueueAddress:
+            nullifierQueueAddress || defaultAccounts.nullifierQueue,
+        depth: depth || defaultAccounts.merkleTreeHeight,
+        log,
+    });
 }
 
 /**

@@ -7,13 +7,13 @@ import {
     array,
     literal,
     union,
-    optional,
     coerce,
     instance,
     create,
-    tuple,
     unknown,
     any,
+    boolean,
+    nullable,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
 import {
@@ -22,6 +22,9 @@ import {
     createBN254,
     CompressedProof,
     CompressedAccountWithMerkleContext,
+    MerkleContextWithMerkleProof,
+    bn,
+    TokenData,
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
@@ -36,21 +39,56 @@ export type CompressedProofWithContext = {
     merkleTree: PublicKey;
     nullifierQueue: PublicKey;
 };
+
+export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
+    mint?: PublicKey;
+    cursor?: string;
+    limit?: BN;
+}
+
 export type GetCompressedAccountsFilter = MemcmpFilter | DataSizeFilter;
 
-export type GetUtxoConfig = {
+export type GetCompressedAccountConfig = {
     encoding?: string;
 };
-export type GetCompressedAccountConfig = GetUtxoConfig;
 
 export type GetCompressedAccountsConfig = {
     encoding?: string;
     filters?: GetCompressedAccountsFilter[];
 };
 
+interface PaginatedCompressedAccountList {
+    items: CompressedAccountWithMerkleContext[];
+    cursor: number[]; // hash
+}
+
+export interface ParsedTokenAccount {
+    compressedAccount: CompressedAccountWithMerkleContext;
+    parsed: TokenData;
+}
+
+export interface PaginatedParsedTokenAccountList {
+    items: ParsedTokenAccount[];
+    cursor: number[];
+}
+
+interface Options {
+    cursor?: number[];
+    limit?: BN;
+}
+
 export type WithMerkleUpdateContext<T> = {
     /** merkle update context */
     context: MerkleUpdateContext | null;
+    /** response value */
+    value: T;
+};
+
+export type WithContext<T> = {
+    /** context */
+    context: {
+        slot: number;
+    };
     /** response value */
     value: T;
 };
@@ -68,30 +106,16 @@ const PublicKeyFromString = coerce(
  * @internal
  */
 // TODO: use a BN254 class here for the 1st parameter
-const BN254FromString = coerce(instance(BN), string(), value =>
-    createBN254(value),
-);
+const BN254FromString = coerce(instance(BN), string(), value => {
+    return createBN254(value, 'base58');
+});
+
+const BNFromInt = coerce(instance(BN), number(), value => bn(value));
 
 /**
  * @internal
  */
-const Base64EncodedUtxoDataResult = tuple([string(), literal('base64')]);
-
-// /**
-//  * @internal
-//  */
-// const TlvFromBase64EncodedUtxoData = coerce(
-//     instance(Array<CompressedAccountData>),
-//     Base64EncodedUtxoDataResult,
-//     value => {
-//         const decodedData = decodeUtxoData(Buffer.from(value[0], 'base64'));
-//         if (decodedData.tlvElements.every(isValidTlvDataElement)) {
-//             return decodedData;
-//         } else {
-//             throw new Error('Invalid TlvDataElement structure');
-//         }
-//     },
-// );
+const Base64EncodedCompressedAccountDataResult = string();
 
 /**
  * @internal
@@ -109,7 +133,7 @@ export function createRpcResult<T, U>(result: Struct<T, U>) {
             error: pick({
                 code: unknown(),
                 message: string(),
-                data: optional(any()),
+                data: nullable(any()),
             }),
         }),
     ]);
@@ -153,72 +177,151 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
 /**
  * @internal
  */
-// /// Utxo with merkle context
-// export const UtxoResult = pick({
-//     data: TlvFromBase64EncodedUtxoData,
-//     owner: PublicKeyFromString,
-//     lamports: number(),
-//     leafIndex: number(),
-//     merkleTree: PublicKeyFromString,
-//     nullifierQueue: PublicKeyFromString,
-//     slotCreated: number(),
-//     seq: number(),
-//     address: optional(PublicKeyFromString),
-// });
-
-/**
- * @internal
- */
-// /// Utxo with merkle context
-// export const UtxosResult = array(
-//     pick({
-//         data: TlvFromBase64EncodedUtxoData,
-//         hash: BN254FromString,
-//         lamports: number(),
-//         leafIndex: number(),
-//         merkleTree: PublicKeyFromString,
-//         nullifierQueue: PublicKeyFromString,
-//         slotCreated: number(),
-//         seq: number(),
-//         address: optional(PublicKeyFromString),
-//     }),
-// );
-/**
- * @internal
- */
-export const MerkleProofResult = pick({
-    merkleTree: PublicKeyFromString,
-    nullifierQueue: PublicKeyFromString,
+/// Compressed Account With Merkle Context
+export const CompressedAccountResult = pick({
+    hash: BN254FromString,
+    address: nullable(PublicKeyFromString),
+    data: Base64EncodedCompressedAccountDataResult,
+    dataHash: nullable(BN254FromString),
+    discriminator: BNFromInt,
+    owner: PublicKeyFromString,
+    lamports: BNFromInt,
+    tree: nullable(PublicKeyFromString), // TODO: should not be optional
+    seq: nullable(BNFromInt),
+    slotUpdated: BNFromInt,
     leafIndex: number(),
-    proof: array(BN254FromString),
-    rootIndex: number(),
 });
 
 /**
  * @internal
  */
-export const CompressedAccountMerkleProofResult = pick({
-    utxoHash: PublicKeyFromString,
+export const CompressedTokenAccountResult = pick({
+    address: PublicKeyFromString, // TODO: why is this here
+    amount: BNFromInt,
+    delegate: PublicKeyFromString,
+    closeAuthority: PublicKeyFromString, // TODO: remove
+    isNative: boolean(), // coerce(boolean(), string(), value => value === 'true'),
+    frozen: boolean(),
+    mint: PublicKeyFromString,
+    owner: PublicKeyFromString, // owner or user??
+    //
+    hash: BN254FromString,
+    data: Base64EncodedCompressedAccountDataResult,
+    discriminator: BNFromInt,
+    lamports: BNFromInt,
+    tree: PublicKeyFromString,
+    seq: nullable(BNFromInt),
+    // slotUpdated: BNFromInt, TODO: add owner (?): TODO: check whether this
+    // implicitly assumes tokenprogram as account owner
+});
+
+/**
+ * @internal
+ */
+export const MultipleCompressedAccountsResult = pick({
+    items: array(CompressedAccountResult),
+});
+
+/**
+ * @internal
+ */
+export const CompressedAccountsByOwnerResult = pick({
+    items: array(CompressedAccountResult),
+    // cursor: array(number()), // paginated
+});
+
+/**
+ * @internal
+ */
+export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
+    items: array(CompressedTokenAccountResult),
+    cursor: array(number()), // paginated
+});
+
+/**
+ * @internal
+ */
+export const SlotResult = number();
+
+/**
+ * @internal
+ */
+export const HealthResult = string();
+
+/**
+ * @internal
+ */
+export const MerkeProofResult = pick({
+    hash: BN254FromString,
     merkleTree: PublicKeyFromString,
-    nullifierQueue: PublicKeyFromString,
     leafIndex: number(),
     proof: array(BN254FromString),
-    rootIndex: number(),
+});
+
+/**
+ * @internal
+ */
+export const MultipleMerkleProofsResult = array(MerkeProofResult);
+
+/**
+ * @internal
+ */
+export const BalanceResult = BNFromInt;
+
+/// TODO: we need to add: tree, nullifierQueue, leafIndex, rootIndex
+export const AccountProofResult = pick({
+    hash: array(number()),
+    root: array(number()),
+    proof: array(array(number())),
 });
 
 export interface CompressionApiInterface {
-    /** Retrieve a utxo */
-    // getUtxo(
-    //     utxoHash: BN254,
-    //     config?: GetUtxoConfig,
-    // ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext> | null>;
-    /** Retrieve the proof for a utxo */
-    // getUtxoProof(utxoHash: BN254): Promise<MerkleContext | null>;
-    /** Retrieve utxos by owner */
-    getUtxos(
-        owner: PublicKey,
-        config?: GetUtxoConfig,
-    ): Promise<WithMerkleUpdateContext<CompressedAccountWithMerkleContext>[]>;
+    /** Retrieve compressed account by hash or address */
+    getCompressedAccount(
+        hash: BN254,
+    ): Promise<CompressedAccountWithMerkleContext | null>;
 
-    getValidityProof(utxoHashes: BN254[]): Promise<CompressedProofWithContext>;
+    /** Retrieve compressed account by hash or address */
+    getCompressedBalance(hash: BN254): Promise<BN | null>;
+
+    /** Retrieve merkle proof for a compressed account */
+    getCompressedAccountProof(
+        hash: BN254,
+    ): Promise<MerkleContextWithMerkleProof>; // TODO: expose context slot
+
+    /** Retrieve compressed account by hash or address */
+    getMultipleCompressedAccounts(
+        hashes: BN254[],
+    ): Promise<CompressedAccountWithMerkleContext[] | null>;
+
+    /** Retrieve multiple merkle proofs for compressed accounts */
+    getMultipleCompressedAccountProofs(
+        hashes: BN254[],
+    ): Promise<MerkleContextWithMerkleProof[] | null>;
+
+    /** Retrieve compressed accounts by owner */
+    getCompressedAccountsByOwner(
+        owner: PublicKey,
+    ): Promise<CompressedAccountWithMerkleContext[] | null>;
+
+    /** Receive validity Proof for n compressed accounts */
+    getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
+
+    /** Retrieve health status of the node */
+    getHealth(): Promise<string>;
+
+    /** Retrieve the current slot */
+    getSlot(): Promise<number>;
+
+    getCompressedTokenAccountsByOwner(
+        publicKey: PublicKey,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<PaginatedParsedTokenAccountList>;
+
+    getCompressedTokenAccountsByDelegate(
+        delegate: PublicKey,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<PaginatedParsedTokenAccountList>;
+
+    getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }>;
 }
