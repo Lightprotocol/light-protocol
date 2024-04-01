@@ -3,15 +3,13 @@ on:
     branches:
       - main
     paths:
-      - "js/stateless.js/**"
-      - "js/compressed-token/**"
+      - "js/**"
       - ".github/workflows/js.yml"
   pull_request:
     branches:
       - main
     paths:
-      - "js/stateless.js/**"
-      - "js/compressed-token/**"
+      - "js/**"
       - ".github/workflows/js.yml"
     types:
       - opened
