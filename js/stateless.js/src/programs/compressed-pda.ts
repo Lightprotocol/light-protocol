@@ -315,7 +315,7 @@ export class LightSystemProgram {
             invokingProgram: this.programId,
             compressedSolPda: null, // this.deriveCompressedSolPda(),
             deCompressRecipient: null,
-            systemProgram: SystemProgram.programId,
+            systemProgram: null, //SystemProgram.programId,
         };
 
         const remainingAccountMetas = remainingAccounts.map(

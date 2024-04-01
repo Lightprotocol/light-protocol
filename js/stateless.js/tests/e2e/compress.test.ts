@@ -50,7 +50,7 @@ describe('compress', () => {
 
         // @ts-ignore
         const indexedEvents = await rpc.getParsedEvents();
-        assert.equal(indexedEvents.length, 1);
+        assert.equal(indexedEvents.length, 2);
         assert.equal(indexedEvents[0].inputCompressedAccounts.length, 0);
         assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
         assert.equal(
@@ -108,7 +108,7 @@ describe('compress', () => {
 
         //@ts-ignore
         const indexedEvents2 = await rpc.getParsedEvents();
-        assert.equal(indexedEvents2.length, 2);
+        assert.equal(indexedEvents2.length, 3);
         assert.equal(indexedEvents2[0].inputCompressedAccounts.length, 1);
         assert.equal(indexedEvents2[0].outputCompressedAccounts.length, 1);
         assert.equal(
