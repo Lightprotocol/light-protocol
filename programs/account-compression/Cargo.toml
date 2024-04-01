@@ -14,7 +14,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
+custom-heap = ["light-heap"]
+mem-profiling = []
+default = ["custom-heap", "mem-profiling"]
 test-sbf = []
 
 [dependencies]
@@ -27,6 +29,7 @@ bytemuck = { version = "1.14", features = ["min_const_generics"] }
 light-bounded-vec = { version = "0.1.0", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
 light-hash-set = { version = "0.1.0", path = "../../merkle-tree/hash-set", features = ["solana"] }
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher", features = ["solana"] }
+light-heap = { version = "0.1.0", path = "../../heap", optional = true }
 light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/indexed", features = ["solana"] }
 light-utils = { version = "0.1.0", path = "../../utils" }

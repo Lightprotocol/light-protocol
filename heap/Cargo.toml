@@ -1,0 +1,7 @@
+[package]
+name = "light-heap"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anchor-lang = "0.29.0"

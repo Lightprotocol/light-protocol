@@ -1,5 +1,6 @@
 use account_compression::IndexedArrayAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_macros::heap_neutral;
 
 use crate::{
     append_state::get_seeds,
@@ -8,6 +9,7 @@ use crate::{
 
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Inserts nullifiers into the queue.
+#[heap_neutral]
 pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
@@ -54,6 +56,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
 #[allow(clippy::too_many_arguments)]
 #[allow(unused_variables)]
 #[inline(never)]
+#[heap_neutral]
 pub fn insert_nullifiers_cpi<'a, 'b>(
     program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,

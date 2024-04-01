@@ -4,6 +4,7 @@ use groth16_solana::{
     decompression::{decompress_g1, decompress_g2},
     groth16::{Groth16Verifier, Groth16Verifyingkey},
 };
+use light_macros::heap_neutral;
 
 use crate::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
@@ -13,6 +14,7 @@ use crate::{
 };
 
 #[inline(never)]
+#[heap_neutral]
 pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
@@ -57,6 +59,7 @@ pub fn fetch_roots_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
 }
 
 #[inline(never)]
+#[heap_neutral]
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: &'a InstructionDataTransfer,
@@ -96,6 +99,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 }
 
 #[inline(never)]
+#[heap_neutral]
 pub fn sum_check(
     input_compressed_accounts_with_merkle_context: &[CompressedAccountWithMerkleContext],
     output_compressed_account: &[CompressedAccount],
@@ -150,6 +154,7 @@ pub fn sum_check(
 }
 
 #[inline(never)]
+#[heap_neutral]
 pub fn signer_check(
     inputs: &InstructionDataTransfer,
     ctx: &Context<'_, '_, '_, '_, TransferInstruction<'_>>,
@@ -204,6 +209,7 @@ pub fn signer_check(
     Ok(())
 }
 
+#[heap_neutral]
 pub fn verify_state_proof(
     roots: &[[u8; 32]],
     leaves: &[[u8; 32]],

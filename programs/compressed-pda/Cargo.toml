@@ -14,7 +14,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
+custom-heap = ["light-heap"]
+mem-profiling = []
+default = ["custom-heap", "mem-profiling"]
 test-sbf = []
 
 [dependencies]
@@ -22,6 +24,8 @@ aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 anchor-lang = "0.29.0"
 bytemuck = "1.14"
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
+light-heap = { version = "0.1.0", path = "../../heap", optional = true }
+light-macros = { path = "../../macros/light" }
 account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"] }
 light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent" }
 light-utils = { version = "0.1.0", path = "../../utils" }

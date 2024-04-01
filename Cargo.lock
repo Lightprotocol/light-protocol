@@ -28,6 +28,7 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
+ "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
@@ -36,7 +37,6 @@ dependencies = [
  "log",
  "memoffset 0.9.0",
  "num-bigint 0.4.4",
- "num-traits",
  "solana-client-wasm",
  "solana-program-test",
  "solana-sdk",
@@ -2895,6 +2895,7 @@ dependencies = [
  "anchor-lang",
  "bytemuck",
  "light-hasher",
+ "light-heap",
  "light-macros",
  "light-test-utils",
  "solana-program-test",
@@ -2960,6 +2961,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-heap"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+]
+
+[[package]]
 name = "light-indexed-merkle-tree"
 version = "0.1.0"
 dependencies = [
@@ -2968,7 +2976,6 @@ dependencies = [
  "borsh 0.10.3",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
- "light-hasher",
  "light-merkle-tree-reference",
  "light-utils",
  "num-bigint 0.4.4",
@@ -3992,9 +3999,9 @@ dependencies = [
  "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana?branch=master)",
  "lazy_static",
  "light-concurrent-merkle-tree",
- "light-hash-set",
  "light-hasher",
- "light-indexed-merkle-tree",
+ "light-heap",
+ "light-macros",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
@@ -4021,6 +4028,7 @@ dependencies = [
  "circuitlib-rs",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-heap",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
