@@ -4,4 +4,6 @@ keys = [
     "circuits/inclusion_26_3.key",
     "circuits/inclusion_26_4.key",
     "circuits/inclusion_26_8.key",
+    "circuits/non-inclusion_26_1.key",
+    "circuits/non-inclusion_26_2.key",
 ]

@@ -33,12 +33,14 @@ func runCli() {
 			{
 				Name: "setup",
 				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
 					&cli.UintFlag{Name: "utxos", Usage: "Number of Utxos", Required: true},
 				},
 				Action: func(context *cli.Context) error {
+					circuit := context.String("circuit")
 					path := context.String("output")
 					path_vkey := context.String("output-vkey")
 					treeDepth := uint32(context.Uint("tree-depth"))
@@ -47,8 +49,7 @@ func runCli() {
 
 					var system *prover.ProvingSystem
 					var err error
-					system, err = prover.SetupCircuit("inclusion", treeDepth, numberOfUtxos)
-
+					system, err = prover.SetupCircuit(circuit, treeDepth, numberOfUtxos)
 					if err != nil {
 						return err
 					}
@@ -124,6 +125,7 @@ func runCli() {
 			{
 				Name: "import-setup",
 				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "pk", Usage: "Proving key", Required: true},
 					&cli.StringFlag{Name: "vk", Usage: "Verifying key", Required: true},
@@ -131,6 +133,7 @@ func runCli() {
 					&cli.UintFlag{Name: "utxos", Usage: "Number of utxos", Required: true},
 				},
 				Action: func(context *cli.Context) error {
+					circuit := context.String("circuit")
 					path := context.String("output")
 					pk := context.String("pk")
 					vk := context.String("vk")
@@ -141,7 +144,13 @@ func runCli() {
 
 					logging.Logger().Info().Msg("Importing setup")
 
-					system, err = prover.ImportInclusionSetup(treeDepth, utxos, pk, vk)
+					if circuit == "inclusion" {
+						system, err = prover.ImportInclusionSetup(treeDepth, utxos, pk, vk)
+					} else if circuit == "non-inclusion" {
+						system, err = prover.ImportNonInclusionSetup(treeDepth, utxos, pk, vk)
+					} else {
+						return fmt.Errorf("invalid circuit type %s", circuit)
+					}
 
 					if err != nil {
 						return err
@@ -442,6 +451,8 @@ func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, 
 				"circuits/inclusion_26_3.key",
 				"circuits/inclusion_26_4.key",
 				"circuits/inclusion_26_8.key",
+				"circuits/non-inclusion_26_1.key",
+				"circuits/non-inclusion_26_2.key",
 			},
 		}
 	}

@@ -1,6 +1,7 @@
 package merkle_tree
 
 import (
+	"fmt"
 	"light/light-prover/prover"
 	"math/big"
 	"math/rand"
@@ -172,5 +173,84 @@ func BuildTestTree(depth int, numberOfUtxos int, random bool) prover.InclusionPa
 		InPathIndices:  inPathIndicesBatch,
 		InPathElements: inPathElementsBatch,
 		Leaf:           leaves,
+	}
+}
+
+func rangeIn(low, hi int) int {
+	return low + rand.Intn(hi-low)
+}
+
+func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid bool) prover.NonInclusionParameters {
+	tree := NewTree(depth)
+
+	rand.Seed(time.Now().UnixNano())
+	var value *big.Int = big.NewInt(0)
+	var inPathIndices int
+	var leafLower *big.Int
+	var leafUpper *big.Int = big.NewInt(2)
+	var leafIndex int
+	if random {
+		leafLower = big.NewInt(int64(rangeIn(0, 1000)))
+		leafUpper.Add(leafUpper, leafLower)
+		numberOfLeaves := 1 << depth
+		leafIndex = rand.Intn(numberOfLeaves)
+		if valid {
+			value.Add(leafLower, big.NewInt(1))
+		} else {
+			var valueIsLower = rand.Intn(2)
+			if valueIsLower == 1 {
+				value.Add(leafLower, big.NewInt(-1))
+			} else {
+				value.Add(leafUpper, big.NewInt(1))
+			}
+		}
+		inPathIndices = rand.Intn(depth)
+	} else {
+		leafLower = big.NewInt(1)
+		leafUpper = big.NewInt(123)
+		leafIndex = 1
+		if valid {
+			value = big.NewInt(2)
+		} else {
+			value = big.NewInt(4)
+		}
+		inPathIndices = 0
+	}
+
+	leafLowerRangeValue := make([]big.Int, numberOfUtxos)
+	leafHigherRangeValue := make([]big.Int, numberOfUtxos)
+	leafIndices := make([]uint32, numberOfUtxos)
+
+	leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(leafIndex)), leafUpper})
+	if err != nil {
+		fmt.Println("error: ", err)
+	}
+
+	inPathElements := tree.Update(inPathIndices, *leaf)
+	root := tree.Root()
+
+	roots := make([]big.Int, numberOfUtxos)
+	inPathIndicesBatch := make([]uint32, numberOfUtxos)
+	inPathElementsBatch := make([][]big.Int, numberOfUtxos)
+	values := make([]big.Int, numberOfUtxos)
+
+	for i := 0; i < numberOfUtxos; i++ {
+		roots[i] = root
+		inPathIndicesBatch[i] = uint32(inPathIndices)
+		inPathElementsBatch[i] = inPathElements
+		values[i] = *value
+		leafLowerRangeValue[i] = *leafLower
+		leafHigherRangeValue[i] = *leafUpper
+		leafIndices[i] = uint32(leafIndex)
+	}
+
+	return prover.NonInclusionParameters{
+		Root:                 roots,
+		InPathIndices:        inPathIndicesBatch,
+		InPathElements:       inPathElementsBatch,
+		Value:                values,
+		LeafIndex:            leafIndices,
+		LeafLowerRangeValue:  leafLowerRangeValue,
+		LeafHigherRangeValue: leafHigherRangeValue,
 	}
 }

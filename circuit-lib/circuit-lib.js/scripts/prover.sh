@@ -16,5 +16,5 @@ if [ $? -ne 0 ]; then
 fi
 
 go build
-# Execute 'go run main.go start'
+
 ./light-prover start &

@@ -46,10 +46,11 @@ func (circuit *TestPoseidonCircuit3) Define(api frontend.API) error {
 	return nil
 }
 
-func TestPoseidon(t *testing.T) {
+func TestPoseidon1(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	var circuit1 TestPoseidonCircuit1
+
 	assert.ProverSucceeded(&circuit1, &TestPoseidonCircuit1{
 		Input: 0,
 		Hash:  hex("0x2a09a9fd93c590c26b91effbb2499f07e8f7aa12e2b4940a3aed2411cb65e11c"),
@@ -64,6 +65,10 @@ func TestPoseidon(t *testing.T) {
 		Input: 2,
 		Hash:  hex("0x131d73cf6b30079aca0dff6a561cd0ee50b540879abe379a25a06b24bde2bebd"),
 	}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254))
+}
+
+func TestPoseidon2(t *testing.T) {
+	assert := test.NewAssert(t)
 
 	var circuit2 TestPoseidonCircuit2
 
@@ -97,4 +102,38 @@ func TestPoseidon(t *testing.T) {
 		Hash:  hex("0x303f59cd0831b5633bcda50514521b33776b5d4280eb5868ba1dbbe2e4d76ab5"),
 	}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254))
 
+}
+
+func TestPoseidon3(t *testing.T) {
+	assert := test.NewAssert(t)
+
+	var circuit3 TestPoseidonCircuit3
+
+	assert.ProverSucceeded(&circuit3, &TestPoseidonCircuit3{
+		First:  123,
+		Second: 456,
+		Third:  789,
+		Hash:   hex("0x15bf2dbca201b7b45f1ae01c1c1ac0eee26854c01758b9df14a319959c50155f"),
+	}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254))
+
+	assert.ProverSucceeded(&circuit3, &TestPoseidonCircuit3{
+		First:  1,
+		Second: 1,
+		Third:  1,
+		Hash:   hex("0x2c0066e10a72abd2b33c3b214cb3e81bcb1b6e30961cd23c202b18673bf2543"),
+	}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254))
+
+	assert.ProverSucceeded(&circuit3, &TestPoseidonCircuit3{
+		First:  1,
+		Second: 2,
+		Third:  3,
+		Hash:   hex("0xe7732d89e6939c0ff03d5e58dab6302f3230e269dc5b968f725df34ab36d732"),
+	}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254))
+
+	assert.ProverSucceeded(&circuit3, &TestPoseidonCircuit3{
+		First:  1,
+		Second: 2,
+		Third:  3,
+		Hash:   hex("0xe7732d89e6939c0ff03d5e58dab6302f3230e269dc5b968f725df34ab36d732"),
+	}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254))
 }

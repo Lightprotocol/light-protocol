@@ -51,16 +51,82 @@ type InclusionProof struct {
 	Depth         int
 }
 
+type NonInclusionProof struct {
+	Root  []frontend.Variable
+	Value []frontend.Variable
+
+	LeafLowerRangeValue  []frontend.Variable
+	LeafHigherRangeValue []frontend.Variable
+	LeafIndex            []frontend.Variable
+
+	InPathIndices  []frontend.Variable
+	InPathElements [][]frontend.Variable
+
+	NumberOfUtxos int
+	Depth         int
+}
+
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
 	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
-		currentPath := api.ToBinary(gadget.InPathIndices[proofIndex], gadget.Depth)
-		currentHash[proofIndex] = gadget.Leaf[proofIndex]
-		for j := 0; j < gadget.Depth; j++ {
-			currentHash[proofIndex] = abstractor.Call(api, ProofRound{Direction: currentPath[j], Hash: currentHash[proofIndex], Sibling: gadget.InPathElements[proofIndex][j]})
-		}
+		hash := MerkleRootGadget{
+			Hash:  gadget.Leaf[proofIndex],
+			Index: gadget.InPathIndices[proofIndex],
+			Path:  gadget.InPathElements[proofIndex],
+			Depth: gadget.Depth}
+		currentHash[proofIndex] = abstractor.Call(api, hash)
 	}
 	return currentHash
+}
+
+func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
+	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
+	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
+		leaf := LeafHashGadget{
+			LeafLowerRangeValue:  gadget.LeafLowerRangeValue[proofIndex],
+			LeafIndex:            gadget.LeafIndex[proofIndex],
+			LeafHigherRangeValue: gadget.LeafHigherRangeValue[proofIndex],
+			Value:                gadget.Value[proofIndex]}
+		currentHash[proofIndex] = abstractor.Call(api, leaf)
+
+		hash := MerkleRootGadget{
+			Hash:  currentHash[proofIndex],
+			Index: gadget.InPathIndices[proofIndex],
+			Path:  gadget.InPathElements[proofIndex],
+			Depth: gadget.Depth}
+		currentHash[proofIndex] = abstractor.Call(api, hash)
+	}
+	return currentHash
+}
+
+type LeafHashGadget struct {
+	LeafLowerRangeValue  frontend.Variable
+	LeafIndex            frontend.Variable
+	LeafHigherRangeValue frontend.Variable
+	Value                frontend.Variable
+}
+
+func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
+	api.AssertIsDifferent(gadget.LeafLowerRangeValue, gadget.Value)
+	api.AssertIsLessOrEqual(gadget.LeafLowerRangeValue, gadget.Value)
+	api.AssertIsDifferent(gadget.LeafHigherRangeValue, gadget.Value)
+	api.AssertIsLessOrEqual(gadget.Value, gadget.LeafHigherRangeValue)
+	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafIndex, In3: gadget.LeafHigherRangeValue})
+}
+
+type MerkleRootGadget struct {
+	Hash  frontend.Variable
+	Index frontend.Variable
+	Path  []frontend.Variable
+	Depth int
+}
+
+func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
+	currentPath := api.ToBinary(gadget.Index, gadget.Depth)
+	for i := 0; i < gadget.Depth; i++ {
+		gadget.Hash = abstractor.Call(api, ProofRound{Direction: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
+	}
+	return gadget.Hash
 }
 
 // Trusted setup utility functions
@@ -74,7 +140,6 @@ func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
 		return pk, fmt.Errorf("read file error")
 	}
 	f.Close()
-
 	return pk, nil
 }
 
