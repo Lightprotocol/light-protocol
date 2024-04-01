@@ -100,6 +100,26 @@ export type AccountCompression = {
             ];
             args: [
                 {
+                    name: 'index';
+                    type: 'u64';
+                },
+                {
+                    name: 'owner';
+                    type: 'publicKey';
+                },
+                {
+                    name: 'delegate';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
+                    name: 'associatedMerkleTree';
+                    type: {
+                        option: 'publicKey';
+                    };
+                },
+                {
                     name: 'capacityIndices';
                     type: 'u16';
                 },
@@ -169,14 +189,10 @@ export type AccountCompression = {
                     isSigner: true;
                 },
                 {
-                    name: 'queue';
-                    isMut: true;
+                    name: 'registeredProgramPda';
+                    isMut: false;
                     isSigner: false;
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
+                    isOptional: true;
                 },
             ];
             args: [
@@ -651,7 +667,24 @@ export type AccountCompression = {
             name: 'addressQueueAccount';
             type: {
                 kind: 'struct';
-                fields: [];
+                fields: [
+                    {
+                        name: 'index';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'owner';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'delegate';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'associatedMerkleTree';
+                        type: 'publicKey';
+                    },
+                ];
             };
         },
         {
@@ -696,7 +729,7 @@ export type AccountCompression = {
                     {
                         name: 'merkleTreeChangelog';
                         type: {
-                            array: ['u8', 1041600];
+                            array: ['u8', 1220800];
                         };
                     },
                     {
@@ -1099,6 +1132,26 @@ export const IDL: AccountCompression = {
             ],
             args: [
                 {
+                    name: 'index',
+                    type: 'u64',
+                },
+                {
+                    name: 'owner',
+                    type: 'publicKey',
+                },
+                {
+                    name: 'delegate',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
+                    name: 'associatedMerkleTree',
+                    type: {
+                        option: 'publicKey',
+                    },
+                },
+                {
                     name: 'capacityIndices',
                     type: 'u16',
                 },
@@ -1168,14 +1221,10 @@ export const IDL: AccountCompression = {
                     isSigner: true,
                 },
                 {
-                    name: 'queue',
-                    isMut: true,
+                    name: 'registeredProgramPda',
+                    isMut: false,
                     isSigner: false,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
+                    isOptional: true,
                 },
             ],
             args: [
@@ -1650,7 +1699,24 @@ export const IDL: AccountCompression = {
             name: 'addressQueueAccount',
             type: {
                 kind: 'struct',
-                fields: [],
+                fields: [
+                    {
+                        name: 'index',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'owner',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'delegate',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'associatedMerkleTree',
+                        type: 'publicKey',
+                    },
+                ],
             },
         },
         {
@@ -1695,7 +1761,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'merkleTreeChangelog',
                         type: {
-                            array: ['u8', 1041600],
+                            array: ['u8', 1220800],
                         },
                     },
                     {

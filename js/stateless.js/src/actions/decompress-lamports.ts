@@ -15,7 +15,7 @@ import {
     PublicTransactionEvent,
     bn,
 } from '../state';
-import { CompressedAccountMerkleProofResult } from '../rpc-interface';
+// import { CompressedAccountMerkleProofResult } from '../rpc-interface';
 
 /**
  * Init the SOL omnibus account for Light
