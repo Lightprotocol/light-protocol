@@ -46,9 +46,9 @@ jobs:
       - name: Install cargo-release
         run: |
           VERSION="$(curl --silent "https://api.github.com/repos/crate-ci/cargo-release/releases/latest" | jq -r .tag_name)"
-          wget "https://github.com/crate-ci/cargo-release/releases/download/$VERSION/cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz"
-          tar -xzvf "cargo-release-$VERSION-x86_64-unknown-linux-gnu.tar.gz" --wildcards '*cargo-release' --strip-components=1
-          cp cargo-release $HOME/.cargo/bin
+          wget https://github.com/crate-ci/cargo-release/releases/download/"$VERSION"/cargo-release-"$VERSION"-x86_64-unknown-linux-gnu.tar.gz
+          tar -xzvf cargo-release-"$VERSION"-x86_64-unknown-linux-gnu.tar.gz --wildcards '*cargo-release' --strip-components=1
+          cp cargo-release "$HOME"/.cargo/bin
 
       - uses: cargo-bins/release-pr@v2
         with:
