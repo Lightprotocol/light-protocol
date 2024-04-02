@@ -71,4 +71,4 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
-          cargo publish -p ${{ steps.extract-crate.outputs.crate }} --token $CARGO_REGISTRY_TOKEN
+          cargo publish -p "${{ steps.extract-crate.outputs.crate }}" --token "$CARGO_REGISTRY_TOKEN"
