@@ -24,8 +24,8 @@ jobs:
       - name: Extract crate name from tag
         id: extract-crate
         run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          CRATE_NAME=$(echo $TAG_NAME | rev | cut -d'-' -f2- | rev)
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          CRATE_NAME="$(echo $TAG_NAME | rev | cut -d'-' -f2- | rev)"
 
           if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
             ARTIFACT="light_merkle_tree_program.so"
@@ -40,8 +40,8 @@ jobs:
           elif [ "$CRATE_NAME" == *"macro-circom"* ]; then
             ARTIFACT="macro-circom"
           fi
-          echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
-          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "crate="$CRATE_NAME"" >> $GITHUB_OUTPUT
+          echo "artifact="$ARTIFACT"" >> $GITHUB_OUTPUT
 
       - name: Prepare artifacts
         run: |
