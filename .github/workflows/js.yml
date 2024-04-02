@@ -2,15 +2,9 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "js/**"
-      - ".github/workflows/js.yml"
   pull_request:
     branches:
       - main
-    paths:
-      - "js/**"
-      - ".github/workflows/js.yml"
     types:
       - opened
       - synchronize
