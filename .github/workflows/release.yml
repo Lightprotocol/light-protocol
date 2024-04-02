@@ -27,17 +27,17 @@ jobs:
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           CRATE_NAME="$(echo $TAG_NAME | rev | cut -d'-' -f2- | rev)"
 
-          if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
+          if [[ "$CRATE_NAME" == *"light-merkle-tree-program"* ]]; then
             ARTIFACT="light_merkle_tree_program.so"
-          elif [ "$CRATE_NAME" == *"light-psp2in2out"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp2in2out"* ]]; then
             ARTIFACT="light_psp2in2out.so"
-          elif [ "$CRATE_NAME" == *"light-psp10in2out"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp10in2out"* ]]; then
             ARTIFACT="light_psp10in2out.so"
-          elif [ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]]; then
             ARTIFACT="light_psp4in4out_app_storage.so"
-          elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]]; then
             ARTIFACT="light_psp2in2out_storage.so"
-          elif [ "$CRATE_NAME" == *"macro-circom"* ]; then
+          elif [[ "$CRATE_NAME" == *"macro-circom"* ]]; then
             ARTIFACT="macro-circom"
           fi
           echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
@@ -45,15 +45,15 @@ jobs:
 
       - name: Prepare artifacts
         run: |
-          if [ "$CRATE_NAME" == *"light-merkle-tree-program"* ]; then
+          if [[ "$CRATE_NAME" == *"light-merkle-tree-program"* ]]; then
             cp target/deploy/light_merkle_tree_program.so .
-          elif [ "$CRATE_NAME" == *"light-psp2in2out"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp2in2out"* ]]; then
             cp target/deploy/light_psp2in2out.so .
-          elif [ "$CRATE_NAME" == *"light-psp10in2out"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp10in2out"* ]]; then
             cp target/deploy/light_psp10in2out.so .
-          elif [ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]]; then
             cp target/deploy/light_psp4in4out_app_storage.so .
-          elif [ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]; then
+          elif [[ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]]; then
             cp target/deploy/light_psp2in2out_storage.so .
           fi
 
@@ -63,7 +63,7 @@ jobs:
         with:
           token: ${{ secrets.PAT_TOKEN }}
           files: |
-            ${{ steps.extract-crate.outputs.artifact }}
+            "${{ steps.extract-crate.outputs.artifact }}"
 
       - name: Run cargo publish
         # Skip macro-circom, it has a git dependency preventing it from publishing.
