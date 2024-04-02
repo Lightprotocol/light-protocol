@@ -26,9 +26,7 @@ describe('transfer', () => {
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate();
     });
-    // Note:
-    // We don't compress SOL yet, therefore cannot spend utxos with value yet.
-    // TODO: add one run with with inputUtxo where lamports: 0
+    /// TODO: add compression step into beforeAll.
     it('should send compressed lamports alice -> bob', async () => {
         const proof_mock = placeholderValidityProof();
 

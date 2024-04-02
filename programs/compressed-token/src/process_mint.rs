@@ -112,6 +112,8 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         address_merkle_tree_root_indices: Vec::new(),
         address_merkle_tree_account_indices: Vec::new(),
         address_queue_account_indices: Vec::new(),
+        de_compress_lamports: None,
+        is_compress: false,
     };
 
     let mut inputs = Vec::new();
@@ -145,6 +147,9 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         cpi_signature_account: None,
         invoking_program: None,
+        compressed_sol_pda: None,
+        de_compress_recipient: None,
+        system_program: None,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),

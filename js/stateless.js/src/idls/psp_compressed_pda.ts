@@ -1,7 +1,39 @@
 export type PspCompressedPda = {
     version: '0.3.0';
     name: 'psp_compressed_pda';
+    constants: [
+        {
+            name: 'COMPRESSED_SOL_PDA_SEED';
+            type: 'bytes';
+            value: '[99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 115, 111, 108, 95, 112, 100, 97]';
+        },
+    ];
     instructions: [
+        {
+            name: 'initCompressSolPda';
+            docs: [
+                'Initializes the compressed sol pda.',
+                'This pda is used to store compressed sol for the protocol.',
+            ];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'compressedSolPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
         {
             name: 'executeCompressedTransaction';
             docs: [
@@ -47,6 +79,24 @@ export type PspCompressedPda = {
                     isSigner: false;
                     isOptional: true;
                 },
+                {
+                    name: 'compressedSolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'deCompressRecipient';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
             ];
             args: [
                 {
@@ -60,6 +110,13 @@ export type PspCompressedPda = {
         },
     ];
     accounts: [
+        {
+            name: 'compressedSolPda';
+            type: {
+                kind: 'struct';
+                fields: [];
+            };
+        },
         {
             name: 'cpiSignatureAccount';
             docs: [
@@ -226,7 +283,7 @@ export type PspCompressedPda = {
                         type: 'bool';
                     },
                     {
-                        name: 'deCompressAmount';
+                        name: 'deCompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -315,6 +372,16 @@ export type PspCompressedPda = {
                         type: {
                             option: 'u64';
                         };
+                    },
+                    {
+                        name: 'deCompressLamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'isCompress';
+                        type: 'bool';
                     },
                 ];
             };
@@ -457,13 +524,75 @@ export type PspCompressedPda = {
             name: 'DeriveAddressError';
             msg: 'DeriveAddressError';
         },
+        {
+            code: 6022;
+            name: 'CompressSolTransferFailed';
+            msg: 'CompressSolTransferFailed';
+        },
+        {
+            code: 6023;
+            name: 'CompressedSolPdaUndefinedForCompressSol';
+            msg: 'CompressedSolPdaUndefinedForCompressSol';
+        },
+        {
+            code: 6024;
+            name: 'DeCompressLamportsUndefinedForCompressSol';
+            msg: 'DeCompressLamportsUndefinedForCompressSol';
+        },
+        {
+            code: 6025;
+            name: 'CompressedSolPdaUndefinedForDecompressSol';
+            msg: 'CompressedSolPdaUndefinedForDecompressSol';
+        },
+        {
+            code: 6026;
+            name: 'DeCompressLamportsUndefinedForDecompressSol';
+            msg: 'DeCompressLamportsUndefinedForDecompressSol';
+        },
+        {
+            code: 6027;
+            name: 'DecompressRecipientUndefinedForDecompressSol';
+            msg: 'DecompressRecipientUndefinedForDecompressSol';
+        },
     ];
 };
 
 export const IDL: PspCompressedPda = {
     version: '0.3.0',
     name: 'psp_compressed_pda',
+    constants: [
+        {
+            name: 'COMPRESSED_SOL_PDA_SEED',
+            type: 'bytes',
+            value: '[99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 115, 111, 108, 95, 112, 100, 97]',
+        },
+    ],
     instructions: [
+        {
+            name: 'initCompressSolPda',
+            docs: [
+                'Initializes the compressed sol pda.',
+                'This pda is used to store compressed sol for the protocol.',
+            ],
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'compressedSolPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
         {
             name: 'executeCompressedTransaction',
             docs: [
@@ -509,6 +638,24 @@ export const IDL: PspCompressedPda = {
                     isSigner: false,
                     isOptional: true,
                 },
+                {
+                    name: 'compressedSolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'deCompressRecipient',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
             ],
             args: [
                 {
@@ -522,6 +669,13 @@ export const IDL: PspCompressedPda = {
         },
     ],
     accounts: [
+        {
+            name: 'compressedSolPda',
+            type: {
+                kind: 'struct',
+                fields: [],
+            },
+        },
         {
             name: 'cpiSignatureAccount',
             docs: [
@@ -688,7 +842,7 @@ export const IDL: PspCompressedPda = {
                         type: 'bool',
                     },
                     {
-                        name: 'deCompressAmount',
+                        name: 'deCompressLamports',
                         type: {
                             option: 'u64',
                         },
@@ -777,6 +931,16 @@ export const IDL: PspCompressedPda = {
                         type: {
                             option: 'u64',
                         },
+                    },
+                    {
+                        name: 'deCompressLamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'isCompress',
+                        type: 'bool',
                     },
                 ],
             },
@@ -918,6 +1082,36 @@ export const IDL: PspCompressedPda = {
             code: 6021,
             name: 'DeriveAddressError',
             msg: 'DeriveAddressError',
+        },
+        {
+            code: 6022,
+            name: 'CompressSolTransferFailed',
+            msg: 'CompressSolTransferFailed',
+        },
+        {
+            code: 6023,
+            name: 'CompressedSolPdaUndefinedForCompressSol',
+            msg: 'CompressedSolPdaUndefinedForCompressSol',
+        },
+        {
+            code: 6024,
+            name: 'DeCompressLamportsUndefinedForCompressSol',
+            msg: 'DeCompressLamportsUndefinedForCompressSol',
+        },
+        {
+            code: 6025,
+            name: 'CompressedSolPdaUndefinedForDecompressSol',
+            msg: 'CompressedSolPdaUndefinedForDecompressSol',
+        },
+        {
+            code: 6026,
+            name: 'DeCompressLamportsUndefinedForDecompressSol',
+            msg: 'DeCompressLamportsUndefinedForDecompressSol',
+        },
+        {
+            code: 6027,
+            name: 'DecompressRecipientUndefinedForDecompressSol',
+            msg: 'DecompressRecipientUndefinedForDecompressSol',
         },
     ],
 };

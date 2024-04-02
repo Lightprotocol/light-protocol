@@ -99,7 +99,7 @@ if (import.meta.vitest) {
             const buf = Buffer.from(
                 '6500000000000000000000000000000000000000000000000000000000000000',
                 'hex',
-            );
+            ).reverse();
             expect(isSmallerThanBn254FieldSizeLe(buf)).toBe(false);
         });
     });
@@ -117,7 +117,7 @@ if (import.meta.vitest) {
             18, 44,
         ];
 
-        it.only('should return a valid value for initial buffer', async () => {
+        it('should return a valid value for initial buffer', async () => {
             const result = await hashToBn254FieldSizeLe(Buffer.from(bytes));
 
             expect(Array.from(result![0])).toEqual(refResult);
@@ -132,7 +132,7 @@ if (import.meta.vitest) {
             expect(result).not.toBeNull();
             if (result) {
                 expect(result[0]).toBeInstanceOf(Buffer);
-                expect(result[1]).toBe(255);
+                expect(result[1]).toBe(254);
             }
         });
 

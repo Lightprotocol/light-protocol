@@ -21,7 +21,7 @@ pub struct PublicTransactionEvent {
     pub output_leaf_indices: Vec<u32>,
     pub relay_fee: Option<u64>,
     pub is_compress: bool,
-    pub de_compress_amount: Option<u64>,
+    pub de_compress_lamports: Option<u64>,
     pub pubkey_array: Vec<Pubkey>,
     pub message: Option<Vec<u8>>,
 }
@@ -52,7 +52,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
     output_compressed_account_hashes: &[[u8; 32]],
     output_leaf_indices: &[u32],
 ) -> anchor_lang::Result<PublicTransactionEvent> {
-    // TODO: add message and de_compress_amount
+    // TODO: add message and de_compress_lamports
     let event = PublicTransactionEvent {
         input_compressed_account_hashes: input_compressed_account_hashes.to_vec(),
         output_compressed_account_hashes: output_compressed_account_hashes.to_vec(),
@@ -64,7 +64,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         output_leaf_indices: output_leaf_indices.to_vec(),
         relay_fee: inputs.relay_fee,
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
-        de_compress_amount: None,
+        de_compress_lamports: None,
         message: None,
         is_compress: false,
     };

@@ -4,9 +4,11 @@ pub mod append_state;
 pub mod event;
 pub mod instructions;
 pub mod utils;
+pub use de_compression::*;
 pub use instructions::*;
 pub mod compressed_account;
 pub mod create_address;
+pub mod de_compression;
 pub mod nullify_state;
 pub mod sdk;
 pub mod verify_state;
@@ -60,6 +62,18 @@ pub enum ErrorCode {
     InvalidNullifierQueue,
     #[msg("DeriveAddressError")]
     DeriveAddressError,
+    #[msg("CompressSolTransferFailed")]
+    CompressSolTransferFailed,
+    #[msg("CompressedSolPdaUndefinedForCompressSol")]
+    CompressedSolPdaUndefinedForCompressSol,
+    #[msg("DeCompressLamportsUndefinedForCompressSol")]
+    DeCompressLamportsUndefinedForCompressSol,
+    #[msg("CompressedSolPdaUndefinedForDecompressSol")]
+    CompressedSolPdaUndefinedForDecompressSol,
+    #[msg("DeCompressLamportsUndefinedForDecompressSol")]
+    DeCompressLamportsUndefinedForDecompressSol,
+    #[msg("DecompressRecipientUndefinedForDecompressSol")]
+    DecompressRecipientUndefinedForDecompressSol,
 }
 
 #[program]
@@ -71,6 +85,13 @@ pub mod psp_compressed_pda {
         //  into_inputs,InstructionDataTransfer2,
     };
     use super::*;
+
+    /// Initializes the compressed sol pda.
+    /// This pda is used to store compressed sol for the protocol.
+    pub fn init_compress_sol_pda(_ctx: Context<InitializeCompressedSolPda>) -> Result<()> {
+        msg!("initialized compress sol pda");
+        Ok(())
+    }
 
     /// This function can be used to transfer sol and execute any other compressed transaction.
     /// Instruction data is not optimized for space.

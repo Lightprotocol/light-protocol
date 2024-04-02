@@ -43,7 +43,7 @@ export interface PublicTransactionEvent {
     outputLeafIndices: number[]; // Vec<u32>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
-    deCompressAmount: BN | null; // Option<u64>
+    deCompressLamports: BN | null; // Option<u64>
     pubkeyArray: PublicKey[]; // Vec<PublicKey>
     message: Uint8Array | null; // Option<bytes>
 }
@@ -55,6 +55,8 @@ export interface InstructionDataTransfer {
     outputCompressedAccounts: CompressedAccount[];
     outputStateMerkleTreeAccountIndices: Buffer; // bytes // FIXME: into Vec<u8> on-chain
     relayFee: BN | null; // Option<u64>
+    deCompressLamports: BN | null; // Option<u64>
+    isCompression: boolean; // bool
 }
 
 export interface CompressedProof {

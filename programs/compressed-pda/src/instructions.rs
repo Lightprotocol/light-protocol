@@ -7,13 +7,14 @@ use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     create_address::insert_addresses_into_address_merkle_tree_queue,
+    de_compress_lamports,
     event::{emit_state_transition_event, PublicTransactionEvent},
     nullify_state::insert_nullifiers,
     utils::CompressedProof,
     verify_state::{
         fetch_roots, hash_input_compressed_accounts, signer_check, sum_check, verify_state_proof,
     },
-    ErrorCode,
+    CompressedSolPda, ErrorCode,
 };
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
@@ -25,6 +26,8 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
         &inputs.relay_fee,
+        &inputs.de_compress_lamports,
+        &inputs.is_compress,
     )?;
     msg!("sum check success");
     // signer check ---------------------------------------------------
@@ -41,6 +44,8 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         }
         None => Ok(()),
     }?;
+    // de_compress_lamports ---------------------------------------------------
+    de_compress_lamports(inputs, ctx)?;
 
     let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     fetch_roots(inputs, ctx, &mut roots)?;
@@ -168,6 +173,11 @@ pub struct TransferInstruction<'info> {
     pub account_compression_program: Program<'info, AccountCompression>,
     pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,
     pub invoking_program: Option<UncheckedAccount<'info>>,
+    #[account(mut)]
+    pub compressed_sol_pda: Option<Account<'info, CompressedSolPda>>,
+    #[account(mut)]
+    pub de_compress_recipient: Option<UncheckedAccount<'info>>,
+    pub system_program: Option<Program<'info, System>>,
 }
 
 /// collects invocations without proofs
@@ -192,6 +202,8 @@ pub struct InstructionDataTransfer {
     /// The indices of the accounts in the output state merkle tree.
     pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub relay_fee: Option<u64>,
+    pub de_compress_lamports: Option<u64>,
+    pub is_compress: bool,
 }
 
 // TODO: refactor to compressed_account
