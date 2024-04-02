@@ -34,7 +34,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
