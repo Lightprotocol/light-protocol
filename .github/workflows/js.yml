@@ -2,17 +2,9 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "js/stateless.js/**"
-      - "js/compressed-token/**"
-      - ".github/workflows/js.yml"
   pull_request:
     branches:
       - main
-    paths:
-      - "js/stateless.js/**"
-      - "js/compressed-token/**"
-      - ".github/workflows/js.yml"
     types:
       - opened
       - synchronize
@@ -34,7 +26,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build

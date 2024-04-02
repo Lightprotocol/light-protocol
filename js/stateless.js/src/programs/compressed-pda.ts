@@ -6,6 +6,7 @@ import {
     TransactionInstruction,
     AccountMeta,
     ComputeBudgetProgram,
+    SystemProgram,
 } from '@solana/web3.js';
 import { IDL, PspCompressedPda } from '../idls/psp_compressed_pda';
 import { useWallet } from '../wallet';
@@ -22,8 +23,9 @@ import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
+import { placeholderValidityProof } from '../test-utils';
 
-const sumupLamports = (accounts: CompressedAccountWithMerkleContext[]): BN => {
+const sumUpLamports = (accounts: CompressedAccountWithMerkleContext[]): BN => {
     return accounts.reduce(
         (acc, account) => acc.add(bn(account.lamports)),
         bn(0),
@@ -70,6 +72,74 @@ type TransferParams = {
     outputStateTrees?: PublicKey[] | PublicKey;
 };
 
+/// TODO:
+/// - add option to compress to another owner
+/// - add option to merge with input state
+/**
+ * Defines the parameters for the transfer method
+ */
+type CompressParams = {
+    /**
+     * The payer of the transaction.
+     */
+    payer: PublicKey;
+    /**
+     * address that the lamports are attached to. also defaults to the recipient owner
+     */
+    address: PublicKey;
+    /**
+     * amount of lamports to compress.
+     */
+    lamports: number | BN;
+    /**
+     * The state tree that the tx output should be inserted into. This can be a
+     *
+     */
+    outputStateTree: PublicKey;
+};
+
+/**
+ * Defines the parameters for the transfer method
+ */
+type DecompressParams = {
+    /**
+     * The payer of the transaction.
+     */
+    payer: PublicKey;
+    /**
+     * The input state to be consumed.
+     */
+    inputCompressedAccounts: CompressedAccountWithMerkleContext[];
+    /**
+     * Recipient address of uncompressed lamports
+     */
+    toAddress: PublicKey;
+    /**
+     * amount of lamports to decompress.
+     */
+    lamports: number | BN;
+    /**
+     * The recent state root indices of the input state. The expiry is tied to
+     * the proof.
+     *
+     * TODO: Add support for passing recent-values after instruction creation.
+     */
+    recentInputStateRootIndices: number[];
+    /**
+     * The recent validity proof for state inclusion of the input state. It
+     * expires after n slots.
+     */
+    recentValidityProof: CompressedProof;
+    /**
+     * The state trees that the tx output should be inserted into. This can be a
+     * single PublicKey or an array of PublicKey. Defaults to the 0th state tree
+     * of input state.
+     */
+    outputStateTree?: PublicKey;
+};
+
+const COMPRESSED_SOL_PDA_SEED = Buffer.from('compressed_sol_pda');
+
 export class LightSystemProgram {
     /**
      * @internal
@@ -93,6 +163,18 @@ export class LightSystemProgram {
         return this._program!;
     }
 
+    /**
+     * @internal
+     * Cwct1kQLwJm8Z3HetLu8m4SXkhD6FZ5fXbJQCxTxPnGY
+     */
+    static deriveCompressedSolPda(): PublicKey {
+        const seeds = [COMPRESSED_SOL_PDA_SEED];
+        const [address, _] = PublicKey.findProgramAddressSync(
+            seeds,
+            this.programId,
+        );
+        return address;
+    }
     /**
      * Initializes the program statically if not already initialized.
      */
@@ -122,7 +204,7 @@ export class LightSystemProgram {
         lamports: number | BN,
     ): CompressedAccount[] {
         lamports = bn(lamports);
-        const inputLamports = sumupLamports(inputCompressedAccounts);
+        const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
 
         validateSufficientBalance(changeLamports);
@@ -135,6 +217,32 @@ export class LightSystemProgram {
 
         const outputCompressedAccounts: CompressedAccount[] = [
             createCompressedAccount(toAddress, lamports),
+            createCompressedAccount(
+                inputCompressedAccounts[0].owner,
+                changeLamports,
+            ),
+        ];
+        return outputCompressedAccounts;
+    }
+
+    static createDecompressOutputState(
+        inputCompressedAccounts: CompressedAccountWithMerkleContext[],
+        lamports: number | BN,
+    ): CompressedAccount[] {
+        lamports = bn(lamports);
+        const inputLamports = sumUpLamports(inputCompressedAccounts);
+        const changeLamports = inputLamports.sub(lamports);
+
+        validateSufficientBalance(changeLamports);
+
+        /// lamports gets decompressed
+        if (changeLamports.eq(bn(0))) {
+            return [];
+        }
+
+        validateSameOwner(inputCompressedAccounts);
+
+        const outputCompressedAccounts: CompressedAccount[] = [
             createCompressedAccount(
                 inputCompressedAccounts[0].owner,
                 changeLamports,
@@ -195,6 +303,8 @@ export class LightSystemProgram {
                     outputStateMerkleTreeIndices,
                 ),
                 relayFee: null,
+                deCompressLamports: null,
+                isCompress: false,
             },
         );
 
@@ -203,6 +313,193 @@ export class LightSystemProgram {
             ...defaultStaticAccountsStruct(),
             signer: payer,
             invokingProgram: this.programId,
+            compressedSolPda: null,
+            deCompressRecipient: null,
+            systemProgram: null,
+        };
+
+        const remainingAccountMetas = remainingAccounts.map(
+            (account): AccountMeta => ({
+                pubkey: account,
+                isWritable: true,
+                isSigner: false,
+            }),
+        );
+
+        /// Build anchor instruction
+        const instruction = await this.program.methods
+            .executeCompressedTransaction(data)
+            .accounts(staticAccounts)
+            .remainingAccounts(remainingAccountMetas)
+            .instruction();
+
+        const instructions = [
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+            instruction,
+        ];
+
+        return instructions;
+    }
+
+    /**
+     * Initialize the compressed sol pda
+     */
+    static async initCompressedSolPda(
+        feePayer: PublicKey,
+    ): Promise<TransactionInstruction> {
+        const accounts = {
+            feePayer,
+            compressedSolPda: this.deriveCompressedSolPda(),
+            systemProgram: SystemProgram.programId,
+        };
+
+        const instruction = await this.program.methods
+            .initCompressSolPda()
+            .accounts(accounts)
+            .instruction();
+        return instruction;
+    }
+
+    /**
+     * Creates a transaction instruction that transfers compressed lamports from
+     * one owner to another.
+     */
+    static async compress(
+        params: CompressParams,
+    ): Promise<TransactionInstruction[]> {
+        const { payer, outputStateTree, address } = params;
+
+        /// Create output state
+        const lamports = bn(params.lamports);
+        const outputCompressedAccount = createCompressedAccount(
+            address,
+            lamports,
+        );
+
+        /// Pack accounts
+        const {
+            packedInputCompressedAccounts,
+            outputStateMerkleTreeIndices,
+            remainingAccounts,
+        } = packCompressedAccounts([], 1, outputStateTree);
+
+        /// Encode instruction data
+        const data = this.program.coder.types.encode(
+            'InstructionDataTransfer',
+            {
+                proof: placeholderValidityProof(),
+                inputRootIndices: [],
+                /// TODO: here and on-chain: option<newAddressInputs> or similar.
+                newAddressSeeds: [],
+                addressQueueAccountIndices: Buffer.from([]),
+                addressMerkleTreeAccountIndices: Buffer.from([]),
+                addressMerkleTreeRootIndices: [],
+                inputCompressedAccountsWithMerkleContext:
+                    packedInputCompressedAccounts,
+                outputCompressedAccounts: [outputCompressedAccount],
+                outputStateMerkleTreeAccountIndices: Buffer.from(
+                    new Uint8Array(outputStateMerkleTreeIndices),
+                ),
+                relayFee: null,
+                deCompressLamports: lamports,
+                isCompress: true,
+            },
+        );
+
+        /// TODO : refactor
+        /// Format accounts
+        const staticAccounts = {
+            ...defaultStaticAccountsStruct(),
+            signer: payer,
+            invokingProgram: this.programId,
+            compressedSolPda: this.deriveCompressedSolPda(),
+            deCompressRecipient: null,
+            systemProgram: SystemProgram.programId,
+        };
+
+        const remainingAccountMetas = remainingAccounts.map(
+            (account): AccountMeta => ({
+                pubkey: account,
+                isWritable: true,
+                isSigner: false,
+            }),
+        );
+
+        /// Build anchor instruction
+        const instruction = await this.program.methods
+            .executeCompressedTransaction(data)
+            .accounts(staticAccounts)
+            .remainingAccounts(remainingAccountMetas)
+            .instruction();
+
+        const instructions = [
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+            instruction,
+        ];
+
+        return instructions;
+    }
+
+    /**
+     * Creates a transaction instruction that transfers compressed lamports from
+     * one owner to another.
+     */
+    /// TODO: add check that outputStateTree is provided or supplemented if change exists
+    static async decompress(
+        params: DecompressParams,
+    ): Promise<TransactionInstruction[]> {
+        const { payer, outputStateTree, toAddress } = params;
+
+        /// Create output state
+        const lamports = bn(params.lamports);
+        const outputCompressedAccounts = this.createDecompressOutputState(
+            params.inputCompressedAccounts,
+            lamports,
+        );
+
+        /// Pack accounts
+        const {
+            packedInputCompressedAccounts,
+            outputStateMerkleTreeIndices,
+            remainingAccounts,
+        } = packCompressedAccounts(
+            params.inputCompressedAccounts,
+            outputCompressedAccounts.length,
+            outputStateTree,
+        );
+
+        /// Encode instruction data
+        const data = this.program.coder.types.encode(
+            'InstructionDataTransfer',
+            {
+                proof: params.recentValidityProof,
+                inputRootIndices: params.recentInputStateRootIndices,
+                /// TODO: here and on-chain: option<newAddressInputs> or similar.
+                newAddressSeeds: [],
+                addressQueueAccountIndices: Buffer.from([]),
+                addressMerkleTreeAccountIndices: Buffer.from([]),
+                addressMerkleTreeRootIndices: [],
+                inputCompressedAccountsWithMerkleContext:
+                    packedInputCompressedAccounts,
+                outputCompressedAccounts: outputCompressedAccounts,
+                outputStateMerkleTreeAccountIndices: Buffer.from(
+                    new Uint8Array(outputStateMerkleTreeIndices),
+                ),
+                relayFee: null,
+                deCompressLamports: lamports,
+                isCompress: false,
+            },
+        );
+
+        /// TODO : refactor
+        /// Format accounts
+        const staticAccounts = {
+            ...defaultStaticAccountsStruct(),
+            signer: payer,
+            invokingProgram: this.programId,
+            compressedSolPda: this.deriveCompressedSolPda(),
+            deCompressRecipient: toAddress,
+            systemProgram: SystemProgram.programId,
         };
 
         const remainingAccountMetas = remainingAccounts.map(

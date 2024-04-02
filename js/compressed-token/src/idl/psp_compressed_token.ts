@@ -332,7 +332,7 @@ export type PspCompressedToken = {
                         type: 'bool';
                     },
                     {
-                        name: 'deCompressAmount';
+                        name: 'deCompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -421,6 +421,16 @@ export type PspCompressedToken = {
                         type: {
                             option: 'u64';
                         };
+                    },
+                    {
+                        name: 'deCompressLamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'isCompress';
+                        type: 'bool';
                     },
                 ];
             };
@@ -1035,7 +1045,7 @@ export const IDL: PspCompressedToken = {
                         type: 'bool',
                     },
                     {
-                        name: 'deCompressAmount',
+                        name: 'deCompressLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1124,6 +1134,16 @@ export const IDL: PspCompressedToken = {
                         type: {
                             option: 'u64',
                         },
+                    },
+                    {
+                        name: 'deCompressLamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'isCompress',
+                        type: 'bool',
                     },
                 ],
             },

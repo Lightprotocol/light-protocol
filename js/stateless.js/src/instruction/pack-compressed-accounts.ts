@@ -92,6 +92,7 @@ export function packCompressedAccounts(
             _remainingAccounts,
             account.merkleTree,
         );
+
         const nullifierQueuePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
             account.nullifierQueue,

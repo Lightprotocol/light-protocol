@@ -3,10 +3,7 @@ import {
     IDL as AccountCompressionIDL,
     AccountCompression,
 } from './account_compression';
-import {
-    IDL as LightMerkleTreeProgramIDL,
-    LightMerkleTreeProgram,
-} from './light_merkle_tree_program';
+
 import { IDL as LightIDL, Light } from './light';
 import {
     IDL as PspCompressedPdaIDL,
@@ -17,8 +14,6 @@ import { IDL as UserRegistryIDL, UserRegistry } from './user_registry';
 export {
     AccountCompressionIDL,
     AccountCompression,
-    LightMerkleTreeProgramIDL,
-    LightMerkleTreeProgram,
     LightIDL,
     Light,
     PspCompressedPdaIDL,
