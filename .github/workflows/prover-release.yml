@@ -25,7 +25,7 @@ jobs:
             export GOOS="${cfg[0]}"
             export GOARCH="${cfg[1]}"
             export CGO_ENABLED=0
-            go build -o prover-$GOOS-$GOARCH
+            go build -o prover-"$GOOS"-"$GOARCH"
           done
 
       - name: Create Release
