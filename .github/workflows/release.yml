@@ -40,8 +40,8 @@ jobs:
           elif [[ "$CRATE_NAME" == *"macro-circom"* ]]; then
             ARTIFACT="macro-circom"
           fi
-          echo "crate=$CRATE_NAME" >> $GITHUB_OUTPUT
-          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "crate=$CRATE_NAME" >> "$GITHUB_OUTPUT"
+          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
 
       - name: Prepare artifacts
         run: |
