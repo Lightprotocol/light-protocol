@@ -12,32 +12,35 @@ import { defaultTestStateTreeAccounts } from '../../src/constants';
 import { getTestRpc, newAccountWithLamports } from '../../src/test-utils';
 import { LightSystemProgram, Rpc } from '../../src';
 
+/// TODO: add test case for payer != address
 describe('compress', () => {
     const { merkleTree, nullifierQueue } = defaultTestStateTreeAccounts();
     let rpc: Rpc;
     let payer: Signer;
-    let bob: Signer;
+    let initAuthority: Signer;
 
     beforeAll(async () => {
         rpc = await getTestRpc();
-        payer = await newAccountWithLamports(rpc);
-        bob = Keypair.generate();
+        payer = await newAccountWithLamports(rpc, 1e9, 200);
+        initAuthority = await newAccountWithLamports(rpc, 1e9);
     });
-    // Note:
-    // We don't compress SOL yet, therefore cannot spend utxos with value yet.
-    // TODO: add one run with with inputUtxo where lamports: 0
+
     it('should compress lamports and then decompress', async () => {
+        const compressLamports = 20;
+        const preCompressBalance = await rpc.getBalance(payer.publicKey);
+        assert.equal(preCompressBalance, 1e9);
+
         const ix = await LightSystemProgram.initCompressedSolPda(
-            payer.publicKey,
+            initAuthority.publicKey,
         );
         const { blockhash: initBlockhash } = await rpc.getLatestBlockhash();
-        const signedInitTx = buildAndSignTx([ix], payer, initBlockhash);
+        const signedInitTx = buildAndSignTx([ix], initAuthority, initBlockhash);
         await sendAndConfirmTx(rpc, signedInitTx);
 
         const ixs = await LightSystemProgram.compress({
             payer: payer.publicKey,
             address: payer.publicKey,
-            lamports: 20,
+            lamports: compressLamports,
             outputStateTree: merkleTree,
         });
 
@@ -55,15 +58,18 @@ describe('compress', () => {
         assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
         assert.equal(
             Number(indexedEvents[0].outputCompressedAccounts[0].lamports),
-            20,
+            compressLamports,
         );
-
         assert.equal(
             indexedEvents[0].outputCompressedAccounts[0].owner.toBase58(),
             payer.publicKey.toBase58(),
         );
-
         assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
+        const postCompressBalance = await rpc.getBalance(payer.publicKey);
+        assert.equal(
+            postCompressBalance,
+            preCompressBalance - compressLamports - 5000,
+        );
 
         /// TODO: use test-rpc call to get the account
         const inputAccount: CompressedAccount =
@@ -87,14 +93,17 @@ describe('compress', () => {
         };
 
         /// Decompress
+        const decompressLamports = 15;
+        const decompressRecipient = payer.publicKey;
+
         const decompressIx = await LightSystemProgram.decompress({
             payer: payer.publicKey,
-            toAddress: payer.publicKey,
+            toAddress: decompressRecipient,
             outputStateTree: merkleTree,
             inputCompressedAccounts: [withCtx],
             recentValidityProof: proof.compressedProof,
             recentInputStateRootIndices: proof.rootIndices,
-            lamports: 15,
+            lamports: decompressLamports,
         });
 
         const { blockhash: decompressBlockhash } =
@@ -113,7 +122,12 @@ describe('compress', () => {
         assert.equal(indexedEvents2[0].outputCompressedAccounts.length, 1);
         assert.equal(
             Number(indexedEvents2[0].outputCompressedAccounts[0].lamports),
-            5,
+            compressLamports - decompressLamports,
+        );
+        const postDecompressBalance = await rpc.getBalance(decompressRecipient);
+        assert.equal(
+            postDecompressBalance,
+            postCompressBalance + decompressLamports - 5000,
         );
     });
 });

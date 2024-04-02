@@ -25,7 +25,7 @@ import {
 } from '../utils/validation';
 import { placeholderValidityProof } from '../test-utils';
 
-const sumupLamports = (accounts: CompressedAccountWithMerkleContext[]): BN => {
+const sumUpLamports = (accounts: CompressedAccountWithMerkleContext[]): BN => {
     return accounts.reduce(
         (acc, account) => acc.add(bn(account.lamports)),
         bn(0),
@@ -204,7 +204,7 @@ export class LightSystemProgram {
         lamports: number | BN,
     ): CompressedAccount[] {
         lamports = bn(lamports);
-        const inputLamports = sumupLamports(inputCompressedAccounts);
+        const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
 
         validateSufficientBalance(changeLamports);
@@ -230,7 +230,7 @@ export class LightSystemProgram {
         lamports: number | BN,
     ): CompressedAccount[] {
         lamports = bn(lamports);
-        const inputLamports = sumupLamports(inputCompressedAccounts);
+        const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
 
         validateSufficientBalance(changeLamports);
@@ -313,9 +313,9 @@ export class LightSystemProgram {
             ...defaultStaticAccountsStruct(),
             signer: payer,
             invokingProgram: this.programId,
-            compressedSolPda: null, // this.deriveCompressedSolPda(),
+            compressedSolPda: null,
             deCompressRecipient: null,
-            systemProgram: null, //SystemProgram.programId,
+            systemProgram: null,
         };
 
         const remainingAccountMetas = remainingAccounts.map(
@@ -398,7 +398,7 @@ export class LightSystemProgram {
                     packedInputCompressedAccounts,
                 outputCompressedAccounts: [outputCompressedAccount],
                 outputStateMerkleTreeAccountIndices: Buffer.from(
-                    new Uint8Array(outputStateMerkleTreeIndices), // ?
+                    new Uint8Array(outputStateMerkleTreeIndices),
                 ),
                 relayFee: null,
                 deCompressLamports: lamports,
@@ -413,7 +413,7 @@ export class LightSystemProgram {
             signer: payer,
             invokingProgram: this.programId,
             compressedSolPda: this.deriveCompressedSolPda(),
-            deCompressRecipient: null, // address, // TODO: confirm
+            deCompressRecipient: null,
             systemProgram: SystemProgram.programId,
         };
 
@@ -483,7 +483,7 @@ export class LightSystemProgram {
                     packedInputCompressedAccounts,
                 outputCompressedAccounts: outputCompressedAccounts,
                 outputStateMerkleTreeAccountIndices: Buffer.from(
-                    new Uint8Array(outputStateMerkleTreeIndices), // ?
+                    new Uint8Array(outputStateMerkleTreeIndices),
                 ),
                 relayFee: null,
                 deCompressLamports: lamports,
@@ -498,7 +498,7 @@ export class LightSystemProgram {
             signer: payer,
             invokingProgram: this.programId,
             compressedSolPda: this.deriveCompressedSolPda(),
-            deCompressRecipient: toAddress, // address, // TODO: confirm
+            deCompressRecipient: toAddress,
             systemProgram: SystemProgram.programId,
         };
 
