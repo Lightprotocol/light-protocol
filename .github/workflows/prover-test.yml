@@ -1,4 +1,4 @@
-name: Test
+name: Test gnark prover
 on: push
 jobs:
   build-and-test:
@@ -8,24 +8,23 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version-file: './gnark-prover/go.mod'
-      - name: Download prover keys
+
+      - name: Download keys
         run: |
           cd gnark-prover
           ./scripts/download_keys.sh
+
       - name: Build
         run: |
           cd gnark-prover
           go build
-      - name: Prover unit tests
+
+      - name: Unit tests
         run: |
           cd gnark-prover
           go test ./prover
