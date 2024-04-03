@@ -7960,23 +7960,3 @@ dependencies = [
  "libc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "ark-bn254"
-version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/curves?branch=release-0.3.0#7c901afc3ec80bf3eaea654237ffe73356f68c86"
-
-[[patch.unused]]
-name = "ark-ec"
-version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
-
-[[patch.unused]]
-name = "ark-ff"
-version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
-
-[[patch.unused]]
-name = "ark-serialize"
-version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
