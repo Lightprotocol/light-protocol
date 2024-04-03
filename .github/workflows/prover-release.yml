@@ -17,15 +17,17 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: 1.21
+
       - name: Build artifacts
         run: |
           for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "windows amd64"; do
-            cfg=( $cfgstr )
-            export GOOS=${cfg[0]}
-            export GOARCH=${cfg[1]}
+            cfg=( "$cfgstr" )
+            export GOOS="${cfg[0]}"
+            export GOARCH="${cfg[1]}"
             export CGO_ENABLED=0
-            go build -o prover-$GOOS-$GOARCH
+            go build -o prover-"$GOOS"-"$GOARCH"
           done
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:

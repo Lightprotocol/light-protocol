@@ -1,31 +1,50 @@
-name: Test
-on: push
+name: Test gnark prover
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "gnark-prover/**"
+      - ".github/workflows/prover-test.yml"
+      - ".github/workflows/prover-release.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "gnark-prover/**"
+      - ".github/workflows/prover-test.yml"
+      - ".github/workflows/prover-release.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
 jobs:
   build-and-test:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: buildjet-16vcpu-ubuntu-2204
     timeout-minutes: 600
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version-file: './gnark-prover/go.mod'
-      - name: Download prover keys
+
+      - name: Download keys
         run: |
           cd gnark-prover
           ./scripts/download_keys.sh
+
       - name: Build
         run: |
           cd gnark-prover
           go build
-      - name: Prover unit tests
+
+      - name: Unit tests
         run: |
           cd gnark-prover
           go test ./prover
