@@ -52,6 +52,11 @@ export type PspCompressedToken = {
                     isMut: false;
                     isSigner: false;
                 },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
             ];
             args: [];
         },
@@ -181,6 +186,24 @@ export type PspCompressedToken = {
                     name: 'selfProgram';
                     isMut: false;
                     isSigner: false;
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'decompressTokenAccount';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'tokenProgram';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
                 },
             ];
             args: [
@@ -332,7 +355,7 @@ export type PspCompressedToken = {
                         type: 'bool';
                     },
                     {
-                        name: 'deCompressLamports';
+                        name: 'compressionLamports';
                         type: {
                             option: 'u64';
                         };
@@ -423,7 +446,7 @@ export type PspCompressedToken = {
                         };
                     },
                     {
-                        name: 'deCompressLamports';
+                        name: 'compressionLamports';
                         type: {
                             option: 'u64';
                         };
@@ -507,6 +530,16 @@ export type PspCompressedToken = {
                     {
                         name: 'outputStateMerkleTreeAccountIndices';
                         type: 'bytes';
+                    },
+                    {
+                        name: 'isCompress';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'compressionAmount';
+                        type: {
+                            option: 'u64';
+                        };
                     },
                 ];
             };
@@ -709,6 +742,31 @@ export type PspCompressedToken = {
             name: 'SumCheckFailed';
             msg: 'SumCheckFailed';
         },
+        {
+            code: 6009;
+            name: 'DecompressRecipientUndefinedForDecompress';
+            msg: 'DecompressRecipientUndefinedForDecompress';
+        },
+        {
+            code: 6010;
+            name: 'CompressedPdaUndefinedForDecompress';
+            msg: 'CompressedPdaUndefinedForDecompress';
+        },
+        {
+            code: 6011;
+            name: 'DeCompressAmountUndefinedForDecompress';
+            msg: 'DeCompressAmountUndefinedForDecompress';
+        },
+        {
+            code: 6012;
+            name: 'CompressedPdaUndefinedForCompress';
+            msg: 'CompressedPdaUndefinedForCompress';
+        },
+        {
+            code: 6013;
+            name: 'DeCompressAmountUndefinedForCompress';
+            msg: 'DeCompressAmountUndefinedForCompress';
+        },
     ];
 };
 export const IDL: PspCompressedToken = {
@@ -762,6 +820,11 @@ export const IDL: PspCompressedToken = {
                 },
                 {
                     name: 'tokenProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiAuthorityPda',
                     isMut: false,
                     isSigner: false,
                 },
@@ -894,6 +957,24 @@ export const IDL: PspCompressedToken = {
                     name: 'selfProgram',
                     isMut: false,
                     isSigner: false,
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'decompressTokenAccount',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'tokenProgram',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
                 },
             ],
             args: [
@@ -1045,7 +1126,7 @@ export const IDL: PspCompressedToken = {
                         type: 'bool',
                     },
                     {
-                        name: 'deCompressLamports',
+                        name: 'compressionLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1136,7 +1217,7 @@ export const IDL: PspCompressedToken = {
                         },
                     },
                     {
-                        name: 'deCompressLamports',
+                        name: 'compressionLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1220,6 +1301,16 @@ export const IDL: PspCompressedToken = {
                     {
                         name: 'outputStateMerkleTreeAccountIndices',
                         type: 'bytes',
+                    },
+                    {
+                        name: 'isCompress',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'compressionAmount',
+                        type: {
+                            option: 'u64',
+                        },
                     },
                 ],
             },
@@ -1421,6 +1512,31 @@ export const IDL: PspCompressedToken = {
             code: 6008,
             name: 'SumCheckFailed',
             msg: 'SumCheckFailed',
+        },
+        {
+            code: 6009,
+            name: 'DecompressRecipientUndefinedForDecompress',
+            msg: 'DecompressRecipientUndefinedForDecompress',
+        },
+        {
+            code: 6010,
+            name: 'CompressedPdaUndefinedForDecompress',
+            msg: 'CompressedPdaUndefinedForDecompress',
+        },
+        {
+            code: 6011,
+            name: 'DeCompressAmountUndefinedForDecompress',
+            msg: 'DeCompressAmountUndefinedForDecompress',
+        },
+        {
+            code: 6012,
+            name: 'CompressedPdaUndefinedForCompress',
+            msg: 'CompressedPdaUndefinedForCompress',
+        },
+        {
+            code: 6013,
+            name: 'DeCompressAmountUndefinedForCompress',
+            msg: 'DeCompressAmountUndefinedForCompress',
         },
     ],
 };
