@@ -33,23 +33,49 @@ func runCli() {
 			{
 				Name: "setup",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\")", Required: true},
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
-					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "utxos", Usage: "Number of Utxos", Required: true},
+					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "inclusion-utxos", Usage: "Number of Utxos", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-utxos", Usage: "Non-inclusion number of Utxos", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
+					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
+						return fmt.Errorf("invalid circuit type %s", circuit)
+					}
+
 					path := context.String("output")
 					path_vkey := context.String("output-vkey")
-					treeDepth := uint32(context.Uint("tree-depth"))
-					numberOfUtxos := uint32(context.Uint("utxos"))
+					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
+					inclusionNumberOfUtxos := uint32(context.Uint("inclusion-utxos"))
+					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
+					nonInclusionNumberOfUtxos := uint32(context.Uint("non-inclusion-utxos"))
+
+					if (inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0) && circuit == "inclusion" {
+						return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+					}
+
+					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0) && circuit == "non-inclusion" {
+						return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+					}
+
+					if circuit == "combined" {
+						if inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0 {
+							return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+						}
+						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0 {
+							return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+						}
+					}
+
 					logging.Logger().Info().Msg("Running setup")
 
 					var system *prover.ProvingSystem
 					var err error
-					system, err = prover.SetupCircuit(circuit, treeDepth, numberOfUtxos)
+					system, err = prover.SetupCircuit(circuit, inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
 					if err != nil {
 						return err
 					}
@@ -125,29 +151,58 @@ func runCli() {
 			{
 				Name: "import-setup",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\")", Required: true},
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "pk", Usage: "Proving key", Required: true},
 					&cli.StringFlag{Name: "vk", Usage: "Verifying key", Required: true},
-					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "utxos", Usage: "Number of utxos", Required: true},
+					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "inclusion-utxos", Usage: "Number of Utxos", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-utxos", Usage: "Non-inclusion number of Utxos", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
+					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
+						return fmt.Errorf("invalid circuit type %s", circuit)
+					}
+
 					path := context.String("output")
 					pk := context.String("pk")
 					vk := context.String("vk")
-					treeDepth := uint32(context.Uint("tree-depth"))
-					utxos := uint32(context.Uint("utxos"))
+
+					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
+					inclusionNumberOfUtxos := uint32(context.Uint("inclusion-utxos"))
+					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
+					nonInclusionNumberOfUtxos := uint32(context.Uint("non-inclusion-utxos"))
+
+					if (inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0) && circuit == "inclusion" {
+						return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+					}
+
+					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0) && circuit == "non-inclusion" {
+						return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+					}
+
+					if circuit == "combined" {
+						if inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0 {
+							return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+						}
+						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0 {
+							return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+						}
+					}
+
 					var system *prover.ProvingSystem
 					var err error
 
 					logging.Logger().Info().Msg("Importing setup")
 
 					if circuit == "inclusion" {
-						system, err = prover.ImportInclusionSetup(treeDepth, utxos, pk, vk)
+						system, err = prover.ImportInclusionSetup(inclusionTreeDepth, inclusionNumberOfUtxos, pk, vk)
 					} else if circuit == "non-inclusion" {
-						system, err = prover.ImportNonInclusionSetup(treeDepth, utxos, pk, vk)
+						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeDepth, nonInclusionNumberOfUtxos, pk, vk)
+					} else if circuit == "combined " {
+						system, err = prover.ImportCombinedSetup(inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos, pk, vk)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -241,7 +296,9 @@ func runCli() {
 						Usage:    "Load configuration from `FILE`",
 						Required: false,
 					},
-					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
+					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: false},
+					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
+					&cli.BoolFlag{Name: "combined", Usage: "Run combined circuit", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
@@ -271,6 +328,7 @@ func runCli() {
 			{
 				Name: "prove",
 				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
 					&cli.StringFlag{
 						Name:     "config",
 						Aliases:  []string{"c"},
@@ -280,6 +338,10 @@ func runCli() {
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 				},
 				Action: func(context *cli.Context) error {
+					circuit := context.String("circuit")
+					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
+						return fmt.Errorf("invalid circuit type %s", circuit)
+					}
 
 					ps, err := LoadKeysFromConfigOrInline(context)
 					if err != nil {
@@ -293,6 +355,7 @@ func runCli() {
 					}
 
 					var proof *prover.Proof
+					if circuit == "inclusion" {
 					var params prover.InclusionParameters
 					err = json.Unmarshal(bytes, &params)
 					if err != nil {
@@ -300,15 +363,50 @@ func runCli() {
 					}
 
 					treeDepth := params.TreeDepth()
-					if treeDepth != 26 {
-						return fmt.Errorf("tree depth must be 26, got %d", treeDepth)
+						utxos := params.NumberOfUTXOs()
+
+						for _, provingSystem := range ps {
+							if provingSystem.InclusionTreeDepth == treeDepth && provingSystem.InclusionNumberOfUtxos == utxos {
+								proof, err = provingSystem.ProveInclusion(&params)
+								if err != nil {
+									return err
+								}
+								r, _ := json.Marshal(&proof)
+								fmt.Println(string(r))
+								break
+							}
+						}
+					} else if circuit == "non-inclusion" {
+						var params prover.NonInclusionParameters
+						err = json.Unmarshal(bytes, &params)
+						if err != nil {
+							return err
 					}
 
+						treeDepth := params.TreeDepth()
 					utxos := params.NumberOfUTXOs()
 
 					for _, provingSystem := range ps {
-						if provingSystem.TreeDepth == treeDepth && provingSystem.NumberOfUtxos == utxos {
-							proof, err = provingSystem.ProveInclusion(&params)
+							if provingSystem.NonInclusionTreeDepth == treeDepth && provingSystem.NonInclusionNumberOfUtxos == utxos {
+								proof, err = provingSystem.ProveNonInclusion(&params)
+								if err != nil {
+									return err
+								}
+								r, _ := json.Marshal(&proof)
+								fmt.Println(string(r))
+								break
+							}
+						}
+					} else if circuit == "combined" {
+						var params prover.CombinedParameters
+						err = json.Unmarshal(bytes, &params)
+						if err != nil {
+							return err
+						}
+
+						for _, provingSystem := range ps {
+							if provingSystem.InclusionTreeDepth == params.TreeDepth() && provingSystem.InclusionNumberOfUtxos == params.NumberOfUTXOs() && provingSystem.NonInclusionTreeDepth == params.NonInclusionTreeDepth() && provingSystem.InclusionNumberOfUtxos == params.NonInclusionNumberOfUTXOs() {
+								proof, err = provingSystem.ProveCombined(&params)
 							if err != nil {
 								return err
 							}
@@ -316,6 +414,7 @@ func runCli() {
 							fmt.Println(string(r))
 							break
 						}
+					}
 					}
 
 					return nil
@@ -359,7 +458,12 @@ func runCli() {
 					if err != nil {
 						return err
 					}
-					logging.Logger().Info().Uint32("treeDepth", ps.TreeDepth).Uint32("utxos", ps.NumberOfUtxos).Msg("Read proving system")
+					logging.Logger().Info().
+						Uint32("treeDepth", ps.InclusionTreeDepth).
+						Uint32("utxos", ps.InclusionNumberOfUtxos).
+						Uint32("nonInclusionTreeDepth", ps.NonInclusionTreeDepth).
+						Uint32("nonInclusionUtxos", ps.NonInclusionNumberOfUtxos).
+						Msg("Read proving system")
 					logging.Logger().Info().Msg("Reading proof from stdin")
 					bytes, err := io.ReadAll(os.Stdin)
 					if err != nil {
@@ -428,33 +532,34 @@ func runCli() {
 func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, error) {
 	var cfg = config.Config{}
 
-	if context.IsSet("config") {
+	var keys []string
+	if context.Bool("inclusion") {
+		keys = append(keys, "circuits/inclusion_26_1.key")
+		keys = append(keys, "circuits/inclusion_26_2.key")
+		keys = append(keys, "circuits/inclusion_26_3.key")
+		keys = append(keys, "circuits/inclusion_26_4.key")
+		keys = append(keys, "circuits/inclusion_26_8.key")
+	}
+	if context.Bool("non-inclusion") {
+		keys = append(keys, "circuits/non-inclusion_26_1.key")
+		keys = append(keys, "circuits/non-inclusion_26_2.key")
+			}
+	if context.Bool("combined") {
+		keys = append(keys, "circuits/combined_26_1_1.key")
+		keys = append(keys, "circuits/combined_26_1_2.key")
+		keys = append(keys, "circuits/combined_26_2_1.key")
+		keys = append(keys, "circuits/combined_26_2_2.key")
+		keys = append(keys, "circuits/combined_26_3_1.key")
+		keys = append(keys, "circuits/combined_26_3_2.key")
+		keys = append(keys, "circuits/combined_26_4_1.key")
+		keys = append(keys, "circuits/combined_26_4_2.key")
+		}
+
+	if len(keys) > 0 {
+		cfg.Keys = keys
+	} else if context.IsSet("config") {
 		configFile := context.String("config")
 		cfg, _ = config.ReadConfig(configFile)
-	}
-
-	if context.IsSet("keys-file") {
-		keys := context.StringSlice("keys-file")
-		for _, key := range keys {
-			trimmed := strings.TrimSpace(key)
-			if !cfg.HasKey(trimmed) {
-				cfg.Keys = append(cfg.Keys, trimmed)
-			}
-		}
-	}
-	if len(cfg.Keys) == 0 {
-		logging.Logger().Info().Msg("No config file provided, using defaults")
-		cfg = config.Config{
-			Keys: []string{
-				"circuits/inclusion_26_1.key",
-				"circuits/inclusion_26_2.key",
-				"circuits/inclusion_26_3.key",
-				"circuits/inclusion_26_4.key",
-				"circuits/inclusion_26_8.key",
-				"circuits/non-inclusion_26_1.key",
-				"circuits/non-inclusion_26_2.key",
-			},
-		}
 	}
 
 	var pss = make([]*prover.ProvingSystem, len(cfg.Keys))
@@ -466,25 +571,32 @@ func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, 
 			return nil, err
 		}
 		pss[i] = ps
-		logging.Logger().Info().Uint32("treeDepth", ps.TreeDepth).Uint32("utxos", ps.NumberOfUtxos).Msg("Read proving system")
+		logging.Logger().Info().
+			Uint32("treeDepth", ps.InclusionTreeDepth).
+			Uint32("utxos", ps.InclusionNumberOfUtxos).
+			Uint32("nonInclusionTreeDepth", ps.NonInclusionTreeDepth).
+			Uint32("nonInclusionUtxos", ps.NonInclusionNumberOfUtxos).
+			Msg("Read proving system")
 	}
 	return pss, nil
 }
 
 func createFileAndWriteBytes(filePath string, data []byte) error {
-	// Create or open the file for writing. The file is created if it does not exist,
-	// or truncated if it does.
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err // Return the error to the caller
 	}
-	defer file.Close() // Ensure the file is closed when the function completes
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			return
+		}
+	}(file)
 
-	// Write the bytes to the file
 	_, err = io.WriteString(file, fmt.Sprintf("%d", data))
 	if err != nil {
 		return err // Return any error that occurs during writing
 	}
-	fmt.Println("Wrote", len(data), "bytes to", filePath) // Write a log message
-	return nil                                            // No errors, return nil
+	fmt.Println("Wrote", len(data), "bytes to", filePath)
+	return nil
 }

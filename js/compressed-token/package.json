@@ -23,7 +23,7 @@
         "test-all": "vitest run",
         "test:unit:all": "EXCLUDE_E2E=true vitest run",
         "test-all:verbose": "vitest run --reporter=verbose",
-        "gnark-prover": "../../circuit-lib/circuit-lib.js/scripts/prover.sh",
+        "gnark-prover": "../../circuit-lib/circuit-lib.js/scripts/prover.sh inclusion",
         "test-validator": "./../../cli/test_bin/run test-validator",
         "pretest:e2e": "./../../cli/test_bin/run test-validator -b && pnpm gnark-prover",
         "test:e2e:create-mint": "pnpm pretest:e2e && vitest run tests/e2e/create-mint.test.ts",

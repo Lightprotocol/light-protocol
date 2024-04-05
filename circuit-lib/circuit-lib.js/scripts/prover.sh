@@ -1,20 +1,74 @@
 #!/usr/bin/env bash
 
-killall light-prover
+kill_light_prover() {
+  killall light-prover || echo "light-prover process not found"
+}
 
-# Get the root directory of the Git repository
-root_dir=$(git rev-parse --show-toplevel)
+# Get the root directory of the Git repository (robust error handling)
+root_dir=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo "Error: Not in a Git repository or 'git' command not found."
+  exit 1
+}
 
-# Change the directory to 'gnark-prover' within the Git root directory
-# shellcheck disable=SC2164
 cd "$root_dir/gnark-prover"
 
-# If 'gnark-prover' directory does not exist, print error and exit
-if [ $? -ne 0 ]; then
-    echo "Directory gnark-prover does not exist in the Git root directory. Run \`git submodule update --init\` to fetch the submodule."
+go build || {
+  echo "Build failed. Check for errors."
+  exit 1
+}
+
+if [[ $# -ne 1 ]]; then
+  echo "Error: Please provide a single argument containing light-prover options."
+  echo "Allowed options: inclusion, non-inclusion, combined (individually or combined)"
     exit 1
 fi
 
-go build
+options=($1)
+inclusion=""
+non_inclusion=""
+combined=""
 
-./light-prover start &
+for option in "${options[@]}"; do
+  case $option in
+    inclusion)
+      inclusion="--inclusion=true"
+      ;;
+    non-inclusion)
+      non_inclusion="--non-inclusion=true"
+      ;;
+    combined)
+      combined="--combined=true"
+      ;;
+    *)
+      echo "Error: Invalid option '$option'. Allowed options: inclusion, non-inclusion, combined"
+      exit 1
+      ;;
+  esac
+done
+
+kill_light_prover && ./light-prover start $inclusion $non_inclusion $combined &
+light_prover_pid=$!
+
+health_check_url="http://localhost:3001/health"
+timeout=120
+interval=2
+
+start_time=$(date +%s)
+
+while true; do
+  status_code=$(curl -s -o /dev/null -w "%{http_code}" "$health_check_url")
+
+  if [[ "$status_code" -eq 200 ]]; then
+    echo "light-prover health check successful!"
+    break
+  fi
+
+  current_time=$(date +%s)
+  if (( current_time - start_time >= timeout )); then
+    echo "light-prover failed to start within $timeout seconds."
+    kill_light_prover
+    exit 1
+  fi
+
+  sleep "$interval"
+done

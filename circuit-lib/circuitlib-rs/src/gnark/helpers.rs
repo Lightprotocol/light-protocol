@@ -1,6 +1,7 @@
 use std::{
-    process::{Child, Command},
-    thread,
+    fmt::{Display, Formatter},
+    process::Command,
+    sync::atomic::{AtomicBool, Ordering},
     time::Duration,
 };
 
@@ -8,49 +9,77 @@ use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
 use serde_json::json;
+use sysinfo::{Signal, System};
 
 use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 
-pub fn spawn_gnark_server(path: &str, wait_time: u64) -> Child {
-    let server_process = Command::new("sh")
-        .arg("-c")
-        .arg(path)
-        .spawn()
-        .expect("Failed to start server process");
+static IS_LOADING: AtomicBool = AtomicBool::new(false);
 
-    // Wait for the server to launch before proceeding.
-    thread::sleep(Duration::from_secs(wait_time));
-
-    server_process
+pub enum ProofType {
+    Inclusion,
+    NonInclusion,
+    Combined,
 }
 
-pub fn kill_gnark_server(gnark: &mut Child) {
-    Command::new("sh")
-        .arg("-c")
-        .arg("killall light-prover")
-        .spawn()
-        .unwrap();
-    gnark.kill().unwrap();
+impl Display for ProofType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ProofType::Inclusion => "inclusion",
+                ProofType::NonInclusion => "non-inclusion",
+                ProofType::Combined => "combined",
+            }
+        )
+    }
+}
+pub async fn spawn_gnark_server(path: &str, restart: bool, proof_type: ProofType) {
+    if restart {
+        kill_gnark_server();
+    }
+    if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        IS_LOADING.store(true, Ordering::Relaxed);
+        Command::new("sh")
+            .arg("-c")
+            .arg(format!("{} {}", path, proof_type))
+            .spawn()
+            .expect("Failed to start server process");
+        health_check(20, 5).await;
+        IS_LOADING.store(false, Ordering::Relaxed);
+    }
 }
 
-pub async fn health_check() {
-    const MAX_RETRIES: usize = 20;
-    const TIMEOUT: usize = 5;
+pub fn kill_gnark_server() {
+    let mut system = System::new_all();
+    system.refresh_all();
 
+    for process in system.processes().values() {
+        if process.name() == "light-prover" {
+            process.kill_with(Signal::Term);
+        }
+    }
+}
+
+pub async fn health_check(retries: usize, timeout: usize) -> bool {
     let client = reqwest::Client::new();
-
-    for _ in 0..MAX_RETRIES {
+    let mut result = false;
+    for _ in 0..retries {
         match client
             .get(&format!("{}{}", SERVER_ADDRESS, HEALTH_CHECK))
             .send()
             .await
         {
-            Ok(_) => break,
+            Ok(_) => {
+                result = true;
+                break;
+            }
             Err(_) => {
-                tokio::time::sleep(Duration::from_secs(TIMEOUT as u64)).await;
+                tokio::time::sleep(Duration::from_secs(timeout as u64)).await;
             }
         }
     }
+    result
 }
 
 pub fn create_vec_of_string(number_of_utxos: usize, element: &BigInt) -> Vec<String> {

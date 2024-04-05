@@ -91,5 +91,5 @@ func ImportNonInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath stri
 		return nil, err
 	}
 
-	return &ProvingSystem{treeDepth, numberOfUtxos, false, pk, vk, ccs}, nil
+	return &ProvingSystem{0, 0, treeDepth, numberOfUtxos, pk, vk, ccs}, nil
 }

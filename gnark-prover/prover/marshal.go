@@ -97,30 +97,28 @@ func (ps *ProvingSystem) WriteTo(w io.Writer) (int64, error) {
 	var totalWritten int64 = 0
 	var intBuf [4]byte
 
-	binary.BigEndian.PutUint32(intBuf[:], ps.TreeDepth)
+	binary.BigEndian.PutUint32(intBuf[:], ps.InclusionTreeDepth)
 	written, err := w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
 		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], ps.NumberOfUtxos)
+	binary.BigEndian.PutUint32(intBuf[:], ps.InclusionNumberOfUtxos)
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
 		return totalWritten, err
 	}
 
-	// todo: serialize bool ps.Inclusion with writer
-
-	var inclusionInt uint32
-	if ps.Inclusion {
-		inclusionInt = 1
-	} else {
-		inclusionInt = 0
+	binary.BigEndian.PutUint32(intBuf[:], ps.NonInclusionTreeDepth)
+	written, err = w.Write(intBuf[:])
+	totalWritten += int64(written)
+	if err != nil {
+		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], inclusionInt)
+	binary.BigEndian.PutUint32(intBuf[:], ps.NonInclusionNumberOfUtxos)
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
@@ -157,26 +155,28 @@ func (ps *ProvingSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return totalRead, err
 	}
-	ps.TreeDepth = binary.BigEndian.Uint32(intBuf[:])
+	ps.InclusionTreeDepth = binary.BigEndian.Uint32(intBuf[:])
 
 	read, err = io.ReadFull(r, intBuf[:])
 	totalRead += int64(read)
 	if err != nil {
 		return totalRead, err
 	}
-	ps.NumberOfUtxos = binary.BigEndian.Uint32(intBuf[:])
+	ps.InclusionNumberOfUtxos = binary.BigEndian.Uint32(intBuf[:])
 
 	read, err = io.ReadFull(r, intBuf[:])
 	totalRead += int64(read)
 	if err != nil {
 		return totalRead, err
 	}
-	var intInclusion = binary.BigEndian.Uint32(intBuf[:])
-	if intInclusion == 1 {
-		ps.Inclusion = true
-	} else {
-		ps.Inclusion = false
+	ps.NonInclusionTreeDepth = binary.BigEndian.Uint32(intBuf[:])
+
+	read, err = io.ReadFull(r, intBuf[:])
+	totalRead += int64(read)
+	if err != nil {
+		return totalRead, err
 	}
+	ps.NonInclusionNumberOfUtxos = binary.BigEndian.Uint32(intBuf[:])
 
 	ps.ProvingKey = groth16.NewProvingKey(ecc.BN254)
 	keyRead, err := ps.ProvingKey.UnsafeReadFrom(r)

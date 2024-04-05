@@ -63,7 +63,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     leaves: &'a mut [[u8; 32]],
     addresses: &'a mut [Option<[u8; 32]>],
-) -> anchor_lang::Result<()> {
+) -> Result<()> {
     let mut none_counter = 0;
     for (j, input_compressed_account_with_context) in inputs
         .input_compressed_accounts_with_merkle_context
@@ -168,7 +168,7 @@ pub fn signer_check(
         //   - The drawback is that the pda signer is the owner of the compressed account which is confusing
         if compressed_accounts.compressed_account.data.is_some() {
             let invoking_program_id = ctx.accounts.invoking_program.as_ref().unwrap().key();
-            let signer = anchor_lang::prelude::Pubkey::find_program_address(
+            let signer = Pubkey::find_program_address(
                 &[b"cpi_authority"],
                 &invoking_program_id,
             )
@@ -420,7 +420,7 @@ mod test {
     use circuitlib_rs::{
         gnark::{
             constants::{INCLUSION_PATH, SERVER_ADDRESS},
-            helpers::{health_check, kill_gnark_server, spawn_gnark_server},
+            helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
@@ -434,12 +434,15 @@ mod test {
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
-        let mut gnark = spawn_gnark_server("../../circuit-lib/circuitlib-rs/scripts/prover.sh", 5);
-        health_check().await;
+        spawn_gnark_server(
+            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+            true,
+            ProofType::Inclusion,
+        )
+        .await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
-            let (inputs, big_int_inputs) =
-                inclusion_inputs_string(*number_of_compressed_accounts as usize);
+            let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -471,7 +474,7 @@ mod test {
             )
             .unwrap();
         }
-        kill_gnark_server(&mut gnark);
+        kill_gnark_server();
     }
 
     #[test]

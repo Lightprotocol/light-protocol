@@ -71,25 +71,25 @@ func SetupInclusion(treeDepth uint32, numberOfUtxos uint32) (*ProvingSystem, err
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{treeDepth, numberOfUtxos, true, pk, vk, ccs}, nil
+	return &ProvingSystem{treeDepth, numberOfUtxos, 0, 0, pk, vk, ccs}, nil
 }
 
 func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, error) {
-	if err := params.ValidateShape(ps.TreeDepth, ps.NumberOfUtxos); err != nil {
+	if err := params.ValidateShape(ps.InclusionTreeDepth, ps.InclusionNumberOfUtxos); err != nil {
 		return nil, err
 	}
 
-	inPathIndices := make([]frontend.Variable, ps.NumberOfUtxos)
-	root := make([]frontend.Variable, ps.NumberOfUtxos)
-	leaf := make([]frontend.Variable, ps.NumberOfUtxos)
-	inPathElements := make([][]frontend.Variable, ps.NumberOfUtxos)
+	inPathIndices := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	root := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	leaf := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	inPathElements := make([][]frontend.Variable, ps.InclusionNumberOfUtxos)
 
-	for i := 0; i < int(ps.NumberOfUtxos); i++ {
+	for i := 0; i < int(ps.InclusionNumberOfUtxos); i++ {
 		root[i] = params.Root[i]
 		leaf[i] = params.Leaf[i]
 		inPathIndices[i] = params.InPathIndices[i]
-		inPathElements[i] = make([]frontend.Variable, ps.TreeDepth)
-		for j := 0; j < int(ps.TreeDepth); j++ {
+		inPathElements[i] = make([]frontend.Variable, ps.InclusionTreeDepth)
+		for j := 0; j < int(ps.InclusionTreeDepth); j++ {
 			inPathElements[i][j] = params.InPathElements[i][j]
 		}
 	}
@@ -106,7 +106,7 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 		return nil, err
 	}
 
-	logging.Logger().Info().Msg("Proof inclusion" + strconv.Itoa(int(ps.TreeDepth)) + " " + strconv.Itoa(int(ps.NumberOfUtxos)))
+	logging.Logger().Info().Msg("Proof inclusion" + strconv.Itoa(int(ps.InclusionTreeDepth)) + " " + strconv.Itoa(int(ps.InclusionNumberOfUtxos)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {
 		return nil, err
@@ -116,12 +116,12 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 }
 
 func (ps *ProvingSystem) VerifyInclusion(root []big.Int, leaf []big.Int, proof *Proof) error {
-	leafArray := make([]frontend.Variable, ps.NumberOfUtxos)
+	leafArray := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
 	for i, v := range leaf {
 		leafArray[i] = v
 	}
 
-	rootArray := make([]frontend.Variable, ps.NumberOfUtxos)
+	rootArray := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
 	for i, v := range root {
 		rootArray[i] = v
 	}
