@@ -62,9 +62,6 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
         let mut indexed_array = indexed_array.try_borrow_mut_data()?;
         let mut indexed_array =
             unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
-        for element in indexed_array.iter() {
-            msg!("ELEMENT: {:?}", element);
-        }
 
         for element in elements.iter() {
             msg!("Inserting element {:?}", element);
@@ -72,6 +69,10 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
             indexed_array
                 .insert(&element, 0)
                 .map_err(ProgramError::from)?;
+        }
+
+        for element in indexed_array.iter() {
+            msg!("ELEMENT: {:?}", element);
         }
     }
     Ok(())
