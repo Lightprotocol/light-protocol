@@ -420,7 +420,7 @@ mod test {
     use circuitlib_rs::{
         gnark::{
             constants::{INCLUSION_PATH, SERVER_ADDRESS},
-            helpers::{kill_gnark_server, spawn_gnark_server},
+            helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
@@ -437,9 +437,7 @@ mod test {
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
-            true,
-            false,
-            false,
+            ProofType::Inclusion,
         )
         .await;
         let client = Client::new();

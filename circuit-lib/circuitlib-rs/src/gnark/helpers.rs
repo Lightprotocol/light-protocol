@@ -1,4 +1,5 @@
 use std::{
+    fmt::{Display, Formatter},
     process::Command,
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
@@ -8,34 +9,40 @@ use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
 use serde_json::json;
+use sysinfo::{Signal, System};
 
 use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 
-pub async fn spawn_gnark_server(
-    path: &str,
-    restart: bool,
-    inclusion: bool,
-    non_inclusion: bool,
-    combined: bool,
-) {
+pub enum ProofType {
+    Inclusion,
+    NonInclusion,
+    Combined,
+}
+
+impl Display for ProofType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ProofType::Inclusion => "inclusion",
+                ProofType::NonInclusion => "non-inclusion",
+                ProofType::Combined => "combined",
+            }
+        )
+    }
+}
+pub async fn spawn_gnark_server(path: &str, restart: bool, proof_type: ProofType) {
     if restart {
         kill_gnark_server();
     }
     if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
         IS_LOADING.store(true, Ordering::Relaxed);
-        let mut arg: String = "".to_string();
-        if inclusion {
-            arg += "inclusion";
-        } else if non_inclusion {
-            arg += "non-inclusion";
-        } else if combined {
-            arg += "combined";
-        }
         Command::new("sh")
             .arg("-c")
-            .arg(format!("{} {}", path, arg))
+            .arg(format!("{} {}", path, proof_type))
             .spawn()
             .expect("Failed to start server process");
         health_check(20, 5).await;
@@ -44,11 +51,14 @@ pub async fn spawn_gnark_server(
 }
 
 pub fn kill_gnark_server() {
-    Command::new("sh")
-        .arg("-c")
-        .arg("killall light-prover")
-        .spawn()
-        .unwrap();
+    let mut system = System::new_all();
+    system.refresh_all();
+
+    for process in system.processes().values() {
+        if process.name() == "light-prover" {
+            process.kill_with(Signal::Term);
+        }
+    }
 }
 
 pub async fn health_check(retries: usize, timeout: usize) -> bool {

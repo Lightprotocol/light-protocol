@@ -88,6 +88,8 @@ pub fn create_initialize_mint_instructions(
 }
 
 use anchor_lang::{solana_program::program_pack::Pack, AnchorDeserialize};
+use circuitlib_rs::gnark::helpers::ProofType;
+
 async fn assert_create_mint(
     context: &mut ProgramTestContext,
     authority: &Pubkey,
@@ -1160,9 +1162,7 @@ impl MockIndexer {
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
-            true,
-            false,
-            false,
+            ProofType::Inclusion,
         )
         .await;
 

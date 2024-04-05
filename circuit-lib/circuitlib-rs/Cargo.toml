@@ -44,6 +44,7 @@ serde_json = "1.0.60"
 num-traits = "0.2.18"
 tokio = { version = "1.36.0", features = ["rt", "macros"], optional = true }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"], optional = true  }
+sysinfo = "0.30"
 
 [dev-dependencies]
 duct = "0.13.7"

@@ -503,6 +503,8 @@ async fn test_with_address() {
     );
 }
 use anchor_lang::{InstructionData, ToAccountMetas};
+use circuitlib_rs::gnark::helpers::ProofType;
+
 #[tokio::test]
 async fn test_with_compression() {
     let env: light_test_utils::test_env::EnvWithAccounts =
@@ -866,9 +868,7 @@ impl MockIndexer {
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
-            true,
-            false,
-            false,
+            ProofType::Inclusion,
         )
         .await;
 
