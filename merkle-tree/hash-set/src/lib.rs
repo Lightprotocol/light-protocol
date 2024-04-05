@@ -6,6 +6,7 @@ use std::{
     ptr::NonNull,
 };
 
+use light_bounded_vec::BoundedVec;
 use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::{Bounded, CheckedAdd, CheckedSub, FromBytes, ToPrimitive, Unsigned};
@@ -141,7 +142,7 @@ impl HashSetCell {
 }
 
 #[derive(Debug)]
-pub struct HashSet<I>
+pub struct HashSet<'a, I>
 where
     I: Bounded
         + CheckedAdd
@@ -175,10 +176,10 @@ where
     /// An array of indices which maps a hash set key to the index of its
     /// value which is stored in the `values` array. It has a size greater
     /// than the expected number of elements, determined by the load factor.
-    indices: NonNull<Option<I>>,
+    indices: BoundedVec<'a, Option<I>>,
     /// An array of values. It has a size equal to the expected number of
     /// elements.
-    values: NonNull<Option<HashSetCell>>,
+    values: BoundedVec<'a, Option<HashSetCell>>,
 }
 
 impl<I> HashSet<I>
@@ -262,33 +263,35 @@ where
             *next_value_index = 0;
         }
 
-        let layout = Layout::array::<Option<I>>(capacity_indices).unwrap();
-        // SAFETY: `I` is always a signed integer. Creating a layout for an
-        // array of integers of any size won't cause any panic.
-        let indices_ptr = unsafe { alloc::alloc(layout) as *mut Option<I> };
-        if indices_ptr.is_null() {
-            handle_alloc_error(layout);
-        }
-        let indices = NonNull::new(indices_ptr).unwrap();
-        for i in 0..capacity_indices {
-            unsafe {
-                std::ptr::write(indices_ptr.add(i), None);
-            }
-        }
+        // let layout = Layout::array::<Option<I>>(capacity_indices).unwrap();
+        // // SAFETY: `I` is always a signed integer. Creating a layout for an
+        // // array of integers of any size won't cause any panic.
+        // let indices_ptr = unsafe { alloc::alloc(layout) as *mut Option<I> };
+        // if indices_ptr.is_null() {
+        //     handle_alloc_error(layout);
+        // }
+        // let indices = NonNull::new(indices_ptr).unwrap();
+        // for i in 0..capacity_indices {
+        //     unsafe {
+        //         std::ptr::write(indices_ptr.add(i), None);
+        //     }
+        // }
+        let indices = BoundedVec::with_capacity(capacity_indices);
+        let values = BoundedVec::with_capacity(capacity_values);
 
-        // SAFETY: `I` is always a signed integer. Creating a layout for an
-        // array of integers of any size won't cause any panic.
-        let layout = Layout::array::<Option<HashSetCell>>(capacity_values).unwrap();
-        let values_ptr = unsafe { alloc::alloc(layout) as *mut Option<HashSetCell> };
-        if values_ptr.is_null() {
-            handle_alloc_error(layout);
-        }
-        let values = NonNull::new(values_ptr).unwrap();
-        for i in 0..capacity_values {
-            unsafe {
-                std::ptr::write(values_ptr.add(i), None);
-            }
-        }
+        // // SAFETY: `I` is always a signed integer. Creating a layout for an
+        // // array of integers of any size won't cause any panic.
+        // let layout = Layout::array::<Option<HashSetCell>>(capacity_values).unwrap();
+        // let values_ptr = unsafe { alloc::alloc(layout) as *mut Option<HashSetCell> };
+        // if values_ptr.is_null() {
+        //     handle_alloc_error(layout);
+        // }
+        // let values = NonNull::new(values_ptr).unwrap();
+        // for i in 0..capacity_values {
+        //     unsafe {
+        //         std::ptr::write(values_ptr.add(i), None);
+        //     }
+        // }
 
         Ok(HashSet {
             next_value_index,
@@ -341,21 +344,21 @@ where
 
         let indices_layout = Layout::array::<Option<I>>(capacity_indices).unwrap();
         println!("from_bytes_copy: indices_layout: {indices_layout:?}");
-        // SAFETY: `I` is always a signed integer. Creating a layout for an
-        // array of integers of any size won't cause any panic.
-        let indices_dst_ptr = unsafe { alloc::alloc(indices_layout) as *mut Option<I> };
-        if indices_dst_ptr.is_null() {
-            handle_alloc_error(indices_layout);
-        }
-        let indices = NonNull::new(indices_dst_ptr).unwrap();
-        // Make sure that alignment of `indices` matches the alignment of `usize`.
-        // This operation is adding a padding to the offset of `values` pointer.
+        // // SAFETY: `I` is always a signed integer. Creating a layout for an
+        // // array of integers of any size won't cause any panic.
+        // let indices_dst_ptr = unsafe { alloc::alloc(indices_layout) as *mut Option<I> };
+        // if indices_dst_ptr.is_null() {
+        //     handle_alloc_error(indices_layout);
+        // }
+        // let indices = NonNull::new(indices_dst_ptr).unwrap();
+        // // Make sure that alignment of `indices` matches the alignment of `usize`.
+        // // This operation is adding a padding to the offset of `values` pointer.
         let indices_size = indices_layout.size() + mem::align_of::<usize>()
             - (indices_layout.size() % mem::size_of::<usize>());
         println!("from_bytes_copy: indices_size: {indices_size}");
-        for i in 0..capacity_indices {
-            std::ptr::write(indices_dst_ptr.add(i), None);
-        }
+        // for i in 0..capacity_indices {
+        //     std::ptr::write(indices_dst_ptr.add(i), None);
+        // }
 
         let offset = Self::non_dyn_fields_size() + mem::size_of::<usize>();
         println!("from_bytes_copy: indices offset: {offset}");

@@ -62,7 +62,7 @@ unsafe impl<const N: usize> Pod for [u8; N] {}
 ///   any other dynamically sized types.
 pub struct BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
 {
     capacity: usize,
     length: usize,
@@ -71,7 +71,7 @@ where
 
 impl<'a, T> BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
 {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
@@ -231,7 +231,7 @@ where
 
 impl<'a, T> fmt::Debug for BoundedVec<'a, T>
 where
-    T: Clone + fmt::Debug + Pod,
+    T: Clone + fmt::Debug + Sized,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", &self.data[..self.length])
@@ -240,7 +240,7 @@ where
 
 impl<'a, T, I: SliceIndex<[T]>> Index<I> for BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
     I: SliceIndex<[T]>,
 {
     type Output = I::Output;
@@ -253,7 +253,7 @@ where
 
 impl<'a, T, I> IndexMut<I> for BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
@@ -263,7 +263,7 @@ where
 
 impl<'a, T> PartialEq for BoundedVec<'a, T>
 where
-    T: Clone + PartialEq + Pod,
+    T: Clone + PartialEq + Sized,
 {
     fn eq(&self, other: &Self) -> bool {
         self.data[..self.length]
@@ -272,7 +272,7 @@ where
     }
 }
 
-impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq + Pod {}
+impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq + Sized {}
 
 /// `CyclicBoundedVec` is a wrapper around [`Vec`](std::vec::Vec) which:
 ///
@@ -282,7 +282,7 @@ impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq + Pod {}
 #[derive(Debug)]
 pub struct CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
 {
     capacity: usize,
     length: usize,
@@ -292,7 +292,7 @@ where
 
 impl<'a, T> CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
 {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
@@ -435,7 +435,7 @@ where
 
 impl<'a, T, I> Index<I> for CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
     I: SliceIndex<[T]>,
 {
     type Output = I::Output;
@@ -448,7 +448,7 @@ where
 
 impl<'a, T, I> IndexMut<I> for CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone + Sized,
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
@@ -458,14 +458,14 @@ where
 
 impl<'a, T> PartialEq for CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod + PartialEq,
+    T: Clone + Sized + PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.data[..self.length].iter().eq(other.data.iter())
     }
 }
 
-impl<'a, T> Eq for CyclicBoundedVec<'a, T> where T: Clone + Eq + Pod {}
+impl<'a, T> Eq for CyclicBoundedVec<'a, T> where T: Clone + Eq + Sized {}
 
 #[cfg(test)]
 mod test {

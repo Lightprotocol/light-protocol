@@ -111,7 +111,7 @@ check_flag() {
 GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
 PNPM_VERSION="8.8.0"
-SOLANA_VERSION="1.18.2"
+SOLANA_VERSION="1.18.9"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
 CIRCOM_VERSION=`latest_release Lightprotocol circom`
