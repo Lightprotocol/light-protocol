@@ -43,7 +43,7 @@ describe('transfer', () => {
         /// Send
         const { blockhash } = await rpc.getLatestBlockhash();
         const signedTx = buildAndSignTx(ixs, payer, blockhash);
-        await sendAndConfirmTx(rpc, signedTx);
+        const txId = await sendAndConfirmTx(rpc, signedTx);
 
         rpc = await getTestRpc();
 
@@ -63,5 +63,11 @@ describe('transfer', () => {
         );
 
         assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
+
+        const hash = indexedEvents[0].outputCompressedAccountHashes[0];
+        console.log('hash', hash);
+        console.log('txId', txId);
+        const proof = await rpc.getValidityProof([hash]);
+        console.log('proof', proof);
     });
 });

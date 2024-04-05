@@ -43,21 +43,21 @@ export interface PublicTransactionEvent {
     outputLeafIndices: number[]; // Vec<u32>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
-    deCompressLamports: BN | null; // Option<u64>
+    compressionLamports: BN | null; // Option<u64>
     pubkeyArray: PublicKey[]; // Vec<PublicKey>
     message: Uint8Array | null; // Option<bytes>
 }
 
-export interface InstructionDataTransfer {
-    proof: CompressedProof | null; // Option<CompressedProof>
-    inputRootIndices: number[]; // Vec<u16>
-    inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
-    outputCompressedAccounts: CompressedAccount[];
-    outputStateMerkleTreeAccountIndices: Buffer; // bytes // FIXME: into Vec<u8> on-chain
-    relayFee: BN | null; // Option<u64>
-    deCompressLamports: BN | null; // Option<u64>
-    isCompression: boolean; // bool
-}
+// export interface InstructionDataTransfer {
+//     proof: CompressedProof | null; // Option<CompressedProof>
+//     inputRootIndices: number[]; // Vec<u16>
+//     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
+//     outputCompressedAccounts: CompressedAccount[];
+//     outputStateMerkleTreeAccountIndices: Buffer; // bytes // FIXME: into Vec<u8> on-chain
+//     relayFee: BN | null; // Option<u64>
+//     compressionLamports: BN | null; // Option<u64>
+//     isCompress: boolean; // bool
+// }
 
 export interface CompressedProof {
     a: number[]; // [u8; 32]
