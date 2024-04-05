@@ -42,9 +42,10 @@ pub unsafe fn address_queue_from_bytes_copy(
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn address_queue_from_bytes_zero_copy_mut(
-    mut data: RefMut<'_, &mut [u8]>,
-) -> Result<HashSetZeroCopy<u16>> {
+pub unsafe fn address_queue_from_bytes_zero_copy_mut<'a>(
+    // mut data: RefMut<'a, &'a mut [u8]>,
+    data: &'a mut [u8],
+) -> Result<HashSetZeroCopy<'a, u16>> {
     let data = &mut data[8 + mem::size_of::<AddressQueueAccount>()..];
     let queue =
         HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
@@ -57,12 +58,13 @@ pub unsafe fn address_queue_from_bytes_zero_copy_mut(
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn address_queue_from_bytes_zero_copy_init(
-    mut data: RefMut<'_, &mut [u8]>,
+pub unsafe fn address_queue_from_bytes_zero_copy_init<'a>(
+    // mut data: RefMut<'_, &'a mut [u8]>,
+    data: &'a mut [u8],
     capacity_indices: usize,
     capacity_values: usize,
     sequence_threshold: usize,
-) -> Result<HashSetZeroCopy<u16>> {
+) -> Result<HashSetZeroCopy<'a, u16>> {
     let data = &mut data[8 + mem::size_of::<AddressQueueAccount>()..];
     let queue = HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
         data,

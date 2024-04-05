@@ -18,7 +18,7 @@ pub fn process_initialize_address_queue<'info>(
 ) -> Result<()> {
     let _ = unsafe {
         address_queue_from_bytes_zero_copy_init(
-            ctx.accounts.queue.to_account_info().try_borrow_mut_data()?,
+            &mut ctx.accounts.queue.to_account_info().try_borrow_mut_data()?,
             capacity_indices as usize,
             capacity_values as usize,
             sequence_threshold as usize,

@@ -42,11 +42,9 @@ pub fn process_update_address_merkle_tree<'info>(
     // `address_next_value`.
     _next_address_proof: [u8; 128],
 ) -> Result<()> {
-    let address_queue = unsafe {
-        address_queue_from_bytes_zero_copy_mut(
-            ctx.accounts.queue.to_account_info().try_borrow_mut_data()?,
-        )?
-    };
+    let address_queue = ctx.accounts.queue.to_account_info();
+    let mut address_queue = address_queue.try_borrow_mut_data()?;
+    let address_queue = unsafe { address_queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
 

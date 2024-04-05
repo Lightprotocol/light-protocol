@@ -58,12 +58,10 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
             )?;
             drop(indexed_array_account);
         }
-        let mut indexed_array = unsafe {
-            indexed_array_from_bytes_zero_copy_mut(
-                indexed_array.to_account_info().try_borrow_mut_data()?,
-            )
-            .unwrap()
-        };
+        let indexed_array = indexed_array.to_account_info();
+        let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+        let mut indexed_array =
+            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
         for element in indexed_array.iter() {
             msg!("ELEMENT: {:?}", element);
         }
@@ -100,12 +98,11 @@ pub fn process_initialize_indexed_array<'info>(
         drop(indexed_array_account);
     }
 
+    let indexed_array = ctx.accounts.indexed_array.to_account_info();
+    let mut indexed_array = indexed_array.try_borrow_mut_data()?;
     let _ = unsafe {
         indexed_array_from_bytes_zero_copy_init(
-            ctx.accounts
-                .indexed_array
-                .to_account_info()
-                .try_borrow_mut_data()?,
+            &mut indexed_array,
             capacity_indices.into(),
             capacity_values.into(),
             sequence_threshold as usize,
@@ -170,6 +167,7 @@ impl IndexedArrayAccount {
 /// the provided account data have correct size and alignment.
 pub unsafe fn indexed_array_from_bytes_copy(
     mut data: RefMut<'_, &mut [u8]>,
+    // data: &'a mut [u8],
 ) -> Result<HashSet<u16>> {
     let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
     let queue = HashSet::<u16>::from_bytes_copy(data).map_err(ProgramError::from)?;
@@ -182,9 +180,10 @@ pub unsafe fn indexed_array_from_bytes_copy(
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn indexed_array_from_bytes_zero_copy_mut(
-    mut data: RefMut<'_, &mut [u8]>,
-) -> Result<HashSetZeroCopy<u16>> {
+pub unsafe fn indexed_array_from_bytes_zero_copy_mut<'a>(
+    // mut data: RefMut<'_, &'a mut [u8]>,
+    data: &'a mut [u8],
+) -> Result<HashSetZeroCopy<'a, u16>> {
     let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
     let queue =
         HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
@@ -197,12 +196,13 @@ pub unsafe fn indexed_array_from_bytes_zero_copy_mut(
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn indexed_array_from_bytes_zero_copy_init(
-    mut data: RefMut<'_, &mut [u8]>,
+pub unsafe fn indexed_array_from_bytes_zero_copy_init<'a>(
+    // mut data: RefMut<'_, &'a mut [u8]>,
+    data: &'a mut [u8],
     capacity_indices: usize,
     capacity_values: usize,
     sequence_threshold: usize,
-) -> Result<HashSetZeroCopy<u16>> {
+) -> Result<HashSetZeroCopy<'a, u16>> {
     let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
     msg!("data size: {}", data.len());
     let queue = HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(

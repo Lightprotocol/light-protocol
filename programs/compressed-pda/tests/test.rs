@@ -1031,6 +1031,7 @@ impl MockIndexer {
             )
             .await
         };
+        let indexed_array = indexed_array.lock().await;
         let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
             context,
             self.merkle_tree_pubkey,
@@ -1090,6 +1091,7 @@ impl MockIndexer {
                 )
                 .await
             };
+            let indexed_array = indexed_array.lock().await;
             let array_element = indexed_array
                 .by_value_index(*index_in_indexed_array)
                 .unwrap();

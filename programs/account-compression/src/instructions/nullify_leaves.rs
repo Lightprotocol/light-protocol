@@ -46,23 +46,22 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         drop(array_account);
     }
 
-    let indexed_array = unsafe {
-        indexed_array_from_bytes_zero_copy_mut(
-            ctx.accounts
-                .indexed_array
-                .to_account_info()
-                .try_borrow_mut_data()?,
-        )
-        .unwrap()
+    let leaf = {
+        let indexed_array = ctx.accounts.indexed_array.to_account_info();
+        let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+        let indexed_array =
+            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
+        for element in indexed_array.iter() {
+            msg!("ELEMENT: {:?}", element);
+        }
+        let leaf_cell = indexed_array
+            .by_value_index(leaves_queue_indices[0] as usize)
+            .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
+        let leaf = leaf_cell.value_bytes();
+        // drop(indexed_array);
+
+        leaf
     };
-    for element in indexed_array.iter() {
-        msg!("ELEMENT: {:?}", element);
-    }
-    let leaf_cell = indexed_array
-        .by_value_index(leaves_queue_indices[0] as usize)
-        .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
-    let leaf = leaf_cell.value_bytes();
-    drop(indexed_array);
 
     if change_log_indices.len() != 1 {
         return Err(AccountCompressionErrorCode::NumberOfChangeLogIndicesMismatch.into());
@@ -125,15 +124,10 @@ fn insert_nullifier(
 
     let mut bounded_vec = from_vec(proofs[0].as_slice())?;
 
-    let indexed_array = unsafe {
-        indexed_array_from_bytes_zero_copy_mut(
-            ctx.accounts
-                .indexed_array
-                .to_account_info()
-                .try_borrow_mut_data()?,
-        )
-        .unwrap()
-    };
+    let indexed_array = ctx.accounts.indexed_array.to_account_info();
+    let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+    let indexed_array =
+        unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
     let leaf_cell = indexed_array
         .by_value_index(leaves_queue_indices[0] as usize)
         .ok_or(AccountCompressionErrorCode::LeafNotFound)?;

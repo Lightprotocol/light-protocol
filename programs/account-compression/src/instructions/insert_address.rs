@@ -24,11 +24,9 @@ pub fn process_insert_addresses<'info>(
     // let data =
     //     &mut address_queue_acc.data.borrow_mut()[8 + mem::size_of::<AddressQueueAccount>()..];
     // let address_queue = unsafe { HashSet::<u16>::from_bytes(data) };
-    let mut address_queue = unsafe {
-        address_queue_from_bytes_zero_copy_mut(
-            ctx.accounts.queue.to_account_info().try_borrow_mut_data()?,
-        )?
-    };
+    let address_queue = ctx.accounts.queue.to_account_info();
+    let mut address_queue = address_queue.try_borrow_mut_data()?;
+    let mut address_queue = unsafe { address_queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
     let merkle_tree = ctx.accounts.merkle_tree.load()?;
     let sequence_number = merkle_tree.load_merkle_tree()?.merkle_tree.sequence_number;
