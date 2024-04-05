@@ -15,8 +15,9 @@ npx nx run-many --target=build --all \
   --exclude @lightprotocol/stateless.js \
   --exclude @lightprotocol/compressed-token
 
-wget https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-v0.2.0/spl_noop.so
-mv spl_noop.so ./target/deploy/spl_noop.so
+curl -L -o \
+  ./target/deploy/spl_noop.so \
+  https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-v0.2.0/spl_noop.so
 
 # Distribute IDL files to client libraries
 ./scripts/push-stateless-js-idls.sh
