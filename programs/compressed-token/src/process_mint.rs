@@ -35,6 +35,7 @@ pub struct CreateMintInstruction<'info> {
     #[account(mut, seeds=[MINT_AUTHORITY_SEED, authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump)]
     pub mint_authority_pda: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
+    /// CHECK: TODO
     #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
 }
