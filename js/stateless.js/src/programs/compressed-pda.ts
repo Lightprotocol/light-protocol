@@ -305,7 +305,7 @@ export class LightSystemProgram {
                     outputStateMerkleTreeIndices,
                 ),
                 relayFee: null,
-                deCompressLamports: null,
+                compressionLamports: null,
                 isCompress: false,
             },
         );
@@ -316,7 +316,7 @@ export class LightSystemProgram {
             signer: payer,
             invokingProgram: this.programId,
             compressedSolPda: null,
-            deCompressRecipient: null,
+            compressionRecipient: null,
             systemProgram: null,
         };
 
@@ -404,7 +404,7 @@ export class LightSystemProgram {
                     new Uint8Array(outputStateMerkleTreeIndices),
                 ),
                 relayFee: null,
-                deCompressLamports: lamports,
+                compressionLamports: lamports,
                 isCompress: true,
             },
         );
@@ -416,7 +416,7 @@ export class LightSystemProgram {
             signer: payer,
             invokingProgram: this.programId,
             compressedSolPda: this.deriveCompressedSolPda(),
-            deCompressRecipient: null,
+            compressionRecipient: null,
             systemProgram: SystemProgram.programId,
         };
 
@@ -489,7 +489,7 @@ export class LightSystemProgram {
                     new Uint8Array(outputStateMerkleTreeIndices),
                 ),
                 relayFee: null,
-                deCompressLamports: lamports,
+                compressionLamports: lamports,
                 isCompress: false,
             },
         );
@@ -501,7 +501,7 @@ export class LightSystemProgram {
             signer: payer,
             invokingProgram: this.programId,
             compressedSolPda: this.deriveCompressedSolPda(),
-            deCompressRecipient: toAddress,
+            compressionRecipient: toAddress,
             systemProgram: SystemProgram.programId,
         };
 
