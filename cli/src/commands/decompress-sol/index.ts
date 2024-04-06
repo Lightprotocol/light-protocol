@@ -6,7 +6,11 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Rpc, decompressLamports } from "@lightprotocol/stateless.js";
+import {
+  Rpc,
+  decompressLamports,
+  getTestRpc,
+} from "@lightprotocol/stateless.js";
 
 class MintToCommand extends Command {
   static summary = "Decompress SOL.";
@@ -41,10 +45,9 @@ class MintToCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const connection = new Connection(getSolanaRpcUrl());
-
+      const rpc = await getTestRpc(getSolanaRpcUrl());
       const txId = await decompressLamports(
-        connection as Rpc,
+        rpc,
         payer,
         amount * LAMPORTS_PER_SOL,
         toPublicKey,
