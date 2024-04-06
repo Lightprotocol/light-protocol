@@ -25,7 +25,9 @@ import {
 } from '../utils/validation';
 import { placeholderValidityProof } from '../test-utils';
 
-const sumUpLamports = (accounts: CompressedAccountWithMerkleContext[]): BN => {
+export const sumUpLamports = (
+    accounts: CompressedAccountWithMerkleContext[],
+): BN => {
     return accounts.reduce(
         (acc, account) => acc.add(bn(account.lamports)),
         bn(0),
@@ -86,7 +88,7 @@ type CompressParams = {
     /**
      * address that the lamports are attached to. also defaults to the recipient owner
      */
-    address: PublicKey;
+    toAddress: PublicKey;
     /**
      * amount of lamports to compress.
      */
@@ -364,15 +366,16 @@ export class LightSystemProgram {
      * Creates a transaction instruction that transfers compressed lamports from
      * one owner to another.
      */
+    // TODO: add support for non-fee-payer owner
     static async compress(
         params: CompressParams,
     ): Promise<TransactionInstruction[]> {
-        const { payer, outputStateTree, address } = params;
+        const { payer, outputStateTree, toAddress } = params;
 
         /// Create output state
         const lamports = bn(params.lamports);
         const outputCompressedAccount = createCompressedAccount(
-            address,
+            toAddress,
             lamports,
         );
 

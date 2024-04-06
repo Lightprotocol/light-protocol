@@ -1,3 +1,4 @@
+export * from './actions';
 export * from './idls';
 export * from './instruction';
 export * from './programs';
