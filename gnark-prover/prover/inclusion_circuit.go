@@ -9,8 +9,8 @@ import (
 
 type InclusionCircuit struct {
 	// public inputs
-	Root []frontend.Variable `gnark:",public"`
-	Leaf []frontend.Variable `gnark:",public"`
+	Roots  []frontend.Variable `gnark:",public"`
+	Leaves []frontend.Variable `gnark:",public"`
 
 	// private inputs
 	InPathIndices  []frontend.Variable   `gnark:"input"`
@@ -23,8 +23,8 @@ type InclusionCircuit struct {
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
 	// Actual merkle proof verification.
 	abstractor.Call1(api, InclusionProof{
-		Root:           circuit.Root,
-		Leaf:           circuit.Leaf,
+		Roots:          circuit.Roots,
+		Leaves:         circuit.Leaves,
 		InPathElements: circuit.InPathElements,
 		InPathIndices:  circuit.InPathIndices,
 
@@ -35,16 +35,16 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 }
 
 func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
-	root := make([]frontend.Variable, numberOfUtxos)
-	leaf := make([]frontend.Variable, numberOfUtxos)
+	roots := make([]frontend.Variable, numberOfUtxos)
+	leaves := make([]frontend.Variable, numberOfUtxos)
 	inPathIndices := make([]frontend.Variable, numberOfUtxos)
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
 
 	circuit := InclusionCircuit{
 		Depth:          int(treeDepth),
 		NumberOfUtxos:  int(numberOfUtxos),
-		Root:           root,
-		Leaf:           leaf,
+		Roots:          roots,
+		Leaves:         leaves,
 		InPathIndices:  inPathIndices,
 		InPathElements: inPathElements,
 	}

@@ -38,32 +38,32 @@ func TestNonInclusion(t *testing.T) {
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
-		var numberOfUtxos = len(params.Root)
+		var numberOfUtxos = len(params.Roots)
 		var treeDepth = len(params.InPathElements[0])
 
-		root := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.Root {
-			root[i] = v
+		roots := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.Roots {
+			roots[i] = v
 		}
 
-		value := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.Value {
-			value[i] = v
+		values := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.Values {
+			values[i] = v
 		}
 
-		leafLowerRangeValue := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.LeafLowerRangeValue {
-			leafLowerRangeValue[i] = v
+		leafLowerRangeValues := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.LeafLowerRangeValues {
+			leafLowerRangeValues[i] = v
 		}
 
-		leafHigherRangeValue := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.LeafHigherRangeValue {
-			leafHigherRangeValue[i] = v
+		leafHigherRangeValues := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.LeafHigherRangeValues {
+			leafHigherRangeValues[i] = v
 		}
 
-		leafIndex := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.LeafIndex {
-			leafIndex[i] = v
+		leafIndices := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.LeafIndices {
+			leafIndices[i] = v
 		}
 
 		inPathIndices := make([]frontend.Variable, numberOfUtxos)
@@ -83,11 +83,11 @@ func TestNonInclusion(t *testing.T) {
 		}
 
 		var circuit NonInclusionCircuit
-		circuit.Root = make([]frontend.Variable, numberOfUtxos)
-		circuit.Value = make([]frontend.Variable, numberOfUtxos)
-		circuit.LeafLowerRangeValue = make([]frontend.Variable, numberOfUtxos)
-		circuit.LeafHigherRangeValue = make([]frontend.Variable, numberOfUtxos)
-		circuit.LeafIndex = make([]frontend.Variable, numberOfUtxos)
+		circuit.Roots = make([]frontend.Variable, numberOfUtxos)
+		circuit.Values = make([]frontend.Variable, numberOfUtxos)
+		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfUtxos)
+		circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfUtxos)
+		circuit.LeafIndices = make([]frontend.Variable, numberOfUtxos)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfUtxos)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfUtxos)
 		for i := 0; i < int(numberOfUtxos); i++ {
@@ -102,28 +102,28 @@ func TestNonInclusion(t *testing.T) {
 		if expectedResult == "0" {
 			// Run the failing test
 			assert.ProverFailed(&circuit, &NonInclusionCircuit{
-				Root:                 root,
-				Value:                value,
-				LeafLowerRangeValue:  leafLowerRangeValue,
-				LeafHigherRangeValue: leafHigherRangeValue,
-				LeafIndex:            leafIndex,
-				InPathIndices:        inPathIndices,
-				InPathElements:       inPathElements,
-				NumberOfUtxos:        numberOfUtxos,
-				Depth:                treeDepth,
+				Roots:                 roots,
+				Values:                values,
+				LeafLowerRangeValues:  leafLowerRangeValues,
+				LeafHigherRangeValues: leafHigherRangeValues,
+				LeafIndices:           leafIndices,
+				InPathIndices:         inPathIndices,
+				InPathElements:        inPathElements,
+				NumberOfUtxos:         numberOfUtxos,
+				Depth:                 treeDepth,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else if expectedResult == "1" {
 			// Run the passing test
 			assert.ProverSucceeded(&circuit, &NonInclusionCircuit{
-				Root:                 root,
-				Value:                value,
-				LeafLowerRangeValue:  leafLowerRangeValue,
-				LeafHigherRangeValue: leafHigherRangeValue,
-				LeafIndex:            leafIndex,
-				InPathIndices:        inPathIndices,
-				InPathElements:       inPathElements,
-				NumberOfUtxos:        numberOfUtxos,
-				Depth:                treeDepth,
+				Roots:                 roots,
+				Values:                values,
+				LeafLowerRangeValues:  leafLowerRangeValues,
+				LeafHigherRangeValues: leafHigherRangeValues,
+				LeafIndices:           leafIndices,
+				InPathIndices:         inPathIndices,
+				InPathElements:        inPathElements,
+				NumberOfUtxos:         numberOfUtxos,
+				Depth:                 treeDepth,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else {
 			fmt.Println("Invalid expected result: ", expectedResult)

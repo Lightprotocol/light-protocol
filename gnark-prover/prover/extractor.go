@@ -10,8 +10,8 @@ func ExtractLean(treeDepth uint32, numberOfUtxos uint32) (string, error) {
 	// Not checking for numberOfUtxos === 0 or treeDepth === 0
 
 	// Initialising MerkleProofs slice with correct dimentions
-	root := make([]frontend.Variable, numberOfUtxos)
-	leaf := make([]frontend.Variable, numberOfUtxos)
+	roots := make([]frontend.Variable, numberOfUtxos)
+	leaves := make([]frontend.Variable, numberOfUtxos)
 	inPathIndices := make([]frontend.Variable, numberOfUtxos)
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
 
@@ -22,8 +22,8 @@ func ExtractLean(treeDepth uint32, numberOfUtxos uint32) (string, error) {
 	inclusionCircuit := InclusionCircuit{
 		Depth:          int(treeDepth),
 		NumberOfUtxos:  int(numberOfUtxos),
-		Root:           root,
-		Leaf:           leaf,
+		Roots:          roots,
+		Leaves:         leaves,
 		InPathIndices:  inPathIndices,
 		InPathElements: inPathElements,
 	}

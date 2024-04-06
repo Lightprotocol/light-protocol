@@ -14,19 +14,19 @@ import (
 )
 
 type NonInclusionParameters struct {
-	Root  []big.Int
-	Value []big.Int
+	Roots  []big.Int
+	Values []big.Int
 
-	LeafLowerRangeValue  []big.Int
-	LeafHigherRangeValue []big.Int
-	LeafIndex            []uint32
+	LeafLowerRangeValues  []big.Int
+	LeafHigherRangeValues []big.Int
+	LeafIndices           []uint32
 
 	InPathIndices  []uint32
 	InPathElements [][]big.Int
 }
 
 func (p *NonInclusionParameters) NumberOfUTXOs() uint32 {
-	return uint32(len(p.Root))
+	return uint32(len(p.Roots))
 }
 
 func (p *NonInclusionParameters) TreeDepth() uint32 {
@@ -38,7 +38,7 @@ func (p *NonInclusionParameters) TreeDepth() uint32 {
 
 func (p *NonInclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint32) error {
 	if p.NumberOfUTXOs() != numOfUTXOs {
-		return fmt.Errorf("wrong number of utxos: %d", len(p.Root))
+		return fmt.Errorf("wrong number of utxos: %d", len(p.Roots))
 	}
 	if p.TreeDepth() != treeDepth {
 		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfUTXOs(), p.TreeDepth())
@@ -47,12 +47,12 @@ func (p *NonInclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint
 }
 
 func R1CSNonInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.ConstraintSystem, error) {
-	root := make([]frontend.Variable, numberOfUtxos)
-	value := make([]frontend.Variable, numberOfUtxos)
+	roots := make([]frontend.Variable, numberOfUtxos)
+	values := make([]frontend.Variable, numberOfUtxos)
 
-	leafLowerRangeValue := make([]frontend.Variable, numberOfUtxos)
-	leafHigherRangeValue := make([]frontend.Variable, numberOfUtxos)
-	leafIndex := make([]frontend.Variable, numberOfUtxos)
+	leafLowerRangeValues := make([]frontend.Variable, numberOfUtxos)
+	leafHigherRangeValues := make([]frontend.Variable, numberOfUtxos)
+	leafIndices := make([]frontend.Variable, numberOfUtxos)
 
 	inPathIndices := make([]frontend.Variable, numberOfUtxos)
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
@@ -62,15 +62,15 @@ func R1CSNonInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.Constr
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                int(treeDepth),
-		NumberOfUtxos:        int(numberOfUtxos),
-		Root:                 root,
-		Value:                value,
-		LeafLowerRangeValue:  leafLowerRangeValue,
-		LeafHigherRangeValue: leafHigherRangeValue,
-		LeafIndex:            leafIndex,
-		InPathIndices:        inPathIndices,
-		InPathElements:       inPathElements,
+		Depth:                 int(treeDepth),
+		NumberOfUtxos:         int(numberOfUtxos),
+		Roots:                 roots,
+		Values:                values,
+		LeafLowerRangeValues:  leafLowerRangeValues,
+		LeafHigherRangeValues: leafHigherRangeValues,
+		LeafIndices:           leafIndices,
+		InPathIndices:         inPathIndices,
+		InPathElements:        inPathElements,
 	}
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
@@ -92,22 +92,22 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		return nil, err
 	}
 
-	root := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	value := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	roots := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	values := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
-	leafLowerRangeValue := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	leafHigherRangeValue := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	leafIndex := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	leafLowerRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	leafHigherRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	leafIndices := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
 	inPathElements := make([][]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
 	for i := 0; i < int(ps.NonInclusionNumberOfUtxos); i++ {
-		root[i] = params.Root[i]
-		value[i] = params.Value[i]
-		leafLowerRangeValue[i] = params.LeafLowerRangeValue[i]
-		leafHigherRangeValue[i] = params.LeafHigherRangeValue[i]
-		leafIndex[i] = params.LeafIndex[i]
+		roots[i] = params.Roots[i]
+		values[i] = params.Values[i]
+		leafLowerRangeValues[i] = params.LeafLowerRangeValues[i]
+		leafHigherRangeValues[i] = params.LeafHigherRangeValues[i]
+		leafIndices[i] = params.LeafIndices[i]
 		inPathIndices[i] = params.InPathIndices[i]
 		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
 		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
@@ -116,13 +116,13 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 	}
 
 	assignment := NonInclusionCircuit{
-		Root:                 root,
-		Value:                value,
-		LeafLowerRangeValue:  leafLowerRangeValue,
-		LeafHigherRangeValue: leafHigherRangeValue,
-		LeafIndex:            leafIndex,
-		InPathIndices:        inPathIndices,
-		InPathElements:       inPathElements,
+		Roots:                 roots,
+		Values:                values,
+		LeafLowerRangeValues:  leafLowerRangeValues,
+		LeafHigherRangeValues: leafHigherRangeValues,
+		LeafIndices:           leafIndices,
+		InPathIndices:         inPathIndices,
+		InPathElements:        inPathElements,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())

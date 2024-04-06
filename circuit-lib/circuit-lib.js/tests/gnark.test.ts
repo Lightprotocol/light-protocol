@@ -47,10 +47,10 @@ describe("Tests", () => {
         ).pathElements;
         const hexPathElements = pathElements.map((value) => toHex(value));
         let inputs = {
-          root: new Array(utxos[j]).fill(toHex(merkleTree.root())),
+          roots: new Array(utxos[j]).fill(toHex(merkleTree.root())),
           inPathIndices: new Array(utxos[j]).fill(merkleTree.indexOf(leaf)),
           inPathElements: new Array(utxos[j]).fill(hexPathElements),
-          leaf: new Array(utxos[j]).fill(toHex(leaf)),
+          leaves: new Array(utxos[j]).fill(toHex(leaf)),
         };
         const inputsData = JSON.stringify(inputs);
         console.time(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);

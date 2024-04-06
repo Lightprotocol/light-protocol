@@ -61,8 +61,8 @@ fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
     let in_path_indices = BigInt::zero();
 
     InclusionMerkleProofInputs {
-        leaf: leaf_bn,
-        root: root_bn,
+        roots: root_bn,
+        leaves: leaf_bn,
         in_path_indices,
         in_path_elements,
     }

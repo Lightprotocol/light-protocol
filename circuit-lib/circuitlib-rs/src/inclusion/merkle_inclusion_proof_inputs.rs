@@ -7,17 +7,17 @@ use crate::helpers::bigint_to_u8_32;
 
 #[derive(Clone, Debug)]
 pub struct InclusionMerkleProofInputs {
-    pub root: BigInt,
-    pub leaf: BigInt,
+    pub roots: BigInt,
+    pub leaves: BigInt,
     pub in_path_indices: BigInt,
     pub in_path_elements: Vec<BigInt>,
 }
 
 impl InclusionMerkleProofInputs {
     pub fn public_inputs_arr(&self) -> [[u8; 32]; 2] {
-        let root = bigint_to_u8_32(&self.root).unwrap();
-        let leaf = bigint_to_u8_32(&self.leaf).unwrap();
-        [root, leaf]
+        let roots = bigint_to_u8_32(&self.roots).unwrap();
+        let leaves = bigint_to_u8_32(&self.leaves).unwrap();
+        [roots, leaves]
     }
 }
 
@@ -26,13 +26,13 @@ pub struct InclusionProofInputs<'a>(pub &'a [InclusionMerkleProofInputs]);
 impl InclusionProofInputs<'_> {
     pub fn public_inputs(&self) -> Vec<[u8; 32]> {
         let mut roots = Vec::new();
-        let mut leafs = Vec::new();
+        let mut leaves = Vec::new();
         for input in self.0 {
             let input_arr = input.public_inputs_arr();
             roots.push(input_arr[0]);
-            leafs.push(input_arr[1]);
+            leaves.push(input_arr[1]);
         }
-        [roots, leafs].concat()
+        [roots, leaves].concat()
     }
 }
 
@@ -42,23 +42,23 @@ impl<'a> TryInto<HashMap<String, Inputs>> for InclusionProofInputs<'a> {
     fn try_into(self) -> Result<HashMap<String, Inputs>, Self::Error> {
         let mut inputs: HashMap<String, Inputs> = HashMap::new();
         let mut roots: Vec<BigInt> = Vec::new();
-        let mut leafs: Vec<BigInt> = Vec::new();
+        let mut leaves: Vec<BigInt> = Vec::new();
         let mut indices: Vec<BigInt> = Vec::new();
         let mut els: Vec<Vec<BigInt>> = Vec::new();
 
         for input in self.0 {
-            roots.push(input.root.clone());
-            leafs.push(input.leaf.clone());
+            roots.push(input.roots.clone());
+            leaves.push(input.leaves.clone());
             indices.push(input.in_path_indices.clone());
             els.push(input.in_path_elements.clone());
         }
 
         inputs
-            .entry("root".to_string())
+            .entry("roots".to_string())
             .or_insert_with(|| Inputs::BigIntVec(roots));
         inputs
-            .entry("leaf".to_string())
-            .or_insert_with(|| Inputs::BigIntVec(leafs));
+            .entry("leaves".to_string())
+            .or_insert_with(|| Inputs::BigIntVec(leaves));
         inputs
             .entry("inPathIndices".to_string())
             .or_insert_with(|| Inputs::BigIntVec(indices));
@@ -79,8 +79,8 @@ mod tests {
     #[test]
     fn test_conversion_to_hashmap() {
         let zero_input = InclusionMerkleProofInputs {
-            leaf: BigInt::zero(),
-            root: BigInt::zero(),
+            leaves: BigInt::zero(),
+            roots: BigInt::zero(),
             in_path_elements: vec![BigInt::zero()],
             in_path_indices: BigInt::zero(),
         };

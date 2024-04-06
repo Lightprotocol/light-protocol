@@ -14,14 +14,14 @@ import (
 )
 
 type InclusionParameters struct {
-	Root           []big.Int
+	Roots          []big.Int
 	InPathIndices  []uint32
 	InPathElements [][]big.Int
-	Leaf           []big.Int
+	Leaves         []big.Int
 }
 
 func (p *InclusionParameters) NumberOfUTXOs() uint32 {
-	return uint32(len(p.Root))
+	return uint32(len(p.Roots))
 }
 
 func (p *InclusionParameters) TreeDepth() uint32 {
@@ -33,7 +33,7 @@ func (p *InclusionParameters) TreeDepth() uint32 {
 
 func (p *InclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint32) error {
 	if p.NumberOfUTXOs() != numOfUTXOs {
-		return fmt.Errorf("wrong number of utxos: %d", len(p.Root))
+		return fmt.Errorf("wrong number of utxos: %d", len(p.Roots))
 	}
 	if p.TreeDepth() != treeDepth {
 		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfUTXOs(), p.TreeDepth())
@@ -42,8 +42,8 @@ func (p *InclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint32)
 }
 
 func R1CSInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.ConstraintSystem, error) {
-	root := make([]frontend.Variable, numberOfUtxos)
-	leaf := make([]frontend.Variable, numberOfUtxos)
+	roots := make([]frontend.Variable, numberOfUtxos)
+	leaves := make([]frontend.Variable, numberOfUtxos)
 	inPathIndices := make([]frontend.Variable, numberOfUtxos)
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
 
@@ -54,8 +54,8 @@ func R1CSInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.Constrain
 	circuit := InclusionCircuit{
 		Depth:          int(treeDepth),
 		NumberOfUtxos:  int(numberOfUtxos),
-		Root:           root,
-		Leaf:           leaf,
+		Roots:          roots,
+		Leaves:         leaves,
 		InPathIndices:  inPathIndices,
 		InPathElements: inPathElements,
 	}
@@ -80,13 +80,13 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 	}
 
 	inPathIndices := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
-	root := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
-	leaf := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	roots := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	leaves := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
 	inPathElements := make([][]frontend.Variable, ps.InclusionNumberOfUtxos)
 
 	for i := 0; i < int(ps.InclusionNumberOfUtxos); i++ {
-		root[i] = params.Root[i]
-		leaf[i] = params.Leaf[i]
+		roots[i] = params.Roots[i]
+		leaves[i] = params.Leaves[i]
 		inPathIndices[i] = params.InPathIndices[i]
 		inPathElements[i] = make([]frontend.Variable, ps.InclusionTreeDepth)
 		for j := 0; j < int(ps.InclusionTreeDepth); j++ {
@@ -95,8 +95,8 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 	}
 
 	assignment := InclusionCircuit{
-		Root:           root,
-		Leaf:           leaf,
+		Roots:          roots,
+		Leaves:         leaves,
 		InPathIndices:  inPathIndices,
 		InPathElements: inPathElements,
 	}
@@ -116,19 +116,19 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 }
 
 func (ps *ProvingSystem) VerifyInclusion(root []big.Int, leaf []big.Int, proof *Proof) error {
-	leafArray := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	leaves := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
 	for i, v := range leaf {
-		leafArray[i] = v
+		leaves[i] = v
 	}
 
-	rootArray := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
+	roots := make([]frontend.Variable, ps.InclusionNumberOfUtxos)
 	for i, v := range root {
-		rootArray[i] = v
+		roots[i] = v
 	}
 
 	publicAssignment := InclusionCircuit{
-		Leaf: leafArray,
-		Root: rootArray,
+		Roots:  roots,
+		Leaves: leaves,
 	}
 	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
 	if err != nil {
