@@ -203,11 +203,8 @@ async fn test_mint_to() {
         &[&payer],
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        &mut context,
-        env.merkle_tree_pubkey,
-    )
-    .await;
+    let old_merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -270,11 +267,8 @@ async fn test_transfer() {
         &[&payer],
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        &mut context,
-        env.merkle_tree_pubkey,
-    )
-    .await;
+    let old_merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -304,8 +298,7 @@ async fn test_transfer() {
     )
     .await;
     let transfer_recipient_keypair = Keypair::new();
-    let input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data;
+    let input_compressed_account_token_data = mock_indexer.token_compressed_accounts[0].token_data;
     let input_compressed_accounts = [mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
@@ -343,12 +336,14 @@ async fn test_transfer() {
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
         &recipient_keypair.pubkey(),
-        &[merkle_tree_pubkey], // input compressed account Merkle trees
+        &[merkle_tree_pubkey],   // input compressed account Merkle trees
         &[indexed_array_pubkey], // input compressed account indexed arrays
         &[merkle_tree_pubkey, merkle_tree_pubkey], // output compressed account Merkle trees
         input_compressed_accounts.as_slice(), // input compressed_accounts
-        &[change_out_compressed_account,
-            transfer_recipient_out_compressed_account],
+        &[
+            change_out_compressed_account,
+            transfer_recipient_out_compressed_account,
+        ],
         &root_indices,
         &input_compressed_account_indices,
         &proof,
@@ -360,11 +355,8 @@ async fn test_transfer() {
         [&payer, &recipient_keypair].as_slice(),
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        &mut context,
-        env.merkle_tree_pubkey,
-    )
-    .await;
+    let old_merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -443,11 +435,8 @@ async fn test_invalid_inputs() {
         &[&payer],
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        &mut context,
-        env.merkle_tree_pubkey,
-    )
-    .await;
+    let old_merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -477,8 +466,7 @@ async fn test_invalid_inputs() {
     )
     .await;
     let transfer_recipient_keypair = Keypair::new();
-    let input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data;
+    let input_compressed_account_token_data = mock_indexer.token_compressed_accounts[0].token_data;
     let input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
@@ -887,12 +875,14 @@ async fn create_transfer_out_utxo_test(
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
-        &[*merkle_tree_pubkey], // input compressed account Merkle trees
+        &[*merkle_tree_pubkey],   // input compressed account Merkle trees
         &[*indexed_array_pubkey], // input compressed account indexed arrays
         &[*merkle_tree_pubkey, *merkle_tree_pubkey], // output compressed account Merkle trees
         input_compressed_accounts.as_slice(), // input compressed_accounts
-        &[change_token_transfer_output,
-            transfer_recipient_token_transfer_output],
+        &[
+            change_token_transfer_output,
+            transfer_recipient_token_transfer_output,
+        ],
         root_indices,
         &input_compressed_account_indices,
         proof,
@@ -919,8 +909,7 @@ async fn assert_mint_to<'a>(
     amount: u64,
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
 ) {
-    let token_compressed_account_data =
-        mock_indexer.token_compressed_accounts[0].token_data;
+    let token_compressed_account_data = mock_indexer.token_compressed_accounts[0].token_data;
     assert_eq!(token_compressed_account_data.amount, amount);
     assert_eq!(
         token_compressed_account_data.owner,
@@ -931,11 +920,9 @@ async fn assert_mint_to<'a>(
     assert_eq!(token_compressed_account_data.is_native, None);
     assert_eq!(token_compressed_account_data.delegated_amount, 0);
 
-    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        context,
-        mock_indexer.merkle_tree_pubkey,
-    )
-    .await;
+    let merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, mock_indexer.merkle_tree_pubkey)
+            .await;
     // let merkle_tree =
     //     state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
     let merkle_tree = merkle_tree_account
@@ -987,11 +974,9 @@ async fn assert_transfer<'a>(
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
     input_compressed_accounts: &[CompressedAccount],
 ) {
-    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        context,
-        mock_indexer.merkle_tree_pubkey,
-    )
-    .await;
+    let merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, mock_indexer.merkle_tree_pubkey)
+            .await;
     let merkle_tree = merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -1217,11 +1202,8 @@ impl MockIndexer {
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
-        let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-            context,
-            self.merkle_tree_pubkey,
-        )
-        .await;
+        let merkle_tree_account =
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
             .deserialized()
             .copy_merkle_tree()
@@ -1293,10 +1275,7 @@ impl MockIndexer {
             self.merkle_tree
                 .append(
                     &compressed_account
-                        .hash(
-                            &self.merkle_tree_pubkey,
-                            &event.output_leaf_indices[i],
-                        )
+                        .hash(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
                         .unwrap(),
                 )
                 .expect("insert failed");
@@ -1339,11 +1318,8 @@ impl MockIndexer {
         )
         .await;
         let indexed_array = array.deserialized().indexed_array;
-        let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-            context,
-            self.merkle_tree_pubkey,
-        )
-        .await;
+        let merkle_tree_account =
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
             .deserialized()
             .copy_merkle_tree()
@@ -1402,11 +1378,8 @@ impl MockIndexer {
                 compressed_account.element
             );
             let merkle_tree_account =
-                AccountZeroCopy::<StateMerkleTreeAccount>::new(
-                    context,
-                    self.merkle_tree_pubkey,
-                )
-                .await;
+                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
+                    .await;
             assert_eq!(
                 indexed_array[*index_in_indexed_array].merkle_tree_overwrite_sequence_number,
                 merkle_tree_account
