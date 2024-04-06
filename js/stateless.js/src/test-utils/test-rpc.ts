@@ -275,8 +275,7 @@ export class TestRpc extends Rpc {
         const leafIndices = compressedAccountHashes.map(compressedAccountHash =>
             tree.indexOf(compressedAccountHash.toString()),
         );
-        console.log('leafIndices', leafIndices);
-        console.log('tree', JSON.stringify(tree));
+
         const hexPathElementsAll = leafIndices.map(leafIndex => {
             const pathElements: string[] = tree.path(leafIndex).pathElements;
 
@@ -285,11 +284,9 @@ export class TestRpc extends Rpc {
             return hexPathElements;
         });
 
-        console.log('hexPathElementsAll', JSON.stringify(hexPathElementsAll));
         const roots = new Array(compressedAccountHashes.length).fill(
             toHex(tree.root()),
         );
-        console.log('roots', roots);
 
         const inputs = {
             roots,
@@ -318,12 +315,11 @@ export class TestRpc extends Rpc {
             logMsg = `Proof generation for depth:${this.depth} n:${compressedAccountHashes.length}`;
             console.time(logMsg);
         }
-        console.log('inputsData', JSON.stringify(inputsData));
         // TODO: pass url into rpc constructor
         const SERVER_URL = 'http://localhost:3001';
         const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
         const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
-        console.log('response', response);
+
         const parsed = proofFromJsonStruct(response.data);
 
         const compressedProof = negateAndCompressProof(parsed);

@@ -10,6 +10,7 @@ import { IDL, PspCompressedToken } from './idl/psp_compressed_token';
 import {
     LightSystemProgram,
     PublicTransactionEvent,
+    accountCompressionProgram,
     bn,
     confirmConfig,
     defaultStaticAccountsStruct,
@@ -130,7 +131,10 @@ export class CompressedTokenProgram {
     /** @internal */
     static get deriveCpiAuthorityPda(): PublicKey {
         const [address, _] = PublicKey.findProgramAddressSync(
-            [Buffer.from('cpi_authority')],
+            [
+                Buffer.from('cpi_authority'),
+                defaultStaticAccountsStruct().accountCompressionProgram.toBuffer(),
+            ],
             this.programId,
         );
         return address;
@@ -177,6 +181,7 @@ export class CompressedTokenProgram {
                 systemProgram: SystemProgram.programId,
                 mintAuthorityPda,
                 tokenProgram: TOKEN_PROGRAM_ID,
+                cpiAuthorityPda: this.deriveCpiAuthorityPda,
             })
             .instruction();
 

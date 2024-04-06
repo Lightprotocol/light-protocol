@@ -1,9 +1,5 @@
 import { describe, it, assert, beforeAll } from 'vitest';
-import {
-    CompressedAccount,
-    bn,
-    createCompressedAccount,
-} from '../../src/state';
+import { bn } from '../../src/state';
 import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
 
 import { Keypair, Signer } from '@solana/web3.js';
@@ -43,7 +39,7 @@ describe('transfer', () => {
         /// Send
         const { blockhash } = await rpc.getLatestBlockhash();
         const signedTx = buildAndSignTx(ixs, payer, blockhash);
-        const txId = await sendAndConfirmTx(rpc, signedTx);
+        await sendAndConfirmTx(rpc, signedTx);
 
         rpc = await getTestRpc();
 
@@ -65,9 +61,11 @@ describe('transfer', () => {
         assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
 
         const hash = indexedEvents[0].outputCompressedAccountHashes[0];
-        console.log('hash', hash);
-        console.log('txId', txId);
-        const proof = await rpc.getValidityProof([hash]);
-        console.log('proof', proof);
+
+        const proof = await rpc.getValidityProof([bn(hash)]);
+
+        assert.equal(proof.compressedProof.a.length, 32);
+        assert.equal(proof.compressedProof.b.length, 64);
+        assert.equal(proof.compressedProof.c.length, 32);
     });
 });
