@@ -7,14 +7,14 @@ import (
 )
 
 type NonInclusionParametersJSON struct {
-	Root           []string   `json:"root"`
+	Roots          []string   `json:"roots"`
+	Values         []string   `json:"values"`
 	InPathIndices  []uint32   `json:"inPathIndices"`
 	InPathElements [][]string `json:"inPathElements"`
-	Value          []string   `json:"value"`
 
-	LeafLowerRangeValue  []string `json:"leafLowerRangeValue"`
-	LeafHigherRangeValue []string `json:"leafHigherRangeValue"`
-	LeafIndex            []uint32 `json:"leafIndex"`
+	LeafLowerRangeValues  []string `json:"leafLowerRangeValues"`
+	LeafHigherRangeValues []string `json:"leafHigherRangeValues"`
+	LeafIndices           []uint32 `json:"leafIndices"`
 }
 
 func ParseNonInclusion(inputJSON string) (NonInclusionParameters, error) {
@@ -29,29 +29,29 @@ func ParseNonInclusion(inputJSON string) (NonInclusionParameters, error) {
 func (p *NonInclusionParameters) MarshalJSON() ([]byte, error) {
 	paramsJson := NonInclusionParametersJSON{}
 
-	paramsJson.Root = make([]string, len(p.Root))
-	for i := 0; i < len(p.Root); i++ {
-		paramsJson.Root[i] = toHex(&p.Root[i])
+	paramsJson.Roots = make([]string, len(p.Roots))
+	for i := 0; i < len(p.Roots); i++ {
+		paramsJson.Roots[i] = toHex(&p.Roots[i])
 	}
 
-	paramsJson.Value = make([]string, len(p.Value))
-	for i := 0; i < len(p.Value); i++ {
-		paramsJson.Value[i] = toHex(&p.Value[i])
+	paramsJson.Values = make([]string, len(p.Values))
+	for i := 0; i < len(p.Values); i++ {
+		paramsJson.Values[i] = toHex(&p.Values[i])
 	}
 
-	paramsJson.LeafLowerRangeValue = make([]string, len(p.LeafLowerRangeValue))
-	for i := 0; i < len(p.LeafLowerRangeValue); i++ {
-		paramsJson.LeafLowerRangeValue[i] = toHex(&p.LeafLowerRangeValue[i])
+	paramsJson.LeafLowerRangeValues = make([]string, len(p.LeafLowerRangeValues))
+	for i := 0; i < len(p.LeafLowerRangeValues); i++ {
+		paramsJson.LeafLowerRangeValues[i] = toHex(&p.LeafLowerRangeValues[i])
 	}
 
-	paramsJson.LeafHigherRangeValue = make([]string, len(p.LeafHigherRangeValue))
-	for i := 0; i < len(p.LeafHigherRangeValue); i++ {
-		paramsJson.LeafHigherRangeValue[i] = toHex(&p.LeafHigherRangeValue[i])
+	paramsJson.LeafHigherRangeValues = make([]string, len(p.LeafHigherRangeValues))
+	for i := 0; i < len(p.LeafHigherRangeValues); i++ {
+		paramsJson.LeafHigherRangeValues[i] = toHex(&p.LeafHigherRangeValues[i])
 	}
 
-	paramsJson.LeafIndex = make([]uint32, len(p.LeafIndex))
-	for i := 0; i < len(p.LeafIndex); i++ {
-		paramsJson.LeafIndex[i] = p.LeafIndex[i]
+	paramsJson.LeafIndices = make([]uint32, len(p.LeafIndices))
+	for i := 0; i < len(p.LeafIndices); i++ {
+		paramsJson.LeafIndices[i] = p.LeafIndices[i]
 	}
 
 	paramsJson.InPathIndices = make([]uint32, len(p.InPathIndices))
@@ -79,41 +79,41 @@ func (p *NonInclusionParameters) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	p.Root = make([]big.Int, len(params.Root))
-	for i := 0; i < len(params.Root); i++ {
-		err = fromHex(&p.Root[i], params.Root[i])
+	p.Roots = make([]big.Int, len(params.Roots))
+	for i := 0; i < len(params.Roots); i++ {
+		err = fromHex(&p.Roots[i], params.Roots[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	p.Value = make([]big.Int, len(params.Value))
-	for i := 0; i < len(params.Value); i++ {
-		err = fromHex(&p.Value[i], params.Value[i])
+	p.Values = make([]big.Int, len(params.Values))
+	for i := 0; i < len(params.Values); i++ {
+		err = fromHex(&p.Values[i], params.Values[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	p.LeafLowerRangeValue = make([]big.Int, len(params.LeafLowerRangeValue))
-	for i := 0; i < len(params.LeafLowerRangeValue); i++ {
-		err = fromHex(&p.LeafLowerRangeValue[i], params.LeafLowerRangeValue[i])
+	p.LeafLowerRangeValues = make([]big.Int, len(params.LeafLowerRangeValues))
+	for i := 0; i < len(params.LeafLowerRangeValues); i++ {
+		err = fromHex(&p.LeafLowerRangeValues[i], params.LeafLowerRangeValues[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	p.LeafHigherRangeValue = make([]big.Int, len(params.LeafHigherRangeValue))
-	for i := 0; i < len(params.LeafHigherRangeValue); i++ {
-		err = fromHex(&p.LeafHigherRangeValue[i], params.LeafHigherRangeValue[i])
+	p.LeafHigherRangeValues = make([]big.Int, len(params.LeafHigherRangeValues))
+	for i := 0; i < len(params.LeafHigherRangeValues); i++ {
+		err = fromHex(&p.LeafHigherRangeValues[i], params.LeafHigherRangeValues[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	p.LeafIndex = make([]uint32, len(params.LeafIndex))
-	for i := 0; i < len(params.LeafIndex); i++ {
-		p.LeafIndex[i] = params.LeafIndex[i]
+	p.LeafIndices = make([]uint32, len(params.LeafIndices))
+	for i := 0; i < len(params.LeafIndices); i++ {
+		p.LeafIndices[i] = params.LeafIndices[i]
 	}
 
 	p.InPathIndices = make([]uint32, len(params.InPathIndices))

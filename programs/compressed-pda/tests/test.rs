@@ -334,7 +334,7 @@ async fn test_with_address() {
         lamports: 0,
         owner: payer_pubkey,
         data: None,
-        address: Some(derived_address), // this should not be sent, only derived onchain
+        address: Some(derived_address), // this should not be sent, only derived on-chain
     }];
     let proof_mock = CompressedProof {
         a: [0u8; 32],
@@ -541,7 +541,7 @@ async fn test_with_compression() {
         lamports: compress_amount,
         owner: payer_pubkey,
         data: None,
-        address: None, // this should not be sent, only derived onchain
+        address: None, // this should not be sent, only derived on-chain
     }];
     let proof_mock = CompressedProof {
         a: [0u8; 32],
@@ -556,8 +556,8 @@ async fn test_with_compression() {
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -595,8 +595,8 @@ async fn test_with_compression() {
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -635,8 +635,8 @@ async fn test_with_compression() {
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
-        &vec![merkle_tree_pubkey],
-        &vec![0u16],
+        &[merkle_tree_pubkey],
+        &[0u16],
         &Vec::new(),
         &Vec::new(),
         &Vec::new(),
@@ -712,10 +712,10 @@ async fn test_with_compression() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
         &Vec::new(),
@@ -754,10 +754,10 @@ async fn test_with_compression() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &vec![merkle_tree_pubkey],
-        &vec![0u32],
-        &vec![indexed_array_pubkey],
-        &vec![merkle_tree_pubkey],
+        &[merkle_tree_pubkey],
+        &[0u32],
+        &[indexed_array_pubkey],
+        &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
         &Vec::new(),
@@ -905,8 +905,8 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                root: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
-                leaf: BigInt::from_be_bytes(compressed_account),
+                roots: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
+                leaves: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
@@ -937,7 +937,7 @@ impl MockIndexer {
         assert_eq!(
             self.merkle_tree.root().unwrap(),
             merkle_tree.root().unwrap(),
-            "Local Merkle tree root is not equal to latest onchain root"
+            "Local Merkle tree root is not equal to latest on-chain root"
         );
 
         let root_indices: Vec<u16> =

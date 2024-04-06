@@ -12,8 +12,8 @@ type CombinedCircuit struct {
 
 func (circuit *CombinedCircuit) Define(api frontend.API) error {
 	abstractor.CallVoid(api, InclusionProof{
-		Root:           circuit.Inclusion.Root,
-		Leaf:           circuit.Inclusion.Leaf,
+		Roots:          circuit.Inclusion.Roots,
+		Leaves:         circuit.Inclusion.Leaves,
 		InPathElements: circuit.Inclusion.InPathElements,
 		InPathIndices:  circuit.Inclusion.InPathIndices,
 		NumberOfUtxos:  circuit.Inclusion.NumberOfUtxos,
@@ -21,15 +21,15 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 	})
 
 	abstractor.CallVoid(api, NonInclusionProof{
-		Root:                 circuit.NonInclusion.Root,
-		Value:                circuit.NonInclusion.Value,
-		LeafLowerRangeValue:  circuit.NonInclusion.LeafLowerRangeValue,
-		LeafHigherRangeValue: circuit.NonInclusion.LeafHigherRangeValue,
-		LeafIndex:            circuit.NonInclusion.LeafIndex,
-		InPathIndices:        circuit.NonInclusion.InPathIndices,
-		InPathElements:       circuit.NonInclusion.InPathElements,
-		NumberOfUtxos:        circuit.NonInclusion.NumberOfUtxos,
-		Depth:                circuit.NonInclusion.Depth,
+		Roots:                 circuit.NonInclusion.Roots,
+		Values:                circuit.NonInclusion.Values,
+		LeafLowerRangeValues:  circuit.NonInclusion.LeafLowerRangeValues,
+		LeafHigherRangeValues: circuit.NonInclusion.LeafHigherRangeValues,
+		LeafIndices:           circuit.NonInclusion.LeafIndices,
+		InPathIndices:         circuit.NonInclusion.InPathIndices,
+		InPathElements:        circuit.NonInclusion.InPathElements,
+		NumberOfUtxos:         circuit.NonInclusion.NumberOfUtxos,
+		Depth:                 circuit.NonInclusion.Depth,
 	})
 	return nil
 }

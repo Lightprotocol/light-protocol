@@ -9,13 +9,13 @@ import (
 
 type NonInclusionCircuit struct {
 	// public inputs
-	Root  []frontend.Variable `gnark:",public"`
-	Value []frontend.Variable `gnark:",public"`
+	Roots  []frontend.Variable `gnark:",public"`
+	Values []frontend.Variable `gnark:",public"`
 
 	// private inputs
-	LeafLowerRangeValue  []frontend.Variable `gnark:"input"`
-	LeafHigherRangeValue []frontend.Variable `gnark:"input"`
-	LeafIndex            []frontend.Variable `gnark:"input"`
+	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
+	LeafHigherRangeValues []frontend.Variable `gnark:"input"`
+	LeafIndices           []frontend.Variable `gnark:"input"`
 
 	InPathIndices  []frontend.Variable   `gnark:"input"`
 	InPathElements [][]frontend.Variable `gnark:"input"`
@@ -26,12 +26,12 @@ type NonInclusionCircuit struct {
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 	proof := NonInclusionProof{
-		Root:  circuit.Root,
-		Value: circuit.Value,
+		Roots:  circuit.Roots,
+		Values: circuit.Values,
 
-		LeafLowerRangeValue:  circuit.LeafLowerRangeValue,
-		LeafHigherRangeValue: circuit.LeafHigherRangeValue,
-		LeafIndex:            circuit.LeafIndex,
+		LeafLowerRangeValues:  circuit.LeafLowerRangeValues,
+		LeafHigherRangeValues: circuit.LeafHigherRangeValues,
+		LeafIndices:           circuit.LeafIndices,
 
 		InPathElements: circuit.InPathElements,
 		InPathIndices:  circuit.InPathIndices,
@@ -42,18 +42,18 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 	roots := abstractor.Call1(api, proof)
 
 	for i := 0; i < circuit.NumberOfUtxos; i++ {
-		api.AssertIsEqual(roots[i], circuit.Root[i])
+		api.AssertIsEqual(roots[i], circuit.Roots[i])
 	}
 	return nil
 }
 
 func ImportNonInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
-	root := make([]frontend.Variable, numberOfUtxos)
-	value := make([]frontend.Variable, numberOfUtxos)
+	roots := make([]frontend.Variable, numberOfUtxos)
+	values := make([]frontend.Variable, numberOfUtxos)
 
-	leafLowerRangeValue := make([]frontend.Variable, numberOfUtxos)
-	leafHigherRangeValue := make([]frontend.Variable, numberOfUtxos)
-	leafIndex := make([]frontend.Variable, numberOfUtxos)
+	leafLowerRangeValues := make([]frontend.Variable, numberOfUtxos)
+	leafHigherRangeValues := make([]frontend.Variable, numberOfUtxos)
+	leafIndices := make([]frontend.Variable, numberOfUtxos)
 
 	inPathIndices := make([]frontend.Variable, numberOfUtxos)
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
@@ -63,15 +63,15 @@ func ImportNonInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath stri
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                int(treeDepth),
-		NumberOfUtxos:        int(numberOfUtxos),
-		Root:                 root,
-		Value:                value,
-		LeafLowerRangeValue:  leafLowerRangeValue,
-		LeafHigherRangeValue: leafHigherRangeValue,
-		LeafIndex:            leafIndex,
-		InPathIndices:        inPathIndices,
-		InPathElements:       inPathElements,
+		Depth:                 int(treeDepth),
+		NumberOfUtxos:         int(numberOfUtxos),
+		Roots:                 roots,
+		Values:                values,
+		LeafLowerRangeValues:  leafLowerRangeValues,
+		LeafHigherRangeValues: leafHigherRangeValues,
+		LeafIndices:           leafIndices,
+		InPathIndices:         inPathIndices,
+		InPathElements:        inPathElements,
 	}
 
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)

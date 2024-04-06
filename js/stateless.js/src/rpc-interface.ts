@@ -32,7 +32,7 @@ export type CompressedProofWithContext = {
     // for now we assume latest root = allLeaves.length
     rootIndices: number[];
     leafIndices: number[];
-    leafs: BN[];
+    leaves: BN[];
     merkleTree: PublicKey;
     nullifierQueue: PublicKey;
 };

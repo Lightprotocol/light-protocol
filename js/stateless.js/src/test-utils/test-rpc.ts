@@ -287,14 +287,10 @@ export class TestRpc extends Rpc {
         );
 
         const inputs = {
-            /// roots
-            root: roots,
-            /// array of leafIndices
+            roots,
             inPathIndices: leafIndices,
-            /// array of array of pathElements
             inPathElements: hexPathElementsAll,
-            /// array of leafs
-            leaf: compressedAccountHashes.map(compressedAccountHash =>
+            leaves: compressedAccountHashes.map(compressedAccountHash =>
                 toHex(compressedAccountHash.toString()),
             ),
         };
@@ -335,7 +331,7 @@ export class TestRpc extends Rpc {
             // TODO: temporary
             rootIndices: leafIndices.map(_ => allLeafIndices.length),
             leafIndices,
-            leafs: compressedAccountHashes,
+            leaves: compressedAccountHashes,
             merkleTree: this.merkleTreeAddress,
             nullifierQueue: this.nullifierQueueAddress,
         };

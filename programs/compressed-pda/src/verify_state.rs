@@ -459,8 +459,8 @@ mod test {
             let mut leaves = Vec::<[u8; 32]>::new();
 
             for _ in 0..*number_of_compressed_accounts {
-                roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
-                leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
+                roots.push(big_int_inputs.roots.to_bytes_be().1.try_into().unwrap());
+                leaves.push(big_int_inputs.leaves.to_bytes_be().1.try_into().unwrap());
             }
 
             verify_merkle_proof_zkp(

@@ -22,9 +22,9 @@ type ProvingSystem struct {
 	InclusionNumberOfUtxos    uint32
 	NonInclusionTreeDepth     uint32
 	NonInclusionNumberOfUtxos uint32
-	ProvingKey       groth16.ProvingKey
-	VerifyingKey     groth16.VerifyingKey
-	ConstraintSystem constraint.ConstraintSystem
+	ProvingKey                groth16.ProvingKey
+	VerifyingKey              groth16.VerifyingKey
+	ConstraintSystem          constraint.ConstraintSystem
 }
 
 // ProofRound gadget generates the ParentHash
@@ -43,8 +43,8 @@ func (gadget ProofRound) DefineGadget(api frontend.API) interface{} {
 }
 
 type InclusionProof struct {
-	Root           []frontend.Variable
-	Leaf           []frontend.Variable
+	Roots          []frontend.Variable
+	Leaves         []frontend.Variable
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
 
@@ -56,23 +56,23 @@ func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
 	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
 		hash := MerkleRootGadget{
-			Hash:  gadget.Leaf[proofIndex],
+			Hash:  gadget.Leaves[proofIndex],
 			Index: gadget.InPathIndices[proofIndex],
 			Path:  gadget.InPathElements[proofIndex],
 			Depth: gadget.Depth}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
-		api.AssertIsEqual(currentHash[proofIndex], gadget.Root[proofIndex])
-		}
+		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
+	}
 	return currentHash
 }
 
 type NonInclusionProof struct {
-	Root  []frontend.Variable
-	Value []frontend.Variable
+	Roots  []frontend.Variable
+	Values []frontend.Variable
 
-	LeafLowerRangeValue  []frontend.Variable
-	LeafHigherRangeValue []frontend.Variable
-	LeafIndex            []frontend.Variable
+	LeafLowerRangeValues  []frontend.Variable
+	LeafHigherRangeValues []frontend.Variable
+	LeafIndices           []frontend.Variable
 
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
@@ -85,10 +85,10 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
 	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
 		leaf := LeafHashGadget{
-			LeafLowerRangeValue:  gadget.LeafLowerRangeValue[proofIndex],
-			LeafIndex:            gadget.LeafIndex[proofIndex],
-			LeafHigherRangeValue: gadget.LeafHigherRangeValue[proofIndex],
-			Value:                gadget.Value[proofIndex]}
+			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
+			LeafIndex:            gadget.LeafIndices[proofIndex],
+			LeafHigherRangeValue: gadget.LeafHigherRangeValues[proofIndex],
+			Value:                gadget.Values[proofIndex]}
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
 
 		hash := MerkleRootGadget{
@@ -97,7 +97,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			Path:  gadget.InPathElements[proofIndex],
 			Depth: gadget.Depth}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
-		api.AssertIsEqual(currentHash[proofIndex], gadget.Root[proofIndex])
+		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
 	return currentHash
 }
@@ -112,7 +112,7 @@ func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
 	y := abstractor.Call(api, gadget.NonInclusionProof)
 	if x == nil || y == nil {
 		return nil
-		}
+	}
 	return nil
 }
 
@@ -156,7 +156,10 @@ func LoadProvingKey(filepath string) (pk groth16.ProvingKey, err error) {
 	if err != nil {
 		return pk, fmt.Errorf("read file error")
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return nil, err
+	}
 	return pk, nil
 }
 
@@ -169,7 +172,10 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 	if err != nil {
 		return verifyingKey, fmt.Errorf("read file error")
 	}
-	f.Close()
+	err = f.Close()
+	if err != nil {
+		return nil, err
+	}
 
 	return verifyingKey, nil
 }

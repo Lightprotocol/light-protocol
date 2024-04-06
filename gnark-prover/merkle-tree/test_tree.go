@@ -169,10 +169,10 @@ func BuildTestTree(depth int, numberOfUtxos int, random bool) prover.InclusionPa
 	}
 
 	return prover.InclusionParameters{
-		Root:           roots,
+		Roots:          roots,
 		InPathIndices:  inPathIndicesBatch,
 		InPathElements: inPathElementsBatch,
-		Leaf:           leaves,
+		Leaves:         leaves,
 	}
 }
 
@@ -248,12 +248,12 @@ func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid 
 	}
 
 	return prover.NonInclusionParameters{
-		Root:                 roots,
-		InPathIndices:        inPathIndicesBatch,
-		InPathElements:       inPathElementsBatch,
-		Value:                values,
-		LeafIndex:            leafIndices,
-		LeafLowerRangeValue:  leafLowerRangeValue,
-		LeafHigherRangeValue: leafHigherRangeValue,
+		Roots:                 roots,
+		Values:                values,
+		InPathIndices:         inPathIndicesBatch,
+		InPathElements:        inPathElementsBatch,
+		LeafIndices:           leafIndices,
+		LeafLowerRangeValues:  leafLowerRangeValue,
+		LeafHigherRangeValues: leafHigherRangeValue,
 	}
 }

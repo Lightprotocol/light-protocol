@@ -38,17 +38,17 @@ func TestInclusion(t *testing.T) {
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
-		var numberOfUtxos = len(params.Root)
+		var numberOfUtxos = len(params.Roots)
 		var treeDepth = len(params.InPathElements[0])
 
-		root := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.Root {
-			root[i] = v
+		roots := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.Roots {
+			roots[i] = v
 		}
 
-		leaf := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.Leaf {
-			leaf[i] = v
+		leaves := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.Leaves {
+			leaves[i] = v
 		}
 
 		inPathIndices := make([]frontend.Variable, numberOfUtxos)
@@ -68,8 +68,8 @@ func TestInclusion(t *testing.T) {
 		}
 
 		var circuit InclusionCircuit
-		circuit.Root = make([]frontend.Variable, numberOfUtxos)
-		circuit.Leaf = make([]frontend.Variable, numberOfUtxos)
+		circuit.Roots = make([]frontend.Variable, numberOfUtxos)
+		circuit.Leaves = make([]frontend.Variable, numberOfUtxos)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfUtxos)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfUtxos)
 		for i := 0; i < int(numberOfUtxos); i++ {
@@ -84,8 +84,8 @@ func TestInclusion(t *testing.T) {
 		if expectedResult == "0" {
 			// Run the failing test
 			assert.ProverFailed(&circuit, &InclusionCircuit{
-				Root:           root,
-				Leaf:           leaf,
+				Roots:          roots,
+				Leaves:         leaves,
 				InPathIndices:  inPathIndices,
 				InPathElements: inPathElements,
 				NumberOfUtxos:  numberOfUtxos,
@@ -94,8 +94,8 @@ func TestInclusion(t *testing.T) {
 		} else if expectedResult == "1" {
 			// Run the passing test
 			assert.ProverSucceeded(&circuit, &InclusionCircuit{
-				Root:           root,
-				Leaf:           leaf,
+				Roots:          roots,
+				Leaves:         leaves,
 				InPathIndices:  inPathIndices,
 				InPathElements: inPathElements,
 				NumberOfUtxos:  numberOfUtxos,

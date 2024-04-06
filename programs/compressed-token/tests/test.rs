@@ -54,7 +54,7 @@ pub fn create_initialize_mint_instructions(
     mint_keypair: &Keypair,
 ) -> ([Instruction; 4], Pubkey) {
     let account_create_ix = create_account_instruction(
-        &payer,
+        payer,
         anchor_spl::token::Mint::LEN,
         rent,
         &anchor_spl::token::ID,
@@ -72,9 +72,9 @@ pub fn create_initialize_mint_instructions(
     )
     .unwrap();
     let transfer_ix =
-        anchor_lang::solana_program::system_instruction::transfer(&payer, &mint_pubkey, rent);
+        anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_initialize_mint_instruction(&payer, &authority, &mint_pubkey);
+    let instruction = create_initialize_mint_instruction(payer, authority, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [
@@ -111,7 +111,7 @@ async fn assert_create_mint(
     assert_eq!(mint_account.decimals, 2);
     assert_eq!(mint_account.mint_authority.unwrap(), mint_authority);
     assert_eq!(mint_account.freeze_authority, None.into());
-    assert_eq!(mint_account.is_initialized, true);
+    assert!(mint_account.is_initialized);
     let mint_account: spl_token::state::Account = spl_token::state::Account::unpack(
         &context
             .banks_client
@@ -203,7 +203,7 @@ async fn test_mint_to() {
         &[&payer],
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
         env.merkle_tree_pubkey,
     )
@@ -270,7 +270,7 @@ async fn test_transfer() {
         &[&payer],
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
         env.merkle_tree_pubkey,
     )
@@ -305,8 +305,8 @@ async fn test_transfer() {
     .await;
     let transfer_recipient_keypair = Keypair::new();
     let input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
-    let input_compressed_accounts = vec![mock_indexer.compressed_accounts
+        mock_indexer.token_compressed_accounts[0].token_data;
+    let input_compressed_accounts = [mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
     let input_compressed_account_indices: Vec<u32> = input_compressed_accounts
@@ -343,14 +343,12 @@ async fn test_transfer() {
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
         &recipient_keypair.pubkey(),
-        &vec![merkle_tree_pubkey], // input compressed account Merkle trees
-        &vec![indexed_array_pubkey], // input compressed account indexed arrays
-        &vec![merkle_tree_pubkey, merkle_tree_pubkey], // output compressed account Merkle trees
+        &[merkle_tree_pubkey], // input compressed account Merkle trees
+        &[indexed_array_pubkey], // input compressed account indexed arrays
+        &[merkle_tree_pubkey, merkle_tree_pubkey], // output compressed account Merkle trees
         input_compressed_accounts.as_slice(), // input compressed_accounts
-        &vec![
-            change_out_compressed_account,
-            transfer_recipient_out_compressed_account,
-        ],
+        &[change_out_compressed_account,
+            transfer_recipient_out_compressed_account],
         &root_indices,
         &input_compressed_account_indices,
         &proof,
@@ -362,7 +360,7 @@ async fn test_transfer() {
         [&payer, &recipient_keypair].as_slice(),
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
         env.merkle_tree_pubkey,
     )
@@ -445,7 +443,7 @@ async fn test_invalid_inputs() {
         &[&payer],
         context.get_new_latest_blockhash().await.unwrap(),
     );
-    let old_merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+    let old_merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
         &mut context,
         env.merkle_tree_pubkey,
     )
@@ -480,7 +478,7 @@ async fn test_invalid_inputs() {
     .await;
     let transfer_recipient_keypair = Keypair::new();
     let input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     let input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
@@ -638,7 +636,7 @@ async fn test_invalid_inputs() {
     );
 
     let mut input_compressed_account_token_data_invalid_amount =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data_invalid_amount.amount = 0;
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -687,7 +685,7 @@ async fn test_invalid_inputs() {
         ))
     );
     let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -722,7 +720,7 @@ async fn test_invalid_inputs() {
         ))
     );
     let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.owner = Pubkey::new_unique();
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -758,7 +756,7 @@ async fn test_invalid_inputs() {
     );
 
     let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.is_native = Some(0);
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -794,7 +792,7 @@ async fn test_invalid_inputs() {
     );
 
     let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.state = AccountState::Uninitialized;
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -829,7 +827,7 @@ async fn test_invalid_inputs() {
         ))
     );
     let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegated_amount = 1;
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -865,6 +863,7 @@ async fn test_invalid_inputs() {
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_transfer_out_utxo_test(
     context: &mut ProgramTestContext,
     change_token_transfer_output: TokenTransferOutputData,
@@ -873,8 +872,8 @@ async fn create_transfer_out_utxo_test(
     indexed_array_pubkey: &Pubkey,
     payer: &Keypair,
     proof: &CompressedProof,
-    root_indices: &Vec<u16>,
-    input_compressed_accounts: &Vec<CompressedAccountWithMerkleContext>,
+    root_indices: &[u16],
+    input_compressed_accounts: &[CompressedAccountWithMerkleContext],
 ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
     let input_compressed_account_indices: Vec<u32> = input_compressed_accounts
         .iter()
@@ -888,17 +887,15 @@ async fn create_transfer_out_utxo_test(
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
-        &vec![*merkle_tree_pubkey], // input compressed account Merkle trees
-        &vec![*indexed_array_pubkey], // input compressed account indexed arrays
-        &vec![*merkle_tree_pubkey, *merkle_tree_pubkey], // output compressed account Merkle trees
+        &[*merkle_tree_pubkey], // input compressed account Merkle trees
+        &[*indexed_array_pubkey], // input compressed account indexed arrays
+        &[*merkle_tree_pubkey, *merkle_tree_pubkey], // output compressed account Merkle trees
         input_compressed_accounts.as_slice(), // input compressed_accounts
-        &vec![
-            change_token_transfer_output,
-            transfer_recipient_token_transfer_output,
-        ],
+        &[change_token_transfer_output,
+            transfer_recipient_token_transfer_output],
         root_indices,
         &input_compressed_account_indices,
-        &proof,
+        proof,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -923,7 +920,7 @@ async fn assert_mint_to<'a>(
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
 ) {
     let token_compressed_account_data =
-        mock_indexer.token_compressed_accounts[0].token_data.clone();
+        mock_indexer.token_compressed_accounts[0].token_data;
     assert_eq!(token_compressed_account_data.amount, amount);
     assert_eq!(
         token_compressed_account_data.owner,
@@ -934,7 +931,7 @@ async fn assert_mint_to<'a>(
     assert_eq!(token_compressed_account_data.is_native, None);
     assert_eq!(token_compressed_account_data.delegated_amount, 0);
 
-    let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
         context,
         mock_indexer.merkle_tree_pubkey,
     )
@@ -988,9 +985,9 @@ async fn assert_transfer<'a>(
     recipient_out_compressed_account: &TokenTransferOutputData,
     change_out_compressed_account: &TokenTransferOutputData,
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
-    input_compressed_accounts: &Vec<CompressedAccount>,
+    input_compressed_accounts: &[CompressedAccount],
 ) {
-    let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
         context,
         mock_indexer.merkle_tree_pubkey,
     )
@@ -1023,10 +1020,6 @@ async fn assert_transfer<'a>(
             .token_data
             .amount,
         recipient_out_compressed_account.amount
-    );
-    assert_eq!(
-        transfer_recipient_token_compressed_account.token_data.mint,
-        transfer_recipient_token_compressed_account.token_data.mint
     );
     assert_eq!(
         transfer_recipient_token_compressed_account.token_data.owner,
@@ -1148,7 +1141,7 @@ pub struct MockIndexer {
     pub token_compressed_accounts: Vec<TokenDataWithContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithContext>,
     pub events: Vec<PublicTransactionEvent>,
-    pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
+    pub merkle_tree: light_merkle_tree_reference::MerkleTree<Poseidon>,
 }
 
 #[derive(Debug, Clone)]
@@ -1166,7 +1159,7 @@ impl MockIndexer {
         )
         .await;
 
-        let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
+        let merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT,
             STATE_MERKLE_TREE_ROOTS,
             STATE_MERKLE_TREE_CANOPY_DEPTH,
@@ -1201,8 +1194,8 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                root: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
-                leaf: BigInt::from_be_bytes(compressed_account),
+                roots: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
+                leaves: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
@@ -1224,7 +1217,7 @@ impl MockIndexer {
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
-        let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+        let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
             context,
             self.merkle_tree_pubkey,
         )
@@ -1279,15 +1272,12 @@ impl MockIndexer {
                 .compressed_accounts
                 .iter()
                 .position(|x| x == compressed_account);
-            match index {
-                Some(index) => {
-                    let token_compressed_account_element =
-                        self.token_compressed_accounts[index].clone();
-                    self.token_compressed_accounts.remove(index);
-                    self.token_nullified_compressed_accounts
-                        .push(token_compressed_account_element);
-                }
-                None => {}
+            if let Some(index) = index {
+                let token_compressed_account_element =
+                    self.token_compressed_accounts[index].clone();
+                self.token_compressed_accounts.remove(index);
+                self.token_nullified_compressed_accounts
+                    .push(token_compressed_account_element);
             }
         }
         let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());
@@ -1295,7 +1285,7 @@ impl MockIndexer {
             self.compressed_accounts
                 .push(CompressedAccountWithMerkleContext {
                     compressed_account: compressed_account.clone(),
-                    leaf_index: event.output_leaf_indices[i as usize],
+                    leaf_index: event.output_leaf_indices[i],
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 0,
                 });
@@ -1305,7 +1295,7 @@ impl MockIndexer {
                     &compressed_account
                         .hash(
                             &self.merkle_tree_pubkey,
-                            &event.output_leaf_indices[i as usize],
+                            &event.output_leaf_indices[i],
                         )
                         .unwrap(),
                 )
@@ -1349,7 +1339,7 @@ impl MockIndexer {
         )
         .await;
         let indexed_array = array.deserialized().indexed_array;
-        let merkle_tree_account = light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+        let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
             context,
             self.merkle_tree_pubkey,
         )
@@ -1412,7 +1402,7 @@ impl MockIndexer {
                 compressed_account.element
             );
             let merkle_tree_account =
-                light_test_utils::AccountZeroCopy::<StateMerkleTreeAccount>::new(
+                AccountZeroCopy::<StateMerkleTreeAccount>::new(
                     context,
                     self.merkle_tree_pubkey,
                 )
@@ -1424,7 +1414,7 @@ impl MockIndexer {
                     .load_merkle_tree()
                     .unwrap()
                     .sequence_number as u64
-                    + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as u64
+                    + STATE_MERKLE_TREE_ROOTS as u64
             );
         }
     }
