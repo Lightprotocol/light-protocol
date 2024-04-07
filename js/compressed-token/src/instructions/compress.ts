@@ -4,6 +4,7 @@ import {
     CompressedAccountWithMerkleContext,
     LightSystemProgram,
     PackedCompressedAccountWithMerkleContext,
+    bn,
 } from '@lightprotocol/stateless.js';
 import {
     PublicKey,
@@ -18,9 +19,10 @@ import {
     TokenData,
     TokenTransferOutputData,
 } from '../types';
+import { BN } from '@coral-xyz/anchor';
 
 /// TODO: refactor akin to lightsystemprogram.transfer()
-export async function createTransferInstruction(
+export async function createCompressInstruction(
     feePayer: PublicKey,
     authority: PublicKey,
     inputStateTrees: PublicKey[],
@@ -30,6 +32,7 @@ export async function createTransferInstruction(
     outputCompressedAccounts: TokenTransferOutputData[],
     recentStateRootIndices: number[],
     recentValidityproof: CompressedProof,
+    compressionAmount: number | BN,
 ): Promise<TransactionInstruction[]> {
     const remainingAccountsMap = new Map<PublicKey, number>();
     const packedInputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
@@ -85,6 +88,7 @@ export async function createTransferInstruction(
         );
     const staticsAccounts = defaultStaticAccountsStruct();
 
+    /// TODO: compress should allow to null most of these
     const rawInputs: CompressedTokenInstructionDataTransfer = {
         proof: recentValidityproof,
         rootIndices: recentStateRootIndices,
@@ -95,8 +99,8 @@ export async function createTransferInstruction(
         outputStateMerkleTreeAccountIndices: Buffer.from(
             outputStateTrees.map(mt => remainingAccountsMap.get(mt)!),
         ),
-        isCompress: false,
-        compressionAmount: null,
+        isCompress: true,
+        compressionAmount: bn(compressionAmount),
     };
 
     const data = CompressedTokenProgram.program.coder.types.encode(
