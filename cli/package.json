@@ -96,9 +96,11 @@
     "test-mint-to": "mocha ./test/commands/mint-to/index.test.ts -t 10000000 --exit",
     "test-transfer": "mocha ./test/commands/transfer/index.test.ts -t 10000000 --exit",
     "test-balance": "mocha ./test/commands/balance/index.test.ts -t 10000000 --exit",
+    "test-compress-sol": "mocha ./test/commands/compress-sol/index.test.ts -t 10000000 --exit",
+    "test-decompress-sol": "mocha ./test/commands/decompress-sol/index.test.ts -t 10000000 --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
-    "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-balance",
+    "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-balance  && pnpm test-compress-sol && pnpm test-decompress-sol",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
