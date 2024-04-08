@@ -1,9 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import {
-    CompressedProof,
-    PackedCompressedAccountWithMerkleContext,
-} from '@lightprotocol/stateless.js';
+import { CompressedProof } from '@lightprotocol/stateless.js';
 
 /// TODO: remove index_mt_account on-chain. passed as part of
 /// CompressedTokenInstructionDataTransfer
@@ -13,13 +10,25 @@ export type TokenTransferOutputData = {
     lamports: BN | null;
 };
 
+export type InputTokenDataWithContext = {
+    amount: BN;
+    delegateIndex: number | null;
+    delegatedAmount: BN | null;
+    isNative: BN | null;
+    merkleTreePubkeyIndex: number;
+    nullifierQueuePubkeyIndex: number;
+    leafIndex: number;
+};
+
 export type CompressedTokenInstructionDataTransfer = {
     proof: CompressedProof | null;
     rootIndices: number[];
-    inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
-    inputTokenData: TokenData[];
+    mint: PublicKey;
+    signerIsDelegate: boolean;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
     outputStateMerkleTreeAccountIndices: Buffer;
+    pubkeyArray: PublicKey[];
 };
 
 export type TokenData = {

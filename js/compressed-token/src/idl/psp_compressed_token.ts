@@ -462,6 +462,48 @@ export type PspCompressedToken = {
             };
         },
         {
+            name: 'InputTokenDataWithContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'amount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'delegateIndex';
+                        type: {
+                            option: 'u8';
+                        };
+                    },
+                    {
+                        name: 'delegatedAmount';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'isNative';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'merkleTreePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
             name: 'CompressedTokenInstructionDataTransfer';
             type: {
                 kind: 'struct';
@@ -481,18 +523,18 @@ export type PspCompressedToken = {
                         };
                     },
                     {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
-                            };
-                        };
+                        name: 'mint';
+                        type: 'publicKey';
                     },
                     {
-                        name: 'inputTokenData';
+                        name: 'signerIsDelegate';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
                         type: {
                             vec: {
-                                defined: 'TokenData';
+                                defined: 'InputTokenDataWithContext';
                             };
                         };
                     },
@@ -507,6 +549,12 @@ export type PspCompressedToken = {
                     {
                         name: 'outputStateMerkleTreeAccountIndices';
                         type: 'bytes';
+                    },
+                    {
+                        name: 'pubkeyArray';
+                        type: {
+                            vec: 'publicKey';
+                        };
                     },
                 ];
             };
@@ -708,6 +756,11 @@ export type PspCompressedToken = {
             code: 6008;
             name: 'SumCheckFailed';
             msg: 'SumCheckFailed';
+        },
+        {
+            code: 6009;
+            name: 'DelegateUndefined';
+            msg: 'DelegateUndefined while delegated amount is defined';
         },
     ];
 };
@@ -1175,6 +1228,48 @@ export const IDL: PspCompressedToken = {
             },
         },
         {
+            name: 'InputTokenDataWithContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'amount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'delegateIndex',
+                        type: {
+                            option: 'u8',
+                        },
+                    },
+                    {
+                        name: 'delegatedAmount',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'isNative',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'merkleTreePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
             name: 'CompressedTokenInstructionDataTransfer',
             type: {
                 kind: 'struct',
@@ -1194,18 +1289,18 @@ export const IDL: PspCompressedToken = {
                         },
                     },
                     {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
-                            },
-                        },
+                        name: 'mint',
+                        type: 'publicKey',
                     },
                     {
-                        name: 'inputTokenData',
+                        name: 'signerIsDelegate',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
                         type: {
                             vec: {
-                                defined: 'TokenData',
+                                defined: 'InputTokenDataWithContext',
                             },
                         },
                     },
@@ -1220,6 +1315,12 @@ export const IDL: PspCompressedToken = {
                     {
                         name: 'outputStateMerkleTreeAccountIndices',
                         type: 'bytes',
+                    },
+                    {
+                        name: 'pubkeyArray',
+                        type: {
+                            vec: 'publicKey',
+                        },
                     },
                 ],
             },
@@ -1421,6 +1522,11 @@ export const IDL: PspCompressedToken = {
             code: 6008,
             name: 'SumCheckFailed',
             msg: 'SumCheckFailed',
+        },
+        {
+            code: 6009,
+            name: 'DelegateUndefined',
+            msg: 'DelegateUndefined while delegated amount is defined',
         },
     ],
 };

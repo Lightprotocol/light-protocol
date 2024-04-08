@@ -211,4 +211,6 @@ pub enum ErrorCode {
     ComputeDecompressSumFailed,
     #[msg("SumCheckFailed")]
     SumCheckFailed,
+    #[msg("DelegateUndefined while delegated amount is defined")]
+    DelegateUndefined,
 }

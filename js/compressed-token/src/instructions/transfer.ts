@@ -3,7 +3,7 @@ import {
     defaultStaticAccountsStruct,
     CompressedAccountWithMerkleContext,
     LightSystemProgram,
-    PackedCompressedAccountWithMerkleContext,
+    bn,
 } from '@lightprotocol/stateless.js';
 import {
     PublicKey,
@@ -14,6 +14,7 @@ import {
 import { CompressedTokenProgram } from '../program';
 import {
     CompressedTokenInstructionDataTransfer,
+    InputTokenDataWithContext,
     TokenData,
     TokenTransferOutputData,
 } from '../types';
@@ -31,10 +32,9 @@ export async function createTransferInstruction(
     recentValidityproof: CompressedProof,
 ): Promise<TransactionInstruction[]> {
     const remainingAccountsMap = new Map<PublicKey, number>();
-    const packedInputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[] =
-        [];
+    const inputTokenDataWithContext: InputTokenDataWithContext[] = [];
     const inputTokenData: TokenData[] = [];
-
+    const pubkeyArray = new Set<PublicKey>();
     const coder = CompressedTokenProgram.program.coder;
 
     /// packs, extracts data into inputTokenData and sets data.data zero
@@ -49,22 +49,32 @@ export async function createTransferInstruction(
         );
 
         inputTokenData.push(tokenData);
-        inputCompressedAccount.data = null;
-        packedInputCompressedAccountsWithMerkleContext.push({
-            compressedAccount: inputCompressedAccount,
+
+        if (tokenData.delegate) {
+            pubkeyArray.add(tokenData.delegate);
+        }
+        const inputTokenDataWithContextEntry: InputTokenDataWithContext = {
+            amount: tokenData.amount,
+            delegateIndex: tokenData.delegate
+                ? Array.from(pubkeyArray).indexOf(tokenData.delegate)
+                : null,
+            delegatedAmount: tokenData.delegatedAmount.eq(bn(0))
+                ? null
+                : tokenData.delegatedAmount,
+            isNative: tokenData.isNative,
             merkleTreePubkeyIndex: remainingAccountsMap.get(mt)!,
             nullifierQueuePubkeyIndex: 0, // Will be set in the next loop
             leafIndex: inputCompressedAccount.leafIndex,
-        });
+        };
+        inputTokenDataWithContext.push(inputTokenDataWithContextEntry);
     });
 
     inputNullifierQueues.forEach((mt, i) => {
         if (!remainingAccountsMap.has(mt)) {
             remainingAccountsMap.set(mt, remainingAccountsMap.size);
         }
-        packedInputCompressedAccountsWithMerkleContext[
-            i
-        ].nullifierQueuePubkeyIndex = remainingAccountsMap.get(mt)!;
+        inputTokenDataWithContext[i].nullifierQueuePubkeyIndex =
+            remainingAccountsMap.get(mt)!;
     });
 
     outputStateTrees.forEach((mt, i) => {
@@ -85,15 +95,16 @@ export async function createTransferInstruction(
     const staticsAccounts = defaultStaticAccountsStruct();
 
     const rawInputs: CompressedTokenInstructionDataTransfer = {
+        mint: inputTokenData[0].mint,
         proof: recentValidityproof,
         rootIndices: recentStateRootIndices,
-        inputCompressedAccountsWithMerkleContext:
-            packedInputCompressedAccountsWithMerkleContext,
-        inputTokenData,
+        inputTokenDataWithContext,
         outputCompressedAccounts,
         outputStateMerkleTreeAccountIndices: Buffer.from(
             outputStateTrees.map(mt => remainingAccountsMap.get(mt)!),
         ),
+        pubkeyArray: Array.from(pubkeyArray),
+        signerIsDelegate: false,
     };
 
     const data = CompressedTokenProgram.program.coder.types.encode(

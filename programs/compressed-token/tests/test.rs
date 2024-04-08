@@ -319,13 +319,15 @@ async fn test_transfer() {
     };
     let (root_indices, proof) = mock_indexer
         .create_proof_for_compressed_accounts(
-            &[input_compressed_accounts[0]
-                .compressed_account
-                .hash(
-                    &merkle_tree_pubkey,
-                    &input_compressed_accounts[0].leaf_index,
-                )
-                .unwrap()],
+            &[
+                mock_indexer.compressed_accounts[mock_indexer.token_compressed_accounts[0].index]
+                    .compressed_account
+                    .hash(
+                        &merkle_tree_pubkey,
+                        &input_compressed_accounts[0].leaf_index,
+                    )
+                    .unwrap(),
+            ],
             &mut context,
         )
         .await;
@@ -339,7 +341,6 @@ async fn test_transfer() {
         &[merkle_tree_pubkey],   // input compressed account Merkle trees
         &[indexed_array_pubkey], // input compressed account indexed arrays
         &[merkle_tree_pubkey, merkle_tree_pubkey], // output compressed account Merkle trees
-        input_compressed_accounts.as_slice(), // input compressed_accounts
         &[
             change_out_compressed_account,
             transfer_recipient_out_compressed_account,
@@ -347,6 +348,8 @@ async fn test_transfer() {
         &root_indices,
         &input_compressed_account_indices,
         &proof,
+        [input_compressed_account_token_data].as_slice(),
+        None,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -675,6 +678,7 @@ async fn test_invalid_inputs() {
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
+    input_compressed_account_token_data.delegated_amount = 1;
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
@@ -707,27 +711,17 @@ async fn test_invalid_inputs() {
             InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
         ))
     );
-    let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data;
-    input_compressed_account_token_data.owner = Pubkey::new_unique();
-    let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
+
+    let input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
-    let mut vec = Vec::new();
-    crate::TokenData::serialize(&input_compressed_account_token_data, &mut vec).unwrap();
-    input_compressed_accounts[0]
-        .compressed_account
-        .data
-        .as_mut()
-        .unwrap()
-        .data = vec;
     let res = create_transfer_out_utxo_test(
         &mut context,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
         &indexed_array_pubkey,
-        &recipient_keypair,
+        &payer,
         &proof,
         &root_indices,
         &input_compressed_accounts,
@@ -739,7 +733,7 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(ErrorCode::SignerCheckFailed.into())
+            InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
         ))
     );
 
@@ -781,41 +775,6 @@ async fn test_invalid_inputs() {
 
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
-    input_compressed_account_token_data.state = AccountState::Uninitialized;
-    let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
-        [mock_indexer.token_compressed_accounts[0].index]
-        .clone()];
-    let mut vec = Vec::new();
-    crate::TokenData::serialize(&input_compressed_account_token_data, &mut vec).unwrap();
-    input_compressed_accounts[0]
-        .compressed_account
-        .data
-        .as_mut()
-        .unwrap()
-        .data = vec;
-    let res = create_transfer_out_utxo_test(
-        &mut context,
-        change_out_compressed_account_0,
-        transfer_recipient_out_compressed_account_0,
-        &merkle_tree_pubkey,
-        &indexed_array_pubkey,
-        &recipient_keypair,
-        &proof,
-        &root_indices,
-        &input_compressed_accounts,
-    )
-    .await
-    .unwrap();
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
-        ))
-    );
-    let mut input_compressed_account_token_data =
-        mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegated_amount = 1;
     let mut input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
@@ -846,7 +805,7 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
+            InstructionError::Custom(psp_compressed_token::ErrorCode::DelegateUndefined.into())
         ))
     );
 }
@@ -867,10 +826,12 @@ async fn create_transfer_out_utxo_test(
         .iter()
         .map(|x| x.leaf_index)
         .collect();
-
-    let input_compressed_accounts: Vec<CompressedAccount> = input_compressed_accounts
+    let input_compressed_account_token_data: Vec<TokenData> = input_compressed_accounts
         .iter()
-        .map(|x| x.compressed_account.clone())
+        .map(|x| {
+            TokenData::deserialize(&mut &x.compressed_account.data.as_ref().unwrap().data[..])
+                .unwrap()
+        })
         .collect();
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer.pubkey(),
@@ -878,7 +839,6 @@ async fn create_transfer_out_utxo_test(
         &[*merkle_tree_pubkey],   // input compressed account Merkle trees
         &[*indexed_array_pubkey], // input compressed account indexed arrays
         &[*merkle_tree_pubkey, *merkle_tree_pubkey], // output compressed account Merkle trees
-        input_compressed_accounts.as_slice(), // input compressed_accounts
         &[
             change_token_transfer_output,
             transfer_recipient_token_transfer_output,
@@ -886,6 +846,8 @@ async fn create_transfer_out_utxo_test(
         root_indices,
         &input_compressed_account_indices,
         proof,
+        input_compressed_account_token_data.as_slice(),
+        None,
     );
 
     let transaction = Transaction::new_signed_with_payer(
