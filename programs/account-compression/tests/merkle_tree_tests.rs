@@ -176,7 +176,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
         account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG as usize,
         account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
         account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-    );
+    )
+    .unwrap();
     reference_merkle_tree.init().unwrap();
     reference_merkle_tree
         .append_batch(&[&[1u8; 32], &[2u8; 32]])

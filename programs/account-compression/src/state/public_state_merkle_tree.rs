@@ -24,7 +24,7 @@ pub struct StateMerkleTreeAccount {
     /// Merkle tree for the transaction state.
     pub state_merkle_tree_struct: [u8; 256],
     pub state_merkle_tree_filled_subtrees: [u8; 832],
-    pub state_merkle_tree_changelog: [u8; 1220800],
+    pub state_merkle_tree_changelog: [u8; 1232000],
     pub state_merkle_tree_roots: [u8; 76800],
     pub state_merkle_tree_canopy: [u8; 65472],
 }
@@ -140,7 +140,7 @@ mod test {
             associated_queue: Pubkey::new_from_array([4u8; 32]),
             state_merkle_tree_struct: [0u8; 256],
             state_merkle_tree_filled_subtrees: [0u8; 832],
-            state_merkle_tree_changelog: [0u8; 1220800],
+            state_merkle_tree_changelog: [0u8; 1232000],
             state_merkle_tree_roots: [0u8; 76800],
             state_merkle_tree_canopy: [0u8; 65472],
         };

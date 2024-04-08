@@ -2916,14 +2916,15 @@ version = "0.1.0"
 dependencies = [
  "ark-bn254",
  "ark-ff",
+ "borsh 0.10.3",
  "bytemuck",
  "light-bounded-vec",
  "light-hasher",
- "light-merkle-tree-event",
  "light-merkle-tree-reference",
  "memoffset 0.8.0",
  "rand 0.8.5",
  "solana-program",
+ "spl-account-compression",
  "spl-concurrent-merkle-tree",
  "thiserror",
  "tokio",
@@ -2984,20 +2985,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "light-merkle-tree-event"
-version = "0.1.0"
-dependencies = [
- "borsh 0.10.3",
- "light-concurrent-merkle-tree",
- "num-derive 0.4.2",
- "num-traits",
- "solana-program",
- "spl-account-compression",
- "spl-concurrent-merkle-tree",
- "thiserror",
 ]
 
 [[package]]
