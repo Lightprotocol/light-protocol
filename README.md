@@ -9,32 +9,18 @@
 
 Light is a zkLayer enabling stateless program execution, purpose-built for Solana.
 
-Developers can use Light to build applications such as
+Developers can use Light to...
 
-- encrypted orderbooks
-- confidential voting
-- on-chain games with encrypted game state
-- zk-identity
+- reduce the cost of state on the Solana L1.
+- build zk applications that compose with Light state such as
+  - offchain orderbooks
+  - zk-coprocessors
+  - zk-identity
 
-## ZK Anchor
+Note: All these tools and the protocol are in active development and unaudited.
+To work with this Monorepo, read below:
 
-ZK Anchor is what we call the collection of developer tools for writing Private Solana Programs (PSPs).
-It consists of the following:
-
-- [Macro Circom](https://github.com/Lightprotocol/light-protocol/tree/main/macro-circom) DSL for writing PSPs.
-- [CLI](https://github.com/Lightprotocol/light-protocol/tree/main/cli) for writing and testing full Applications
-- [RPC Node](https://github.com/Lightprotocol/light-protocol/tree/main/rpc) (rpc) - for indexing and forwarding Light
-  transactions to the Solana network.
-- [zk.js](https://github.com/Lightprotocol/light-protocol/tree/main/zk.js) - web3.js-esque helpers to build transactions
-  and interact with your PSP.
-
-Note: All these tools and the protocol are in active development and unaudited. You can currently test and deploy your
-PSP on Localnet, Testnet, and Devnet.
-
-To get started, a good PSP reference implementation is
-available [here](https://github.com/Lightprotocol/breakpoint-workshop).
-
-Otherwise, to work with this Monorepo, read below:
+The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs. 
 
 ## Development environment
 
