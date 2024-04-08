@@ -8,7 +8,7 @@ use solana_sdk::instruction::Instruction;
 use crate::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     utils::{get_cpi_authority_pda, get_registered_program_pda, CompressedProof},
-    InstructionDataTransfer, COMPRESSED_SOL_PDA_SEED,
+    InstructionDataTransfer, NewAddressParamsPacked, COMPRESSED_SOL_PDA_SEED,
 };
 
 pub fn get_compressed_sol_pda() -> Pubkey {
@@ -25,10 +25,7 @@ pub fn create_execute_compressed_instruction(
     nullifier_queue_pubkeys: &[Pubkey],
     output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
     input_root_indices: &[u16],
-    address_root_indices: &[u16],
-    address_queue_pubkeys: &[Pubkey],
-    address_merkle_tree_pubkeys: &[Pubkey],
-    new_address_seeds: &[[u8; 32]],
+    new_address_params: &[crate::NewAddressParams],
     proof: &CompressedProof,
     de_compress_lamports: Option<u64>,
     is_compress: bool,
@@ -37,6 +34,15 @@ pub fn create_execute_compressed_instruction(
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<CompressedAccountWithMerkleContext> =
         Vec::<CompressedAccountWithMerkleContext>::new();
+    let mut new_address_params_packed = new_address_params
+        .iter()
+        .map(|x| NewAddressParamsPacked {
+            seed: x.seed,
+            address_merkle_tree_root_index: x.address_merkle_tree_root_index,
+            address_merkle_tree_account_index: 0, // will be assigned later
+            address_queue_account_index: 0,       // will be assigned later
+        })
+        .collect::<Vec<NewAddressParamsPacked>>();
     for (i, mt) in input_compressed_account_merkle_tree_pubkeys
         .iter()
         .enumerate()
@@ -81,26 +87,29 @@ pub fn create_execute_compressed_instruction(
         output_state_merkle_tree_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
     }
     let len: usize = remaining_accounts.len();
-    let mut address_merkle_tree_account_indices: Vec<u8> = Vec::<u8>::new();
-    for (i, mt) in address_merkle_tree_pubkeys.iter().enumerate() {
-        match remaining_accounts.get(mt) {
+    for (i, params) in new_address_params.iter().enumerate() {
+        match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(*mt, i + len);
+                remaining_accounts.insert(params.address_merkle_tree_pubkey, i + len);
             }
         };
-        address_merkle_tree_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
+        new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
+            .get(&params.address_merkle_tree_pubkey)
+            .unwrap()
+            as u8;
     }
     let len: usize = remaining_accounts.len();
-    let mut address_queue_account_indices: Vec<u8> = Vec::<u8>::new();
-    for (i, mt) in address_queue_pubkeys.iter().enumerate() {
-        match remaining_accounts.get(mt) {
+    for (i, params) in new_address_params.iter().enumerate() {
+        match remaining_accounts.get(&params.address_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(*mt, i + len);
+                remaining_accounts.insert(params.address_queue_pubkey, i + len);
             }
         };
-        address_queue_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
+        new_address_params_packed[i].address_queue_account_index = *remaining_accounts
+            .get(&params.address_queue_pubkey)
+            .unwrap() as u8;
     }
     let mut remaining_accounts = remaining_accounts
         .iter()
@@ -120,10 +129,7 @@ pub fn create_execute_compressed_instruction(
         output_state_merkle_tree_account_indices,
         input_root_indices: input_root_indices.to_vec(),
         proof: Some(proof.clone()),
-        address_merkle_tree_root_indices: address_root_indices.to_vec(),
-        address_queue_account_indices,
-        new_address_seeds: new_address_seeds.to_vec(),
-        address_merkle_tree_account_indices,
+        new_address_params: new_address_params_packed,
         de_compress_lamports,
         is_compress,
     };
@@ -274,7 +280,7 @@ mod test {
     use anchor_lang::AnchorDeserialize;
 
     use super::*;
-    use crate::utils::CompressedProof;
+    use crate::{utils::CompressedProof, NewAddressParams};
     #[test]
     fn test_create_execute_compressed_transaction() {
         let payer = Pubkey::new_unique();
@@ -330,10 +336,7 @@ mod test {
             &nullifier_queue_pubkeys,
             &output_compressed_account_merkle_tree_pubkeys,
             &input_root_indices.clone(),
-            Vec::<u16>::new().as_slice(),
-            Vec::<Pubkey>::new().as_slice(),
-            Vec::<Pubkey>::new().as_slice(),
-            Vec::<[u8; 32]>::new().as_slice(),
+            Vec::<NewAddressParams>::new().as_slice(),
             &proof.clone(),
             Some(100),
             true,

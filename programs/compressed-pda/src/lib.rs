@@ -74,6 +74,8 @@ pub enum ErrorCode {
     DeCompressLamportsUndefinedForDecompressSol,
     #[msg("DecompressRecipientUndefinedForDecompressSol")]
     DecompressRecipientUndefinedForDecompressSol,
+    #[msg("LengthMismatch")]
+    LengthMismatch,
 }
 
 #[program]
@@ -103,7 +105,7 @@ pub mod psp_compressed_pda {
         msg!("execute_compressed_transaction");
         let inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
-        msg!("deserialized inputs");
+        inputs.check_input_lengths()?;
         process_execute_compressed_transaction(&inputs, &ctx)
     }
 

@@ -294,10 +294,7 @@ export class LightSystemProgram {
                 proof: recentValidityProof,
                 inputRootIndices: recentInputStateRootIndices,
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
-                newAddressSeeds: [],
-                addressQueueAccountIndices: Buffer.from([]),
-                addressMerkleTreeAccountIndices: Buffer.from([]),
-                addressMerkleTreeRootIndices: [],
+                newAddressParams: [],
                 inputCompressedAccountsWithMerkleContext:
                     packedInputCompressedAccounts,
                 outputCompressedAccounts,
@@ -393,10 +390,7 @@ export class LightSystemProgram {
                 proof: placeholderValidityProof(),
                 inputRootIndices: [],
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
-                newAddressSeeds: [],
-                addressQueueAccountIndices: Buffer.from([]),
-                addressMerkleTreeAccountIndices: Buffer.from([]),
-                addressMerkleTreeRootIndices: [],
+                newAddressParams: [],
                 inputCompressedAccountsWithMerkleContext:
                     packedInputCompressedAccounts,
                 outputCompressedAccounts: [outputCompressedAccount],
@@ -478,10 +472,7 @@ export class LightSystemProgram {
                 proof: params.recentValidityProof,
                 inputRootIndices: params.recentInputStateRootIndices,
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
-                newAddressSeeds: [],
-                addressQueueAccountIndices: Buffer.from([]),
-                addressMerkleTreeAccountIndices: Buffer.from([]),
-                addressMerkleTreeRootIndices: [],
+                newAddressParams: [],
                 inputCompressedAccountsWithMerkleContext:
                     packedInputCompressedAccounts,
                 outputCompressedAccounts: outputCompressedAccounts,

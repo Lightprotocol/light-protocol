@@ -49,7 +49,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
 
     let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     fetch_roots(inputs, ctx, &mut roots)?;
-    let address_roots = vec![[0u8; 32]; inputs.address_merkle_tree_root_indices.len()];
+    let address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
     // TODO: enable once address merkle tree init is debugged
     // fetch_roots_address_merkle_tree(
     //     inputs,
@@ -66,9 +66,9 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     let mut output_leaf_indices = vec![0u32; inputs.output_compressed_accounts.len()];
     let mut output_compressed_account_hashes =
         vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
-    let mut new_addresses = vec![[0u8; 32]; inputs.new_address_seeds.len()];
+    let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
     // insert addresses into address merkle tree queue ---------------------------------------------------
-    if !inputs.new_address_seeds.is_empty() {
+    if !new_addresses.is_empty() {
         derive_new_addresses(
             inputs,
             ctx,
@@ -90,7 +90,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
-        || !inputs.new_address_seeds.is_empty()
+        || !new_addresses.is_empty()
     {
         verify_state_proof(
             &roots,
@@ -137,14 +137,15 @@ pub fn derive_new_addresses(
     new_addresses: &mut [[u8; 32]],
 ) {
     inputs
-        .new_address_seeds
+        .new_address_params
         .iter()
         .enumerate()
-        .for_each(|(i, seed)| {
+        .for_each(|(i, new_address_params)| {
             let address = derive_address(
-                &ctx.remaining_accounts[inputs.address_merkle_tree_account_indices[i] as usize]
+                &ctx.remaining_accounts
+                    [new_address_params.address_merkle_tree_account_index as usize]
                     .key(),
-                seed,
+                &new_address_params.seed,
             )
             .unwrap();
             input_compressed_account_addresses.push(Some(address));
@@ -192,11 +193,8 @@ pub struct CpiSignatureAccount {
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
     pub proof: Option<CompressedProof>,
+    pub new_address_params: Vec<NewAddressParamsPacked>,
     pub input_root_indices: Vec<u16>,
-    pub new_address_seeds: Vec<[u8; 32]>,
-    pub address_queue_account_indices: Vec<u8>,
-    pub address_merkle_tree_account_indices: Vec<u8>,
-    pub address_merkle_tree_root_indices: Vec<u16>,
     pub input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
     pub output_compressed_accounts: Vec<CompressedAccount>,
     /// The indices of the accounts in the output state merkle tree.
@@ -204,6 +202,49 @@ pub struct InstructionDataTransfer {
     pub relay_fee: Option<u64>,
     pub de_compress_lamports: Option<u64>,
     pub is_compress: bool,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct NewAddressParamsPacked {
+    pub seed: [u8; 32],
+    pub address_queue_account_index: u8,
+    pub address_merkle_tree_account_index: u8,
+    pub address_merkle_tree_root_index: u16,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct NewAddressParams {
+    pub seed: [u8; 32],
+    pub address_queue_pubkey: Pubkey,
+    pub address_merkle_tree_pubkey: Pubkey,
+    pub address_merkle_tree_root_index: u16,
+}
+
+impl InstructionDataTransfer {
+    /// Checks that the lengths of the vectors are consistent with each other.
+    /// Note that this function does not check the inputs themselves just plausible of the lengths.
+    /// input roots must be the same length as input compressed accounts
+    /// output compressed accounts must be the same length as output state merkle tree account indices
+    pub fn check_input_lengths(&self) -> Result<()> {
+        if self.input_root_indices.len() != self.input_compressed_accounts_with_merkle_context.len()
+        {
+            msg!("input_root_indices.len() {} != {} input_compressed_accounts_with_merkle_context.len()", 
+                self.input_root_indices.len(), self.input_compressed_accounts_with_merkle_context.len()
+            );
+            return Err(ErrorCode::LengthMismatch.into());
+        }
+
+        if self.output_compressed_accounts.len()
+            != self.output_state_merkle_tree_account_indices.len()
+        {
+            msg!("output_compressed_accounts.len() {} != {} output_state_merkle_tree_account_indices.len()", 
+                self.output_compressed_accounts.len(), self.output_state_merkle_tree_account_indices.len()
+            );
+            return Err(ErrorCode::LengthMismatch.into());
+        }
+
+        Ok(())
+    }
 }
 
 // TODO: refactor to compressed_account
