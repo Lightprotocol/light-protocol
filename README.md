@@ -17,7 +17,7 @@ Developers can use Light to...
   - zk-coprocessors
   - zk-identity
 
-Note that this codebase is WIP, breaking changes still occur frequently. Neither is the codebase audited.
+Note: All these tools and the protocol are in active development and unaudited.
 To work with this Monorepo, read below:
 
 The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs. 
