@@ -28,7 +28,7 @@
         "pretest:e2e": "./../../cli/test_bin/run test-validator -b && pnpm gnark-prover",
         "test:e2e:create-mint": "pnpm pretest:e2e && vitest run tests/e2e/create-mint.test.ts",
         "test:e2e:mint-to": "pnpm pretest:e2e && vitest run tests/e2e/mint-to.test.ts",
-        "test:e2e:transfer": "pnpm pretest:e2e && vitest run tests/e2e/transfer.test.ts",
+        "test:e2e:transfer": "pnpm pretest:e2e && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
         "test:e2e:multisig": "pnpm pretest:e2e && vitest run tests/e2e/multisig.test.ts",
         "test:e2e:all": "pnpm pretest:e2e && vitest run tests/e2e/*.test.ts",
         "pull-idl": "../../scripts/push-compressed-token-idl.sh",
