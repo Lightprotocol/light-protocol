@@ -12,15 +12,18 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
     addresses: &'a [[u8; 32]],
 ) -> anchor_lang::Result<()> {
     let address_merkle_tree_pubkeys = inputs
-        .address_merkle_tree_account_indices
+        .new_address_params
         .iter()
-        .map(|index| ctx.remaining_accounts[*index as usize].key())
+        .map(|params| {
+            ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].key()
+        })
         .collect::<Vec<Pubkey>>();
     let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
-    for index in inputs.address_queue_account_indices.iter() {
-        indexed_array_account_infos.push(ctx.remaining_accounts[*index as usize].clone());
+    for params in inputs.new_address_params.iter() {
+        indexed_array_account_infos
+            .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
         let unpacked_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(
-            &ctx.remaining_accounts[*index as usize],
+            &ctx.remaining_accounts[params.address_queue_account_index as usize],
         )
         .unwrap();
         let array_account = unpacked_queue_account.load()?;
@@ -30,7 +33,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
         if !account_is_associated_with_address_merkle_tree {
             msg!(
                 "Address queue account {:?} is not associated with any address Merkle tree. Provided address Merkle trees {:?}",
-                ctx.remaining_accounts[*index as usize].key(), address_merkle_tree_pubkeys);
+                ctx.remaining_accounts[params.address_queue_account_index as usize].key(), address_merkle_tree_pubkeys);
             return Err(crate::ErrorCode::InvalidAddressQueue.into());
         }
     }

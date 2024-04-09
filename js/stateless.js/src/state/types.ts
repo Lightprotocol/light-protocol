@@ -57,6 +57,14 @@ export interface InstructionDataTransfer {
     relayFee: BN | null; // Option<u64>
     deCompressLamports: BN | null; // Option<u64>
     isCompression: boolean; // bool
+    newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
+}
+
+export interface NewAddressParamsPacked {
+    seed: number[];
+    addressQueueAccountIndex: number; // u8
+    addressMerkleTreeAccountIndex: number; // u8
+    addressMerkleTreeRootIndex: number; // u16
 }
 
 export interface CompressedProof {

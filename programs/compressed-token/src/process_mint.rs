@@ -43,8 +43,14 @@ pub fn process_mint_to<'info>(
     amounts: Vec<u64>,
 ) -> Result<()> {
     if compression_public_keys.len() != amounts.len() {
+        msg!(
+            "compression_public_keys.len() {} !=  {} amounts.len()",
+            compression_public_keys.len(),
+            amounts.len()
+        );
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
     }
+
     mint_spl_to_pool_pda(&ctx, &amounts)?;
     let output_compressed_accounts = create_output_compressed_accounts(
         ctx.accounts.mint.to_account_info().key(),
@@ -108,10 +114,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
         input_root_indices: Vec::new(),
         proof: None,
-        new_address_seeds: Vec::new(),
-        address_merkle_tree_root_indices: Vec::new(),
-        address_merkle_tree_account_indices: Vec::new(),
-        address_queue_account_indices: Vec::new(),
+        new_address_params: Vec::new(),
         de_compress_lamports: None,
         is_compress: false,
     };

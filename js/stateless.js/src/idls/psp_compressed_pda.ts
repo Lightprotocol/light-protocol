@@ -317,29 +317,15 @@ export type PspCompressedPda = {
                         };
                     },
                     {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
-                        name: 'newAddressSeeds';
+                        name: 'newAddressParams';
                         type: {
                             vec: {
-                                array: ['u8', 32];
+                                defined: 'NewAddressParamsPacked';
                             };
                         };
                     },
                     {
-                        name: 'addressQueueAccountIndices';
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndices';
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndices';
+                        name: 'inputRootIndices';
                         type: {
                             vec: 'u16';
                         };
@@ -382,6 +368,58 @@ export type PspCompressedPda = {
                     {
                         name: 'isCompress';
                         type: 'bool';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NewAddressParamsPacked';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'seed';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'addressQueueAccountIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'addressMerkleTreeAccountIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NewAddressParams';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'seed';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'addressQueuePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'addressMerkleTreePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex';
+                        type: 'u16';
                     },
                 ];
             };
@@ -553,6 +591,11 @@ export type PspCompressedPda = {
             code: 6027;
             name: 'DecompressRecipientUndefinedForDecompressSol';
             msg: 'DecompressRecipientUndefinedForDecompressSol';
+        },
+        {
+            code: 6028;
+            name: 'LengthMismatch';
+            msg: 'LengthMismatch';
         },
     ];
 };
@@ -876,29 +919,15 @@ export const IDL: PspCompressedPda = {
                         },
                     },
                     {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
-                        name: 'newAddressSeeds',
+                        name: 'newAddressParams',
                         type: {
                             vec: {
-                                array: ['u8', 32],
+                                defined: 'NewAddressParamsPacked',
                             },
                         },
                     },
                     {
-                        name: 'addressQueueAccountIndices',
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndices',
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndices',
+                        name: 'inputRootIndices',
                         type: {
                             vec: 'u16',
                         },
@@ -941,6 +970,58 @@ export const IDL: PspCompressedPda = {
                     {
                         name: 'isCompress',
                         type: 'bool',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NewAddressParamsPacked',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'seed',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'addressQueueAccountIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'addressMerkleTreeAccountIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NewAddressParams',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'seed',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'addressQueuePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'addressMerkleTreePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex',
+                        type: 'u16',
                     },
                 ],
             },
@@ -1112,6 +1193,11 @@ export const IDL: PspCompressedPda = {
             code: 6027,
             name: 'DecompressRecipientUndefinedForDecompressSol',
             msg: 'DecompressRecipientUndefinedForDecompressSol',
+        },
+        {
+            code: 6028,
+            name: 'LengthMismatch',
+            msg: 'LengthMismatch',
         },
     ],
 };
