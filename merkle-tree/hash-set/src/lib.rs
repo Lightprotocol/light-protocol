@@ -1060,10 +1060,37 @@ mod test {
         hs.mark_with_sequence_number(&element_4_72, 4).unwrap();
         hs.mark_with_sequence_number(&element_4_15, 4).unwrap();
 
-        // Insert an element which will replace the previous one. The sequence
-        // diff (difference of sequence numbers) is going to be greater than
-        // the threshold. Therefore, the operation won't result in an error.
-        // hs.insert(&element_1_1, 4).unwrap();
+        // Try inserting the same elements we inserted before.
+        //
+        // Ones with the sequence number difference lower or equal to the
+        // sequence threshold (4) will fail.
+        //
+        // Ones with the higher dif will succeed.
+        assert!(matches!(
+            hs.insert(&element_1_1, 4),
+            Err(HashSetError::ElementAlreadyExists)
+        ));
+        assert!(matches!(
+            hs.insert(&element_2_3, 5),
+            Err(HashSetError::ElementAlreadyExists)
+        ));
+        assert!(matches!(
+            hs.insert(&element_2_6, 5),
+            Err(HashSetError::ElementAlreadyExists)
+        ));
+        assert!(matches!(
+            hs.insert(&element_2_8, 5),
+            Err(HashSetError::ElementAlreadyExists)
+        ));
+        assert!(matches!(
+            hs.insert(&element_2_9, 5),
+            Err(HashSetError::ElementAlreadyExists)
+        ));
+        hs.insert(&element_1_1, 5).unwrap();
+        hs.insert(&element_2_3, 6).unwrap();
+        hs.insert(&element_2_6, 6).unwrap();
+        hs.insert(&element_2_8, 6).unwrap();
+        hs.insert(&element_2_9, 6).unwrap();
     }
 
     /// Test cases with random prime field elements.
