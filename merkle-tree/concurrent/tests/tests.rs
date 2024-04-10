@@ -467,20 +467,19 @@ where
     // Reference implementation of Merkle tree which Solana Labs uses for
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
-    let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
 
     let mut rng = thread_rng();
 
     // Fill up the tree, producing 4 roots and changelog entries.
-    for i in 0..(1 << HEIGHT) {
+    for _ in 0..(1 << HEIGHT) {
         let leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
             .try_into()
             .unwrap();
         merkle_tree.append(&leaf).unwrap();
-        reference_tree.update(&leaf, i).unwrap();
+        reference_tree.append(&leaf).unwrap();
     }
 
     assert_eq!(merkle_tree.current_changelog_index, 4);
@@ -576,8 +575,7 @@ where
         concurrent_mt_2.init().unwrap();
 
         // Reference tree for checking the correctness of proofs.
-        let mut reference_mt =
-            light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+        let mut reference_mt = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
 
         // Store to which we are passing the changelog events from `concurrent_mt_1`.
         // We will get proofs from it and validate against proofs from `reference_mt`.
@@ -623,14 +621,8 @@ where
         assert_eq!(changelog_entry_1.path, changelog_entry_2.path);
 
         // Check whether roots are the same.
-        assert_eq!(
-            concurrent_mt_1.root().unwrap(),
-            reference_mt.root().unwrap()
-        );
-        assert_eq!(
-            concurrent_mt_2.root().unwrap(),
-            reference_mt.root().unwrap(),
-        );
+        assert_eq!(concurrent_mt_1.root().unwrap(), reference_mt.root());
+        assert_eq!(concurrent_mt_2.root().unwrap(), reference_mt.root(),);
 
         seq = seq.saturating_add(1);
     }
@@ -656,10 +648,9 @@ where
             concurrent_mt_without_canopy.init().unwrap();
 
             let mut reference_mt_with_canopy =
-                light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, canopy_depth)
-                    .unwrap();
+                light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, canopy_depth);
             let mut reference_mt_without_canopy =
-                light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, 0).unwrap();
+                light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, 0);
 
             for batch_i in 0..((1 << HEIGHT) / batch_size) {
                 let leaves: Vec<[u8; 32]> = (0..batch_size)
@@ -919,8 +910,7 @@ async fn test_spl_compat() {
     // Reference implemenetation of Merkle tree which Solana Labs uses for
     // testing (and therefore, we as well). We use it mostly to get the Merkle
     // proofs.
-    let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<Keccak>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<Keccak>::new(HEIGHT, CANOPY);
 
     for i in 0..(1 << HEIGHT) {
         let leaf: [u8; 32] = Fr::rand(&mut rng)
@@ -931,7 +921,7 @@ async fn test_spl_compat() {
 
         concurrent_mt.append(&leaf).unwrap();
         spl_concurrent_mt.append(leaf).unwrap();
-        reference_tree.update(&leaf, i).unwrap();
+        reference_tree.append(&leaf).unwrap();
 
         compare_trees(&concurrent_mt, &spl_concurrent_mt);
 
@@ -1023,8 +1013,7 @@ where
         .unwrap()
     };
     merkle_tree.init().unwrap();
-    let mut reference_tree =
-        light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
 
     let mut rng = thread_rng();
 
@@ -1038,7 +1027,7 @@ where
         merkle_tree.append(&leaf).unwrap();
         reference_tree.append(&leaf).unwrap();
 
-        assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+        assert_eq!(merkle_tree.root().unwrap(), reference_tree.root());
     }
 
     let merkle_tree = unsafe {
@@ -1051,7 +1040,7 @@ where
         )
         .unwrap()
     };
-    assert_eq!(merkle_tree.root().unwrap(), reference_tree.root().unwrap());
+    assert_eq!(merkle_tree.root().unwrap(), reference_tree.root());
 }
 
 #[test]

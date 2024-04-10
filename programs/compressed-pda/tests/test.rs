@@ -838,10 +838,8 @@ impl MockIndexer {
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
-            STATE_MERKLE_TREE_ROOTS as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-        )
-        .unwrap();
+        );
 
         Self {
             merkle_tree_pubkey,
@@ -869,7 +867,7 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
+                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
                 leaves: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
@@ -899,7 +897,7 @@ impl MockIndexer {
             .copy_merkle_tree()
             .unwrap();
         assert_eq!(
-            self.merkle_tree.root().unwrap(),
+            self.merkle_tree.root(),
             merkle_tree.root().unwrap(),
             "Local Merkle tree root is not equal to latest on-chain root"
         );

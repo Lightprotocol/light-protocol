@@ -7,10 +7,9 @@ where
     H: Hasher,
 {
     const HEIGHT: usize = 4;
-    const ROOTS: usize = 256;
     const CANOPY: usize = 0;
 
-    let mut merkle_tree = MerkleTree::<H>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut merkle_tree = MerkleTree::<H>::new(HEIGHT, CANOPY);
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
 
@@ -65,9 +64,9 @@ where
         H::zero_bytes()[3],
     ]);
 
-    merkle_tree.update(&leaf1, 0).unwrap();
+    merkle_tree.append(&leaf1).unwrap();
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(0, false).unwrap(),
         expected_proof
@@ -102,9 +101,9 @@ where
         H::zero_bytes()[3],
     ]);
 
-    merkle_tree.update(&leaf2, 1).unwrap();
+    merkle_tree.append(&leaf2).unwrap();
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(1, false).unwrap(),
         expected_proof
@@ -139,9 +138,9 @@ where
         H::zero_bytes()[3],
     ]);
 
-    merkle_tree.update(&leaf3, 2).unwrap();
+    merkle_tree.append(&leaf3).unwrap();
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(2, false).unwrap(),
         expected_proof
@@ -172,9 +171,9 @@ where
     let expected_proof =
         BoundedVec::from_array(&[leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    merkle_tree.update(&leaf4, 3).unwrap();
+    merkle_tree.append(&leaf4).unwrap();
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(3, false).unwrap(),
         expected_proof
@@ -211,7 +210,7 @@ where
     let expected_proof =
         BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(0, false).unwrap(),
         expected_proof
@@ -244,7 +243,7 @@ where
     let expected_proof =
         BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(1, false).unwrap(),
         expected_proof
@@ -277,7 +276,7 @@ where
     let expected_proof =
         BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(2, false).unwrap(),
         expected_proof
@@ -310,7 +309,7 @@ where
     let expected_proof =
         BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    assert_eq!(merkle_tree.root().unwrap(), expected_root);
+    assert_eq!(merkle_tree.root(), expected_root);
     assert_eq!(
         merkle_tree.get_proof_of_leaf(3, false).unwrap(),
         expected_proof
@@ -318,16 +317,68 @@ where
 }
 
 #[test]
-fn test_append_keccak() {
+fn test_update_keccak() {
     update::<Keccak>()
 }
 
 #[test]
-fn test_append_poseidon() {
+fn test_update_poseidon() {
     update::<Poseidon>()
 }
 
 #[test]
-fn test_append_sha256() {
+fn test_update_sha256() {
     update::<Sha256>()
 }
+
+// fn append2<H>()
+// where
+//     H: Hasher,
+// {
+//     const HEIGHT: usize = 4;
+//     const CANOPY: usize = 0;
+//
+//     let mut tree1 = MerkleTree::<H>::new(HEIGHT, 256, CANOPY).unwrap();
+//     let mut tree2 = MerkleTree2::<H>::new(HEIGHT, CANOPY);
+//
+//     let leaf1 = H::hash(&[1u8; 32]).unwrap();
+//
+//     tree1.append(&leaf1).unwrap();
+//     tree2.append(&leaf1).unwrap();
+//
+//     assert_eq!(tree1.root().unwrap(), tree2.root());
+//
+//     let leaf2 = H::hash(&[2u8; 32]).unwrap();
+//
+//     tree1.append(&leaf2).unwrap();
+//     tree2.append(&leaf2).unwrap();
+//
+//     assert_eq!(tree1.root().unwrap(), tree2.root());
+//
+//     let leaf3 = H::hash(&[3u8; 32]).unwrap();
+//
+//     tree1.append(&leaf3).unwrap();
+//     tree2.append(&leaf3).unwrap();
+//
+//     assert_eq!(tree1.root().unwrap(), tree2.root());
+//
+//     let leaf4 = H::hash(&[4u8; 32]).unwrap();
+//
+//     tree1.append(&leaf3).unwrap();
+//     tree2.append(&leaf3).unwrap();
+//
+//     assert_eq!(tree1.root().unwrap(), tree2.root());
+//
+//     let new_leaf1 = [9u8; 32];
+//
+//     tree1.update(&new_leaf1, 0).unwrap();
+//     tree2.update(&new_leaf1, 0).unwrap();
+//
+//     assert_eq!(tree1.root().unwrap(), tree2.root());
+// }
+//
+// #[test]
+// fn test_append2_keccak() {
+//     append2::<Keccak>()
+// }
+//

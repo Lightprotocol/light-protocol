@@ -241,7 +241,6 @@ async fn relayer_update(
     let mut relayer_merkle_tree = Box::new(
         reference::IndexedMerkleTree::<Poseidon, usize>::new(
             ADDRESS_MERKLE_TREE_HEIGHT as usize,
-            ADDRESS_MERKLE_TREE_ROOTS as usize,
             ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
         )
         .unwrap(),
@@ -436,7 +435,6 @@ async fn test_insert_invalid_low_element() {
     let mut local_merkle_tree = Box::new(
         reference::IndexedMerkleTree::<Poseidon, usize>::new(
             ADDRESS_MERKLE_TREE_HEIGHT as usize,
-            ADDRESS_MERKLE_TREE_ROOTS as usize,
             ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
         )
         .unwrap(),

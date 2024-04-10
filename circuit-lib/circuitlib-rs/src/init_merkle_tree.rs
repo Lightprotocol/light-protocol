@@ -26,21 +26,20 @@ pub fn inclusion_merkle_tree_inputs(mt_height: MerkleTreeInfo) -> InclusionMerkl
 
 fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
     const HEIGHT: usize = 26;
-    const ROOTS: usize = 1;
     const CANOPY: usize = 0;
 
     info!("initializing merkle tree");
     // SAFETY: Calling `unwrap()` when the Merkle tree parameters are corect
     // should not cause panic. Returning an error would not be compatible with
     // usafe of `once_cell::sync::Lazy` as a static variable.
-    let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut merkle_tree = MerkleTree::<Poseidon>::new(HEIGHT, CANOPY);
     info!("merkle tree initialized");
 
     info!("updating merkle tree");
     let mut bn_1: [u8; 32] = [0; 32];
     bn_1[31] = 1;
     let leaf: [u8; 32] = Poseidon::hash(&bn_1).unwrap();
-    merkle_tree.update(&leaf, 0).unwrap();
+    merkle_tree.append(&leaf).unwrap();
     let root1 = &merkle_tree.roots[1];
     info!("merkle tree updated");
 
@@ -69,10 +68,8 @@ fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
 
 pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
     const HEIGHT: usize = 26;
-    const ROOTS: usize = 1;
     const CANOPY: usize = 0;
-    let mut indexed_tree =
-        IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, ROOTS, CANOPY).unwrap();
+    let mut indexed_tree = IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
     let mut indexing_array = IndexedArray::<Poseidon, usize, 1024>::default();
 
     let bundle1 = indexing_array.append(&1_u32.to_biguint().unwrap()).unwrap();

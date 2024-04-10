@@ -99,12 +99,9 @@ where
     H: Hasher,
 {
     let mut relayer_indexing_array = IndexedArray::<H, usize, INDEXING_ARRAY_ELEMENTS>::default();
-    let mut relayer_merkle_tree = reference::IndexedMerkleTree::<H, usize>::new(
-        MERKLE_TREE_HEIGHT,
-        MERKLE_TREE_ROOTS,
-        MERKLE_TREE_CANOPY,
-    )
-    .unwrap();
+    let mut relayer_merkle_tree =
+        reference::IndexedMerkleTree::<H, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY)
+            .unwrap();
 
     let mut update_errors: Vec<IndexedMerkleTreeError> = Vec::new();
 
@@ -353,12 +350,9 @@ where
 
     // Local artifacts.
     let mut local_indexed_array = IndexedArray::<H, usize, INDEXING_ARRAY_ELEMENTS>::default();
-    let mut local_merkle_tree = reference::IndexedMerkleTree::<H, usize>::new(
-        MERKLE_TREE_HEIGHT,
-        MERKLE_TREE_ROOTS,
-        MERKLE_TREE_CANOPY,
-    )
-    .unwrap();
+    let mut local_merkle_tree =
+        reference::IndexedMerkleTree::<H, usize>::new(MERKLE_TREE_HEIGHT, MERKLE_TREE_CANOPY)
+            .unwrap();
 
     // Insert a pair of nullifiers, correctly. Just do it with relayer.
     let nullifier1 = 30_u32.to_biguint().unwrap();

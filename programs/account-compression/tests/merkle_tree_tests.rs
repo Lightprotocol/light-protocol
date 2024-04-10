@@ -294,10 +294,8 @@ async fn test_nullify_leaves() {
 
     let mut reference_merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
         account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
-        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
         account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-    )
-    .unwrap();
+    );
     reference_merkle_tree.append(&elements[0]).unwrap();
     reference_merkle_tree.append(&elements[1]).unwrap();
 
@@ -432,7 +430,7 @@ pub async fn nullify(
             .unwrap()
             .root()
             .unwrap(),
-        reference_merkle_tree.root().unwrap()
+        reference_merkle_tree.root()
     );
 
     let indexed_array = unsafe {
