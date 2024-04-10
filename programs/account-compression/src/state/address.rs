@@ -5,7 +5,7 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
-use light_hash_set::{HashSet, HashSetZeroCopy};
+use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::IndexedMerkleTree26;
 

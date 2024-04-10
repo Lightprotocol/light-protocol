@@ -2,7 +2,7 @@ use std::{cell::RefMut, mem};
 
 use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_hash_set::{HashSet, HashSetZeroCopy};
+use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use num_bigint::BigUint;
 
 use crate::{
