@@ -27,7 +27,7 @@ jobs:
   system-programs:
     name: system-programs
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
