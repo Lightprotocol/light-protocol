@@ -1,9 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
-    utils::constants::{
-        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
-    },
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorSerialize;
@@ -31,7 +29,7 @@ use psp_compressed_pda::{
 use psp_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
-    transfer_sdk, AccountState, ErrorCode, TokenData, TokenTransferOutputData,
+    transfer_sdk, ErrorCode, TokenData, TokenTransferOutputData,
 };
 use reqwest::Client;
 use solana_program_test::{
@@ -893,7 +891,7 @@ async fn assert_mint_to<'a>(
         .unwrap();
     assert_eq!(
         merkle_tree.root().unwrap(),
-        mock_indexer.merkle_tree.root().unwrap(),
+        mock_indexer.merkle_tree.root(),
         "merkle tree root update failed"
     );
     assert_eq!(merkle_tree.root_index(), 1);
@@ -947,7 +945,7 @@ async fn assert_transfer<'a>(
 
     assert_eq!(
         merkle_tree.root().unwrap(),
-        mock_indexer.merkle_tree.root().unwrap(),
+        mock_indexer.merkle_tree.root(),
         "merkle tree root update failed"
     );
     assert_ne!(
@@ -1108,10 +1106,8 @@ impl MockIndexer {
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
-            STATE_MERKLE_TREE_ROOTS as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-        )
-        .unwrap();
+        );
 
         Self {
             merkle_tree_pubkey,
@@ -1141,7 +1137,7 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
+                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
                 leaves: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
@@ -1171,7 +1167,7 @@ impl MockIndexer {
             .copy_merkle_tree()
             .unwrap();
         assert_eq!(
-            self.merkle_tree.root().unwrap(),
+            self.merkle_tree.root(),
             merkle_tree.root().unwrap(),
             "Local Merkle tree root is not equal to latest onchain root"
         );
