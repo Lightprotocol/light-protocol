@@ -73,7 +73,7 @@ where
         }
 
         let left_child = &self.layers[self.height - 1]
-            .get(0)
+            .first()
             .cloned()
             .unwrap_or(H::zero_bytes()[self.height - 1]);
         let right_child = &self.layers[self.height - 1]

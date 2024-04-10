@@ -11,29 +11,29 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     addresses: &'a [[u8; 32]],
 ) -> anchor_lang::Result<()> {
-    let address_merkle_tree_pubkeys = inputs
+    let address_merkle_tree_account_infos = inputs
         .new_address_params
         .iter()
         .map(|params| {
-            ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].key()
+            ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone()
         })
-        .collect::<Vec<Pubkey>>();
+        .collect::<Vec<AccountInfo>>();
     let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
     for params in inputs.new_address_params.iter() {
         indexed_array_account_infos
             .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
-        let unpacked_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(
+        let unpacked_queue_account = AccountLoader::<AddressQueueAccount>::try_from(
             &ctx.remaining_accounts[params.address_queue_account_index as usize],
         )
         .unwrap();
         let array_account = unpacked_queue_account.load()?;
         let account_is_associated_with_address_merkle_tree = address_merkle_tree_account_infos
             .iter()
-            .any(|x| x.key() == array_account.associated_merkle_tree);
+            .any(|x| x.key() == array_account.associated_merkle_tree.key());
         if !account_is_associated_with_address_merkle_tree {
             msg!(
                 "Address queue account {:?} is not associated with any address Merkle tree. Provided address Merkle trees {:?}",
-                ctx.remaining_accounts[params.address_queue_account_index as usize].key(), address_merkle_tree_pubkeys);
+                ctx.remaining_accounts[params.address_queue_account_index as usize].key(), address_merkle_tree_account_infos[params.address_queue_account_index as usize].key());
             return Err(crate::ErrorCode::InvalidAddressQueue.into());
         }
     }
