@@ -18,11 +18,15 @@ export async function initTestEnv({
   skipSystemAccounts,
   indexer = true,
   prover = true,
+  proveCompressedAccounts = true,
+  proveNewAddresses = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
+  proveCompressedAccounts?: boolean;
+  proveNewAddresses?: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -46,7 +50,12 @@ export async function initTestEnv({
 
   if (prover) {
     await killProver();
-    spawnBinary("light-prover", ["start"]);
+    const circuitDir = path.join(__dirname, "../..", "bin", "circuits/");
+    const args = ["start"];
+    args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
+    args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
+    args.push("--circuit-dir", circuitDir);
+    spawnBinary("light-prover", args);
     await sleep(10000);
   }
 }
