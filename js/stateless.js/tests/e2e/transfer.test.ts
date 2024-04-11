@@ -1,19 +1,13 @@
 import { describe, it, assert, beforeAll } from 'vitest';
-import {
-    CompressedAccount,
-    bn,
-    createCompressedAccount,
-} from '../../src/state';
 import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
 
 import { Keypair, Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import {
-    getTestRpc,
     newAccountWithLamports,
     placeholderValidityProof,
 } from '../../src/test-utils';
-import { LightSystemProgram, Rpc } from '../../src';
+import { LightSystemProgram, Rpc, createRpc } from '../../src';
 
 describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
@@ -22,7 +16,7 @@ describe('transfer', () => {
     let bob: Signer;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate();
     });
@@ -45,23 +39,11 @@ describe('transfer', () => {
         const signedTx = buildAndSignTx(ixs, payer, blockhash);
         await sendAndConfirmTx(rpc, signedTx);
 
-        rpc = await getTestRpc();
-
-        // @ts-ignore
-        const indexedEvents = await rpc.getParsedEvents();
-        assert.equal(indexedEvents.length > 0, true);
-        assert.equal(indexedEvents[0].inputCompressedAccounts.length, 0);
-        assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
-        assert.equal(
-            Number(indexedEvents[0].outputCompressedAccounts[0].lamports),
-            0,
+        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+            bob.publicKey,
         );
-
-        assert.equal(
-            indexedEvents[0].outputCompressedAccounts[0].owner.toBase58(),
-            bob.publicKey.toBase58(),
-        );
-
-        assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
+        assert.equal(compressedAccounts.length, 1);
+        assert.equal(Number(compressedAccounts[0].lamports), 0);
+        assert.equal(compressedAccounts[0].data, null);
     });
 });

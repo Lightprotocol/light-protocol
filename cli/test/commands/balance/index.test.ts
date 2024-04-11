@@ -5,7 +5,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { createMint, mintTo } from "@lightprotocol/compressed-token";
 import { requestAirdrop } from "../../helpers/helpers";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { getTestRpc } from "@lightprotocol/stateless.js";
+import { createRpc } from "@lightprotocol/stateless.js";
 describe("Get balance", () => {
   test.it(async () => {
     await initTestEnvIfNeeded();
@@ -28,7 +28,7 @@ describe("Get balance", () => {
     );
     const encodedPayer = bs58.encode(payerKeypair.secretKey);
     return test
-      .stdout()
+      .stdout({ print: true })
       .command([
         "balance",
         `--mint=${mintAddress.toBase58()}`,
@@ -43,7 +43,7 @@ describe("Get balance", () => {
   });
 
   async function createTestMint(payer: Keypair) {
-    const rpc = await getTestRpc(getSolanaRpcUrl());
+    const rpc = createRpc(getSolanaRpcUrl());
     const { mint } = await createMint(rpc, payer, payer, 9, undefined, {
       commitment: "finalized",
     });
@@ -57,7 +57,7 @@ describe("Get balance", () => {
     mintAuthority: Keypair,
     mintAmount: number,
   ) {
-    const rpc = await getTestRpc(getSolanaRpcUrl());
+    const rpc = createRpc(getSolanaRpcUrl());
     const txId = await mintTo(
       rpc,
       payer,
