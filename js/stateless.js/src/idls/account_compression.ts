@@ -9,66 +9,73 @@ export type AccountCompression = {
         },
         {
             name: 'STATE_MERKLE_TREE_HEIGHT';
-            type: {
-                defined: 'usize';
-            };
+            type: 'u64';
             value: '26';
         },
         {
             name: 'STATE_MERKLE_TREE_CHANGELOG';
-            type: {
-                defined: 'usize';
-            };
+            type: 'u64';
             value: '1400';
         },
         {
             name: 'STATE_MERKLE_TREE_ROOTS';
-            type: {
-                defined: 'usize';
-            };
+            type: 'u64';
             value: '2400';
         },
         {
             name: 'STATE_MERKLE_TREE_CANOPY_DEPTH';
-            type: {
-                defined: 'usize';
-            };
+            type: 'u64';
             value: '10';
         },
         {
-            name: 'STATE_INDEXED_ARRAY_SIZE';
-            type: {
-                defined: 'usize';
-            };
+            name: 'STATE_INDEXED_ARRAY_INDICES';
+            type: 'u16';
+            value: '6857';
+        },
+        {
+            name: 'STATE_INDEXED_ARRAY_VALUES';
+            type: 'u16';
             value: '4800';
         },
         {
+            name: 'STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD';
+            type: 'u64';
+            value: '2400';
+        },
+        {
             name: 'ADDRESS_MERKLE_TREE_HEIGHT';
-            type: {
-                defined: 'usize';
-            };
-            value: '22';
+            type: 'u64';
+            value: '26';
         },
         {
             name: 'ADDRESS_MERKLE_TREE_CHANGELOG';
-            type: {
-                defined: 'usize';
-            };
-            value: '2800';
+            type: 'u64';
+            value: '1400';
         },
         {
             name: 'ADDRESS_MERKLE_TREE_ROOTS';
-            type: {
-                defined: 'usize';
-            };
-            value: '2800';
+            type: 'u64';
+            value: '2400';
         },
         {
             name: 'ADDRESS_MERKLE_TREE_CANOPY_DEPTH';
-            type: {
-                defined: 'usize';
-            };
-            value: '0';
+            type: 'u64';
+            value: '10';
+        },
+        {
+            name: 'ADDRESS_QUEUE_INDICES';
+            type: 'u16';
+            value: '6857';
+        },
+        {
+            name: 'ADDRESS_QUEUE_VALUES';
+            type: 'u16';
+            value: '4800';
+        },
+        {
+            name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD';
+            type: 'u64';
+            value: '2400';
         },
         {
             name: 'PROGRAM_ID';
@@ -91,7 +98,20 @@ export type AccountCompression = {
                     isSigner: false;
                 },
             ];
-            args: [];
+            args: [
+                {
+                    name: 'capacityIndices';
+                    type: 'u16';
+                },
+                {
+                    name: 'capacityValues';
+                    type: 'u16';
+                },
+                {
+                    name: 'sequenceThreshold';
+                    type: 'u64';
+                },
+            ];
         },
         {
             name: 'initializeAddressMerkleTree';
@@ -153,6 +173,11 @@ export type AccountCompression = {
                     isMut: true;
                     isSigner: false;
                 },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
             ];
             args: [
                 {
@@ -161,6 +186,85 @@ export type AccountCompression = {
                         vec: {
                             array: ['u8', 32];
                         };
+                    };
+                },
+            ];
+        },
+        {
+            name: 'updateAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'changelogIndex';
+                    type: 'u16';
+                },
+                {
+                    name: 'value';
+                    type: {
+                        array: ['u8', 32];
+                    };
+                },
+                {
+                    name: 'nextIndex';
+                    type: 'u64';
+                },
+                {
+                    name: 'nextValue';
+                    type: {
+                        array: ['u8', 32];
+                    };
+                },
+                {
+                    name: 'lowAddressIndex';
+                    type: 'u64';
+                },
+                {
+                    name: 'lowAddressValue';
+                    type: {
+                        array: ['u8', 32];
+                    };
+                },
+                {
+                    name: 'lowAddressNextIndex';
+                    type: 'u64';
+                },
+                {
+                    name: 'lowAddressNextValue';
+                    type: {
+                        array: ['u8', 32];
+                    };
+                },
+                {
+                    name: 'lowAddressProof';
+                    type: {
+                        array: [
+                            {
+                                array: ['u8', 32];
+                            },
+                            16,
+                        ];
+                    };
+                },
+                {
+                    name: 'nextAddressProof';
+                    type: {
+                        array: ['u8', 128];
                     };
                 },
             ];
@@ -447,6 +551,18 @@ export type AccountCompression = {
                         option: 'publicKey';
                     };
                 },
+                {
+                    name: 'capacityIndices';
+                    type: 'u16';
+                },
+                {
+                    name: 'capacityValues';
+                    type: 'u16';
+                },
+                {
+                    name: 'sequenceThreshold';
+                    type: 'u64';
+                },
             ];
         },
         {
@@ -516,17 +632,6 @@ export type AccountCompression = {
                         name: 'associatedMerkleTree';
                         type: 'publicKey';
                     },
-                    {
-                        name: 'indexedArray';
-                        type: {
-                            array: [
-                                {
-                                    defined: 'QueueArrayElement';
-                                },
-                                4800,
-                            ];
-                        };
-                    },
                 ];
             };
         },
@@ -546,14 +651,7 @@ export type AccountCompression = {
             name: 'addressQueueAccount';
             type: {
                 kind: 'struct';
-                fields: [
-                    {
-                        name: 'queue';
-                        type: {
-                            array: ['u8', 112008];
-                        };
-                    },
-                ];
+                fields: [];
             };
         },
         {
@@ -586,31 +684,31 @@ export type AccountCompression = {
                     {
                         name: 'merkleTreeStruct';
                         type: {
-                            array: ['u8', 224];
+                            array: ['u8', 256];
                         };
                     },
                     {
                         name: 'merkleTreeFilledSubtrees';
                         type: {
-                            array: ['u8', 704];
+                            array: ['u8', 832];
                         };
                     },
                     {
                         name: 'merkleTreeChangelog';
                         type: {
-                            array: ['u8', 2083200];
+                            array: ['u8', 1041600];
                         };
                     },
                     {
                         name: 'merkleTreeRoots';
                         type: {
-                            array: ['u8', 89600];
+                            array: ['u8', 76800];
                         };
                     },
                     {
                         name: 'merkleTreeCanopy';
                         type: {
-                            array: ['u8', 0];
+                            array: ['u8', 65472];
                         };
                     },
                 ];
@@ -686,31 +784,6 @@ export type AccountCompression = {
         },
     ];
     types: [
-        {
-            name: 'QueueArrayElement';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'merkleTreeOverwriteSequenceNumber';
-                        docs: [
-                            'The squence number of the Merkle tree at which it is safe to overwrite the element.',
-                            'It is safe to overwrite an element once no root that includes the element is in the root history array.',
-                            'With every time a root is inserted into the root history array, the sequence number is incremented.',
-                            '0 means that the element still exists in the state Merkle tree, is not nullified yet.',
-                            'TODO: add a root history array sequence number to the Merkle tree account.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'element';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
         {
             name: 'Changelogs';
             type: {
@@ -916,6 +989,11 @@ export type AccountCompression = {
             name: 'InvalidMerkleTree';
             msg: 'InvalidMerkleTree';
         },
+        {
+            code: 6021;
+            name: 'LeafNotFound';
+            msg: 'Could not find the leaf in the queue';
+        },
     ];
 };
 
@@ -930,66 +1008,73 @@ export const IDL: AccountCompression = {
         },
         {
             name: 'STATE_MERKLE_TREE_HEIGHT',
-            type: {
-                defined: 'usize',
-            },
+            type: 'u64',
             value: '26',
         },
         {
             name: 'STATE_MERKLE_TREE_CHANGELOG',
-            type: {
-                defined: 'usize',
-            },
+            type: 'u64',
             value: '1400',
         },
         {
             name: 'STATE_MERKLE_TREE_ROOTS',
-            type: {
-                defined: 'usize',
-            },
+            type: 'u64',
             value: '2400',
         },
         {
             name: 'STATE_MERKLE_TREE_CANOPY_DEPTH',
-            type: {
-                defined: 'usize',
-            },
+            type: 'u64',
             value: '10',
         },
         {
-            name: 'STATE_INDEXED_ARRAY_SIZE',
-            type: {
-                defined: 'usize',
-            },
+            name: 'STATE_INDEXED_ARRAY_INDICES',
+            type: 'u16',
+            value: '6857',
+        },
+        {
+            name: 'STATE_INDEXED_ARRAY_VALUES',
+            type: 'u16',
             value: '4800',
         },
         {
+            name: 'STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD',
+            type: 'u64',
+            value: '2400',
+        },
+        {
             name: 'ADDRESS_MERKLE_TREE_HEIGHT',
-            type: {
-                defined: 'usize',
-            },
-            value: '22',
+            type: 'u64',
+            value: '26',
         },
         {
             name: 'ADDRESS_MERKLE_TREE_CHANGELOG',
-            type: {
-                defined: 'usize',
-            },
-            value: '2800',
+            type: 'u64',
+            value: '1400',
         },
         {
             name: 'ADDRESS_MERKLE_TREE_ROOTS',
-            type: {
-                defined: 'usize',
-            },
-            value: '2800',
+            type: 'u64',
+            value: '2400',
         },
         {
             name: 'ADDRESS_MERKLE_TREE_CANOPY_DEPTH',
-            type: {
-                defined: 'usize',
-            },
-            value: '0',
+            type: 'u64',
+            value: '10',
+        },
+        {
+            name: 'ADDRESS_QUEUE_INDICES',
+            type: 'u16',
+            value: '6857',
+        },
+        {
+            name: 'ADDRESS_QUEUE_VALUES',
+            type: 'u16',
+            value: '4800',
+        },
+        {
+            name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD',
+            type: 'u64',
+            value: '2400',
         },
         {
             name: 'PROGRAM_ID',
@@ -1012,7 +1097,20 @@ export const IDL: AccountCompression = {
                     isSigner: false,
                 },
             ],
-            args: [],
+            args: [
+                {
+                    name: 'capacityIndices',
+                    type: 'u16',
+                },
+                {
+                    name: 'capacityValues',
+                    type: 'u16',
+                },
+                {
+                    name: 'sequenceThreshold',
+                    type: 'u64',
+                },
+            ],
         },
         {
             name: 'initializeAddressMerkleTree',
@@ -1074,6 +1172,11 @@ export const IDL: AccountCompression = {
                     isMut: true,
                     isSigner: false,
                 },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
             ],
             args: [
                 {
@@ -1082,6 +1185,85 @@ export const IDL: AccountCompression = {
                         vec: {
                             array: ['u8', 32],
                         },
+                    },
+                },
+            ],
+        },
+        {
+            name: 'updateAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'changelogIndex',
+                    type: 'u16',
+                },
+                {
+                    name: 'value',
+                    type: {
+                        array: ['u8', 32],
+                    },
+                },
+                {
+                    name: 'nextIndex',
+                    type: 'u64',
+                },
+                {
+                    name: 'nextValue',
+                    type: {
+                        array: ['u8', 32],
+                    },
+                },
+                {
+                    name: 'lowAddressIndex',
+                    type: 'u64',
+                },
+                {
+                    name: 'lowAddressValue',
+                    type: {
+                        array: ['u8', 32],
+                    },
+                },
+                {
+                    name: 'lowAddressNextIndex',
+                    type: 'u64',
+                },
+                {
+                    name: 'lowAddressNextValue',
+                    type: {
+                        array: ['u8', 32],
+                    },
+                },
+                {
+                    name: 'lowAddressProof',
+                    type: {
+                        array: [
+                            {
+                                array: ['u8', 32],
+                            },
+                            16,
+                        ],
+                    },
+                },
+                {
+                    name: 'nextAddressProof',
+                    type: {
+                        array: ['u8', 128],
                     },
                 },
             ],
@@ -1368,6 +1550,18 @@ export const IDL: AccountCompression = {
                         option: 'publicKey',
                     },
                 },
+                {
+                    name: 'capacityIndices',
+                    type: 'u16',
+                },
+                {
+                    name: 'capacityValues',
+                    type: 'u16',
+                },
+                {
+                    name: 'sequenceThreshold',
+                    type: 'u64',
+                },
             ],
         },
         {
@@ -1437,17 +1631,6 @@ export const IDL: AccountCompression = {
                         name: 'associatedMerkleTree',
                         type: 'publicKey',
                     },
-                    {
-                        name: 'indexedArray',
-                        type: {
-                            array: [
-                                {
-                                    defined: 'QueueArrayElement',
-                                },
-                                4800,
-                            ],
-                        },
-                    },
                 ],
             },
         },
@@ -1467,14 +1650,7 @@ export const IDL: AccountCompression = {
             name: 'addressQueueAccount',
             type: {
                 kind: 'struct',
-                fields: [
-                    {
-                        name: 'queue',
-                        type: {
-                            array: ['u8', 112008],
-                        },
-                    },
-                ],
+                fields: [],
             },
         },
         {
@@ -1507,31 +1683,31 @@ export const IDL: AccountCompression = {
                     {
                         name: 'merkleTreeStruct',
                         type: {
-                            array: ['u8', 224],
+                            array: ['u8', 256],
                         },
                     },
                     {
                         name: 'merkleTreeFilledSubtrees',
                         type: {
-                            array: ['u8', 704],
+                            array: ['u8', 832],
                         },
                     },
                     {
                         name: 'merkleTreeChangelog',
                         type: {
-                            array: ['u8', 2083200],
+                            array: ['u8', 1041600],
                         },
                     },
                     {
                         name: 'merkleTreeRoots',
                         type: {
-                            array: ['u8', 89600],
+                            array: ['u8', 76800],
                         },
                     },
                     {
                         name: 'merkleTreeCanopy',
                         type: {
-                            array: ['u8', 0],
+                            array: ['u8', 65472],
                         },
                     },
                 ],
@@ -1607,31 +1783,6 @@ export const IDL: AccountCompression = {
         },
     ],
     types: [
-        {
-            name: 'QueueArrayElement',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'merkleTreeOverwriteSequenceNumber',
-                        docs: [
-                            'The squence number of the Merkle tree at which it is safe to overwrite the element.',
-                            'It is safe to overwrite an element once no root that includes the element is in the root history array.',
-                            'With every time a root is inserted into the root history array, the sequence number is incremented.',
-                            '0 means that the element still exists in the state Merkle tree, is not nullified yet.',
-                            'TODO: add a root history array sequence number to the Merkle tree account.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'element',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
         {
             name: 'Changelogs',
             type: {
@@ -1836,6 +1987,11 @@ export const IDL: AccountCompression = {
             code: 6020,
             name: 'InvalidMerkleTree',
             msg: 'InvalidMerkleTree',
+        },
+        {
+            code: 6021,
+            name: 'LeafNotFound',
+            msg: 'Could not find the leaf in the queue',
         },
     ],
 };

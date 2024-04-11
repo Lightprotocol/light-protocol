@@ -19,7 +19,8 @@ use circuitlib_rs::{
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
 use light_test_utils::{
-    create_and_send_transaction, test_env::setup_test_programs_with_accounts, AccountZeroCopy,
+    create_and_send_transaction, get_hash_set, test_env::setup_test_programs_with_accounts,
+    AccountZeroCopy,
 };
 use num_bigint::BigInt;
 use num_traits::ops::bytes::FromBytes;
@@ -836,11 +837,9 @@ impl MockIndexer {
         .await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
-            STATE_MERKLE_TREE_HEIGHT,
-            STATE_MERKLE_TREE_ROOTS,
-            STATE_MERKLE_TREE_CANOPY_DEPTH,
-        )
-        .unwrap();
+            STATE_MERKLE_TREE_HEIGHT as usize,
+            STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+        );
 
         Self {
             merkle_tree_pubkey,
@@ -868,7 +867,7 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
+                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
                 leaves: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
@@ -898,7 +897,7 @@ impl MockIndexer {
             .copy_merkle_tree()
             .unwrap();
         assert_eq!(
-            self.merkle_tree.root().unwrap(),
+            self.merkle_tree.root(),
             merkle_tree.root().unwrap(),
             "Local Merkle tree root is not equal to latest on-chain root"
         );
@@ -966,12 +965,13 @@ impl MockIndexer {
     /// Check compressed_accounts in the queue array which are not nullified yet
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
-        let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-            context,
-            self.indexed_array_pubkey,
-        )
-        .await;
-        let indexed_array = array.deserialized().indexed_array;
+        let indexed_array = unsafe {
+            get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+                context,
+                self.indexed_array_pubkey,
+            )
+            .await
+        };
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
@@ -980,18 +980,18 @@ impl MockIndexer {
             .unwrap();
         let change_log_index = merkle_tree.current_changelog_index as u64;
 
-        let mut compressed_account_to_nullify = Vec::new();
+        let mut compressed_accounts_to_nullify = Vec::new();
 
-        for (i, element) in indexed_array.iter().enumerate() {
-            if element.merkle_tree_overwrite_sequence_number == 0 && element.element != [0u8; 32] {
-                compressed_account_to_nullify.push((i, element));
+        for (i, element) in indexed_array.iter() {
+            if element.sequence_number().is_none() {
+                compressed_accounts_to_nullify.push((i, element.value_bytes()));
             }
         }
 
-        for (index_in_indexed_array, compressed_account) in compressed_account_to_nullify.iter() {
+        for (index_in_indexed_array, compressed_account) in compressed_accounts_to_nullify.iter() {
             let leaf_index = self
                 .merkle_tree
-                .get_leaf_index(&compressed_account.element)
+                .get_leaf_index(&compressed_account)
                 .unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
@@ -1021,27 +1021,30 @@ impl MockIndexer {
             )
             .await
             .unwrap();
-            let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-                context,
-                self.indexed_array_pubkey,
-            )
-            .await;
-            let indexed_array = array.deserialized().indexed_array;
-            assert_eq!(
-                indexed_array[*index_in_indexed_array].element,
-                compressed_account.element
-            );
+            let indexed_array = unsafe {
+                get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+                    context,
+                    self.indexed_array_pubkey,
+                )
+                .await
+            };
+            let array_element = indexed_array
+                .by_value_index(*index_in_indexed_array, Some(merkle_tree.sequence_number))
+                .unwrap();
+            assert_eq!(&array_element.value_bytes(), compressed_account);
             let merkle_tree_account =
                 AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
                     .await;
             assert_eq!(
-                indexed_array[*index_in_indexed_array].merkle_tree_overwrite_sequence_number,
-                merkle_tree_account
-                    .deserialized()
-                    .load_merkle_tree()
-                    .unwrap()
-                    .sequence_number as u64
-                    + STATE_MERKLE_TREE_ROOTS as u64
+                array_element.sequence_number(),
+                Some(
+                    merkle_tree_account
+                        .deserialized()
+                        .load_merkle_tree()
+                        .unwrap()
+                        .sequence_number
+                        + STATE_MERKLE_TREE_ROOTS as usize
+                )
             );
         }
     }

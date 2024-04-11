@@ -1,9 +1,12 @@
-use std::{marker::PhantomData, pin::Pin};
+use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
 use anchor_lang::{
     solana_program::{pubkey::Pubkey, system_instruction},
     AnchorDeserialize,
 };
+use light_hash_set::HashSet;
+use num_bigint::ToBigUint;
+use num_traits::{Bounded, CheckedAdd, CheckedSub, Unsigned};
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     account::Account,
@@ -58,6 +61,51 @@ pub async fn get_account<T: AnchorDeserialize>(
         .unwrap()
         .unwrap();
     T::deserialize(&mut &account.data[8..]).unwrap()
+}
+
+/// Fetches the given account, then copies and serializes it as a `HashSet`.
+///
+/// # Safety
+///
+/// This is highly unsafe. Ensuring that:
+///
+/// * The correct account is used.
+/// * The account has enough space to be treated as a HashSet with specified
+///   parameters.
+/// * The account data is aligned.
+///
+/// Is the caller's responsibility.
+pub async unsafe fn get_hash_set<I, T>(
+    context: &mut ProgramTestContext,
+    pubkey: Pubkey,
+) -> HashSet<I>
+where
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Clone
+        + Copy
+        + fmt::Display
+        + From<u8>
+        + PartialEq
+        + PartialOrd
+        + ToBigUint
+        + TryFrom<u64>
+        + TryFrom<usize>
+        + Unsigned,
+    f64: From<I>,
+    u64: TryFrom<I>,
+    usize: TryFrom<I>,
+    <usize as TryFrom<I>>::Error: fmt::Debug,
+{
+    let mut account = context
+        .banks_client
+        .get_account(pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+
+    HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<T>()..]).unwrap()
 }
 
 pub async fn airdrop_lamports(

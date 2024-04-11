@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
-use ark_ff::BigInteger;
-use array::IndexingElement;
+use array::IndexedElement;
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::Hasher, ConcurrentMerkleTree,
 };
+use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
@@ -15,28 +15,25 @@ pub mod reference;
 use crate::errors::IndexedMerkleTreeError;
 
 #[repr(C)]
-pub struct IndexedMerkleTree<'a, H, I, B, const HEIGHT: usize>
+pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
     _index: PhantomData<I>,
-    _bigint: PhantomData<B>,
 }
 
-pub type IndexedMerkleTree22<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 22>;
-pub type IndexedMerkleTree26<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 26>;
-pub type IndexedMerkleTree32<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 32>;
-pub type IndexedMerkleTree40<'a, H, I, B> = IndexedMerkleTree<'a, H, I, B, 40>;
+pub type IndexedMerkleTree22<'a, H, I> = IndexedMerkleTree<'a, H, I, 22>;
+pub type IndexedMerkleTree26<'a, H, I> = IndexedMerkleTree<'a, H, I, 26>;
+pub type IndexedMerkleTree32<'a, H, I> = IndexedMerkleTree<'a, H, I, 32>;
+pub type IndexedMerkleTree40<'a, H, I> = IndexedMerkleTree<'a, H, I, 40>;
 
-impl<'a, H, I, B, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, B, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
-    B: BigInteger,
     usize: From<I>,
 {
     pub fn new(
@@ -54,7 +51,6 @@ where
         Self {
             merkle_tree,
             _index: PhantomData,
-            _bigint: PhantomData,
         }
     }
 
@@ -180,10 +176,10 @@ where
     pub fn update(
         &mut self,
         changelog_index: usize,
-        new_element: IndexingElement<I, B>,
-        new_element_next_value: B,
-        low_element: IndexingElement<I, B>,
-        low_element_next_value: B,
+        new_element: IndexedElement<I>,
+        new_element_next_value: &BigUint,
+        low_element: IndexedElement<I>,
+        low_element_next_value: &BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
         // Check that the value of `new_element` belongs to the range
@@ -203,21 +199,21 @@ where
             }
             // The value of `new_element` needs to be lower than the value of
             // next element pointed by `old_low_element`.
-            if new_element.value >= low_element_next_value {
+            if new_element.value >= *low_element_next_value {
                 return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
         }
 
         // Instantiate `new_low_element` - the low element with updated values.
-        let new_low_element = IndexingElement {
+        let new_low_element = IndexedElement {
             index: low_element.index,
-            value: low_element.value,
+            value: low_element.value.clone(),
             next_index: new_element.index,
         };
 
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
-        let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
+        let old_low_leaf = low_element.hash::<H>(low_element_next_value)?;
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
         self.merkle_tree.update(
             changelog_index,
@@ -228,7 +224,7 @@ where
         )?;
 
         // Append new element.
-        let new_leaf = new_element.hash::<H>(&new_element_next_value)?;
+        let new_leaf = new_element.hash::<H>(new_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
         Ok(())

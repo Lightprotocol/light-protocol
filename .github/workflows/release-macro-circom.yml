@@ -14,7 +14,7 @@ env:
 jobs:
   release-linux:
     name: Release (Linux)
-    runs-on:  buildjet-16vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

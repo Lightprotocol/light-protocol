@@ -4,6 +4,10 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "anchor build",
-    "test": "RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression && RUST_MIN_STACK=8388608 cargo test-sbf  -p psp-compressed-pda  && RUST_MIN_STACK=8388608 cargo test-sbf -p psp-compressed-token -- --test-threads 1"
+    "test": "pnpm test-account-compression && pnpm test-compressed-pda && pnpm test-psp-compressed-token",
+    "test-account-compression": "RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression",
+    "test-compressed-pda": "RUST_MIN_STACK=8388608 cargo test-sbf -p psp-compressed-pda -- --test-threads 1",
+    "test-light": "cd light && cargo test-sbf",
+    "test-psp-compressed-token": "RUST_MIN_STACK=8388608 cargo test-sbf -p psp-compressed-token -- --test-threads 1"
   }
 }

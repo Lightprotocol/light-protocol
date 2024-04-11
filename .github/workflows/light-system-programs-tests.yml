@@ -27,13 +27,25 @@ jobs:
   system-programs:
     name: system-programs
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-16vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - test: system-programs
+          - program: account-compression
             sub-tests: '[
-              "@lightprotocol/programs:test"
+              "@lightprotocol/programs:test-account-compression"
+            ]'
+          - program: compressed-pda
+            sub-tests: '[
+              "@lightprotocol/programs:test-compressed-pda"
+            ]'
+          - program: light
+            sub-tests: '[
+              "@lightprotocol/programs:test-light"
+            ]'
+          - program: psp-compressed-token
+            sub-tests: '[
+              "@lightprotocol/programs:test-psp-compressed-token"
             ]'
 
     steps:
@@ -45,15 +57,16 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: ${{ matrix.test }}
+      - name: ${{ matrix.program }}
         run: |
           source ./scripts/devenv.sh   
           mkdir -p ./target/deploy
           wget https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-v0.2.0/spl_noop.so -O ./target/deploy/spl_noop.so   
+
+          anchor build
+
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
             npx nx run "$subtest"
           done
-          
-          cd programs/light && cargo test-sbf
