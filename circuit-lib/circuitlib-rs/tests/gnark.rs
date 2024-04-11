@@ -11,7 +11,7 @@ use reqwest::Client;
 #[tokio::test]
 async fn prove_inclusion() {
     init_logger();
-    spawn_gnark_server("scripts/prover.sh", true, ProofType::Inclusion).await;
+    spawn_gnark_server("scripts/prover.sh", true, &[ProofType::Inclusion]).await;
     let client = Client::new();
     for number_of_utxos in &[1, 2, 3, 4, 8] {
         let (inputs, _) = inclusion_inputs_string(*number_of_utxos as usize);

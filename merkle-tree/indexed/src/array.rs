@@ -81,7 +81,7 @@ where
         Ok(hash)
     }
 }
-
+#[derive(Clone, Debug)]
 pub struct IndexedElementBundle<I>
 where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
@@ -92,6 +92,7 @@ where
     pub new_element_next_value: BigUint,
 }
 
+#[derive(Clone, Debug)]
 pub struct IndexedArray<H, I, const ELEMENTS: usize>
 where
     H: Hasher,
@@ -358,6 +359,7 @@ where
         }
     }
 
+    // TODO: remove since it's not used (hashset replaces this)
     /// Returns and removes the element from the given index.
     ///
     /// It also performs necessary updated of the remaning elements, to
@@ -425,6 +427,7 @@ where
         Ok(Some(removed_element))
     }
 
+    // TODO: remove since it's not used (hashset replaces this)
     /// Returns and removes the element from the given index.
     ///
     /// It also performs necessary updates of the remaning elements, to

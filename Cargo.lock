@@ -3984,6 +3984,7 @@ dependencies = [
  "lazy_static",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
