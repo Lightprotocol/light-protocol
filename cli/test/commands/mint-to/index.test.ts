@@ -12,7 +12,8 @@ import { requestAirdrop } from "../../helpers/helpers";
 
 describe("mint-to", () => {
   test.it(async () => {
-    await initTestEnvIfNeeded();
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+
     const mintKeypair = defaultSolanaWalletKeypair() || Keypair.generate();
     await requestAirdrop(mintKeypair.publicKey);
     const mintAmount = 100;
