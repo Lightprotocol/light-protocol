@@ -10,15 +10,12 @@ import {
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
+    ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
 
 import { BN } from '@coral-xyz/anchor';
 import { createTransferInstruction } from '../instructions';
 import { TokenTransferOutputData } from '../types';
-import {
-    CompressedAccountWithParsedTokenData,
-    getCompressedTokenAccountsForTest,
-} from '../get-compressed-token-accounts';
 import { dedupeSigner, getSigners } from './common';
 
 /**
@@ -30,17 +27,17 @@ import { dedupeSigner, getSigners } from './common';
  *    amount
  */
 function selectMinCompressedTokenAccountsForTransfer(
-    accounts: CompressedAccountWithParsedTokenData[],
+    accounts: ParsedTokenAccount[],
     transferAmount: BN,
 ): [
-    selectedAccounts: CompressedAccountWithParsedTokenData[],
+    selectedAccounts: ParsedTokenAccount[],
     total: BN,
     totalLamports: BN | null,
 ] {
     let accumulatedAmount = bn(0);
     let accumulatedLamports = bn(0);
 
-    const selectedAccounts: CompressedAccountWithParsedTokenData[] = [];
+    const selectedAccounts: ParsedTokenAccount[] = [];
 
     accounts.sort((a, b) => b.parsed.amount.cmp(a.parsed.amount));
 
@@ -48,7 +45,7 @@ function selectMinCompressedTokenAccountsForTransfer(
         if (accumulatedAmount.gte(bn(transferAmount))) break;
         accumulatedAmount = accumulatedAmount.add(account.parsed.amount);
         accumulatedLamports = accumulatedLamports.add(
-            account.compressedAccountWithMerkleContext.lamports,
+            account.compressedAccount.lamports,
         );
         selectedAccounts.push(account);
     }
@@ -97,12 +94,11 @@ export async function transfer(
 
     amount = bn(amount);
 
-    /// TODO: refactor RPC and TestRPC to (1)support extensions (2)implement
-    /// token layout, or (3)implement 'getCompressedProgramAccounts'
-    const compressedTokenAccounts = await getCompressedTokenAccountsForTest(
-        rpc,
+    const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         currentOwnerPublicKey,
-        mint,
+        {
+            mint: mint,
+        },
     );
 
     const [inputAccounts, inputAmount, inputLamports] =
@@ -130,25 +126,20 @@ export async function transfer(
     };
 
     const proof = await rpc.getValidityProof(
-        inputAccounts.map(account =>
-            bn(account.compressedAccountWithMerkleContext.hash),
-        ),
+        inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
     const ixs = await createTransferInstruction(
         payer.publicKey, // fee payer
         currentOwnerPublicKey, // authority
         inputAccounts.map(
-            account => account.compressedAccountWithMerkleContext.merkleTree, // in state trees
+            account => account.compressedAccount.merkleTree, // in state trees
         ),
         inputAccounts.map(
-            account =>
-                account.compressedAccountWithMerkleContext.nullifierQueue, // in nullifier queues
+            account => account.compressedAccount.nullifierQueue, // in nullifier queues
         ),
         [merkleTree, merkleTree], // out state trees
-        inputAccounts.map(
-            account => account.compressedAccountWithMerkleContext,
-        ), // input compressed accounts
+        inputAccounts.map(account => account.compressedAccount), // input compressed accounts
         [recipientCompressedAccount, changeCompressedAccount], // output compressed accounts
         // TODO: replace with actual recent state root index!
         // This will only work with sequential state updates and no cranking!

@@ -13,7 +13,7 @@ describe("compress-sol", () => {
     const amount = 0.5;
 
     return test
-      .stdout()
+      .stdout({ print: true })
       .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
       .it(`compress-sol ${amount} SOL to ${to}`, (ctx: any) => {
         expect(ctx.stdout).to.contain("mint-to successful");

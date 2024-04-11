@@ -2,10 +2,11 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { getTestRpc, newAccountWithLamports } from '../../src/test-utils';
+import { newAccountWithLamports } from '../../src/test-utils';
 import {
     Rpc,
     compressLamports,
+    createRpc,
     decompressLamports,
     initSolOmnibusAccount,
 } from '../../src';
@@ -18,7 +19,7 @@ describe('compress', () => {
     let initAuthority: Signer;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9, 200);
         initAuthority = await newAccountWithLamports(rpc, 1e9);
     });
@@ -39,22 +40,16 @@ describe('compress', () => {
             merkleTree,
         );
 
-        rpc = await getTestRpc();
-
-        // @ts-ignore
-        const indexedEvents = await rpc.getParsedEvents();
-        assert.equal(indexedEvents.length, 3);
-        assert.equal(indexedEvents[0].inputCompressedAccounts.length, 0);
-        assert.equal(indexedEvents[0].outputCompressedAccounts.length, 1);
+        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        assert.equal(compressedAccounts.length, 1);
         assert.equal(
-            Number(indexedEvents[0].outputCompressedAccounts[0].lamports),
+            Number(compressedAccounts[0].lamports),
             compressLamportsAmount,
         );
-        assert.equal(
-            indexedEvents[0].outputCompressedAccounts[0].owner.toBase58(),
-            payer.publicKey.toBase58(),
-        );
-        assert.equal(indexedEvents[0].outputCompressedAccounts[0].data, null);
+
+        assert.equal(compressedAccounts[0].data, null);
         const postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCompressBalance,
@@ -73,13 +68,12 @@ describe('compress', () => {
             merkleTree,
         );
 
-        //@ts-ignore
-        const indexedEvents2 = await rpc.getParsedEvents();
-        assert.equal(indexedEvents2.length, 3);
-        assert.equal(indexedEvents2[0].inputCompressedAccounts.length, 1);
-        assert.equal(indexedEvents2[0].outputCompressedAccounts.length, 1);
+        const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        assert.equal(compressedAccounts2.length, 1);
         assert.equal(
-            Number(indexedEvents2[0].outputCompressedAccounts[0].lamports),
+            Number(compressedAccounts2[0].lamports),
             compressLamportsAmount - decompressLamportsAmount,
         );
         const postDecompressBalance = await rpc.getBalance(decompressRecipient);

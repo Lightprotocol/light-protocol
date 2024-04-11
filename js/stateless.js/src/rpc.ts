@@ -9,12 +9,13 @@ import {
     CompressedAccountResult,
     CompressedAccountsByOwnerResult,
     CompressedProofWithContext,
+    CompressedTokenAccountsByOwnerOrDelegateResult,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     HealthResult,
     MerkeProofResult,
     MultipleCompressedAccountsResult,
-    PaginatedParsedTokenAccountList,
+    ParsedTokenAccount,
     SlotResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
@@ -25,11 +26,10 @@ import {
     bn,
     CompressedAccountWithMerkleContext,
     createBN254,
-    CompressedAccountData,
     encodeBN254toBase58,
-    createCompressedAccount,
     createCompressedAccountWithMerkleContext,
     createMerkleContext,
+    TokenData,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import { toCamelCase } from './utils/conversion';
@@ -132,11 +132,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
             createMerkleContext(
                 item.tree!,
                 mockNullifierQueue,
-                item.hash.toArray('le'),
+                item.hash.toArray(),
                 item.leafIndex,
             ),
             item.owner,
             bn(item.lamports),
+            // TODO: fix. add typesafety to the rest
             item.data
                 ? {
                       discriminator: item.discriminator.toArray('le'),
@@ -144,6 +145,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                       dataHash: item.dataHash!.toArray('le'), //FIXME: need to calculate the hash or return from server
                   }
                 : undefined,
+
             item.address || undefined,
         );
         return account;
@@ -195,7 +197,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray('le'), // FIXME
+            hash: res.result.value.hash.toArray(), // FIXME
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof,
@@ -232,7 +234,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray('le'),
+                    item.hash.toArray(),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -277,7 +279,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         res.result.value.map((proof: any) => {
             const value: MerkleContextWithMerkleProof = {
-                hash: proof.hash.toArray('le'), // FIXME
+                hash: proof.hash.toArray(), // FIXME
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof.map((proof: any) =>
@@ -294,12 +296,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     async getCompressedAccountsByOwner(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[] | null> {
+    ): Promise<CompressedAccountWithMerkleContext[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',
             { owner: owner.toBase58() },
         );
+
         console.log('@debug unsafeRes', JSON.stringify(unsafeRes));
         const res = create(
             unsafeRes,
@@ -312,7 +315,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         if (res.result.value === null) {
-            return null;
+            return [];
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
         /// TODO: clean up. Make typesafe
@@ -321,7 +324,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray('le'),
+                    item.hash.toArray(),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -377,14 +380,77 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<PaginatedParsedTokenAccountList> {
-        throw new Error('Method not implemented.');
+    ): Promise<ParsedTokenAccount[]> {
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getCompressedTokenAccountsByOwner',
+            { owner: owner.toBase58(), mint: options?.mint?.toBase58() },
+        );
+        console.log('@debug unsafeRes', JSON.stringify(unsafeRes));
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(
+                CompressedTokenAccountsByOwnerOrDelegateResult,
+            ),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                `failed to get info for compressed accounts owned by ${owner.toBase58()}`,
+            );
+        }
+        if (res.result.value === null) {
+            throw new Error('not implemented. NULL result');
+        }
+        const accounts: ParsedTokenAccount[] = [];
+        /// TODO: clean up. Make typesafe
+        res.result.value.items.map((item: any) => {
+            const account = createCompressedAccountWithMerkleContext(
+                createMerkleContext(
+                    item.tree!,
+                    mockNullifierQueue,
+                    item.hash.toArray(),
+                    item.leafIndex,
+                ),
+                new PublicKey('9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE'), // TODO: photon should return programOwner
+                // item.owner,
+                bn(item.lamports),
+                item.data && {
+                    discriminator: item.discriminator.toArray('le'),
+                    data: Buffer.from(item.data, 'base64'),
+                    dataHash: item.dataHash.toArray('le'), //FIXME: need to calculate the hash or return from server
+                },
+                item.address,
+            );
+
+            const tokenData: TokenData = {
+                mint: item.mint,
+                owner: item.owner,
+                amount: item.amount,
+                delegate: item.delegate,
+                state: 1, // TODO: dynamic {initialized: {}}
+                isNative: null, // TODO: dynamic
+                delegatedAmount: bn(0), // TODO: dynamic
+            };
+
+            accounts.push({
+                compressedAccount: account,
+                parsed: tokenData,
+            });
+        });
+
+        /// TODO: consider custom sort. we're returning most recent first
+        /// because thats how our tests expect it currently
+        return accounts.sort(
+            (a, b) =>
+                b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
+        );
     }
 
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<PaginatedParsedTokenAccountList> {
+    ): Promise<ParsedTokenAccount[]> {
         throw new Error('Method not implemented.');
     }
     async getCompressedTokenAccountBalance(

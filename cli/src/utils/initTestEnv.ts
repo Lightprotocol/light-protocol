@@ -7,6 +7,9 @@ import {
   SPL_NOOP_PROGRAM_TAG,
 } from "../psp-utils";
 import path from "path";
+import fs from "fs";
+
+import { spawn } from "child_process";
 
 const find = require("find-process");
 
@@ -54,7 +57,25 @@ export async function initTestEnv({
 function spawnBinary(binaryName: string, args: string[] = []) {
   const binDir = path.join(__dirname, "../..", "bin");
   const command = path.join(binDir, binaryName);
-  executeCommand({ command, args });
+
+  
+  if (binaryName === "photon") {
+
+    const out = fs.openSync("test-ledger/photon.log", "a");
+    const err = fs.openSync("test-ledger/photon.log", "a");
+
+    const spawnedProcess = spawn(command, args, {
+      stdio: ["ignore", out, err],
+      shell: false, 
+    });
+
+    spawnedProcess.on("close", (code) => {
+      console.log(`${binaryName} process exited with code ${code}`);
+    });
+  } else {
+    // Fallback to the original executeCommand for other binaries
+    executeCommand({ command, args });
+  }
 }
 
 export async function initTestEnvIfNeeded({

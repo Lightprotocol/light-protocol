@@ -67,11 +67,6 @@ export interface ParsedTokenAccount {
     parsed: TokenData;
 }
 
-export interface PaginatedParsedTokenAccountList {
-    items: ParsedTokenAccount[];
-    cursor: number[];
-}
-
 interface Options {
     cursor?: number[];
     limit?: BN;
@@ -111,12 +106,16 @@ const BN254FromString = coerce(instance(BN), string(), value => {
 });
 
 const BNFromInt = coerce(instance(BN), number(), value => bn(value));
+const BNFromBase10String = coerce(instance(BN), string(), value => bn(value));
 
 /**
  * @internal
  */
-const Base64EncodedCompressedAccountDataResult = string();
-
+const Base64EncodedCompressedAccountDataResult = coerce(
+    nullable(string()),
+    string(),
+    value => (value === '' ? null : value),
+);
 /**
  * @internal
  */
@@ -195,11 +194,12 @@ export const CompressedAccountResult = pick({
 /**
  * @internal
  */
+/// TODO: update: delegatedAmount, state, programOwner/tokenOwner, data includes the values?, no closeAuth!
 export const CompressedTokenAccountResult = pick({
-    address: PublicKeyFromString, // TODO: why is this here
-    amount: BNFromInt,
-    delegate: PublicKeyFromString,
-    closeAuthority: PublicKeyFromString, // TODO: remove
+    address: nullable(PublicKeyFromString), // TODO: why is this here
+    amount: BNFromBase10String, // why string
+    delegate: nullable(PublicKeyFromString),
+    closeAuthority: nullable(PublicKeyFromString), // TODO: remove
     isNative: boolean(), // coerce(boolean(), string(), value => value === 'true'),
     frozen: boolean(),
     mint: PublicKeyFromString,
@@ -207,12 +207,14 @@ export const CompressedTokenAccountResult = pick({
     //
     hash: BN254FromString,
     data: Base64EncodedCompressedAccountDataResult,
+    dataHash: nullable(BN254FromString),
     discriminator: BNFromInt,
     lamports: BNFromInt,
     tree: PublicKeyFromString,
-    seq: nullable(BNFromInt),
+    seq: BNFromInt,
     // slotUpdated: BNFromInt, TODO: add owner (?): TODO: check whether this
     // implicitly assumes tokenprogram as account owner
+    leafIndex: number(),
 });
 
 /**
@@ -235,7 +237,7 @@ export const CompressedAccountsByOwnerResult = pick({
  */
 export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
     items: array(CompressedTokenAccountResult),
-    cursor: array(number()), // paginated
+    // cursor: array(number()), // paginated TODO: add cursor to photon / docs update
 });
 
 /**
@@ -316,12 +318,12 @@ export interface CompressionApiInterface {
     getCompressedTokenAccountsByOwner(
         publicKey: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<PaginatedParsedTokenAccountList>;
+    ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<PaginatedParsedTokenAccountList>;
+    ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }>;
 }

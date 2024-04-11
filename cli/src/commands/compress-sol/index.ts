@@ -5,8 +5,8 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Rpc, compressLamports, getTestRpc } from "@lightprotocol/stateless.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { compressLamports, createRpc } from "@lightprotocol/stateless.js";
 
 class MintToCommand extends Command {
   static summary = "Compress SOL.";
@@ -41,13 +41,14 @@ class MintToCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const rpc = createRpc(getSolanaRpcUrl());
       const txId = await compressLamports(
         rpc,
         payer,
         amount * LAMPORTS_PER_SOL,
         toPublicKey,
       );
+      
       loader.stop(false);
       console.log(
         "\x1b[compress-sol:\x1b[0m ",

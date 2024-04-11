@@ -4,18 +4,11 @@ import {
     Signer,
     TransactionSignature,
 } from '@solana/web3.js';
-
 import { LightSystemProgram, sumUpLamports } from '../programs';
 import { Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 import { BN } from '@coral-xyz/anchor';
-import { defaultTestStateTreeAccounts } from '../constants';
-import {
-    CompressedAccountWithMerkleContext,
-    PublicTransactionEvent,
-    bn,
-} from '../state';
-// import { CompressedAccountMerkleProofResult } from '../rpc-interface';
+import { CompressedAccountWithMerkleContext, bn } from '../state';
 
 /**
  * Init the SOL omnibus account for Light
@@ -39,27 +32,10 @@ export async function decompressLamports(
     outputStateTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    /// TODO: refactor into using rpc.getCompressedAccount
     /// TODO: use dynamic state tree and nullifier queue
-    // @ts-ignore
-    const indexedEvents = await rpc.getParsedEvents();
-
-    const userEvents = indexedEvents.filter((event: PublicTransactionEvent) => {
-        return event.outputCompressedAccounts.some(account => {
-            return account.owner.equals(payer.publicKey);
-        });
-    });
 
     const userCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[] =
-        userEvents.flatMap((event: PublicTransactionEvent) =>
-            event.outputCompressedAccounts.map((account, i) => ({
-                ...account,
-                hash: event.outputCompressedAccountHashes[i],
-                leafIndex: event.outputLeafIndices[i],
-                merkleTree: defaultTestStateTreeAccounts().merkleTree,
-                nullifierQueue: defaultTestStateTreeAccounts().nullifierQueue,
-            })),
-        );
+        await rpc.getCompressedAccountsByOwner(payer.publicKey);
 
     lamports = bn(lamports);
 
