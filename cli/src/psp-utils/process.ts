@@ -30,7 +30,7 @@ export async function executeCommand({
         PATH: childPathEnv,
       },
     };
-    console.log(`Executing command ${commandBase}...`);
+    console.log(`Executing command ${commandBase} ${args}...`);
     let childProcess;
     try {
       childProcess = spawn(command, args, options);
