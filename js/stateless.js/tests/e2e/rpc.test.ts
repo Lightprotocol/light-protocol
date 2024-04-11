@@ -131,19 +131,9 @@ describe('rpc / photon', () => {
             payer.publicKey,
         );
         expect(compressedAccounts?.length).toStrictEqual(2);
-        const hash2 = compressedAccounts![1].hash;
-        console.log('compressedAccounts', compressedAccounts);
-        const compressedAccountProof2 = await rpc.getCompressedAccountProof(
-            bn(hash2),
-        );
-        /// TODO: remove
-        console.log(
-            'compressedAccountProof2',
-            compressedAccountProof2.hash,
-            '\n',
-            compressedAccountProof2.merkleProof.map(x => x.toString()),
-        );
 
+        /// TODO: remove once merkleproof debugged
+        const hash2 = compressedAccounts![1].hash;
         await (await getTestRpc()).getValidityProof([bn(hash2)]);
     });
 

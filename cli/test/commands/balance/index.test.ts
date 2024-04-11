@@ -7,7 +7,8 @@ import { requestAirdrop } from "../../helpers/helpers";
 import { createRpc } from "@lightprotocol/stateless.js";
 describe("Get balance", () => {
   test.it(async () => {
-    await initTestEnvIfNeeded();
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+
     const payerKeypair = defaultSolanaWalletKeypair();
 
     const mintKeypair = Keypair.generate();
@@ -25,18 +26,20 @@ describe("Get balance", () => {
       mintAuthority,
       mintAmount,
     );
-    return test
+
+    test
       .stdout()
       .command([
         "balance",
         `--mint=${mintAddress.toBase58()}`,
         `--owner=${mintDestination.toBase58()}`,
       ])
+      .do((ctx: any) => {
+        console.log("ctx", ctx);
+        expect(ctx.stdout).to.contain("balance successful");
+      })
       .it(
         `runs balance --mint=${mintAddress.toBase58()} --owner=${mintDestination.toBase58()}`,
-        (ctx: any) => {
-          expect(ctx.stdout).to.contain("balance successful");
-        },
       );
   });
 
@@ -64,6 +67,7 @@ describe("Get balance", () => {
       mintAuthority,
       mintAmount,
     );
+    console.log("txId minto", txId);
     return txId;
   }
 });

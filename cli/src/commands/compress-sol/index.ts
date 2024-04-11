@@ -36,7 +36,7 @@ class MintToCommand extends Command {
 
     const loader = new CustomLoader(`Performing compress-sol...\n`);
     loader.start();
-
+    console.log("Hello?===");
     try {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();

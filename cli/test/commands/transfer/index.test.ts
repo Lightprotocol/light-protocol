@@ -8,7 +8,8 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { createRpc } from "@lightprotocol/stateless.js";
 describe("transfer", () => {
   test.it(async () => {
-    await initTestEnvIfNeeded();
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+
     const payerKeypair = defaultSolanaWalletKeypair();
 
     const mintKeypair = Keypair.generate();

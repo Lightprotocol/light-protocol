@@ -6,7 +6,8 @@ import { Keypair } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 describe("create-mint", () => {
   test.it(async () => {
-    await initTestEnvIfNeeded();
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+
     const mintDecimals = 5;
     const mintKeypair = defaultSolanaWalletKeypair();
     const mintSecretKey = bs58.encode(mintKeypair.secretKey);

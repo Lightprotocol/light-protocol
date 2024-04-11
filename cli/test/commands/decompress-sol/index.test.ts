@@ -6,7 +6,8 @@ import { requestAirdrop } from "../../helpers/helpers";
 
 describe("decompress-sol", () => {
   test.it(async () => {
-    await initTestEnvIfNeeded();
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+
     const keypair = defaultSolanaWalletKeypair() || Keypair.generate();
     await requestAirdrop(keypair.publicKey);
     const to = keypair.publicKey.toBase58();
