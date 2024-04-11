@@ -42,6 +42,7 @@ reqwest = "0.11.26"
 tokio = "1.36.0"
 circuitlib-rs = {path = "../../circuit-lib/circuitlib-rs"}
 light-merkle-tree-reference = {path = "../../merkle-tree/reference/"}
+light-indexed-merkle-tree = {path = "../../merkle-tree/indexed/"}
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 lazy_static = "1.4.0"

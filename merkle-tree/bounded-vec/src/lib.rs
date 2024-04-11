@@ -221,6 +221,10 @@ where
         Ok(std::array::from_fn(|i| self.data[i].clone()))
     }
 
+    pub fn to_vec(self) -> Vec<T> {
+        self.data[..self.length].to_vec()
+    }
+
     pub fn extend<U: IntoIterator<Item = T>>(&mut self, iter: U) -> Result<(), BoundedVecError> {
         for item in iter {
             self.push(item)?;

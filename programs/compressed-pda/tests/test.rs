@@ -1,7 +1,4 @@
-#![cfg(feature = "test-sbf")]
-
-use std::{assert_eq, println, vec::Vec};
-
+// #![cfg(feature = "test-sbf")]
 use account_compression::{
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
@@ -9,21 +6,29 @@ use account_compression::{
     StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorDeserialize;
+use anchor_lang::{InstructionData, ToAccountMetas};
 use circuitlib_rs::{
     gnark::{
-        constants::{INCLUSION_PATH, SERVER_ADDRESS},
+        constants::{INCLUSION_PATH, NON_INCLUSION_PATH, SERVER_ADDRESS},
         helpers::spawn_gnark_server,
         inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
+    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionMerkleProofInputs,
 };
+use circuitlib_rs::{
+    gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
+    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
+};
+use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
     create_and_send_transaction, get_hash_set, test_env::setup_test_programs_with_accounts,
     AccountZeroCopy,
 };
-use num_bigint::BigInt;
+use num_bigint::{BigInt, BigUint, ToBigUint};
 use num_traits::ops::bytes::FromBytes;
+use num_traits::Num;
 use psp_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
@@ -41,11 +46,12 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
+use std::{assert_eq, ops::Sub, println, vec::Vec};
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
 
-async fn init_mock_indexer() -> MockIndexer {
+async fn init_mock_indexer(inclusion: bool, non_inclusion: bool, combined: bool) -> MockIndexer {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts().await;
     let context = env.context;
@@ -56,6 +62,9 @@ async fn init_mock_indexer() -> MockIndexer {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
+        inclusion,
+        non_inclusion,
+        combined,
     )
     .await
 }
@@ -77,7 +86,7 @@ async fn test_execute_compressed_transaction() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
 
-    let mut mock_indexer = init_mock_indexer().await;
+    let mut mock_indexer = init_mock_indexer(true, false, false).await;
 
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -190,15 +199,16 @@ async fn test_execute_compressed_transaction() {
     // get zkp from server
     // create instruction as usual with correct zkp
     let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
-    let (root_indices, proof) = mock_indexer
+    let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
-            &[compressed_account_with_context
+            Some(&[compressed_account_with_context
                 .compressed_account
                 .hash(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.leaf_index,
                 )
-                .unwrap()],
+                .unwrap()]),
+            None,
             &mut context,
         )
         .await;
@@ -211,9 +221,9 @@ async fn test_execute_compressed_transaction() {
         &[0u32],
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
-        &root_indices,
+        &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof,
+        &proof_rpc_res.proof,
         None,
         false,
         None,
@@ -257,9 +267,9 @@ async fn test_execute_compressed_transaction() {
         &[0u32],
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
-        &root_indices,
+        &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof,
+        &proof_rpc_res.proof,
         None,
         false,
         None,
@@ -282,9 +292,9 @@ async fn test_execute_compressed_transaction() {
         &[1u32],
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
-        &root_indices,
+        &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof,
+        &proof_rpc_res.proof,
         None,
         false,
         None,
@@ -309,7 +319,7 @@ async fn test_with_address() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
 
-    let mut mock_indexer = init_mock_indexer().await;
+    let mut mock_indexer = init_mock_indexer(true, true, false).await;
 
     let address_seed = [1u8; 32];
     let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
@@ -319,10 +329,14 @@ async fn test_with_address() {
         data: None,
         address: Some(derived_address), // this should not be sent, only derived on-chain
     }];
-    let proof_mock = CompressedProof {
-        a: [0u8; 32],
-        b: [0u8; 64],
-        c: [0u8; 32],
+    let proof_rpc_res = mock_indexer
+        .create_proof_for_compressed_accounts(None, Some(&[derived_address]), &mut context)
+        .await;
+    let new_address_params = NewAddressParams {
+        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+        seed: address_seed,
+        address_merkle_tree_root_index: proof_rpc_res.address_root_indices[0],
     };
 
     let instruction = create_execute_compressed_instruction(
@@ -335,7 +349,7 @@ async fn test_with_address() {
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
-        &proof_mock,
+        &proof_rpc_res.proof,
         None,
         false,
         None,
@@ -369,13 +383,8 @@ async fn test_with_address() {
         &Vec::new(),
         &[merkle_tree_pubkey],
         &Vec::new(),
-        &vec![NewAddressParams {
-            address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-            address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-            seed: address_seed,
-            address_merkle_tree_root_index: 0,
-        }],
-        &proof_mock,
+        &vec![new_address_params],
+        &proof_rpc_res.proof,
         None,
         false,
         None,
@@ -411,15 +420,16 @@ async fn test_with_address() {
         derived_address
     );
     let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
-    let (root_indices, proof) = mock_indexer
+    let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
-            &[compressed_account_with_context
+            Some(&[compressed_account_with_context
                 .compressed_account
                 .hash(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.leaf_index,
                 )
-                .unwrap()],
+                .unwrap()]),
+            None,
             &mut context,
         )
         .await;
@@ -439,9 +449,9 @@ async fn test_with_address() {
         &[0u32],
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
-        &root_indices,
+        &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof,
+        &proof_rpc_res.proof,
         None,
         false,
         None,
@@ -481,8 +491,6 @@ async fn test_with_address() {
         recipient_pubkey
     );
 }
-use anchor_lang::{InstructionData, ToAccountMetas};
-use circuitlib_rs::gnark::helpers::ProofType;
 
 #[tokio::test]
 async fn test_with_compression() {
@@ -499,6 +507,9 @@ async fn test_with_compression() {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
+        true,
+        false,
+        false,
     );
     let instruction_data = psp_compressed_pda::instruction::InitCompressSolPda {};
     let accounts = psp_compressed_pda::accounts::InitializeCompressedSolPda {
@@ -657,15 +668,16 @@ async fn test_with_compression() {
         None
     );
     let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
-    let (root_indices, proof) = mock_indexer
+    let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
-            &[compressed_account_with_context
+            Some(&[compressed_account_with_context
                 .compressed_account
                 .hash(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.leaf_index,
                 )
-                .unwrap()],
+                .unwrap()]),
+            None,
             &mut context,
         )
         .await;
@@ -686,9 +698,9 @@ async fn test_with_compression() {
         &[0u32],
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
-        &root_indices,
+        &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof,
+        &proof_rpc_res.proof,
         Some(compress_amount),
         true,
         Some(recipient),
@@ -725,9 +737,9 @@ async fn test_with_compression() {
         &[0u32],
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
-        &root_indices,
+        &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof,
+        &proof_rpc_res.proof,
         Some(compress_amount),
         false,
         Some(recipient),
@@ -825,14 +837,38 @@ pub struct MockIndexer {
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
+    pub address_merkle_tree:
+        light_indexed_merkle_tree::reference::IndexedMerkleTree<light_hasher::Poseidon, usize>,
+    pub indexing_array: IndexedArray<light_hasher::Poseidon, usize, 1000>,
 }
 
 impl MockIndexer {
-    async fn new(merkle_tree_pubkey: Pubkey, indexed_array_pubkey: Pubkey, payer: Keypair) -> Self {
+    async fn new(
+        merkle_tree_pubkey: Pubkey,
+        indexed_array_pubkey: Pubkey,
+        payer: Keypair,
+        inclusion: bool,
+        non_inclusion: bool,
+        combined: bool,
+    ) -> Self {
+        let mut vec_proof_types = vec![];
+        if inclusion {
+            vec_proof_types.push(ProofType::Inclusion);
+        }
+        if non_inclusion {
+            vec_proof_types.push(ProofType::NonInclusion);
+        }
+        if combined {
+            vec_proof_types.push(ProofType::Combined);
+        }
+        if vec_proof_types.is_empty() {
+            panic!("At least one proof type must be selected");
+        }
+
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
-            ProofType::Inclusion,
+            vec_proof_types.as_slice(),
         )
         .await;
 
@@ -841,6 +877,22 @@ impl MockIndexer {
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         );
 
+        let mut address_merkle_tree = light_indexed_merkle_tree::reference::IndexedMerkleTree::new(
+            STATE_MERKLE_TREE_HEIGHT as usize,
+            STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+        )
+        .unwrap();
+        let mut indexed_array = IndexedArray::<light_hasher::Poseidon, usize, 1000>::default();
+
+        let init_value = BigUint::from_str_radix(
+            &"21888242871839275222246405745257275088548364400416034343698204186575808495617",
+            10,
+        )
+        .unwrap()
+        .sub(1.to_biguint().unwrap());
+        address_merkle_tree
+            .append(&init_value, &mut indexed_array)
+            .unwrap();
         Self {
             merkle_tree_pubkey,
             indexed_array_pubkey,
@@ -849,69 +901,167 @@ impl MockIndexer {
             nullified_compressed_accounts: vec![],
             events: vec![],
             merkle_tree,
+            address_merkle_tree,
+            indexing_array: indexed_array,
         }
     }
 
     pub async fn create_proof_for_compressed_accounts(
         &mut self,
-        compressed_accounts: &[[u8; 32]],
+        compressed_accounts: Option<&[[u8; 32]]>,
+        new_addresses: Option<&[[u8; 32]]>,
         context: &mut ProgramTestContext,
-    ) -> (Vec<u16>, CompressedProof) {
+    ) -> ProofRpcResult {
         let client = Client::new();
+        if compressed_accounts.is_some() && new_addresses.is_none() {
+            let compressed_accounts = compressed_accounts.unwrap();
+            let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
+            for compressed_account in compressed_accounts.iter() {
+                let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
+                let proof = self
+                    .merkle_tree
+                    .get_proof_of_leaf(leaf_index, true)
+                    .unwrap();
+                inclusion_proofs.push(InclusionMerkleProofInputs {
+                    roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
+                    leaves: BigInt::from_be_bytes(compressed_account),
+                    in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
+                    in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+                });
+            }
+            let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
+            let json_payload =
+                InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs)
+                    .to_string();
 
-        let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
-        for compressed_account in compressed_accounts.iter() {
-            let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
-            let proof = self
-                .merkle_tree
-                .get_proof_of_leaf(leaf_index, true)
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(json_payload)
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            assert!(response_result.status().is_success());
+            let body = response_result.text().await.unwrap();
+            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+
+            let merkle_tree_account =
+                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
+                    .await;
+            let merkle_tree = merkle_tree_account
+                .deserialized()
+                .copy_merkle_tree()
                 .unwrap();
-            inclusion_proofs.push(InclusionMerkleProofInputs {
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
-                leaves: BigInt::from_be_bytes(compressed_account),
-                in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
-                in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
-            });
+            assert_eq!(
+                self.merkle_tree.root(),
+                merkle_tree.root().unwrap(),
+                "Local Merkle tree root is not equal to latest on-chain root"
+            );
+
+            let root_indices: Vec<u16> =
+                vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
+            ProofRpcResult {
+                root_indices,
+                address_root_indices: vec![],
+                proof: CompressedProof {
+                    a: proof_a,
+                    b: proof_b,
+                    c: proof_c,
+                },
+            }
+        } else if compressed_accounts.is_none() && new_addresses.is_some() {
+            let new_addresses = new_addresses.unwrap();
+            let mut non_inclusion_proof_inputs = Vec::<NonInclusionMerkleProofInputs>::new();
+            for address in new_addresses.iter() {
+                // TODO: eliminate use of BigInt in favor of BigUint
+                fn get_non_inclusion_proof(
+                    value: &[u8; 32],
+                    merkle_tree: &light_indexed_merkle_tree::reference::IndexedMerkleTree<
+                        light_hasher::Poseidon,
+                        usize,
+                    >,
+                    indexed_array: &IndexedArray<light_hasher::Poseidon, usize, 1000>,
+                ) -> NonInclusionMerkleProofInputs {
+                    let non_inclusion_proof = merkle_tree
+                        .get_non_inclusion_proof(&BigUint::from_be_bytes(value), &indexed_array)
+                        .unwrap();
+                    let proof = non_inclusion_proof
+                        .merkle_proof
+                        .iter()
+                        .map(|x| BigInt::from_be_bytes(x))
+                        .collect();
+
+                    NonInclusionMerkleProofInputs {
+                        root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
+                        value: BigInt::from_be_bytes(value),
+                        leaf_lower_range_value: BigInt::from_be_bytes(
+                            &non_inclusion_proof.leaf_lower_range_value,
+                        ),
+                        leaf_higher_range_value: BigInt::from_be_bytes(
+                            &non_inclusion_proof.leaf_higher_range_value,
+                        ),
+                        leaf_index: BigInt::from(non_inclusion_proof.next_index),
+                        merkle_proof_hashed_indexed_element_leaf: proof,
+                        index_hashed_indexed_element_leaf: BigInt::from(
+                            non_inclusion_proof.leaf_index,
+                        ),
+                    }
+                }
+                non_inclusion_proof_inputs.push(get_non_inclusion_proof(
+                    address,
+                    &self.address_merkle_tree,
+                    &self.indexing_array,
+                ));
+            }
+            let non_inclusion_proof_inputs =
+                NonInclusionProofInputs(non_inclusion_proof_inputs.as_slice());
+            let json_payload = NonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &non_inclusion_proof_inputs,
+            )
+            .to_string();
+
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, NON_INCLUSION_PATH))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(json_payload)
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            assert!(response_result.status().is_success());
+            let body = response_result.text().await.unwrap();
+            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+
+            let merkle_tree_account =
+                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
+                    .await;
+            let merkle_tree = merkle_tree_account
+                .deserialized()
+                .copy_merkle_tree()
+                .unwrap();
+            assert_eq!(
+                self.merkle_tree.root(),
+                merkle_tree.root().unwrap(),
+                "Local Merkle tree root is not equal to latest on-chain root"
+            );
+
+            let address_root_indices: Vec<u16> =
+                vec![merkle_tree.current_root_index as u16; new_addresses.len()];
+            ProofRpcResult {
+                root_indices: vec![],
+                address_root_indices,
+                proof: CompressedProof {
+                    a: proof_a,
+                    b: proof_b,
+                    c: proof_c,
+                },
+            }
+        } else {
+            panic!("Not implemented yet")
         }
-        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
-        let json_payload =
-            InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs).to_string();
-
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(json_payload)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
-        let body = response_result.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-
-        let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
-        let merkle_tree = merkle_tree_account
-            .deserialized()
-            .copy_merkle_tree()
-            .unwrap();
-        assert_eq!(
-            self.merkle_tree.root(),
-            merkle_tree.root().unwrap(),
-            "Local Merkle tree root is not equal to latest on-chain root"
-        );
-
-        let root_indices: Vec<u16> =
-            vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
-        (
-            root_indices,
-            CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
-        )
     }
 
     /// deserializes an event
@@ -922,6 +1072,28 @@ impl MockIndexer {
         let event_bytes = event_bytes.clone();
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
         self.add_event_and_compressed_accounts(event);
+    }
+
+    /// Checks for every address in an output compressed account whether there is an input compressed account with the same address
+    /// If there is no input account with the same address, the address has been created in the transaction
+    pub fn get_created_addresses_from_events(event: &PublicTransactionEvent) -> Vec<[u8; 32]> {
+        // get all addresses from output compressed accounts
+        let output_compressed_account_addresses: Vec<[u8; 32]> = event
+            .output_compressed_accounts
+            .iter()
+            .map(|x| x.address.unwrap())
+            .collect();
+        // filter out addresses that are in input compressed accounts
+        output_compressed_account_addresses
+            .iter()
+            .filter(|address| {
+                !event.input_compressed_accounts.iter().any(|x| {
+                    x.compressed_account.address.is_some()
+                        && x.compressed_account.address.unwrap() == **address
+                })
+            })
+            .map(|x| *x)
+            .collect()
     }
 
     pub fn add_event_and_compressed_accounts(
@@ -957,6 +1129,16 @@ impl MockIndexer {
                 )
                 .expect("insert failed");
         }
+        // TODO: add insert new addresses into address_merkle_tree
+        // let new_addresses = MockIndexer::get_created_addresses_from_events(&event);
+        // let (old_low_nullifier, old_low_nullifier_next_value) = relayer_indexing_array
+        //     .find_low_element(&lowest_from_queue.value)
+        //     .unwrap();
+        // let nullifier_bundle = self
+        //     .indexing_array
+        //     .new_element_with_low_element_index(old_low_nullifier.index, &lowest_from_queue.value)
+        //     .unwrap();
+        // self.address_merkle_tree.append(&new_addresses).unwrap();
 
         self.events.push(event);
         indices
@@ -1048,4 +1230,10 @@ impl MockIndexer {
             );
         }
     }
+}
+
+pub struct ProofRpcResult {
+    pub proof: CompressedProof,
+    pub root_indices: Vec<u16>,
+    pub address_root_indices: Vec<u16>,
 }
