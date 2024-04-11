@@ -47,19 +47,15 @@ pub fn process_update_address_merkle_tree<'info>(
     let mut address_queue = unsafe { address_queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+    let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
-    let sequence_number = merkle_tree.load_merkle_tree()?.merkle_tree.sequence_number;
+    let sequence_number = merkle_tree.merkle_tree.sequence_number;
     let value = BigUint::from_bytes_le(value.as_slice());
-
-    // Mark the address with the current sequence number.
-    address_queue
-        .mark_with_sequence_number(&value, sequence_number)
-        .map_err(ProgramError::from)?;
 
     // Update the address with ranges adjusted to the Merkle tree state.
     let address: IndexedElement<usize> = IndexedElement {
-        index: merkle_tree.load_merkle_tree()?.merkle_tree.next_index,
-        value,
+        index: merkle_tree.merkle_tree.next_index,
+        value: value.clone(),
         next_index,
     };
 
@@ -74,7 +70,6 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the Merkle tree.
     merkle_tree
-        .load_merkle_tree_mut()?
         .update(
             usize::from(changelog_index),
             address,
@@ -84,6 +79,12 @@ pub fn process_update_address_merkle_tree<'info>(
             &mut BoundedVec::from_array(&low_address_proof),
         )
         .map_err(|_| AccountCompressionErrorCode::AddressMerkleTreeUpdate)?;
+
+    // Mark the address with the current sequence number.
+    // TODO: replace with root history sequence number
+    address_queue
+        .mark_with_sequence_number(&value, sequence_number)
+        .map_err(ProgramError::from)?;
 
     Ok(())
 }

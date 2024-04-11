@@ -422,7 +422,13 @@ where
         Ok(false)
     }
 
-    /// Inserts a value into the hash set.
+    /// Inserts a value into the hash set, with `self.capacity_values` attempts.
+    ///
+    /// Every attempt uses quadratic probing to find an empty cell or a cell
+    /// which can be overwritten.
+    ///
+    /// `current sequence_number` is used to check whether existing values can
+    /// be overwritten.
     pub fn insert(
         &mut self,
         value: &BigUint,

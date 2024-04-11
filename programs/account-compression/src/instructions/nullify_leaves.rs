@@ -47,27 +47,6 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         drop(array_account);
     }
 
-    let sequence_number = {
-        let mut merkle_tree_account = ctx.accounts.merkle_tree.load_mut()?;
-        let loaded_merkle_tree = merkle_tree_account.load_merkle_tree_mut()?;
-        loaded_merkle_tree.sequence_number
-    };
-
-    let leaf = {
-        let indexed_array = ctx.accounts.indexed_array.to_account_info();
-        let mut indexed_array = indexed_array.try_borrow_mut_data()?;
-        let mut indexed_array =
-            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
-        let leaf_cell = indexed_array
-            .by_value_index(leaves_queue_indices[0] as usize, None)
-            .cloned()
-            .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
-        indexed_array
-            .mark_with_sequence_number(&leaf_cell.value_biguint(), sequence_number)
-            .map_err(ProgramError::from)?;
-        leaf_cell.value_bytes()
-    };
-
     if change_log_indices.len() != 1 {
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfChangeLogIndicesMismatch.into());
@@ -84,7 +63,13 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfProofsMismatch.into());
     }
-    let changelog_event = insert_nullifier(proofs, change_log_indices, &[&leaf], indices, ctx)?;
+    let changelog_event = insert_nullifier(
+        proofs,
+        change_log_indices,
+        leaves_queue_indices,
+        indices,
+        ctx,
+    )?;
     emit_indexer_event(
         changelog_event.try_to_vec()?,
         &ctx.accounts.log_wrapper,
@@ -98,12 +83,11 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
 fn insert_nullifier(
     proofs: &[Vec<[u8; 32]>],
     change_log_indices: &[u64],
-    leaves: &[&[u8; 32]],
+    leaves_queue_indices: &[u16],
     indices: &[u64],
     ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
 ) -> Result<Changelogs> {
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-
     if merkle_tree.associated_queue != ctx.accounts.indexed_array.key() {
         msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
@@ -113,6 +97,11 @@ fn insert_nullifier(
         return Err(AccountCompressionErrorCode::InvalidIndexedArray.into());
     }
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
+
+    let indexed_array = ctx.accounts.indexed_array.to_account_info();
+    let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+    let mut indexed_array = unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array)? };
+
     let allowed_proof_size = merkle_tree.height - merkle_tree.canopy_depth;
     if proofs[0].len() != allowed_proof_size {
         msg!(
@@ -125,20 +114,31 @@ fn insert_nullifier(
         return Err(AccountCompressionErrorCode::InvalidMerkleProof.into());
     }
 
-    let mut changelog_entries: Vec<ChangelogEntry26> = Vec::with_capacity(leaves.len());
-    for (i, leaf) in leaves.iter().enumerate() {
+    let mut changelog_entries: Vec<ChangelogEntry26> =
+        Vec::with_capacity(leaves_queue_indices.len());
+    for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
+        let leaf_cell = indexed_array
+            .by_value_index(*leaf_queue_index as usize, None)
+            .cloned()
+            .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
+
         let mut proof = from_vec(proofs[i].as_slice()).map_err(ProgramError::from)?;
         changelog_entries.push(
             merkle_tree
                 .update(
                     change_log_indices[i] as usize,
-                    leaf,
+                    &leaf_cell.value_bytes(),
                     &ZERO_BYTES[i],
                     indices[i] as usize,
                     &mut proof,
                 )
                 .map_err(ProgramError::from)?,
         );
+
+        // TODO: replace with root history sequence number
+        indexed_array
+            .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
+            .map_err(ProgramError::from)?;
     }
 
     let sequence_number = u64::try_from(merkle_tree.sequence_number)
