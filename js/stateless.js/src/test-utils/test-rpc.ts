@@ -167,26 +167,13 @@ export class TestRpc extends Rpc {
             allLeaves.map(leaf => bn(leaf).toString()),
         );
 
-        console.log(
-            'allLeaves,',
-            allLeaves.map(leaf => bn(leaf).toString()),
-        );
         /// create merkle proofs
         const leafIndices = compressedAccountHashes.map(compressedAccountHash =>
             tree.indexOf(compressedAccountHash.toString()),
         );
-        console.log(
-            'reference leafIndices',
-            leafIndices,
-            'compressedAccountHashes',
-            compressedAccountHashes.map(hash => hash.toString()),
-        );
+
         const hexPathElementsAll = leafIndices.map(leafIndex => {
             const pathElements: string[] = tree.path(leafIndex).pathElements;
-            console.log(
-                'reference merkleproof (correct) (base10)',
-                pathElements,
-            );
 
             const hexPathElements = pathElements.map(value => toHex(value));
 
