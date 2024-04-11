@@ -58,15 +58,13 @@ function spawnBinary(binaryName: string, args: string[] = []) {
   const binDir = path.join(__dirname, "../..", "bin");
   const command = path.join(binDir, binaryName);
 
-  
   if (binaryName === "photon") {
-
     const out = fs.openSync("test-ledger/photon.log", "a");
     const err = fs.openSync("test-ledger/photon.log", "a");
 
     const spawnedProcess = spawn(command, args, {
       stdio: ["ignore", out, err],
-      shell: false, 
+      shell: false,
     });
 
     spawnedProcess.on("close", (code) => {

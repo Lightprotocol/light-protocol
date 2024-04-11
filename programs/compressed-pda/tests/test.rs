@@ -99,12 +99,6 @@ async fn test_execute_compressed_transaction() {
         &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
-<<<<<<< HEAD
-=======
-        &[0u16],
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &Vec::new(),
         &proof_mock,
@@ -153,12 +147,6 @@ async fn test_execute_compressed_transaction() {
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
         &[0u16],
-<<<<<<< HEAD
-=======
-        &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &proof_mock,
         None,
@@ -187,12 +175,6 @@ async fn test_execute_compressed_transaction() {
         &[indexed_array_pubkey],
         &[merkle_tree_pubkey],
         &[0u16],
-<<<<<<< HEAD
-=======
-        &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &proof_mock,
         None,
@@ -351,12 +333,6 @@ async fn test_with_address() {
         &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
-<<<<<<< HEAD
-=======
-        &[0u16],
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &Vec::new(),
         &proof_mock,
@@ -392,7 +368,6 @@ async fn test_with_address() {
         &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
-<<<<<<< HEAD
         &Vec::new(),
         &vec![NewAddressParams {
             address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
@@ -400,13 +375,6 @@ async fn test_with_address() {
             seed: address_seed,
             address_merkle_tree_root_index: 0,
         }],
-=======
-        &[0u16],
-        &[0u16],
-        &[env.address_merkle_tree_queue_pubkey],
-        &[env.address_merkle_tree_pubkey],
-        &[address_seed],
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &proof_mock,
         None,
         false,
@@ -568,12 +536,6 @@ async fn test_with_compression() {
         &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
-<<<<<<< HEAD
-=======
-        &[0u16],
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &Vec::new(),
         &proof_mock,
@@ -610,12 +572,6 @@ async fn test_with_compression() {
         &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
-<<<<<<< HEAD
-=======
-        &[0u16],
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &Vec::new(),
         &proof_mock,
@@ -653,12 +609,6 @@ async fn test_with_compression() {
         &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
-<<<<<<< HEAD
-=======
-        &[0u16],
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &Vec::new(),
         &Vec::new(),
         &proof_mock,
@@ -738,12 +688,6 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
-<<<<<<< HEAD
-=======
-        &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &proof,
         Some(compress_amount),
         true,
@@ -783,12 +727,6 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &root_indices,
         &Vec::new(),
-<<<<<<< HEAD
-=======
-        &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         &proof,
         Some(compress_amount),
         false,
@@ -899,17 +837,9 @@ impl MockIndexer {
         .await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
-<<<<<<< HEAD
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         );
-=======
-            STATE_MERKLE_TREE_HEIGHT,
-            STATE_MERKLE_TREE_ROOTS,
-            STATE_MERKLE_TREE_CANOPY_DEPTH,
-        )
-        .unwrap();
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
 
         Self {
             merkle_tree_pubkey,
@@ -937,11 +867,7 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-<<<<<<< HEAD
                 roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
-=======
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().unwrap().as_slice()),
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
                 leaves: BigInt::from_be_bytes(compressed_account),
                 in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
                 in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
@@ -1039,7 +965,6 @@ impl MockIndexer {
     /// Check compressed_accounts in the queue array which are not nullified yet
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
-<<<<<<< HEAD
         let indexed_array = unsafe {
             get_hash_set::<u16, account_compression::IndexedArrayAccount>(
                 context,
@@ -1047,14 +972,6 @@ impl MockIndexer {
             )
             .await
         };
-=======
-        let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-            context,
-            self.indexed_array_pubkey,
-        )
-        .await;
-        let indexed_array = array.deserialized().indexed_array;
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
@@ -1104,7 +1021,6 @@ impl MockIndexer {
             )
             .await
             .unwrap();
-<<<<<<< HEAD
             let indexed_array = unsafe {
                 get_hash_set::<u16, account_compression::IndexedArrayAccount>(
                     context,
@@ -1116,23 +1032,10 @@ impl MockIndexer {
                 .by_value_index(*index_in_indexed_array, Some(merkle_tree.sequence_number))
                 .unwrap();
             assert_eq!(&array_element.value_bytes(), compressed_account);
-=======
-            let array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
-                context,
-                self.indexed_array_pubkey,
-            )
-            .await;
-            let indexed_array = array.deserialized().indexed_array;
-            assert_eq!(
-                indexed_array[*index_in_indexed_array].element,
-                compressed_account.element
-            );
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
             let merkle_tree_account =
                 AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
                     .await;
             assert_eq!(
-<<<<<<< HEAD
                 array_element.sequence_number(),
                 Some(
                     merkle_tree_account
@@ -1142,15 +1045,6 @@ impl MockIndexer {
                         .sequence_number
                         + STATE_MERKLE_TREE_ROOTS as usize
                 )
-=======
-                indexed_array[*index_in_indexed_array].merkle_tree_overwrite_sequence_number,
-                merkle_tree_account
-                    .deserialized()
-                    .load_merkle_tree()
-                    .unwrap()
-                    .sequence_number as u64
-                    + STATE_MERKLE_TREE_ROOTS as u64
->>>>>>> 98ee463c7 (feat: non-inclusion gnark circuits (#559))
             );
         }
     }
