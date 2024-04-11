@@ -48,7 +48,7 @@ class MintToCommand extends Command {
         amount * LAMPORTS_PER_SOL,
         toPublicKey,
       );
-      
+
       loader.stop(false);
       console.log(
         "\x1b[compress-sol:\x1b[0m ",
