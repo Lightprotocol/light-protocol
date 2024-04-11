@@ -35,6 +35,7 @@ jobs:
       - name: Run build script
         run: ./scripts/build.sh
 
+
       - name: Run stateless.js tests
         run: |
           source ./scripts/devenv.sh

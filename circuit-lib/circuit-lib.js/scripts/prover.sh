@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 kill_light_prover() {
-  killall light-prover || echo "light-prover process not found"
+  pkill -f 'light-prover' || true
 }
 
 # Get the root directory of the Git repository (robust error handling)

@@ -1,12 +1,13 @@
 import { airdropSol, sleep } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
 import {
-  LIGHT_MERKLE_TREE_PROGRAM_TAG,
-  SPL_NOOP_PROGRAM_TAG,
   downloadBinIfNotExists,
   executeCommand,
+  LIGHT_MERKLE_TREE_PROGRAM_TAG,
+  SPL_NOOP_PROGRAM_TAG,
 } from "../psp-utils";
 import path from "path";
+
 const find = require("find-process");
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
@@ -15,11 +16,11 @@ const BASE_PATH = "../../bin/";
 export async function initTestEnv({
   additionalPrograms,
   skipSystemAccounts,
-  background = true,
+  photon = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
-  background?: boolean;
+  photon: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -34,20 +35,28 @@ export async function initTestEnv({
     });
   };
   initAccounts();
-  if (!background) {
-    await startTestValidator({ additionalPrograms, skipSystemAccounts });
-  } else {
-    startTestValidator({ additionalPrograms, skipSystemAccounts });
-    await sleep(15000);
+
+  startTestValidator({ additionalPrograms, skipSystemAccounts });
+  await sleep(15000);
+
+  if (photon) {
+    const binDir = path.join(__dirname, "../..", "bin");
+    const photonPath = path.join(binDir, "photon");
+    executeCommand({
+      command: photonPath,
+      args: [],
+    });
   }
 }
 
 export async function initTestEnvIfNeeded({
   additionalPrograms,
   skipSystemAccounts,
+  photon = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
+  photon?: boolean;
 } = {}) {
   try {
     const anchorProvider = await setAnchorProvider();
@@ -59,7 +68,7 @@ export async function initTestEnvIfNeeded({
     await initTestEnv({
       additionalPrograms,
       skipSystemAccounts,
-      background: true,
+      photon,
     });
   }
 }

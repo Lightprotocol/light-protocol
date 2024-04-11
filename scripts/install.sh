@@ -14,10 +14,10 @@ latest_release() {
     REPO="${2}"
     GITHUB="https://api.github.com"
 
-    LATEST_RELEASE=`curl --retry 5 --retry-delay 10 -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest"`
+    LATEST_RELEASE=$(curl --retry 5 --retry-delay 10 -s "${GITHUB}/repos/${OWNER}/${REPO}/releases/latest")
 
     # Extract the tag name
-    TAG_NAME=`echo "${LATEST_RELEASE}" | perl -ne 'print "${1}\n" if /"tag_name":\s*"([^"]*)"/' | head -1`
+    TAG_NAME=$(echo "${LATEST_RELEASE}" | perl -ne 'print "${1}\n" if /"tag_name":\s*"([^"]*)"/' | head -1)
 
     echo "$TAG_NAME"
 }
@@ -38,7 +38,7 @@ download_file() {
             break
         else
             echo "Failed to download ${dest_name}. Retrying ($i of $MAX_RETRIES)..."
-            if [ $i -eq $MAX_RETRIES ]; then
+            if [ "$i" -eq $MAX_RETRIES ]; then
                 echo "Failed to download ${dest_name} after $MAX_RETRIES attempts."
                 exit 1
             fi
@@ -114,9 +114,9 @@ PNPM_VERSION="8.8.0"
 SOLANA_VERSION="1.18.2"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
-CIRCOM_VERSION=`latest_release Lightprotocol circom`
-MACRO_CIRCOM_VERSION=`latest_release Lightprotocol macro-circom`
-LIGHT_PROTOCOL_VERSION=`latest_release Lightprotocol light-protocol`
+CIRCOM_VERSION=$(latest_release Lightprotocol circom)
+MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
+LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
 ENABLE_REDIS=$(check_flag --enable-redis "$@")
 
 case "${OS}" in

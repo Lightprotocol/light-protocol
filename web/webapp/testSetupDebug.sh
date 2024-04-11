@@ -20,7 +20,7 @@ trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi' EXIT
 echo "starting solana-test-validator"
 solana config set --url http://localhost:8899
 sleep 1
-./../../cli/test_bin/run test-validator -b > .logs/validator-logs.txt &
+./../../cli/test_bin/run test-validator > .logs/validator-logs.txt &
 PID_VALIDATOR="${!}"
 sleep 15
 trap 'if ps -p ${PID_redis} > /dev/null; then kill ${PID_redis}; fi; if ps -p ${PID_VALIDATOR} > /dev/null; then kill ${PID_VALIDATOR}; fi' EXIT
