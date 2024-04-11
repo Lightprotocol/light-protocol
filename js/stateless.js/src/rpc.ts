@@ -71,7 +71,6 @@ const rpcRequest = async (
         params: params,
     });
 
-    console.log('body', body, 'rpcEndpoint', rpcEndpoint);
     const response = await fetch(rpcEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +83,6 @@ const rpcRequest = async (
 
     if (convertToCamelCase) {
         const res = await response.json();
-        console.log('response', res);
         return toCamelCase(res);
     }
     return await response.json();
@@ -197,7 +195,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray(), // FIXME
+            hash: res.result.value.hash.toArray(),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof,
@@ -240,6 +238,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 item.owner,
                 bn(item.lamports),
                 item.data && {
+                    /// TODO: validate whether we need to convert to 'le' here
                     discriminator: item.discriminator.toArray('le'),
                     data: Buffer.from(item.data, 'base64'),
                     dataHash: item.dataHash.toArray('le'), //FIXME: need to calculate the hash or return from server
@@ -303,7 +302,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             { owner: owner.toBase58() },
         );
 
-        console.log('@debug unsafeRes', JSON.stringify(unsafeRes));
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(CompressedAccountsByOwnerResult),
@@ -386,7 +384,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             'getCompressedTokenAccountsByOwner',
             { owner: owner.toBase58(), mint: options?.mint?.toBase58() },
         );
-        console.log('@debug unsafeRes', JSON.stringify(unsafeRes));
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(
@@ -413,7 +410,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     item.leafIndex,
                 ),
                 new PublicKey('9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE'), // TODO: photon should return programOwner
-                // item.owner,
                 bn(item.lamports),
                 item.data && {
                     discriminator: item.discriminator.toArray('le'),
@@ -428,7 +424,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 owner: item.owner,
                 amount: item.amount,
                 delegate: item.delegate,
-                state: 1, // TODO: dynamic {initialized: {}}
+                state: 1, // TODO: dynamic
                 isNative: null, // TODO: dynamic
                 delegatedAmount: bn(0), // TODO: dynamic
             };
@@ -447,6 +443,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
     }
 
+    /// TODO: implement delegate
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,

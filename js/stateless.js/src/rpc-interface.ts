@@ -57,19 +57,9 @@ export type GetCompressedAccountsConfig = {
     filters?: GetCompressedAccountsFilter[];
 };
 
-interface PaginatedCompressedAccountList {
-    items: CompressedAccountWithMerkleContext[];
-    cursor: number[]; // hash
-}
-
 export interface ParsedTokenAccount {
     compressedAccount: CompressedAccountWithMerkleContext;
     parsed: TokenData;
-}
-
-interface Options {
-    cursor?: number[];
-    limit?: BN;
 }
 
 export type WithMerkleUpdateContext<T> = {
@@ -185,7 +175,7 @@ export const CompressedAccountResult = pick({
     discriminator: BNFromInt,
     owner: PublicKeyFromString,
     lamports: BNFromInt,
-    tree: nullable(PublicKeyFromString), // TODO: should not be optional
+    tree: nullable(PublicKeyFromString), // TODO: should not be nullable
     seq: nullable(BNFromInt),
     slotUpdated: BNFromInt,
     leafIndex: number(),
@@ -200,10 +190,10 @@ export const CompressedTokenAccountResult = pick({
     amount: BNFromBase10String, // why string
     delegate: nullable(PublicKeyFromString),
     closeAuthority: nullable(PublicKeyFromString), // TODO: remove
-    isNative: boolean(), // coerce(boolean(), string(), value => value === 'true'),
+    isNative: boolean(),
     frozen: boolean(),
     mint: PublicKeyFromString,
-    owner: PublicKeyFromString, // owner or user??
+    owner: PublicKeyFromString, // owner or user?
     //
     hash: BN254FromString,
     data: Base64EncodedCompressedAccountDataResult,
