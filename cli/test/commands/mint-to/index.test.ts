@@ -20,7 +20,7 @@ describe("mint-to", () => {
     const mintTo = mintAuthority;
     const mintAddress = await createTestMint();
     return test
-      .stdout({ print: true })
+      .stdout()
       .command([
         "mint-to",
         `--amount=${mintAmount}`,
