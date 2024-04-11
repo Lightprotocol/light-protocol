@@ -4,7 +4,6 @@ import { defaultSolanaWalletKeypair, getSolanaRpcUrl } from "../../../src";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { createMint, mintTo } from "@lightprotocol/compressed-token";
 import { requestAirdrop } from "../../helpers/helpers";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { createRpc } from "@lightprotocol/stateless.js";
 describe("Get balance", () => {
   test.it(async () => {
@@ -26,9 +25,8 @@ describe("Get balance", () => {
       mintAuthority,
       mintAmount,
     );
-    const encodedPayer = bs58.encode(payerKeypair.secretKey);
     return test
-      .stdout({ print: true })
+      .stdout()
       .command([
         "balance",
         `--mint=${mintAddress.toBase58()}`,
