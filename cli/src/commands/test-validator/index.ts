@@ -10,10 +10,15 @@ class SetupCommand extends Command {
   }
 
   static flags = {
-    photon: Flags.boolean({
+    without_indexer: Flags.boolean({
+      char: "i",
+      description: "Runs a test validator without indexer service.",
+      default: false,
+    }),
+    without_prover: Flags.boolean({
       char: "p",
-      description: "Runs a test validator with photon indexer.",
-      default: true,
+      description: "Runs a test validator without prover service.",
+      default: false,
     }),
     skip_system_accounts: Flags.boolean({
       char: "s",
@@ -30,7 +35,8 @@ class SetupCommand extends Command {
     loader.start();
     await initTestEnv({
       skipSystemAccounts: flags.skip_system_accounts,
-      photon: flags.photon,
+      indexer: !flags.without_indexer,
+      prover: !flags.without_prover,
     });
 
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");

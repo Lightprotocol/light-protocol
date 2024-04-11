@@ -16,16 +16,17 @@ const BASE_PATH = "../../bin/";
 export async function initTestEnv({
   additionalPrograms,
   skipSystemAccounts,
-  photon = true,
+  indexer = true,
+  prover = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
-  photon: boolean;
+  indexer: boolean;
+  prover: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
   const initAccounts = async () => {
-    await sleep(10000);
     const anchorProvider = await setAnchorProvider();
     const payer = await getPayer();
     await airdropSol({
@@ -34,29 +35,38 @@ export async function initTestEnv({
       recipientPublicKey: payer.publicKey,
     });
   };
-  initAccounts();
-
   startTestValidator({ additionalPrograms, skipSystemAccounts });
-  await sleep(15000);
-
-  if (photon) {
-    const binDir = path.join(__dirname, "../..", "bin");
-    const photonPath = path.join(binDir, "photon");
-    executeCommand({
-      command: photonPath,
-      args: [],
-    });
+  await sleep(10000);
+  await initAccounts();
+  if (indexer) {
+    await killIndexer();
+    spawnBinary("photon");
+    await sleep(5000);
   }
+
+  if (prover) {
+    await killProver();
+    spawnBinary("light-prover", ["start"]);
+    await sleep(10000);
+  }
+}
+
+function spawnBinary(binaryName: string, args: string[] = []) {
+  const binDir = path.join(__dirname, "../..", "bin");
+  const command = path.join(binDir, binaryName);
+  executeCommand({ command, args });
 }
 
 export async function initTestEnvIfNeeded({
   additionalPrograms,
   skipSystemAccounts,
-  photon = false,
+  indexer = false,
+  prover = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
-  photon?: boolean;
+  indexer?: boolean;
+  prover?: boolean;
 } = {}) {
   try {
     const anchorProvider = await setAnchorProvider();
@@ -68,7 +78,8 @@ export async function initTestEnvIfNeeded({
     await initTestEnv({
       additionalPrograms,
       skipSystemAccounts,
-      photon,
+      indexer,
+      prover,
     });
   }
 }
@@ -213,8 +224,19 @@ export async function startTestValidator({
 }
 
 export async function killTestValidator() {
-  const processList = await find("name", "solana-test-validator");
+  await killProcess("solana-test-validator");
+}
 
+export async function killProver() {
+  await killProcess("light-prover");
+}
+
+export async function killIndexer() {
+  await killProcess("photon");
+}
+
+export async function killProcess(processName: string) {
+  const processList = await find("name", processName);
   for (const proc of processList) {
     process.kill(proc.pid);
   }
