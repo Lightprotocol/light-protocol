@@ -72,3 +72,5 @@ node_modules
 /web/webapp/public/build-circuits
 
 light-zk.js
+/cli/.crates2.json
+/cli/.crates.toml

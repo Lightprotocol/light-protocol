@@ -10,23 +10,10 @@ class SetupCommand extends Command {
   }
 
   static flags = {
-    // TODO(ananas-block): enable pass in of arbitrary bpf programs
-    // bpf_program: Flags.string({
-    //   aliases: ["bp"],
-    //   description:
-    //     "Solana bpf program whill be deployed on local test validator <ADDRESS_OR_KEYPAIR> <SBF_PROGRAM.SO>",
-    // }),
-    // TODO: add this flag
-    // kill: Flags.boolean({
-    //   aliases: ["k"],
-    //   description: "Kills a running test validator.",
-    //   hidden: true,
-    //   default: true,
-    // }),
-    background: Flags.boolean({
-      char: "b",
-      description: "Runs a test validator as a process in the background.",
-      default: false,
+    photon: Flags.boolean({
+      char: "p",
+      description: "Runs a test validator with photon indexer.",
+      default: true,
     }),
     skip_system_accounts: Flags.boolean({
       char: "s",
@@ -43,7 +30,7 @@ class SetupCommand extends Command {
     loader.start();
     await initTestEnv({
       skipSystemAccounts: flags.skip_system_accounts,
-      background: flags.background,
+      photon: flags.photon,
     });
 
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
