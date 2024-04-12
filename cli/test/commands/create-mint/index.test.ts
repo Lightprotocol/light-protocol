@@ -12,7 +12,7 @@ describe("create-mint", () => {
 
   /// TODO: add flags once the command is being executed
   test
-    .stdout()
+    .stdout({ print: true })
     .command(["create-mint"])
     .it(
       `create mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`,
