@@ -10,11 +10,11 @@ class BalanceCommand extends Command {
 
   static flags = {
     owner: Flags.string({
-      description: "Public Key of the compressed token owner.",
+      description: "Address of the compressed token owner.",
       required: true,
     }),
     mint: Flags.string({
-      description: "Mint of the compressed token account.",
+      description: "Mint address of the compressed token account.",
       required: true,
     }),
   };

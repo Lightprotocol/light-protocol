@@ -7,8 +7,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { Rpc } from "@lightprotocol/stateless.js/src";
+import { Keypair,  } from "@solana/web3.js";
 import { createRpc } from "@lightprotocol/stateless.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;
@@ -45,13 +44,9 @@ class CreateMintCommand extends Command {
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
-      console.log("payer", payer);
       const mintDecimals = this.getMintDecimals(flags);
-      console.log("mintDecimals", mintDecimals);
       const mintKeypair = await this.getMintKeypair(flags);
-      console.log("mintKeypair", mintKeypair);
       const mintAuthority = await this.getMintAuthority(flags, payer);
-      console.log("mintAuthority", mintAuthority);
       const rpc = createRpc(getSolanaRpcUrl());
       const { mint, transactionSignature } = await createMint(
         rpc,
