@@ -1,6 +1,6 @@
-export type PspCompressedToken = {
+export type LightCompressedToken = {
     version: '0.3.0';
-    name: 'psp_compressed_token';
+    name: 'light_compressed_token';
     constants: [
         {
             name: 'PROGRAM_ID';
@@ -109,7 +109,7 @@ export type PspCompressedToken = {
                     isSigner: false;
                 },
                 {
-                    name: 'pspAccountCompressionAuthority';
+                    name: 'accountCompressionAuthority';
                     isMut: true;
                     isSigner: false;
                 },
@@ -173,7 +173,7 @@ export type PspCompressedToken = {
                     isSigner: false;
                 },
                 {
-                    name: 'pspAccountCompressionAuthority';
+                    name: 'accountCompressionAuthority';
                     isMut: false;
                     isSigner: false;
                 },
@@ -841,11 +841,16 @@ export type PspCompressedToken = {
             name: 'SignerCheckFailed';
             msg: 'Signer check failed';
         },
+        {
+            code: 6001;
+            name: 'CreateTransferInstructionFailed';
+            msg: 'Create transfer instruction failed';
+        },
     ];
 };
-export const IDL: PspCompressedToken = {
+export const IDL: LightCompressedToken = {
     version: '0.3.0',
-    name: 'psp_compressed_token',
+    name: 'light_compressed_token',
     constants: [
         {
             name: 'PROGRAM_ID',
@@ -954,7 +959,7 @@ export const IDL: PspCompressedToken = {
                     isSigner: false,
                 },
                 {
-                    name: 'pspAccountCompressionAuthority',
+                    name: 'accountCompressionAuthority',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1018,7 +1023,7 @@ export const IDL: PspCompressedToken = {
                     isSigner: false,
                 },
                 {
-                    name: 'pspAccountCompressionAuthority',
+                    name: 'accountCompressionAuthority',
                     isMut: false,
                     isSigner: false,
                 },
@@ -1685,6 +1690,11 @@ export const IDL: PspCompressedToken = {
             code: 6000,
             name: 'SignerCheckFailed',
             msg: 'Signer check failed',
+        },
+        {
+            code: 6001,
+            name: 'CreateTransferInstructionFailed',
+            msg: 'Create transfer instruction failed',
         },
     ],
 };

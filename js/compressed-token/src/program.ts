@@ -7,7 +7,7 @@ import {
     ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
-import { IDL, PspCompressedToken } from './idl/psp_compressed_token';
+import { IDL, LightCompressedToken } from './idl/light_compressed_token';
 import {
     CompressedProof,
     CompressedTokenInstructionDataTransfer,
@@ -292,9 +292,9 @@ export class CompressedTokenProgram {
         '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
     );
 
-    private static _program: Program<PspCompressedToken> | null = null;
+    private static _program: Program<LightCompressedToken> | null = null;
 
-    static get program(): Program<PspCompressedToken> {
+    static get program(): Program<LightCompressedToken> {
         if (!this._program) {
             this.initializeProgram();
         }
@@ -435,8 +435,8 @@ export class CompressedTokenProgram {
                 compressedPdaProgram: LightSystemProgram.programId,
                 registeredProgramPda: systemKeys.registeredProgramPda,
                 noopProgram: systemKeys.noopProgram,
-                pspAccountCompressionAuthority:
-                    systemKeys.pspAccountCompressionAuthority,
+                accountCompressionAuthority:
+                    systemKeys.accountCompressionAuthority,
                 accountCompressionProgram: systemKeys.accountCompressionProgram,
                 merkleTree,
             })
@@ -500,7 +500,7 @@ export class CompressedTokenProgram {
         );
 
         const {
-            pspAccountCompressionAuthority,
+            accountCompressionAuthority,
             noopProgram,
             registeredProgramPda,
             accountCompressionProgram,
@@ -515,7 +515,7 @@ export class CompressedTokenProgram {
                 compressedPdaProgram: LightSystemProgram.programId,
                 registeredProgramPda: registeredProgramPda,
                 noopProgram: noopProgram,
-                pspAccountCompressionAuthority: pspAccountCompressionAuthority,
+                accountCompressionAuthority: accountCompressionAuthority,
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: null,
@@ -577,7 +577,7 @@ export class CompressedTokenProgram {
         );
 
         const {
-            pspAccountCompressionAuthority,
+            accountCompressionAuthority,
             noopProgram,
             registeredProgramPda,
             accountCompressionProgram,
@@ -601,7 +601,7 @@ export class CompressedTokenProgram {
                 compressedPdaProgram: LightSystemProgram.programId,
                 registeredProgramPda: registeredProgramPda,
                 noopProgram: noopProgram,
-                pspAccountCompressionAuthority: pspAccountCompressionAuthority,
+                accountCompressionAuthority: accountCompressionAuthority,
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
@@ -670,7 +670,7 @@ export class CompressedTokenProgram {
         );
 
         const {
-            pspAccountCompressionAuthority,
+            accountCompressionAuthority,
             noopProgram,
             registeredProgramPda,
             accountCompressionProgram,
@@ -685,7 +685,7 @@ export class CompressedTokenProgram {
                 compressedPdaProgram: LightSystemProgram.programId,
                 registeredProgramPda: registeredProgramPda,
                 noopProgram: noopProgram,
-                pspAccountCompressionAuthority: pspAccountCompressionAuthority,
+                accountCompressionAuthority: accountCompressionAuthority,
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),

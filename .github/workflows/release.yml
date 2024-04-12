@@ -27,34 +27,32 @@ jobs:
           TAG_NAME="${GITHUB_REF#refs/tags/}"
           CRATE_NAME="$(echo "$TAG_NAME" | rev | cut -d'-' -f2- | rev)"
 
-          if [[ "$CRATE_NAME" == *"light-merkle-tree-program"* ]]; then
-            ARTIFACT="light_merkle_tree_program.so"
-          elif [[ "$CRATE_NAME" == *"light-psp2in2out"* ]]; then
-            ARTIFACT="light_psp2in2out.so"
-          elif [[ "$CRATE_NAME" == *"light-psp10in2out"* ]]; then
-            ARTIFACT="light_psp10in2out.so"
-          elif [[ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]]; then
-            ARTIFACT="light_psp4in4out_app_storage.so"
-          elif [[ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]]; then
-            ARTIFACT="light_psp2in2out_storage.so"
-          elif [[ "$CRATE_NAME" == *"macro-circom"* ]]; then
-            ARTIFACT="macro-circom"
+          if [[ "$CRATE_NAME" == *"account-compression"* ]]; then
+            ARTIFACT="account_compression.so"
+          elif [[ "$CRATE_NAME" == *"light-compressed-pda"* ]]; then
+            ARTIFACT="light_compressed_pda.so"
+          elif [[ "$CRATE_NAME" == *"light-compressed-token"* ]]; then
+            ARTIFACT="psp_compressed_token.so"
+          elif [[ "$CRATE_NAME" == *"light-user-registry"* ]]; then
+            ARTIFACT="light_user_registry.so"
+          elif [[ "$CRATE_NAME" == *"light-registry"* ]]; then
+            ARTIFACT="light_registry.so"
           fi
           echo "crate=$CRATE_NAME" >> "$GITHUB_OUTPUT"
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
 
       - name: Prepare artifacts
         run: |
-          if [[ "$CRATE_NAME" == *"light-merkle-tree-program"* ]]; then
-            cp target/deploy/light_merkle_tree_program.so .
-          elif [[ "$CRATE_NAME" == *"light-psp2in2out"* ]]; then
-            cp target/deploy/light_psp2in2out.so .
-          elif [[ "$CRATE_NAME" == *"light-psp10in2out"* ]]; then
-            cp target/deploy/light_psp10in2out.so .
-          elif [[ "$CRATE_NAME" == *"light-psp4in4out-app-storage"* ]]; then
-            cp target/deploy/light_psp4in4out_app_storage.so .
-          elif [[ "$CRATE_NAME" == *"light-psp2in2out-storage"* ]]; then
-            cp target/deploy/light_psp2in2out_storage.so .
+          if [[ "$CRATE_NAME" == *"account-compression"* ]]; then
+            cp target/deploy/account_compression.so .
+          elif [[ "$CRATE_NAME" == *"light-compressed-pda"* ]]; then
+            cp target/deploy/light_compressed_pda.so .
+          elif [[ "$CRATE_NAME" == *"light-compressed-token"* ]]; then
+            cp target/deploy/light_compressed_token.so .
+          elif [[ "$CRATE_NAME" == *"light-user-registry"* ]]; then
+            cp target/deploy/light_user_registry.so .
+          elif [[ "$CRATE_NAME" == *"light-registry"* ]]; then
+            cp target/deploy/light_registry.so .
           fi
 
       - name: Release

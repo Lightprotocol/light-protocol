@@ -8,16 +8,23 @@ on:
         type: choice
         options:
           - aligned-sized
-          - light-macros
-          - light-sparse-merkle-tree
+          - light-bounded-vec
+          - light-circuitlib-rs
+          - light-concurrent-merkle-tree
+          - light-hash-set
           - light-hasher
-          - light-merkle-tree-program
-          - light-psp2in2out
-          - light-psp10in2out
-          - light-psp4in4out-app-storage
-          - light-psp2in2out-storage
-          - light-verifier-sdk
-          - macro-circom
+          - light-indexed-merkle-tree
+          - light-macros
+          - light-merkle-tree-event
+          - light-merkle-tree-reference
+          - light-protocol
+          - light-test-utils
+          - light-user-registry
+          - light-utils
+          - light-wasm-hasher
+          - account-compression
+          - light-compressed-pda
+          - light-compressed-token
       version:
         description: Version to release
         required: true

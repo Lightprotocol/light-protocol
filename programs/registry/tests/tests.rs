@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{self, GroupAuthority, RegisteredProgram};
-use light::sdk::{
+use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
     create_initiatialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,

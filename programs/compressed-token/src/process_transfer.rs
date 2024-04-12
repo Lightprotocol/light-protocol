@@ -1,14 +1,14 @@
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
-use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
-use light_utils::hash_to_bn254_field_size_le;
-use psp_compressed_pda::{
+use light_compressed_pda::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
     },
     utils::CompressedProof,
-    InstructionDataTransfer as PspCompressedPdaInstructionDataTransfer,
+    InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
 };
+use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_utils::hash_to_bn254_field_size_le;
 
 use crate::{spl_compression::process_compression, ErrorCode};
 
@@ -21,7 +21,7 @@ use crate::{spl_compression::process_compression, ErrorCode};
 /// 5.1 create_output_compressed_accounts
 /// 5.2 create delegate change compressed_accounts
 /// 6. serialize and add token_data data to in compressed_accounts
-/// 7. invoke psp_compressed_pda::execute_compressed_transaction
+/// 7. invoke light_compressed_pda::execute_compressed_transaction
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
@@ -117,7 +117,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     output_state_merkle_tree_account_indices: Vec<u8>,
     proof: Option<CompressedProof>,
 ) -> Result<()> {
-    let inputs_struct = PspCompressedPdaInstructionDataTransfer {
+    let inputs_struct = LightCompressedPdaInstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts: output_compressed_accounts.to_vec(),
@@ -130,7 +130,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     };
 
     let mut inputs = Vec::new();
-    PspCompressedPdaInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+    LightCompressedPdaInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let (_, bump) = get_cpi_authority_pda();
     let bump = &[bump];
@@ -138,14 +138,11 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let seeds = [b"cpi_authority".as_slice(), id.as_slice(), bump];
 
     let signer_seeds = &[&seeds[..]];
-    let cpi_accounts = psp_compressed_pda::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
         signer: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
-        psp_account_compression_authority: ctx
-            .accounts
-            .psp_account_compression_authority
-            .to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         cpi_signature_account: None,
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
@@ -160,7 +157,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -214,18 +211,18 @@ pub struct TransferInstruction<'info> {
     /// CHECK: that mint authority is derived from signer
     #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
+    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
     /// CHECK: this account
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
-    pub psp_account_compression_authority: UncheckedAccount<'info>,
+    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = light_compressed_pda::ID,)]
+    pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::PspCompressedToken>,
+    pub self_program: Program<'info, crate::program::LightCompressedToken>,
     #[account(mut)]
     pub token_pool_pda: Option<Account<'info, TokenAccount>>,
     #[account(mut)]
@@ -455,7 +452,7 @@ pub mod transfer_sdk {
     use account_compression::{AccountMeta, NOOP_PROGRAM_ID};
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::token::Token;
-    use psp_compressed_pda::utils::CompressedProof;
+    use light_compressed_pda::utils::CompressedProof;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
@@ -513,13 +510,13 @@ pub mod transfer_sdk {
             fee_payer: *fee_payer,
             authority: *authority,
             cpi_authority_pda,
-            compressed_pda_program: psp_compressed_pda::ID,
-            registered_program_pda: psp_compressed_pda::utils::get_registered_program_pda(
-                &psp_compressed_pda::ID,
+            compressed_pda_program: light_compressed_pda::ID,
+            registered_program_pda: light_compressed_pda::utils::get_registered_program_pda(
+                &light_compressed_pda::ID,
             ),
             noop_program: NOOP_PROGRAM_ID,
-            psp_account_compression_authority: psp_compressed_pda::utils::get_cpi_authority_pda(
-                &psp_compressed_pda::ID,
+            account_compression_authority: light_compressed_pda::utils::get_cpi_authority_pda(
+                &light_compressed_pda::ID,
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,

@@ -5,9 +5,8 @@ use account_compression::{
     },
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::AnchorDeserialize;
-use anchor_lang::{InstructionData, ToAccountMetas};
-use circuitlib_rs::{
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use light_circuitlib_rs::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         constants::{COMBINED_PATH, INCLUSION_PATH, NON_INCLUSION_PATH, SERVER_ADDRESS},
@@ -18,9 +17,16 @@ use circuitlib_rs::{
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
     non_inclusion::merkle_non_inclusion_proof_inputs::get_non_inclusion_proof_inputs,
 };
-use circuitlib_rs::{
+use light_circuitlib_rs::{
     gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
+};
+use light_compressed_pda::{
+    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    event::PublicTransactionEvent,
+    sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
+    utils::CompressedProof,
+    CompressedSolPda, ErrorCode, NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
@@ -29,15 +35,7 @@ use light_test_utils::{
     AccountZeroCopy,
 };
 use num_bigint::{BigInt, BigUint, ToBigUint};
-use num_traits::ops::bytes::FromBytes;
-use num_traits::Num;
-use psp_compressed_pda::{
-    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
-    event::PublicTransactionEvent,
-    sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    utils::CompressedProof,
-    CompressedSolPda, ErrorCode, NewAddressParams,
-};
+use num_traits::{ops::bytes::FromBytes, Num};
 use reqwest::Client;
 use solana_cli_output::CliAccount;
 use solana_program_test::{BanksTransactionResultWithMetadata, ProgramTestContext};
@@ -709,14 +707,14 @@ async fn test_with_compression() {
         false,
         false,
     );
-    let instruction_data = psp_compressed_pda::instruction::InitCompressSolPda {};
-    let accounts = psp_compressed_pda::accounts::InitializeCompressedSolPda {
+    let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
+    let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
         fee_payer: payer.pubkey(),
         compressed_sol_pda: get_compressed_sol_pda(),
         system_program: anchor_lang::solana_program::system_program::ID,
     };
     let instruction = Instruction {
-        program_id: psp_compressed_pda::ID,
+        program_id: light_compressed_pda::ID,
         accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
     };

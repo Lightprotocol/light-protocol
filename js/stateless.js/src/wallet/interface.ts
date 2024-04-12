@@ -10,7 +10,7 @@ import { PublicKey, Transaction } from '@solana/web3.js';
 import { sign } from 'tweetnacl';
 import { Proof } from './get-proof';
 import { Idl } from '@coral-xyz/anchor';
-import { IDL } from '../idls/psp_compressed_pda';
+import { IDL } from '../idls/light_compressed_pda';
 
 export type InclusionProofPublicInputs = {
     root: string;

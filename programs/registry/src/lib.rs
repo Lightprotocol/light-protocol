@@ -18,7 +18,7 @@ pub const AUTHORITY_PDA_SEED: &[u8] = b"authority";
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
 
 #[program]
-pub mod light {
+pub mod light_registry {
 
     use anchor_lang::solana_program::pubkey::Pubkey;
 

@@ -5,7 +5,7 @@ use account_compression::{
     StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorSerialize;
-use circuitlib_rs::{
+use light_circuitlib_rs::{
     gnark::{
         constants::{INCLUSION_PATH, SERVER_ADDRESS},
         helpers::spawn_gnark_server,
@@ -14,6 +14,16 @@ use circuitlib_rs::{
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
+use light_compressed_pda::{
+    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    event::PublicTransactionEvent,
+    utils::CompressedProof,
+};
+use light_compressed_token::{
+    get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
+    mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
+    transfer_sdk, ErrorCode, TokenData, TokenTransferOutputData,
+};
 use light_hasher::Poseidon;
 use light_test_utils::{
     airdrop_lamports, create_account_instruction, create_and_send_transaction, get_hash_set,
@@ -21,16 +31,6 @@ use light_test_utils::{
 };
 use num_bigint::BigInt;
 use num_traits::ops::bytes::FromBytes;
-use psp_compressed_pda::{
-    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    event::PublicTransactionEvent,
-    utils::CompressedProof,
-};
-use psp_compressed_token::{
-    get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
-    mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
-    transfer_sdk, ErrorCode, TokenData, TokenTransferOutputData,
-};
 use reqwest::Client;
 use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
@@ -86,7 +86,7 @@ pub fn create_initialize_mint_instructions(
 }
 
 use anchor_lang::{solana_program::program_pack::Pack, AnchorDeserialize};
-use circuitlib_rs::gnark::helpers::ProofType;
+use light_circuitlib_rs::gnark::helpers::ProofType;
 
 async fn assert_create_mint(
     context: &mut ProgramTestContext,
@@ -556,7 +556,7 @@ async fn test_decompression() {
     let approve_instruction = spl_token::instruction::approve(
         &anchor_spl::token::ID,
         &recipient_token_account_keypair.pubkey(),
-        &psp_compressed_token::get_cpi_authority_pda().0,
+        &light_compressed_token::get_cpi_authority_pda().0,
         &recipient_keypair.pubkey(),
         &[&recipient_keypair.pubkey()],
         amount,
@@ -844,7 +844,9 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(psp_compressed_pda::ErrorCode::ComputeOutputSumFailed.into())
+            InstructionError::Custom(
+                light_compressed_pda::ErrorCode::ComputeOutputSumFailed.into()
+            )
         ))
     );
 
@@ -930,7 +932,9 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
+            InstructionError::Custom(
+                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
+            )
         ))
     );
 
@@ -955,7 +959,9 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
+            InstructionError::Custom(
+                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
+            )
         ))
     );
 
@@ -991,7 +997,9 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(psp_compressed_pda::ErrorCode::ProofVerificationFailed.into())
+            InstructionError::Custom(
+                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
+            )
         ))
     );
 
@@ -1027,7 +1035,7 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(psp_compressed_token::ErrorCode::DelegateUndefined.into())
+            InstructionError::Custom(light_compressed_token::ErrorCode::DelegateUndefined.into())
         ))
     );
 }
@@ -1329,7 +1337,7 @@ async fn assert_transfer<'a>(
     );
     assert_eq!(
         change_compressed_account.compressed_account.owner,
-        psp_compressed_token::ID
+        light_compressed_token::ID
     );
 
     // assert in compressed_accounts are nullified

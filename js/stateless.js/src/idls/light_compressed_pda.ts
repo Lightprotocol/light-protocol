@@ -1,6 +1,6 @@
-export type PspCompressedPda = {
+export type LightCompressedPda = {
     version: '0.3.0';
-    name: 'psp_compressed_pda';
+    name: 'light_compressed_pda';
     constants: [
         {
             name: 'COMPRESSED_SOL_PDA_SEED';
@@ -58,7 +58,7 @@ export type PspCompressedPda = {
                     isSigner: false;
                 },
                 {
-                    name: 'pspAccountCompressionAuthority';
+                    name: 'accountCompressionAuthority';
                     isMut: false;
                     isSigner: false;
                 },
@@ -605,9 +605,9 @@ export type PspCompressedPda = {
     ];
 };
 
-export const IDL: PspCompressedPda = {
+export const IDL: LightCompressedPda = {
     version: '0.3.0',
-    name: 'psp_compressed_pda',
+    name: 'light_compressed_pda',
     constants: [
         {
             name: 'COMPRESSED_SOL_PDA_SEED',
@@ -665,7 +665,7 @@ export const IDL: PspCompressedPda = {
                     isSigner: false,
                 },
                 {
-                    name: 'pspAccountCompressionAuthority',
+                    name: 'accountCompressionAuthority',
                     isMut: false,
                     isSigner: false,
                 },

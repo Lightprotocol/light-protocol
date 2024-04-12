@@ -11,7 +11,7 @@ declare_id!("9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
-    name: "psp-compressed-token",
+    name: "light-compressed-token",
     project_url: "lightprotocol.com",
     contacts: "email:security@lightprotocol.com",
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
@@ -22,7 +22,7 @@ solana_security_txt::security_txt! {
 pub const PROGRAM_ID: &str = "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE";
 
 #[program]
-pub mod psp_compressed_token {
+pub mod light_compressed_token {
 
     use super::*;
 

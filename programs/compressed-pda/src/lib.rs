@@ -86,7 +86,7 @@ pub enum ErrorCode {
 // pub use account_compression::GLOBAL_ALLOCATOR;
 
 #[program]
-pub mod psp_compressed_pda {
+pub mod light_compressed_pda {
 
     use self::instructions::{
         process_execute_compressed_transaction,

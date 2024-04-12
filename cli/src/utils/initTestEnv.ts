@@ -163,12 +163,12 @@ export async function getSolanaArgs({
     },
     {
       id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
-      name: "psp_compressed_pda.so",
+      name: "light_compressed_pda.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
       id: "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE",
-      name: "psp_compressed_token.so",
+      name: "light_compressed_token.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
@@ -178,7 +178,7 @@ export async function getSolanaArgs({
     },
     {
       id: "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP",
-      name: "light.so",
+      name: "light_registry.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
   ];

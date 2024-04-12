@@ -1,5 +1,5 @@
 [package]
-name = "hasher"
+name = "light-wasm-hasher"
 version = "0.1.0"
 edition = "2021"
 description = "Light Protocol Rust client"

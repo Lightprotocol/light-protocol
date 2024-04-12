@@ -4,20 +4,20 @@ import {
     AccountCompression,
 } from './account_compression';
 
-import { IDL as LightIDL, Light } from './light';
+import { IDL as LightSystemIDL, LightRegistry } from './light_registry';
 import {
-    IDL as PspCompressedPdaIDL,
-    PspCompressedPda,
-} from './psp_compressed_pda';
-import { IDL as UserRegistryIDL, UserRegistry } from './user_registry';
+    IDL as LightCompressedPdaIDL,
+    LightCompressedPda,
+} from './light_compressed_pda';
+import { IDL as LightUserRegistryIDL, LightUserRegistry } from './light_user_registry';
 
 export {
     AccountCompressionIDL,
     AccountCompression,
-    LightIDL,
-    Light,
-    PspCompressedPdaIDL,
-    PspCompressedPda,
-    UserRegistryIDL,
-    UserRegistry,
+    LightSystemIDL,
+    LightSystem,
+    LightCompressedPdaIDL,
+    LightCompressedPda,
+    LightUserRegistryIDL,
+    LightUserRegistry,
 };

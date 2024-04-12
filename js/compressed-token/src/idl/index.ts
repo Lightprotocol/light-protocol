@@ -1,1 +1,1 @@
-export * from './psp_compressed_token';
+export * from './light_compressed_token';

@@ -35,17 +35,17 @@ jobs:
             sub-tests: '[
               "@lightprotocol/programs:test-account-compression"
             ]'
-          - program: compressed-pda
+          - program: light-compressed-pda
             sub-tests: '[
               "@lightprotocol/programs:test-compressed-pda"
             ]'
-          - program: light
+          - program: light-registry
             sub-tests: '[
-              "@lightprotocol/programs:test-light"
+              "@lightprotocol/programs:test-registry"
             ]'
-          - program: psp-compressed-token
+          - program: light-compressed-token
             sub-tests: '[
-              "@lightprotocol/programs:test-psp-compressed-token"
+              "@lightprotocol/programs:test-compressed-token"
             ]'
 
     steps:

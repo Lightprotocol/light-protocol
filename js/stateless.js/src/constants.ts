@@ -15,7 +15,7 @@ export const accountCompressionProgram = // also: merkletree program
 export const getRegisteredProgramPda = () =>
     new PublicKey('ytwwVWhQUMoTKdirKmvEW5xCRVr4B2dJZnToiHtE2L2'); // TODO: better labelling. gov authority pda
 
-export const getPspAccountCompressionAuthority = () =>
+export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [
             Buffer.from('cpi_authority'),
@@ -31,15 +31,15 @@ export const defaultStaticAccounts = () => [
     new PublicKey(getRegisteredProgramPda()),
     new PublicKey(noopProgram),
     new PublicKey(accountCompressionProgram),
-    new PublicKey(getPspAccountCompressionAuthority()),
+    new PublicKey(getAccountCompressionAuthority()),
 ];
 export const defaultStaticAccountsStruct = () => {
     return {
         registeredProgramPda: new PublicKey(getRegisteredProgramPda()),
         noopProgram: new PublicKey(noopProgram),
         accountCompressionProgram: new PublicKey(accountCompressionProgram),
-        pspAccountCompressionAuthority: new PublicKey(
-            getPspAccountCompressionAuthority(),
+        accountCompressionAuthority: new PublicKey(
+            getAccountCompressionAuthority(),
         ),
         cpiSignatureAccount: null,
     };

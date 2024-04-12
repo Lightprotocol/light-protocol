@@ -2,11 +2,11 @@
 
 cd "$(git rev-parse --show-toplevel)"
 
-PDA_FILE="target/idl/psp_compressed_pda.json"
-TOKEN_FILE="target/idl/psp_compressed_token.json"
+PDA_FILE="target/idl/light_compressed_pda.json"
+TOKEN_FILE="target/idl/light_compressed_token.json"
 DEST_DIR="js/compressed-token/src/idl"
-TS_FILE="$DEST_DIR/psp_compressed_token.ts" # ts output file path
-TYPE_NAME="PspCompressedToken" # ts type name
+TS_FILE="$DEST_DIR/light_compressed_token.ts" # ts output file path
+TYPE_NAME="LightCompressedToken" # ts type name
 
 # Check if jq is installed
 if ! command -v jq &> /dev/null

@@ -2,7 +2,7 @@
 
 set -eux
 
-keys="account_compression psp_compressed_pda psp_compressed_token light"
+keys="account_compression light_compressed_pda light_compressed_token light_registry"
 
 out_dir="`git rev-parse --show-toplevel`/cli/bin"
 if [ ! -e $out_dir ]; then
