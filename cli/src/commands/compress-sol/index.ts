@@ -29,7 +29,7 @@ class CompressSolCommand extends Command {
   async run() {
     const { flags } = await this.parse(CompressSolCommand);
     const to = flags["to"];
-    const amount = parseFloat(flags["amount"]);
+    const amount = flags["amount"];
     if (!to || !amount) {
       throw new Error("Invalid arguments");
     }

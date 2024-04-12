@@ -66,23 +66,17 @@ export async function initTestEnv({
 function spawnBinary(binaryName: string, args: string[] = []) {
   const binDir = path.join(__dirname, "../..", "bin");
   const command = path.join(binDir, binaryName);
+  const out = fs.openSync(`test-ledger/${binaryName}.log`, "a");
+  const err = fs.openSync(`test-ledger/${binaryName}.log`, "a");
 
-  if (binaryName === "photon") {
-    const out = fs.openSync("test-ledger/photon.log", "a");
-    const err = fs.openSync("test-ledger/photon.log", "a");
+  const spawnedProcess = spawn(command, args, {
+    stdio: ["ignore", out, err],
+    shell: false,
+  });
 
-    const spawnedProcess = spawn(command, args, {
-      stdio: ["ignore", out, err],
-      shell: false,
-    });
-
-    spawnedProcess.on("close", (code) => {
-      console.log(`${binaryName} process exited with code ${code}`);
-    });
-  } else {
-    // Fallback to the original executeCommand for other binaries
-    executeCommand({ command, args });
-  }
+  spawnedProcess.on("close", (code) => {
+    console.log(`${binaryName} process exited with code ${code}`);
+  });
 }
 
 export async function initTestEnvIfNeeded({

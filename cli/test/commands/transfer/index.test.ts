@@ -9,14 +9,14 @@ import {
 } from "../../helpers/helpers";
 
 describe("transfer", () => {
-    const payerKeypair = defaultSolanaWalletKeypair();
+  const payerKeypair = defaultSolanaWalletKeypair();
   const payerKeypairPath = process.env.HOME + "/.config/solana/id.json";
 
-    const mintKeypair = Keypair.generate();
-    const mintAuthority = payerKeypair;
+  const mintKeypair = Keypair.generate();
+  const mintAuthority = payerKeypair;
 
-    const mintAmount = 10;
-    const mintDestination = Keypair.generate().publicKey;
+  const mintAmount = 10;
+  const mintDestination = Keypair.generate().publicKey;
 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
@@ -34,17 +34,17 @@ describe("transfer", () => {
 
   test
     .stdout({ print: true })
-      .command([
-        "transfer",
-        `--amount=${mintAmount - 1}`,
+    .command([
+      "transfer",
+      `--amount=${mintAmount - 1}`,
       `--fee-payer=${payerKeypairPath}`,
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-        `--to=${mintDestination.toBase58()}`,
-      ])
-      .it(
+      `--to=${mintDestination.toBase58()}`,
+    ])
+    .it(
       `transfer ${mintAmount} tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
-        (ctx: any) => {
+      (ctx: any) => {
         expect(ctx.stdout).to.contain("transfer successful");
-        },
-      );
+      },
+    );
 });

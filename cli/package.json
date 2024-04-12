@@ -85,7 +85,6 @@
   "scripts": {
     "add-bins": "./scripts/copyLocalProgramBinaries.sh && scripts/prover2bin.sh && scripts/photon2bin.sh",
     "build": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm add-bins",
-    "gnark-prover": "../circuit-lib/circuit-lib.js/scripts/prover.sh inclusion",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
     "lint": "eslint . --ext .ts",
@@ -104,7 +103,7 @@
     "test-decompress-sol": "mocha ./test/commands/decompress-sol/index.test.ts -t 10000000 --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
-    "test": "pnpm kill && pnpm gnark-prover && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-balance  && pnpm test-compress-sol && pnpm test-decompress-sol",
+    "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-balance  && pnpm test-compress-sol && pnpm test-decompress-sol",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
