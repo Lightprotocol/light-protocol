@@ -3,7 +3,7 @@ use account_compression::{
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
     },
-    StateMerkleTreeAccount,
+    AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorDeserialize;
 use anchor_lang::{InstructionData, ToAccountMetas};
@@ -58,9 +58,11 @@ async fn init_mock_indexer(inclusion: bool, non_inclusion: bool, combined: bool)
     let payer = context.payer.insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
+    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
     MockIndexer::new(
         merkle_tree_pubkey,
         indexed_array_pubkey,
+        address_merkle_tree_pubkey,
         payer.insecure_clone(),
         inclusion,
         non_inclusion,
@@ -503,9 +505,11 @@ async fn test_with_compression() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
+    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
     let mock_indexer = MockIndexer::new(
         merkle_tree_pubkey,
         indexed_array_pubkey,
+        address_merkle_tree_pubkey,
         payer.insecure_clone(),
         true,
         false,
@@ -832,6 +836,7 @@ async fn regenerate_accounts() {
 pub struct MockIndexer {
     pub merkle_tree_pubkey: Pubkey,
     pub indexed_array_pubkey: Pubkey,
+    pub address_merkle_tree_pubkey: Pubkey,
     pub payer: Keypair,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
@@ -846,6 +851,7 @@ impl MockIndexer {
     async fn new(
         merkle_tree_pubkey: Pubkey,
         indexed_array_pubkey: Pubkey,
+        address_merkle_tree_pubkey: Pubkey,
         payer: Keypair,
         inclusion: bool,
         non_inclusion: bool,
@@ -896,6 +902,7 @@ impl MockIndexer {
         Self {
             merkle_tree_pubkey,
             indexed_array_pubkey,
+            address_merkle_tree_pubkey,
             payer,
             compressed_accounts: vec![],
             nullified_compressed_accounts: vec![],
@@ -1035,21 +1042,21 @@ impl MockIndexer {
             let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
             let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
-            // TODO: debug the following error when loading the address merkle tree from the account:
-            // thread 'test_with_address' panicked at /home/ananas/dev/light-protocol/merkle-tree/concurrent/src/lib.rs:359:51:
-            // attempt to multiply with overflow
-            // let merkle_tree_account =
-            //     AccountZeroCopy::<AddressMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
-            //         .await;
-            // let merkle_tree = merkle_tree_account
-            //     .deserialized()
-            //     .load_merkle_tree()
-            //     .unwrap();
-            // assert_eq!(
-            //     self.merkle_tree.root(),
-            //     merkle_tree.root().unwrap(),
-            //     "Local Merkle tree root is not equal to latest on-chain root"
-            // );
+            let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
+                context,
+                self.address_merkle_tree_pubkey,
+            )
+            .await;
+            let merkle_tree = merkle_tree_account
+                .deserialized()
+                .copy_merkle_tree()
+                .unwrap();
+            assert_eq!(
+                self.merkle_tree.root(),
+                merkle_tree.root().unwrap(),
+                "Local Merkle tree root is not equal to latest on-chain root"
+            );
+
             let address_root_indices: Vec<u16> = vec![3 as u16; new_addresses.len()];
             ProofRpcResult {
                 root_indices: vec![],
