@@ -29,6 +29,7 @@ jobs:
             sub-tests: '[
                 "@lightprotocol/circuit-lib.js:test",
                 "@lightprotocol/prover.js:test",
+                "@lightprotocol/cli:test",
             ]'
     services:
       redis:
