@@ -7,8 +7,8 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
-import { Rpc } from "@lightprotocol/stateless.js/src";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;
 
@@ -43,12 +43,14 @@ class CreateMintCommand extends Command {
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
+      console.log(payer.publicKey.toBase58());
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = await this.getMintKeypair(flags);
-      const mintAuthority = this.getMintAuthority(flags, payer);
-      const connection = new Connection(getSolanaRpcUrl());
+      const mintAuthority = await this.getMintAuthority(flags, payer);
+      const rpc = await getTestRpc(getSolanaRpcUrl());
+      console.log("Creating mint...")
       const { mint, transactionSignature } = await createMint(
-        connection as Rpc,
+        rpc,
         payer,
         mintAuthority,
         mintDecimals,
@@ -79,10 +81,10 @@ class CreateMintCommand extends Command {
     return keypair;
   }
 
-  getMintAuthority(flags: any, payer: any) {
+  async getMintAuthority(flags: any, payer: Keypair): Promise<Keypair> {
     return flags["mint-authority"]
-      ? new PublicKey(flags["mint-authority"])
-      : payer.publicKey;
+      ? await getKeypairFromFile(flags["mint-authority"])
+      : payer;
   }
 }
 

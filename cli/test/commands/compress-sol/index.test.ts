@@ -5,18 +5,19 @@ import { Keypair } from "@solana/web3.js";
 import { requestAirdrop } from "../../helpers/helpers";
 
 describe("compress-sol", () => {
-  test.it(async () => {
-    await initTestEnvIfNeeded();
-    const keypair = defaultSolanaWalletKeypair() || Keypair.generate();
-    await requestAirdrop(keypair.publicKey);
-    const to = keypair.publicKey.toBase58();
-    const amount = 0.5;
+  const keypair = defaultSolanaWalletKeypair() || Keypair.generate();
+  const to = keypair.publicKey.toBase58();
+  const amount = 0.5;
 
-    return test
-      .stdout()
-      .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
-      .it(`compress-sol ${amount} SOL to ${to}`, (ctx: any) => {
-        expect(ctx.stdout).to.contain("mint-to successful");
-      });
+  before(async () => {
+    await initTestEnvIfNeeded();
+    await requestAirdrop(keypair.publicKey);
   });
+
+  test
+    .stdout()
+    .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
+    .it(`compress-sol ${amount} SOL to ${to}`, (ctx: any) => {
+      expect(ctx.stdout).to.contain("mint-to successful");
+    });
 });

@@ -1,7 +1,6 @@
 import { Command, Flags } from "@oclif/core";
-import { initTestEnv } from "../../utils/initTestEnv";
 import { CustomLoader } from "../../utils/index";
-import { provingArgs, verifyingArgs } from "../../utils/proverUtils";
+import { verifyingArgs } from "../../utils/proverUtils";
 import { execute } from "../../psp-utils";
 class VerifyCommand extends Command {
   static description = "Verify a proof of inclusion of a leaf in a Merkle tree";

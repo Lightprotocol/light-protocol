@@ -5,8 +5,8 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Rpc, compressLamports, getTestRpc } from "@lightprotocol/stateless.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { compressLamports, getTestRpc } from "@lightprotocol/stateless.js";
 
 class MintToCommand extends Command {
   static summary = "Compress SOL.";
@@ -18,7 +18,7 @@ class MintToCommand extends Command {
       description: "Specify the recipient address.",
       required: true,
     }),
-    amount: Flags.integer({
+    amount: Flags.string({
       description: "Amount to mint, in SOL.",
       required: true,
     }),
@@ -29,7 +29,7 @@ class MintToCommand extends Command {
   async run() {
     const { flags } = await this.parse(MintToCommand);
     const to = flags["to"];
-    const amount = flags["amount"];
+    const amount = parseFloat(flags["amount"]);
     if (!to || !amount) {
       throw new Error("Invalid arguments");
     }
@@ -42,6 +42,7 @@ class MintToCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
 
       const rpc = await getTestRpc(getSolanaRpcUrl());
+
       const txId = await compressLamports(
         rpc,
         payer,

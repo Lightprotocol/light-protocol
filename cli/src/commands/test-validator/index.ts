@@ -10,21 +10,31 @@ class SetupCommand extends Command {
   }
 
   static flags = {
-    without_indexer: Flags.boolean({
+    "without-indexer": Flags.boolean({
       char: "i",
       description: "Runs a test validator without indexer service.",
       default: false,
     }),
-    without_prover: Flags.boolean({
+    "without-prover": Flags.boolean({
       char: "p",
       description: "Runs a test validator without prover service.",
       default: false,
     }),
-    skip_system_accounts: Flags.boolean({
+    "skip-system-accounts": Flags.boolean({
       char: "s",
       description:
         "Runs a test validator without initialized light system accounts.",
       default: false,
+    }),
+    "prove-compressed-accounts": Flags.boolean({
+      description: "Enable proving of compressed accounts.",
+      default: true,
+      exclusive: ["without-prover"],
+    }),
+    "prove-new-addresses": Flags.boolean({
+      description: "Enable proving of new addresses.",
+      default: false,
+      exclusive: ["without-prover"],
     }),
   };
 
@@ -34,9 +44,11 @@ class SetupCommand extends Command {
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
     await initTestEnv({
-      skipSystemAccounts: flags.skip_system_accounts,
-      indexer: !flags.without_indexer,
-      prover: !flags.without_prover,
+      skipSystemAccounts: flags["skip-system-accounts"],
+      indexer: !flags["without-indexer"],
+      prover: !flags["without-prover"],
+      proveCompressedAccounts: flags["prove-compressed-accounts"],
+      proveNewAddresses: flags["prove-new-addresses"],
     });
 
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
