@@ -51,7 +51,7 @@ You can then mint some tokens to your wallet.
 
 Next, you can transfer some of your compressed tokens to another solana wallet:
 
-`./test_bin/runtransfer --mint "YOUR_MINT_ADDRESS_BASE58" --amount 3 --to "5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W"`
+`./test_bin/run transfer --mint "YOUR_MINT_ADDRESS_BASE58" --amount 3 --to "5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W"`
 
 Other commands include:
 
