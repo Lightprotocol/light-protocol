@@ -17,6 +17,8 @@
 
 /cli/bin
 
+**/photon.log
+
 # Yarn
 **/.yarn
 **/.pnpm

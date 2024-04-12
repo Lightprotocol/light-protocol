@@ -3,16 +3,12 @@ import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import { getTestRpc, newAccountWithLamports } from '../../src/test-utils';
 import {
-    CompressedAccount,
     CompressedAccountWithMerkleContext,
     Rpc,
-    bigint254ToPublicKey,
     bn,
     compressLamports,
     createRpc,
-    decompressLamports,
     initSolOmnibusAccount,
-    sleep,
 } from '../../src';
 
 /// TODO: add test case for payer != address
@@ -169,45 +165,5 @@ describe('rpc / photon', () => {
         expect(compressedBalance?.eq(bn(compressLamportsAmount))).toBeTruthy();
 
         return;
-    });
-
-    // it('getCompressedTokenAccountsByOwner', async () => {
-    //     /// getCompressedBalance
-    //     const compressedBalance = await rpc.getCompressedTokenAccountsByOwner(
-    //         payer.publicKey,
-    //         { mint: mint}
-    //     );
-    //     expect(compressedBalance?.eq(bn(compressLamportsAmount))).toBeTruthy();
-
-    //     return;
-    // });
-
-    it.skip('decompressLamports', async () => {
-        /// Decompress
-        const decompressLamportsAmount = 15;
-        const decompressRecipient = payer.publicKey;
-
-        await decompressLamports(
-            rpc,
-            payer,
-            decompressLamportsAmount,
-            decompressRecipient,
-            merkleTree,
-        );
-
-        //@ts-ignore
-        const indexedEvents2 = await rpc.getParsedEvents();
-        assert.equal(indexedEvents2.length, 2);
-        assert.equal(indexedEvents2[0].inputCompressedAccounts.length, 1);
-        assert.equal(indexedEvents2[0].outputCompressedAccounts.length, 1);
-        assert.equal(
-            Number(indexedEvents2[0].outputCompressedAccounts[0].lamports),
-            compressLamportsAmount - decompressLamportsAmount,
-        );
-        const postDecompressBalance = await rpc.getBalance(decompressRecipient);
-        assert.equal(
-            postDecompressBalance,
-            postCompressBalance + decompressLamportsAmount - 5000,
-        );
     });
 });

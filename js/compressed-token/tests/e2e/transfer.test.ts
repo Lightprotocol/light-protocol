@@ -120,7 +120,7 @@ describe('transfer', () => {
 
         const bobPreCompressedTokenAccounts =
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                mint: mint,
+                mint,
             });
 
         await transfer(
@@ -144,11 +144,11 @@ describe('transfer', () => {
             1,
         );
 
-        // /// send 200 from bob -> charlie
-        // /// bob: 100, charlie: (700+200)
+        /// send 200 from bob -> charlie
+        /// bob: 100, charlie: (700+200)
         const bobPreCompressedTokenAccounts2 =
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
-                mint: mint,
+                mint,
             });
         await transfer(
             rpc,
@@ -171,12 +171,12 @@ describe('transfer', () => {
             2,
         );
 
-        // /// send 5 from charlie -> bob
-        // /// bob: (100+5), charlie: (695+200)
+        /// send 5 from charlie -> bob
+        /// bob: (100+5), charlie: (695+200)
 
         const charliePreCompressedTokenAccounts3 =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint: mint,
+                mint,
             });
 
         await transfer(
@@ -200,12 +200,12 @@ describe('transfer', () => {
             2,
         );
 
-        // /// send 700 from charlie -> bob, 2 compressed account inputs
-        // /// bob: (100+5+700), charlie: (195)
+        /// send 700 from charlie -> bob, 2 compressed account inputs
+        /// bob: (100+5+700), charlie: (195)
 
         const charliePreCompressedTokenAccounts4 =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
-                mint: mint,
+                mint,
             });
         await transfer(
             rpc,

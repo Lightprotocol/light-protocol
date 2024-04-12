@@ -97,7 +97,7 @@ export async function transfer(
     const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         currentOwnerPublicKey,
         {
-            mint: mint,
+            mint,
         },
     );
 
