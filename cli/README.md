@@ -24,15 +24,21 @@ Note: currently, you have to start the light-test-validator, gnark-prover, and p
 
 This will reset and start the validator, prover, and indexer on a clean ledger.
 
-Then, in the same or a separate terminal window, go to the cli directory
+Alternatively, to start only the light-test-validator and the gnark-prover, run:
+
+`./cli/test_bin/run test-validator -p -i && pnpm gnark-prover`
+
+Note: the CLI currently expects the photon indexer to run at port: 8784, and the gnark-prover at port: 3001
+
+Once you've started all services, in the same or a separate terminal window, go to the cli directory:
 
 `cd cli`
 
-Ensure the CLI is built.
+Ensure that the CLI is built.
 Also ensure that you have a local solana wallet set up at ~/.config/solana/id.json. (see solana documentation for how to create one). This wallet will be used by the CLI as default feePayer and mintAuthority.
 
 Run `solana address` using the solana-cli to print your id.json/wallet address.
-Ensure you have enough localnet funds: run `solana aidrop 10000000`
+To ensure you have enough localnet funds: run `solana aidrop 10000000`
 
 You can now create test-data against the test-ledger and photon with the following commands:
 
