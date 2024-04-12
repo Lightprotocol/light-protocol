@@ -112,6 +112,19 @@ pub struct AddressMerkleTreeAccount {
 }
 
 impl AddressMerkleTreeAccount {
+    pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::copy_from_bytes(
+                &self.merkle_tree_struct,
+                &self.merkle_tree_filled_subtrees,
+                &self.merkle_tree_changelog,
+                &self.merkle_tree_roots,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(tree)
+    }
+
     pub fn load_merkle_tree(&self) -> Result<&IndexedMerkleTree26<Poseidon, usize>> {
         let tree = unsafe {
             IndexedMerkleTree26::from_bytes(
