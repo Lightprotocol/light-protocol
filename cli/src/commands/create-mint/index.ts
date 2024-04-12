@@ -9,6 +9,7 @@ import {
 import { createMint } from "@lightprotocol/compressed-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { Rpc } from "@lightprotocol/stateless.js/src";
+import { createRpc } from "@lightprotocol/stateless.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;
 
@@ -19,12 +20,13 @@ class CreateMintCommand extends Command {
 
   static flags = {
     "mint-keypair": Flags.string({
-      description: "Provide the mint keypair to use for minting",
+      description:
+        "Provide a path to a mint keypair file. Defaults to a random keypair",
       required: false,
     }),
     "mint-authority": Flags.string({
       description:
-        "Specify the mint authority public key. Defaults to the client keypair address",
+        "Specify a path to the mint authority keypair file. Defaults to your default local solana wallet file path",
       required: false,
     }),
     "mint-decimals": Flags.integer({
@@ -43,12 +45,16 @@ class CreateMintCommand extends Command {
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
+      console.log("payer", payer);
       const mintDecimals = this.getMintDecimals(flags);
+      console.log("mintDecimals", mintDecimals);
       const mintKeypair = await this.getMintKeypair(flags);
-      const mintAuthority = this.getMintAuthority(flags, payer);
-      const connection = new Connection(getSolanaRpcUrl());
+      console.log("mintKeypair", mintKeypair);
+      const mintAuthority = await this.getMintAuthority(flags, payer);
+      console.log("mintAuthority", mintAuthority);
+      const rpc = createRpc(getSolanaRpcUrl());
       const { mint, transactionSignature } = await createMint(
-        connection as Rpc,
+        rpc,
         payer,
         mintAuthority,
         mintDecimals,
@@ -79,10 +85,10 @@ class CreateMintCommand extends Command {
     return keypair;
   }
 
-  getMintAuthority(flags: any, payer: any) {
+  async getMintAuthority(flags: any, payer: Keypair): Promise<Keypair> {
     return flags["mint-authority"]
-      ? new PublicKey(flags["mint-authority"])
-      : payer.publicKey;
+      ? await getKeypairFromFile(flags["mint-authority"])
+      : payer;
   }
 }
 
