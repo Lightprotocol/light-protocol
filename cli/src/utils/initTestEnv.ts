@@ -7,6 +7,9 @@ import {
   SPL_NOOP_PROGRAM_TAG,
 } from "../psp-utils";
 import path from "path";
+import fs from "fs";
+
+import { spawn } from "child_process";
 
 const find = require("find-process");
 
@@ -18,11 +21,15 @@ export async function initTestEnv({
   skipSystemAccounts,
   indexer = true,
   prover = true,
+  proveCompressedAccounts = true,
+  proveNewAddresses = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
+  proveCompressedAccounts?: boolean;
+  proveNewAddresses?: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -46,7 +53,12 @@ export async function initTestEnv({
 
   if (prover) {
     await killProver();
-    spawnBinary("light-prover", ["start"]);
+    const circuitDir = path.join(__dirname, "../..", "bin", "circuits/");
+    const args = ["start"];
+    args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
+    args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
+    args.push("--circuit-dir", circuitDir);
+    spawnBinary("light-prover", args);
     await sleep(10000);
   }
 }
@@ -54,7 +66,17 @@ export async function initTestEnv({
 function spawnBinary(binaryName: string, args: string[] = []) {
   const binDir = path.join(__dirname, "../..", "bin");
   const command = path.join(binDir, binaryName);
-  executeCommand({ command, args });
+  const out = fs.openSync(`test-ledger/${binaryName}.log`, "a");
+  const err = fs.openSync(`test-ledger/${binaryName}.log`, "a");
+
+  const spawnedProcess = spawn(command, args, {
+    stdio: ["ignore", out, err],
+    shell: false,
+  });
+
+  spawnedProcess.on("close", (code) => {
+    console.log(`${binaryName} process exited with code ${code}`);
+  });
 }
 
 export async function initTestEnvIfNeeded({
@@ -217,6 +239,7 @@ export async function startTestValidator({
 
   await new Promise((r) => setTimeout(r, 1000));
 
+  console.log("Starting test validator...", command);
   await executeCommand({
     command,
     args: [...solanaArgs],

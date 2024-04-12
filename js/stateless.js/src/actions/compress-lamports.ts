@@ -5,7 +5,6 @@ import {
     TransactionSignature,
 } from '@solana/web3.js';
 
-import { dedupeSigner } from './common';
 import { LightSystemProgram } from '../programs';
 import { Rpc } from '../rpc';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';

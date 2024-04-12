@@ -1,71 +1,47 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import { defaultSolanaWalletKeypair, getSolanaRpcUrl } from "../../../src";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { createMint, mintTo } from "@lightprotocol/compressed-token";
-import { requestAirdrop } from "../../helpers/helpers";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { getTestRpc } from "@lightprotocol/stateless.js";
+import { defaultSolanaWalletKeypair } from "../../../src";
+import { Keypair } from "@solana/web3.js";
+import {
+  createTestMint,
+  requestAirdrop,
+  testMintTo,
+} from "../../helpers/helpers";
+
 describe("Get balance", () => {
-  test.it(async () => {
-    await initTestEnvIfNeeded();
-    const payerKeypair = defaultSolanaWalletKeypair();
+  const payerKeypair = defaultSolanaWalletKeypair();
+  const mintKeypair = Keypair.generate();
+  const mintAuthority = payerKeypair;
 
-    const mintKeypair = Keypair.generate();
-    await requestAirdrop(mintKeypair.publicKey);
-    const mintAuthority = payerKeypair;
+  const mintAmount = 10;
+  const mintDestination = Keypair.generate().publicKey;
 
-    const mintAmount = 10;
-    const mintDestination = Keypair.generate().publicKey;
-    const mintAddress = await createTestMint(payerKeypair);
+  before(async () => {
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+    await requestAirdrop(payerKeypair.publicKey);
+
+    await createTestMint(mintKeypair);
 
     await testMintTo(
       payerKeypair,
-      mintAddress,
+      mintKeypair.publicKey,
       mintDestination,
       mintAuthority,
       mintAmount,
     );
-    const encodedPayer = bs58.encode(payerKeypair.secretKey);
-    return test
-      .stdout()
-      .command([
-        "balance",
-        `--mint=${mintAddress.toBase58()}`,
-        `--owner=${mintDestination.toBase58()}`,
-      ])
-      .it(
-        `runs balance --mint=${mintAddress.toBase58()} --owner=${mintDestination.toBase58()}`,
-        (ctx: any) => {
-          expect(ctx.stdout).to.contain("balance successful");
-        },
-      );
   });
 
-  async function createTestMint(payer: Keypair) {
-    const rpc = await getTestRpc(getSolanaRpcUrl());
-    const { mint } = await createMint(rpc, payer, payer, 9, undefined, {
-      commitment: "finalized",
-    });
-    return mint;
-  }
-
-  async function testMintTo(
-    payer: Keypair,
-    mintAddress: PublicKey,
-    mintDestination: PublicKey,
-    mintAuthority: Keypair,
-    mintAmount: number,
-  ) {
-    const rpc = await getTestRpc(getSolanaRpcUrl());
-    const txId = await mintTo(
-      rpc,
-      payer,
-      mintAddress,
-      mintDestination,
-      mintAuthority,
-      mintAmount,
+  test
+    .stdout({ print: true })
+    .command([
+      "balance",
+      `--mint=${mintKeypair.publicKey.toBase58()}`,
+      `--owner=${mintDestination.toBase58()}`,
+    ])
+    .it(
+      `transfer ${mintAmount} tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("balance successful");
+      },
     );
-    return txId;
-  }
 });

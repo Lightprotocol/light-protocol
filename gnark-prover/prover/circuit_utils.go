@@ -179,3 +179,30 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 
 	return verifyingKey, nil
 }
+
+func GetKeys(circuitDir string, inclusion bool, nonInclusion bool) []string {
+	var keys []string
+
+	if inclusion {
+		keys = append(keys, circuitDir+"inclusion_26_1.key")
+		keys = append(keys, circuitDir+"inclusion_26_2.key")
+		keys = append(keys, circuitDir+"inclusion_26_3.key")
+		keys = append(keys, circuitDir+"inclusion_26_4.key")
+		keys = append(keys, circuitDir+"inclusion_26_8.key")
+	}
+	if nonInclusion {
+		keys = append(keys, circuitDir+"non-inclusion_26_1.key")
+		keys = append(keys, circuitDir+"non-inclusion_26_2.key")
+	}
+	if inclusion && nonInclusion {
+		keys = append(keys, circuitDir+"combined_26_1_1.key")
+		keys = append(keys, circuitDir+"combined_26_1_2.key")
+		keys = append(keys, circuitDir+"combined_26_2_1.key")
+		keys = append(keys, circuitDir+"combined_26_2_2.key")
+		keys = append(keys, circuitDir+"combined_26_3_1.key")
+		keys = append(keys, circuitDir+"combined_26_3_2.key")
+		keys = append(keys, circuitDir+"combined_26_4_1.key")
+		keys = append(keys, circuitDir+"combined_26_4_2.key")
+	}
+	return keys
+}

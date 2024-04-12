@@ -1,5 +1,4 @@
 import {
-    ConnectionConfig,
     ParsedMessageAccount,
     ParsedTransactionWithMeta,
     PublicKey,
@@ -68,9 +67,9 @@ export class TestRpc extends Rpc {
     constructor(
         endpoint: string,
         hasher: LightWasm,
+        proverEndpoint: string,
         testRpcConfig?: TestRpcConfig,
-        proverEndpoint?: string,
-        connectionConfig?: ConnectionConfig,
+        connectionConfig?: string,
     ) {
         super(endpoint, proverEndpoint, connectionConfig);
 
@@ -139,108 +138,6 @@ export class TestRpc extends Rpc {
         return parsedEvents;
     }
 
-    // /**
-    //  * Retrieve all utxo by owner
-    //  *
-    //  * Note that it always returns null for MerkleUpdateContexts
-    //  *
-    //  * @param owner Publickey of the owning user or program
-    //  *
-    //  * */
-    // async getUtxos(
-    //     owner: PublicKey,
-    //     _config?: GetUtxoConfig,
-    // ): Promise<WithMerkleUpdateContext<UtxoWithMerkleContext>[]> {
-    //     const events: PublicTransactionEvent_IdlType[] =
-    //         await this.getParsedEvents();
-
-    //     const matchingUtxos: UtxoWithMerkleContext[] = [];
-
-    //     for (const event of events) {
-    //         const leafIndices = [...event.outUtxoIndices]; // Clone to prevent mutation
-    //         for (const outUtxo of event.outUtxos) {
-    //             const leafIndex = leafIndices.shift();
-    //             if (leafIndex === undefined) continue;
-
-    //             const utxoHashComputed = await createUtxoHash(
-    //                 this.lightWasm,
-    //                 outUtxo,
-    //                 this.merkleTreeAddress,
-    //                 leafIndex,
-    //             );
-
-    //             if (outUtxo.owner.equals(owner)) {
-    //                 const merkleContext = {
-    //                     merkleTree: this.merkleTreeAddress,
-    //                     nullifierQueue: this.nullifierQueueAddress,
-    //                     hash: utxoHashComputed,
-    //                     leafIndex: leafIndex,
-    //                 };
-    //                 const utxoWithMerkleContext = createUtxoWithMerkleContext(
-    //                     outUtxo.owner,
-    //                     outUtxo.lamports,
-    //                     outUtxo.data,
-    //                     merkleContext,
-    //                     outUtxo.address ?? undefined,
-    //                 );
-
-    //                 matchingUtxos.push(utxoWithMerkleContext);
-    //             }
-    //         }
-    //     }
-
-    //     // Note: MerkleUpdateContext is always null in this mock implementation
-    //     return matchingUtxos.map(utxo => ({ context: null, value: utxo }));
-    // }
-
-    // /** Retrieve the proof for a utxo */
-    // async getUtxoProof(
-    //     utxoHash: BN254,
-    // ): Promise<MerkleContextWithMerkleProof | null> {
-    //     const events: PublicTransactionEvent_IdlType[] =
-    //         await this.getParsedEvents();
-
-    //     const utxoHashes = (
-    //         await Promise.all(
-    //             events.flatMap(event =>
-    //                 event.outUtxos.map((utxo, index) =>
-    //                     createUtxoHash(
-    //                         this.lightWasm,
-    //                         utxo,
-    //                         this.merkleTreeAddress,
-    //                         event.outUtxoIndices[index],
-    //                     ),
-    //                 ),
-    //             ),
-    //         )
-    //     ).flat();
-
-    //     const tree = new MerkleTree(
-    //         this.depth,
-    //         this.lightWasm,
-    //         utxoHashes.map(utxo => utxo.toString()),
-    //     );
-
-    //     /// We can assume that rootIndex = utxoHashes.length - 1
-    //     /// Because root history array length > 1000
-    //     const rootIndex = utxoHashes.length - 1;
-    //     const leafIndex = utxoHashes.indexOf(utxoHash);
-
-    //     const proof = tree
-    //         .path(leafIndex)
-    //         .pathElements.map(proof => createBN254(proof));
-
-    //     const value: MerkleContextWithMerkleProof = {
-    //         hash: utxoHash,
-    //         merkleTree: this.merkleTreeAddress,
-    //         leafIndex: leafIndex,
-    //         merkleProof: proof,
-    //         nullifierQueue: this.nullifierQueueAddress,
-    //         rootIndex,
-    //     };
-    //     return value;
-    // }
-
     /** Retrieve validity proof for compressed accounts */
     async getValidityProof(
         compressedAccountHashes: BN254[],
@@ -274,6 +171,7 @@ export class TestRpc extends Rpc {
         const leafIndices = compressedAccountHashes.map(compressedAccountHash =>
             tree.indexOf(compressedAccountHash.toString()),
         );
+
         const hexPathElementsAll = leafIndices.map(leafIndex => {
             const pathElements: string[] = tree.path(leafIndex).pathElements;
 

@@ -4,15 +4,12 @@ import { BN } from '@coral-xyz/anchor';
 import {
     Rpc,
     bn,
+    createRpc,
     defaultTestStateTreeAccounts,
-    getTestRpc,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
 import { createMint, mintTo, transfer } from '../../src/actions';
-import {
-    CompressedAccountWithParsedTokenData,
-    getCompressedTokenAccountsForTest,
-} from '../../src/get-compressed-token-accounts';
+import { CompressedAccountWithParsedTokenData } from '../../src/get-compressed-token-accounts';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -28,12 +25,12 @@ async function assertTransfer(
     refRecipient: PublicKey,
     expectedAccountCountSenderPost?: number,
     expectedAccountCountRecipientPost?: number,
-    // TODO: add ...refValues
 ) {
     /// Transfer can merge input compressedaccounts therefore we need to pass all as ref
     const senderPostCompressedTokenAccounts =
-        await getCompressedTokenAccountsForTest(rpc, refSender, refMint);
-
+        await rpc.getCompressedTokenAccountsByOwner(refSender, {
+            mint: refMint,
+        });
     /// pre = post-amount
     const sumPre = senderPreCompressedTokenAccounts.reduce(
         (acc, curr) => bn(acc).add(curr.parsed.amount),
@@ -53,7 +50,9 @@ async function assertTransfer(
     expect(sumPre.sub(refAmount).eq(sumPost)).toBe(true);
 
     const recipientCompressedTokenAccounts =
-        await getCompressedTokenAccountsForTest(rpc, refRecipient, refMint);
+        await rpc.getCompressedTokenAccountsByOwner(refRecipient, {
+            mint: refMint,
+        });
 
     if (expectedAccountCountRecipientPost) {
         expect(recipientCompressedTokenAccounts.length).toBe(
@@ -81,7 +80,7 @@ describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -116,8 +115,13 @@ describe('transfer', () => {
     it('should transfer from bob -> charlie', async () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
+
+        const rpc = createRpc();
+
         const bobPreCompressedTokenAccounts =
-            await getCompressedTokenAccountsForTest(rpc, bob.publicKey, mint);
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                mint,
+            });
 
         await transfer(
             rpc,
@@ -143,7 +147,9 @@ describe('transfer', () => {
         /// send 200 from bob -> charlie
         /// bob: 100, charlie: (700+200)
         const bobPreCompressedTokenAccounts2 =
-            await getCompressedTokenAccountsForTest(rpc, bob.publicKey, mint);
+            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                mint,
+            });
         await transfer(
             rpc,
             payer,
@@ -169,11 +175,10 @@ describe('transfer', () => {
         /// bob: (100+5), charlie: (695+200)
 
         const charliePreCompressedTokenAccounts3 =
-            await getCompressedTokenAccountsForTest(
-                rpc,
-                charlie.publicKey,
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
-            );
+            });
+
         await transfer(
             rpc,
             payer,
@@ -199,12 +204,9 @@ describe('transfer', () => {
         /// bob: (100+5+700), charlie: (195)
 
         const charliePreCompressedTokenAccounts4 =
-            await getCompressedTokenAccountsForTest(
-                rpc,
-                charlie.publicKey,
+            await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
-            );
-
+            });
         await transfer(
             rpc,
             payer,

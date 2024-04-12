@@ -1,56 +1,38 @@
 import { expect, test } from "@oclif/test";
+import { before } from "mocha";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import {
-  defaultSolanaWalletKeypair,
-  getPayer,
-  getSolanaRpcUrl,
-} from "../../../src";
-import { Connection, Keypair } from "@solana/web3.js";
-import { createMint } from "@lightprotocol/compressed-token";
-import { confirmTx, getTestRpc } from "@lightprotocol/stateless.js";
-import { requestAirdrop } from "../../helpers/helpers";
+import { defaultSolanaWalletKeypair } from "../../../src";
+import { Keypair } from "@solana/web3.js";
+import { createTestMint, requestAirdrop } from "../../helpers/helpers";
 
 describe("mint-to", () => {
-  test.it(async () => {
-    await initTestEnvIfNeeded();
-    const mintKeypair = defaultSolanaWalletKeypair() || Keypair.generate();
-    await requestAirdrop(mintKeypair.publicKey);
-    const mintAmount = 100;
-    const mintAuthority = mintKeypair.publicKey.toBase58();
-    const mintTo = mintAuthority;
-    const mintAddress = await createTestMint();
-    return test
-      .stdout()
-      .command([
-        "mint-to",
-        `--amount=${mintAmount}`,
-        `--mint=${mintAddress}`,
-        `--mint-authority=${mintAuthority}`,
-        `--to=${mintTo}`,
-      ])
-      .it(
-        `mint-to ${mintAmount} tokens to ${mintTo} from ${mintAddress} with authority ${mintAuthority}`,
-        (ctx: any) => {
-          expect(ctx.stdout).to.contain("mint-to successful");
-        },
-      );
+  let mintAmount: number = 100;
+  /// authority is also the feepayer, and mint-to recipient
+  let mintAuthorityPath = process.env.HOME + "/.config/solana/id.json";
+  let mintAuthority: Keypair = defaultSolanaWalletKeypair();
+
+  let mintKeypair = Keypair.generate();
+  let mintAddress = mintKeypair.publicKey;
+
+  before(async () => {
+    await initTestEnvIfNeeded({ indexer: true, prover: true });
+    await requestAirdrop(mintAuthority.publicKey);
+    await createTestMint(mintKeypair);
   });
 
-  async function createTestMint() {
-    const rpc = await getTestRpc(
-      getSolanaRpcUrl(),
-      undefined,
-      undefined,
-      undefined,
+  test
+    .stdout({ print: true })
+    .command([
+      "mint-to",
+      `--amount=${mintAmount}`,
+      `--mint=${mintAddress.toBase58()}`,
+      `--mint-authority=${mintAuthorityPath}`,
+      `--to=${mintAuthority.publicKey.toBase58()}`,
+    ])
+    .it(
+      `mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("mint-to successful");
+      },
     );
-
-    const { mint, transactionSignature } = await createMint(
-      rpc,
-      await getPayer(),
-      await getPayer(),
-      9,
-    );
-    await confirmTx(rpc, transactionSignature);
-    return mint;
-  }
 });

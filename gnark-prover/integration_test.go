@@ -3,7 +3,6 @@ package main_test
 import (
 	"fmt"
 	"io"
-	"light/light-prover/config"
 	"light/light-prover/logging"
 	merkletree "light/light-prover/merkle-tree"
 	"light/light-prover/prover"
@@ -13,7 +12,6 @@ import (
 	"testing"
 
 	gnarkLogger "github.com/consensys/gnark/logger"
-	"github.com/pelletier/go-toml/v2"
 )
 
 const ProverAddress = "localhost:8081"
@@ -21,15 +19,14 @@ const MetricsAddress = "localhost:9999"
 
 var instance server.RunningJob
 
-func StartServer(cfg config.Config) {
+func StartServer() {
 	logging.Logger().Info().Msg("Setting up the prover")
 
 	fmt.Println("Starting test server")
-	fmt.Println("Config: ", cfg)
+	var keys = prover.GetKeys("./circuits/", true, true)
+	var pss = make([]*prover.ProvingSystem, len(keys))
 
-	var pss = make([]*prover.ProvingSystem, len(cfg.Keys))
-
-	for i, key := range cfg.Keys {
+	for i, key := range keys {
 		// Another way to instantiate the circuit: prover.SetupInclusion(Depth, NumberOfUtxos)
 		// But we need to know the tree depth and the number of UTXOs
 		ps, err := prover.ReadSystemFromFile(key)
@@ -56,26 +53,9 @@ func StopServer() {
 
 func TestMain(m *testing.M) {
 	gnarkLogger.Set(*logging.Logger())
-	cfg, error := config.ReadConfig("config.toml")
-	if error != nil {
-		panic("Failed to read config")
-	}
-	StartServer(cfg)
+	StartServer()
 	m.Run()
 	StopServer()
-}
-
-func TestConfigFile(t *testing.T) {
-
-	doc := `
-keys = ["circuit_26_1", "circuit_26_2", "circuit_26_3", "circuit_26_4", "circuit_26_8"]
-`
-
-	var cfg config.Config
-	err := toml.Unmarshal([]byte(doc), &cfg)
-	if err != nil {
-		panic(err)
-	}
 }
 
 func TestWrongMethod(t *testing.T) {

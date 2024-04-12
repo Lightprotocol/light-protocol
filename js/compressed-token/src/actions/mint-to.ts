@@ -50,7 +50,7 @@ export async function mintTo(
 
     const ix = await CompressedTokenProgram.mintTo({
         feePayer: payer.publicKey,
-        mint: mint,
+        mint,
         authority: authorityPubkey,
         amount: amount,
         toPubkey: destination,

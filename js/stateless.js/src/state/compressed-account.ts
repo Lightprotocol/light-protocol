@@ -21,10 +21,13 @@ export type MerkleContext = {
 };
 
 export type MerkleUpdateContext = {
+    /** Context slot */
+    slot: number;
+    /// TODO: sync with photon
     /** Slot that the compressed account was appended at */
-    slotCreated: number;
+    slotCreated?: number;
     /** Sequence */
-    seq: number;
+    seq?: number;
 };
 
 export type MerkleContextWithMerkleProof = MerkleContext & {

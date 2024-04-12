@@ -2,13 +2,12 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { createMint, mintTo } from '../../src/actions';
-import { getCompressedTokenAccountsForTest } from '../../src/get-compressed-token-accounts';
 import {
     getTestKeypair,
     newAccountWithLamports,
     bn,
     defaultTestStateTreeAccounts,
-    getTestRpc,
+    createRpc,
     Rpc,
 } from '@lightprotocol/stateless.js';
 
@@ -22,10 +21,11 @@ async function assertMintTo(
     refAmount: BN,
     refTo: PublicKey,
 ) {
-    const compressedTokenAccounts = await getCompressedTokenAccountsForTest(
-        rpc,
+    const compressedTokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         refTo,
-        refMint,
+        {
+            mint: refMint,
+        },
     );
 
     const compressedTokenAccount = compressedTokenAccounts[0];
@@ -48,7 +48,7 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = createRpc();
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = Keypair.generate();

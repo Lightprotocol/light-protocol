@@ -6,9 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"light/light-prover/config"
 	"light/light-prover/logging"
-	merkle_tree "light/light-prover/merkle-tree"
+	merkletree "light/light-prover/merkle-tree"
 	"light/light-prover/prover"
 	"light/light-prover/server"
 	"math/big"
@@ -48,7 +47,7 @@ func runCli() {
 					}
 
 					path := context.String("output")
-					path_vkey := context.String("output-vkey")
+					pathVkey := context.String("output-vkey")
 					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
 					inclusionNumberOfUtxos := uint32(context.Uint("inclusion-utxos"))
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
@@ -94,15 +93,15 @@ func runCli() {
 						return err
 					}
 					logging.Logger().Info().Int64("bytesWritten", written).Msg("proving system written to file")
-					prover, err := prover.ReadSystemFromFile(path)
+					ps, err := prover.ReadSystemFromFile(path)
 					if err != nil {
 						return err
 					}
 					var buf bytes.Buffer
-					_, err = prover.VerifyingKey.WriteRawTo(&buf)
+					_, err = ps.VerifyingKey.WriteRawTo(&buf)
 
 					proofBytes := buf.Bytes()
-					err = createFileAndWriteBytes(path_vkey, proofBytes)
+					err = createFileAndWriteBytes(pathVkey, proofBytes)
 					if err != nil {
 						return err
 					}
@@ -272,7 +271,7 @@ func runCli() {
 					var r []byte
 					var err error
 
-					params := merkle_tree.BuildTestTree(treeDepth, utxos, false)
+					params := merkletree.BuildTestTree(treeDepth, utxos, false)
 
 					r, err = json.Marshal(&params)
 
@@ -290,24 +289,21 @@ func runCli() {
 					&cli.BoolFlag{Name: "json-logging", Usage: "enable JSON logging", Required: false},
 					&cli.StringFlag{Name: "prover-address", Usage: "address for the prover server", Value: "localhost:3001", Required: false},
 					&cli.StringFlag{Name: "metrics-address", Usage: "address for the metrics server", Value: "localhost:9998", Required: false},
-					&cli.StringFlag{
-						Name:     "config",
-						Aliases:  []string{"c"},
-						Usage:    "Load configuration from `FILE`",
-						Required: false,
-					},
-					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: false},
-					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
-					&cli.BoolFlag{Name: "combined", Usage: "Run combined circuit", Required: false},
+					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: true},
+					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: true},
+					&cli.StringFlag{Name: "circuit-dir", Usage: "Directory where circuit key files are stored", Value: "./circuits/", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
 						logging.SetJSONOutput()
 					}
 
-					ps, err := LoadKeysFromConfigOrInline(context)
+					ps, err := LoadKeys(context)
 					if err != nil {
 						return err
+					}
+					if len(ps) == 0 {
+						return fmt.Errorf("no proving systems loaded")
 					}
 
 					merkleConfig := server.Config{
@@ -328,43 +324,36 @@ func runCli() {
 			{
 				Name: "prove",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
-					&cli.StringFlag{
-						Name:     "config",
-						Aliases:  []string{"c"},
-						Usage:    "Load configuration from `FILE`",
-						Required: false,
-					},
+					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: true},
+					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
+					&cli.StringFlag{Name: "circuit-dir", Usage: "Directory where circuit key files are stored", Value: "./circuits/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 				},
 				Action: func(context *cli.Context) error {
-					circuit := context.String("circuit")
-					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
-						return fmt.Errorf("invalid circuit type %s", circuit)
-					}
-
-					ps, err := LoadKeysFromConfigOrInline(context)
+					ps, err := LoadKeys(context)
 					if err != nil {
 						return err
+					}
+
+					if len(ps) == 0 {
+						return fmt.Errorf("no proving systems loaded")
 					}
 
 					logging.Logger().Info().Msg("Reading params from stdin")
-					bytes, err := io.ReadAll(os.Stdin)
+					inputsBytes, err := io.ReadAll(os.Stdin)
 					if err != nil {
 						return err
 					}
-
 					var proof *prover.Proof
-					if circuit == "inclusion" {
-					var params prover.InclusionParameters
-					err = json.Unmarshal(bytes, &params)
-					if err != nil {
-						return err
-					}
+					if context.Bool("inclusion") {
+						var params prover.InclusionParameters
+						err = json.Unmarshal(inputsBytes, &params)
+						if err != nil {
+							return err
+						}
 
-					treeDepth := params.TreeDepth()
+						treeDepth := params.TreeDepth()
 						utxos := params.NumberOfUTXOs()
-
 						for _, provingSystem := range ps {
 							if provingSystem.InclusionTreeDepth == treeDepth && provingSystem.InclusionNumberOfUtxos == utxos {
 								proof, err = provingSystem.ProveInclusion(&params)
@@ -376,17 +365,17 @@ func runCli() {
 								break
 							}
 						}
-					} else if circuit == "non-inclusion" {
+					} else if context.Bool("non-inclusion") {
 						var params prover.NonInclusionParameters
-						err = json.Unmarshal(bytes, &params)
+						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
-					}
+						}
 
 						treeDepth := params.TreeDepth()
-					utxos := params.NumberOfUTXOs()
+						utxos := params.NumberOfUTXOs()
 
-					for _, provingSystem := range ps {
+						for _, provingSystem := range ps {
 							if provingSystem.NonInclusionTreeDepth == treeDepth && provingSystem.NonInclusionNumberOfUtxos == utxos {
 								proof, err = provingSystem.ProveNonInclusion(&params)
 								if err != nil {
@@ -397,9 +386,9 @@ func runCli() {
 								break
 							}
 						}
-					} else if circuit == "combined" {
+					} else if context.Bool("inclusion") && context.Bool("non-inclusion") {
 						var params prover.CombinedParameters
-						err = json.Unmarshal(bytes, &params)
+						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
 						}
@@ -407,14 +396,14 @@ func runCli() {
 						for _, provingSystem := range ps {
 							if provingSystem.InclusionTreeDepth == params.TreeDepth() && provingSystem.InclusionNumberOfUtxos == params.NumberOfUTXOs() && provingSystem.NonInclusionTreeDepth == params.NonInclusionTreeDepth() && provingSystem.InclusionNumberOfUtxos == params.NonInclusionNumberOfUTXOs() {
 								proof, err = provingSystem.ProveCombined(&params)
-							if err != nil {
-								return err
+								if err != nil {
+									return err
+								}
+								r, _ := json.Marshal(&proof)
+								fmt.Println(string(r))
+								break
 							}
-							r, _ := json.Marshal(&proof)
-							fmt.Println(string(r))
-							break
 						}
-					}
 					}
 
 					return nil
@@ -465,14 +454,14 @@ func runCli() {
 						Uint32("nonInclusionUtxos", ps.NonInclusionNumberOfUtxos).
 						Msg("Read proving system")
 					logging.Logger().Info().Msg("Reading proof from stdin")
-					bytes, err := io.ReadAll(os.Stdin)
+					proofBytes, err := io.ReadAll(os.Stdin)
 					if err != nil {
 						logging.Logger().Err(err).Msg("error reading proof from stdin")
 						return err
 					}
 					logging.Logger().Info().Msg("Parsing proof from stdin")
 					var proof prover.Proof
-					err = json.Unmarshal(bytes, &proof)
+					err = json.Unmarshal(proofBytes, &proof)
 					if err != nil {
 						logging.Logger().Err(err).Msg("error unmarshalling proof from stdin")
 						return err
@@ -529,42 +518,10 @@ func runCli() {
 	}
 }
 
-func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, error) {
-	var cfg = config.Config{}
-
-	var keys []string
-	if context.Bool("inclusion") {
-		keys = append(keys, "circuits/inclusion_26_1.key")
-		keys = append(keys, "circuits/inclusion_26_2.key")
-		keys = append(keys, "circuits/inclusion_26_3.key")
-		keys = append(keys, "circuits/inclusion_26_4.key")
-		keys = append(keys, "circuits/inclusion_26_8.key")
-	}
-	if context.Bool("non-inclusion") {
-		keys = append(keys, "circuits/non-inclusion_26_1.key")
-		keys = append(keys, "circuits/non-inclusion_26_2.key")
-			}
-	if context.Bool("combined") {
-		keys = append(keys, "circuits/combined_26_1_1.key")
-		keys = append(keys, "circuits/combined_26_1_2.key")
-		keys = append(keys, "circuits/combined_26_2_1.key")
-		keys = append(keys, "circuits/combined_26_2_2.key")
-		keys = append(keys, "circuits/combined_26_3_1.key")
-		keys = append(keys, "circuits/combined_26_3_2.key")
-		keys = append(keys, "circuits/combined_26_4_1.key")
-		keys = append(keys, "circuits/combined_26_4_2.key")
-		}
-
-	if len(keys) > 0 {
-		cfg.Keys = keys
-	} else if context.IsSet("config") {
-		configFile := context.String("config")
-		cfg, _ = config.ReadConfig(configFile)
-	}
-
-	var pss = make([]*prover.ProvingSystem, len(cfg.Keys))
-
-	for i, key := range cfg.Keys {
+func LoadKeys(context *cli.Context) ([]*prover.ProvingSystem, error) {
+	keys := getKeysByArgs(context)
+	var pss = make([]*prover.ProvingSystem, len(keys))
+	for i, key := range keys {
 		logging.Logger().Info().Msg("Reading proving system from file " + key + "...")
 		ps, err := prover.ReadSystemFromFile(key)
 		if err != nil {
@@ -579,6 +536,13 @@ func LoadKeysFromConfigOrInline(context *cli.Context) ([]*prover.ProvingSystem, 
 			Msg("Read proving system")
 	}
 	return pss, nil
+}
+
+func getKeysByArgs(context *cli.Context) []string {
+	var circuitDir = context.String("circuit-dir")
+	var inclusion = context.Bool("inclusion")
+	var nonInclusion = context.Bool("non-inclusion")
+	return prover.GetKeys(circuitDir, inclusion, nonInclusion)
 }
 
 func createFileAndWriteBytes(filePath string, data []byte) error {
