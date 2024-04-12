@@ -103,7 +103,7 @@
     "test-decompress-sol": "mocha ./test/commands/decompress-sol/index.test.ts -t 10000000 --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
-    "test": "pnpm kill && test-prove && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-balance && pnpm test-init-sol-pool && pnpm test-compress-sol && pnpm test-decompress-sol",
+    "test": "pnpm kill && pnpm test-prove && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-balance && pnpm test-init-sol-pool && pnpm test-compress-sol && pnpm test-decompress-sol",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
