@@ -8,7 +8,7 @@ import {
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
-import { Rpc } from "@lightprotocol/stateless.js";
+import { Rpc, createRpc } from "@lightprotocol/stateless.js";
 
 class MintToCommand extends Command {
   static summary = "Mint tokens to an account.";
@@ -20,7 +20,7 @@ class MintToCommand extends Command {
   static flags = {
     "mint-authority": Flags.string({
       description:
-        "Specify the mint authority keypair. Defaults to the client keypair address.",
+        "Specify the filepath of the mint authority keypair. Defaults to your local solana wallet.",
       required: false,
     }),
     mint: Flags.string({
@@ -56,15 +56,15 @@ class MintToCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      let mintAuthority: Keypair | PublicKey = payer.publicKey;
+      let mintAuthority: Keypair = payer;
       if (flags["mint-authority"] !== undefined) {
         mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
       }
 
-      const connection = new Connection(getSolanaRpcUrl());
+      const rpc = createRpc(getSolanaRpcUrl());
 
       const txId = await mintTo(
-        connection as Rpc,
+        rpc,
         payer,
         mintPublicKey,
         toPublicKey,
