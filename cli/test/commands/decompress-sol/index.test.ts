@@ -22,7 +22,6 @@ describe("decompress-sol", () => {
     .stdout({ print: true })
     .command(["decompress-sol", `--amount=${amount}`, `--to=${to}`])
     .it(`decompress-sol ${amount} SOL to ${to}`, (ctx: any) => {
-      console.log(ctx.stdout);
       expect(ctx.stdout).to.contain("decompress-sol successful");
     });
 });

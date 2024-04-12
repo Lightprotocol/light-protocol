@@ -44,7 +44,6 @@ class CreateMintCommand extends Command {
     loader.start();
     try {
       const payer = defaultSolanaWalletKeypair();
-      console.log(payer.publicKey.toBase58());
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = await this.getMintKeypair(flags);
       const mintAuthority = await this.getMintAuthority(flags, payer);

@@ -5,7 +5,7 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { compressLamports, createRpc } from "@lightprotocol/stateless.js";
 
 class CompressSolCommand extends Command {
