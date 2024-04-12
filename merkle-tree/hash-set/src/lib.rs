@@ -435,7 +435,6 @@ where
         current_sequence_number: usize,
     ) -> Result<(), HashSetError> {
         for i in 0..self.capacity_values {
-            let i = I::try_from(i).map_err(|_| HashSetError::IntegerOverflow)?;
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
             let probe_index = probe_index.to_usize().unwrap();
@@ -489,7 +488,6 @@ where
         current_sequence_number: Option<usize>,
     ) -> Result<Option<&mut HashSetCell>, HashSetError> {
         for i in 0..self.capacity_values {
-            let i = I::try_from(i).map_err(|_| HashSetError::IntegerOverflow)?;
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
             let probe_index = probe_index.to_usize().unwrap();
