@@ -77,8 +77,6 @@ describe('rpc / photon', () => {
 
     /// always run this test first
     it('getCompressedAccountsByOwner', async () => {
-        /// TODO: this is for debugging. Remove.
-
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -105,8 +103,6 @@ describe('rpc / photon', () => {
     });
 
     it('getCompressedAccountProof', async () => {
-        /// TODO: this is for debugging. Remove.
-
         const compressedAccountProof = await rpc.getCompressedAccountProof(
             bn(refHash),
         );
@@ -147,10 +143,7 @@ describe('rpc / photon', () => {
 
     it('getCompressedAccount', async () => {
         /// getCompressedAccount
-        const compressedAccount = await rpc.getCompressedAccount(
-            // bn(compressedTestAccount.hash),
-            bn(refHash),
-        );
+        const compressedAccount = await rpc.getCompressedAccount(bn(refHash));
         assert(compressedAccount !== null);
         assert.equal(
             compressedAccount.owner.toBase58(),

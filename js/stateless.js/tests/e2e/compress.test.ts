@@ -1,4 +1,3 @@
-/// TODO: remove.
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';

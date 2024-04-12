@@ -361,7 +361,6 @@ func runCli() {
 									return err
 								}
 								r, _ := json.Marshal(&proof)
-								//logging.Logger().Info().Msg(string(r))
 								fmt.Println(string(r))
 								break
 							}
