@@ -23,7 +23,7 @@
     "test-prepare-circom": "./scripts/build_test_circuit.sh",
     "test:nodejs": "vitest run",
     "test:browser": "vitest run --browser.name=firefox --browser.provider=playwright --browser.headless",
-    "test": "pnpm test-prepare-circom && pnpm test:nodejs",
+    "test": "pnpm test-prepare-circom && pnpm test:nodejs && pnpm test:browser",
     "test-skip-compile": "pnpm test:nodejs",
     "test:types": "tsc",
     "build": "rm -rf dist && pnpm build:bundle",
