@@ -6,7 +6,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { getKeypairFromFile } from "@solana-developers/helpers";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
 import { Rpc, createRpc } from "@lightprotocol/stateless.js";
 
