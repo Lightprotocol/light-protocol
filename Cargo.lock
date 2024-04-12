@@ -36,6 +36,7 @@ dependencies = [
  "log",
  "memoffset 0.9.0",
  "num-bigint 0.4.4",
+ "num-traits",
  "solana-client-wasm",
  "solana-program-test",
  "solana-sdk",

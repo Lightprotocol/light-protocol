@@ -37,6 +37,7 @@ num-bigint = "0.4"
 ahash = "=0.8.6"
 
 ark-serialize = "^0.4.0"
+num-traits = "0.2.18"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.17.4"
