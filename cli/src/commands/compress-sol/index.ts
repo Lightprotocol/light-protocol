@@ -5,8 +5,8 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { Rpc, compressLamports, getTestRpc } from "@lightprotocol/stateless.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { compressLamports, getTestRpc } from "@lightprotocol/stateless.js";
 
 class MintToCommand extends Command {
   static summary = "Compress SOL.";

@@ -5,7 +5,7 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   Rpc,
   decompressLamports,
