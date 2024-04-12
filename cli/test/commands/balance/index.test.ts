@@ -9,13 +9,12 @@ import {
 } from "../../helpers/helpers";
 
 describe("Get balance", () => {
-  const payerKeypair = defaultSolanaWalletKeypair();
-  const mintKeypair = Keypair.generate();
+    const payerKeypair = defaultSolanaWalletKeypair();
+    const mintKeypair = Keypair.generate();
+    const mintAuthority = payerKeypair;
 
-  const mintAuthority = payerKeypair;
-
-  const mintAmount = 10;
-  const mintDestination = Keypair.generate().publicKey;
+    const mintAmount = 10;
+    const mintDestination = Keypair.generate().publicKey;
 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
@@ -34,15 +33,15 @@ describe("Get balance", () => {
 
   test
     .stdout({ print: true })
-    .command([
-      "balance",
+      .command([
+        "balance",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-      `--owner=${mintDestination.toBase58()}`,
-    ])
-    .it(
+        `--owner=${mintDestination.toBase58()}`,
+      ])
+      .it(
       `transfer ${mintAmount} tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
-      (ctx: any) => {
-        expect(ctx.stdout).to.contain("balance successful");
-      },
-    );
+        (ctx: any) => {
+          expect(ctx.stdout).to.contain("balance successful");
+        },
+      );
 });

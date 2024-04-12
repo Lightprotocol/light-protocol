@@ -18,11 +18,11 @@ describe("decompress-sol", () => {
   });
 
   test
-    .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
+      .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
     .stdout({ print: true })
-    .command(["decompress-sol", `--amount=${amount}`, `--to=${to}`])
-    .it(`decompress-sol ${amount} SOL to ${to}`, (ctx: any) => {
+      .command(["decompress-sol", `--amount=${amount}`, `--to=${to}`])
+      .it(`decompress-sol ${amount} SOL to ${to}`, (ctx: any) => {
       console.log(ctx.stdout);
-      expect(ctx.stdout).to.contain("decompress-sol successful");
-    });
+        expect(ctx.stdout).to.contain("decompress-sol successful");
+      });
 });

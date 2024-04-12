@@ -20,8 +20,8 @@ describe("compress-sol", () => {
 
   test
     .stdout({ print: true })
-    .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
+      .command(["compress-sol", `--amount=${amount}`, `--to=${to}`])
     .it(`compress-sol ${amount} lamports to ${to}`, (ctx) => {
       expect(ctx.stdout).to.contain("compress-sol successful");
-    });
+  });
 });

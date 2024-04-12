@@ -22,17 +22,17 @@ describe("mint-to", () => {
 
   test
     .stdout({ print: true })
-    .command([
-      "mint-to",
-      `--amount=${mintAmount}`,
+      .command([
+        "mint-to",
+        `--amount=${mintAmount}`,
       `--mint=${mintAddress.toBase58()}`,
       `--mint-authority=${mintAuthorityPath}`,
       `--to=${mintAuthority.publicKey.toBase58()}`,
-    ])
-    .it(
+      ])
+      .it(
       `mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`,
-      (ctx: any) => {
-        expect(ctx.stdout).to.contain("mint-to successful");
-      },
-    );
+        (ctx: any) => {
+          expect(ctx.stdout).to.contain("mint-to successful");
+        },
+      );
 });
