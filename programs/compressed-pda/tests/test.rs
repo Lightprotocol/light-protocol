@@ -15,7 +15,9 @@ use circuitlib_rs::{
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
-    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionMerkleProofInputs,
+    non_inclusion::merkle_non_inclusion_proof_inputs::{
+        get_non_inclusion_proof_inputs, NonInclusionMerkleProofInputs,
+    },
 };
 use circuitlib_rs::{
     gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
@@ -23,7 +25,8 @@ use circuitlib_rs::{
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
-    create_and_send_transaction, get_hash_set, test_env::setup_test_programs_with_accounts,
+    create_and_send_transaction, get_hash_set,
+    test_env::{setup_test_programs_with_accounts, EnvWithAccounts},
     AccountZeroCopy,
 };
 use num_bigint::{BigInt, BigUint, ToBigUint};
@@ -51,19 +54,17 @@ use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
 
-async fn init_mock_indexer(inclusion: bool, non_inclusion: bool, combined: bool) -> MockIndexer {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
-    let context = env.context;
-    let payer = context.payer.insecure_clone();
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let indexed_array_pubkey = env.indexed_array_pubkey;
-    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
+async fn init_mock_indexer(
+    env: &EnvWithAccounts,
+    inclusion: bool,
+    non_inclusion: bool,
+    combined: bool,
+) -> MockIndexer {
     MockIndexer::new(
-        merkle_tree_pubkey,
-        indexed_array_pubkey,
-        address_merkle_tree_pubkey,
-        payer.insecure_clone(),
+        env.merkle_tree_pubkey,
+        env.indexed_array_pubkey,
+        env.address_merkle_tree_pubkey,
+        env.context.payer.insecure_clone(),
         inclusion,
         non_inclusion,
         combined,
@@ -80,16 +81,15 @@ async fn init_mock_indexer(inclusion: bool, non_inclusion: bool, combined: bool)
 async fn test_execute_compressed_transaction() {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts().await;
+
+    let mut mock_indexer = init_mock_indexer(&env, true, false, false).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
 
     let payer_pubkey = payer.pubkey();
 
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let merkle_tree_pubkey = env.merkle_tree_pubkey.clone();
     let indexed_array_pubkey = env.indexed_array_pubkey;
-
-    let mut mock_indexer = init_mock_indexer(true, false, false).await;
-
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -313,15 +313,14 @@ async fn test_execute_compressed_transaction() {
 async fn test_with_address() {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts().await;
+
+    let mut mock_indexer = init_mock_indexer(&env, true, true, true).await;
+
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
-
     let payer_pubkey = payer.pubkey();
-
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
-
-    let mut mock_indexer = init_mock_indexer(true, true, false).await;
 
     let address_seed = [1u8; 32];
     let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
@@ -920,7 +919,12 @@ impl MockIndexer {
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
         let client = Client::new();
+        let path;
+        let json_payload;
+        let mut root_indices = Vec::<u16>::new();
+        let mut address_root_indices = Vec::<u16>::new();
         if compressed_accounts.is_some() && new_addresses.is_none() {
+            path = INCLUSION_PATH;
             let compressed_accounts = compressed_accounts.unwrap();
             let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
             for compressed_account in compressed_accounts.iter() {
@@ -937,22 +941,9 @@ impl MockIndexer {
                 });
             }
             let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
-            let json_payload =
+            json_payload =
                 InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs)
                     .to_string();
-
-            let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
-                .header("Content-Type", "text/plain; charset=utf-8")
-                .body(json_payload)
-                .send()
-                .await
-                .expect("Failed to execute request.");
-            assert!(response_result.status().is_success());
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
             let merkle_tree_account =
                 AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
@@ -967,55 +958,13 @@ impl MockIndexer {
                 "Local Merkle tree root is not equal to latest on-chain root"
             );
 
-            let root_indices: Vec<u16> =
-                vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
-            ProofRpcResult {
-                root_indices,
-                address_root_indices: vec![],
-                proof: CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
-            }
+            root_indices = vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
         } else if compressed_accounts.is_none() && new_addresses.is_some() {
+            path = NON_INCLUSION_PATH;
             let new_addresses = new_addresses.unwrap();
             let mut non_inclusion_proof_inputs = Vec::<NonInclusionMerkleProofInputs>::new();
             for address in new_addresses.iter() {
-                // TODO: eliminate use of BigInt in favor of BigUint
-                fn get_non_inclusion_proof(
-                    value: &[u8; 32],
-                    merkle_tree: &light_indexed_merkle_tree::reference::IndexedMerkleTree<
-                        light_hasher::Poseidon,
-                        usize,
-                    >,
-                    indexed_array: &IndexedArray<light_hasher::Poseidon, usize, 1000>,
-                ) -> NonInclusionMerkleProofInputs {
-                    let non_inclusion_proof = merkle_tree
-                        .get_non_inclusion_proof(&BigUint::from_be_bytes(value), &indexed_array)
-                        .unwrap();
-                    let proof = non_inclusion_proof
-                        .merkle_proof
-                        .iter()
-                        .map(|x| BigInt::from_be_bytes(x))
-                        .collect();
-                    NonInclusionMerkleProofInputs {
-                        root: BigInt::from_be_bytes(merkle_tree.root().as_slice()),
-                        value: BigInt::from_be_bytes(value),
-                        leaf_lower_range_value: BigInt::from_be_bytes(
-                            &non_inclusion_proof.leaf_lower_range_value,
-                        ),
-                        leaf_higher_range_value: BigInt::from_be_bytes(
-                            &non_inclusion_proof.leaf_higher_range_value,
-                        ),
-                        leaf_index: BigInt::from(non_inclusion_proof.next_index),
-                        merkle_proof_hashed_indexed_element_leaf: proof,
-                        index_hashed_indexed_element_leaf: BigInt::from(
-                            non_inclusion_proof.leaf_index,
-                        ),
-                    }
-                }
-                non_inclusion_proof_inputs.push(get_non_inclusion_proof(
+                non_inclusion_proof_inputs.push(get_non_inclusion_proof_inputs(
                     address,
                     &self.address_merkle_tree,
                     &self.indexing_array,
@@ -1024,51 +973,47 @@ impl MockIndexer {
             let non_inclusion_proof_inputs =
                 NonInclusionProofInputs(non_inclusion_proof_inputs.as_slice());
 
-            let json_payload = NonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+            json_payload = NonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                 &non_inclusion_proof_inputs,
             )
             .to_string();
-
-            let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, NON_INCLUSION_PATH))
-                .header("Content-Type", "text/plain; charset=utf-8")
-                .body(json_payload)
-                .send()
-                .await
-                .expect("Failed to execute request.");
-            assert!(response_result.status().is_success());
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
             let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
                 context,
                 self.address_merkle_tree_pubkey,
             )
             .await;
-            let merkle_tree = merkle_tree_account
+            let address_merkle_tree = merkle_tree_account
                 .deserialized()
                 .copy_merkle_tree()
                 .unwrap();
-            assert_eq!(
-                self.merkle_tree.root(),
-                merkle_tree.root().unwrap(),
-                "Local Merkle tree root is not equal to latest on-chain root"
-            );
 
-            let address_root_indices: Vec<u16> = vec![3 as u16; new_addresses.len()];
-            ProofRpcResult {
-                root_indices: vec![],
-                address_root_indices,
-                proof: CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
-            }
+            address_root_indices =
+                vec![address_merkle_tree.current_root_index as u16; new_addresses.len()];
         } else {
             panic!("Not implemented yet")
+        }
+
+        let response_result = client
+            .post(&format!("{}{}", SERVER_ADDRESS, path))
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .body(json_payload)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+        assert!(response_result.status().is_success());
+        let body = response_result.text().await.unwrap();
+        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+        ProofRpcResult {
+            root_indices,
+            address_root_indices,
+            proof: CompressedProof {
+                a: proof_a,
+                b: proof_b,
+                c: proof_c,
+            },
         }
     }
 
