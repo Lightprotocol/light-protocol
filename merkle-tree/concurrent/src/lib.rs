@@ -640,7 +640,6 @@ where
                 root,
                 path,
                 index: 0,
-                seq: 0,
             };
             self.changelog.push(changelog_entry)?;
             self.changelog_length += 1;
@@ -818,7 +817,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &BoundedVec<[u8; 32]>,
-    ) -> Result<usize, ConcurrentMerkleTreeError> {
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let mut node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
 
@@ -832,8 +831,7 @@ where
             .checked_add(1)
             .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
 
-        let changelog_entry =
-            ChangelogEntry::new(node, changelog_path, leaf_index, self.sequence_number);
+        let changelog_entry = ChangelogEntry::new(node, changelog_path, leaf_index);
         self.inc_current_changelog_index()?;
         self.changelog.push(changelog_entry.clone())?;
 
@@ -847,7 +845,7 @@ where
             self.rightmost_leaf = *new_leaf;
         }
 
-        Ok(self.current_changelog_index)
+        Ok((self.current_changelog_index, self.sequence_number))
     }
 
     /// Replaces the `old_leaf` under the `leaf_index` with a `new_leaf`, using
@@ -861,7 +859,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
-    ) -> Result<usize, ConcurrentMerkleTreeError> {
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let expected_proof_len = self.height - self.canopy_depth;
         if proof.len() != expected_proof_len {
             return Err(ConcurrentMerkleTreeError::InvalidProofLength(
@@ -884,7 +882,7 @@ where
     }
 
     /// Appends a new leaf to the tree.
-    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<usize, ConcurrentMerkleTreeError> {
+    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         self.append_batch(&[leaf])
     }
 
@@ -892,7 +890,7 @@ where
     pub fn append_batch(
         &mut self,
         leaves: &[&[u8; 32]],
-    ) -> Result<usize, ConcurrentMerkleTreeError> {
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         if (self.next_index + leaves.len() - 1) >= 1 << self.height {
             return Err(ConcurrentMerkleTreeError::TreeFull);
         }
@@ -905,6 +903,7 @@ where
 
         let first_leaf_index = self.next_index;
         let first_changelog_index = (self.current_changelog_index + 1) % self.changelog_capacity;
+        let first_sequence_number = self.sequence_number + 1;
 
         for (leaf_i, leaf) in leaves.iter().enumerate() {
             self.inc_current_changelog_index()?;
@@ -970,8 +969,6 @@ where
                 .checked_add(1)
                 .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
 
-            self.changelog[self.current_changelog_index].seq = self.sequence_number as u64;
-
             self.next_index = self
                 .next_index
                 .checked_add(1)
@@ -983,7 +980,7 @@ where
             self.update_canopy(first_changelog_index, leaves.len());
         }
 
-        Ok(first_changelog_index)
+        Ok((first_changelog_index, first_sequence_number))
     }
 
     fn update_canopy(&mut self, first_changelog_index: usize, num_leaves: usize) {
@@ -1009,14 +1006,12 @@ where
         &self,
         merkle_tree_account_pubkey: [u8; 32],
         first_changelog_index: usize,
+        first_sequence_number: usize,
         num_changelog_entries: usize,
     ) -> Result<ChangelogEvent, ConcurrentMerkleTreeError> {
         let mut paths = Vec::with_capacity(num_changelog_entries);
-        let mut seq = 0;
         for i in 0..num_changelog_entries {
             let changelog_index = (first_changelog_index + i) % self.changelog_capacity;
-
-            seq = self.changelog[changelog_index].seq;
 
             let path_len = self.changelog[changelog_index].path.len();
             let mut path = Vec::with_capacity(path_len);
@@ -1051,7 +1046,7 @@ where
         Ok(ChangelogEvent::V1(ChangelogEventV1 {
             id: merkle_tree_account_pubkey,
             paths,
-            seq,
+            seq: first_sequence_number as u64,
             index,
         }))
     }

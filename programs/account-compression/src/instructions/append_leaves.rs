@@ -76,13 +76,14 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 
         msg!("inserting leaves: {:?}", leaves);
         let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
-        let first_changelog_index = merkle_tree
+        let (first_changelog_index, first_sequence_number) = merkle_tree
             .append_batch(&leaves[..])
             .map_err(ProgramError::from)?;
         let changelog_event = merkle_tree
             .get_changelog_event(
                 merkle_tree_pubkey.to_bytes(),
                 first_changelog_index,
+                first_sequence_number,
                 leaves.len(),
             )
             .map_err(ProgramError::from)?;

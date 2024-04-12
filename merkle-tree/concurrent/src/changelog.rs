@@ -11,8 +11,6 @@ pub struct ChangelogEntry<const HEIGHT: usize> {
     pub path: [[u8; 32]; HEIGHT],
     // Index.
     pub index: u64,
-    // Sequence number.
-    pub seq: u64,
 }
 
 pub type ChangelogEntry22 = ChangelogEntry<22>;
@@ -23,15 +21,9 @@ pub type ChangelogEntry40 = ChangelogEntry<40>;
 unsafe impl<const HEIGHT: usize> Pod for ChangelogEntry<HEIGHT> {}
 
 impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
-    pub fn new(root: [u8; 32], path: [[u8; 32]; HEIGHT], index: usize, seq: usize) -> Self {
+    pub fn new(root: [u8; 32], path: [[u8; 32]; HEIGHT], index: usize) -> Self {
         let index = index as u64;
-        let seq = seq as u64;
-        Self {
-            root,
-            path,
-            index,
-            seq,
-        }
+        Self { root, path, index }
     }
 
     pub fn default_with_index(index: usize) -> Self {
@@ -39,7 +31,6 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
             root: [0u8; 32],
             path: [[0u8; 32]; HEIGHT],
             index: index as u64,
-            seq: 0,
         }
     }
 

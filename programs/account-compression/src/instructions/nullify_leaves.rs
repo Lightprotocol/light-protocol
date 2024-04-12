@@ -117,7 +117,7 @@ fn insert_nullifier(
             .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
 
         let mut proof = from_vec(proofs[i].as_slice()).map_err(ProgramError::from)?;
-        let changelog_index = merkle_tree
+        let (changelog_index, sequence_number) = merkle_tree
             .update(
                 change_log_indices[i] as usize,
                 &leaf_cell.value_bytes(),
@@ -130,6 +130,7 @@ fn insert_nullifier(
             .get_changelog_event(
                 ctx.accounts.merkle_tree.key().to_bytes(),
                 changelog_index,
+                sequence_number,
                 1,
             )
             .map_err(ProgramError::from)?;

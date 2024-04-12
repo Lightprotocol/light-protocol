@@ -79,7 +79,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 1);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 0, 1)
+        ChangelogEntry::new(expected_root, expected_changelog_path, 0)
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 1);
@@ -117,7 +117,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 2);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 1, 2),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 1),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 2);
@@ -155,7 +155,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 3);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 2, 3),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 2),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 3);
@@ -193,7 +193,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 4);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 3, 4),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 3),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
     assert_eq!(merkle_tree.current_root_index, 4);
@@ -245,7 +245,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 4 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 3, 4),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 3),
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -288,7 +288,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 5 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 0, 5),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 0),
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -331,7 +331,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 6 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 1, 6),
+        ChangelogEntry::new(expected_root, expected_changelog_path, 1),
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -373,7 +373,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 7 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 2, 7)
+        ChangelogEntry::new(expected_root, expected_changelog_path, 2)
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -416,7 +416,7 @@ where
     assert_eq!(merkle_tree.changelog_index(), 8 % CHANGELOG);
     assert_eq!(
         merkle_tree.changelog[merkle_tree.changelog_index()],
-        ChangelogEntry::new(expected_root, expected_changelog_path, 3, 8)
+        ChangelogEntry::new(expected_root, expected_changelog_path, 3)
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
@@ -593,20 +593,27 @@ where
         let leaves: Vec<&[u8; 32]> = leaves.iter().collect();
 
         // Append leaves to all Merkle tree implementations.
-        let first_changelog_index = concurrent_mt_1.append_batch(leaves.as_slice()).unwrap();
+        let (first_changelog_index, first_sequence_number) =
+            concurrent_mt_1.append_batch(leaves.as_slice()).unwrap();
         let changelog_event_1 = concurrent_mt_1
-            .get_changelog_event([0u8; 32], first_changelog_index, batch_size)
+            .get_changelog_event(
+                [0u8; 32],
+                first_changelog_index,
+                first_sequence_number,
+                batch_size,
+            )
             .unwrap();
         let changelog_event_1 = match changelog_event_1 {
             ChangelogEvent::V1(changelog_event_1) => changelog_event_1,
         };
 
         let mut changelog_index = 0;
+        let mut sequence_number = 0;
         for leaf in leaves.iter() {
-            changelog_index = concurrent_mt_2.append(leaf).unwrap();
+            (changelog_index, sequence_number) = concurrent_mt_2.append(leaf).unwrap();
         }
         let changelog_event_2 = concurrent_mt_2
-            .get_changelog_event([0u8; 32], changelog_index, 1)
+            .get_changelog_event([0u8; 32], changelog_index, sequence_number, 1)
             .unwrap();
         let changelog_event_2 = match changelog_event_2 {
             ChangelogEvent::V1(changelog_event_2) => changelog_event_2,
@@ -675,7 +682,6 @@ where
     let mut rng = thread_rng();
 
     for canopy_depth in 1..(HEIGHT + 1) {
-        // for batch_size in 1..(1 << HEIGHT) {
         let batch_limit = cmp::min(1 << HEIGHT, CHANGELOG);
         for batch_size in 1..batch_limit {
             let mut concurrent_mt_with_canopy =
@@ -1149,7 +1155,7 @@ fn test_from_bytes_sha256_8_256_256_0() {
 
 #[test]
 fn test_changelog_event_v1() {
-    const HEIGHT: usize = 22;
+    const HEIGHT: usize = 26;
     const MAX_CHANGELOG: usize = 8;
     const MAX_ROOTS: usize = 8;
     const CANOPY: usize = 0;
@@ -1176,7 +1182,7 @@ fn test_changelog_event_v1() {
     }
 
     for i in 0..leaves {
-        let changelog_event = merkle_tree.get_changelog_event([0u8; 32], i, 1).unwrap();
+        let changelog_event = merkle_tree.get_changelog_event([0u8; 32], i, i, 1).unwrap();
         let changelog_event = match changelog_event {
             ChangelogEvent::V1(changelog_event) => changelog_event,
         };
