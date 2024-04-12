@@ -79,11 +79,13 @@ where
     ) -> Result<(), IndexedReferenceMerkleTreeError> {
         // Update the low element.
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
+        println!("new_low_leaf: {:?}", new_low_leaf);
         self.merkle_tree
             .update(&new_low_leaf, usize::from(new_low_element.index))?;
 
         // Append the new element.
         let new_leaf = new_element.hash::<H>(new_element_next_value)?;
+        println!("new_leaf: {:?}", new_leaf);
         self.merkle_tree.append(&new_leaf)?;
 
         Ok(())

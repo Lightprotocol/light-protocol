@@ -41,18 +41,17 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
 pub fn fetch_roots_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    root_account_indices: &[u16],
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
-    for (j, index_mt_account) in root_account_indices.iter().enumerate() {
+    for (j, index_mt_account) in inputs.new_address_params.iter().enumerate() {
         let merkle_tree = AccountLoader::<AddressMerkleTreeAccount>::try_from(
-            &ctx.remaining_accounts[*index_mt_account as usize],
+            &ctx.remaining_accounts[index_mt_account.address_merkle_tree_account_index as usize],
         )
         .unwrap();
         let merkle_tree = merkle_tree.load()?;
         let fetched_roots = merkle_tree.load_roots()?;
 
-        roots[j] = fetched_roots[inputs.input_root_indices[j] as usize];
+        roots[j] = fetched_roots[index_mt_account.address_merkle_tree_root_index as usize];
     }
     Ok(())
 }
@@ -222,32 +221,33 @@ pub fn verify_state_proof(
         )
     } else if !addresses.is_empty() {
         msg!("create address verification currently not checked");
-        // verify_create_addresses_zkp(addresses, compressed_proof)
-        Ok(())
+        verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
     } else {
         verify_merkle_proof_zkp(roots, leaves, compressed_proof)
     }
 }
 
 pub fn verify_create_addresses_zkp(
+    address_roots: &[[u8; 32]],
     addresses: &[[u8; 32]],
     compressed_proof: &CompressedProof,
 ) -> Result<()> {
-    // TODO: this is currently mock code, add correct verifying keys
+    let public_inputs = [address_roots, addresses].concat();
+
     match addresses.len() {
-        1 => verify::<1>(
-            &addresses
+        1 => verify::<2>(
+            &public_inputs
                 .try_into()
                 .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+            &crate::verifying_keys::non_inclusion_26_1::VERIFYINGKEY,
         ),
-        2 => verify::<2>(
-            &addresses
+        2 => verify::<4>(
+            &public_inputs
                 .try_into()
                 .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY,
+            &crate::verifying_keys::non_inclusion_26_2::VERIFYINGKEY,
         ),
         _ => Err(crate::ErrorCode::InvalidPublicInputsLength.into()),
     }
@@ -279,13 +279,13 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
                 .try_into()
                 .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+            &crate::verifying_keys::combined_26_1_1::VERIFYINGKEY,
         ),
         6 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_1_2::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_2_1::VERIFYINGKEY
             };
             verify::<6>(
                 &public_inputs
@@ -297,11 +297,11 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
         }
         8 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_3_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_2_2::VERIFYINGKEY
             };
-            verify::<6>(
+            verify::<8>(
                 &public_inputs
                     .try_into()
                     .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
@@ -311,11 +311,11 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
         }
         10 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::inclusion_26_2::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_4_1::VERIFYINGKEY
             } else {
-                &crate::verifying_keys::inclusion_26_3::VERIFYINGKEY
+                &crate::verifying_keys::combined_26_3_2::VERIFYINGKEY
             };
-            verify::<6>(
+            verify::<10>(
                 &public_inputs
                     .try_into()
                     .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
@@ -328,7 +328,7 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
                 .try_into()
                 .map_err(|_| ErrorCode::PublicInputsTryIntoFailed)?,
             compressed_proof,
-            &crate::verifying_keys::inclusion_26_1::VERIFYINGKEY,
+            &crate::verifying_keys::combined_26_4_2::VERIFYINGKEY,
         ),
         _ => Err(crate::ErrorCode::InvalidPublicInputsLength.into()),
     }

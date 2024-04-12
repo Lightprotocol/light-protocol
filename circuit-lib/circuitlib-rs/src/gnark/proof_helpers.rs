@@ -10,9 +10,9 @@ use num_traits::Num;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GnarkProofJson {
-    ar: Vec<String>,
-    bs: Vec<Vec<String>>,
-    krs: Vec<String>,
+    pub ar: Vec<String>,
+    pub bs: Vec<Vec<String>>,
+    pub krs: Vec<String>,
 }
 
 pub fn deserialize_gnark_proof_json(json_data: &str) -> serde_json::Result<GnarkProofJson> {
