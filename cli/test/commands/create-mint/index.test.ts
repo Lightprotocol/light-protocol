@@ -17,7 +17,7 @@ describe("create-mint", () => {
     .it(
       `create mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`,
       (ctx: any) => {
-        expect(ctx.stdout).to.contain("create-mint successful");
+      expect(ctx.stdout).to.contain("create-mint successful");
       },
     );
 });
