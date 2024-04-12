@@ -5,10 +5,10 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey} from "@solana/web3.js";
 import { decompressLamports, createRpc } from "@lightprotocol/stateless.js";
 
-class MintToCommand extends Command {
+class DecompressSolCommand extends Command {
   static summary = "Decompress SOL.";
 
   static examples = ["$ light decompress-sol --to PublicKey --amount 10"];
@@ -19,7 +19,7 @@ class MintToCommand extends Command {
       required: true,
     }),
     amount: Flags.integer({
-      description: "Amount to mint, in SOL.",
+      description: "Amount to decompress, in lamports.",
       required: true,
     }),
   };
@@ -27,14 +27,14 @@ class MintToCommand extends Command {
   static args = {};
 
   async run() {
-    const { flags } = await this.parse(MintToCommand);
+    const { flags } = await this.parse(DecompressSolCommand);
     const to = flags["to"];
     const amount = flags["amount"];
     if (!to || !amount) {
       throw new Error("Invalid arguments");
     }
 
-    const loader = new CustomLoader(`Performing compress-sol...\n`);
+    const loader = new CustomLoader(`Performing decompress-sol...\n`);
     loader.start();
 
     try {
@@ -45,12 +45,12 @@ class MintToCommand extends Command {
       const txId = await decompressLamports(
         rpc,
         payer,
-        amount * LAMPORTS_PER_SOL,
+        amount,
         toPublicKey,
       );
       loader.stop(false);
       console.log(
-        "\x1b[decompress-sol:\x1b[0m ",
+        "\x1b[32mdecompress-sol:\x1b[0m ",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
       console.log("decompress-sol successful");
@@ -60,4 +60,4 @@ class MintToCommand extends Command {
   }
 }
 
-export default MintToCommand;
+export default DecompressSolCommand;
