@@ -1,75 +1,56 @@
 # Light CLI
 
-Official CLI to interact with Light Protocol v3 and build Private Solana Programs (https://github.com/Lightprotocol/light-protocol)
+wip.
 
 ## Installation
 
-To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node Package Manager) installed on your machine. Follow the steps below to install [Your CLI Name] globally:
+To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node Package Manager) installed on your machine.
 
-1. Open your terminal or command prompt.
-2. Run the following command:
+Please compile the CLI from source.
 
-   ```shell
-   npm install -g @lightprotocol/cli
-   ```
+`. ./scripts/devenv`
 
-3. After the installation is complete, you can verify the installation by running:
+`./scripts/install.sh`
 
-   ```shell
-   light --version
-   ```
+`./scripts/build.sh`
 
 ## Usage
 
-The CLI lets you initialize a PSP scaffold project and customize, build, and test it. (`light psp:...` subcommand)
+Note: currently, you have to start the light-test-validator, gnark-prover, and photon indexer outside the CLI binary:
 
-It also provides utilities for local development, such as running a local Solana-test-validator with all necessary Light accounts and pre-loaded programs. (`light test-validator`).
+`cd js/stateless.js`
 
-You can also execute common user actions such as compressing and sending private transfers. (`light compress`, `light transfer`, `light decompress`).
+`pnpm run pretest:e2e`
 
-For the full list of available commands, see below:
+This will reset and start the validator, prover, and indexer on a clean ledger.
 
-### Commands
+Then, in the same or a separate terminal window, go to the cli directory
 
-- `help`: Display help information.
-- `account`: Get the current account details
-- `airdrop`: Perform a native Solana or SPL airdrop to a user.
-- `balance`: Retrieve the balance, inbox balance, or utxos for the user.
-- `config`: Update the configuration values.
-- `history`: Retrieve transaction history for the user.
-- `accept-utxos`: Merge multiple utxos into a single UTXO.
-- `compress`: Compress tokens for a user.
-  - `compress:sol`: Compress sol for a user.
-  - `compress:spl`: Compress spl tokens for a user.
-- `transfer`: Transfer tokens to a recipient.
-- `decompress`: Decompress tokens for a user.
+`cd cli`
 
-  - `decompress:sol`: Decompress sol for a user.
-  - `decompress:spl`: Decompress spl tokens for a user.
+Ensure the CLI is built.
+Also ensure that you have a local solana wallet set up at ~/.config/solana/id.json. (see solana documentation for how to create one). This wallet will be used by the CLI as default feePayer and mintAuthority.
 
-- `test-validator`: Starts a solana-test-validator and with an initialized light environment. Use in a separate terminal instead of solana-test-validator.
+Run `solana address` using the solana-cli to print your id.json/wallet address.
+Ensure you have enough localnet funds: run `solana aidrop 10000000`
 
-- merkleTree:
+You can now create test-data against the test-ledger and photon with the following commands:
 
-  - `mt:authority`: Initialize, set, or get the Merkle Tree Authority.
-  - `mt:configuration`: Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration.
-  - `mt:initialize`: Initialize the Merkle Tree.
-  - `mt:pool`: Register a new pool type [default, spl, sol].
-  - `mt:verifier`: Register a new verifier for a Merkle Tree.
+`./test_bin/run create-mint`
 
-- psp:
-  - `psp:init`: Initialize, set, or get the Merkle Tree Authority
-  - `psp:build`: Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration.
-  - `psp:test`: Perform the PSP tests.
+This will create a random mint and print its mint address.
+You can then mint some tokens to your wallet.
 
-## PSP Guide
+`./test_bin/run mint-to --mint "YOUR_MINT_ADDRESS_BASE58" --amount 4242 --to "YOUR_WALLET_ADDRESS_BASE58"`
 
-You can find a comprehensive tutorial for building a custom Private Solana Program [here](https://docs.lightprotocol.com/getting-started/creating-a-custom-psp).
+Next, you can transfer some of your compressed tokens to another solana wallet:
 
-## License
+`./test_bin/runtransfer --mint "YOUR_MINT_ADDRESS_BASE58" --amount 3 --to "5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W"`
 
-@lightprotocol/cli is released under the GNU General Public License v3.0. See the LICENSE file for more details.
+Other commands include:
 
-## Contact
+`./test_bin/run init-sol-pool` (must be run once before compressing lamports)
 
-If you have questions, suggestions, or feedback, join the developer community on [Discord](https://discord.gg/J3KvDfZpyp), or reach out at hello[at]lightprotocol[dot]com.
+`./test_bin/run compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"`
+
+`./test_bin/run decompress-sol --amount 42 --to "YOUR_WALLET_ADDRESS_BASE58"`
