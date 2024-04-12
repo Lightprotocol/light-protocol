@@ -60,7 +60,6 @@ class TransferCommand extends Command {
       }
       const rpc = createRpc(getSolanaRpcUrl());
 
-
       const txId = await transfer(
         rpc,
         payer,

@@ -5,7 +5,7 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import {  createRpc, initSolOmnibusAccount } from "@lightprotocol/stateless.js";
+import { createRpc, initSolOmnibusAccount } from "@lightprotocol/stateless.js";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 
 class InitSolPoolCommand extends Command {
@@ -15,7 +15,8 @@ class InitSolPoolCommand extends Command {
 
   static flags = {
     to: Flags.string({
-      description: "Specify the pool authority keypair file path. defaults to your default local solana wallet file path.",
+      description:
+        "Specify the pool authority keypair file path. defaults to your default local solana wallet file path.",
       required: false,
     }),
   };
@@ -28,22 +29,16 @@ class InitSolPoolCommand extends Command {
     let authorityKeypair = payer;
 
     if (flags["authority"]) {
-       const authorityPath = flags["authority"];
-        authorityKeypair = await getKeypairFromFile(authorityPath);
-
+      const authorityPath = flags["authority"];
+      authorityKeypair = await getKeypairFromFile(authorityPath);
     }
 
     const loader = new CustomLoader(`Performing init-sol-pool...\n`);
     loader.start();
 
     try {
-
       const rpc = createRpc(getSolanaRpcUrl());
-      const txId = await initSolOmnibusAccount(
-        rpc,
-        payer,
-        authorityKeypair,
-      );
+      const txId = await initSolOmnibusAccount(rpc, payer, authorityKeypair);
       loader.stop(false);
       console.log(
         "\x1b[32minit-sol-pool:\x1b[0m ",

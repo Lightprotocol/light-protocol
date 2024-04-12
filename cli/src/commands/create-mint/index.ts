@@ -7,7 +7,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
-import { Keypair,  } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import { createRpc } from "@lightprotocol/stateless.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;

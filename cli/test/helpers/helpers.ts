@@ -10,7 +10,6 @@ export async function requestAirdrop(address: PublicKey, amount = 3e9) {
   await confirmTx(rpc, sig);
 }
 
-
 export async function createTestMint(mintKeypair: Keypair) {
   const rpc = createRpc(getSolanaRpcUrl());
 
@@ -19,12 +18,11 @@ export async function createTestMint(mintKeypair: Keypair) {
     await getPayer(),
     await getPayer(),
     9,
-   mintKeypair
+    mintKeypair,
   );
   await confirmTx(rpc, transactionSignature);
   return mint;
 }
-
 
 export async function testMintTo(
   payer: Keypair,

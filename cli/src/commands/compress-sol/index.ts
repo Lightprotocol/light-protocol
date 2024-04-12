@@ -42,12 +42,7 @@ class CompressSolCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
 
       const rpc = createRpc(getSolanaRpcUrl());
-      txId = await compressLamports(
-        rpc,
-        payer,
-        amount,
-        toPublicKey,
-      )
+      txId = await compressLamports(rpc, payer, amount, toPublicKey);
 
       loader.stop(false);
       console.log(
@@ -56,7 +51,7 @@ class CompressSolCommand extends Command {
       );
       console.log("compress-sol successful");
     } catch (error) {
-      console.log("compress-sol failed",txId);
+      console.log("compress-sol failed", txId);
       this.error(`Failed to compress-sol!\n${error}`);
     }
   }
