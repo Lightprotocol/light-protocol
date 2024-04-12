@@ -1,6 +1,6 @@
 # Light CLI
 
-wip.
+CLI to interact with Light Protocol and use generalized ZK compression.
 
 ## Installation
 
