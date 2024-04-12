@@ -1,10 +1,12 @@
 import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import {
-  defaultSolanaWalletKeypair,
-} from "../../../src";
+import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
-import { createTestMint, requestAirdrop, testMintTo } from "../../helpers/helpers";
+import {
+  createTestMint,
+  requestAirdrop,
+  testMintTo,
+} from "../../helpers/helpers";
 
 describe("transfer", () => {
   const payerKeypair = defaultSolanaWalletKeypair();
@@ -46,5 +48,3 @@ describe("transfer", () => {
       },
     );
 });
-
-

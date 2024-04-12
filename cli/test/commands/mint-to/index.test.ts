@@ -1,23 +1,19 @@
-import { expect, test,  } from "@oclif/test";
+import { expect, test } from "@oclif/test";
 import { before } from "mocha";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import {
-  defaultSolanaWalletKeypair,
-} from "../../../src";
+import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
 import { createTestMint, requestAirdrop } from "../../helpers/helpers";
-
 
 describe("mint-to", () => {
   let mintAmount: number = 100;
   /// authority is also the feepayer, and mint-to recipient
   let mintAuthorityPath = process.env.HOME + "/.config/solana/id.json";
   let mintAuthority: Keypair = defaultSolanaWalletKeypair();
-  
+
   let mintKeypair = Keypair.generate();
   let mintAddress = mintKeypair.publicKey;
 
- 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(mintAuthority.publicKey);
