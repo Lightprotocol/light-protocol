@@ -31,7 +31,7 @@ describe("config with env variable", () => {
   });
 
   test
-    .stdout()
+    .stdout({ print: true })
     .command(["config", "--solanaRpcUrl=http://127.0.0.1:8899"])
     .it("runs solana rpc url update cmd", (ctx) => {
       expect(ctx.stdout).to.contain(
