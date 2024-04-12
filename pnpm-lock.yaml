@@ -383,6 +383,10 @@ importers:
         specifier: ^0.34.6
         version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
 
+  hasher.rs/src/main/wasm: {}
+
+  hasher.rs/src/main/wasm-simd: {}
+
   js/compressed-token:
     dependencies:
       '@coral-xyz/anchor':

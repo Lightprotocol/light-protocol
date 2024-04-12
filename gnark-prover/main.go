@@ -324,24 +324,19 @@ func runCli() {
 			{
 				Name: "prove",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
-					&cli.StringFlag{
-						Name:     "config",
-						Aliases:  []string{"c"},
-						Usage:    "Load configuration from `FILE`",
-						Required: false,
-					},
+					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: true},
+					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
+					&cli.StringFlag{Name: "circuit-dir", Usage: "Directory where circuit key files are stored", Value: "./circuits/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 				},
 				Action: func(context *cli.Context) error {
-					circuit := context.String("circuit")
-					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
-						return fmt.Errorf("invalid circuit type %s", circuit)
-					}
-
 					ps, err := LoadKeys(context)
 					if err != nil {
 						return err
+					}
+
+					if len(ps) == 0 {
+						return fmt.Errorf("no proving systems loaded")
 					}
 
 					logging.Logger().Info().Msg("Reading params from stdin")
@@ -349,9 +344,8 @@ func runCli() {
 					if err != nil {
 						return err
 					}
-
 					var proof *prover.Proof
-					if circuit == "inclusion" {
+					if context.Bool("inclusion") {
 						var params prover.InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
@@ -360,7 +354,6 @@ func runCli() {
 
 						treeDepth := params.TreeDepth()
 						utxos := params.NumberOfUTXOs()
-
 						for _, provingSystem := range ps {
 							if provingSystem.InclusionTreeDepth == treeDepth && provingSystem.InclusionNumberOfUtxos == utxos {
 								proof, err = provingSystem.ProveInclusion(&params)
@@ -368,11 +361,12 @@ func runCli() {
 									return err
 								}
 								r, _ := json.Marshal(&proof)
+								//logging.Logger().Info().Msg(string(r))
 								fmt.Println(string(r))
 								break
 							}
 						}
-					} else if circuit == "non-inclusion" {
+					} else if context.Bool("non-inclusion") {
 						var params prover.NonInclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
@@ -393,7 +387,7 @@ func runCli() {
 								break
 							}
 						}
-					} else if circuit == "combined" {
+					} else if context.Bool("inclusion") && context.Bool("non-inclusion") {
 						var params prover.CombinedParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {

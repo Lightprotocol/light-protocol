@@ -1,8 +1,8 @@
 export type ProofInputs = {
-  root: string[];
+  roots: string[];
   inPathIndices: number[];
   inPathElements: string[][];
-  leaf: string[];
+  leaves: string[];
 };
 export function provingArgs(inputs: string): string {
   const arg0 = "echo";
@@ -10,8 +10,19 @@ export function provingArgs(inputs: string): string {
   const arg2 = "./bin/light-prover";
   const arg3 = "prove";
 
-  const arg4 = provingKey(parseProofInputs(inputs).root.length);
-  const args = [arg0, "'", arg1, "' | ", arg2, arg3, arg4].join(" ");
+  const arg4 = provingKey(parseProofInputs(inputs).roots.length);
+  const args = [
+    arg0,
+    "'",
+    arg1,
+    "' | ",
+    arg2,
+    arg3,
+    arg4,
+    "--inclusion",
+    "--circuit-dir",
+    "./bin/circuits/",
+  ].join(" ");
   return args;
 }
 
