@@ -1,13 +1,13 @@
 # Light CLI
 
-CLI to interact with Light Protocol and use generalized ZK compression.
+CLI to interact with Light Protocol and ZK compression.
 
 ## Requirements
 
-- Ensure you have Node.js (version 12 or later) and npm installed on your machine.
+- Ensure you have Node.js (v19.4.0 or later) and npm installed on your machine.
 
 - You will need a valid Solana filesystem wallet set up at `~/.config/solana/id.json`.
-If you don't have one yet, visit the Solana documentation for details: https://docs.solanalabs.com/cli/wallets/file-system 
+If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details. 
 The CLI will use this wallet as the default fee payer and mint authority.
 
 ## Installation
@@ -33,13 +33,13 @@ Ensure you are at the root of the monorepo.
 ## Usage
 
 
-**1. Navigate to the CLI directory and start the light test validator**
+**1. Navigate to the CLI directory and start the Light test validator**
 
 ```bash
 cd cli && light test-validator
 ```
 
-This starts a Solana test-validator with the light system programs and accounts, a prover server, and an indexer as background processes against a clean ledger.
+This starts a Solana test-validator with the Light system programs and accounts, a prover server, and an indexer as background processes against a clean ledger.
 
 
 ```bash
@@ -57,7 +57,7 @@ light test-validator -p
 
 ```bash
 # Airdrop 1 SOL
-solana airdrop 1000000000
+solana airdrop 1
 
 # Print your address
 solana address
@@ -67,7 +67,7 @@ solana balance
 
 ```
 
-Now you're all set up to run some CLI commands :)
+Now you're all set up to run CLI commands :)
 
 ### Commands
 
@@ -83,13 +83,13 @@ USAGE
     [--mint-decimals <value>]
 
 FLAGS
-  --mint-authority=<value>  Specify a path to the mint authority keypair file.
-                            Defaults to your default local Solana wallet file
-                            path
-  --mint-decimals=<value>   [default: 9] Number of base 10 digits to the right
-                            of the decimal place [default: 9]
-  --mint-keypair=<value>    Provide a path to a mint keypair file. Defaults to a
-                            random keypair
+  --mint-authority=<value>  Path to the mint authority keypair file.
+                            Defaults to default local Solana wallet file
+                            path.
+  --mint-decimals=<value>   Number of base 10 digits to the right
+                            of the decimal place [default: 9].
+  --mint-keypair=<value>    Path to a mint keypair file. Defaults to a
+                            random keypair.
 ```
 
 #### Mint compressed tokens to a Solana wallet
@@ -103,11 +103,11 @@ USAGE
     [--mint-authority <value>]
 
 FLAGS
-  --amount=<value>          (required) Amount to mint, in tokens.
-  --mint=<value>            (required) Specify the mint address.
-  --mint-authority=<value>  Specify the filepath of the mint authority keypair.
-                            Defaults to your local solana wallet.
-  --to=<value>              (required) Specify the recipient address.
+  --amount=<value>          (required) Amount to mint.
+  --mint=<value>            (required) Mint address.
+  --mint-authority=<value>  File path of the mint authority keypair.
+                            Defaults to local Solana wallet.
+  --to=<value>              (required) Recipient address.
 ```
 
 
@@ -115,7 +115,7 @@ FLAGS
 #### Transfer compressed tokens from one wallet to another
 
 ```bash
-light transfer --mint "YOUR_MINT_ADDRESS" --to "YOUR_WALLET_ADDRESS" --amount 4200000000 
+light transfer --mint "YOUR_MINT_ADDRESS" --to "RECIPIENT_WALLET_ADDRESS" --amount 4200000000 
 ```
 
 ```
@@ -124,8 +124,8 @@ USAGE
     [--fee-payer <value>]
 
 FLAGS
-  --amount=<value>     (required) Amount to send, in tokens
-  --fee-payer=<value>  Specify the fee-payer account. Defaults to the client
+  --amount=<value>     (required) Amount to send.
+  --fee-payer=<value>  Fee payer account. Defaults to the client
                        keypair.
   --mint=<value>       (required) Mint to transfer
   --to=<value>         (required) Recipient address
@@ -135,7 +135,7 @@ FLAGS
 
 #### Compress native SOL
 
-> **Note:** Ensure the the SOL omnibus account of the Light system program is already initialized by running: `light init-sol-pool`
+> **Note:** Ensure the SOL omnibus account of the Light system program is already initialized by running: `light init-sol-pool`
 
 
 ```bash
@@ -163,3 +163,8 @@ FLAGS
   --amount=<value>  (required) Amount to decompress in lamports.
   --to=<value>      (required) Specify the recipient address.
 ```
+
+### Support
+
+- Always feel free to join the [Developer Discord](https://discord.gg/D2cEphnvcY) for help!
+- For more info about Light and ZK compression, refer to the [documentation](https://docs.lightprotocol.com/).
