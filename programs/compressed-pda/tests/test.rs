@@ -317,7 +317,7 @@ async fn test_with_address() {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts().await;
 
-    let mut mock_indexer = init_mock_indexer(&env, true, true, true).await;
+    let mut mock_indexer = init_mock_indexer(&env, true, true, false).await;
 
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
