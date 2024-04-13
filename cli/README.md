@@ -39,7 +39,7 @@ Ensure you are at the root of the monorepo.
 cd cli && light test-validator
 ```
 
-This starts a Solana test-validator with the Light system programs and accounts, a prover server, and an indexer as background processes against a clean ledger.
+This starts a Solana test-validator with the Light system programs and accounts, a prover server, and a photon indexer as background processes against a clean ledger.
 
 
 ```bash
@@ -167,4 +167,5 @@ FLAGS
 ### Support
 
 - Always feel free to join the [Developer Discord](https://discord.gg/D2cEphnvcY) for help!
+- For more info about the canonical indexer implementation built by Helius, refer to the [Photon codebase](https://github.com/helius-labs/photon).
 - For more info about Light and ZK compression, refer to the [documentation](https://docs.lightprotocol.com/).
