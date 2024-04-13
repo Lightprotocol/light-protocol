@@ -1,12 +1,12 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::changelog::ChangelogEntry26;
+use light_concurrent_merkle_tree::event::{ChangelogEvent, Changelogs};
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 
 use crate::{
     emit_indexer_event, errors::AccountCompressionErrorCode,
-    indexed_array_from_bytes_zero_copy_mut, state::StateMerkleTreeAccount, ChangelogEvent,
-    ChangelogEventV1, Changelogs, IndexedArrayAccount, RegisteredProgram,
+    indexed_array_from_bytes_zero_copy_mut, state::StateMerkleTreeAccount, IndexedArrayAccount,
+    RegisteredProgram,
 };
 
 #[derive(Accounts)]
@@ -63,17 +63,12 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfProofsMismatch.into());
     }
-    let changelog_event = insert_nullifier(
+    insert_nullifier(
         proofs,
         change_log_indices,
         leaves_queue_indices,
         indices,
         ctx,
-    )?;
-    emit_indexer_event(
-        changelog_event.try_to_vec()?,
-        &ctx.accounts.log_wrapper,
-        &ctx.accounts.authority,
     )?;
 
     Ok(())
@@ -86,7 +81,7 @@ fn insert_nullifier(
     leaves_queue_indices: &[u16],
     indices: &[u64],
     ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
-) -> Result<Changelogs> {
+) -> Result<()> {
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
     if merkle_tree.associated_queue != ctx.accounts.indexed_array.key() {
         msg!(
@@ -114,8 +109,7 @@ fn insert_nullifier(
         return Err(AccountCompressionErrorCode::InvalidMerkleProof.into());
     }
 
-    let mut changelog_entries: Vec<ChangelogEntry26> =
-        Vec::with_capacity(leaves_queue_indices.len());
+    let mut changelogs: Vec<ChangelogEvent> = Vec::with_capacity(leaves_queue_indices.len());
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
         let leaf_cell = indexed_array
             .by_value_index(*leaf_queue_index as usize, None)
@@ -123,17 +117,24 @@ fn insert_nullifier(
             .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
 
         let mut proof = from_vec(proofs[i].as_slice()).map_err(ProgramError::from)?;
-        changelog_entries.push(
-            merkle_tree
-                .update(
-                    change_log_indices[i] as usize,
-                    &leaf_cell.value_bytes(),
-                    &ZERO_BYTES[i],
-                    indices[i] as usize,
-                    &mut proof,
-                )
-                .map_err(ProgramError::from)?,
-        );
+        let (changelog_index, sequence_number) = merkle_tree
+            .update(
+                change_log_indices[i] as usize,
+                &leaf_cell.value_bytes(),
+                &ZERO_BYTES[i],
+                indices[i] as usize,
+                &mut proof,
+            )
+            .map_err(ProgramError::from)?;
+        let changelog_event = merkle_tree
+            .get_changelog_event(
+                ctx.accounts.merkle_tree.key().to_bytes(),
+                changelog_index,
+                sequence_number,
+                1,
+            )
+            .map_err(ProgramError::from)?;
+        changelogs.push(changelog_event);
 
         // TODO: replace with root history sequence number
         indexed_array
@@ -141,15 +142,15 @@ fn insert_nullifier(
             .map_err(ProgramError::from)?;
     }
 
-    let sequence_number = u64::try_from(merkle_tree.sequence_number)
-        .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
-    Ok(Changelogs {
-        changelogs: vec![ChangelogEvent::V1(ChangelogEventV1::new(
-            ctx.accounts.merkle_tree.key(),
-            changelog_entries.as_slice(),
-            sequence_number,
-        )?)],
-    })
+    let changelog_event = Changelogs { changelogs };
+
+    emit_indexer_event(
+        changelog_event.try_to_vec()?,
+        &ctx.accounts.log_wrapper,
+        &ctx.accounts.authority,
+    )?;
+
+    Ok(())
 }
 
 #[inline(never)]

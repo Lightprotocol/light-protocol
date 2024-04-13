@@ -1,14 +1,17 @@
 use std::{marker::PhantomData, mem, slice};
 
+use event::{ChangelogEvent, ChangelogEventV1};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 pub use light_hasher;
 use light_hasher::Hasher;
 pub mod changelog;
 pub mod errors;
+pub mod event;
 pub mod hash;
 use crate::{
-    changelog::{ChangelogEntry, MerklePaths},
+    changelog::ChangelogEntry,
     errors::ConcurrentMerkleTreeError,
+    event::PathNode,
     hash::{compute_parent_node, compute_root},
 };
 
@@ -95,8 +98,16 @@ where
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        if height == 0 || HEIGHT == 0 {
+            return Err(ConcurrentMerkleTreeError::HeightZero);
+        }
+        // Changelog needs to be at least 1, because it's used for storing
+        // Merkle paths in `append`/`append_batch`.
+        if changelog_size == 0 {
+            return Err(ConcurrentMerkleTreeError::ChangelogZero);
+        }
+        Ok(Self {
             height,
 
             changelog_capacity: changelog_size,
@@ -119,7 +130,7 @@ where
             canopy: BoundedVec::with_capacity(Self::canopy_size(canopy_depth)),
 
             _hasher: PhantomData,
-        }
+        })
     }
 
     /// Creates a copy of `ConcurrentMerkleTree` from the given byte slices.
@@ -273,6 +284,7 @@ where
             ));
         }
         let tree: *mut Self = bytes_struct.as_ptr() as _;
+
         Ok(&mut *tree)
     }
 
@@ -352,6 +364,13 @@ where
             ));
         }
         let tree = Self::struct_from_bytes_mut(bytes_struct)?;
+
+        if tree.height == 0 {
+            return Err(ConcurrentMerkleTreeError::HeightZero);
+        }
+        if tree.changelog_capacity == 0 {
+            return Err(ConcurrentMerkleTreeError::ChangelogZero);
+        }
 
         // Restore the vectors correctly, by pointing them to the appropriate
         // byte slices as underlying data. The most unsafe part of this code.
@@ -526,6 +545,13 @@ where
         roots_size: usize,
         canopy_depth: usize,
     ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
+        if height == 0 || HEIGHT == 0 {
+            return Err(ConcurrentMerkleTreeError::HeightZero);
+        }
+        if changelog_size == 0 {
+            return Err(ConcurrentMerkleTreeError::ChangelogZero);
+        }
+
         let tree = ConcurrentMerkleTree::struct_from_bytes_mut(bytes_struct)?;
 
         tree.height = height;
@@ -641,16 +667,13 @@ where
     /// Increments the changelog counter. If it reaches the limit, it starts
     /// from the beginning.
     fn inc_current_changelog_index(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
-        if self.changelog_capacity > 0 {
-            if self.changelog_length < self.changelog_capacity {
-                self.changelog_length = self
-                    .changelog_length
-                    .checked_add(1)
-                    .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
-            }
-            self.current_changelog_index =
-                (self.current_changelog_index + 1) % self.changelog_capacity;
+        if self.changelog_length < self.changelog_capacity {
+            self.changelog_length = self
+                .changelog_length
+                .checked_add(1)
+                .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
         }
+        self.current_changelog_index = (self.current_changelog_index + 1) % self.changelog_capacity;
         Ok(())
     }
 
@@ -742,10 +765,14 @@ where
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
-        let mut i = changelog_index + 1;
-        while i != self.changelog_index() + 1 {
-            self.changelog[i].update_proof(leaf_index, proof)?;
-            i = (i + 1) % self.changelog_length;
+        if self.changelog_capacity > 1 {
+            let mut i = changelog_index + 1;
+            while i != self.changelog_index() + 1 {
+                self.changelog[i].update_proof(leaf_index, proof)?;
+                i = (i + 1) % self.changelog_length;
+            }
+        } else {
+            self.changelog[0].update_proof(leaf_index, proof)?;
         }
 
         Ok(())
@@ -792,7 +819,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &BoundedVec<[u8; 32]>,
-    ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let mut node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
 
@@ -801,11 +828,14 @@ where
             node = compute_parent_node::<H>(&node, sibling, leaf_index, j)?;
         }
 
+        self.sequence_number = self
+            .sequence_number
+            .checked_add(1)
+            .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
+
         let changelog_entry = ChangelogEntry::new(node, changelog_path, leaf_index);
-        if self.changelog_capacity > 0 {
-            self.inc_current_changelog_index()?;
-            self.changelog.push(changelog_entry.clone())?;
-        }
+        self.inc_current_changelog_index()?;
+        self.changelog.push(changelog_entry.clone())?;
 
         self.inc_current_root_index()?;
         self.roots.push(node)?;
@@ -817,7 +847,7 @@ where
             self.rightmost_leaf = *new_leaf;
         }
 
-        Ok(changelog_entry)
+        Ok((self.current_changelog_index, self.sequence_number))
     }
 
     /// Replaces the `old_leaf` under the `leaf_index` with a `new_leaf`, using
@@ -831,7 +861,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
-    ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let expected_proof_len = self.height - self.canopy_depth;
         if proof.len() != expected_proof_len {
             return Err(ConcurrentMerkleTreeError::InvalidProofLength(
@@ -854,36 +884,38 @@ where
     }
 
     /// Appends a new leaf to the tree.
-    pub fn append(
-        &mut self,
-        leaf: &[u8; 32],
-    ) -> Result<ChangelogEntry<HEIGHT>, ConcurrentMerkleTreeError> {
-        let changelog_entries = self.append_batch(&[leaf])?;
-        let changelog_entry = changelog_entries
-            .first()
-            .ok_or(ConcurrentMerkleTreeError::EmptyChangelogEntries)?
-            .to_owned();
-        Ok(changelog_entry)
+    pub fn append(&mut self, leaf: &[u8; 32]) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
+        self.append_batch(&[leaf])
     }
 
     /// Appends a batch of new leaves to the tree.
     pub fn append_batch(
         &mut self,
         leaves: &[&[u8; 32]],
-    ) -> Result<Vec<ChangelogEntry<HEIGHT>>, ConcurrentMerkleTreeError> {
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         if (self.next_index + leaves.len() - 1) >= 1 << self.height {
             return Err(ConcurrentMerkleTreeError::TreeFull);
         }
+        if leaves.len() > self.changelog_capacity {
+            return Err(ConcurrentMerkleTreeError::BatchGreaterThanChangelog(
+                leaves.len(),
+                self.changelog_capacity,
+            ));
+        }
 
         let first_leaf_index = self.next_index;
-        // Buffer of Merkle paths.
-        let mut merkle_paths = MerklePaths::<H>::new(self.height, leaves.len());
+        let first_changelog_index = (self.current_changelog_index + 1) % self.changelog_capacity;
+        let first_sequence_number = self.sequence_number + 1;
 
         for (leaf_i, leaf) in leaves.iter().enumerate() {
-            let mut current_index = self.next_index;
-            let mut current_node = leaf.to_owned().to_owned();
+            self.inc_current_changelog_index()?;
+            self.changelog
+                .push(ChangelogEntry::<HEIGHT>::default_with_index(
+                    first_leaf_index + leaf_i,
+                ))?;
 
-            merkle_paths.add_leaf();
+            let mut current_index = self.next_index;
+            let mut current_node = **leaf;
 
             // Limit until which we fill up the current Merkle path.
             let fillup_index = if leaf_i < (leaves.len() - 1) {
@@ -892,9 +924,17 @@ where
                 self.height
             };
 
-            // Assign the leaf to the path.
-            merkle_paths.set(0, current_node);
+            self.changelog[self.current_changelog_index].path[0] = **leaf;
 
+            // Compute the whole Merkle path up to the `fillup_index`.
+            //
+            // On each iteration, we also fill up empty nodes of previous Merkle
+            // paths with the nodes from the current path - this way we eventually
+            // fill all the paths while avoiding to calculate too many hashes.
+            //
+            // `fillup_index` of the last iteration should be always equal to
+            // the Merkle tree height. Therefore, after the last iteration, no
+            // path is going to contain and empty node.
             for i in 0..fillup_index {
                 let is_left = current_index % 2 == 0;
 
@@ -907,13 +947,21 @@ where
                 };
 
                 if i < self.height - 1 {
-                    merkle_paths.set(i + 1, current_node);
+                    self.changelog[self.current_changelog_index].path[i + 1] = current_node;
+
+                    for leaf_j in 0..leaf_i {
+                        let changelog_index =
+                            (first_changelog_index + leaf_j) % self.changelog_capacity;
+                        if self.changelog[changelog_index].path[i + 1] == [0u8; 32] {
+                            self.changelog[changelog_index].path[i + 1] = current_node;
+                        }
+                    }
                 }
 
                 current_index /= 2;
             }
 
-            merkle_paths.set_root(current_node);
+            self.changelog[self.current_changelog_index].root = current_node;
 
             self.inc_current_root_index()?;
             self.roots.push(current_node)?;
@@ -922,6 +970,7 @@ where
                 .sequence_number
                 .checked_add(1)
                 .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
+
             self.next_index = self
                 .next_index
                 .checked_add(1)
@@ -929,29 +978,17 @@ where
             self.rightmost_leaf = leaf.to_owned().to_owned();
         }
 
-        let changelog_entries = merkle_paths.to_changelog_entries(first_leaf_index)?;
-
-        // Save changelog entries.
-        if self.changelog_capacity > 0 {
-            for changelog_entry in changelog_entries.iter() {
-                self.inc_current_changelog_index()?;
-                self.changelog.push(changelog_entry.clone())?;
-            }
-        }
-
         if self.canopy_depth > 0 {
-            self.update_canopy(&changelog_entries)?;
+            self.update_canopy(first_changelog_index, leaves.len());
         }
 
-        Ok(changelog_entries)
+        Ok((first_changelog_index, first_sequence_number))
     }
 
-    fn update_canopy(
-        &mut self,
-        changelog_entries: &Vec<ChangelogEntry<HEIGHT>>,
-    ) -> Result<(), ConcurrentMerkleTreeError> {
-        for changelog_entry in changelog_entries {
-            for (i, path_node) in changelog_entry
+    fn update_canopy(&mut self, first_changelog_index: usize, num_leaves: usize) {
+        for i in 0..num_leaves {
+            let changelog_index = (first_changelog_index + i) % self.changelog_capacity;
+            for (i, path_node) in self.changelog[changelog_index]
                 .path
                 .iter()
                 .rev()
@@ -959,12 +996,60 @@ where
                 .enumerate()
             {
                 let level = self.height - i - 1;
-                let index = (1 << (self.height - level)) + (changelog_entry.index >> level);
+                let index =
+                    (1 << (self.height - level)) + (self.changelog[changelog_index].index >> level);
                 // `index - 2` maps to the canopy index.
                 self.canopy[(index - 2) as usize] = *path_node;
             }
         }
+    }
 
-        Ok(())
+    pub fn get_changelog_event(
+        &self,
+        merkle_tree_account_pubkey: [u8; 32],
+        first_changelog_index: usize,
+        first_sequence_number: usize,
+        num_changelog_entries: usize,
+    ) -> Result<ChangelogEvent, ConcurrentMerkleTreeError> {
+        let mut paths = Vec::with_capacity(num_changelog_entries);
+        for i in 0..num_changelog_entries {
+            let changelog_index = (first_changelog_index + i) % self.changelog_capacity;
+
+            let path_len = self.changelog[changelog_index].path.len();
+            let mut path = Vec::with_capacity(path_len);
+            let path_len =
+                u32::try_from(path_len).map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
+
+            // Add all nodes from the changelog path.
+            for (level, node) in self.changelog[changelog_index].path.iter().enumerate() {
+                let level =
+                    u32::try_from(level).map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
+                let index = (1 << (path_len - level))
+                    + (self.changelog[changelog_index].index as u32 >> level);
+                path.push(PathNode {
+                    node: node.to_owned(),
+                    index,
+                });
+            }
+
+            // Add root.
+            path.push(PathNode {
+                node: self.changelog[changelog_index].root,
+                index: 1,
+            });
+
+            paths.push(path);
+        }
+
+        let index: u32 = self.changelog[first_changelog_index]
+            .index
+            .try_into()
+            .map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
+        Ok(ChangelogEvent::V1(ChangelogEventV1 {
+            id: merkle_tree_account_pubkey,
+            paths,
+            seq: first_sequence_number as u64,
+            index,
+        }))
     }
 }

@@ -41,17 +41,17 @@ where
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Self {
+    ) -> Result<Self, ConcurrentMerkleTreeError> {
         let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(
             height,
             changelog_size,
             roots_size,
             canopy_depth,
-        );
-        Self {
+        )?;
+        Ok(Self {
             merkle_tree,
             _index: PhantomData,
-        }
+        })
     }
 
     /// Casts byte slices into `ConcurrentMerkleTree`.

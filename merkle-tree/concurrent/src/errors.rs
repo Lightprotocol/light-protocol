@@ -8,6 +8,8 @@ pub enum ConcurrentMerkleTreeError {
     IntegerOverflow,
     #[error("Invalid height, it has to be greater than 0")]
     HeightZero,
+    #[error("Invalid changelog size, it has to be greater than 0. Changelog is used for storing Merkle paths during appends.")]
+    ChangelogZero,
     #[error("Invalid height, it cannot exceed the maximum allowed height")]
     HeightHigherThanMax,
     #[error("Invalid number of roots, it has to be greater than 0")]
@@ -18,6 +20,8 @@ pub enum ConcurrentMerkleTreeError {
     BytesRead,
     #[error("Merkle tree is full, cannot append more leaves.")]
     TreeFull,
+    #[error("Number of leaves ({0}) exceeds the changelog capacity ({1}).")]
+    BatchGreaterThanChangelog(usize, usize),
     #[error("Invalid proof length, expected {0}, got {1}.")]
     InvalidProofLength(usize, usize),
     #[error("Invalid Merkle proof, expected root: {0:?}, the provided proof produces root: {1:?}")]
@@ -60,24 +64,26 @@ impl From<ConcurrentMerkleTreeError> for u32 {
         match e {
             ConcurrentMerkleTreeError::IntegerOverflow => 2001,
             ConcurrentMerkleTreeError::HeightZero => 2002,
-            ConcurrentMerkleTreeError::HeightHigherThanMax => 2003,
-            ConcurrentMerkleTreeError::RootsZero => 2004,
-            ConcurrentMerkleTreeError::RootHigherThanMax => 2005,
-            ConcurrentMerkleTreeError::BytesRead => 2006,
-            ConcurrentMerkleTreeError::TreeFull => 2007,
-            ConcurrentMerkleTreeError::InvalidProofLength(_, _) => 2008,
-            ConcurrentMerkleTreeError::InvalidProof(_, _) => 2009,
-            ConcurrentMerkleTreeError::CannotUpdateLeaf => 2010,
-            ConcurrentMerkleTreeError::CannotUpdateEmpty => 2011,
-            ConcurrentMerkleTreeError::AppendOnly => 2012,
-            ConcurrentMerkleTreeError::EmptyLeaves => 2013,
-            ConcurrentMerkleTreeError::EmptyChangelogEntries => 2014,
-            ConcurrentMerkleTreeError::MerklePathsEmptyNode => 2015,
-            ConcurrentMerkleTreeError::StructBufferSize(_, _) => 2016,
-            ConcurrentMerkleTreeError::FilledSubtreesBufferSize(_, _) => 2017,
-            ConcurrentMerkleTreeError::ChangelogBufferSize(_, _) => 2018,
-            ConcurrentMerkleTreeError::RootBufferSize(_, _) => 2019,
-            ConcurrentMerkleTreeError::CanopyBufferSize(_, _) => 2020,
+            ConcurrentMerkleTreeError::ChangelogZero => 2003,
+            ConcurrentMerkleTreeError::HeightHigherThanMax => 2004,
+            ConcurrentMerkleTreeError::RootsZero => 2005,
+            ConcurrentMerkleTreeError::RootHigherThanMax => 2006,
+            ConcurrentMerkleTreeError::BytesRead => 2007,
+            ConcurrentMerkleTreeError::TreeFull => 2008,
+            ConcurrentMerkleTreeError::BatchGreaterThanChangelog(_, _) => 2009,
+            ConcurrentMerkleTreeError::InvalidProofLength(_, _) => 2010,
+            ConcurrentMerkleTreeError::InvalidProof(_, _) => 2011,
+            ConcurrentMerkleTreeError::CannotUpdateLeaf => 2012,
+            ConcurrentMerkleTreeError::CannotUpdateEmpty => 2013,
+            ConcurrentMerkleTreeError::AppendOnly => 2014,
+            ConcurrentMerkleTreeError::EmptyLeaves => 2015,
+            ConcurrentMerkleTreeError::EmptyChangelogEntries => 2016,
+            ConcurrentMerkleTreeError::MerklePathsEmptyNode => 2017,
+            ConcurrentMerkleTreeError::StructBufferSize(_, _) => 2018,
+            ConcurrentMerkleTreeError::FilledSubtreesBufferSize(_, _) => 2019,
+            ConcurrentMerkleTreeError::ChangelogBufferSize(_, _) => 2020,
+            ConcurrentMerkleTreeError::RootBufferSize(_, _) => 2021,
+            ConcurrentMerkleTreeError::CanopyBufferSize(_, _) => 2022,
             ConcurrentMerkleTreeError::Hasher(e) => e.into(),
             ConcurrentMerkleTreeError::BoundedVec(e) => e.into(),
         }

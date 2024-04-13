@@ -214,6 +214,22 @@ where
         self.data[..self.length].iter_mut()
     }
 
+    #[inline]
+    pub fn last(&self) -> Option<&T> {
+        if self.length < 1 {
+            return None;
+        }
+        self.get(self.length - 1)
+    }
+
+    #[inline]
+    pub fn last_mut(&mut self) -> Option<&mut T> {
+        if self.length < 1 {
+            return None;
+        }
+        self.get_mut(self.length - 1)
+    }
+
     pub fn to_array<const N: usize>(self) -> Result<[T; N], BoundedVecError> {
         if self.len() != N {
             return Err(BoundedVecError::ArraySize(N, self.len()));
@@ -430,6 +446,34 @@ where
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         self.data[..self.length].iter_mut()
+    }
+
+    #[inline]
+    pub fn last(&self) -> Option<&T> {
+        if self.len() < self.capacity() {
+            if self.is_empty() {
+                return None;
+            }
+            self.get(self.length - 1)
+        } else if self.next_index == 0 {
+            self.get(self.capacity - 1)
+        } else {
+            self.get(self.next_index - 1)
+        }
+    }
+
+    #[inline]
+    pub fn last_mut(&mut self) -> Option<&mut T> {
+        if self.len() < self.capacity() {
+            if self.is_empty() {
+                return None;
+            }
+            self.get_mut(self.length - 1)
+        } else if self.next_index == 0 {
+            self.get_mut(self.capacity - 1)
+        } else {
+            self.get_mut(self.next_index - 1)
+        }
     }
 }
 

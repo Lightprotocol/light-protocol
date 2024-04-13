@@ -213,13 +213,15 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> =
-        RefCell::new(IndexedMerkleTree::new(
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
+        IndexedMerkleTree::new(
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
-        ));
+        )
+        .unwrap(),
+    );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nullifiers.
@@ -268,13 +270,15 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> =
-        RefCell::new(IndexedMerkleTree::new(
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
+        IndexedMerkleTree::new(
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
-        ));
+        )
+        .unwrap(),
+    );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nulifiers.
@@ -339,13 +343,15 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> =
-        RefCell::new(IndexedMerkleTree::new(
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
+        IndexedMerkleTree::new(
             MERKLE_TREE_HEIGHT,
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
-        ));
+        )
+        .unwrap(),
+    );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Local artifacts.

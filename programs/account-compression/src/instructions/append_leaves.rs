@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_concurrent_merkle_tree::event::Changelogs;
 
 use crate::{
     emit_indexer_event,
-    errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
     utils::check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
-    ChangelogEvent, ChangelogEventV1, Changelogs, RegisteredProgram,
+    RegisteredProgram,
 };
 
 #[derive(Accounts)]
@@ -69,22 +69,25 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     let mut changelog_events = Vec::new();
     for (mt, leaves) in merkle_tree_map.values() {
         let merkle_tree_account = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
+        let merkle_tree_pubkey = merkle_tree_account.key();
         let mut merkle_tree = merkle_tree_account.load_mut()?;
 
         check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(&ctx, &merkle_tree)?;
 
         msg!("inserting leaves: {:?}", leaves);
-        let changelog_entries = merkle_tree
-            .load_merkle_tree_mut()?
+        let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
+        let (first_changelog_index, first_sequence_number) = merkle_tree
             .append_batch(&leaves[..])
             .map_err(ProgramError::from)?;
-        let sequence_number = u64::try_from(merkle_tree.load_merkle_tree()?.sequence_number)
-            .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
-        changelog_events.push(ChangelogEvent::V1(ChangelogEventV1::new(
-            mt.key(),
-            &changelog_entries,
-            sequence_number,
-        )?));
+        let changelog_event = merkle_tree
+            .get_changelog_event(
+                merkle_tree_pubkey.to_bytes(),
+                first_changelog_index,
+                first_sequence_number,
+                leaves.len(),
+            )
+            .map_err(ProgramError::from)?;
+        changelog_events.push(changelog_event);
     }
     let changelog_event = Changelogs {
         changelogs: changelog_events,
