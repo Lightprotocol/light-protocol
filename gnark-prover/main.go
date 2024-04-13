@@ -289,8 +289,8 @@ func runCli() {
 					&cli.BoolFlag{Name: "json-logging", Usage: "enable JSON logging", Required: false},
 					&cli.StringFlag{Name: "prover-address", Usage: "address for the prover server", Value: "localhost:3001", Required: false},
 					&cli.StringFlag{Name: "metrics-address", Usage: "address for the metrics server", Value: "localhost:9998", Required: false},
-					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: true},
-					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: true},
+					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: false},
+					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.StringFlag{Name: "circuit-dir", Usage: "Directory where circuit key files are stored", Value: "./circuits/", Required: false},
 				},
 				Action: func(context *cli.Context) error {

@@ -12,6 +12,8 @@ on:
     paths:
       - "**/*.rs"
       - "**/Cargo.*"
+      - "gnark-prover/**"
+
     types:
       - opened
       - synchronize
