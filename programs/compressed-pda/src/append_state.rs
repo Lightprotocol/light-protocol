@@ -12,7 +12,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
     output_compressed_account_hashes: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
 ) -> anchor_lang::Result<()> {
-    msg!("addresses {:?}", addresses);
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     for (j, mt_index) in inputs

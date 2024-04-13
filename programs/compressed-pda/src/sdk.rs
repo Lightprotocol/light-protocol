@@ -99,12 +99,7 @@ pub fn create_execute_compressed_instruction(
             .unwrap()
             as u8;
     }
-    println!(
-        "new_address_params_packed[i] {:?}",
-        new_address_params_packed
-    );
     let len: usize = remaining_accounts.len();
-    println!("len {:?}", len);
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_queue_pubkey) {
             Some(_) => {}
