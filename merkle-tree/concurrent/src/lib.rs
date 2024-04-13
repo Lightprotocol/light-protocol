@@ -102,6 +102,8 @@ where
         if height == 0 || HEIGHT == 0 {
             return Err(ConcurrentMerkleTreeError::HeightZero);
         }
+        // Changelog needs to be at least 1, because it's used for storing
+        // Merkle paths in `append`/`append_batch`.
         if changelog_size == 0 {
             return Err(ConcurrentMerkleTreeError::ChangelogZero);
         }

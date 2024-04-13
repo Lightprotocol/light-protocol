@@ -8,7 +8,7 @@ pub enum ConcurrentMerkleTreeError {
     IntegerOverflow,
     #[error("Invalid height, it has to be greater than 0")]
     HeightZero,
-    #[error("Invalid changelog size, it has to be greater than 0")]
+    #[error("Invalid changelog size, it has to be greater than 0. Changelog is used for storing Merkle paths during appends.")]
     ChangelogZero,
     #[error("Invalid height, it cannot exceed the maximum allowed height")]
     HeightHigherThanMax,
