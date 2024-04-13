@@ -3984,6 +3984,7 @@ dependencies = [
  "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana?branch=master)",
  "lazy_static",
  "light-concurrent-merkle-tree",
+ "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",

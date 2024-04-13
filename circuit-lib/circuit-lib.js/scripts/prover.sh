@@ -49,30 +49,4 @@ done
 kill_light_prover && ./light-prover start \
   $(if [ "$inclusion" = true ]; then echo '--inclusion=true'; fi) \
   $(if [ "$non_inclusion" = true ]; then echo '--non-inclusion=true'; fi) \
-  $(if [ "$combined" = true ]; then echo '--combined=true'; fi)
-
-# light_prover_pid=$!
-
-# health_check_url="http://localhost:3001/health"
-# timeout=120
-# interval=2
-
-# start_time=$(date +%s)
-
-# while true; do
-#   status_code=$(curl -s -o /dev/null -w "%{http_code}" "$health_check_url")
-
-#   if [[ "$status_code" -eq 200 ]]; then
-#     echo "light-prover health check successful!"
-#     break
-#   fi
-
-#   current_time=$(date +%s)
-#   if (( current_time - start_time >= timeout )); then
-#     echo "light-prover failed to start within $timeout seconds."
-#     kill_light_prover
-#     exit 1
-#   fi
-
-#   sleep "$interval"
-# done
+  $(if [ "$combined" = true ]; then echo '--combined=true'; fi) &

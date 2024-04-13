@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[allow(non_snake_case)]
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct NonInclusionJsonStruct {
     roots: Vec<String>,
     values: Vec<String>,

@@ -46,3 +46,4 @@ light-indexed-merkle-tree = {path = "../../merkle-tree/indexed/"}
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 lazy_static = "1.4.0"
+light-hash-set = { version = "0.1.0", path = "../../merkle-tree/hash-set", features = ["solana"] }

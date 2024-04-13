@@ -12,7 +12,7 @@ use crate::{
     init_merkle_tree::inclusion_merkle_tree_inputs,
 };
 #[allow(non_snake_case)]
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct InclusionJsonStruct {
     roots: Vec<String>,
     leaves: Vec<String>,

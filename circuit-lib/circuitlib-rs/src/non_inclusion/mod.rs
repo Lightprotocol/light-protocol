@@ -1,2 +1,1 @@
 pub mod merkle_non_inclusion_proof_inputs;
-pub mod non_inclusion_merkle_tree_info;

@@ -1,3 +1,4 @@
+pub mod combined;
 pub mod errors;
 #[cfg(feature = "gnark")]
 pub mod gnark;

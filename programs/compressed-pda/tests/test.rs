@@ -9,15 +9,14 @@ use anchor_lang::AnchorDeserialize;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use circuitlib_rs::{
     gnark::{
-        constants::{INCLUSION_PATH, NON_INCLUSION_PATH, SERVER_ADDRESS},
+        combined_json_formatter::CombinedJsonStruct,
+        constants::{COMBINED_PATH, INCLUSION_PATH, NON_INCLUSION_PATH, SERVER_ADDRESS},
         helpers::spawn_gnark_server,
         inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
-    non_inclusion::merkle_non_inclusion_proof_inputs::{
-        get_non_inclusion_proof_inputs, NonInclusionMerkleProofInputs,
-    },
+    non_inclusion::merkle_non_inclusion_proof_inputs::get_non_inclusion_proof_inputs,
 };
 use circuitlib_rs::{
     gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
@@ -41,7 +40,7 @@ use psp_compressed_pda::{
 };
 use reqwest::Client;
 use solana_cli_output::CliAccount;
-use solana_program_test::ProgramTestContext;
+use solana_program_test::{BanksTransactionResultWithMetadata, ProgramTestContext};
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
@@ -309,6 +308,10 @@ async fn test_execute_compressed_transaction() {
 /// Tests Execute compressed transaction with address:
 /// 1. should fail: create out compressed account with address without input compressed account with address or created address
 /// 2. should succeed: create out compressed account with new created address
+/// 3. should fail: create two addresses with the same seet
+/// 4. should succeed: create two addresses with different seeds
+/// 5. should succeed: create multiple addresses with different seeds and spend input compressed accounts
+///    testing: (input accounts, new addresses) (1, 1), (1, 2), (2, 1), (2, 2)
 #[tokio::test]
 async fn test_with_address() {
     let env: light_test_utils::test_env::EnvWithAccounts =
@@ -333,12 +336,6 @@ async fn test_with_address() {
     let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(None, Some(&[derived_address]), &mut context)
         .await;
-    let new_address_params = NewAddressParams {
-        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-        seed: address_seed,
-        address_merkle_tree_root_index: proof_rpc_res.address_root_indices[0],
-    };
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
@@ -375,43 +372,21 @@ async fn test_with_address() {
             InstructionError::Custom(ErrorCode::InvalidAddress.into())
         ))
     );
-    let instruction = create_execute_compressed_instruction(
-        &payer_pubkey,
+    let res = create_addresses(
+        &mut context,
+        &mut mock_indexer,
+        &env.address_merkle_tree_pubkey,
+        &env.address_merkle_tree_queue_pubkey,
+        &env.merkle_tree_pubkey,
+        &env.indexed_array_pubkey,
+        &vec![address_seed],
         &Vec::new(),
-        &output_compressed_accounts,
-        &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
-        &[merkle_tree_pubkey],
-        &Vec::new(),
-        &vec![new_address_params],
-        &proof_rpc_res.proof,
-        None,
-        false,
-        None,
-    );
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+        true,
     )
     .await;
 
-    mock_indexer.add_lamport_compressed_accounts(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer
+        .add_lamport_compressed_accounts(res.metadata.unwrap().return_data.unwrap().data.to_vec());
     assert_eq!(mock_indexer.compressed_accounts.len(), 1);
     assert_eq!(
         mock_indexer.compressed_accounts[0]
@@ -491,6 +466,226 @@ async fn test_with_address() {
         mock_indexer.compressed_accounts[0].compressed_account.owner,
         recipient_pubkey
     );
+
+    let address_seed_2 = [2u8; 32];
+
+    let res = create_addresses(
+        &mut context,
+        &mut mock_indexer,
+        &env.address_merkle_tree_pubkey,
+        &env.address_merkle_tree_queue_pubkey,
+        &env.merkle_tree_pubkey,
+        &env.indexed_array_pubkey,
+        &vec![address_seed_2, address_seed_2],
+        &Vec::new(),
+        true,
+    )
+    .await;
+    // Should fail to insert the same address twice in the same tx
+    assert_eq!(
+        res.result,
+        Err(solana_sdk::transaction::TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(light_hash_set::HashSetError::ElementAlreadyExists.into())
+        ))
+    );
+    println!("test 2in -------------------------");
+
+    let address_seed_3 = [3u8; 32];
+    let res = create_addresses(
+        &mut context,
+        &mut mock_indexer,
+        &env.address_merkle_tree_pubkey,
+        &env.address_merkle_tree_queue_pubkey,
+        &env.merkle_tree_pubkey,
+        &env.indexed_array_pubkey,
+        &vec![address_seed_2, address_seed_3],
+        &Vec::new(),
+        true,
+    )
+    .await;
+    mock_indexer
+        .add_lamport_compressed_accounts(res.metadata.unwrap().return_data.unwrap().data.to_vec());
+
+    // spend one input compressed accounts and create one new address
+    println!("test combined -------------------------");
+
+    let test_inputs = vec![
+        (1, 1),
+        (1, 2),
+        (2, 1),
+        (2, 2),
+        (3, 1),
+        // (3, 2), TODO: enable once heap optimization is done
+        // (4, 1),
+        // (4, 2),
+    ];
+    for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
+        let compressed_input_accounts =
+            mock_indexer.compressed_accounts[1..n_input_compressed_accounts].to_vec();
+        println!(
+            "\nn_input_compressed_accounts {:?}",
+            n_input_compressed_accounts
+        );
+        println!("n_new_addresses {:?}\n", n_new_addresses);
+        let mut address_vec = Vec::new();
+        // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
+        for j in 0..n_new_addresses {
+            let mut address_seed = [n_input_compressed_accounts as u8; 32];
+            address_seed[j + (n_new_addresses * 2)] = 0 as u8;
+            address_vec.push(address_seed);
+        }
+
+        let res = create_addresses(
+            &mut context,
+            &mut mock_indexer,
+            &env.address_merkle_tree_pubkey,
+            &env.address_merkle_tree_queue_pubkey,
+            &env.merkle_tree_pubkey,
+            &env.indexed_array_pubkey,
+            &address_vec,
+            &compressed_input_accounts,
+            false, // TODO: enable once heap optimization is done
+        )
+        .await;
+        mock_indexer.add_lamport_compressed_accounts(
+            res.metadata.unwrap().return_data.unwrap().data.to_vec(),
+        );
+        // there exists a compressed account with the address x
+        for address_seed in address_vec.iter() {
+            assert!(mock_indexer
+                .compressed_accounts
+                .iter()
+                .any(|x| x.compressed_account.address
+                    == Some(
+                        derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap()
+                    )));
+        }
+        // input compressed accounts are spent
+        for compressed_account in compressed_input_accounts.iter() {
+            assert!(mock_indexer
+                .nullified_compressed_accounts
+                .iter()
+                .any(|x| x.compressed_account == compressed_account.compressed_account));
+        }
+        // TODO: assert that output compressed accounts with addresses of input accounts are created once enabled
+    }
+}
+
+pub async fn create_addresses(
+    context: &mut ProgramTestContext,
+    mock_indexer: &mut MockIndexer,
+    address_merkle_tree_pubkey: &Pubkey,
+    address_merkle_tree_queue_pubkey: &Pubkey,
+    merkle_tree_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
+    address_seeds: &Vec<[u8; 32]>,
+    input_compressed_accounts: &Vec<CompressedAccountWithMerkleContext>,
+    create_out_compressed_accounts_for_input_compressed_accounts: bool,
+) -> BanksTransactionResultWithMetadata {
+    let mut derived_addresses = Vec::new();
+    for address_seed in address_seeds.iter() {
+        let derived_address = derive_address(&address_merkle_tree_pubkey, &address_seed).unwrap();
+        derived_addresses.push(derived_address);
+    }
+    let mut compressed_account_hashes = Vec::new();
+
+    let compressed_account_input_hashes = if input_compressed_accounts.is_empty() {
+        None
+    } else {
+        for compressed_account in input_compressed_accounts.iter() {
+            compressed_account_hashes.push(
+                compressed_account
+                    .compressed_account
+                    .hash(&merkle_tree_pubkey, &compressed_account.leaf_index)
+                    .unwrap(),
+            );
+        }
+        Some(compressed_account_hashes.as_slice())
+    };
+    println!(
+        "compressed_account_input_hashes {:?}",
+        compressed_account_hashes
+    );
+    let proof_rpc_res = mock_indexer
+        .create_proof_for_compressed_accounts(
+            compressed_account_input_hashes,
+            Some(&derived_addresses.as_slice()),
+            context,
+        )
+        .await;
+    let mut address_params = Vec::new();
+
+    for (i, seed) in address_seeds.iter().enumerate() {
+        let new_address_params = NewAddressParams {
+            address_queue_pubkey: *address_merkle_tree_queue_pubkey,
+            address_merkle_tree_pubkey: *address_merkle_tree_pubkey,
+            seed: seed.clone(),
+            address_merkle_tree_root_index: proof_rpc_res.address_root_indices[i],
+        };
+        address_params.push(new_address_params);
+    }
+
+    let mut output_compressed_accounts = Vec::new();
+    for address_param in address_params.iter() {
+        output_compressed_accounts.push(CompressedAccount {
+            lamports: 0,
+            owner: context.payer.pubkey(),
+            data: None,
+            address: Some(
+                derive_address(&address_merkle_tree_pubkey, &address_param.seed).unwrap(),
+            ),
+        });
+    }
+
+    if create_out_compressed_accounts_for_input_compressed_accounts {
+        for compressed_account in input_compressed_accounts.iter() {
+            output_compressed_accounts.push(CompressedAccount {
+                lamports: 0,
+                owner: context.payer.pubkey(),
+                data: None,
+                address: compressed_account.compressed_account.address,
+            });
+        }
+    }
+
+    // create two new addresses with the same see should fail
+    let instruction = create_execute_compressed_instruction(
+        &context.payer.pubkey().clone(),
+        input_compressed_accounts
+            .iter()
+            .map(|x| x.compressed_account.clone())
+            .collect::<Vec<CompressedAccount>>()
+            .as_slice(),
+        &output_compressed_accounts,
+        &vec![*merkle_tree_pubkey; input_compressed_accounts.len()],
+        input_compressed_accounts
+            .iter()
+            .map(|x| x.leaf_index.clone())
+            .collect::<Vec<u32>>()
+            .as_slice(),
+        &vec![*nullifier_queue_pubkey; input_compressed_accounts.len()],
+        &vec![*merkle_tree_pubkey; output_compressed_accounts.len()],
+        &proof_rpc_res.root_indices,
+        &address_params,
+        &proof_rpc_res.proof,
+        None,
+        false,
+        None,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey().clone()),
+        &[&context.payer.insecure_clone()],
+        context.get_new_latest_blockhash().await.unwrap(),
+    );
+    solana_program_test::BanksClient::process_transaction_with_metadata(
+        &mut context.banks_client,
+        transaction,
+    )
+    .await
+    .unwrap()
 }
 
 #[tokio::test]
@@ -918,81 +1113,47 @@ impl MockIndexer {
         new_addresses: Option<&[[u8; 32]]>,
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
+        println!("compressed_accounts {:?}", compressed_accounts);
+        println!("new_addresses {:?}", new_addresses);
         let client = Client::new();
-        let path;
-        let json_payload;
-        let mut root_indices = Vec::<u16>::new();
-        let mut address_root_indices = Vec::<u16>::new();
-        if compressed_accounts.is_some() && new_addresses.is_none() {
-            path = INCLUSION_PATH;
-            let compressed_accounts = compressed_accounts.unwrap();
-            let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
-            for compressed_account in compressed_accounts.iter() {
-                let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
-                let proof = self
-                    .merkle_tree
-                    .get_proof_of_leaf(leaf_index, true)
-                    .unwrap();
-                inclusion_proofs.push(InclusionMerkleProofInputs {
-                    roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
-                    leaves: BigInt::from_be_bytes(compressed_account),
-                    in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
-                    in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
-                });
-            }
-            let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
-            json_payload =
-                InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs)
+        let (root_indices, address_root_indices, json_payload, path) =
+            match (compressed_accounts, new_addresses) {
+                (Some(accounts), None) => {
+                    let (payload, indices) = self.process_inclusion_proofs(accounts, context).await;
+                    (indices, Vec::new(), payload.to_string(), INCLUSION_PATH)
+                }
+                (None, Some(addresses)) => {
+                    let (payload, indices) =
+                        self.process_non_inclusion_proofs(addresses, context).await;
+                    (
+                        Vec::<u16>::new(),
+                        indices,
+                        payload.to_string(),
+                        NON_INCLUSION_PATH,
+                    )
+                }
+                (Some(accounts), Some(addresses)) => {
+                    let (inclusion_payload, inclusion_indices) =
+                        self.process_inclusion_proofs(accounts, context).await;
+                    let (non_inclusion_payload, non_inclusion_indices) =
+                        self.process_non_inclusion_proofs(addresses, context).await;
+
+                    let combined_payload = CombinedJsonStruct {
+                        inclusion: inclusion_payload,
+                        nonInclusion: non_inclusion_payload,
+                    }
                     .to_string();
-
-            let merkle_tree_account =
-                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
-                    .await;
-            let merkle_tree = merkle_tree_account
-                .deserialized()
-                .copy_merkle_tree()
-                .unwrap();
-            assert_eq!(
-                self.merkle_tree.root(),
-                merkle_tree.root().unwrap(),
-                "Local Merkle tree root is not equal to latest on-chain root"
-            );
-
-            root_indices = vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
-        } else if compressed_accounts.is_none() && new_addresses.is_some() {
-            path = NON_INCLUSION_PATH;
-            let new_addresses = new_addresses.unwrap();
-            let mut non_inclusion_proof_inputs = Vec::<NonInclusionMerkleProofInputs>::new();
-            for address in new_addresses.iter() {
-                non_inclusion_proof_inputs.push(get_non_inclusion_proof_inputs(
-                    address,
-                    &self.address_merkle_tree,
-                    &self.indexing_array,
-                ));
-            }
-            let non_inclusion_proof_inputs =
-                NonInclusionProofInputs(non_inclusion_proof_inputs.as_slice());
-
-            json_payload = NonInclusionJsonStruct::from_non_inclusion_proof_inputs(
-                &non_inclusion_proof_inputs,
-            )
-            .to_string();
-
-            let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
-                context,
-                self.address_merkle_tree_pubkey,
-            )
-            .await;
-            let address_merkle_tree = merkle_tree_account
-                .deserialized()
-                .copy_merkle_tree()
-                .unwrap();
-
-            address_root_indices =
-                vec![address_merkle_tree.current_root_index as u16; new_addresses.len()];
-        } else {
-            panic!("Not implemented yet")
-        }
+                    (
+                        inclusion_indices,
+                        non_inclusion_indices,
+                        combined_payload,
+                        COMBINED_PATH,
+                    )
+                }
+                _ => {
+                    panic!("At least one of compressed_accounts or new_addresses must be provided")
+                }
+            };
 
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, path))
@@ -1015,6 +1176,84 @@ impl MockIndexer {
                 c: proof_c,
             },
         }
+    }
+
+    async fn process_inclusion_proofs(
+        &self,
+        accounts: &[[u8; 32]],
+        context: &mut ProgramTestContext,
+    ) -> (InclusionJsonStruct, Vec<u16>) {
+        let mut inclusion_proofs = Vec::new();
+
+        for account in accounts.iter() {
+            let leaf_index = self.merkle_tree.get_leaf_index(account).unwrap();
+            let proof = self
+                .merkle_tree
+                .get_proof_of_leaf(leaf_index, true)
+                .unwrap();
+            inclusion_proofs.push(InclusionMerkleProofInputs {
+                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
+                leaves: BigInt::from_be_bytes(account),
+                in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
+                in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+            });
+        }
+
+        let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
+
+        let inclusion_proof_inputs_json =
+            InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
+
+        let merkle_tree_account =
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
+        let merkle_tree = merkle_tree_account
+            .deserialized()
+            .copy_merkle_tree()
+            .unwrap();
+        assert_eq!(
+            self.merkle_tree.root(),
+            merkle_tree.root().unwrap(),
+            "Merkle tree root mismatch"
+        );
+
+        let root_indices = vec![merkle_tree.current_root_index as u16; accounts.len()];
+
+        (inclusion_proof_inputs_json, root_indices)
+    }
+
+    async fn process_non_inclusion_proofs(
+        &self,
+        addresses: &[[u8; 32]],
+        context: &mut ProgramTestContext,
+    ) -> (NonInclusionJsonStruct, Vec<u16>) {
+        let mut non_inclusion_proofs = Vec::new();
+
+        for address in addresses.iter() {
+            let proof_inputs = get_non_inclusion_proof_inputs(
+                address,
+                &self.address_merkle_tree,
+                &self.indexing_array,
+            );
+            non_inclusion_proofs.push(proof_inputs);
+        }
+
+        let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());
+        let non_inclusion_proof_inputs_json =
+            NonInclusionJsonStruct::from_non_inclusion_proof_inputs(&non_inclusion_proof_inputs);
+
+        let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
+            context,
+            self.address_merkle_tree_pubkey,
+        )
+        .await;
+        let address_merkle_tree = merkle_tree_account
+            .deserialized()
+            .copy_merkle_tree()
+            .unwrap();
+        let address_root_indices =
+            vec![address_merkle_tree.current_root_index as u16; addresses.len()];
+
+        (non_inclusion_proof_inputs_json, address_root_indices)
     }
 
     /// deserializes an event

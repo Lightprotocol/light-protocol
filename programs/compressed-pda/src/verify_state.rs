@@ -263,7 +263,8 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
     compressed_proof: &CompressedProof,
 ) -> Result<()> {
     let public_inputs = [roots, leaves, address_roots, addresses].concat();
-
+    msg!("public_inputs: {:?}", public_inputs.len());
+    msg!("address_roots: {:?}", address_roots.len());
     // The public inputs are expected to be a multiple of 2
     // 4 inputs means 1 inclusion proof (1 root, 1 leaf, 1 address root, 1 created address)
     // 6 inputs means 1 inclusion proof (1 root, 1 leaf, 2 address roots, 2 created address) or
@@ -283,9 +284,9 @@ pub fn verify_create_addresses_and_merkle_proof_zkp(
         ),
         6 => {
             let verifying_key = if address_roots.len() == 1 {
-                &crate::verifying_keys::combined_26_1_2::VERIFYINGKEY
-            } else {
                 &crate::verifying_keys::combined_26_2_1::VERIFYINGKEY
+            } else {
+                &crate::verifying_keys::combined_26_1_2::VERIFYINGKEY
             };
             verify::<6>(
                 &public_inputs
