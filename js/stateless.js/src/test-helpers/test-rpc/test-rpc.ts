@@ -12,7 +12,13 @@ import { getCompressedTokenAccountsByOwnerTest } from './get-compressed-token-ac
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
-import { Rpc, getRootSeq, HexInputsForProver, toHex } from '../../rpc';
+import {
+    Rpc,
+    getRootSeq,
+    HexInputsForProver,
+    toHex,
+    HexBatchInputsForProver,
+} from '../../rpc';
 import {
     CompressedProofWithContext,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -257,18 +263,24 @@ export class TestRpc extends Rpc {
         const merkleProofsWithContext =
             await this.getMultipleCompressedAccountProofs(hashes);
 
-        const inputs: HexInputsForProver = {
-            roots: merkleProofsWithContext.map(proof => toHex(proof.root)),
-            inPathIndices: merkleProofsWithContext.map(
-                proof => proof.leafIndex,
-            ),
-            inPathElements: merkleProofsWithContext.map(proof =>
-                proof.merkleProof.map(hex => toHex(hex)),
-            ),
-            leaves: merkleProofsWithContext.map(proof => toHex(bn(proof.hash))),
+        const inputs: HexInputsForProver[] = [];
+        for (let i = 0; i < merkleProofsWithContext.length; i++) {
+            const input: HexInputsForProver = {
+                root: toHex(merkleProofsWithContext[i].root),
+                pathIndex: merkleProofsWithContext[i].leafIndex,
+                pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
+                    toHex(hex),
+                ),
+                leaf: toHex(bn(merkleProofsWithContext[i].hash)),
+            };
+            inputs.push(input);
+        }
+
+        const batchInputs: HexBatchInputsForProver = {
+            'input-compressed-accounts': inputs,
         };
 
-        const inputsData = JSON.stringify(inputs);
+        const inputsData = JSON.stringify(batchInputs);
 
         let logMsg: string = '';
         if (this.log) {
@@ -276,8 +288,8 @@ export class TestRpc extends Rpc {
             console.time(logMsg);
         }
 
-        const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
-        const response = await fetch(INCLUSION_PROOF_URL, {
+        const PROOF_URL = `${this.proverEndpoint}/prove`;
+        const response = await fetch(PROOF_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

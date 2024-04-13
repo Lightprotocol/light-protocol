@@ -14,7 +14,7 @@ if [ ! -e "$out_dir" ]; then
     mkdir -p "$out_dir"
 fi
 
-cp -r "${gnark_dir}/circuits" "$out_dir"
+cp -r "${gnark_dir}/proving-keys" "$out_dir"
 
 cd "$gnark_dir"
 

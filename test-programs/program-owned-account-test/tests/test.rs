@@ -25,7 +25,7 @@ use solana_sdk::{signer::Signer, transaction::Transaction};
 async fn test_create_pda() {
     let (mut context, env) = setup_test_programs_with_accounts(Some(vec![(
         String::from("program_owned_account_test"),
-        program_owned_account_test::ID,
+        ID,
     )]))
     .await;
     let payer = context.payer.insecure_clone();
@@ -38,9 +38,6 @@ async fn test_create_pda() {
         env.nullifier_queue_pubkey,
         address_merkle_tree_pubkey,
         payer.insecure_clone(),
-        true,
-        true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     );
 
     let mut test_indexer = test_indexer.await;
@@ -332,7 +329,7 @@ pub async fn perform_invalidate_not_owned_compressed_account(
         input_merkle_tree_pubkey: &env.merkle_tree_pubkey,
         root_indices: &rpc_result.root_indices,
         proof: &rpc_result.proof,
-        compressed_account: compressed_account,
+        compressed_account,
     };
     let instruction = create_invalidate_not_owned_account_instruction(create_ix_inputs.clone());
     let transaction = Transaction::new_signed_with_payer(

@@ -3,11 +3,13 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
+    "kill-validator": "killall solana-test-validator || true && sleep 1",
+    "start-validator": "pnpm kill-validator && ../cli/test_bin/run test-validator --prove-compressed-accounts --prove-new-addresses",
     "build": "anchor build",
     "test": "pnpm test-account-compression && pnpm test-compressed-pda && pnpm test-compressed-token && pnpm test-registry",
     "test-account-compression": "RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression",
-    "test-compressed-pda": "RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-pda -- --test-threads 1",
-    "test-compressed-token": "RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-token -- --test-threads 1",
+    "test-compressed-pda": "pnpm start-validator && RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-pda -- --test-threads 1",
+    "test-compressed-token": "pnpm start-validator && RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-token -- --test-threads 1",
     "test-registry": "cd registry && cargo test-sbf -- --test-threads 1"
   }
 }

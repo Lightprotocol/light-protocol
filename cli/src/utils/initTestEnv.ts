@@ -1,17 +1,14 @@
 import { airdropSol, sleep } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
+import { downloadBinIfNotExists } from "../psp-utils";
+import path from "path";
+import { startTestValidator } from "./processTestValidator";
+import { startIndexer } from "./processPhotonIndexer";
+import { startProver } from "./processProverServer";
 import {
-  downloadBinIfNotExists,
-  executeCommand,
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
   SPL_NOOP_PROGRAM_TAG,
-} from "../psp-utils";
-import path from "path";
-import fs from "fs";
-import which from "which";
-import { spawn } from "child_process";
-const find = require("find-process");
-
+} from "./constants";
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 const BASE_PATH = "../../bin/";
 
@@ -41,56 +38,21 @@ export async function initTestEnv({
       recipientPublicKey: payer.publicKey,
     });
   };
-  startTestValidator({ additionalPrograms, skipSystemAccounts });
+
+  const solanaArgs = await getSolanaArgs({
+    additionalPrograms,
+    skipSystemAccounts,
+  });
+  startTestValidator(solanaArgs);
   await sleep(10000);
   await initAccounts();
   if (indexer) {
-    await killIndexer();
-    const resolvedOrNull = which.sync("photon", { nothrow: true });
-    if (resolvedOrNull === null) {
-      const message =
-        "Photon indexer not found. Please install it by running `cargo install photon-indexer --version 0.11.0`";
-      console.log(message);
-      throw new Error(message);
-    } else {
-      spawnBinary("photon", false);
-      await sleep(5000);
-    }
+    await startIndexer();
   }
 
   if (prover) {
-    await killProver();
-    const circuitDir = path.join(__dirname, "../..", "bin", "circuits/");
-    const args = ["start"];
-    args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
-    args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
-    args.push("--circuit-dir", circuitDir);
-    spawnBinary(getProverNameByArch(), true, args);
-    await sleep(10000);
+    await startProver(proveCompressedAccounts, proveNewAddresses);
   }
-}
-
-function spawnBinary(
-  binaryName: string,
-  cli_bin: boolean,
-  args: string[] = [],
-) {
-  let command = binaryName;
-  if (cli_bin) {
-    const binDir = path.join(__dirname, "../..", "bin");
-    command = path.join(binDir, binaryName);
-  }
-  const out = fs.openSync(`test-ledger/${binaryName}.log`, "a");
-  const err = fs.openSync(`test-ledger/${binaryName}.log`, "a");
-
-  const spawnedProcess = spawn(command, args, {
-    stdio: ["ignore", out, err],
-    shell: false,
-  });
-
-  spawnedProcess.on("close", (code) => {
-    console.log(`${binaryName} process exited with code ${code}`);
-  });
 }
 
 export async function initTestEnvIfNeeded({
@@ -234,66 +196,4 @@ export async function getSolanaArgs({
   }
 
   return solanaArgs;
-}
-
-export async function startTestValidator({
-  additionalPrograms,
-  skipSystemAccounts,
-}: {
-  additionalPrograms?: { address: string; path: string }[];
-  skipSystemAccounts?: boolean;
-}) {
-  const command = "solana-test-validator";
-  const solanaArgs = await getSolanaArgs({
-    additionalPrograms,
-    skipSystemAccounts,
-  });
-
-  await killTestValidator();
-
-  await new Promise((r) => setTimeout(r, 1000));
-
-  console.log("Starting test validator...", command);
-  await executeCommand({
-    command,
-    args: [...solanaArgs],
-  });
-}
-
-export async function killTestValidator() {
-  await killProcess("solana-test-validator");
-}
-
-export async function killProver() {
-  await killProcess(getProverNameByArch());
-  // Temporary fix for the case when prover is instantiated via prover.sh:
-  await killProcess("light-prover");
-}
-
-export async function killIndexer() {
-  await killProcess("photon");
-}
-
-export async function killProcess(processName: string) {
-  const processList = await find("name", processName);
-  for (const proc of processList) {
-    process.kill(proc.pid);
-  }
-}
-
-export function getProverNameByArch(): string {
-  const platform = process.platform;
-  const arch = process.arch;
-
-  if (!platform || !arch) {
-    throw new Error("Unsupported platform or architecture");
-  }
-
-  let binaryName = `prover-${platform}-${arch}`;
-
-  if (platform.toString() === "windows") {
-    binaryName += ".exe";
-  }
-
-  return binaryName;
 }

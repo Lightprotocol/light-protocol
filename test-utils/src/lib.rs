@@ -172,7 +172,7 @@ where
         context.get_new_latest_blockhash().await?,
     );
 
-    // Simulate the transaction. Currently in banks-client/server, only
+    // Simulate the transaction. Currently, in banks-client/server, only
     // simulations are able to track CPIs. Therefore, simulating is the
     // only way to retrieve the event.
     let simulation_result = context

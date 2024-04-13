@@ -14,6 +14,7 @@
 // release compressed tokens
 
 use anchor_lang::AnchorDeserialize;
+use light_circuitlib_rs::gnark::helpers::spawn_prover;
 use light_compressed_pda::compressed_account::MerkleContext;
 use light_compressed_pda::event::PublicTransactionEvent;
 use light_hasher::{Hasher, Poseidon};
@@ -47,9 +48,6 @@ async fn test_escrow_with_compressed_pda() {
         env.nullifier_queue_pubkey,
         address_merkle_tree_pubkey,
         payer.insecure_clone(),
-        true,
-        true,
-        "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     );
     let mint = create_mint_helper(&mut context, &payer).await;
     let mut test_indexer = test_indexer.await;
@@ -213,10 +211,7 @@ async fn create_escrow_ix(
     context: &mut ProgramTestContext,
     lock_up_time: u64,
     escrow_amount: u64,
-) -> (
-    anchor_lang::prelude::Pubkey,
-    solana_sdk::instruction::Instruction,
-) {
+) -> (anchor_lang::prelude::Pubkey, Instruction) {
     let payer_pubkey = payer.pubkey();
     let input_compressed_token_account_data = test_indexer.token_compressed_accounts[0].clone();
 

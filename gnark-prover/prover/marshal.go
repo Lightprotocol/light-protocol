@@ -97,28 +97,28 @@ func (ps *ProvingSystem) WriteTo(w io.Writer) (int64, error) {
 	var totalWritten int64 = 0
 	var intBuf [4]byte
 
-	binary.BigEndian.PutUint32(intBuf[:], ps.InclusionTreeDepth)
+	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.InclusionTreeDepth))
 	written, err := w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
 		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], ps.InclusionNumberOfUtxos)
+	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.InclusionNumberOfUtxos))
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
 		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], ps.NonInclusionTreeDepth)
+	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.NonInclusionTreeDepth))
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
 		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], ps.NonInclusionNumberOfUtxos)
+	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.NonInclusionNumberOfUtxos))
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {

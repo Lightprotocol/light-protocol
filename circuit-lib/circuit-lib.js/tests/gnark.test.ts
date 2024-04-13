@@ -8,8 +8,7 @@ describe("Tests", () => {
   const MAX_RETRIES = 20;
   const DELAY_MS = 5000;
   const SERVER_URL = "http://localhost:3001";
-  const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
-  const NON_INCLUSION_PROOF_URL = `${SERVER_URL}/noninclusion`;
+  const PROVE_URL = `${SERVER_URL}/prove`;
   const HEALTH_CHECK_URL = `${SERVER_URL}/health`;
 
   async function pingServer(serverUrl: string) {
@@ -42,19 +41,28 @@ describe("Tests", () => {
         const leaf = hasher.poseidonHashString(["1"]);
         const merkleTree = new MerkleTree(merkleHeights[i], hasher, [leaf]);
 
+        for (let k = 1; k < utxos[j]; k++) {
+          merkleTree.insert(hasher.poseidonHashString([k.toString()]));
+        }
         const pathElements: string[] = merkleTree.path(
           merkleTree.indexOf(leaf),
         ).pathElements;
         const hexPathElements = pathElements.map((value) => toHex(value));
-        let inputs = {
-          roots: new Array(utxos[j]).fill(toHex(merkleTree.root())),
-          inPathIndices: new Array(utxos[j]).fill(merkleTree.indexOf(leaf)),
-          inPathElements: new Array(utxos[j]).fill(hexPathElements),
-          leaves: new Array(utxos[j]).fill(toHex(leaf)),
+
+        let input = {
+          root: toHex(merkleTree.root()),
+          pathIndex: merkleTree.indexOf(leaf),
+          pathElements: hexPathElements,
+          leaf: toHex(leaf),
         };
+
+        let inputs = {
+          "input-compressed-accounts": new Array(utxos[j]).fill(input),
+        };
+
         const inputsData = JSON.stringify(inputs);
         console.time(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
-        const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
+        const response = await axios.post(PROVE_URL, inputsData);
         console.timeEnd(`Proof generation for ${merkleHeights[i]} ${utxos[j]}`);
 
         assert.equal(response.status, 200);

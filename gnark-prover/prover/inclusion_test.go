@@ -38,33 +38,25 @@ func TestInclusion(t *testing.T) {
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
-		var numberOfUtxos = len(params.Roots)
-		var treeDepth = len(params.InPathElements[0])
+		var numberOfUtxos = params.NumberOfUTXOs()
+		var treeDepth = params.TreeDepth()
 
 		roots := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.Roots {
-			roots[i] = v
-		}
-
 		leaves := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.Leaves {
-			leaves[i] = v
-		}
-
 		inPathIndices := make([]frontend.Variable, numberOfUtxos)
-		for i, v := range params.InPathIndices {
-			inPathIndices[i] = v
-		}
-
 		inPathElements := make([][]frontend.Variable, numberOfUtxos)
 		for i := 0; i < int(numberOfUtxos); i++ {
 			inPathElements[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		for i, v := range params.InPathElements {
-			for j, v2 := range v {
+		for i, v := range params.Inputs {
+			roots[i] = v.Root
+			leaves[i] = v.Leaf
+			inPathIndices[i] = v.PathIndex
+			for j, v2 := range v.PathElements {
 				inPathElements[i][j] = v2
 			}
+
 		}
 
 		var circuit InclusionCircuit
@@ -76,8 +68,8 @@ func TestInclusion(t *testing.T) {
 			circuit.InPathElements[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		circuit.NumberOfUtxos = int(numberOfUtxos)
-		circuit.Depth = int(treeDepth)
+		circuit.NumberOfUtxos = numberOfUtxos
+		circuit.Depth = treeDepth
 
 		// Check if the expected result is "true" or "false"
 		expectedResult := splitLine[0]

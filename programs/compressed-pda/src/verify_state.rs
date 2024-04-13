@@ -1,9 +1,10 @@
-use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use anchor_lang::prelude::*;
 use groth16_solana::{
     decompression::{decompress_g1, decompress_g2},
     groth16::{Groth16Verifier, Groth16Verifyingkey},
 };
+
+use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use light_macros::heap_neutral;
 
 use crate::{
@@ -487,41 +488,39 @@ fn verify<const N: usize>(
 
 #[cfg(test)]
 mod test {
+    use reqwest::Client;
+
+    use light_circuitlib_rs::gnark::helpers::spawn_test_validator;
     use light_circuitlib_rs::{
         gnark::{
-            constants::{INCLUSION_PATH, SERVER_ADDRESS},
-            helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
+            constants::{PROVE_PATH, SERVER_ADDRESS},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
         helpers::init_logger,
     };
-    use reqwest::Client;
+
+    use crate::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext};
 
     use super::*;
-    use crate::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext};
 
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
-        spawn_gnark_server(
-            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-            true,
-            &[ProofType::Inclusion],
-        )
-        .await;
+        spawn_test_validator().await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
+                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()
                 .await
                 .expect("Failed to execute request.");
-            assert!(response_result.status().is_success());
+            let status = response_result.status().is_success();
             let body = response_result.text().await.unwrap();
+            assert!(status);
             let proof_json = deserialize_gnark_proof_json(&body).unwrap();
             let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
             let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
@@ -529,8 +528,8 @@ mod test {
             let mut leaves = Vec::<[u8; 32]>::new();
 
             for _ in 0..*number_of_compressed_accounts {
-                roots.push(big_int_inputs.roots.to_bytes_be().1.try_into().unwrap());
-                leaves.push(big_int_inputs.leaves.to_bytes_be().1.try_into().unwrap());
+                roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
+                leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
             }
 
             verify_merkle_proof_zkp(
@@ -544,7 +543,6 @@ mod test {
             )
             .unwrap();
         }
-        kill_gnark_server();
     }
 
     #[test]

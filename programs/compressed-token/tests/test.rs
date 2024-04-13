@@ -7,9 +7,7 @@ use account_compression::{
 use anchor_lang::AnchorSerialize;
 use light_circuitlib_rs::{
     gnark::{
-        constants::{INCLUSION_PATH, SERVER_ADDRESS},
-        helpers::spawn_gnark_server,
-        inclusion_json_formatter::InclusionJsonStruct,
+        constants::{PROVE_PATH, SERVER_ADDRESS},
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
@@ -84,7 +82,7 @@ pub fn create_initialize_mint_instructions(
 }
 
 use anchor_lang::{solana_program::program_pack::Pack, AnchorDeserialize};
-use light_circuitlib_rs::gnark::helpers::ProofType;
+use light_circuitlib_rs::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
 
 async fn assert_create_mint(
     context: &mut ProgramTestContext,
@@ -1232,13 +1230,6 @@ impl MockIndexer {
         nullifier_queue_pubkey: Pubkey,
         payer: Keypair,
     ) -> Self {
-        spawn_gnark_server(
-            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-            true,
-            &[ProofType::Inclusion],
-        )
-        .await;
-
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -1272,18 +1263,19 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
-                leaves: BigInt::from_be_bytes(compressed_account),
-                in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
-                in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+                root: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
+                leaf: BigInt::from_be_bytes(compressed_account),
+                path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
+                path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
         }
         let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
         let json_payload =
-            InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs).to_string();
+            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs)
+                .to_string();
 
         let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
+            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")
             .body(json_payload)
             .send()
