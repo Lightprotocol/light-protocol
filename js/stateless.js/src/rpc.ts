@@ -43,6 +43,16 @@ import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
 
+export interface HexBatchInputsForProver {
+    'input-compressed-accounts': HexInputsForProver[];
+}
+
+export interface HexInputsForProver {
+    root: string;
+    pathIndex: number;
+    pathElements: string[];
+    leaf: string;
+}
 import { toCamelCase, toHex } from './utils/conversion';
 
 import {
@@ -359,7 +369,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         return bn(res.result.value);
-    }
+        }
 
     /// TODO: validate that this is just for sol accounts
     /**
@@ -647,8 +657,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             {
                 owner: owner.toBase58(),
                 mint: options.mint.toBase58(),
-            },
-        );
+                },
+            );
 
         const res = create(
             unsafeRes,
@@ -904,21 +914,26 @@ export class Rpc extends Connection implements CompressionApiInterface {
             await this.getMultipleCompressedAccountProofs(hashes);
 
         /// to hex
-        const inputs: HexInputsForProver = {
-            roots: merkleProofsWithContext.map(ctx => toHex(bn(ctx.root))),
-            inPathIndices: merkleProofsWithContext.map(
-                proof => proof.leafIndex,
+        const inputs: HexInputsForProver[] = [];
+        for (let i = 0; i < merkleProofsWithContext.length; i++) {
+            const input: HexInputsForProver = {
+                root: toHex(merkleProofsWithContext[i].root),
+                pathIndex: merkleProofsWithContext[i].leafIndex,
+                pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
+                    toHex(hex),
             ),
-            inPathElements: merkleProofsWithContext.map(proof =>
-                proof.merkleProof.map(proof => toHex(proof)),
-            ),
-            leaves: merkleProofsWithContext.map(proof => toHex(bn(proof.hash))),
+                leaf: toHex(bn(merkleProofsWithContext[i].hash)),
         };
+            inputs.push(input);
+        }
 
-        const inputsData = JSON.stringify(inputs);
+        const batchInputs: HexBatchInputsForProver = {
+            'input-compressed-accounts': inputs,
+        };
+        const inputsData = JSON.stringify(batchInputs);
 
-        const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
-        const response = await fetch(INCLUSION_PROOF_URL, {
+        const PROOF_URL = `${this.proverEndpoint}/prove`;
+        const response = await fetch(PROOF_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

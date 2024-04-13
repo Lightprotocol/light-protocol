@@ -213,8 +213,8 @@ pub fn input_compressed_accounts_signer_check(
     signer: &Pubkey,
 ) -> Result<()> {
     inputs
-        .input_compressed_accounts_with_merkle_context
-        .iter()
+    .input_compressed_accounts_with_merkle_context
+    .iter()
         .try_for_each(|compressed_account_with_context: &CompressedAccountWithMerkleContext| {
 
             if compressed_account_with_context.compressed_account.data.is_some()
@@ -229,11 +229,11 @@ pub fn input_compressed_accounts_signer_check(
                 }?;
                 // CHECK 2
                 if invoking_program_id != compressed_account_with_context.compressed_account.owner {
-                    msg!(
+                msg!(
                         "Signer/Program cannot read from an account it doesn't own. Read access check failed compressed account owner {} !=  invoking_program_id {}",
                         compressed_account_with_context.compressed_account.owner,
-                        invoking_program_id
-                    );
+                    invoking_program_id
+                );
                     err!(crate::ErrorCode::SignerCheckFailed)
                 } else {
                     Ok(())
@@ -241,16 +241,16 @@ pub fn input_compressed_accounts_signer_check(
             }
             // CHECK 3
             else if compressed_account_with_context.compressed_account.owner != *signer {
-                msg!(
-                    "signer check failed compressed account owner {} !=  signer {}",
+            msg!(
+                "signer check failed compressed account owner {} !=  signer {}",
                     compressed_account_with_context.compressed_account.owner,
                     signer
-                );
-                err!(ErrorCode::SignerCheckFailed)
+            );
+            err!(ErrorCode::SignerCheckFailed)
             } else {
                 Ok(())
-            }
-        })?;
+        }
+    })?;
     Ok(())
 }
 
@@ -274,27 +274,27 @@ pub fn output_compressed_accounts_write_access_check(
         // If a compressed account has data invoking_program has to be provided.
         let invoking_program_id = match invoking_program_id {
             Some(invoking_program_id) => Ok(invoking_program_id.key()),
-            None => {
+                    None => {
                 msg!("invoking program id not provided but trying to create compressed output account with data");
                 err!(crate::ErrorCode::InvokingProgramNotProvided)
-            }
-        }?;
-        output_account_with_data.iter().try_for_each(|compressed_account| {
-                if compressed_account.owner == invoking_program_id.key() {
-                    Ok(())
-                } else {
-                    msg!(
-                        "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
-                        compressed_account.owner,
-                        invoking_program_id.key()
-                    );
-
-                    msg!("compressed_account: {:?}", compressed_account);
-                    err!(crate::ErrorCode::WriteAccessCheckFailed)
                 }
-            })?;
-    }
-    Ok(())
+        }?;
+                output_account_with_data.iter().try_for_each(|compressed_account| {
+                    if compressed_account.owner == invoking_program_id.key() {
+                        Ok(())
+                    } else {
+                        msg!(
+                            "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
+                            compressed_account.owner,
+                            invoking_program_id.key()
+                        );
+
+                        msg!("compressed_account: {:?}", compressed_account);
+                        err!(crate::ErrorCode::WriteAccessCheckFailed)
+                    }
+                })?;
+        }
+        Ok(())
 }
 
 #[heap_neutral]
@@ -340,7 +340,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
                     merkle_tree_unpacked.delegate
                 );
                 return Ok(());
-            }
+        }
         }
         return Err(crate::ErrorCode::InvalidMerkleTreeOwner.into());
     }
@@ -365,17 +365,72 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
                 );
                 return Ok(());
             }
-        }
-        return Err(crate::ErrorCode::InvalidMerkleTreeOwner.into());
     }
+        return Err(crate::ErrorCode::InvalidMerkleTreeOwner.into());
+        }
     Ok(())
 }
 
 #[cfg(test)]
 mod test {
+    use light_circuitlib_rs::{
+        gnark::{
+            constants::{PROVE_PATH, SERVER_ADDRESS},
+            helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
+            inclusion_json_formatter::inclusion_inputs_string,
+            proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+        },
+        helpers::init_logger,
+    };
+    use reqwest::Client;
 
     use super::*;
-    use crate::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext};
+
+    #[tokio::test]
+    async fn prove_inclusion() {
+        init_logger();
+        spawn_gnark_server(
+            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+            true,
+            &[ProofType::Inclusion],
+        )
+        .await;
+        let client = Client::new();
+        for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
+            let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(inputs)
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            assert!(response_result.status().is_success());
+            let body = response_result.text().await.unwrap();
+            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+            let mut roots = Vec::<[u8; 32]>::new();
+            let mut leaves = Vec::<[u8; 32]>::new();
+
+            for _ in 0..*number_of_compressed_accounts {
+                roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
+                leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
+            }
+
+            verify_merkle_proof_zkp(
+                &roots,
+                &leaves,
+                &CompressedProof {
+                    a: proof_a,
+                    b: proof_b,
+                    c: proof_c,
+                },
+            )
+            .unwrap();
+        }
+        kill_gnark_server();
+    }
 
     #[test]
     fn test_sum_check_passes() {

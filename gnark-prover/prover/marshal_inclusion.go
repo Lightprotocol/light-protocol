@@ -6,11 +6,15 @@ import (
 	"math/big"
 )
 
+type InclusionProofInputsJSON struct {
+	Root         string   `json:"root"`
+	PathIndex    uint32   `json:"pathIndex"`
+	PathElements []string `json:"pathElements"`
+	Leaf         string   `json:"leaf"`
+}
+
 type InclusionParametersJSON struct {
-	Roots          []string   `json:"roots"`
-	InPathIndices  []uint32   `json:"inPathIndices"`
-	InPathElements [][]string `json:"inPathElements"`
-	Leaf           []string   `json:"leaves"`
+	Inputs []InclusionProofInputsJSON `json:"input-compressed-accounts"`
 }
 
 func ParseInput(inputJSON string) (InclusionParameters, error) {
@@ -23,70 +27,57 @@ func ParseInput(inputJSON string) (InclusionParameters, error) {
 }
 
 func (p *InclusionParameters) MarshalJSON() ([]byte, error) {
-	paramsJson := InclusionParametersJSON{}
-
-	paramsJson.Roots = make([]string, len(p.Roots))
-	for i := 0; i < len(p.Roots); i++ {
-		paramsJson.Roots[i] = toHex(&p.Roots[i])
-	}
-
-	paramsJson.InPathIndices = make([]uint32, len(p.InPathIndices))
-	paramsJson.InPathIndices = p.InPathIndices
-
-	paramsJson.InPathElements = make([][]string, len(p.InPathElements))
-	for i := 0; i < len(p.InPathElements); i++ {
-		paramsJson.InPathElements[i] = make([]string, len(p.InPathElements[i]))
-		for j := 0; j < len(p.InPathElements[i]); j++ {
-			paramsJson.InPathElements[i][j] = toHex(&p.InPathElements[i][j])
-		}
-	}
-
-	paramsJson.Leaf = make([]string, len(p.Leaves))
-	for i := 0; i < len(p.Leaves); i++ {
-		paramsJson.Leaf[i] = toHex(&p.Leaves[i])
-	}
-
+	paramsJson := p.CreateInclusionParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
+func (p *InclusionParameters) CreateInclusionParametersJSON() InclusionParametersJSON {
+	paramsJson := InclusionParametersJSON{}
+	paramsJson.Inputs = make([]InclusionProofInputsJSON, p.NumberOfUTXOs())
+	for i := 0; i < int(p.NumberOfUTXOs()); i++ {
+		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
+		paramsJson.Inputs[i].Leaf = toHex(&p.Inputs[i].Leaf)
+		paramsJson.Inputs[i].PathIndex = p.Inputs[i].PathIndex
+		paramsJson.Inputs[i].PathElements = make([]string, len(p.Inputs[i].PathElements))
+		for j := 0; j < len(p.Inputs[i].PathElements); j++ {
+			paramsJson.Inputs[i].PathElements[j] = toHex(&p.Inputs[i].PathElements[j])
+		}
+	}
+	return paramsJson
+}
+
 func (p *InclusionParameters) UnmarshalJSON(data []byte) error {
-
 	var params InclusionParametersJSON
-
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
 	}
+	err = p.UpdateWithJSON(params, err)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-	p.Roots = make([]big.Int, len(params.Roots))
-	for i := 0; i < len(params.Roots); i++ {
-		err = fromHex(&p.Roots[i], params.Roots[i])
+func (p *InclusionParameters) UpdateWithJSON(params InclusionParametersJSON, err error) error {
+	p.Inputs = make([]InclusionInputs, len(params.Inputs))
+	for i := 0; i < len(params.Inputs); i++ {
+		err = fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)
 		if err != nil {
 			return err
 		}
-	}
-
-	p.Leaves = make([]big.Int, len(params.Leaf))
-	for i := 0; i < len(params.Leaf); i++ {
-		err = fromHex(&p.Leaves[i], params.Leaf[i])
+		err = fromHex(&p.Inputs[i].Leaf, params.Inputs[i].Leaf)
 		if err != nil {
 			return err
 		}
-	}
-
-	p.InPathIndices = make([]uint32, len(params.InPathIndices))
-	p.InPathIndices = params.InPathIndices
-
-	p.InPathElements = make([][]big.Int, len(params.InPathElements))
-	for i := 0; i < len(params.InPathElements); i++ {
-		p.InPathElements[i] = make([]big.Int, len(params.InPathElements[i]))
-		for j := 0; j < len(params.InPathElements[i]); j++ {
-			err = fromHex(&p.InPathElements[i][j], params.InPathElements[i][j])
+		p.Inputs[i].PathIndex = params.Inputs[i].PathIndex
+		p.Inputs[i].PathElements = make([]big.Int, len(params.Inputs[i].PathElements))
+		for j := 0; j < len(params.Inputs[i].PathElements); j++ {
+			err = fromHex(&p.Inputs[i].PathElements[j], params.Inputs[i].PathElements[j])
 			if err != nil {
 				return err
 			}
 		}
 	}
-
 	return nil
 }
