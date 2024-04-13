@@ -1,62 +1,170 @@
 # Light CLI
 
-CLI to interact with Light Protocol and use generalized ZK compression.
+CLI to interact with Light Protocol and ZK compression.
+
+## Requirements
+
+- Ensure you have Node.js (v19.4.0 or later) and npm installed on your machine.
+
+- You will need a valid Solana filesystem wallet set up at `~/.config/solana/id.json`.
+If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details. 
+The CLI will use this wallet as the default fee payer and mint authority.
 
 ## Installation
 
-To use Light CLI, you need to have Node.js (version 12 or later) and npm (Node Package Manager) installed on your machine.
 
-Please compile the CLI from source.
+**1. Activate the Development Environment**
 
-`. ./scripts/devenv`
+Ensure you are at the root of the monorepo.
 
-`./scripts/install.sh`
+```bash
+. ./scripts/devenv
+```
 
-`./scripts/build.sh`
+**2. Install and build the monorepo from source. This also builds the CLI.**
+```bash
+./scripts/install.sh
+```
+
+```bash
+./scripts/build.sh
+```
 
 ## Usage
 
-Note: currently, you have to start the light-test-validator, gnark-prover, and photon indexer outside the CLI binary:
 
-`cd js/stateless.js`
+**1. Navigate to the CLI directory and start the Light test validator**
 
-`pnpm run pretest:e2e`
+```bash
+cd cli && light test-validator
+```
 
-This will reset and start the validator, prover, and indexer on a clean ledger.
+This starts a Solana test-validator with the Light system programs and accounts, a prover server, and an indexer as background processes against a clean ledger.
 
-Alternatively, to start only the light-test-validator and the gnark-prover, run:
 
-`./cli/test_bin/run test-validator -p -i && pnpm gnark-prover`
+```bash
+# Pass the -i flag to start without the indexer
+light test-validator -i
 
-Note: the CLI currently expects the photon indexer to run at port: 8784, and the gnark-prover at port: 3001
+# Pass the -p flag to start without the prover
+light test-validator -p
+```
+> **Note:** The CLI currently expects the photon indexer to run at port: `8784` and the gnark-prover at port: `3001`
 
-Once you've started all services, in the same or a separate terminal window, go to the cli directory:
 
-`cd cli`
 
-Ensure that the CLI is built.
-Also ensure that you have a local solana wallet set up at ~/.config/solana/id.json. (see solana documentation for how to create one). This wallet will be used by the CLI as default feePayer and mintAuthority.
+**2. Ensure you have sufficient localnet funds** 
 
-Run `solana address` using the solana-cli to print your id.json/wallet address.
-To ensure you have enough localnet funds: run `solana aidrop 10000000`
+```bash
+# Airdrop 1 SOL
+solana airdrop 1
 
-You can now create test-data against the test-ledger and photon with the following commands:
+# Print your address
+solana address
 
-`./test_bin/run create-mint`
+# Print your balance
+solana balance
 
-This will create a random mint and print its mint address.
-You can then mint some tokens to your wallet.
+```
 
-`./test_bin/run mint-to --mint "YOUR_MINT_ADDRESS_BASE58" --amount 4242 --to "YOUR_WALLET_ADDRESS_BASE58"`
+Now you're all set up to run CLI commands :)
 
-Next, you can transfer some of your compressed tokens to another solana wallet:
+### Commands
 
-`./test_bin/run transfer --mint "YOUR_MINT_ADDRESS_BASE58" --amount 3 --to "5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W"`
 
-Other commands include:
+#### Create a compressed token mint 
 
-`./test_bin/run init-sol-pool` (must be run once before compressing lamports)
+```bash
+light create-mint
+```
+```
+USAGE
+  $ light create-mint [--mint-keypair <value>] [--mint-authority <value>]
+    [--mint-decimals <value>]
 
-`./test_bin/run compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"`
+FLAGS
+  --mint-authority=<value>  Path to the mint authority keypair file.
+                            Defaults to default local Solana wallet file
+                            path.
+  --mint-decimals=<value>   Number of base 10 digits to the right
+                            of the decimal place [default: 9].
+  --mint-keypair=<value>    Path to a mint keypair file. Defaults to a
+                            random keypair.
+```
 
-`./test_bin/run decompress-sol --amount 42 --to "YOUR_WALLET_ADDRESS_BASE58"`
+#### Mint compressed tokens to a Solana wallet
+
+```bash
+light mint-to --mint "YOUR_MINT_ADDRESS" --to "YOUR_WALLET_ADDRESS" --amount 4200000000 
+```
+```
+USAGE
+  $ light mint-to --mint <value> --to <value> --amount <value>
+    [--mint-authority <value>]
+
+FLAGS
+  --amount=<value>          (required) Amount to mint.
+  --mint=<value>            (required) Mint address.
+  --mint-authority=<value>  File path of the mint authority keypair.
+                            Defaults to local Solana wallet.
+  --to=<value>              (required) Recipient address.
+```
+
+
+
+#### Transfer compressed tokens from one wallet to another
+
+```bash
+light transfer --mint "YOUR_MINT_ADDRESS" --to "RECIPIENT_WALLET_ADDRESS" --amount 4200000000 
+```
+
+```
+USAGE
+  $ light transfer --mint <value> --to <value> --amount <value>
+    [--fee-payer <value>]
+
+FLAGS
+  --amount=<value>     (required) Amount to send.
+  --fee-payer=<value>  Fee payer account. Defaults to the client
+                       keypair.
+  --mint=<value>       (required) Mint to transfer
+  --to=<value>         (required) Recipient address
+
+```
+
+
+#### Compress native SOL
+
+> **Note:** Ensure the SOL omnibus account of the Light system program is already initialized by running: `light init-sol-pool`
+
+
+```bash
+light compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"
+```
+```
+USAGE
+  $ light compress-sol --to <value> --amount <value>
+
+FLAGS
+  --amount=<value>  (required) Amount to compress in lamports.
+  --to=<value>      (required) Specify the recipient address.
+```
+
+#### Decompress into native SOL
+
+```bash
+light decompress-sol --amount 42 --to "YOUR_WALLET_ADDRESS_BASE58"
+```
+```
+USAGE
+  $ light decompress-sol --to <value> --amount <value>
+
+FLAGS
+  --amount=<value>  (required) Amount to decompress in lamports.
+  --to=<value>      (required) Specify the recipient address.
+```
+
+### Support
+
+- Always feel free to join the [Developer Discord](https://discord.gg/D2cEphnvcY) for help!
+- For more info about Light and ZK compression, refer to the [documentation](https://docs.lightprotocol.com/).
