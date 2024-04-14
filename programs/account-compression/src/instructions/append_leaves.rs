@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_concurrent_merkle_tree::event::Changelogs;
 use light_macros::heap_neutral;
 
 use crate::{

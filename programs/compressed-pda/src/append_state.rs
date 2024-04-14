@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_macros::heap_neutral;
 
 use crate::instructions::{InstructionDataTransfer, TransferInstruction};
 
+#[heap_neutral]
 pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
