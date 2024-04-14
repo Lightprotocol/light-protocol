@@ -75,7 +75,7 @@ pub fn process_initialize_address_merkle_tree<'info>(
             0,
             &mut zero_bytes_array,
         )
-        .unwrap();
+        .map_err(ProgramError::from);
 
     // Append new element.
     let new_leaf = nullifier_bundle
