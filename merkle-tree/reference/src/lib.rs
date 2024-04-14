@@ -12,6 +12,8 @@ pub enum ReferenceMerkleTreeError {
     LeafDoesNotExist(usize),
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
+    #[error("Invalid proof length provided: {0} required {1}")]
+    InvalidProofLength(usize, usize),
 }
 
 #[derive(Debug)]
@@ -166,11 +168,17 @@ where
         if leaf_index >= self.capacity {
             return Err(ReferenceMerkleTreeError::LeafDoesNotExist(leaf_index));
         }
+        if proof.len() != self.height {
+            return Err(ReferenceMerkleTreeError::InvalidProofLength(
+                proof.len(),
+                self.height,
+            ));
+        }
 
         let mut computed_hash = *leaf;
         let mut current_index = leaf_index;
 
-        for (i, sibling_hash) in proof.iter().enumerate() {
+        for sibling_hash in proof.iter() {
             let is_left = current_index % 2 == 0;
             let hashes = if is_left {
                 [&computed_hash[..], &sibling_hash[..]]
@@ -182,11 +190,6 @@ where
 
             // Move to the parent index for the next iteration
             current_index /= 2;
-
-            // If the proof contains more levels than needed, we might compute the wrong hash
-            if i + 1 == self.height {
-                break;
-            }
         }
 
         // Compare the computed hash to the last known root
