@@ -2968,6 +2968,7 @@ dependencies = [
  "borsh 0.10.3",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
+ "light-hasher",
  "light-merkle-tree-reference",
  "light-utils",
  "num-bigint 0.4.4",
