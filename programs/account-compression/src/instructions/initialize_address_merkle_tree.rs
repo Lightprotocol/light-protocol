@@ -54,7 +54,7 @@ pub fn process_initialize_address_merkle_tree<'info>(
     .sub(1u32.to_biguint().unwrap());
     let mut indexed_array = IndexedArray::<light_hasher::Poseidon, usize, 2>::default();
 
-    let nullifier_bundle = indexed_array.append(&init_value).unwrap();
+    let nullifier_bundle = indexed_array.append(&init_value).map_err(ProgramError::from);
     let address_merkle_tree_inited = address_merkle_tree.load_merkle_tree_mut().map_err(ProgramError::from)?;
 
     let new_low_leaf = nullifier_bundle
