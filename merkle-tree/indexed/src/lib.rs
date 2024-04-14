@@ -6,12 +6,11 @@ use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::Hasher, ConcurrentMerkleTree,
 };
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 
 pub mod array;
 pub mod errors;
 pub mod reference;
-
 use crate::errors::IndexedMerkleTreeError;
 
 pub const FIELD_SIZE_SUB_ONE: &str =
@@ -138,15 +137,29 @@ where
         Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
     }
 
+    // Initialize the address merkle tree with the range from 0 to bn254 Fr field size - 1.
+    // This is the highest value that you can poseidon hash with poseidon syscalls.
+    // Initializing the indexed Merkle tree enables non-inclusion proofs without handling the first case specifically.
+    // However, it does reduce the available address space by 1.
     pub fn init(&mut self) -> Result<(), IndexedMerkleTreeError> {
         self.merkle_tree.init()?;
+        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
+        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let nullifier_bundle = indexed_array.append(&init_value)?;
+        let new_low_leaf = nullifier_bundle
+            .new_low_element
+            .hash::<H>(&nullifier_bundle.new_element.value)?;
+        let mut zero_bytes_array = BoundedVec::with_capacity(26);
+        for i in 0..16 {
+            // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
+            zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
+        }
 
-        // Append the first low leaf, which has value 0 and does not point
-        // to any other leaf yet.
-        // This low leaf is going to be updated during the first `update`
-        // operation.
-        self.merkle_tree.append(&H::zero_indexed_leaf())?;
-
+        self.merkle_tree.append(&new_low_leaf)?;
+        let new_leaf = nullifier_bundle
+            .new_element
+            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        self.merkle_tree.append(&new_leaf)?;
         Ok(())
     }
 
@@ -230,37 +243,6 @@ where
         let new_leaf = new_element.hash::<H>(new_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
-        Ok(())
-    }
-
-    /// Initializes the address merkle tree with the given initial value.
-    /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
-    /// Thus, addresses with higher values than the initial value cannot be inserted.
-    pub fn initialize_address_merkle_tree(
-        address_merkle_tree_inited: &mut IndexedMerkleTree<'a, H, I, HEIGHT>,
-        init_value: BigUint,
-    ) -> Result<(), IndexedMerkleTreeError> {
-        let mut indexed_array = IndexedArray::<H, I, 2>::default();
-        let nullifier_bundle = indexed_array.append(&init_value)?;
-        let new_low_leaf = nullifier_bundle
-            .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
-        let mut zero_bytes_array = BoundedVec::with_capacity(26);
-        for i in 0..16 {
-            // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
-            zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
-        }
-        address_merkle_tree_inited.merkle_tree.update(
-            address_merkle_tree_inited.changelog_index(),
-            &H::zero_indexed_leaf(),
-            &new_low_leaf,
-            0,
-            &mut zero_bytes_array,
-        )?;
-        let new_leaf = nullifier_bundle
-            .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-        address_merkle_tree_inited.merkle_tree.append(&new_leaf)?;
         Ok(())
     }
 }
