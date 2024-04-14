@@ -827,6 +827,7 @@ pub struct MockIndexer {
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
 }
 
+
 impl MockIndexer {
     async fn new(merkle_tree_pubkey: Pubkey, indexed_array_pubkey: Pubkey, payer: Keypair) -> Self {
         spawn_gnark_server(

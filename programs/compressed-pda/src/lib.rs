@@ -76,6 +76,8 @@ pub enum ErrorCode {
     DecompressRecipientUndefinedForDecompressSol,
     #[msg("LengthMismatch")]
     LengthMismatch,
+    #[msg("DelegateUndefined while delegated amount is defined")]
+    DelegateUndefined,
 }
 
 #[program]

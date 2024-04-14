@@ -483,13 +483,13 @@ pub mod transfer_sdk {
         leaf_indices: &[u32],
         proof: &CompressedProof,
         input_token_data: &[crate::TokenData],
+        mint: Pubkey,
         owner_if_delegate_is_signer: Option<Pubkey>,
         is_compress: bool,
         compression_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
         decompress_token_account: Option<Pubkey>,
     ) -> Instruction {
-        let mint = input_token_data[0].mint;
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
         let mut pubkey_array: HashMap<Pubkey, u8> = HashMap::new();

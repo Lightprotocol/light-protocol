@@ -1,5 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
+use std::{print, println};
+
 use account_compression::{
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     StateMerkleTreeAccount,
@@ -335,23 +337,24 @@ async fn test_transfer() {
         .collect();
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
-        &recipient_keypair.pubkey(),
-        &[merkle_tree_pubkey],   // input compressed account Merkle trees
-        &[indexed_array_pubkey], // input compressed account indexed arrays
-        &[merkle_tree_pubkey, merkle_tree_pubkey], // output compressed account Merkle trees
-        &[
+        &recipient_keypair.pubkey(),                        // authority
+        &[merkle_tree_pubkey],                              // input_compressed_account_merkle_tree_pubkeys
+        &[indexed_array_pubkey],                            // nullifier_array_pubkeys
+        &[merkle_tree_pubkey, merkle_tree_pubkey],          // output_compressed_account_merkle_tree_pubkeys
+        &[                                                  // output_compressed_accounts
             change_out_compressed_account,
             transfer_recipient_out_compressed_account,
         ],
         &root_indices,
-        &input_compressed_account_indices,
+        &input_compressed_account_indices,                  // leaf_indices
         &proof,
-        [input_compressed_account_token_data].as_slice(),
-        None,
-        false,
-        None,
-        None,
-        None,
+        [input_compressed_account_token_data].as_slice(),   // input_token_data
+        mint,
+        None,                                               // owner_if_delegate_is_signer
+        false,                                              // is_compress
+        None,                                               // compression_amount 
+        None,                                               // token_pool_pda
+        None,                                               // decompress_token_account
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -407,7 +410,7 @@ async fn test_decompression() {
         merkle_tree_pubkey,
         indexed_array_pubkey,
         payer.insecure_clone(),
-        Some(0),
+        // Some(0), // TODO: check if required
     );
     let recipient_keypair = Keypair::new();
     airdrop_lamports(&mut context, &recipient_keypair.pubkey(), 1_000_000_000)
@@ -464,6 +467,9 @@ async fn test_decompression() {
     .await;
     let recipient_token_account_keypair = Keypair::new();
 
+
+    let latest_blockhash = context.get_new_latest_blockhash().await.unwrap();
+    println!("latest_blockhash! {:?}", latest_blockhash);
     create_token_account(
         &mut context,
         &mint,
@@ -506,21 +512,24 @@ async fn test_decompression() {
         .map(|x| x.compressed_account.clone())
         .collect();
     println!("get_token_pool_pda(&mint) {:?}", get_token_pool_pda(&mint));
+
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
-        &recipient_keypair.pubkey(),
-        &vec![merkle_tree_pubkey], // input compressed account Merkle trees
-        &vec![indexed_array_pubkey], // input compressed account indexed arrays
-        &vec![merkle_tree_pubkey], // output compressed account Merkle trees
-        input_compressed_accounts.as_slice(), // input compressed_accounts
-        &vec![change_out_compressed_account],
-        &root_indices,
-        &input_compressed_account_indices,
-        &proof,
-        false,
-        Some(1000u64),
-        Some(get_token_pool_pda(&mint)),
-        Some(recipient_token_account_keypair.pubkey()),
+        &recipient_keypair.pubkey(),                        // authority
+        &vec![merkle_tree_pubkey],                          // input_compressed_account_merkle_tree_pubkeys
+        &vec![indexed_array_pubkey],                        // nullifier_array_pubkeys
+        &vec![merkle_tree_pubkey],                          // output_compressed_account_merkle_tree_pubkeys
+        &vec![change_out_compressed_account],               // output_compressed_accounts
+        &root_indices,                                      // root_indices
+        &input_compressed_account_indices,                  // leaf_indices
+        &proof,                                      
+        [input_compressed_account_token_data].as_slice(),   // input_token_data
+        mint,                                               // mint
+        None,                                               // owner_if_delegate_is_signer
+        false,                                              // is_compress
+        Some(1000u64),                                      // compression_amount 
+        Some(get_token_pool_pda(&mint)),                    // token_pool_pda
+        Some(recipient_token_account_keypair.pubkey()),     // decompress_token_account
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -560,21 +569,24 @@ async fn test_decompression() {
         amount,
     )
     .unwrap();
+    // Compression
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
-        &recipient_keypair.pubkey(),
-        &vec![],                   // input compressed account Merkle trees
-        &vec![],                   // input compressed account indexed arrays
-        &vec![merkle_tree_pubkey], // output compressed account Merkle trees
-        &Vec::new(),               // input compressed_accounts
-        &vec![compress_out_compressed_account],
-        &Vec::new(),
-        &input_compressed_account_indices,
+        &recipient_keypair.pubkey(),                    // authority
+        &vec![],                                        // input_compressed_account_merkle_tree_pubkeys
+        &vec![],                                        // nullifier_array_pubkeys
+        &vec![merkle_tree_pubkey],                      // output_compressed_account_merkle_tree_pubkeys
+        &vec![compress_out_compressed_account],         // output_compressed_accounts
+        &Vec::new(),                                    // root_indices
+        &Vec::new(),                                    // leaf_indices (TODO: why?) input_compressed_account_indices
         &proof,
-        true,
-        Some(1000u64),
-        Some(get_token_pool_pda(&mint)),
-        Some(recipient_token_account_keypair.pubkey()),
+        &Vec::new(),                                    // input_token_data
+        mint,                                           // mint        
+        None,                                           // owner_if_delegate_is_signer
+        true,                                           // is_compress
+        Some(1000u64),                                  // compression_amount 
+        Some(get_token_pool_pda(&mint)),                // token_pool_pda
+        Some(recipient_token_account_keypair.pubkey()), // decompress_token_account 
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1063,6 +1075,7 @@ async fn create_transfer_out_utxo_test(
         &input_compressed_account_indices,
         proof,
         input_compressed_account_token_data.as_slice(),
+        input_compressed_account_token_data[0].mint,
         None,
         false,
         None,

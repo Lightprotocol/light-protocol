@@ -222,4 +222,6 @@ pub enum ErrorCode {
     CompressedPdaUndefinedForCompress,
     #[msg("DeCompressAmountUndefinedForCompress")]
     DeCompressAmountUndefinedForCompress,
+    #[msg("DelegateUndefined while delegated amount is defined")]
+    DelegateUndefined,
 }
