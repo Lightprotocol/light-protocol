@@ -81,7 +81,7 @@ pub fn process_initialize_address_merkle_tree<'info>(
     let new_leaf = nullifier_bundle
         .new_element
         .hash::<Poseidon>(&nullifier_bundle.new_element_next_value)
-        .unwrap();
+        .map_err(ProgramError::from);
     address_merkle_tree_inited
         .merkle_tree
         .append(&new_leaf)
