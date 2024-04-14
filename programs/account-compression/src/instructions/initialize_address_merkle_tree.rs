@@ -85,6 +85,6 @@ pub fn process_initialize_address_merkle_tree<'info>(
     address_merkle_tree_inited
         .merkle_tree
         .append(&new_leaf)
-        .unwrap();
+        .map_err(ProgramError::from);
     Ok(())
 }
