@@ -21,6 +21,7 @@ impl InclusionMerkleProofInputs {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct InclusionProofInputs<'a>(pub &'a [InclusionMerkleProofInputs]);
 
 impl InclusionProofInputs<'_> {

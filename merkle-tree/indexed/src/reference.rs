@@ -3,11 +3,15 @@ use std::marker::PhantomData;
 use light_bounded_vec::{BoundedVec, BoundedVecError};
 use light_concurrent_merkle_tree::light_hasher::{errors::HasherError, Hasher};
 use light_merkle_tree_reference::{MerkleTree, ReferenceMerkleTreeError};
+use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use thiserror::Error;
 
-use crate::{array::IndexedElement, errors::IndexedMerkleTreeError};
+use crate::{
+    array::{IndexedArray, IndexedElement},
+    errors::IndexedMerkleTreeError,
+};
 
 #[derive(Debug, Error)]
 pub enum IndexedReferenceMerkleTreeError {
@@ -19,6 +23,7 @@ pub enum IndexedReferenceMerkleTreeError {
     Hasher(#[from] HasherError),
 }
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct IndexedMerkleTree<H, I>
 where
@@ -65,6 +70,7 @@ where
         self.merkle_tree.root()
     }
 
+    // TODO: rename input values
     pub fn update(
         &mut self,
         new_low_element: &IndexedElement<I>,
@@ -82,4 +88,76 @@ where
 
         Ok(())
     }
+
+    // TODO: add append with new value, so that we don't need to compute the lowlevel values manually
+    pub fn append<const T: usize>(
+        &mut self,
+        value: &BigUint,
+        indexed_array: &mut IndexedArray<H, I, T>,
+    ) -> Result<(), IndexedReferenceMerkleTreeError> {
+        let nullifier_bundle = indexed_array.append(value).unwrap();
+        self.update(
+            &nullifier_bundle.new_low_element,
+            &nullifier_bundle.new_element,
+            &nullifier_bundle.new_element_next_value,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn get_non_inclusion_proof<const T: usize>(
+        &self,
+        value: &BigUint,
+        indexed_array: &IndexedArray<H, I, T>,
+    ) -> Result<NonInclusionProof, IndexedReferenceMerkleTreeError> {
+        let (low_element, _next_value) = indexed_array.find_low_element(value)?;
+        let merkle_proof = self
+            .get_proof_of_leaf(usize::from(low_element.index), true)
+            .unwrap();
+        let higher_range_value = indexed_array
+            .get(low_element.next_index())
+            .unwrap()
+            .value
+            .clone();
+        Ok(NonInclusionProof {
+            root: self.root(),
+            value: bigint_to_be_bytes_array::<32>(value).unwrap(),
+            leaf_lower_range_value: bigint_to_be_bytes_array::<32>(&low_element.value).unwrap(),
+            leaf_higher_range_value: bigint_to_be_bytes_array::<32>(&higher_range_value).unwrap(),
+            leaf_index: low_element.index.into(),
+            next_index: low_element.next_index(),
+            merkle_proof,
+        })
+    }
+
+    pub fn verify_non_inclusion_proof(
+        &self,
+        proof: &NonInclusionProof,
+    ) -> Result<(), IndexedReferenceMerkleTreeError> {
+        let array_element = IndexedElement::<usize> {
+            value: BigUint::from_bytes_be(&proof.value),
+            index: proof.leaf_index,
+            next_index: proof.next_index,
+        };
+        let leaf_hash =
+            array_element.hash::<H>(&BigUint::from_bytes_be(&proof.leaf_higher_range_value))?;
+        self.merkle_tree
+            .verify(&leaf_hash, &proof.merkle_proof, proof.leaf_index)
+            .unwrap();
+        Ok(())
+    }
+}
+
+// TODO: check why next_index is usize while index is I
+/// We prove non-inclusion by:
+/// 1. Showing that value is greater than leaf_lower_range_value and less than leaf_higher_range_value
+/// 2. Showing that the leaf_hash H(leaf_lower_range_value, leaf_next_index, leaf_higher_value) is included in the root (Merkle tree)
+pub struct NonInclusionProof<'a> {
+    pub root: [u8; 32],
+    pub value: [u8; 32],
+    pub leaf_lower_range_value: [u8; 32],
+    pub leaf_higher_range_value: [u8; 32],
+    pub leaf_index: usize,
+    pub next_index: usize,
+    pub merkle_proof: BoundedVec<'a, [u8; 32]>,
 }

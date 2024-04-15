@@ -34,7 +34,7 @@ impl Display for ProofType {
         )
     }
 }
-pub async fn spawn_gnark_server(path: &str, restart: bool, proof_type: ProofType) {
+pub async fn spawn_gnark_server(path: &str, restart: bool, proof_types: &[ProofType]) {
     if restart {
         kill_gnark_server();
     }
@@ -42,7 +42,14 @@ pub async fn spawn_gnark_server(path: &str, restart: bool, proof_type: ProofType
         IS_LOADING.store(true, Ordering::Relaxed);
         Command::new("sh")
             .arg("-c")
-            .arg(format!("{} {}", path, proof_type))
+            .arg(format!(
+                "{} {}",
+                path,
+                proof_types
+                    .iter()
+                    .map(|p| p.to_string() + " ")
+                    .collect::<String>(),
+            ))
             .spawn()
             .expect("Failed to start server process");
         health_check(20, 5).await;

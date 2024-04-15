@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use array::IndexedElement;
+use array::{IndexedArray, IndexedElement};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::Hasher, ConcurrentMerkleTree,
@@ -13,6 +13,9 @@ pub mod errors;
 pub mod reference;
 
 use crate::errors::IndexedMerkleTreeError;
+
+pub const FIELD_SIZE_SUB_ONE: &str =
+    "21888242871839275222246405745257275088548364400416034343698204186575808495616";
 
 #[repr(C)]
 pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
@@ -227,6 +230,37 @@ where
         let new_leaf = new_element.hash::<H>(new_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
+        Ok(())
+    }
+
+    /// Initializes the address merkle tree with the given initial value.
+    /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
+    /// Thus, addresses with higher values than the initial value cannot be inserted.
+    pub fn initialize_address_merkle_tree(
+        address_merkle_tree_inited: &mut IndexedMerkleTree<'a, H, I, HEIGHT>,
+        init_value: BigUint,
+    ) -> Result<(), IndexedMerkleTreeError> {
+        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let nullifier_bundle = indexed_array.append(&init_value)?;
+        let new_low_leaf = nullifier_bundle
+            .new_low_element
+            .hash::<H>(&nullifier_bundle.new_element.value)?;
+        let mut zero_bytes_array = BoundedVec::with_capacity(26);
+        for i in 0..16 {
+            // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
+            zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
+        }
+        address_merkle_tree_inited.merkle_tree.update(
+            address_merkle_tree_inited.changelog_index(),
+            &H::zero_indexed_leaf(),
+            &new_low_leaf,
+            0,
+            &mut zero_bytes_array,
+        )?;
+        let new_leaf = nullifier_bundle
+            .new_element
+            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        address_merkle_tree_inited.merkle_tree.append(&new_leaf)?;
         Ok(())
     }
 }

@@ -12,7 +12,8 @@ use crate::{
     nullify_state::insert_nullifiers,
     utils::CompressedProof,
     verify_state::{
-        fetch_roots, hash_input_compressed_accounts, signer_check, sum_check, verify_state_proof,
+        fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts, signer_check,
+        sum_check, verify_state_proof,
     },
     CompressedSolPda, ErrorCode,
 };
@@ -49,14 +50,9 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
 
     let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     fetch_roots(inputs, ctx, &mut roots)?;
-    let address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
+    let mut address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
     // TODO: enable once address merkle tree init is debugged
-    // fetch_roots_address_merkle_tree(
-    //     inputs,
-    //     ctx,
-    //     &inputs.address_merkle_tree_root_indices,
-    //     &mut address_roots,
-    // )?;
+    fetch_roots_address_merkle_tree(inputs, ctx, &mut address_roots)?;
 
     let mut input_compressed_account_hashes =
         vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];

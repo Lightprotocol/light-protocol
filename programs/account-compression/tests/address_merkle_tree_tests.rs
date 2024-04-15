@@ -328,12 +328,15 @@ async fn relayer_update(
     }
 }
 
+// TODO: enable address Merkle tree tests
 /// Tests insertion of addresses to the queue, dequeuing and Merkle tree update.
 #[tokio::test]
 #[ignore]
 async fn test_address_queue() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
+    program_test.set_compute_max_units(1_400_000u64);
+
     let mut context = program_test.start_with_context().await;
 
     let payer = context.payer.pubkey();

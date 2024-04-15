@@ -1100,7 +1100,7 @@ impl MockIndexer {
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
-            ProofType::Inclusion,
+            &[ProofType::Inclusion],
         )
         .await;
 
