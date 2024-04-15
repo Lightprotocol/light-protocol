@@ -100,7 +100,7 @@ pub fn sum_check(
     input_compressed_accounts_with_merkle_context: &[CompressedAccountWithMerkleContext],
     output_compressed_account: &[CompressedAccount],
     relay_fee: &Option<u64>,
-    de_compress_lamports: &Option<u64>,
+    compression_lamports: &Option<u64>,
     is_compress: &bool,
 ) -> anchor_lang::Result<()> {
     let mut sum: u64 = 0;
@@ -111,7 +111,7 @@ pub fn sum_check(
             .map_err(|_| ErrorCode::ComputeInputSumFailed)?;
     }
 
-    match de_compress_lamports {
+    match compression_lamports {
         Some(lamports) => {
             if *is_compress {
                 sum = sum

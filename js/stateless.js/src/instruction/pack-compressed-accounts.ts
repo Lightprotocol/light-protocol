@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js';
+import { AccountMeta, PublicKey } from '@solana/web3.js';
 import { PackedCompressedAccountWithMerkleContext } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils';
@@ -7,7 +7,10 @@ import { toArray } from '../utils';
  * @internal Finds the index of a PublicKey in an array, or adds it if not
  * present
  * */
-function getIndexOrAdd(accountsArray: PublicKey[], key: PublicKey): number {
+export function getIndexOrAdd(
+    accountsArray: PublicKey[],
+    key: PublicKey,
+): number {
     const index = accountsArray.findIndex(existingKey =>
         existingKey.equals(key),
     );
@@ -19,7 +22,7 @@ function getIndexOrAdd(accountsArray: PublicKey[], key: PublicKey): number {
 }
 
 /** @internal */
-function padOutputStateMerkleTrees(
+export function padOutputStateMerkleTrees(
     outputStateMerkleTrees: PublicKey[] | PublicKey | undefined,
     numberOfOutputCompressedAccounts: number,
     inputCompressedAccountsWithMerkleContext: CompressedAccountWithMerkleContext[],
@@ -79,7 +82,7 @@ export function packCompressedAccounts(
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
     outputStateMerkleTreeIndices: number[];
-    remainingAccounts: PublicKey[];
+    remainingAccountMetas: AccountMeta[];
 } {
     const _remainingAccounts = remainingAccounts.slice();
 
@@ -125,10 +128,18 @@ export function packCompressedAccounts(
         outputStateMerkleTreeIndices.push(indexMerkleTree);
     });
 
+    /// to meta
+    const remainingAccountMetas = _remainingAccounts.map(
+        (account): AccountMeta => ({
+            pubkey: account,
+            isWritable: true,
+            isSigner: false,
+        }),
+    );
     return {
         packedInputCompressedAccounts,
         outputStateMerkleTreeIndices,
-        remainingAccounts: _remainingAccounts,
+        remainingAccountMetas,
     };
 }
 

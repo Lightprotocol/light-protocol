@@ -8,19 +8,20 @@ import {
   testMintTo,
 } from "../../helpers/helpers";
 
-describe("transfer", () => {
+describe("compress-spl", () => {
   const payerKeypair = defaultSolanaWalletKeypair();
+  /// TODO: add test case for separate fee-payer
   const payerKeypairPath = process.env.HOME + "/.config/solana/id.json";
 
   const mintKeypair = Keypair.generate();
   const mintAuthority = payerKeypair;
 
   const mintAmount = 10;
-  const mintDestination = Keypair.generate().publicKey;
 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(payerKeypair.publicKey);
+
     await createTestMint(mintKeypair);
 
     await testMintTo(
@@ -33,20 +34,25 @@ describe("transfer", () => {
   });
 
   test
+    .command([
+      "decompress-spl",
+      `--mint=${mintKeypair.publicKey.toBase58()}`,
+      `--amount=${mintAmount - 1}`,
+      `--to=${payerKeypair.publicKey.toBase58()}`,
+    ])
     .stdout({ print: true })
     .command([
-      "transfer",
-      `--amount=${mintAmount - 1}`,
-      `--fee-payer=${payerKeypairPath}`,
+      "compress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-      `--to=${mintDestination.toBase58()}`,
+      `--amount=${mintAmount - 2}`,
+      `--to=${payerKeypair.publicKey.toBase58()}`,
     ])
     .it(
-      `transfer ${
-        mintAmount - 1
-      } tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
+      `compress ${
+        mintAmount - 2
+      } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`,
       (ctx: any) => {
-        expect(ctx.stdout).to.contain("transfer successful");
+        expect(ctx.stdout).to.contain("compress-spl successful");
       },
     );
 });

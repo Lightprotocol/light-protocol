@@ -1,7 +1,7 @@
 import { Keypair, Commitment } from '@solana/web3.js';
 import { Wallet } from './interface';
 
-// TODO consider adding isNodeWallet
+// // TODO consider adding isNodeWallet
 export const useWallet = (
     keypair: Keypair,
     url: string = 'http://127.0.0.1:8899',
@@ -16,6 +16,5 @@ export const useWallet = (
         signTransaction: wallet.signTransaction,
         signAllTransactions: wallet.signAllTransactions,
         sendTransaction: wallet.sendTransaction,
-        getProof: wallet.getProof,
     };
 };

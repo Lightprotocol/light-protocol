@@ -8,9 +8,6 @@ import {
 } from '@solana/web3.js';
 import { PublicKey, Transaction } from '@solana/web3.js';
 import { sign } from 'tweetnacl';
-import { Proof } from './get-proof';
-import { Idl } from '@coral-xyz/anchor';
-import { IDL } from '../idls/psp_compressed_pda';
 
 export type InclusionProofPublicInputs = {
     root: string;
@@ -84,40 +81,4 @@ export class Wallet {
         );
         return response;
     };
-
-    getProof = async (proofInputs: InclusionProofInputs): Promise<Proof> => {
-        /// should pick verifer idl and circuit here. Eventually, we can consider
-        /// adding a parameter for dapps to request custom circuits by idl. Though,
-        /// this is mostly contingent on whether we want to support custom
-        /// circuits in the wallet registry or keep them in the dapp.
-        const _verifierIdl = getIdlByProofInputs(proofInputs);
-        const _circuitName = getCircuitByProofInputs(proofInputs);
-
-        // const { parsedProof, parsedPublicInputsObject } = await getProofInternal({
-        //   /// TODO: implement actual path
-        //   firstPath: "mockPath",
-        //   verifierIdl,
-        //   circuitName,
-        //   proofInputs,
-        //   enableLogging: true,
-        //   verify: true,
-        // });
-
-        return {
-            parsedProof: 'mockParsedProof',
-            parsedPublicInputsObject: 'mockParsedPublicInputsObject',
-        };
-    };
 }
-/// TODO: generalize when needed
-const getIdlByProofInputs = (_proofInputs: InclusionProofInputs): Idl => {
-    return IDL;
-};
-
-/// TODO: use actual circuits
-/// Picks the circuit by amount of proof inputs
-const getCircuitByProofInputs = (
-    _proofInputs: InclusionProofInputs,
-): string => {
-    return 'mockCircuit';
-};

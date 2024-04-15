@@ -1,7 +1,7 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.0.1",
-    "description": "The Light Protocol core client library.",
+    "version": "0.1.0-alpha.0",
+    "description": "JS client Library to interact with the Programs and RPC for ZK Compression",
     "sideEffects": false,
     "type": "module",
     "main": "./dist/umd/index.js",
@@ -65,8 +65,7 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "0.29.0",
-        "@lightprotocol/hasher.rs": "workspace:*",
-        "@lightprotocol/prover.js": "workspace:*",
+        "@lightprotocol/hasher.rs": "0.1.0-alpha.0",
         "@metaplex-foundation/beet": "0.7.1",
         "@metaplex-foundation/beet-solana": "^0.4.1",
         "@noble/hashes": "^1.3.2",

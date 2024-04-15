@@ -1,10 +1,10 @@
 {
   "name": "@lightprotocol/hasher.rs",
-  "version": "0.1.0",
-  "description": "",
+  "version": "0.1.0-alpha.0",
+  "description": "Poseidon Hasher",
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "sideEffects": false,
   "type": "module",
   "main": "./dist/browser-fat/umd/index_browser_fat.js",

@@ -11,8 +11,8 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
+    dedupeSigner,
 } from '@lightprotocol/stateless.js';
-import { dedupeSigner } from './common';
 
 /**
  * Create and initialize a new compressed token mint

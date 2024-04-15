@@ -28,13 +28,13 @@ pub struct InitializeCompressedSolPda<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn de_compress_lamports<'a, 'b, 'c: 'info, 'info>(
+pub fn compression_lamports<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
     if inputs.is_compress {
         compress_lamports(inputs, ctx)
-    } else if inputs.de_compress_lamports.is_some() {
+    } else if inputs.compression_lamports.is_some() {
         decompress_lamports(inputs, ctx)
     } else {
         Ok(())
@@ -45,15 +45,15 @@ pub fn decompress_lamports<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.de_compress_recipient.as_ref() {
-        Some(de_compress_recipient) => de_compress_recipient.to_account_info(),
+    let recipient = match ctx.accounts.compression_recipient.as_ref() {
+        Some(compression_recipient) => compression_recipient.to_account_info(),
         None => return err!(crate::ErrorCode::DecompressRecipientUndefinedForDecompressSol),
     };
     let compressed_sol_pda = match ctx.accounts.compressed_sol_pda.as_ref() {
         Some(compressed_sol_pda) => compressed_sol_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedSolPdaUndefinedForDecompressSol),
     };
-    let lamports = match inputs.de_compress_lamports {
+    let lamports = match inputs.compression_lamports {
         Some(lamports) => lamports,
         None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForDecompressSol),
     };
@@ -70,7 +70,7 @@ pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
         Some(compressed_sol_pda) => compressed_sol_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedSolPdaUndefinedForCompressSol),
     };
-    let lamports = match inputs.de_compress_lamports {
+    let lamports = match inputs.compression_lamports {
         Some(lamports) => lamports,
         None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForCompressSol),
     };
@@ -86,26 +86,23 @@ pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
 }
 
 pub fn transfer_lamports<'info>(
-    sender: &AccountInfo<'info>,
-    receiver: &AccountInfo<'info>,
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
     msg!("transfer_lamports {}", lamports);
-    msg!("sender lamports: {}", sender.lamports());
-    msg!("receiver lamports: {}", receiver.lamports());
-    let instruction = anchor_lang::solana_program::system_instruction::transfer(
-        sender.key,
-        receiver.key,
-        lamports,
-    );
+    msg!("from lamports: {}", from.lamports());
+    msg!("to lamports: {}", to.lamports());
+    let instruction =
+        anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     let (seed, bump) = get_seeds(&crate::ID, &authority.key())?;
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
 
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
-        &[authority.clone(), sender.clone(), receiver.clone()],
+        &[authority.clone(), from.clone(), to.clone()],
         seeds,
     )?;
     Ok(())

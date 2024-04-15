@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/compressed-token",
-    "version": "0.0.1",
+    "version": "0.0.1-alpha.0",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "type": "module",
@@ -27,6 +27,8 @@
         "test:e2e:create-mint": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts",
         "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
+        "test:e2e:compress": "pnpm test-validator && vitest run tests/e2e/compress.test.ts --reporter=verbose",
+        "test:e2e:decompress": "pnpm test-validator && vitest run tests/e2e/decompress.test.ts --reporter=verbose",
         "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/*.test.ts",
         "pull-idl": "../../scripts/push-compressed-token-idl.sh",
         "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
@@ -45,8 +47,8 @@
     "license": "Apache-2.0",
     "dependencies": {
         "@coral-xyz/anchor": "0.28.0",
-        "@lightprotocol/stateless.js": "workspace:*",
-        "@lightprotocol/hasher.rs": "workspace:*",
+        "@lightprotocol/stateless.js": "0.1.0-alpha.0",
+        "@lightprotocol/hasher.rs": "0.1.0-alpha.0",
         "@metaplex-foundation/beet": "0.7.1",
         "@metaplex-foundation/beet-solana": "^0.4.1",
         "@solana/spl-token": "^0.3.7",
