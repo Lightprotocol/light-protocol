@@ -193,7 +193,6 @@ where
                 T::try_from_slice(inner_instruction.instruction.data.as_slice()).ok()
             })
         });
-
     // If transaction was successful, execute it.
     if let Some(Ok(())) = simulation_result.result {
         context

@@ -130,9 +130,7 @@ async fn assert_create_mint(
 
 #[tokio::test]
 async fn test_create_mint() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, _) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let rent = context
@@ -173,9 +171,7 @@ async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -
 
 #[tokio::test]
 async fn test_mint_to() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -227,9 +223,7 @@ async fn test_mint_to() {
 
 #[tokio::test]
 async fn test_transfer() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -370,9 +364,7 @@ async fn test_transfer() {
 
 #[tokio::test]
 async fn test_decompression() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -563,9 +555,7 @@ async fn test_decompression() {
 /// 5. Invalid delegated amount
 #[tokio::test]
 async fn test_invalid_inputs() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -654,10 +644,9 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
@@ -681,10 +670,9 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(ErrorCode::SumCheckFailed.into())
@@ -708,10 +696,9 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(ErrorCode::SumCheckFailed.into())
@@ -734,10 +721,9 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
@@ -762,11 +748,10 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
 
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
@@ -814,11 +799,10 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
 
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
@@ -850,11 +834,10 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
 
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
@@ -877,11 +860,10 @@ async fn test_invalid_inputs() {
         &root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
 
     assert_eq!(
-        res.result,
+        res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
@@ -1023,6 +1005,7 @@ async fn create_transfer_out_utxo_test(
     )
     .await
 }
+
 pub async fn create_token_account(
     context: &mut ProgramTestContext,
     mint: &Pubkey,

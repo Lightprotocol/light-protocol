@@ -4,6 +4,7 @@ use light_compressed_pda::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
     },
+    compressed_cpi::CompressedCpiContext,
     utils::CompressedProof,
     InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
 };
@@ -25,6 +26,7 @@ use crate::{spl_compression::process_compression, ErrorCode};
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataTransfer =
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
@@ -84,6 +86,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         &output_compressed_accounts,
         inputs.output_state_merkle_tree_account_indices,
         inputs.proof,
+        cpi_context,
     )?;
     Ok(())
 }
@@ -117,7 +120,22 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     output_compressed_accounts: &[CompressedAccount],
     output_state_merkle_tree_account_indices: Vec<u8>,
     proof: Option<CompressedProof>,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
+    let (_, bump) = get_cpi_authority_pda();
+    let bump = &[bump];
+    let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
+
+    let signer_seeds = &[&seeds[..]];
+    let cpi_signature_account = match cpi_context.as_ref() {
+        Some(cpi_context) => {
+            let cpi_signature_account = ctx.remaining_accounts
+                [cpi_context.cpi_signature_account_index as usize]
+                .to_account_info();
+            Some(cpi_signature_account)
+        }
+        None => None,
+    };
     let inputs_struct = LightCompressedPdaInstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
@@ -128,28 +146,23 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         new_address_params: Vec::new(),
         compression_lamports: None,
         is_compress: false,
+        signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
     };
 
     let mut inputs = Vec::new();
     LightCompressedPdaInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let (_, bump) = get_cpi_authority_pda();
-    let bump = &[bump];
-    let id = account_compression::ID.to_bytes();
-    let seeds = [b"cpi_authority".as_slice(), id.as_slice(), bump];
-
-    let signer_seeds = &[&seeds[..]];
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
         signer: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        cpi_signature_account: None,
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: None,
+        cpi_signature_account,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -158,7 +171,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, cpi_context)?;
     Ok(())
 }
 
@@ -210,7 +223,7 @@ pub struct TransferInstruction<'info> {
     pub authority: Signer<'info>,
     // This is the cpi signer
     /// CHECK: that mint authority is derived from signer
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump,)]
+    #[account(seeds = [b"cpi_authority"], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
     /// CHECK: this account
@@ -218,7 +231,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = light_compressed_pda::ID,)]
+    #[account(seeds = [b"cpi_authority"], bump, seeds::program = light_compressed_pda::ID,)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
@@ -438,13 +451,7 @@ impl DataHasher for TokenData {
 }
 
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            b"cpi_authority",
-            account_compression::ID.key().to_bytes().as_slice(),
-        ],
-        &crate::ID,
-    )
+    Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID)
 }
 
 #[cfg(not(target_os = "solana"))]
@@ -501,12 +508,15 @@ pub mod transfer_sdk {
             is_compress,
             compression_amount,
         );
-        let inputs = inputs_struct
-            .try_to_vec()
-            .map_err(|_| TransferSdkError::CreateTransferInstructionFailed)?;
+        let remaining_accounts = to_account_metas(remaining_accounts);
+        let mut inputs = Vec::new();
+        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
-        let instruction_data = crate::instruction::Transfer { inputs };
+        let instruction_data = crate::instruction::Transfer {
+            inputs,
+            cpi_context: None,
+        };
 
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,
@@ -550,28 +560,43 @@ pub mod transfer_sdk {
         owner: &Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
-    ) -> Result<(Vec<AccountMeta>, CompressedTokenInstructionDataTransfer), TransferSdkError> {
+        // token_pool_pda: Option<Pubkey>,
+        // decompress_token_account: Option<Pubkey>,
+    ) -> Result<
+        (
+            HashMap<Pubkey, usize>,
+            CompressedTokenInstructionDataTransfer,
+        ),
+        TransferSdkError,
+    > {
         for token_data in input_token_data {
             // convenience signer check to throw a meaningful error
             if token_data.owner != *owner {
+                println!(
+                    "owner: {:?}, token_data.owner: {:?}",
+                    owner, token_data.owner
+                );
                 return Err(TransferSdkError::SignerCheckFailed);
             }
         }
-
-        Ok(create_inputs_and_remaining_accounts(
-            input_compressed_account_merkle_tree_pubkeys,
-            leaf_indices,
-            input_token_data,
-            nullifier_array_pubkeys,
-            output_compressed_account_merkle_tree_pubkeys,
-            owner_if_delegate_is_signer,
-            output_compressed_accounts,
-            root_indices,
-            proof,
-            mint,
-            is_compress,
-            compression_amount,
-        ))
+        let (remaining_accounts, compressed_accounts_ix_data) =
+            create_inputs_and_remaining_accounts(
+                input_compressed_account_merkle_tree_pubkeys,
+                leaf_indices,
+                input_token_data,
+                nullifier_array_pubkeys,
+                output_compressed_account_merkle_tree_pubkeys,
+                owner_if_delegate_is_signer,
+                output_compressed_accounts,
+                root_indices,
+                proof,
+                mint,
+                is_compress,
+                compression_amount,
+                // token_pool_pda,
+                // decompress_token_account,
+            );
+        Ok((remaining_accounts, compressed_accounts_ix_data))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -588,7 +613,12 @@ pub mod transfer_sdk {
         mint: Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
-    ) -> (Vec<AccountMeta>, CompressedTokenInstructionDataTransfer) {
+        // token_pool_pda: Option<Pubkey>,
+        // decompress_token_account: Option<Pubkey>,
+    ) -> (
+        HashMap<Pubkey, usize>,
+        CompressedTokenInstructionDataTransfer,
+    ) {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         if let Some(owner_if_delegate_is_signer) = owner_if_delegate_is_signer {
             remaining_accounts.insert(owner_if_delegate_is_signer, 0);
@@ -660,17 +690,6 @@ pub mod transfer_sdk {
                 *remaining_accounts.get(mt).unwrap() as u8;
         }
 
-        let mut remaining_accounts = remaining_accounts
-            .iter()
-            .map(|(k, i)| (AccountMeta::new(*k, false), *i))
-            .collect::<Vec<(AccountMeta, usize)>>();
-        // hash maps are not sorted so we need to sort manually and collect into a vector again
-        remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
-        let remaining_accounts = remaining_accounts
-            .iter()
-            .map(|(k, _)| k.clone())
-            .collect::<Vec<AccountMeta>>();
-
         let inputs_struct = CompressedTokenInstructionDataTransfer {
             output_compressed_accounts: output_compressed_accounts.to_vec(),
             root_indices: root_indices.to_vec(),
@@ -685,5 +704,19 @@ pub mod transfer_sdk {
         };
 
         (remaining_accounts, inputs_struct)
+    }
+
+    pub fn to_account_metas(remaining_accounts: HashMap<Pubkey, usize>) -> Vec<AccountMeta> {
+        let mut remaining_accounts = remaining_accounts
+            .iter()
+            .map(|(k, i)| (AccountMeta::new(*k, false), *i))
+            .collect::<Vec<(AccountMeta, usize)>>();
+        // hash maps are not sorted so we need to sort manually and collect into a vector again
+        remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+        let remaining_accounts = remaining_accounts
+            .iter()
+            .map(|(k, _)| k.clone())
+            .collect::<Vec<AccountMeta>>();
+        remaining_accounts
     }
 }

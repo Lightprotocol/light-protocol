@@ -66,6 +66,5 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     let len = function.block.stmts.len();
     function.block.stmts.insert(len - 1, log_post);
     function.block.stmts.insert(len - 1, cleanup_code);
-
     TokenStream::from(quote! { #function })
 }

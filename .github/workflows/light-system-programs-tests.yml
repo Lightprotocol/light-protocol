@@ -33,19 +33,27 @@ jobs:
         include:
           - program: account-compression
             sub-tests: '[
-              "@lightprotocol/programs:test-account-compression"
+              "cargo test-sbf -p account-compression"
             ]'
           - program: light-compressed-pda
             sub-tests: '[
-              "@lightprotocol/programs:test-compressed-pda"
+              "cargo test-sbf -p light-compressed-pda -- --test-threads=1"
             ]'
           - program: light-registry
             sub-tests: '[
-              "@lightprotocol/programs:test-registry"
+              "cargo test-sbf -p light-registry"
             ]'
           - program: light-compressed-token
             sub-tests: '[
-              "@lightprotocol/programs:test-compressed-token"
+              "cargo test-sbf -p light-compressed-token -- --test-threads=1"
+            ]'
+          - program: token-escrow
+            sub-tests: '[
+              "cargo test-sbf -p token-escrow"
+            ]'
+          - program: program-owned-account-test
+            sub-tests: '[
+              "cargo test-sbf -p program-owned-account-test"
             ]'
 
     steps:
@@ -68,5 +76,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx run "$subtest"
+            $subtest
           done

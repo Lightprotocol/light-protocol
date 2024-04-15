@@ -17,9 +17,9 @@ use solana_sdk::{
 };
 pub async fn setup_test_programs_with_accounts() -> ProgramTestContext {
     let mut context = setup_test_programs(None).await;
+    let payer = context.payer.insecure_clone();
     let cpi_authority_pda = get_cpi_authority_pda();
     let authority_pda = get_governance_authority_pda();
-    let payer = context.payer.insecure_clone();
     let instruction =
         create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])

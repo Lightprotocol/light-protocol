@@ -32,7 +32,7 @@ jobs:
           elif [[ "$CRATE_NAME" == *"light-compressed-pda"* ]]; then
             ARTIFACT="light_compressed_pda.so"
           elif [[ "$CRATE_NAME" == *"light-compressed-token"* ]]; then
-            ARTIFACT="psp_compressed_token.so"
+            ARTIFACT="light_compressed_token.so"
           elif [[ "$CRATE_NAME" == *"light-user-registry"* ]]; then
             ARTIFACT="light_user_registry.so"
           elif [[ "$CRATE_NAME" == *"light-registry"* ]]; then
