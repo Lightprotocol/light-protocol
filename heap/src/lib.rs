@@ -13,13 +13,6 @@ pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator {
     len: HEAP_LENGTH,
 };
 
-// #[cfg(target_os = "solana")]
-// #[global_allocator]
-// pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator {
-//     start: HEAP_START_ADDRESS as usize,
-//     len: HEAP_LENGTH,
-// };
-
 pub struct BumpAllocator {
     pub start: usize,
     pub len: usize,
@@ -36,9 +29,10 @@ impl BumpAllocator {
         }
     }
 
-    /// Return heap position as of this call/// Returns the current position of the heap.
+    /// Returns the current position of the heap.
     ///
     /// # Safety
+    ///
     /// This function is unsafe because it returns a raw pointer.
     pub unsafe fn pos(&self) -> usize {
         let pos_ptr = self.start as *mut usize;
@@ -46,7 +40,9 @@ impl BumpAllocator {
     }
 
     /// Reset heap start cursor to position.
+    ///
     /// # Safety
+    ///
     /// Do not use this function if you initialized heap memory after pos which you still need.
     pub unsafe fn move_cursor(&self, pos: usize) {
         let pos_ptr = self.start as *mut usize;

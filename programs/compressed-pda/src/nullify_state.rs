@@ -50,7 +50,9 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         indexed_array_account_infos,
         state_merkle_tree_account_infos,
         nullifiers.to_vec(),
-    )
+    )?;
+
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]

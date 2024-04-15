@@ -40,16 +40,6 @@ pub fn custom_heap(_input: TokenStream) -> TokenStream {
 pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut function = parse_macro_input!(input as ItemFn);
 
-    // Check if the function signature uses `&self` and not `&mut self`
-    // if !has_no_mut_arguments(&function.sig) {
-    //     return syn::Error::new_spanned(
-    //         &function.sig,
-    //         "This macro can't be applied on function with mutable arguments",
-    //     )
-    //     .to_compile_error()
-    //     .into();
-    // }
-
     // Insert memory management code at the beginning of the function
     let init_code: syn::Stmt = parse_quote! {
         #[cfg(target_os = "solana")]
@@ -79,16 +69,3 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
 
     TokenStream::from(quote! { #function })
 }
-
-// fn has_no_mut_arguments(signature: &Signature) -> bool {
-//     signature.inputs.iter().any(|arg| {
-//         matches!(
-//             arg,
-//             FnArg::Receiver(Receiver {
-//                 reference: Some(_),
-//                 mutability: None,
-//                 ..
-//             })
-//         )
-//     })
-// }
