@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { PublicKey, Keypair, Signer } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
+    ParsedTokenAccount,
     Rpc,
     bn,
     createRpc,
@@ -18,7 +19,7 @@ import { CompressedAccountWithParsedTokenData } from '../../src/get-compressed-t
 // TODO: assert individual account amounts in balance
 async function assertTransfer(
     rpc: Rpc,
-    senderPreCompressedTokenAccounts: CompressedAccountWithParsedTokenData[], // all
+    senderPreCompressedTokenAccounts: ParsedTokenAccount[], // all
     refMint: PublicKey,
     refAmount: BN,
     refSender: PublicKey,
@@ -107,7 +108,6 @@ describe('transfer', () => {
             bob.publicKey,
             mintAuthority,
             bn(1000),
-            [],
             merkleTree,
         );
     });

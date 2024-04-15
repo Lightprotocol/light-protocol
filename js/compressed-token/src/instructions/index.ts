@@ -1,1 +1,1 @@
-export * from './transfer';
+export * from './pack-compressed-token-accounts';

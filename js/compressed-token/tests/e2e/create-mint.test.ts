@@ -42,7 +42,11 @@ async function assertCreateMint(
     const unpackedPoolAccount = unpackAccount(poolAccount, poolAccountInfo);
     expect(unpackedPoolAccount.mint.equals(mint)).toBe(true);
     expect(unpackedPoolAccount.amount).toBe(0n);
-    expect(unpackedPoolAccount.owner.equals(mintAuthority)).toBe(true);
+    expect(
+        unpackedPoolAccount.owner.equals(
+            CompressedTokenProgram.deriveCpiAuthorityPda,
+        ),
+    ).toBe(true);
     expect(unpackedPoolAccount.delegate).toBe(null);
 }
 

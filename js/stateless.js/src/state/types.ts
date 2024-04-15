@@ -80,7 +80,6 @@ export interface CompressedProof {
  * Find a better altnerative way to extend the RPC.
  *
  */
-
 export type TokenTransferOutputData = {
     owner: PublicKey;
     amount: BN;
@@ -90,12 +89,25 @@ export type TokenTransferOutputData = {
 export type CompressedTokenInstructionDataTransfer = {
     proof: CompressedProof | null;
     rootIndices: number[];
-    inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
-    inputTokenData: TokenData[];
+    mint: PublicKey;
+    signerIsDelegate: boolean;
+    inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
     outputStateMerkleTreeAccountIndices: Buffer;
+    pubkeyArray: PublicKey[];
+    isCompress: boolean;
+    compressionAmount: BN | null;
 };
 
+export interface InputTokenDataWithContext {
+    amount: BN;
+    delegateIndex: number | null; // Option<u8>
+    delegatedAmount: BN | null; // Option<u64>
+    isNative: BN | null; // Option<u64>
+    merkleTreePubkeyIndex: number; // u8
+    nullifierQueuePubkeyIndex: number; // u8
+    leafIndex: number; // u32
+}
 export type TokenData = {
     /// The mint associated with this account
     mint: PublicKey;

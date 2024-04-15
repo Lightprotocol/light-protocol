@@ -280,7 +280,7 @@ export class LightSystemProgram {
         const {
             packedInputCompressedAccounts,
             outputStateMerkleTreeIndices,
-            remainingAccounts,
+            remainingAccountMetas,
         } = packCompressedAccounts(
             inputCompressedAccounts,
             outputCompressedAccounts.length,
@@ -302,33 +302,22 @@ export class LightSystemProgram {
                     outputStateMerkleTreeIndices,
                 ),
                 relayFee: null,
-                deCompressLamports: null,
+                compressionLamports: null,
                 isCompress: false,
             },
-        );
-
-        /// Format accounts
-        const staticAccounts = {
-            ...defaultStaticAccountsStruct(),
-            signer: payer,
-            invokingProgram: this.programId,
-            compressedSolPda: null,
-            deCompressRecipient: null,
-            systemProgram: null,
-        };
-
-        const remainingAccountMetas = remainingAccounts.map(
-            (account): AccountMeta => ({
-                pubkey: account,
-                isWritable: true,
-                isSigner: false,
-            }),
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .executeCompressedTransaction(data)
-            .accounts(staticAccounts)
+            .accounts({
+                ...defaultStaticAccountsStruct(),
+                signer: payer,
+                invokingProgram: this.programId,
+                compressedSolPda: null,
+                compressionRecipient: null,
+                systemProgram: null,
+            })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
@@ -380,7 +369,7 @@ export class LightSystemProgram {
         const {
             packedInputCompressedAccounts,
             outputStateMerkleTreeIndices,
-            remainingAccounts,
+            remainingAccountMetas,
         } = packCompressedAccounts([], 1, outputStateTree);
 
         /// Encode instruction data
@@ -398,34 +387,22 @@ export class LightSystemProgram {
                     new Uint8Array(outputStateMerkleTreeIndices),
                 ),
                 relayFee: null,
-                deCompressLamports: lamports,
+                compressionLamports: lamports,
                 isCompress: true,
             },
-        );
-
-        /// TODO : refactor
-        /// Format accounts
-        const staticAccounts = {
-            ...defaultStaticAccountsStruct(),
-            signer: payer,
-            invokingProgram: this.programId,
-            compressedSolPda: this.deriveCompressedSolPda(),
-            deCompressRecipient: null,
-            systemProgram: SystemProgram.programId,
-        };
-
-        const remainingAccountMetas = remainingAccounts.map(
-            (account): AccountMeta => ({
-                pubkey: account,
-                isWritable: true,
-                isSigner: false,
-            }),
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .executeCompressedTransaction(data)
-            .accounts(staticAccounts)
+            .accounts({
+                ...defaultStaticAccountsStruct(),
+                signer: payer,
+                invokingProgram: this.programId,
+                compressedSolPda: this.deriveCompressedSolPda(),
+                compressionRecipient: null,
+                systemProgram: SystemProgram.programId,
+            })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
@@ -458,7 +435,7 @@ export class LightSystemProgram {
         const {
             packedInputCompressedAccounts,
             outputStateMerkleTreeIndices,
-            remainingAccounts,
+            remainingAccountMetas,
         } = packCompressedAccounts(
             params.inputCompressedAccounts,
             outputCompressedAccounts.length,
@@ -480,34 +457,22 @@ export class LightSystemProgram {
                     new Uint8Array(outputStateMerkleTreeIndices),
                 ),
                 relayFee: null,
-                deCompressLamports: lamports,
+                compressionLamports: lamports,
                 isCompress: false,
             },
-        );
-
-        /// TODO : refactor
-        /// Format accounts
-        const staticAccounts = {
-            ...defaultStaticAccountsStruct(),
-            signer: payer,
-            invokingProgram: this.programId,
-            compressedSolPda: this.deriveCompressedSolPda(),
-            deCompressRecipient: toAddress,
-            systemProgram: SystemProgram.programId,
-        };
-
-        const remainingAccountMetas = remainingAccounts.map(
-            (account): AccountMeta => ({
-                pubkey: account,
-                isWritable: true,
-                isSigner: false,
-            }),
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
             .executeCompressedTransaction(data)
-            .accounts(staticAccounts)
+            .accounts({
+                ...defaultStaticAccountsStruct(),
+                signer: payer,
+                invokingProgram: this.programId,
+                compressedSolPda: this.deriveCompressedSolPda(),
+                compressionRecipient: toAddress,
+                systemProgram: SystemProgram.programId,
+            })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 

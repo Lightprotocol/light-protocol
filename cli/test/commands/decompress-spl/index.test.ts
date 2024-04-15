@@ -8,15 +8,15 @@ import {
   testMintTo,
 } from "../../helpers/helpers";
 
-describe("transfer", () => {
+describe("decompress-spl", () => {
   const payerKeypair = defaultSolanaWalletKeypair();
+  /// TODO: add test case for separate fee-payer
   const payerKeypairPath = process.env.HOME + "/.config/solana/id.json";
 
   const mintKeypair = Keypair.generate();
   const mintAuthority = payerKeypair;
 
   const mintAmount = 10;
-  const mintDestination = Keypair.generate().publicKey;
 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
@@ -35,18 +35,17 @@ describe("transfer", () => {
   test
     .stdout({ print: true })
     .command([
-      "transfer",
-      `--amount=${mintAmount - 1}`,
-      `--fee-payer=${payerKeypairPath}`,
+      "decompress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-      `--to=${mintDestination.toBase58()}`,
+      `--amount=${mintAmount - 1}`,
+      `--to=${payerKeypair.publicKey.toBase58()}`,
     ])
     .it(
-      `transfer ${
+      `decompress ${
         mintAmount - 1
-      } tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
+      } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`,
       (ctx: any) => {
-        expect(ctx.stdout).to.contain("transfer successful");
+        expect(ctx.stdout).to.contain("decompress-spl successful");
       },
     );
 });

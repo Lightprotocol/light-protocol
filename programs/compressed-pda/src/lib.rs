@@ -4,13 +4,13 @@ pub mod append_state;
 pub mod event;
 pub mod instructions;
 pub mod utils;
-pub use de_compression::*;
 pub use instructions::*;
+pub use sol_compression::*;
 pub mod compressed_account;
 pub mod create_address;
-pub mod de_compression;
 pub mod nullify_state;
 pub mod sdk;
+pub mod sol_compression;
 pub mod verify_state;
 pub mod verifying_keys;
 
@@ -76,6 +76,8 @@ pub enum ErrorCode {
     DecompressRecipientUndefinedForDecompressSol,
     #[msg("LengthMismatch")]
     LengthMismatch,
+    #[msg("DelegateUndefined while delegated amount is defined")]
+    DelegateUndefined,
 }
 
 #[program]

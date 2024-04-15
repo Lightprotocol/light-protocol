@@ -67,21 +67,13 @@ describe('mintTo', () => {
 
     it('should mint to bob', async () => {
         const amount = bn(1000);
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            amount,
-            [],
-        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, amount);
 
         await assertMintTo(rpc, mint, amount, bob.publicKey);
 
         /// wrong authority
         await expect(
-            mintTo(rpc, payer, mint, bob.publicKey, payer, amount, []),
+            mintTo(rpc, payer, mint, bob.publicKey, payer, amount),
         ).rejects.toThrowError(/custom program error: 0x7d3/);
 
         /// with output state merkle tree defined
@@ -92,7 +84,6 @@ describe('mintTo', () => {
             bob.publicKey,
             mintAuthority,
             amount,
-            [],
             merkleTree,
         );
     });

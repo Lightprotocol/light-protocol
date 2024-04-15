@@ -86,7 +86,7 @@ export type PspCompressedPda = {
                     isOptional: true;
                 },
                 {
-                    name: 'deCompressRecipient';
+                    name: 'compressionRecipient';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
@@ -111,13 +111,6 @@ export type PspCompressedPda = {
     ];
     accounts: [
         {
-            name: 'compressedSolPda';
-            type: {
-                kind: 'struct';
-                fields: [];
-            };
-        },
-        {
             name: 'cpiSignatureAccount';
             docs: [
                 'collects invocations without proofs',
@@ -139,6 +132,13 @@ export type PspCompressedPda = {
                         };
                     },
                 ];
+            };
+        },
+        {
+            name: 'compressedSolPda';
+            type: {
+                kind: 'struct';
+                fields: [];
             };
         },
     ];
@@ -283,7 +283,7 @@ export type PspCompressedPda = {
                         type: 'bool';
                     },
                     {
-                        name: 'deCompressLamports';
+                        name: 'compressionLamports';
                         type: {
                             option: 'u64';
                         };
@@ -360,7 +360,7 @@ export type PspCompressedPda = {
                         };
                     },
                     {
-                        name: 'deCompressLamports';
+                        name: 'compressionLamports';
                         type: {
                             option: 'u64';
                         };
@@ -597,6 +597,11 @@ export type PspCompressedPda = {
             name: 'LengthMismatch';
             msg: 'LengthMismatch';
         },
+        {
+            code: 6029;
+            name: 'DelegateUndefined';
+            msg: 'DelegateUndefined while delegated amount is defined';
+        },
     ];
 };
 
@@ -688,7 +693,7 @@ export const IDL: PspCompressedPda = {
                     isOptional: true,
                 },
                 {
-                    name: 'deCompressRecipient',
+                    name: 'compressionRecipient',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
@@ -713,13 +718,6 @@ export const IDL: PspCompressedPda = {
     ],
     accounts: [
         {
-            name: 'compressedSolPda',
-            type: {
-                kind: 'struct',
-                fields: [],
-            },
-        },
-        {
             name: 'cpiSignatureAccount',
             docs: [
                 'collects invocations without proofs',
@@ -741,6 +739,13 @@ export const IDL: PspCompressedPda = {
                         },
                     },
                 ],
+            },
+        },
+        {
+            name: 'compressedSolPda',
+            type: {
+                kind: 'struct',
+                fields: [],
             },
         },
     ],
@@ -885,7 +890,7 @@ export const IDL: PspCompressedPda = {
                         type: 'bool',
                     },
                     {
-                        name: 'deCompressLamports',
+                        name: 'compressionLamports',
                         type: {
                             option: 'u64',
                         },
@@ -962,7 +967,7 @@ export const IDL: PspCompressedPda = {
                         },
                     },
                     {
-                        name: 'deCompressLamports',
+                        name: 'compressionLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1198,6 +1203,11 @@ export const IDL: PspCompressedPda = {
             code: 6028,
             name: 'LengthMismatch',
             msg: 'LengthMismatch',
+        },
+        {
+            code: 6029,
+            name: 'DelegateUndefined',
+            msg: 'DelegateUndefined while delegated amount is defined',
         },
     ],
 };
