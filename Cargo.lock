@@ -3027,14 +3027,21 @@ version = "0.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anchor-spl",
  "anyhow",
  "ark-ff",
+ "circuitlib-rs",
  "light",
  "light-hash-set",
+ "light-hasher",
  "light-macros",
+ "light-merkle-tree-reference",
  "num-bigint 0.4.4",
  "num-traits",
+ "psp-compressed-pda",
+ "psp-compressed-token",
  "rand 0.8.5",
+ "reqwest",
  "solana-program-test",
  "solana-sdk",
  "spl-token 3.5.0",
@@ -4012,7 +4019,6 @@ dependencies = [
  "anchor-spl",
  "bytemuck",
  "circuitlib-rs",
- "lazy_static",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-merkle-tree-reference",
@@ -6762,6 +6768,26 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token-escrow"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "circuitlib-rs",
+ "light-test-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "psp-compressed-pda",
+ "psp-compressed-token",
+ "reqwest",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
+]
 
 [[package]]
 name = "tokio"

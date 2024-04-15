@@ -164,7 +164,7 @@ export type PspCompressedToken = {
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -174,7 +174,7 @@ export type PspCompressedToken = {
                 },
                 {
                     name: 'pspAccountCompressionAuthority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -1026,7 +1026,7 @@ export const IDL: PspCompressedToken = {
                 },
                 {
                     name: 'registeredProgramPda',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {
@@ -1036,7 +1036,7 @@ export const IDL: PspCompressedToken = {
                 },
                 {
                     name: 'pspAccountCompressionAuthority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {

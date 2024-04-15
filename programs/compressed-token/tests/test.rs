@@ -130,7 +130,7 @@ async fn assert_create_mint(
 #[tokio::test]
 async fn test_create_mint() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -173,7 +173,7 @@ async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -
 #[tokio::test]
 async fn test_mint_to() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -237,7 +237,7 @@ async fn test_mint_to() {
 #[tokio::test]
 async fn test_transfer() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -399,7 +399,7 @@ async fn test_transfer() {
 #[tokio::test]
 async fn test_decompression() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -466,7 +466,6 @@ async fn test_decompression() {
     .await;
     let recipient_token_account_keypair = Keypair::new();
 
-    let latest_blockhash = context.get_new_latest_blockhash().await.unwrap();
     create_token_account(
         &mut context,
         &mint,
@@ -504,10 +503,6 @@ async fn test_decompression() {
             &mut context,
         )
         .await;
-    let input_compressed_accounts: Vec<CompressedAccount> = input_compressed_accounts
-        .iter()
-        .map(|x| x.compressed_account.clone())
-        .collect();
 
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer_pubkey,
@@ -631,7 +626,7 @@ async fn test_decompression() {
 #[tokio::test]
 async fn test_invalid_inputs() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();

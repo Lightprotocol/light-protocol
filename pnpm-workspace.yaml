@@ -9,3 +9,4 @@ packages:
   - "account-compression/programs/**"
   - "js/stateless.js/**"
   - "js/compressed-token/**"
+  - "examples/**"

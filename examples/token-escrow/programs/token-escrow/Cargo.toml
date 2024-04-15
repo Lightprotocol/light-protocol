@@ -1,0 +1,39 @@
+[package]
+name = "token-escrow"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "token_escrow"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+test-sbf = []
+
+[dependencies]
+anchor-lang ={ version="0.29.0", features = ["init-if-needed"] }
+psp-compressed-token = { path = "../../../../programs/compressed-token"  , features = ["cpi"]}
+psp-compressed-pda = { path = "../../../../programs/compressed-pda"  , features = ["cpi"]}
+account-compression = { path = "../../../../programs/account-compression" , features = ["cpi"] }
+
+
+[target.'cfg(not(target_os = "solana"))'.dependencies]
+solana-sdk = "1.17.4"
+
+
+[dev-dependencies]
+solana-program-test = "1.17.4"
+light-test-utils = { version = "0.1.0", path = "../../../../test-utils", default-features= true, features = ["test_indexer"] }
+reqwest = "0.11.26"
+tokio = "1.36.0"
+circuitlib-rs = {path = "../../../../circuit-lib/circuitlib-rs"}
+num-bigint = "0.4.4"
+num-traits = "0.2.18"
+spl-token = "3.5.0"
+anchor-spl = "0.29.0"

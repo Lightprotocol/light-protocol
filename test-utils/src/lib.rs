@@ -18,6 +18,8 @@ use solana_sdk::{
 
 pub mod spl;
 pub mod test_env;
+#[cfg(feature = "test_indexer")]
+pub mod test_indexer;
 
 pub struct AccountZeroCopy<'a, T> {
     pub account: Pin<Box<Account>>,
@@ -144,7 +146,7 @@ pub async fn create_and_send_transaction(
         instruction,
         Some(payer),
         &signers.to_vec(),
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     let signature = transaction.signatures[0];
     context

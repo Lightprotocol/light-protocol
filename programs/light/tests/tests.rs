@@ -16,7 +16,7 @@ use solana_sdk::{
     system_instruction,
 };
 pub async fn setup_test_programs_with_accounts() -> ProgramTestContext {
-    let mut context = setup_test_programs().await;
+    let mut context = setup_test_programs(None).await;
     let cpi_authority_pda = get_cpi_authority_pda();
     let authority_pda = get_governance_authority_pda();
     let payer = context.payer.insecure_clone();

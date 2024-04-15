@@ -59,7 +59,7 @@ export type PspCompressedPda = {
                 },
                 {
                     name: 'pspAccountCompressionAuthority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -666,7 +666,7 @@ export const IDL: PspCompressedPda = {
                 },
                 {
                     name: 'pspAccountCompressionAuthority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {

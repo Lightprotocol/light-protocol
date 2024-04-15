@@ -13,7 +13,6 @@ use crate::{
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
-    #[account(mut)]
     pub authority: Signer<'info>,
     // TODO: Add fee payer.
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
