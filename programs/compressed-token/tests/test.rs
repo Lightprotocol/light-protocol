@@ -354,7 +354,8 @@ async fn test_transfer() {
         None,  // compression_amount
         None,  // token_pool_pda
         None,  // decompress_token_account
-    );
+    )
+    .unwrap();
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -521,7 +522,8 @@ async fn test_decompression() {
         Some(1000u64),                                    // compression_amount
         Some(get_token_pool_pda(&mint)),                  // token_pool_pda
         Some(recipient_token_account_keypair.pubkey()),   // decompress_token_account
-    );
+    )
+    .unwrap();
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -578,7 +580,8 @@ async fn test_decompression() {
         Some(1000u64),                                  // compression_amount
         Some(get_token_pool_pda(&mint)),                // token_pool_pda
         Some(recipient_token_account_keypair.pubkey()), // decompress_token_account
-    );
+    )
+    .unwrap();
 
     let transaction = Transaction::new_signed_with_payer(
         &[approve_instruction, instruction],
@@ -1072,7 +1075,8 @@ async fn create_transfer_out_utxo_test(
         None,
         None,
         None,
-    );
+    )
+    .unwrap();
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

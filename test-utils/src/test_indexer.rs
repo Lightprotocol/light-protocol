@@ -167,22 +167,20 @@ impl TestIndexer {
         event: PublicTransactionEvent,
     ) -> Vec<usize> {
         for compressed_account in event.input_compressed_accounts.iter() {
-            let index = self
-                .compressed_accounts
-                .iter()
-                .position(|x| x.compressed_account == compressed_account.compressed_account)
-                .expect("compressed_account not found");
-            self.compressed_accounts.remove(index);
+            self.compressed_accounts
+                .retain(|x| x.compressed_account != compressed_account.compressed_account);
             // TODO: nullify compressed_account in Merkle tree, not implemented yet
             self.nullified_compressed_accounts
                 .push(compressed_account.clone());
-            if let Some((index, _)) = self.compressed_accounts.iter().enumerate()
-                    .find(|&(_, acc)| acc == compressed_account) {
-                let token_compressed_account_element =
-                    self.token_compressed_accounts.remove(index);
-                self.token_nullified_compressed_accounts.push(
-                    token_compressed_account_element
-                );
+            if let Some((index, _)) = self
+                .compressed_accounts
+                .iter()
+                .enumerate()
+                .find(|&(_, acc)| acc == compressed_account)
+            {
+                let token_compressed_account_element = self.token_compressed_accounts.remove(index);
+                self.token_nullified_compressed_accounts
+                    .push(token_compressed_account_element);
             }
         }
         let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());

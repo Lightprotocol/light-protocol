@@ -183,7 +183,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         compression_amount: None,
     };
 
-    let inputs = input_struct.try_to_vec()?;
+    let inputs = inputs_struct.try_to_vec()?;
 
     let cpi_accounts = psp_compressed_token::cpi::accounts::TransferInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),

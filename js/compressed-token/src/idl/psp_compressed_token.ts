@@ -144,12 +144,12 @@ export type PspCompressedToken = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -781,82 +781,65 @@ export type PspCompressedToken = {
                 ];
             };
         },
+        {
+            name: 'ErrorCode';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'PublicKeyAmountMissmatch';
+                    },
+                    {
+                        name: 'MissingNewAuthorityPda';
+                    },
+                    {
+                        name: 'SignerCheckFailed';
+                    },
+                    {
+                        name: 'MintCheckFailed';
+                    },
+                    {
+                        name: 'ComputeInputSumFailed';
+                    },
+                    {
+                        name: 'ComputeOutputSumFailed';
+                    },
+                    {
+                        name: 'ComputeCompressSumFailed';
+                    },
+                    {
+                        name: 'ComputeDecompressSumFailed';
+                    },
+                    {
+                        name: 'SumCheckFailed';
+                    },
+                    {
+                        name: 'DecompressRecipientUndefinedForDecompress';
+                    },
+                    {
+                        name: 'CompressedPdaUndefinedForDecompress';
+                    },
+                    {
+                        name: 'DeCompressAmountUndefinedForDecompress';
+                    },
+                    {
+                        name: 'CompressedPdaUndefinedForCompress';
+                    },
+                    {
+                        name: 'DeCompressAmountUndefinedForCompress';
+                    },
+                    {
+                        name: 'DelegateUndefined';
+                    },
+                ];
+            };
+        },
     ];
     errors: [
         {
             code: 6000;
-            name: 'PublicKeyAmountMissmatch';
-            msg: 'public keys and amounts must be of same length';
-        },
-        {
-            code: 6001;
-            name: 'MissingNewAuthorityPda';
-            msg: 'missing new authority pda';
-        },
-        {
-            code: 6002;
             name: 'SignerCheckFailed';
-            msg: 'SignerCheckFailed';
-        },
-        {
-            code: 6003;
-            name: 'MintCheckFailed';
-            msg: 'MintCheckFailed';
-        },
-        {
-            code: 6004;
-            name: 'ComputeInputSumFailed';
-            msg: 'ComputeInputSumFailed';
-        },
-        {
-            code: 6005;
-            name: 'ComputeOutputSumFailed';
-            msg: 'ComputeOutputSumFailed';
-        },
-        {
-            code: 6006;
-            name: 'ComputeCompressSumFailed';
-            msg: 'ComputeCompressSumFailed';
-        },
-        {
-            code: 6007;
-            name: 'ComputeDecompressSumFailed';
-            msg: 'ComputeDecompressSumFailed';
-        },
-        {
-            code: 6008;
-            name: 'SumCheckFailed';
-            msg: 'SumCheckFailed';
-        },
-        {
-            code: 6009;
-            name: 'DecompressRecipientUndefinedForDecompress';
-            msg: 'DecompressRecipientUndefinedForDecompress';
-        },
-        {
-            code: 6010;
-            name: 'CompressedPdaUndefinedForDecompress';
-            msg: 'CompressedPdaUndefinedForDecompress';
-        },
-        {
-            code: 6011;
-            name: 'DeCompressAmountUndefinedForDecompress';
-            msg: 'DeCompressAmountUndefinedForDecompress';
-        },
-        {
-            code: 6012;
-            name: 'CompressedPdaUndefinedForCompress';
-            msg: 'CompressedPdaUndefinedForCompress';
-        },
-        {
-            code: 6013;
-            name: 'DeCompressAmountUndefinedForCompress';
-            msg: 'DeCompressAmountUndefinedForCompress';
-        },
-        {
-            code: 6014;
-            name: 'DelegateUndefined';
-            msg: 'DelegateUndefined while delegated amount is defined';
+            msg: 'Signer check failed';
         },
     ];
 };
@@ -1006,12 +989,12 @@ export const IDL: PspCompressedToken = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -1643,82 +1626,65 @@ export const IDL: PspCompressedToken = {
                 ],
             },
         },
+        {
+            name: 'ErrorCode',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'PublicKeyAmountMissmatch',
+                    },
+                    {
+                        name: 'MissingNewAuthorityPda',
+                    },
+                    {
+                        name: 'SignerCheckFailed',
+                    },
+                    {
+                        name: 'MintCheckFailed',
+                    },
+                    {
+                        name: 'ComputeInputSumFailed',
+                    },
+                    {
+                        name: 'ComputeOutputSumFailed',
+                    },
+                    {
+                        name: 'ComputeCompressSumFailed',
+                    },
+                    {
+                        name: 'ComputeDecompressSumFailed',
+                    },
+                    {
+                        name: 'SumCheckFailed',
+                    },
+                    {
+                        name: 'DecompressRecipientUndefinedForDecompress',
+                    },
+                    {
+                        name: 'CompressedPdaUndefinedForDecompress',
+                    },
+                    {
+                        name: 'DeCompressAmountUndefinedForDecompress',
+                    },
+                    {
+                        name: 'CompressedPdaUndefinedForCompress',
+                    },
+                    {
+                        name: 'DeCompressAmountUndefinedForCompress',
+                    },
+                    {
+                        name: 'DelegateUndefined',
+                    },
+                ],
+            },
+        },
     ],
     errors: [
         {
             code: 6000,
-            name: 'PublicKeyAmountMissmatch',
-            msg: 'public keys and amounts must be of same length',
-        },
-        {
-            code: 6001,
-            name: 'MissingNewAuthorityPda',
-            msg: 'missing new authority pda',
-        },
-        {
-            code: 6002,
             name: 'SignerCheckFailed',
-            msg: 'SignerCheckFailed',
-        },
-        {
-            code: 6003,
-            name: 'MintCheckFailed',
-            msg: 'MintCheckFailed',
-        },
-        {
-            code: 6004,
-            name: 'ComputeInputSumFailed',
-            msg: 'ComputeInputSumFailed',
-        },
-        {
-            code: 6005,
-            name: 'ComputeOutputSumFailed',
-            msg: 'ComputeOutputSumFailed',
-        },
-        {
-            code: 6006,
-            name: 'ComputeCompressSumFailed',
-            msg: 'ComputeCompressSumFailed',
-        },
-        {
-            code: 6007,
-            name: 'ComputeDecompressSumFailed',
-            msg: 'ComputeDecompressSumFailed',
-        },
-        {
-            code: 6008,
-            name: 'SumCheckFailed',
-            msg: 'SumCheckFailed',
-        },
-        {
-            code: 6009,
-            name: 'DecompressRecipientUndefinedForDecompress',
-            msg: 'DecompressRecipientUndefinedForDecompress',
-        },
-        {
-            code: 6010,
-            name: 'CompressedPdaUndefinedForDecompress',
-            msg: 'CompressedPdaUndefinedForDecompress',
-        },
-        {
-            code: 6011,
-            name: 'DeCompressAmountUndefinedForDecompress',
-            msg: 'DeCompressAmountUndefinedForDecompress',
-        },
-        {
-            code: 6012,
-            name: 'CompressedPdaUndefinedForCompress',
-            msg: 'CompressedPdaUndefinedForCompress',
-        },
-        {
-            code: 6013,
-            name: 'DeCompressAmountUndefinedForCompress',
-            msg: 'DeCompressAmountUndefinedForCompress',
-        },
-        {
-            code: 6014,
-            name: 'DelegateUndefined',
-            msg: 'DelegateUndefined while delegated amount is defined',
+            msg: 'Signer check failed',
         },
     ],
 };

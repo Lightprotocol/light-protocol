@@ -465,6 +465,8 @@ pub mod transfer_sdk {
     pub enum TransferSdkError {
         #[msg("Signer check failed")]
         SignerCheckFailed,
+        #[msg("Create transfer instruction failed")]
+        CreateTransferInstructionFailed,
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -485,7 +487,7 @@ pub mod transfer_sdk {
         compression_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
         decompress_token_account: Option<Pubkey>,
-    ) -> Instruction {
+    ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, inputs_struct) = create_inputs_and_remaining_accounts(
             input_compressed_account_merkle_tree_pubkeys,
             leaf_indices,
@@ -500,7 +502,9 @@ pub mod transfer_sdk {
             is_compress,
             compression_amount,
         );
-        let inputs = inputs_struct.try_to_vec()?;
+        let inputs = inputs_struct
+            .try_to_vec()
+            .map_err(|_| TransferSdkError::CreateTransferInstructionFailed)?;
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
         let instruction_data = crate::instruction::Transfer { inputs };
@@ -524,12 +528,12 @@ pub mod transfer_sdk {
             token_program: token_pool_pda.map(|_| Token::id()),
         };
 
-        Instruction {
+        Ok(Instruction {
             program_id: crate::ID,
             accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
 
             data: instruction_data.data(),
-        }
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
