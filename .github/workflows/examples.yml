@@ -1,0 +1,59 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "examples/token-escrow/**"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "examples/token-escrow/**"
+
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: examples/token-escrow
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Cache .local directory
+        uses: actions/cache@v3
+        with:
+          path: .local
+          key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          ./scripts/install.sh
+          source ./scripts/devenv.sh
+
+      - name: Build
+        run: |
+          cd gnark-prover
+          go build
+
+      - name: Build and test
+        run: |
+          source ./scripts/devenv.sh
+          anchor build
+          cp third-party/solana-program-library/spl_noop.so target/deploy/spl_noop.so
+          cd examples/token-escrow/programs/token-escrow
+          cargo test-sbf
