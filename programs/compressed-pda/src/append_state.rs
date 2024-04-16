@@ -65,7 +65,9 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         &ctx.accounts.noop_program,
         out_merkle_trees_account_infos,
         output_compressed_account_hashes.to_vec(),
-    )
+    )?;
+
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]

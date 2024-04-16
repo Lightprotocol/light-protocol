@@ -17,6 +17,7 @@ use crate::{
     },
     CompressedSolPda, ErrorCode,
 };
+
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
@@ -116,13 +117,15 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     }
 
     // emit state transition event ---------------------------------------------------
-    emit_state_transition_event(
+    let event = emit_state_transition_event(
         inputs,
         ctx,
         &input_compressed_account_hashes,
         &output_compressed_account_hashes,
         &output_leaf_indices,
-    )
+    )?;
+
+    Ok(event)
 }
 
 // DO NOT MAKE HEAP NEUTRAL: this function allocates new heap memory
