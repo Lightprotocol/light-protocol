@@ -147,7 +147,11 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
             .psp_account_compression_authority
             .to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        cpi_signature_account: None,
+        cpi_signature_account: ctx
+            .accounts
+            .cpi_signature_account
+            .as_ref()
+            .map(|account| account.to_account_info()),
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
@@ -231,6 +235,7 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
+    pub cpi_signature_account: Option<AccountInfo<'info>>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -500,6 +505,7 @@ pub mod transfer_sdk {
             is_compress,
             compression_amount,
         );
+        let remaining_accounts = to_account_metas(remaining_accounts);
         let mut inputs = Vec::new();
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -523,6 +529,7 @@ pub mod transfer_sdk {
             token_pool_pda,
             decompress_token_account,
             token_program: token_pool_pda.map(|_| Token::id()),
+            cpi_signature_account: None,
         };
 
         Instruction {
@@ -550,30 +557,37 @@ pub mod transfer_sdk {
         compression_amount: Option<u64>,
         // token_pool_pda: Option<Pubkey>,
         // decompress_token_account: Option<Pubkey>,
-    ) -> Result<(Vec<AccountMeta>, CompressedTokenInstructionDataTransfer), TransferSdkError> {
+    ) -> Result<
+        (
+            HashMap<Pubkey, usize>,
+            CompressedTokenInstructionDataTransfer,
+        ),
+        TransferSdkError,
+    > {
         for token_data in input_token_data {
             // convenience signer check to throw a meaningful error
             if token_data.owner != *owner {
                 return Err(TransferSdkError::SignerCheckFailed);
             }
         }
-
-        Ok(create_inputs_and_remaining_accounts(
-            input_compressed_account_merkle_tree_pubkeys,
-            leaf_indices,
-            input_token_data,
-            nullifier_array_pubkeys,
-            output_compressed_account_merkle_tree_pubkeys,
-            owner_if_delegate_is_signer,
-            output_compressed_accounts,
-            root_indices,
-            proof,
-            mint,
-            is_compress,
-            compression_amount,
-            // token_pool_pda,
-            // decompress_token_account,
-        ))
+        let (remaining_accounts, compressed_accounts_ix_data) =
+            create_inputs_and_remaining_accounts(
+                input_compressed_account_merkle_tree_pubkeys,
+                leaf_indices,
+                input_token_data,
+                nullifier_array_pubkeys,
+                output_compressed_account_merkle_tree_pubkeys,
+                owner_if_delegate_is_signer,
+                output_compressed_accounts,
+                root_indices,
+                proof,
+                mint,
+                is_compress,
+                compression_amount,
+                // token_pool_pda,
+                // decompress_token_account,
+            );
+        Ok((remaining_accounts, compressed_accounts_ix_data))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -592,7 +606,10 @@ pub mod transfer_sdk {
         compression_amount: Option<u64>,
         // token_pool_pda: Option<Pubkey>,
         // decompress_token_account: Option<Pubkey>,
-    ) -> (Vec<AccountMeta>, CompressedTokenInstructionDataTransfer) {
+    ) -> (
+        HashMap<Pubkey, usize>,
+        CompressedTokenInstructionDataTransfer,
+    ) {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
         let mut pubkey_array: HashMap<Pubkey, u8> = HashMap::new();
@@ -662,16 +679,6 @@ pub mod transfer_sdk {
                 *remaining_accounts.get(mt).unwrap() as u8;
         }
 
-        let mut remaining_accounts = remaining_accounts
-            .iter()
-            .map(|(k, i)| (AccountMeta::new(*k, false), *i))
-            .collect::<Vec<(AccountMeta, usize)>>();
-        // hash maps are not sorted so we need to sort manually and collect into a vector again
-        remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
-        let remaining_accounts = remaining_accounts
-            .iter()
-            .map(|(k, _)| k.clone())
-            .collect::<Vec<AccountMeta>>();
         let mut pubkey_array = pubkey_array.into_iter().collect::<Vec<(Pubkey, u8)>>();
         pubkey_array.sort_by(|a, b| a.1.cmp(&b.1));
         let mut pubkey_array = pubkey_array
@@ -696,5 +703,18 @@ pub mod transfer_sdk {
         };
 
         (remaining_accounts, inputs_struct)
+    }
+    pub fn to_account_metas(remaining_accounts: HashMap<Pubkey, usize>) -> Vec<AccountMeta> {
+        let mut remaining_accounts = remaining_accounts
+            .iter()
+            .map(|(k, i)| (AccountMeta::new(*k, false), *i))
+            .collect::<Vec<(AccountMeta, usize)>>();
+        // hash maps are not sorted so we need to sort manually and collect into a vector again
+        remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
+        let remaining_accounts = remaining_accounts
+            .iter()
+            .map(|(k, _)| k.clone())
+            .collect::<Vec<AccountMeta>>();
+        remaining_accounts
     }
 }

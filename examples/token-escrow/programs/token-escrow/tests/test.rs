@@ -47,10 +47,15 @@ async fn test_escrow() {
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
+    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
     let test_indexer = TestIndexer::new(
         merkle_tree_pubkey,
         indexed_array_pubkey,
+        address_merkle_tree_pubkey,
         payer.insecure_clone(),
+        true,
+        false,
+        false,
     );
     let mint = create_mint_helper(&mut context, &payer).await;
     let mut test_indexer = test_indexer.await;
@@ -80,8 +85,12 @@ async fn test_escrow() {
         )
         .unwrap();
 
-    let (root_indices, proof) = test_indexer
-        .create_proof_for_compressed_accounts(&[input_compressed_account_hash], &mut context)
+    let rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&[input_compressed_account_hash]),
+            None,
+            &mut context,
+        )
         .await;
 
     let escrow_amount = 100u64;
@@ -93,8 +102,8 @@ async fn test_escrow() {
         nullifier_array_pubkeys: &[indexed_array_pubkey],
         output_compressed_account_merkle_tree_pubkeys: &[merkle_tree_pubkey, merkle_tree_pubkey],
         output_compressed_accounts: &Vec::new(),
-        root_indices: &root_indices,
-        proof: &proof,
+        root_indices: &rpc_result.root_indices,
+        proof: &rpc_result.proof,
         leaf_indices: &[compressed_input_account_with_context.leaf_index],
         mint: &input_compressed_token_account_data.token_data.mint,
     };
@@ -154,8 +163,12 @@ async fn test_escrow() {
         )
         .unwrap();
 
-    let (root_indices, proof) = test_indexer
-        .create_proof_for_compressed_accounts(&[input_compressed_account_hash], &mut context)
+    let rpc_result = test_indexer
+        .create_proof_for_compressed_accounts(
+            Some(&[input_compressed_account_hash]),
+            None,
+            &mut context,
+        )
         .await;
 
     let escrow_amount = 100u64;
@@ -167,8 +180,8 @@ async fn test_escrow() {
         nullifier_array_pubkeys: &[indexed_array_pubkey],
         output_compressed_account_merkle_tree_pubkeys: &[merkle_tree_pubkey, merkle_tree_pubkey],
         output_compressed_accounts: &Vec::new(),
-        root_indices: &root_indices,
-        proof: &proof,
+        root_indices: &rpc_result.root_indices,
+        proof: &rpc_result.proof,
         leaf_indices: &[compressed_input_account_with_context.leaf_index],
         mint: &escrow_token_data_with_context.token_data.mint,
     };

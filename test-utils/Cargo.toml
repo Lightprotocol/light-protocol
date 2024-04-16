@@ -30,6 +30,6 @@ reqwest = "0.11.26"
 light-hasher = { version = "0.1.0", path = "../merkle-tree/hasher" }
 light-merkle-tree-reference = { version = "0.1.0", path = "../merkle-tree/reference" }
 anchor-spl = "0.29.0"
-
+light-indexed-merkle-tree = {path = "../merkle-tree/indexed/"}
 [dev-dependencies]
 rand = "0.8"
