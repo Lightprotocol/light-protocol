@@ -176,16 +176,13 @@ impl TestIndexer {
             // TODO: nullify compressed_account in Merkle tree, not implemented yet
             self.nullified_compressed_accounts
                 .push(compressed_account.clone());
-            let index = self
-                .compressed_accounts
-                .iter()
-                .position(|x| x == compressed_account);
-            if let Some(index) = index {
+            if let Some((index, _)) = self.compressed_accounts.iter().enumerate()
+                    .find(|&(_, acc)| acc == compressed_account) {
                 let token_compressed_account_element =
-                    self.token_compressed_accounts[index].clone();
-                self.token_compressed_accounts.remove(index);
-                self.token_nullified_compressed_accounts
-                    .push(token_compressed_account_element);
+                    self.token_compressed_accounts.remove(index);
+                self.token_nullified_compressed_accounts.push(
+                    token_compressed_account_element
+                );
             }
         }
         let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());
