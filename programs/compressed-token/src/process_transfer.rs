@@ -500,8 +500,7 @@ pub mod transfer_sdk {
             is_compress,
             compression_amount,
         );
-        let mut inputs = Vec::new();
-        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+        let inputs = inputs_struct.try_to_vec()?;
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
         let instruction_data = crate::instruction::Transfer { inputs };
