@@ -76,7 +76,6 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
 }
 
 #[inline(never)]
-#[heap_neutral]
 fn insert_nullifier(
     proofs: &[Vec<[u8; 32]>],
     change_log_indices: &[u64],

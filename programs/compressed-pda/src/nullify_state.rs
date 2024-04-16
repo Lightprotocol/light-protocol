@@ -58,7 +58,6 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
 #[allow(clippy::too_many_arguments)]
 #[allow(unused_variables)]
 #[inline(never)]
-#[heap_neutral]
 pub fn insert_nullifiers_cpi<'a, 'b>(
     program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,
