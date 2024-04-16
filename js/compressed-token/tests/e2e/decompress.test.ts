@@ -9,7 +9,7 @@ import {
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
-import { compress, createMint, decompress, mintTo } from '../../src/actions';
+import { createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 
 /**

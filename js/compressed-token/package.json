@@ -25,6 +25,7 @@
         "test-all:verbose": "vitest run --reporter=verbose",
         "test-validator": "./../../cli/test_bin/run test-validator",
         "test:e2e:create-mint": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts",
+        "test:e2e:register-mint": "pnpm test-validator && vitest run tests/e2e/register-mint.test.ts",
         "test:e2e:mint-to": "pnpm test-validator && vitest run tests/e2e/mint-to.test.ts",
         "test:e2e:transfer": "pnpm test-validator && vitest run tests/e2e/transfer.test.ts --reporter=verbose",
         "test:e2e:compress": "pnpm test-validator && vitest run tests/e2e/compress.test.ts --reporter=verbose",

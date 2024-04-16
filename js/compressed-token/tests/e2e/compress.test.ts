@@ -101,6 +101,8 @@ describe('compress', () => {
         );
 
         await decompress(rpc, payer, mint, bn(900), bob, bobAta, merkleTree);
+
+
     });
 
     it('should compress from bobAta -> charlie', async () => {
