@@ -79,7 +79,7 @@ async fn init_mock_indexer(
 #[tokio::test]
 async fn test_execute_compressed_transaction() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
 
     let mut mock_indexer = init_mock_indexer(&env, true, false, false).await;
     let mut context = env.context;
@@ -315,7 +315,7 @@ async fn test_execute_compressed_transaction() {
 #[tokio::test]
 async fn test_with_address() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
 
     let mut mock_indexer = init_mock_indexer(&env, true, true, false).await;
 
@@ -691,7 +691,7 @@ pub async fn create_addresses(
 #[tokio::test]
 async fn test_with_compression() {
     let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts().await;
+        setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
 
@@ -992,7 +992,7 @@ async fn test_with_compression() {
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
-    let env = setup_test_programs_with_accounts().await;
+    let env = setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
 
     // List of public keys to fetch and export

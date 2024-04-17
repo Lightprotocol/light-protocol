@@ -5,6 +5,7 @@ edition = "2021"
 [features]
 light_program = ["light", "account-compression"]
 account_compression = ["account-compression"]
+test_indexer = ["account-compression", "light_program", "light", "psp-compressed-pda", "psp-compressed-token"]
 default = ["light_program", "account_compression"]
 
 [dependencies]
@@ -20,8 +21,15 @@ thiserror = "1.0"
 light-macros = {path = "../macros/light"}
 light = {path = "../programs/light", features = ["cpi"],  optional= true}
 account-compression = {path = "../programs/account-compression", features = ["cpi"],  optional= true}
+psp-compressed-token = {path = "../programs/compressed-token", features = ["cpi"],  optional= true}
+psp-compressed-pda = {path = "../programs/compressed-pda", features = ["cpi"],  optional= true}
 spl-token = {version="3.5.0", features = ["no-entrypoint"]}
 tokio = "1.36"
+circuitlib-rs = {path = "../circuit-lib/circuitlib-rs", version = "0.1"}
+reqwest = "0.11.26"
+light-hasher = { version = "0.1.0", path = "../merkle-tree/hasher" }
+light-merkle-tree-reference = { version = "0.1.0", path = "../merkle-tree/reference" }
+anchor-spl = "0.29.0"
 
 [dev-dependencies]
 rand = "0.8"

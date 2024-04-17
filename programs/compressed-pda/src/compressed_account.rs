@@ -59,8 +59,8 @@ impl CompressedAccount {
             vec.push(&data.data_hash);
         }
 
-        // TODO: propagate hasher error
-        Poseidon::hashv(&vec).map_err(|_| crate::ErrorCode::CompressedAccountHashError.into())
+        let hash = Poseidon::hashv(&vec).map_err(ProgramError::from)?;
+        Ok(hash)
     }
 }
 

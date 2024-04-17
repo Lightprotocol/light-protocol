@@ -208,9 +208,7 @@ pub fn sum_check(
 
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
-    #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(mut)]
     pub authority: Signer<'info>,
     // This is the cpi signer
     /// CHECK: that mint authority is derived from signer
@@ -218,12 +216,11 @@ pub struct TransferInstruction<'info> {
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
     /// CHECK: this account
-    #[account(mut)]
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(mut, seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
+    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
@@ -462,6 +459,15 @@ pub mod transfer_sdk {
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
+    use anchor_lang::error_code;
+
+    #[error_code]
+    pub enum TransferSdkError {
+        #[msg("Signer check failed")]
+        SignerCheckFailed,
+        #[msg("Create transfer instruction failed")]
+        CreateTransferInstructionFailed,
+    }
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_transfer_instruction(
@@ -481,7 +487,109 @@ pub mod transfer_sdk {
         compression_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
         decompress_token_account: Option<Pubkey>,
-    ) -> Instruction {
+    ) -> Result<Instruction, TransferSdkError> {
+        let (remaining_accounts, inputs_struct) = create_inputs_and_remaining_accounts(
+            input_compressed_account_merkle_tree_pubkeys,
+            leaf_indices,
+            input_token_data,
+            nullifier_array_pubkeys,
+            output_compressed_account_merkle_tree_pubkeys,
+            owner_if_delegate_is_signer,
+            output_compressed_accounts,
+            root_indices,
+            proof,
+            mint,
+            is_compress,
+            compression_amount,
+        );
+        let inputs = inputs_struct
+            .try_to_vec()
+            .map_err(|_| TransferSdkError::CreateTransferInstructionFailed)?;
+
+        let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
+        let instruction_data = crate::instruction::Transfer { inputs };
+
+        let accounts = crate::accounts::TransferInstruction {
+            fee_payer: *fee_payer,
+            authority: *authority,
+            cpi_authority_pda,
+            compressed_pda_program: psp_compressed_pda::ID,
+            registered_program_pda: psp_compressed_pda::utils::get_registered_program_pda(
+                &psp_compressed_pda::ID,
+            ),
+            noop_program: NOOP_PROGRAM_ID,
+            psp_account_compression_authority: psp_compressed_pda::utils::get_cpi_authority_pda(
+                &psp_compressed_pda::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            self_program: crate::ID,
+            token_pool_pda,
+            decompress_token_account,
+            token_program: token_pool_pda.map(|_| Token::id()),
+        };
+
+        Ok(Instruction {
+            program_id: crate::ID,
+            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+
+            data: instruction_data.data(),
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_inputs_and_remaining_accounts_checked(
+        input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
+        leaf_indices: &[u32],
+        input_token_data: &[crate::TokenData],
+        nullifier_array_pubkeys: &[Pubkey],
+        output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
+        owner_if_delegate_is_signer: Option<Pubkey>,
+        output_compressed_accounts: &[TokenTransferOutputData],
+        root_indices: &[u16],
+        proof: &CompressedProof,
+        mint: Pubkey,
+        owner: &Pubkey,
+        is_compress: bool,
+        compression_amount: Option<u64>,
+    ) -> Result<(Vec<AccountMeta>, CompressedTokenInstructionDataTransfer), TransferSdkError> {
+        for token_data in input_token_data {
+            // convenience signer check to throw a meaningful error
+            if token_data.owner != *owner {
+                return Err(TransferSdkError::SignerCheckFailed);
+            }
+        }
+
+        Ok(create_inputs_and_remaining_accounts(
+            input_compressed_account_merkle_tree_pubkeys,
+            leaf_indices,
+            input_token_data,
+            nullifier_array_pubkeys,
+            output_compressed_account_merkle_tree_pubkeys,
+            owner_if_delegate_is_signer,
+            output_compressed_accounts,
+            root_indices,
+            proof,
+            mint,
+            is_compress,
+            compression_amount,
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_inputs_and_remaining_accounts(
+        input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
+        leaf_indices: &[u32],
+        input_token_data: &[crate::TokenData],
+        nullifier_array_pubkeys: &[Pubkey],
+        output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
+        owner_if_delegate_is_signer: Option<Pubkey>,
+        output_compressed_accounts: &[TokenTransferOutputData],
+        root_indices: &[u16],
+        proof: &CompressedProof,
+        mint: Pubkey,
+        is_compress: bool,
+        compression_amount: Option<u64>,
+    ) -> (Vec<AccountMeta>, CompressedTokenInstructionDataTransfer) {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
         let mut pubkey_array: HashMap<Pubkey, u8> = HashMap::new();
@@ -583,36 +691,7 @@ pub mod transfer_sdk {
             is_compress,
             compression_amount,
         };
-        let mut inputs = Vec::new();
-        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-        let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
-        let instruction_data = crate::instruction::Transfer { inputs };
-
-        let accounts = crate::accounts::TransferInstruction {
-            fee_payer: *fee_payer,
-            authority: *authority,
-            cpi_authority_pda,
-            compressed_pda_program: psp_compressed_pda::ID,
-            registered_program_pda: psp_compressed_pda::utils::get_registered_program_pda(
-                &psp_compressed_pda::ID,
-            ),
-            noop_program: NOOP_PROGRAM_ID,
-            psp_account_compression_authority: psp_compressed_pda::utils::get_cpi_authority_pda(
-                &psp_compressed_pda::ID,
-            ),
-            account_compression_program: account_compression::ID,
-            self_program: crate::ID,
-            token_pool_pda,
-            decompress_token_account,
-            token_program: token_pool_pda.map(|_| Token::id()),
-        };
-
-        Instruction {
-            program_id: crate::ID,
-            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-
-            data: instruction_data.data(),
-        }
+        (remaining_accounts, inputs_struct)
     }
 }

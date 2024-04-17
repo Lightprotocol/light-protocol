@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
     "hasher.rs/src/wasm",
     "circuit-lib/circuitlib-rs",
@@ -10,6 +11,7 @@ members = [
     "test-utils",
     "utils",
     "xtask",
+    "examples/token-escrow/programs/*",
 ]
 
 [profile.release]

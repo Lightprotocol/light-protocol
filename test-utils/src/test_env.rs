@@ -41,7 +41,9 @@ pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiF
 /// 2. account_compression program
 /// 3. psp_compressed_token program
 /// 4. psp_compressed_pda program
-pub async fn setup_test_programs() -> ProgramTestContext {
+pub async fn setup_test_programs(
+    additional_programs: Option<Vec<(String, Pubkey)>>,
+) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
     program_test.add_program("light", LIGHT_ID, None);
     program_test.add_program("account_compression", ACCOUNT_COMPRESSION_ID, None);
@@ -52,6 +54,11 @@ pub async fn setup_test_programs() -> ProgramTestContext {
     );
     program_test.add_program("psp_compressed_pda", PDA_PROGRAM_ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+    if let Some(programs) = additional_programs {
+        for (name, id) in programs {
+            program_test.add_program(&name, id, None);
+        }
+    }
     program_test.set_compute_max_units(1_400_000u64);
     program_test.start_with_context().await
 }
@@ -115,10 +122,12 @@ pub const ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR: [u8; 64] = [
 /// 7. registers the psp_compressed_pda program with the group authority
 /// 8. initializes Merkle tree owned by
 #[cfg(feature = "light_program")]
-pub async fn setup_test_programs_with_accounts() -> EnvWithAccounts {
+pub async fn setup_test_programs_with_accounts(
+    additional_programs: Option<Vec<(String, Pubkey)>>,
+) -> EnvWithAccounts {
     use crate::airdrop_lamports;
 
-    let mut context = setup_test_programs().await;
+    let mut context = setup_test_programs(additional_programs).await;
     let cpi_authority_pda = get_cpi_authority_pda();
     let authority_pda = get_governance_authority_pda();
     let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();

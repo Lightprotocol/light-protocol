@@ -13,7 +13,6 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct InsertAddresses<'info> {
-    #[account(mut)]
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
 }
