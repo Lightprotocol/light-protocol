@@ -551,8 +551,6 @@ pub mod transfer_sdk {
         owner: &Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
-        // token_pool_pda: Option<Pubkey>,
-        // decompress_token_account: Option<Pubkey>,
     ) -> Result<(Vec<AccountMeta>, CompressedTokenInstructionDataTransfer), TransferSdkError> {
         for token_data in input_token_data {
             // convenience signer check to throw a meaningful error
@@ -574,8 +572,6 @@ pub mod transfer_sdk {
             mint,
             is_compress,
             compression_amount,
-            // token_pool_pda,
-            // decompress_token_account,
         ))
     }
 
@@ -593,8 +589,6 @@ pub mod transfer_sdk {
         mint: Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
-        // token_pool_pda: Option<Pubkey>,
-        // decompress_token_account: Option<Pubkey>,
     ) -> (Vec<AccountMeta>, CompressedTokenInstructionDataTransfer) {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
         let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
