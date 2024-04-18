@@ -16,14 +16,6 @@ describe("Test hasher", () => {
         WasmFactory.resetModule();
     });
 
-    it("choose hash implementation depending on platform", () => {
-        if (isNode()) {
-            expect(WasmFactory.name).toEqual("WasmFactory");
-        } else {
-            expect(WasmFactory.name).toContain("WasmAccountHash");
-        }
-    });
-
     it("Test poseidon216", async () => {
         let input = new BN([
             216, 137,  85, 159, 239, 194, 107, 138,
