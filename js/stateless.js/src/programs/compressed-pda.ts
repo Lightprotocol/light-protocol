@@ -24,7 +24,6 @@ import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
-import { placeholderValidityProof } from '../test-utils';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -377,7 +376,7 @@ export class LightSystemProgram {
         const data = this.program.coder.types.encode(
             'InstructionDataTransfer',
             {
-                proof: placeholderValidityProof(),
+                proof: null,
                 inputRootIndices: [],
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
                 newAddressParams: [],

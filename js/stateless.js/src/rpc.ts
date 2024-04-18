@@ -35,7 +35,9 @@ import { array, create, nullable } from 'superstruct';
 import { toCamelCase } from './utils/conversion';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
-import { getTestRpc } from './test-utils';
+/// FIXME: this is a circular dependency:
+/// implement getValidityProof directly in RPC
+import { getTestRpc } from './test-utils/test-rpc';
 import { Buffer } from 'buffer';
 
 export function createRpc(
