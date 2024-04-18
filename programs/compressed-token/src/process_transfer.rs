@@ -49,7 +49,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     )?;
     process_compression(&inputs, &ctx)?;
 
-    let output_compressed_accounts = crate::create_output_compressed_accounts(
+    let mut output_compressed_accounts =
+        vec![CompressedAccount::default(); inputs.output_compressed_accounts.len()];
+    crate::create_output_compressed_accounts(
+        &mut output_compressed_accounts,
         inputs.mint,
         inputs
             .output_compressed_accounts
