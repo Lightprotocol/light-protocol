@@ -150,7 +150,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     let instruction = [create_insert_leaves_instruction(
         vec![[1u8; 32], [2u8; 32]],
         context.payer.pubkey(),
-        vec![*merkle_tree_pubkey, *merkle_tree_pubkey],
+        vec![*merkle_tree_pubkey; 2],
     )];
 
     create_and_send_transaction(context, &instruction, &payer.pubkey(), &[&payer])
