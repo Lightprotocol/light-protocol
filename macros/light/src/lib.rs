@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, FnArg, ItemFn, ItemStruct, Receiver, Signature};
+use syn::{parse_macro_input, parse_quote, ItemFn, ItemStruct};
 
 mod expand;
 
@@ -25,47 +25,47 @@ pub fn light_verifier_accounts(attr: TokenStream, item: TokenStream) -> TokenStr
         .into()
 }
 
+#[proc_macro]
+pub fn custom_heap(_input: TokenStream) -> TokenStream {
+    TokenStream::from(quote! {
+        #[global_allocator]
+        pub static GLOBAL_ALLOCATOR: light_heap::BumpAllocator = light_heap::BumpAllocator {
+            start: anchor_lang::solana_program::entrypoint::HEAP_START_ADDRESS as usize,
+            len: anchor_lang::solana_program::entrypoint::HEAP_LENGTH,
+        };
+    })
+}
+
 #[proc_macro_attribute]
 pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     let mut function = parse_macro_input!(input as ItemFn);
 
-    // Check if the function signature uses `&self` and not `&mut self`
-    if !is_immutable_self(&function.sig) {
-        return syn::Error::new_spanned(
-            &function.sig,
-            "This macro requires the function to use `&self` and not `&mut self`",
-        )
-        .to_compile_error()
-        .into();
-    }
-
     // Insert memory management code at the beginning of the function
     let init_code: syn::Stmt = parse_quote! {
         #[cfg(target_os = "solana")]
-        let pos = custom_heap::get_heap_pos();
+        let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
+    };
+    let msg = format!("pre: {}", function.sig.ident);
+    let log_pre: syn::Stmt = parse_quote! {
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        light_heap::GLOBAL_ALLOCATOR.log_total_heap(#msg);
     };
     function.block.stmts.insert(0, init_code);
+    function.block.stmts.insert(1, log_pre);
 
     // Insert memory management code at the end of the function
+    let msg = format!("post: {}", function.sig.ident);
+    let log_post: syn::Stmt = parse_quote! {
+        #[cfg(all(target_os = "solana", feature = "mem-profiling"))]
+        light_heap::GLOBAL_ALLOCATOR.log_total_heap(#msg);
+    };
     let cleanup_code: syn::Stmt = parse_quote! {
         #[cfg(target_os = "solana")]
-        custom_heap::free_heap(pos);
+        light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
     };
     let len = function.block.stmts.len();
+    function.block.stmts.insert(len - 1, log_post);
     function.block.stmts.insert(len - 1, cleanup_code);
 
     TokenStream::from(quote! { #function })
-}
-
-fn is_immutable_self(signature: &Signature) -> bool {
-    signature.inputs.iter().any(|arg| {
-        matches!(
-            arg,
-            FnArg::Receiver(Receiver {
-                reference: Some(_),
-                mutability: None,
-                ..
-            })
-        )
-    })
 }

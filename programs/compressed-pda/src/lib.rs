@@ -80,6 +80,11 @@ pub enum ErrorCode {
     DelegateUndefined,
 }
 
+// // TODO(vadorovsky): Come up with some less glass chewy way of reusing
+// // our light-heap allocator if it's already used in some dependency.
+// #[cfg(all(feature = "custom-heap", target_os = "solana"))]
+// pub use account_compression::GLOBAL_ALLOCATOR;
+
 #[program]
 pub mod psp_compressed_pda {
 

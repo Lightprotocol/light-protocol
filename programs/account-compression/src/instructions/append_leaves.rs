@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_concurrent_merkle_tree::event::Changelogs;
+use light_macros::heap_neutral;
 
 use crate::{
     emit_indexer_event,
@@ -43,6 +44,7 @@ impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
 /// for every leaf could be inserted into a different Merkle tree account
 /// 1. deduplicate Merkle trees and identify into which tree to insert what leaf
 /// 2. iterate over every unique Merkle tree and batch insert leaves
+#[heap_neutral]
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: &'a [[u8; 32]],

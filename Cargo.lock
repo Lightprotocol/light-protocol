@@ -28,6 +28,7 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
+ "light-heap",
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
@@ -2895,6 +2896,7 @@ dependencies = [
  "anchor-lang",
  "bytemuck",
  "light-hasher",
+ "light-heap",
  "light-macros",
  "light-test-utils",
  "solana-program-test",
@@ -2957,6 +2959,13 @@ dependencies = [
  "sha3 0.10.8",
  "solana-program",
  "thiserror",
+]
+
+[[package]]
+name = "light-heap"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
 ]
 
 [[package]]
@@ -3994,7 +4003,9 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
+ "light-heap",
  "light-indexed-merkle-tree",
+ "light-macros",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
@@ -4021,6 +4032,7 @@ dependencies = [
  "circuitlib-rs",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-heap",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",

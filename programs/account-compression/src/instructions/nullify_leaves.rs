@@ -2,6 +2,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::event::{ChangelogEvent, Changelogs};
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
+use light_macros::heap_neutral;
 
 use crate::{
     emit_indexer_event, errors::AccountCompressionErrorCode,
@@ -26,6 +27,7 @@ pub struct NullifyLeaves<'info> {
 
 // TODO: implement for multiple nullifiers got a stack frame error with a loop
 #[inline(never)]
+#[heap_neutral]
 pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],
