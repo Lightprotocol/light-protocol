@@ -171,6 +171,12 @@ export class LightSystemProgram {
      */
     static deriveCompressedSolPda(): PublicKey {
         const seeds = [COMPRESSED_SOL_PDA_SEED];
+        console.log(
+            'seeds: ',
+            seeds,
+            '@deriveCompressedSolPda pId',
+            this.programId.toBase58(),
+        );
         const [address, _] = PublicKey.findProgramAddressSync(
             seeds,
             this.programId,
@@ -195,8 +201,11 @@ export class LightSystemProgram {
                     preflightCommitment: 'confirmed',
                 },
             );
+            console.log('mockProvider: ', mockProvider);
             setProvider(mockProvider);
+            console.log('setProvider: ', mockProvider);
             this._program = new Program(IDL, this.programId, mockProvider);
+            console.log('this._program: ', this._program);
         }
     }
 

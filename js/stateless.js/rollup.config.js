@@ -3,6 +3,8 @@ import typescript from '@rollup/plugin-typescript';
 import pkg from './package.json';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
 import commonjs from '@rollup/plugin-commonjs';
+import replace from '@rollup/plugin-replace';
+// import json from '@rollup/plugin-json';
 
 const rolls = fmt => ({
     input: 'src/index.ts',
@@ -11,27 +13,31 @@ const rolls = fmt => ({
         format: fmt,
         entryFileNames: `${fmt}/[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         name: pkg.name,
-        globals: {
-            '@coral-xyz/anchor': 'anchor',
-            '@solana/web3.js': 'web3.js',
-            buffer: 'Buffer',
-            crypto: 'Crypto',
-            superstruct: 'superstruct',
-            tweetnacl: 'tweetnacl',
-        },
+
+        // globals: {
+        //     '@coral-xyz/anchor': 'anchor',
+        //     '@solana/web3.js': 'web3.js',
+        //     buffer: 'Buffer',
+        //     crypto: 'Crypto',
+        //     superstruct: 'superstruct',
+        //     tweetnacl: 'tweetnacl',
+        // },
     },
-    external: [
-        '@solana/web3.js',
-        '@coral-xyz/anchor',
-        'superstruct',
-        'tweetnacl',
-    ],
+    // external: [
+    //     '@solana/web3.js',
+    //     '@coral-xyz/anchor',
+    //     'superstruct',
+    //     'tweetnacl',
+    // ],
     plugins: [
+        replace({
+            'import.meta.vitest': 'undefined',
+        }),
         resolve({
-            mainFields: ['browser', 'module', 'main'],
-            browser: true,
+            // mainFields: ['browser', 'module', 'main'],
+            // browser: true,
             extensions: ['.mjs', '.js', '.json', '.ts'],
-            preferBuiltins: false,
+            // preferBuiltins: false,
         }),
         commonjs(),
         typescript({
@@ -40,6 +46,7 @@ const rolls = fmt => ({
             rootDir: 'src',
         }),
         nodePolyfills(),
+        // json(),
     ],
 });
 

@@ -34,7 +34,7 @@
     "build:wasm-simd-ci": "wasm-pack build -t web --out-name hasher_wasm_simd --out-dir ../main/wasm-simd src/wasm",
     "build:bundle": "rollup -c --bundleConfigAsCjs",
     "build": "rm -rf dist/ && pnpm build:wasm && pnpm build:wasm-simd && pnpm build:bundle",
-    "test": "pnpm test:native",
+    "test": "pnpm test:native && pnpm test:browser",
     "test:types": "tsc",
     "test:native": "vitest run --config vitest.node.config.ts --dir tests",
     "test:browser": "vitest run --config vitest.config.ts --browser.name=firefox --browser.provider=playwright --browser.headless --dir tests",

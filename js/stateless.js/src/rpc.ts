@@ -110,11 +110,17 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
+        console.log('@RPC getCompressedAccount', hash.toArray());
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccount',
             { hash: encodeBN254toBase58(hash) },
         );
+        console.log(
+            '@RPC getCompressedAccount unsafeRes',
+            JSON.stringify(unsafeRes),
+        );
+
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(nullable(CompressedAccountResult)),
@@ -129,6 +135,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return null;
         }
         const item = res.result.value;
+
+        console.log('@RPC getCompressedAccount item', item);
         const account = createCompressedAccountWithMerkleContext(
             createMerkleContext(
                 item.tree!,
@@ -149,6 +157,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
             item.address || undefined,
         );
+        console.log('@RPC getCompressedAccount account', account);
         return account;
     }
 
@@ -299,6 +308,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
+        console.log('@RPC getCompressedAccountsByOwner', owner.toBase58());
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',

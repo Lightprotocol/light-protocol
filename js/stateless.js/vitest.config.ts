@@ -5,6 +5,8 @@ import { resolve } from 'path';
 export default defineConfig({
     logLevel: 'info',
     test: {
+        // environment: process.env.BROWSER ? 'jsdom' : 'node',
+
         include: process.env.EXCLUDE_E2E
             ? []
             : ['src/**/__tests__/*.test.ts', 'tests/**/*.test.ts'],

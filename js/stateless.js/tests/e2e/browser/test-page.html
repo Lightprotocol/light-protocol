@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Test Page</title>
+    </head>
+    <body>
+        <!-- <script type="module" src="/dist/es/index.js"></script> -->
+        <script type="module">
+            import * as stateless from '/dist/es/index.js';
+            window.stateless = stateless;
+            console.log('stateless: ', stateless);
+        </script>
+    </body>
+</html>
