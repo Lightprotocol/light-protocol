@@ -1,9 +1,9 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use psp_compressed_pda::utils::CompressedProof;
-use psp_compressed_token::TokenTransferOutputData;
-use psp_compressed_token::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext};
+use light_compressed_pda::utils::CompressedProof;
+use light_compressed_token::TokenTransferOutputData;
+use light_compressed_token::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext};
 pub mod sdk;
 
 #[error_code]
@@ -115,8 +115,9 @@ pub struct EscrowCompressedTokensWithPda<'info> {
     pub signer: Signer<'info>,
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub cpi_signer: AccountInfo<'info>,
-    pub compressed_token_program: Program<'info, psp_compressed_token::program::PspCompressedToken>,
-    pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
+    pub compressed_token_program:
+        Program<'info, light_compressed_token::program::LightCompressedToken>,
+    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
     pub account_compression_authority: AccountInfo<'info>,
@@ -185,15 +186,12 @@ pub fn cpi_compressed_token_transfer<'info>(
 
     let inputs = inputs_struct.try_to_vec()?;
 
-    let cpi_accounts = psp_compressed_token::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_token::cpi::accounts::TransferInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
-        psp_account_compression_authority: ctx
-            .accounts
-            .account_compression_authority
-            .to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         self_program: ctx.accounts.compressed_token_program.to_account_info(),
         cpi_authority_pda: ctx
@@ -212,7 +210,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    psp_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
+    light_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -250,15 +248,12 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     let seeds = [b"escrow".as_slice(), signer_bytes.as_slice(), bump];
 
     let signer_seeds = &[&seeds[..]];
-    let cpi_accounts = psp_compressed_token::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_token::cpi::accounts::TransferInstruction {
         fee_payer: ctx.accounts.cpi_signer.to_account_info(),
         authority: ctx.accounts.cpi_signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
-        psp_account_compression_authority: ctx
-            .accounts
-            .account_compression_authority
-            .to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         self_program: ctx.accounts.compressed_token_program.to_account_info(),
         cpi_authority_pda: ctx
@@ -278,6 +273,6 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    psp_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
+    light_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
     Ok(())
 }

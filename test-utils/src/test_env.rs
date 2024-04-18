@@ -7,13 +7,13 @@ use account_compression::{
 };
 #[cfg(feature = "light_program")]
 use anchor_lang::{system_program, InstructionData};
+use light_macros::pubkey;
 #[cfg(feature = "light_program")]
-use light::sdk::{
+use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
     create_initiatialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
-use light_macros::pubkey;
 #[cfg(feature = "light_program")]
 use solana_program_test::BanksClientError;
 use solana_program_test::{ProgramTest, ProgramTestContext};
@@ -37,22 +37,22 @@ pub const COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID: Pubkey =
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 /// Setup test programs
 /// deploys:
-/// 1. light program
+/// 1. light_registry program
 /// 2. account_compression program
-/// 3. psp_compressed_token program
-/// 4. psp_compressed_pda program
+/// 3. light_compressed_token program
+/// 4. light_compressed_pda program
 pub async fn setup_test_programs(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
-    program_test.add_program("light", LIGHT_ID, None);
+    program_test.add_program("light_registry", LIGHT_ID, None);
     program_test.add_program("account_compression", ACCOUNT_COMPRESSION_ID, None);
     program_test.add_program(
-        "psp_compressed_token",
+        "light_compressed_token",
         COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
         None,
     );
-    program_test.add_program("psp_compressed_pda", PDA_PROGRAM_ID, None);
+    program_test.add_program("light_compressed_pda", PDA_PROGRAM_ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     if let Some(programs) = additional_programs {
         for (name, id) in programs {

@@ -8,7 +8,6 @@ members = [
     "macros/light",
     "merkle-tree/*",
     "programs/*",
-    "state",
     "test-utils",
     "utils",
     "xtask",

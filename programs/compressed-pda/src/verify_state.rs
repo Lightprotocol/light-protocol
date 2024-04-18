@@ -422,7 +422,7 @@ fn verify<const N: usize>(
 
 #[cfg(test)]
 mod test {
-    use circuitlib_rs::{
+    use light_circuitlib_rs::{
         gnark::{
             constants::{INCLUSION_PATH, SERVER_ADDRESS},
             helpers::{kill_gnark_server, spawn_gnark_server, ProofType},

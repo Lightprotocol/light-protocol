@@ -60,7 +60,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
     append_leaves_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
-        &ctx.accounts.psp_account_compression_authority,
+        &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
         &ctx.accounts.noop_program,
         out_merkle_trees_account_infos,

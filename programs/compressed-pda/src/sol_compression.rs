@@ -78,9 +78,7 @@ pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
     transfer_lamports(
         &ctx.accounts.signer.to_account_info(),
         &recipient,
-        &ctx.accounts
-            .psp_account_compression_authority
-            .to_account_info(),
+        &ctx.accounts.account_compression_authority.to_account_info(),
         lamports,
     )
 }

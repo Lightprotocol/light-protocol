@@ -1,10 +1,10 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_hasher::DataHasher;
-use psp_compressed_pda::{
+use light_compressed_pda::{
     compressed_account::{CompressedAccount, CompressedAccountData},
     InstructionDataTransfer,
 };
+use light_hasher::DataHasher;
 
 use crate::{AccountState, TokenData};
 pub const POOL_SEED: &[u8] = b"pool";
@@ -142,14 +142,11 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ];
 
     let signer_seeds = &[&seeds[..]];
-    let cpi_accounts = psp_compressed_pda::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
         signer: ctx.accounts.mint_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
-        psp_account_compression_authority: ctx
-            .accounts
-            .psp_account_compression_authority
-            .to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         cpi_signature_account: None,
         invoking_program: None,
@@ -164,7 +161,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     );
 
     cpi_ctx.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
-    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -226,15 +223,15 @@ pub struct MintToInstruction<'info> {
     #[account(mut)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-    pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
+    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
     /// CHECK: this account
     #[account(mut)]
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(mut, seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
-    pub psp_account_compression_authority: UncheckedAccount<'info>,
+    #[account(mut, seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = light_compressed_pda::ID,)]
+    pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
@@ -319,13 +316,13 @@ pub mod mint_sdk {
             mint: *mint,
             token_pool_pda,
             token_program: anchor_spl::token::ID,
-            compressed_pda_program: psp_compressed_pda::ID,
-            registered_program_pda: psp_compressed_pda::utils::get_registered_program_pda(
-                &psp_compressed_pda::ID,
+            compressed_pda_program: light_compressed_pda::ID,
+            registered_program_pda: light_compressed_pda::utils::get_registered_program_pda(
+                &light_compressed_pda::ID,
             ),
             noop_program: NOOP_PROGRAM_ID,
-            psp_account_compression_authority: psp_compressed_pda::utils::get_cpi_authority_pda(
-                &psp_compressed_pda::ID,
+            account_compression_authority: light_compressed_pda::utils::get_cpi_authority_pda(
+                &light_compressed_pda::ID,
             ),
             account_compression_program: account_compression::ID,
             merkle_tree: *merkle_tree,

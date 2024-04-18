@@ -1,6 +1,6 @@
-export type UserRegistry = {
+export type LightUserRegistry = {
     version: '0.3.0';
-    name: 'user_registry';
+    name: 'light_user_registry';
     instructions: [
         {
             name: 'initializeUserEntry';
@@ -67,9 +67,9 @@ export type UserRegistry = {
     ];
 };
 
-export const IDL: UserRegistry = {
+export const IDL: LightUserRegistry = {
     version: '0.3.0',
-    name: 'user_registry',
+    name: 'light_user_registry',
     instructions: [
         {
             name: 'initializeUserEntry',

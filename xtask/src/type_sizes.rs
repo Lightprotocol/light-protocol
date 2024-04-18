@@ -10,7 +10,6 @@ use account_compression::{
     },
     AddressMerkleTreeAccount, AddressQueueAccount, IndexedArrayAccount, StateMerkleTreeAccount,
 };
-use account_compression_state::{AddressMerkleTree, StateMerkleTree};
 use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
 use tabled::{Table, Tabled};
@@ -29,7 +28,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "StateMerkleTree".to_owned(),
-            space: mem::size_of::<StateMerkleTree>(),
+            space: mem::size_of::<ConcurrentMerkleTree26<Poseidon>>(),
         },
         Type {
             name: "StateMerkleTree->filled_subtrees".to_owned(),
@@ -72,7 +71,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "AddressMerkleTree".to_owned(),
-            space: mem::size_of::<AddressMerkleTree>(),
+            space: mem::size_of::<ConcurrentMerkleTree26<Poseidon>>(),
         },
         Type {
             name: "AddressMerkleTree->filled_subtrees".to_owned(),

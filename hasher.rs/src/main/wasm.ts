@@ -10,7 +10,7 @@ import init, {
   blake2 as blake2Wasm,
   blake2str as blake2strWasm,
   poseidon as poseidonWasm,
-} from "./wasm/hasher";
+} from "./wasm/light_wasm_hasher";
 import simdInit, {
   blake2 as blake2Simd,
   blake2str as blake2strSimd,

@@ -1,5 +1,5 @@
 [package]
-name = "psp-compressed-token"
+name = "light-compressed-token"
 version = "0.3.0"
 description = "Registry for Light Protocol users"
 license = "Apache-2.0"
@@ -7,7 +7,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "psp_compressed_token"
+name = "light_compressed_token"
 
 [features]
 no-entrypoint = []
@@ -24,7 +24,7 @@ anchor-lang = "0.29.0"
 anchor-spl = "0.29.0"
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }
 account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"] }
-psp-compressed-pda = { version = "0.3.0", path = "../compressed-pda", features = ["cpi"] }
+light-compressed-pda = { version = "0.3.0", path = "../compressed-pda", features = ["cpi"] }
 bytemuck = "1.14"
 solana-security-txt = "1.1.0"
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
@@ -43,7 +43,7 @@ solana-program-test = "1.17.4"
 light-test-utils = { version = "0.1.0", path = "../../test-utils"}
 reqwest = "0.11.26"
 tokio = "1.36.0"
-circuitlib-rs = {path = "../../circuit-lib/circuitlib-rs"}
+light-circuitlib-rs = {path = "../../circuit-lib/circuitlib-rs"}
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 light-merkle-tree-reference = { version = "0.1.0", path = "../../merkle-tree/reference" }

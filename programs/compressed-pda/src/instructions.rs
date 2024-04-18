@@ -168,7 +168,7 @@ pub struct TransferInstruction<'info> {
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump,)]
-    pub psp_account_compression_authority: UncheckedAccount<'info>,
+    pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program: Program<'info, AccountCompression>,
     pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,

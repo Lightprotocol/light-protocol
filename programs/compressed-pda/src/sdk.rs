@@ -149,7 +149,7 @@ pub fn create_execute_compressed_instruction(
         registered_program_pda: get_registered_program_pda(&crate::ID),
         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
         account_compression_program: account_compression::ID,
-        psp_account_compression_authority: get_cpi_authority_pda(&crate::ID),
+        account_compression_authority: get_cpi_authority_pda(&crate::ID),
         cpi_signature_account: None,
         invoking_program: None,
         compressed_sol_pda,
@@ -212,7 +212,7 @@ pub fn create_execute_compressed_instruction(
 //         registered_program_pda: get_registered_program_pda(&crate::ID),
 //         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
 //         account_compression_program: account_compression::ID,
-//         psp_account_compression_authority: get_cpi_authority_pda(&crate::ID),
+//         account_compression_authority: get_cpi_authority_pda(&crate::ID),
 //         cpi_signature_account: None,
 //         invoking_program: None,
 //     };

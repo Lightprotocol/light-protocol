@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use anchor_spl::token::Transfer;
-use psp_compressed_pda::append_state::get_seeds;
+use light_compressed_pda::append_state::get_seeds;
 
 use crate::{CompressedTokenInstructionDataTransfer, TransferInstruction};
 

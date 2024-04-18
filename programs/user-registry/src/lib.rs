@@ -6,7 +6,7 @@ declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 const USER_ENTRY_SEED: &[u8] = b"user-entry";
 
 #[program]
-pub mod user_registry {
+pub mod light_user_registry {
     use super::*;
 
     pub fn initialize_user_entry(

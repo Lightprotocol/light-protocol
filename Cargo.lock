@@ -16,7 +16,6 @@ dependencies = [
 name = "account-compression"
 version = "0.3.1"
 dependencies = [
- "account-compression-state",
  "ahash 0.8.6",
  "aligned-sized",
  "anchor-lang",
@@ -45,16 +44,6 @@ dependencies = [
  "spl-concurrent-merkle-tree",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "account-compression-state"
-version = "0.1.0"
-dependencies = [
- "ark-ff",
- "light-concurrent-merkle-tree",
- "light-hasher",
- "light-indexed-merkle-tree",
 ]
 
 [[package]]
@@ -1171,42 +1160,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
 dependencies = [
  "generic-array",
-]
-
-[[package]]
-name = "circuitlib-rs"
-version = "0.1.0"
-dependencies = [
- "ark-bn254",
- "ark-circom",
- "ark-crypto-primitives",
- "ark-ec",
- "ark-ff",
- "ark-groth16",
- "ark-relations",
- "ark-serialize",
- "ark-std",
- "bytemuck",
- "color-eyre",
- "duct",
- "env_logger 0.10.2",
- "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana.git)",
- "light-hasher",
- "light-indexed-merkle-tree",
- "light-merkle-tree-reference",
- "light-utils",
- "log",
- "num-bigint 0.4.4",
- "num-traits",
- "once_cell",
- "reqwest",
- "serde",
- "serde_json",
- "solana-program",
- "sysinfo",
- "thiserror",
- "tokio",
- "zeroize",
 ]
 
 [[package]]
@@ -2424,23 +2377,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12"
 
 [[package]]
-name = "hasher"
-version = "0.1.0"
-dependencies = [
- "ark-bn254",
- "ark-ff",
- "blake2b_simd",
- "console_error_panic_hook",
- "hex",
- "js-sys",
- "light-poseidon 0.2.0",
- "num-bigint 0.4.4",
- "thiserror",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "heck"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2887,7 +2823,52 @@ dependencies = [
 ]
 
 [[package]]
-name = "light"
+name = "light-bounded-vec"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "solana-program",
+ "thiserror",
+]
+
+[[package]]
+name = "light-circuitlib-rs"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-circom",
+ "ark-crypto-primitives",
+ "ark-ec",
+ "ark-ff",
+ "ark-groth16",
+ "ark-relations",
+ "ark-serialize",
+ "ark-std",
+ "bytemuck",
+ "color-eyre",
+ "duct",
+ "env_logger 0.10.2",
+ "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana.git)",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-utils",
+ "log",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "once_cell",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "solana-program",
+ "sysinfo",
+ "thiserror",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
+name = "light-compressed-pda"
 version = "0.3.0"
 dependencies = [
  "account-compression",
@@ -2895,22 +2876,54 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "bytemuck",
+ "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana?branch=master)",
+ "lazy_static",
+ "light-circuitlib-rs",
+ "light-concurrent-merkle-tree",
+ "light-hash-set",
  "light-hasher",
  "light-heap",
+ "light-indexed-merkle-tree",
  "light-macros",
+ "light-merkle-tree-reference",
  "light-test-utils",
+ "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest",
+ "serde_json",
+ "solana-cli-output",
  "solana-program-test",
  "solana-sdk",
  "tokio",
 ]
 
 [[package]]
-name = "light-bounded-vec"
-version = "0.1.0"
+name = "light-compressed-token"
+version = "0.3.0"
 dependencies = [
+ "account-compression",
+ "ahash 0.8.6",
+ "aligned-sized",
+ "anchor-lang",
+ "anchor-spl",
  "bytemuck",
- "solana-program",
- "thiserror",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-heap",
+ "light-merkle-tree-reference",
+ "light-test-utils",
+ "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest",
+ "solana-program-test",
+ "solana-sdk",
+ "solana-security-txt",
+ "spl-token 3.5.0",
+ "tokio",
 ]
 
 [[package]]
@@ -3031,6 +3044,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-registry"
+version = "0.3.0"
+dependencies = [
+ "account-compression",
+ "ahash 0.8.6",
+ "aligned-sized",
+ "anchor-lang",
+ "bytemuck",
+ "light-hasher",
+ "light-heap",
+ "light-macros",
+ "light-test-utils",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "light-test-utils"
 version = "0.1.0"
 dependencies = [
@@ -3039,16 +3070,16 @@ dependencies = [
  "anchor-spl",
  "anyhow",
  "ark-ff",
- "circuitlib-rs",
- "light",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-compressed-token",
  "light-hash-set",
  "light-hasher",
  "light-macros",
  "light-merkle-tree-reference",
+ "light-registry",
  "num-bigint 0.4.4",
  "num-traits",
- "psp-compressed-pda",
- "psp-compressed-token",
  "rand 0.8.5",
  "reqwest",
  "solana-program-test",
@@ -3079,6 +3110,23 @@ dependencies = [
  "rand 0.8.5",
  "solana-program",
  "thiserror",
+]
+
+[[package]]
+name = "light-wasm-hasher"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ff",
+ "blake2b_simd",
+ "console_error_panic_hook",
+ "hex",
+ "js-sys",
+ "light-poseidon 0.2.0",
+ "num-bigint 0.4.4",
+ "thiserror",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -3986,65 +4034,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95fc56cda0b5c3325f5fbbd7ff9fda9e02bb00bb3dac51252d2f1bfa1cb8cc8c"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "psp-compressed-pda"
-version = "0.3.0"
-dependencies = [
- "account-compression",
- "ahash 0.8.6",
- "aligned-sized",
- "anchor-lang",
- "bytemuck",
- "circuitlib-rs",
- "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana?branch=master)",
- "lazy_static",
- "light-concurrent-merkle-tree",
- "light-hash-set",
- "light-hasher",
- "light-heap",
- "light-indexed-merkle-tree",
- "light-macros",
- "light-merkle-tree-reference",
- "light-test-utils",
- "light-utils",
- "num-bigint 0.4.4",
- "num-traits",
- "reqwest",
- "serde_json",
- "solana-cli-output",
- "solana-program-test",
- "solana-sdk",
- "tokio",
-]
-
-[[package]]
-name = "psp-compressed-token"
-version = "0.3.0"
-dependencies = [
- "account-compression",
- "ahash 0.8.6",
- "aligned-sized",
- "anchor-lang",
- "anchor-spl",
- "bytemuck",
- "circuitlib-rs",
- "light-concurrent-merkle-tree",
- "light-hasher",
- "light-heap",
- "light-merkle-tree-reference",
- "light-test-utils",
- "light-utils",
- "num-bigint 0.4.4",
- "num-traits",
- "psp-compressed-pda",
- "reqwest",
- "solana-program-test",
- "solana-sdk",
- "solana-security-txt",
- "spl-token 3.5.0",
- "tokio",
 ]
 
 [[package]]
@@ -6788,12 +6777,12 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl",
- "circuitlib-rs",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-compressed-token",
  "light-test-utils",
  "num-bigint 0.4.4",
  "num-traits",
- "psp-compressed-pda",
- "psp-compressed-token",
  "reqwest",
  "solana-program-test",
  "solana-sdk",
@@ -7965,7 +7954,6 @@ name = "xtask"
 version = "0.1.0"
 dependencies = [
  "account-compression",
- "account-compression-state",
  "anyhow",
  "ark-ff",
  "clap 4.4.11",

@@ -45,7 +45,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     insert_nullifiers_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
-        &ctx.accounts.psp_account_compression_authority,
+        &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
         indexed_array_account_infos,
         state_merkle_tree_account_infos,

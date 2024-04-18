@@ -3,10 +3,8 @@ name = "xtask"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 account-compression = { path = "../programs/account-compression" }
-account-compression-state = { path = "../state" }
 anyhow = "1.0"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }

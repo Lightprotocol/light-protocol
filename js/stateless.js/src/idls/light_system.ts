@@ -1,6 +1,6 @@
-export type Light = {
+export type LightSystem = {
     version: '0.3.0';
-    name: 'light';
+    name: 'light_system';
     constants: [
         {
             name: 'AUTHORITY_PDA_SEED';
@@ -190,9 +190,9 @@ export type Light = {
     ];
 };
 
-export const IDL: Light = {
+export const IDL: LightSystem = {
     version: '0.3.0',
-    name: 'light',
+    name: 'light_system',
     constants: [
         {
             name: 'AUTHORITY_PDA_SEED',

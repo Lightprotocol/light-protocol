@@ -7,7 +7,7 @@ use account_compression::{
     StateMerkleTreeAccount,
 };
 use anchor_lang::AnchorDeserialize;
-use circuitlib_rs::{
+use light_circuitlib_rs::{
     gnark::{
         constants::{INCLUSION_PATH, SERVER_ADDRESS},
         helpers::{spawn_gnark_server, ProofType},
@@ -16,18 +16,18 @@ use circuitlib_rs::{
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
-use light_hasher::Poseidon;
-use num_bigint::BigInt;
-use num_traits::ops::bytes::FromBytes;
-use psp_compressed_pda::{
+use light_compressed_pda::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
     utils::CompressedProof,
 };
-use psp_compressed_token::{
+use light_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
     TokenData,
 };
+use light_hasher::Poseidon;
+use num_bigint::BigInt;
+use num_traits::ops::bytes::FromBytes;
 use reqwest::Client;
 use solana_program_test::ProgramTestContext;
 use solana_sdk::{

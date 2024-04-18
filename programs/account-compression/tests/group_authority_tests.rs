@@ -25,7 +25,7 @@ async fn test_create_and_update_group() {
     program_test.add_program("account_compression", ID, None);
     let compressed_pda_id =
         Pubkey::from_str("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ").unwrap();
-    program_test.add_program("psp_compressed_pda", compressed_pda_id, None);
+    program_test.add_program("light_compressed_pda", compressed_pda_id, None);
 
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
