@@ -36,6 +36,7 @@ import { toCamelCase } from './utils/conversion';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
 import { getTestRpc } from './test-utils';
+import { Buffer } from 'buffer';
 
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',

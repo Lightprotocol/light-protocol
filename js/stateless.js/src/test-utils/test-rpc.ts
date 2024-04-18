@@ -13,7 +13,6 @@ import { MerkleTree } from './merkle-tree';
 import { CompressedProofWithContext } from '../rpc-interface';
 import { BN254, PublicTransactionEvent, bn } from '../state';
 import { BN } from '@coral-xyz/anchor';
-import axios from 'axios';
 import {
     negateAndCompressProof,
     proofFromJsonStruct,
@@ -138,6 +137,7 @@ export class TestRpc extends Rpc {
         return parsedEvents;
     }
 
+    // TODO: refactor. should tak
     /** Retrieve validity proof for compressed accounts */
     async getValidityProof(
         compressedAccountHashes: BN254[],
@@ -214,10 +214,20 @@ export class TestRpc extends Rpc {
         // TODO: pass url into rpc constructor
         const SERVER_URL = 'http://localhost:3001';
         const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
-        const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
 
-        const parsed = proofFromJsonStruct(response.data);
-
+        const response = await fetch(INCLUSION_PROOF_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: inputsData,
+        });
+        if (!response.ok) {
+            throw new Error(`Error fetching proof: ${response.statusText}`);
+        }
+        // TOOD: add type coercion
+        const data: any = await response.json();
+        const parsed = proofFromJsonStruct(data);
         const compressedProof = negateAndCompressProof(parsed);
 
         if (this.log) console.timeEnd(logMsg);

@@ -1,6 +1,8 @@
+import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 import pkg from './package.json';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
+import commonjs from '@rollup/plugin-commonjs';
 
 const rolls = fmt => ({
     input: 'src/index.ts',
@@ -11,35 +13,33 @@ const rolls = fmt => ({
         name: pkg.name,
         globals: {
             '@coral-xyz/anchor': 'anchor',
-            '@coral-xyz/anchor/dist/cjs/utils/bytes': 'bytes',
             '@solana/web3.js': 'web3.js',
-            '@solana/spl-account-compression': 'spl-account-compression',
-            '@metaplex-foundation/beet': 'beet',
-            '@metaplex-foundation/beet-solana': 'beet-solana',
-            buffer: 'buffer',
-            crypto: 'crypto',
+            buffer: 'Buffer',
+            crypto: 'Crypto',
             superstruct: 'superstruct',
             tweetnacl: 'tweetnacl',
         },
     },
     external: [
         '@solana/web3.js',
-        '@solana/spl-account-compression',
         '@coral-xyz/anchor',
-        '@coral-xyz/anchor/dist/cjs/utils/bytes',
-        '@metaplex-foundation/beet',
-        '@metaplex-foundation/beet-solana',
-        'buffer',
         'superstruct',
         'tweetnacl',
     ],
     plugins: [
+        resolve({
+            mainFields: ['browser', 'module', 'main'],
+            browser: true,
+            extensions: ['.mjs', '.js', '.json', '.ts'],
+            preferBuiltins: false,
+        }),
+        commonjs(),
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',
             outDir: `dist/${fmt}`,
             rootDir: 'src',
         }),
-        nodePolyfills('buffer', 'crypto'),
+        nodePolyfills(),
     ],
 });
 

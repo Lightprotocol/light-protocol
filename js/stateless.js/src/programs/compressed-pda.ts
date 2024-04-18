@@ -4,10 +4,11 @@ import {
     Keypair,
     Connection,
     TransactionInstruction,
-    AccountMeta,
     ComputeBudgetProgram,
     SystemProgram,
 } from '@solana/web3.js';
+import { Buffer } from 'buffer';
+
 import { IDL, PspCompressedPda } from '../idls/psp_compressed_pda';
 import { useWallet } from '../wallet';
 import {

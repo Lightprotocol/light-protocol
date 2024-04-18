@@ -1,5 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 
 /// TODO: Consider flattening and implementing an IR in Beet.
 export interface PackedCompressedAccountWithMerkleContext {

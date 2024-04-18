@@ -841,6 +841,11 @@ export type PspCompressedToken = {
             name: 'SignerCheckFailed';
             msg: 'Signer check failed';
         },
+        {
+            code: 6001;
+            name: 'CreateTransferInstructionFailed';
+            msg: 'Create transfer instruction failed';
+        },
     ];
 };
 export const IDL: PspCompressedToken = {
@@ -1685,6 +1690,11 @@ export const IDL: PspCompressedToken = {
             code: 6000,
             name: 'SignerCheckFailed',
             msg: 'Signer check failed',
+        },
+        {
+            code: 6001,
+            name: 'CreateTransferInstructionFailed',
+            msg: 'Create transfer instruction failed',
         },
     ],
 };

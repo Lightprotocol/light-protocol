@@ -1,11 +1,11 @@
 // TODO: consider implementing BN254 as wrapper class around _BN mirroring
 // PublicKey this would encapsulate our runtime checks and also enforce
 // typesafety at compile time
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 import { FIELD_SIZE } from '../constants';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { Buffer } from 'buffer';
+import * as bs58 from 'bs58';
 
 /**
  * bignumber with <254-bit max size. Anchor serialization doesn't support native
