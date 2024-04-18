@@ -166,8 +166,7 @@ async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -
     mint.pubkey()
 }
 
-#[tokio::test]
-async fn test_mint_to() {
+async fn test_mint_to<const MINTS_AMOUNT: usize>() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -186,8 +185,8 @@ async fn test_mint_to() {
         &payer_pubkey,
         &mint,
         &merkle_tree_pubkey,
-        vec![amount; 1],
-        vec![recipient_keypair.pubkey(); 1],
+        vec![amount; MINTS_AMOUNT],
+        vec![recipient_keypair.pubkey(); MINTS_AMOUNT],
     );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
@@ -213,9 +212,30 @@ async fn test_mint_to() {
         &recipient_keypair,
         mint,
         amount,
+        MINTS_AMOUNT,
         &old_merkle_tree,
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_mint_to_1() {
+    test_mint_to::<1>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_5() {
+    test_mint_to::<5>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_10() {
+    test_mint_to::<10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_15() {
+    test_mint_to::<15>().await
 }
 
 #[tokio::test]
@@ -264,6 +284,7 @@ async fn test_transfer() {
         &recipient_keypair,
         mint,
         amount,
+        1,
         &old_merkle_tree,
     )
     .await;
@@ -409,6 +430,7 @@ async fn test_decompression() {
         &recipient_keypair,
         mint,
         amount,
+        1,
         &old_merkle_tree,
     )
     .await;
@@ -599,6 +621,7 @@ async fn test_invalid_inputs() {
         &recipient_keypair,
         mint,
         amount,
+        1,
         &old_merkle_tree,
     )
     .await;
@@ -998,6 +1021,7 @@ async fn assert_mint_to<'a>(
     recipient_keypair: &Keypair,
     mint: Pubkey,
     amount: u64,
+    mints_amount: usize,
     old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
 ) {
     let token_compressed_account_data = mock_indexer.token_compressed_accounts[0].token_data;
@@ -1025,7 +1049,7 @@ async fn assert_mint_to<'a>(
         mock_indexer.merkle_tree.root(),
         "merkle tree root update failed"
     );
-    assert_eq!(merkle_tree.root_index(), 1);
+    assert_eq!(merkle_tree.root_index(), mints_amount);
     assert_ne!(
         old_merkle_tree.root().unwrap(),
         merkle_tree.root().unwrap(),
@@ -1041,7 +1065,7 @@ async fn assert_mint_to<'a>(
             .data,
     )
     .unwrap();
-    assert_eq!(mint_account.supply, amount);
+    assert_eq!(mint_account.supply, amount * mints_amount as u64);
 
     let pool = get_token_pool_pda(&mint);
     let pool_account = spl_token::state::Account::unpack(
@@ -1054,7 +1078,7 @@ async fn assert_mint_to<'a>(
             .data,
     )
     .unwrap();
-    assert_eq!(pool_account.amount, amount);
+    assert_eq!(pool_account.amount, amount * mints_amount as u64);
 }
 
 async fn assert_transfer<'a>(

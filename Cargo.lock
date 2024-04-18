@@ -2679,6 +2679,7 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-heap",
+ "light-macros",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
