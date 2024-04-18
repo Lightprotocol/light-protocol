@@ -48,30 +48,26 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         output_compressed_accounts,
         output_state_merkle_tree_account_indices,
         pubkey_array,
-    )?;
-
-    cpi_compressed_pda_transfer(
-        &ctx,
-        proof,
         root_indices,
-        new_address_params,
-        compressed_pda,
+        proof.clone(),
     )?;
+    msg!("escrow compressed tokens with compressed pda");
+    cpi_compressed_pda_transfer(&ctx, proof, new_address_params, compressed_pda)?;
     Ok(())
 }
 
 fn cpi_compressed_pda_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
     proof: Option<CompressedProof>,
-    root_indices: Vec<u16>,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: CompressedAccount,
 ) -> Result<()> {
+    msg!("new_address_params {:?}", new_address_params);
     let inputs_struct = InstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
-        input_root_indices: root_indices,
+        input_root_indices: Vec::new(),
         output_state_merkle_tree_account_indices: vec![0],
         proof,
         new_address_params: vec![new_address_params],
@@ -91,7 +87,7 @@ fn cpi_compressed_pda_transfer<'info>(
             .account_compression_authority
             .to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        cpi_signature_account: None,
+        cpi_signature_account: Some(ctx.accounts.cpi_signature_account.to_account_info()),
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
@@ -121,8 +117,12 @@ fn create_compressed_pda_data<'info>(
         data: timelock_compressed_pda.try_to_vec().unwrap(),
         data_hash: timelock_compressed_pda.hash().map_err(ProgramError::from)?,
     };
-    let derive_address = derive_address(&ctx.remaining_accounts[0].key(), &new_address_params.seed)
-        .map_err(|_| ProgramError::InvalidArgument)?;
+    let derive_address = derive_address(
+        &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
+            .key(),
+        &new_address_params.seed,
+    )
+    .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(CompressedAccount {
         owner: crate::ID,
         lamports: 0,
@@ -152,6 +152,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     pub registered_program_pda: AccountInfo<'info>,
     pub noop_program: AccountInfo<'info>,
     pub self_program: Program<'info, crate::program::TokenEscrow>,
+    #[account(mut)]
     pub cpi_signature_account: AccountInfo<'info>,
 }
 
@@ -166,10 +167,12 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
     output_compressed_accounts: Vec<TokenTransferOutputData>,
     output_state_merkle_tree_account_indices: Vec<u8>,
     pubkey_array: Vec<Pubkey>,
+    root_indices: Vec<u16>,
+    proof: Option<CompressedProof>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
-        proof: None,
-        root_indices: Vec::new(),
+        proof,
+        root_indices,
         mint,
         signer_is_delegate,
         input_token_data_with_context,

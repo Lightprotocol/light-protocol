@@ -61,7 +61,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: &'a InstructionDataTransfer,
     leaves: &'a mut [[u8; 32]],
-    addresses: &'a mut [Option<[u8; 32]>],
+    addresses: &'a mut Vec<Option<[u8; 32]>>,
 ) -> Result<()> {
     let mut none_counter = 0;
     for (j, input_compressed_account_with_context) in inputs
@@ -79,6 +79,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             Some(address) => addresses[j - none_counter] = Some(*address),
             None => {
                 none_counter += 1;
+                // TODO: debug
                 // Vec::remove(addresses, j);
             }
         };

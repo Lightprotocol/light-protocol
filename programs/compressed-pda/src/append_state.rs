@@ -41,7 +41,12 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         }
         // Address has to be created or a compressed account with this address has to be provided as transaction input.
         if let Some(address) = inputs.output_compressed_accounts[j].address {
-            if let Some(position) = addresses.iter().position(|&x| x.unwrap() == address) {
+            msg!("addresses {:?}", addresses);
+            if let Some(position) = addresses
+                .iter()
+                .filter(|x| x.is_some())
+                .position(|&x| x.unwrap() == address)
+            {
                 addresses.remove(position);
             } else {
                 msg!("Address {:?}, has not been created and no compressed account with this address was provided as transaction input", address);

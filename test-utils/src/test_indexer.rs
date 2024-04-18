@@ -96,7 +96,8 @@ impl TestIndexer {
         }
 
         spawn_gnark_server(
-            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+            // correct path so that the examples can be run
+            "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
             vec_proof_types.as_slice(),
         )
@@ -418,6 +419,7 @@ impl TestIndexer {
     /// adds the token_compressed_accounts to the token_compressed_accounts
     pub fn add_compressed_accounts_with_token_data(&mut self, event_bytes: Vec<u8>) {
         let event_bytes = event_bytes.clone();
+        println!("event_bytes {:?}", event_bytes);
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
         let indices = self.add_event_and_compressed_accounts(event);
         for index in indices.iter() {
@@ -426,11 +428,15 @@ impl TestIndexer {
                 .data
                 .as_ref()
                 .unwrap();
-            let token_data = TokenData::deserialize(&mut data.data.as_slice()).unwrap();
-            self.token_compressed_accounts.push(TokenDataWithContext {
-                index: *index,
-                token_data,
-            });
+            match TokenData::deserialize(&mut data.data.as_slice()) {
+                Ok(data) => {
+                    self.token_compressed_accounts.push(TokenDataWithContext {
+                        index: *index,
+                        token_data: data,
+                    });
+                }
+                _ => {}
+            };
         }
     }
 

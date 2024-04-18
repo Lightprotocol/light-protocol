@@ -30,6 +30,7 @@ pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
 pub fn create_escrow_instruction(
     input_params: CreateCompressedPdaEscrowInstructionInputs,
     escrow_amount: u64,
+    cpi_signature_account: Pubkey,
 ) -> Instruction {
     let cpi_signer = Pubkey::find_program_address(
         &[b"escrow".as_ref(), input_params.signer.as_ref()],
@@ -85,7 +86,7 @@ pub fn create_escrow_instruction(
         compressed_token_cpi_authority_pda,
         account_compression_authority,
         self_program: crate::ID,
-        cpi_signature_account: Pubkey::new_unique(), // TODO: create
+        cpi_signature_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

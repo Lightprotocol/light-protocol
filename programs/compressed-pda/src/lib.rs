@@ -97,6 +97,11 @@ pub mod psp_compressed_pda {
         Ok(())
     }
 
+    // TODO: remove and use merkle tree account instead
+    pub fn init_cpi_signature_account(_ctx: Context<InitializeCpiSignatureAccount>) -> Result<()> {
+        Ok(())
+    }
+
     /// This function can be used to transfer sol and execute any other compressed transaction.
     /// Instruction data is not optimized for space.
     /// This method can be called by cpi so that instruction data can be compressed with a custom algorithm.
@@ -105,10 +110,10 @@ pub mod psp_compressed_pda {
         inputs: Vec<u8>,
     ) -> Result<crate::event::PublicTransactionEvent> {
         msg!("execute_compressed_transaction");
-        let inputs: InstructionDataTransfer =
+        let mut inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         inputs.check_input_lengths()?;
-        process_execute_compressed_transaction(&inputs, &ctx)
+        process_execute_compressed_transaction(&mut inputs, ctx)
     }
 
     // /// This function can be used to transfer sol and execute any other compressed transaction.

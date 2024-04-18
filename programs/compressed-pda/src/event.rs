@@ -10,7 +10,7 @@ use crate::{
     InstructionDataTransfer, TransferInstruction,
 };
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default)]
 pub struct PublicTransactionEvent {
     pub input_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_account_hashes: Vec<[u8; 32]>,

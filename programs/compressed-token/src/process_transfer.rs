@@ -235,6 +235,7 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
+    #[account(mut)]
     pub cpi_signature_account: Option<AccountInfo<'info>>,
 }
 
