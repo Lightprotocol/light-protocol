@@ -6,12 +6,12 @@ import type {
   HasherLoadOptions,
 } from "./model.js";
 
-import init, {
+import {
   blake2 as blake2Wasm,
   blake2str as blake2strWasm,
   poseidon as poseidonWasm,
 } from "./wasm/light_wasm_hasher";
-import simdInit, {
+import {
   blake2 as blake2Simd,
   blake2str as blake2strSimd,
   poseidon as poseidonSimd,
@@ -116,19 +116,24 @@ let sisdMemory: Promise<LightWasmCreator> | undefined;
 let simdMemory: Promise<LightWasmCreator> | undefined;
 const loadWasmSimd = async (module?: InitInput) => {
   if (simdMemory === undefined) {
+    //@ts-ignore
     simdMemory = simdInit(module ?? wasmSimdInit?.()).then((x) => {
       return wasmHasher({
         blake2str: blake2strSimd,
         blake2: blake2Simd,
-        poseidon: poseidonSimd
+        poseidon: poseidonSimd,
       });
     });
+  }
+  if (simdMemory === undefined) {
+    throw new Error("simdMemory is undefined");
   }
   return await simdMemory;
 };
 
 const loadWasm = async (module?: InitInput) => {
   if (sisdMemory === undefined) {
+    //@ts-ignore
     sisdMemory = init(module ?? wasmInit?.()).then((x) => {
       return wasmHasher({
         blake2str: blake2strWasm,
@@ -136,6 +141,9 @@ const loadWasm = async (module?: InitInput) => {
         poseidon: poseidonWasm,
       });
     });
+  }
+  if (sisdMemory === undefined) {
+    throw new Error("sisdMemory is undefined");
   }
   return await sisdMemory;
 };
