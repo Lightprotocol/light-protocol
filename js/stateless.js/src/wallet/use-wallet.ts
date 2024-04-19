@@ -16,6 +16,5 @@ export const useWallet = (
         signTransaction: wallet.signTransaction,
         signAllTransactions: wallet.signAllTransactions,
         sendTransaction: wallet.sendTransaction,
-        getProof: wallet.getProof,
     };
 };

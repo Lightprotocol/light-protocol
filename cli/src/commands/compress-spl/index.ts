@@ -6,7 +6,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { createRpc } from "@lightprotocol/stateless.js";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 import { compress } from "@lightprotocol/compressed-token";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 
@@ -53,7 +53,7 @@ class CompressSplCommand extends Command {
       const mintPublicKey = new PublicKey(mint);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = createRpc(getSolanaRpcUrl());
+      const rpc = await getTestRpc(getSolanaRpcUrl());
 
       /// TODO: add explicit check that the ata is valid
       const sourceAta = getAssociatedTokenAddressSync(

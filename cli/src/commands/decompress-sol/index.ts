@@ -6,7 +6,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { decompressLamports, createRpc } from "@lightprotocol/stateless.js";
+import { decompress, getTestRpc } from "@lightprotocol/stateless.js";
 
 class DecompressSolCommand extends Command {
   static summary = "Decompress SOL.";
@@ -41,8 +41,8 @@ class DecompressSolCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = createRpc(getSolanaRpcUrl());
-      const txId = await decompressLamports(rpc, payer, amount, toPublicKey);
+      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const txId = await decompress(rpc, payer, amount, toPublicKey);
       loader.stop(false);
       console.log(
         "\x1b[32mdecompress-sol:\x1b[0m ",

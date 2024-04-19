@@ -8,6 +8,7 @@ DEST_DIR_STATELESS="$DEST_DIR/stateless.js/src/idls"
 FILES_TO_COPY=(
   "account_compression.ts"    
   "light_compressed_pda.ts"
+  "light_compressed_token.ts"
   "light_registry.ts"
   "light_user_registry.ts"
 )

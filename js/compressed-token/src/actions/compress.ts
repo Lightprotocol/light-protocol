@@ -3,6 +3,7 @@ import {
     PublicKey,
     Signer,
     TransactionSignature,
+    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
     bn,
@@ -58,9 +59,19 @@ export async function compress(
         outputStateTree: merkleTree,
     });
 
-    const { blockhash } = await rpc.getLatestBlockhash();
+    const blockhashCtx = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
-    const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
-    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
+    const signedTx = buildAndSignTx(
+        ixs,
+        payer,
+        blockhashCtx.blockhash,
+        additionalSigners,
+    );
+    const txId = await sendAndConfirmTx(
+        rpc,
+        signedTx,
+        confirmOptions,
+        blockhashCtx,
+    );
     return txId;
 }

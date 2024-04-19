@@ -1,24 +1,36 @@
 import { PublicKey } from '@solana/web3.js';
-import {
-    MerkleContext,
-    defaultTestStateTreeAccounts,
-    PublicTransactionEvent,
-    CompressedAccount,
-    CompressedAccountWithMerkleContext,
-    createCompressedAccountWithMerkleContext,
-    Rpc,
-} from '@lightprotocol/stateless.js';
-import { CompressedTokenProgram } from './program';
-import { TokenData } from './types';
 
-export type CompressedAccountWithParsedTokenData = {
-    compressedAccountWithMerkleContext: CompressedAccountWithMerkleContext;
-    parsed: TokenData;
+import { getParsedEvents } from './get-parsed-events';
+import { BN, BorshCoder } from '@coral-xyz/anchor';
+import { IDL } from '../../idls/light_compressed_token';
+import { defaultTestStateTreeAccounts } from '../../constants';
+import { Rpc } from '../../rpc';
+import { ParsedTokenAccount } from '../../rpc-interface';
+import {
+    CompressedAccount,
+    PublicTransactionEvent,
+    MerkleContext,
+    createCompressedAccountWithMerkleContext,
+} from '../../state';
+
+const tokenProgramId: PublicKey = new PublicKey(
+    // TODO: can add check to ensure its consistent with the idl
+    '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
+);
+
+type TokenData = {
+    mint: PublicKey;
+    owner: PublicKey;
+    amount: BN;
+    delegate: PublicKey | null;
+    state: number;
+    isNative: BN | null;
+    delegatedAmount: BN;
 };
 
 export type EventWithParsedTokenTlvData = {
-    inputCompressedAccounts: CompressedAccountWithParsedTokenData[];
-    outputCompressedAccounts: CompressedAccountWithParsedTokenData[];
+    inputCompressedAccounts: ParsedTokenAccount[];
+    outputCompressedAccounts: ParsedTokenAccount[];
 };
 
 /** @internal */
@@ -30,15 +42,12 @@ function parseTokenLayoutWithIdl(
     const { data } = compressedAccount.data;
 
     if (data.length === 0) return null;
-    if (
-        compressedAccount.owner.toBase58() !==
-        CompressedTokenProgram.programId.toBase58()
-    ) {
+    if (compressedAccount.owner.toBase58() !== tokenProgramId.toBase58()) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    const decodedLayout = CompressedTokenProgram.program.coder.types.decode(
+    const decodedLayout = new BorshCoder(IDL).types.decode(
         'TokenData',
         Buffer.from(data),
     );
@@ -57,7 +66,7 @@ async function parseEventWithTokenTlvData(
     const pubkeyArray = event.pubkeyArray;
     const inputHashes = event.inputCompressedAccountHashes;
     /// TODO: consider different structure
-    const inputCompressedAccountWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
+    const inputCompressedAccountWithParsedTokenData: ParsedTokenAccount[] =
         event.inputCompressedAccounts.map((compressedAccount, i) => {
             const merkleContext: MerkleContext = {
                 merkleTree:
@@ -85,13 +94,13 @@ async function parseEventWithTokenTlvData(
                 compressedAccount.compressedAccount.address ?? undefined,
             );
             return {
-                compressedAccountWithMerkleContext: withMerkleContext,
+                compressedAccount: withMerkleContext,
                 parsed: parsedData,
             };
         });
 
     const outputHashes = event.outputCompressedAccountHashes;
-    const outputCompressedAccountsWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
+    const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
             const merkleContext: MerkleContext = {
                 merkleTree:
@@ -118,7 +127,7 @@ async function parseEventWithTokenTlvData(
                 compressedAccount.address ?? undefined,
             );
             return {
-                compressedAccountWithMerkleContext: withMerkleContext,
+                compressedAccount: withMerkleContext,
                 parsed: parsedData,
             };
         });
@@ -140,9 +149,7 @@ async function parseEventWithTokenTlvData(
  */
 export async function getCompressedTokenAccounts(
     events: PublicTransactionEvent[],
-    owner: PublicKey,
-    mint: PublicKey,
-): Promise<CompressedAccountWithParsedTokenData[]> {
+): Promise<ParsedTokenAccount[]> {
     const eventsWithParsedTokenTlvData: EventWithParsedTokenTlvData[] =
         await Promise.all(
             events.map(event => parseEventWithTokenTlvData(event)),
@@ -161,35 +168,28 @@ export async function getCompressedTokenAccounts(
             !allInCompressedAccounts.some(
                 inCompressedAccount =>
                     JSON.stringify(
-                        inCompressedAccount.compressedAccountWithMerkleContext
-                            .hash,
+                        inCompressedAccount.compressedAccount.hash,
                     ) ===
                     JSON.stringify(
-                        outputCompressedAccount
-                            .compressedAccountWithMerkleContext.hash,
+                        outputCompressedAccount.compressedAccount.hash,
                     ),
             ),
     );
 
-    /// apply filter (owner, mint)
-    return unspentCompressedAccounts.filter(
-        acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
-    );
+    return unspentCompressedAccounts;
 }
 
 /** @internal */
-export async function getCompressedTokenAccountsForTest(
+export async function getCompressedTokenAccountsByOwnerTest(
     rpc: Rpc,
-    refSender: PublicKey,
-    refMint: PublicKey,
-) {
-    // @ts-ignore
-    const events = await rpc.getParsedEvents();
+    owner: PublicKey,
+    mint: PublicKey,
+): Promise<ParsedTokenAccount[]> {
+    const events = await getParsedEvents(rpc);
 
-    const compressedTokenAccounts = await getCompressedTokenAccounts(
-        events,
-        refSender,
-        refMint,
+    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+
+    return compressedTokenAccounts.filter(
+        acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );
-    return compressedTokenAccounts;
 }

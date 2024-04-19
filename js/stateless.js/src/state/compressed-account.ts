@@ -1,7 +1,8 @@
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { CompressedAccount, CompressedAccountData } from './types';
-import { BN254, bn, createBN254 } from './BN254';
+import { BN254, bn } from './BN254';
+import { Buffer } from 'buffer';
 
 export type CompressedAccountWithMerkleContext = CompressedAccount &
     MerkleContext;
@@ -35,6 +36,8 @@ export type MerkleContextWithMerkleProof = MerkleContext & {
     merkleProof: BN254[];
     /** Index of state root the merkleproof is valid for, expires after n slots */
     rootIndex: number;
+    /** Current root */
+    root: BN254;
 };
 
 export const createCompressedAccount = (

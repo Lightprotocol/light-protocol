@@ -8,7 +8,7 @@ import {
 import { transfer } from "@lightprotocol/compressed-token";
 import { PublicKey } from "@solana/web3.js";
 import { getKeypairFromFile } from "@solana-developers/helpers";
-import { createRpc } from "@lightprotocol/stateless.js";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 
 class TransferCommand extends Command {
   static summary = "Transfer tokens from one account to another.";
@@ -58,7 +58,7 @@ class TransferCommand extends Command {
       if (flags["fee-payer"] !== undefined) {
         payer = await getKeypairFromFile(flags["fee-payer"]);
       }
-      const rpc = createRpc(getSolanaRpcUrl());
+      const rpc = await getTestRpc(getSolanaRpcUrl());
 
       const txId = await transfer(
         rpc,

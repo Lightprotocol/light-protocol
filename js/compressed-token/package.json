@@ -46,17 +46,15 @@
     "author": "",
     "license": "Apache-2.0",
     "dependencies": {
-        "@coral-xyz/anchor": "0.28.0",
-        "@lightprotocol/stateless.js": "workspace:*",
-        "@lightprotocol/hasher.rs": "workspace:*",
-        "@metaplex-foundation/beet": "0.7.1",
-        "@metaplex-foundation/beet-solana": "^0.4.1",
-        "@solana/spl-token": "^0.3.7",
+        "@coral-xyz/anchor": "^0.29.0",
         "@solana/web3.js": "^1.87.6",
+        "@lightprotocol/stateless.js": "workspace:*",
+        "@solana/spl-token": "^0.3.7",
         "buffer": "^6.0.3",
         "tweetnacl": "^1.0.3"
     },
     "devDependencies": {
+        "@lightprotocol/hasher.rs": "workspace:*",
         "@types/node": "^20.10.2",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@rollup/plugin-typescript": "^11.1.5",

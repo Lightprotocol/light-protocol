@@ -1,4 +1,5 @@
 import {
+    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
@@ -11,7 +12,7 @@ import { BN } from '@coral-xyz/anchor';
 import { CompressedAccountWithMerkleContext, bn } from '../state';
 
 /**
- * Init the SOL omnibus account for Light
+ * Decompress lamports into a solana account
  *
  * @param rpc             RPC to use
  * @param payer           Payer of the transaction and initialization fees
@@ -24,7 +25,7 @@ import { CompressedAccountWithMerkleContext, bn } from '../state';
  */
 /// TODO: add multisig support
 /// TODO: add support for payer != owner
-export async function decompressLamports(
+export async function decompress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
@@ -54,7 +55,7 @@ export async function decompressLamports(
     );
 
     const { blockhash } = await rpc.getLatestBlockhash();
-    const ixs = await LightSystemProgram.decompress({
+    const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
         outputStateTree: outputStateTree,
@@ -64,7 +65,12 @@ export async function decompressLamports(
         lamports,
     });
 
-    const tx = buildAndSignTx(ixs, payer, blockhash, []);
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 

@@ -8,24 +8,59 @@ import {
     TransactionMessage,
     ConfirmOptions,
     TransactionSignature,
+    PublicKey,
 } from '@solana/web3.js';
 import { Rpc } from '../rpc';
 
-/** Sends a versioned transaction and confirms it. */
+/**
+ * Builds a versioned Transaction from instructions.
+ *
+ * @param instructions        instructions to include
+ * @param payerPublicKey      fee payer public key
+ * @param blockhash          blockhash to use
+ *
+ * @return VersionedTransaction
+ */
+export function buildTx(
+    instructions: TransactionInstruction[],
+    payerPublicKey: PublicKey,
+    blockhash: string,
+): VersionedTransaction {
+    const messageV0 = new TransactionMessage({
+        payerKey: payerPublicKey,
+        recentBlockhash: blockhash,
+        instructions,
+    }).compileToV0Message();
+
+    return new VersionedTransaction(messageV0);
+}
+
+/**
+ * Sends a versioned transaction and confirms it.
+ *
+ * @param rpc               connection to use
+ * @param tx                versioned transaction to send
+ * @param confirmOptions    confirmation options
+ * @param blockHashCtx      blockhash context for confirmation
+ *
+ * @return TransactionSignature
+ */
 export async function sendAndConfirmTx(
     rpc: Rpc,
     tx: VersionedTransaction,
     confirmOptions?: ConfirmOptions,
+    blockHashCtx?: { blockhash: string; lastValidBlockHeight: number },
 ): Promise<TransactionSignature> {
     const txId = await rpc.sendTransaction(tx, confirmOptions);
-    const { blockhash, lastValidBlockHeight } = await rpc.getLatestBlockhash(
-        confirmOptions?.commitment,
-    );
+
+    if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
+
     const transactionConfirmationStrategy0: TransactionConfirmationStrategy = {
         signature: txId,
-        blockhash,
-        lastValidBlockHeight,
+        blockhash: blockHashCtx.blockhash,
+        lastValidBlockHeight: blockHashCtx.lastValidBlockHeight,
     };
+
     await rpc.confirmTransaction(
         transactionConfirmationStrategy0,
         confirmOptions?.commitment || rpc.commitment || 'confirmed',
@@ -33,10 +68,19 @@ export async function sendAndConfirmTx(
     return txId;
 }
 
-/** @internal */
+/**
+ * Confirms a transaction with a given txId.
+ *
+ * @param rpc               connection to use
+ * @param txId              transaction signature to confirm
+ * @param confirmOptions    confirmation options
+ * @param blockHashCtx      blockhash context for confirmation
+ * @return SignatureResult
+ */
 export async function confirmTx(
     rpc: Rpc,
     txId: string,
+    confirmOptions?: ConfirmOptions,
     blockHashCtx?: { blockhash: string; lastValidBlockHeight: number },
 ): Promise<RpcResponseAndContext<SignatureResult>> {
     if (!blockHashCtx) blockHashCtx = await rpc.getLatestBlockhash();
@@ -48,7 +92,7 @@ export async function confirmTx(
     };
     const res = await rpc.confirmTransaction(
         transactionConfirmationStrategy,
-        rpc.commitment || 'confirmed',
+        confirmOptions?.commitment || rpc.commitment || 'confirmed',
     );
     return res;
 }
@@ -71,13 +115,8 @@ export function buildAndSignTx(
         throw new Error('payer must not be in additionalSigners');
     const allSigners = [payer, ...additionalSigners];
 
-    const messageV0 = new TransactionMessage({
-        payerKey: payer.publicKey,
-        recentBlockhash: blockhash,
-        instructions,
-    }).compileToV0Message();
+    const tx = buildTx(instructions, payer.publicKey, blockhash);
 
-    const tx = new VersionedTransaction(messageV0);
     tx.sign(allSigners);
 
     return tx;

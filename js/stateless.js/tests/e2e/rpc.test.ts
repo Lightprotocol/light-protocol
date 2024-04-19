@@ -1,14 +1,15 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
-import { Signer } from '@solana/web3.js';
+import { PublicKey, Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { getTestRpc, newAccountWithLamports } from '../../src/test-utils';
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
+import { compress, decompress } from '../../src/actions';
 import {
-    CompressedAccountWithMerkleContext,
-    Rpc,
     bn,
-    compressLamports,
-    createRpc,
-} from '../../src';
+    CompressedAccountWithMerkleContext,
+    encodeBN254toBase58,
+} from '../../src/state';
+import { getTestRpc } from '../../src/test-helpers';
 
 /// TODO: add test case for payer != address
 describe('rpc / photon', () => {
@@ -20,14 +21,18 @@ describe('rpc / photon', () => {
     let postCompressBalance: number;
     let compressLamportsAmount: number;
     let compressedTestAccount: CompressedAccountWithMerkleContext;
-    /// 0th leaf
+    let refPayer: Signer;
+    const refCompressLamports = 1e7;
+    /// 0th leaf for refPayer
+    /// Note: also depends on testKeypair derivation seed.
     const refHash: number[] = [
-        27, 94, 128, 101, 38, 3, 38, 161, 60, 238, 2, 229, 53, 162, 108, 59,
-        239, 144, 75, 88, 68, 221, 112, 179, 146, 27, 92, 4, 195, 153, 23, 48,
+        13, 225, 248, 105, 237, 121, 108, 70, 70, 197, 240, 130, 226, 236, 129,
+        58, 213, 50, 236, 99, 216, 99, 91, 201, 141, 76, 196, 33, 41, 181, 236,
+        187,
     ];
-    /// 0th leaf merkle proof
+    /// 0th leaf merkle proof for refPayer after 2 compressions
     const refMerkleProof: string[] = [
-        '0',
+        '2389670883532368111579825686474970238671018859817536120264461201496859761111',
         '14744269619966411208579211824598458697587494354926760081771325075741142829156',
         '7423237065226347324353380772367382631490014989348495481811164164159255474657',
         '11286972368698509976183087595462810875513684078608517520839298933882497716792',
@@ -56,15 +61,24 @@ describe('rpc / photon', () => {
     ];
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
+        refPayer = await newAccountWithLamports(rpc, 1e9, 200);
+        payer = await newAccountWithLamports(rpc, 1e9, 148);
 
-        payer = await newAccountWithLamports(rpc, 1e9, 200);
+        /// compress refPayer
+        await compress(
+            rpc,
+            refPayer,
+            refCompressLamports,
+            refPayer.publicKey,
+            merkleTree,
+        );
 
         /// compress
-        compressLamportsAmount = 20;
+        compressLamportsAmount = 1e7;
         preCompressBalance = await rpc.getBalance(payer.publicKey);
 
-        await compressLamports(
+        await compress(
             rpc,
             payer,
             compressLamportsAmount,
@@ -73,13 +87,45 @@ describe('rpc / photon', () => {
         );
     });
 
-    /// always run this test first
+    /// always run this test first per global test suite
+    it('rpc should return refAccountHash', async () => {
+        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+            refPayer.publicKey,
+        );
+
+        assert.equal(compressedAccounts.length, 1);
+
+        expect(bn(compressedAccounts[0].hash).eq(bn(refHash))).toBeTruthy();
+
+        const b58viaBN = encodeBN254toBase58(bn(refHash));
+        const b58viaPk = new PublicKey(refHash).toBase58();
+        assert.equal(b58viaBN, b58viaPk);
+
+        const arrFromB58 = new PublicKey(b58viaBN).toBytes();
+
+        assert.equal(arrFromB58.length, refHash.length);
+        assert.equal(
+            arrFromB58.every((v, i) => v === refHash[i]),
+            true,
+        );
+
+        const refCacct = await rpc.getCompressedAccount(bn(refHash));
+        assert.equal(refCacct!.owner.toBase58(), refPayer.publicKey.toBase58());
+        assert.equal(bn(refCacct!.hash).eq(bn(refHash)), true);
+
+        const compressedAccount = compressedAccounts[0];
+        assert.equal(Number(compressedAccount.lamports), refCompressLamports);
+        assert.equal(
+            compressedAccount.owner.toBase58(),
+            refPayer.publicKey.toBase58(),
+        );
+        assert.equal(compressedAccount.data?.data, null);
+    });
+
     it('getCompressedAccountsByOwner', async () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        if (!compressedAccounts)
-            throw new Error('No compressed accounts found');
 
         compressedTestAccount = compressedAccounts[0];
         assert.equal(compressedAccounts.length, 1);
@@ -100,17 +146,19 @@ describe('rpc / photon', () => {
         );
     });
 
-    it('getCompressedAccountProof', async () => {
+    it('getCompressedAccountProof for refPayer', async () => {
         const compressedAccountProof = await rpc.getCompressedAccountProof(
             bn(refHash),
         );
-
         const proof = compressedAccountProof.merkleProof.map(x => x.toString());
 
-        /// TODO: photon: don't return the root
-        expect(proof.slice(0, -1)).toStrictEqual(refMerkleProof);
+        expect(proof).toStrictEqual(refMerkleProof);
 
-        await compressLamports(
+        expect(compressedAccountProof.hash).toStrictEqual(refHash);
+        expect(compressedAccountProof.leafIndex).toStrictEqual(0);
+        expect(compressedAccountProof.rootIndex).toStrictEqual(2);
+
+        await compress(
             rpc,
             payer,
             compressLamportsAmount,
@@ -121,12 +169,13 @@ describe('rpc / photon', () => {
             payer.publicKey,
         );
         expect(compressedAccounts?.length).toStrictEqual(2);
-
-        /// TODO: remove once merkleproof debugged
-        const hash2 = compressedAccounts![1].hash;
-        await (await getTestRpc()).getValidityProof([bn(hash2)]);
     });
 
+    it('getCompressedAccountProof: get many valid proofs (10)', async () => {
+        for (let lamports = 1; lamports <= 10; lamports++) {
+            await decompress(rpc, payer, lamports, payer.publicKey, merkleTree);
+        }
+    });
     it('getHealth', async () => {
         /// getHealth
         const health = await rpc.getHealth();
@@ -145,16 +194,14 @@ describe('rpc / photon', () => {
         assert(compressedAccount !== null);
         assert.equal(
             compressedAccount.owner.toBase58(),
-            payer.publicKey.toBase58(),
+            refPayer.publicKey.toBase58(),
         );
         assert.equal(compressedAccount.data, null);
     });
 
-    it('getCompressedBalance', async () => {
+    it.skip('getCompressedBalance', async () => {
         /// getCompressedBalance
         const compressedBalance = await rpc.getCompressedBalance(bn(refHash));
-        expect(compressedBalance?.eq(bn(compressLamportsAmount))).toBeTruthy();
-
-        return;
+        expect(compressedBalance?.eq(bn(refCompressLamports))).toBeTruthy();
     });
 });

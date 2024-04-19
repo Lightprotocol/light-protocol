@@ -4,16 +4,17 @@ import {
     Keypair,
     Connection,
     TransactionInstruction,
-    AccountMeta,
-    ComputeBudgetProgram,
     SystemProgram,
 } from '@solana/web3.js';
+import { Buffer } from 'buffer';
+
 import { IDL, LightCompressedPda } from '../idls/light_compressed_pda';
 import { useWallet } from '../wallet';
 import {
     CompressedAccount,
     CompressedAccountWithMerkleContext,
     CompressedProof,
+    InstructionDataTransfer,
     bn,
     createCompressedAccount,
 } from '../state';
@@ -23,7 +24,7 @@ import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
-import { placeholderValidityProof } from '../test-utils';
+import { placeholderValidityProof } from '../utils';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -219,11 +220,11 @@ export class LightSystemProgram {
         validateSameOwner(inputCompressedAccounts);
 
         const outputCompressedAccounts: CompressedAccount[] = [
-            createCompressedAccount(toAddress, lamports),
             createCompressedAccount(
                 inputCompressedAccounts[0].owner,
                 changeLamports,
             ),
+            createCompressedAccount(toAddress, lamports),
         ];
         return outputCompressedAccounts;
     }
@@ -258,22 +259,19 @@ export class LightSystemProgram {
      * Creates a transaction instruction that transfers compressed lamports from
      * one owner to another.
      */
-    static async transfer(
-        params: TransferParams,
-    ): Promise<TransactionInstruction[]> {
-        const {
-            payer,
-            recentValidityProof,
-            recentInputStateRootIndices,
-            inputCompressedAccounts,
-            lamports,
-            outputStateTrees,
-        } = params;
-
+    static async transfer({
+        payer,
+        inputCompressedAccounts,
+        toAddress,
+        lamports,
+        recentInputStateRootIndices,
+        recentValidityProof,
+        outputStateTrees,
+    }: TransferParams): Promise<TransactionInstruction> {
         /// Create output state
         const outputCompressedAccounts = this.createTransferOutputState(
             inputCompressedAccounts,
-            params.toAddress,
+            toAddress,
             lamports,
         );
 
@@ -322,12 +320,7 @@ export class LightSystemProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        const instructions = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
-
-        return instructions;
+        return instruction;
     }
 
     /**
@@ -354,13 +347,14 @@ export class LightSystemProgram {
      * one owner to another.
      */
     // TODO: add support for non-fee-payer owner
-    static async compress(
-        params: CompressParams,
-    ): Promise<TransactionInstruction[]> {
-        const { payer, outputStateTree, toAddress } = params;
-
+    static async compress({
+        payer,
+        toAddress,
+        lamports,
+        outputStateTree,
+    }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
-        const lamports = bn(params.lamports);
+        lamports = bn(lamports);
         const outputCompressedAccount = createCompressedAccount(
             toAddress,
             lamports,
@@ -374,23 +368,25 @@ export class LightSystemProgram {
         } = packCompressedAccounts([], 1, outputStateTree);
 
         /// Encode instruction data
+        const rawInputs: InstructionDataTransfer = {
+            proof: placeholderValidityProof(),
+            inputRootIndices: [],
+            /// TODO: here and on-chain: option<newAddressInputs> or similar.
+            newAddressParams: [],
+            inputCompressedAccountsWithMerkleContext:
+                packedInputCompressedAccounts,
+            outputCompressedAccounts: [outputCompressedAccount],
+            outputStateMerkleTreeAccountIndices: Buffer.from(
+                new Uint8Array(outputStateMerkleTreeIndices),
+            ),
+            relayFee: null,
+            compressionLamports: lamports,
+            isCompress: true,
+        };
+
         const data = this.program.coder.types.encode(
             'InstructionDataTransfer',
-            {
-                proof: placeholderValidityProof(),
-                inputRootIndices: [],
-                /// TODO: here and on-chain: option<newAddressInputs> or similar.
-                newAddressParams: [],
-                inputCompressedAccountsWithMerkleContext:
-                    packedInputCompressedAccounts,
-                outputCompressedAccounts: [outputCompressedAccount],
-                outputStateMerkleTreeAccountIndices: Buffer.from(
-                    new Uint8Array(outputStateMerkleTreeIndices),
-                ),
-                relayFee: null,
-                compressionLamports: lamports,
-                isCompress: true,
-            },
+            rawInputs,
         );
 
         /// Build anchor instruction
@@ -407,12 +403,7 @@ export class LightSystemProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        const instructions = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
-
-        return instructions;
+        return instruction;
     }
 
     /**
@@ -420,15 +411,19 @@ export class LightSystemProgram {
      * one owner to another.
      */
     /// TODO: add check that outputStateTree is provided or supplemented if change exists
-    static async decompress(
-        params: DecompressParams,
-    ): Promise<TransactionInstruction[]> {
-        const { payer, outputStateTree, toAddress } = params;
-
+    static async decompress({
+        payer,
+        inputCompressedAccounts,
+        toAddress,
+        lamports,
+        recentInputStateRootIndices,
+        recentValidityProof,
+        outputStateTree,
+    }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
-        const lamports = bn(params.lamports);
+        lamports = bn(lamports);
         const outputCompressedAccounts = this.createDecompressOutputState(
-            params.inputCompressedAccounts,
+            inputCompressedAccounts,
             lamports,
         );
 
@@ -438,7 +433,7 @@ export class LightSystemProgram {
             outputStateMerkleTreeIndices,
             remainingAccountMetas,
         } = packCompressedAccounts(
-            params.inputCompressedAccounts,
+            inputCompressedAccounts,
             outputCompressedAccounts.length,
             outputStateTree,
         );
@@ -447,8 +442,8 @@ export class LightSystemProgram {
         const data = this.program.coder.types.encode(
             'InstructionDataTransfer',
             {
-                proof: params.recentValidityProof,
-                inputRootIndices: params.recentInputStateRootIndices,
+                proof: recentValidityProof,
+                inputRootIndices: recentInputStateRootIndices,
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
                 newAddressParams: [],
                 inputCompressedAccountsWithMerkleContext:
@@ -477,44 +472,39 @@ export class LightSystemProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        const instructions = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
-
-        return instructions;
+        return instruction;
     }
 }
 
-// /**
-//  * @internal
-//  *
-//  * Selects the minimal number of compressed accounts for a transfer
-//  * 1. Sorts the accounts by amount in descending order
-//  * 2. Accumulates the lamports amount until it is greater than or equal to the transfer
-//  *    amount
-//  */
-// function _selectMinCompressedAccountsForTransfer(
-//     compressedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[],
-//     transferAmount: BN,
-// ): {
-//     selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-//     total: BN;
-// } {
-//     let accumulatedAmount = bn(0);
-//     const selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[] =
-//         [];
+/**
+ * Selects the minimal number of compressed SOL accounts for a transfer.
+ *
+ * 1. Sorts the accounts by amount in descending order
+ * 2. Accumulates the amount until it is greater than or equal to the transfer
+ *    amount
+ */
+export function selectMinCompressedSolAccountsForTransfer(
+    accounts: CompressedAccountWithMerkleContext[],
+    transferLamports: BN | number,
+): [selectedAccounts: CompressedAccountWithMerkleContext[], total: BN] {
+    let accumulatedLamports = bn(0);
+    transferLamports = bn(transferLamports);
 
-//     compressedAccounts.sort((a, b) =>
-//         Number(bn(b.lamports).sub(bn(a.lamports))),
-//     );
-//     for (const utxo of compressedAccounts) {
-//         if (accumulatedAmount.gte(bn(transferAmount))) break;
-//         accumulatedAmount = accumulatedAmount.add(bn(utxo.lamports));
-//         selectedAccounts.push(utxo);
-//     }
-//     if (accumulatedAmount.lt(bn(transferAmount))) {
-//         throw new Error('Not enough balance for transfer');
-//     }
-//     return { selectedAccounts, total: accumulatedAmount };
-// }
+    const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
+
+    accounts.sort((a, b) => b.lamports.cmp(a.lamports));
+
+    for (const account of accounts) {
+        if (accumulatedLamports.gte(bn(transferLamports))) break;
+        accumulatedLamports = accumulatedLamports.add(account.lamports);
+        selectedAccounts.push(account);
+    }
+
+    if (accumulatedLamports.lt(bn(transferLamports))) {
+        throw new Error(
+            `Not enough balance for transfer. Required: ${transferLamports.toString()}, available: ${accumulatedLamports.toString()}`,
+        );
+    }
+
+    return [selectedAccounts, accumulatedLamports];
+}

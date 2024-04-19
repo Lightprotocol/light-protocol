@@ -15,5 +15,9 @@
         "types": ["vitest/importMeta", "node"],
         "skipLibCheck": true
     },
-    "include": ["./src/**/*.ts", "rollup.config.js"]
+    "include": [
+        "./src/**/*.ts",
+        "rollup.config.js",
+        "src/get-compressed-token-accounts.ts"
+    ]
 }
