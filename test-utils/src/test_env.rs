@@ -65,8 +65,7 @@ pub async fn setup_test_programs(
     program_test.start_with_context().await
 }
 
-pub struct EnvWithAccounts {
-    pub context: ProgramTestContext,
+pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
     pub indexed_array_pubkey: Pubkey,
     pub governance_authority: Keypair,
@@ -134,7 +133,7 @@ pub const SIGNATURE_CPI_TEST_KEYPAIR: [u8; 64] = [
 #[cfg(feature = "light_program")]
 pub async fn setup_test_programs_with_accounts(
     additional_programs: Option<Vec<(String, Pubkey)>>,
-) -> EnvWithAccounts {
+) -> (ProgramTestContext, EnvAccounts) {
     use crate::airdrop_lamports;
 
     let mut context = setup_test_programs(additional_programs).await;
@@ -251,18 +250,20 @@ pub async fn setup_test_programs_with_accounts(
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
     #[cfg(feature = "test_indexer")]
     init_cpi_signature_account(&mut context, &merkle_tree_pubkey, &cpi_signature_keypair).await;
-    EnvWithAccounts {
+    (
         context,
-        merkle_tree_pubkey,
-        indexed_array_pubkey,
-        group_pda,
-        governance_authority: payer,
-        governance_authority_pda: authority_pda.0,
-        registered_program_pda,
-        address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
-        address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
-        cpi_signature_account_pubkey: cpi_signature_keypair.pubkey(),
-    }
+        EnvAccounts {
+            merkle_tree_pubkey,
+            indexed_array_pubkey,
+            group_pda,
+            governance_authority: payer,
+            governance_authority_pda: authority_pda.0,
+            registered_program_pda,
+            address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
+            address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
+            cpi_signature_account_pubkey: cpi_signature_keypair.pubkey(),
+        },
+    )
 }
 
 #[cfg(feature = "light_program")]
@@ -422,7 +423,6 @@ pub async fn init_cpi_signature_account(
     cpi_account_keypair: &Keypair,
 ) -> Pubkey {
     let payer = context.payer.insecure_clone();
-
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(
         &context.payer.pubkey(),

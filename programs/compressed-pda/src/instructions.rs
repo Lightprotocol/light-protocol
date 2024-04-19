@@ -15,6 +15,7 @@ use crate::{
 };
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
+use std::collections::HashMap;
 
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &mut InstructionDataTransfer,
@@ -207,66 +208,6 @@ impl InstructionDataTransfer {
     }
 }
 
-// test combine instruction data transfer
-#[test]
-fn test_combine_instruction_data_transfer() {
-    let mut instruction_data_transfer = InstructionDataTransfer {
-        proof: Some(CompressedProof {
-            a: [0; 32],
-            b: [0; 64],
-            c: [0; 32],
-        }),
-        new_address_params: vec![NewAddressParamsPacked::default()],
-        input_root_indices: vec![1],
-        input_compressed_accounts_with_merkle_context: vec![
-            CompressedAccountWithMerkleContext::default(),
-        ],
-        output_compressed_accounts: vec![CompressedAccount::default()],
-        output_state_merkle_tree_account_indices: vec![1],
-        relay_fee: Some(1),
-        compression_lamports: Some(1),
-        is_compress: true,
-        signer_seeds: None,
-    };
-    let other = InstructionDataTransfer {
-        proof: Some(CompressedProof {
-            a: [0; 32],
-            b: [0; 64],
-            c: [0; 32],
-        }),
-        new_address_params: vec![NewAddressParamsPacked::default()],
-        input_root_indices: vec![1],
-        input_compressed_accounts_with_merkle_context: vec![
-            CompressedAccountWithMerkleContext::default(),
-        ],
-        output_compressed_accounts: vec![CompressedAccount::default()],
-        output_state_merkle_tree_account_indices: vec![1],
-        relay_fee: Some(1),
-        compression_lamports: Some(1),
-        is_compress: true,
-        signer_seeds: None,
-    };
-    instruction_data_transfer.combine(&[other]);
-    assert_eq!(instruction_data_transfer.new_address_params.len(), 2);
-    assert_eq!(instruction_data_transfer.input_root_indices.len(), 2);
-    assert_eq!(
-        instruction_data_transfer
-            .input_compressed_accounts_with_merkle_context
-            .len(),
-        2
-    );
-    assert_eq!(
-        instruction_data_transfer.output_compressed_accounts.len(),
-        2
-    );
-    assert_eq!(
-        instruction_data_transfer
-            .output_state_merkle_tree_account_indices
-            .len(),
-        2
-    );
-}
-
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
@@ -281,6 +222,49 @@ pub struct NewAddressParams {
     pub address_queue_pubkey: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_root_index: u16,
+}
+
+// helper function to pack new address params for instruction data in rust clients
+pub fn pack_new_address_params(
+    new_address_params: &[NewAddressParams],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<NewAddressParamsPacked> {
+    let mut new_address_params_packed = new_address_params
+        .iter()
+        .map(|x| NewAddressParamsPacked {
+            seed: x.seed,
+            address_merkle_tree_root_index: x.address_merkle_tree_root_index,
+            address_merkle_tree_account_index: 0, // will be assigned later
+            address_queue_account_index: 0,       // will be assigned later
+        })
+        .collect::<Vec<NewAddressParamsPacked>>();
+    let len: usize = remaining_accounts.len();
+    for (i, params) in new_address_params.iter().enumerate() {
+        match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(params.address_merkle_tree_pubkey, i + len);
+            }
+        };
+        new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
+            .get(&params.address_merkle_tree_pubkey)
+            .unwrap()
+            as u8;
+    }
+
+    let len: usize = remaining_accounts.len();
+    for (i, params) in new_address_params.iter().enumerate() {
+        match remaining_accounts.get(&params.address_queue_pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(params.address_queue_pubkey, i + len);
+            }
+        };
+        new_address_params_packed[i].address_queue_account_index = *remaining_accounts
+            .get(&params.address_queue_pubkey)
+            .unwrap() as u8;
+    }
+    new_address_params_packed
 }
 
 impl InstructionDataTransfer {
@@ -345,3 +329,63 @@ impl InstructionDataTransfer {
 //         output_compressed_accounts,
 //     })
 // }
+
+// test combine instruction data transfer
+#[test]
+fn test_combine_instruction_data_transfer() {
+    let mut instruction_data_transfer = InstructionDataTransfer {
+        proof: Some(CompressedProof {
+            a: [0; 32],
+            b: [0; 64],
+            c: [0; 32],
+        }),
+        new_address_params: vec![NewAddressParamsPacked::default()],
+        input_root_indices: vec![1],
+        input_compressed_accounts_with_merkle_context: vec![
+            CompressedAccountWithMerkleContext::default(),
+        ],
+        output_compressed_accounts: vec![CompressedAccount::default()],
+        output_state_merkle_tree_account_indices: vec![1],
+        relay_fee: Some(1),
+        compression_lamports: Some(1),
+        is_compress: true,
+        signer_seeds: None,
+    };
+    let other = InstructionDataTransfer {
+        proof: Some(CompressedProof {
+            a: [0; 32],
+            b: [0; 64],
+            c: [0; 32],
+        }),
+        new_address_params: vec![NewAddressParamsPacked::default()],
+        input_root_indices: vec![1],
+        input_compressed_accounts_with_merkle_context: vec![
+            CompressedAccountWithMerkleContext::default(),
+        ],
+        output_compressed_accounts: vec![CompressedAccount::default()],
+        output_state_merkle_tree_account_indices: vec![1],
+        relay_fee: Some(1),
+        compression_lamports: Some(1),
+        is_compress: true,
+        signer_seeds: None,
+    };
+    instruction_data_transfer.combine(&[other]);
+    assert_eq!(instruction_data_transfer.new_address_params.len(), 2);
+    assert_eq!(instruction_data_transfer.input_root_indices.len(), 2);
+    assert_eq!(
+        instruction_data_transfer
+            .input_compressed_accounts_with_merkle_context
+            .len(),
+        2
+    );
+    assert_eq!(
+        instruction_data_transfer.output_compressed_accounts.len(),
+        2
+    );
+    assert_eq!(
+        instruction_data_transfer
+            .output_state_merkle_tree_account_indices
+            .len(),
+        2
+    );
+}

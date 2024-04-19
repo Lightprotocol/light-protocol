@@ -62,7 +62,7 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
     pubkey_array: Vec<Pubkey>,
 ) -> Result<()> {
     let current_slot = Clock::get()?.slot;
-    if current_slot > ctx.accounts.timelock_pda.slot {
+    if current_slot < ctx.accounts.timelock_pda.slot {
         return err!(EscrowError::EscrowLocked);
     }
 

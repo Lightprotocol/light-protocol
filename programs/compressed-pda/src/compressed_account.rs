@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
@@ -8,6 +10,60 @@ pub struct CompressedAccountWithMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,
     pub leaf_index: u32,
+}
+
+// TODO: use in CompressedAccountWithMerkleContext and rename to CompressedAccountAndMerkleContext
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct MerkleContext {
+    pub merkle_tree_pubkey: Pubkey,
+    pub nullifier_queue_pubkey: Pubkey,
+    pub leaf_index: u32,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedMerkleContext {
+    pub merkle_tree_pubkey_index: u8,
+    pub nullifier_queue_pubkey_index: u8,
+    pub leaf_index: u32,
+}
+
+pub fn pack_merkle_context(
+    merkle_context: &[MerkleContext],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<PackedMerkleContext> {
+    let mut merkle_context_packed = merkle_context
+        .iter()
+        .map(|x| PackedMerkleContext {
+            leaf_index: x.leaf_index,
+            merkle_tree_pubkey_index: 0,     // will be assigned later
+            nullifier_queue_pubkey_index: 0, // will be assigned later
+        })
+        .collect::<Vec<PackedMerkleContext>>();
+    let len: usize = remaining_accounts.len();
+    for (i, params) in merkle_context.iter().enumerate() {
+        match remaining_accounts.get(&params.merkle_tree_pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(params.merkle_tree_pubkey, i + len);
+            }
+        };
+        merkle_context_packed[i].merkle_tree_pubkey_index =
+            *remaining_accounts.get(&params.merkle_tree_pubkey).unwrap() as u8;
+    }
+
+    let len: usize = remaining_accounts.len();
+    for (i, params) in merkle_context.iter().enumerate() {
+        match remaining_accounts.get(&params.nullifier_queue_pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(params.nullifier_queue_pubkey, i + len);
+            }
+        };
+        merkle_context_packed[i].nullifier_queue_pubkey_index = *remaining_accounts
+            .get(&params.nullifier_queue_pubkey)
+            .unwrap() as u8;
+    }
+    merkle_context_packed
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]

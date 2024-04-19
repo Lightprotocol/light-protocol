@@ -4,13 +4,11 @@ use anchor_lang::solana_program::pubkey::Pubkey;
 use psp_compressed_pda::utils::CompressedProof;
 use psp_compressed_token::InputTokenDataWithContext;
 use psp_compressed_token::TokenTransferOutputData;
-pub mod compressed_pda_escrow;
-pub mod compressed_pda_sdk;
-pub mod compressed_token_escrow;
-pub mod sdk;
+pub mod escrow_with_compressed_pda;
+pub mod escrow_with_pda;
 
-pub use compressed_pda_escrow::*;
-pub use compressed_token_escrow::*;
+pub use escrow_with_compressed_pda::escrow::*;
+pub use escrow_with_pda::escrow::*;
 use psp_compressed_pda::compressed_cpi::CompressedCpiContext;
 use psp_compressed_pda::NewAddressParamsPacked;
 
@@ -24,6 +22,8 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
 pub mod token_escrow {
+
+    use self::escrow_with_compressed_pda::withdrawal::process_withdraw_compressed_tokens_with_compressed_pda;
 
     use super::*;
 

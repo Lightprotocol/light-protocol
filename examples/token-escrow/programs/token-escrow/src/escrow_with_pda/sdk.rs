@@ -4,10 +4,15 @@ use account_compression::{Pubkey, NOOP_PROGRAM_ID};
 use anchor_lang::{InstructionData, ToAccountMetas};
 use psp_compressed_pda::utils::CompressedProof;
 use psp_compressed_token::{
-    transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
+    transfer_sdk::{
+        create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
+        to_account_metas,
+    },
     TokenTransferOutputData,
 };
 use solana_sdk::instruction::Instruction;
+
+use crate::escrow_with_compressed_pda::sdk::get_token_owner_pda;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CreateEscrowInstructionInputs<'a> {
@@ -24,19 +29,16 @@ pub struct CreateEscrowInstructionInputs<'a> {
     pub mint: &'a Pubkey,
 }
 
+pub fn get_timelock_pda(signer: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[b"timelock".as_ref(), signer.as_ref()], &crate::id()).0
+}
+
 pub fn create_escrow_instruction(
     input_params: CreateEscrowInstructionInputs,
     escrow_amount: u64,
 ) -> Instruction {
-    let token_owner_pda = Pubkey::find_program_address(
-        &[b"escrow".as_ref(), input_params.signer.as_ref()],
-        &crate::id(),
-    );
-    let timelock_pda = Pubkey::find_program_address(
-        &[b"timelock".as_ref(), input_params.signer.as_ref()],
-        &crate::id(),
-    )
-    .0;
+    let token_owner_pda = get_token_owner_pda(input_params.signer);
+    let timelock_pda = get_timelock_pda(input_params.signer);
     let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_compressed_account_merkle_tree_pubkeys,
         input_params.leaf_indices,
@@ -101,16 +103,12 @@ pub fn create_withdrawal_escrow_instruction(
     input_params: CreateEscrowInstructionInputs,
     withdrawal_amount: u64,
 ) -> Instruction {
-    let token_owner_pda = Pubkey::find_program_address(
-        &[b"escrow".as_ref(), input_params.signer.as_ref()],
-        &crate::id(),
-    );
-    let timelock_pda = Pubkey::find_program_address(
-        &[b"timelock".as_ref(), input_params.signer.as_ref()],
-        &crate::id(),
-    )
-    .0;
-    let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
+    let token_owner_pda = get_token_owner_pda(input_params.signer);
+    let timelock_pda = get_timelock_pda(input_params.signer);
+    // Token transactions with an invalid signer will just fail with invalid proof verification.
+    // Thus, it's recommented to use create_inputs_and_remaining_accounts_checked, which returns a descriptive error in case of a wrong signer.
+    // We use unchecked here to perform a failing test with an invalid signer.
+    let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
         input_params.input_compressed_account_merkle_tree_pubkeys,
         input_params.leaf_indices,
         input_params.input_token_data,
@@ -121,11 +119,9 @@ pub fn create_withdrawal_escrow_instruction(
         input_params.root_indices,
         input_params.proof,
         *input_params.mint,
-        &token_owner_pda.0,
         false,
         None,
-    )
-    .unwrap();
+    );
 
     let instruction_data = crate::instruction::WithdrawCompressedEscrowTokensWithPda {
         bump: token_owner_pda.1,

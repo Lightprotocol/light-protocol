@@ -25,7 +25,7 @@ use circuitlib_rs::{
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
     create_and_send_transaction, get_hash_set,
-    test_env::{setup_test_programs_with_accounts, EnvWithAccounts},
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
     AccountZeroCopy,
 };
 use num_bigint::{BigInt, BigUint, ToBigUint};
@@ -54,7 +54,8 @@ use tokio::fs::write as async_write;
 // TODO: use lazy_static to spawn the server once
 
 async fn init_mock_indexer(
-    env: &EnvWithAccounts,
+    payer: &Keypair,
+    env: &EnvAccounts,
     inclusion: bool,
     non_inclusion: bool,
     combined: bool,
@@ -63,7 +64,7 @@ async fn init_mock_indexer(
         env.merkle_tree_pubkey,
         env.indexed_array_pubkey,
         env.address_merkle_tree_pubkey,
-        env.context.payer.insecure_clone(),
+        payer.insecure_clone(),
         inclusion,
         non_inclusion,
         combined,
@@ -78,12 +79,10 @@ async fn init_mock_indexer(
 /// 4. should succeed: in compressed account inserted in (1.) and valid zkp
 #[tokio::test]
 async fn test_execute_compressed_transaction() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
-    let mut mock_indexer = init_mock_indexer(&env, true, false, false).await;
-    let mut context = env.context;
     let payer = context.payer.insecure_clone();
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false, false).await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -314,13 +313,10 @@ async fn test_execute_compressed_transaction() {
 ///    testing: (input accounts, new addresses) (1, 1), (1, 2), (2, 1), (2, 2)
 #[tokio::test]
 async fn test_with_address() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
-    let mut mock_indexer = init_mock_indexer(&env, true, true, false).await;
-
-    let mut context = env.context;
     let payer = context.payer.insecure_clone();
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false, false).await;
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
@@ -690,9 +686,7 @@ pub async fn create_addresses(
 
 #[tokio::test]
 async fn test_with_compression() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
 
     let payer_pubkey = payer.pubkey();
@@ -992,8 +986,7 @@ async fn test_with_compression() {
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
-    let env = setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     // List of public keys to fetch and export
     let pubkeys = vec![

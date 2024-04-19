@@ -245,7 +245,6 @@ async fn test_nullify_leaves() {
 
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
-
     let payer = context.payer.insecure_clone();
     let payer_pubkey = context.payer.pubkey();
     let indexed_array_keypair = Keypair::new();
@@ -394,6 +393,7 @@ pub async fn nullify(
     leaf_queue_index: u16,
     element_index: u64,
 ) -> std::result::Result<(), BanksClientError> {
+    let payer = context.payer.insecure_clone();
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(element_index as usize, false)
         .unwrap()
@@ -412,8 +412,6 @@ pub async fn nullify(
             indexed_array_pubkey,
         ),
     ];
-    let payer = context.payer.insecure_clone();
-
     create_and_send_transaction(context, &instructions, &payer.pubkey(), &[&payer]).await?;
 
     let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
@@ -607,7 +605,6 @@ async fn functional_2_test_insert_into_indexed_arrays(
     merkle_tree_pubkey: &Pubkey,
 ) {
     let payer = context.payer.insecure_clone();
-
     let elements = vec![[1_u8; 32], [2_u8; 32]];
     insert_into_indexed_arrays(
         &elements,
@@ -640,7 +637,6 @@ async fn fail_3_insert_same_elements_into_indexed_array(
     elements: Vec<[u8; 32]>,
 ) {
     let payer = context.payer.insecure_clone();
-
     insert_into_indexed_arrays(
         &elements,
         &payer,
@@ -679,7 +675,6 @@ async fn functional_5_test_insert_into_indexed_arrays(
     merkle_tree_pubkey: &Pubkey,
 ) {
     let payer = context.payer.insecure_clone();
-
     let element = 3_u32.to_biguint().unwrap();
     let elements = vec![bigint_to_be_bytes_array(&element).unwrap()];
     insert_into_indexed_arrays(

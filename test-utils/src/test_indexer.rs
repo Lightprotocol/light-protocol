@@ -375,6 +375,17 @@ impl TestIndexer {
                 .position(|x| x.compressed_account == compressed_account.compressed_account)
                 .expect("compressed_account not found");
             self.compressed_accounts.remove(index);
+            let token_compressed_account_element = self
+                .token_compressed_accounts
+                .iter()
+                .find(|x| x.index == index);
+            if token_compressed_account_element.is_some() {
+                let token_compressed_account_element =
+                    token_compressed_account_element.unwrap().clone();
+                self.token_compressed_accounts.remove(index);
+                self.token_nullified_compressed_accounts
+                    .push(token_compressed_account_element);
+            }
             // TODO: nullify compressed_account in Merkle tree, not implemented yet
             self.nullified_compressed_accounts
                 .push(compressed_account.clone());
