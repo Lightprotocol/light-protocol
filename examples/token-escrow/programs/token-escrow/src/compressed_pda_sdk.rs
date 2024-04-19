@@ -60,7 +60,7 @@ pub fn create_escrow_instruction(
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
     let cpi_signature_account_index: u8 =
-        match remaining_accounts.get(&input_params.cpi_signature_account) {
+        match remaining_accounts.get(input_params.cpi_signature_account) {
             Some(entry) => (*entry).try_into().unwrap(),
             None => {
                 remaining_accounts.insert(
@@ -321,7 +321,7 @@ pub fn create_withdrawal_instruction(
     let merkle_context_packed =
         pack_merkle_context(&[input_params.merkle_context], &mut remaining_accounts);
     let cpi_signature_account_index: u8 =
-        match remaining_accounts.get(&input_params.cpi_signature_account) {
+        match remaining_accounts.get(input_params.cpi_signature_account) {
             Some(entry) => (*entry).try_into().unwrap(),
             None => {
                 remaining_accounts.insert(
@@ -376,7 +376,7 @@ pub fn create_withdrawal_instruction(
         compressed_token_cpi_authority_pda,
         account_compression_authority,
         self_program: crate::ID,
-        token_owner_pda: token_owner_pda,
+        token_owner_pda,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

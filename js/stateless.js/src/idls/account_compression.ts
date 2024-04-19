@@ -185,7 +185,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -586,7 +586,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -1117,7 +1117,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -1518,7 +1518,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {

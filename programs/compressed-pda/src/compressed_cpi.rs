@@ -63,37 +63,6 @@ pub fn process_cpi_context<'a, 'b, 'c: 'info, 'info>(
     ctx: &mut Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: &mut InstructionDataTransfer,
 ) -> Result<Option<std::prelude::v1::Result<PublicTransactionEvent, Error>>> {
-    // // cpi_signature_account_index needs to be one of the output state Merkle tree account indices
-    // if inputs
-    //     .output_state_merkle_tree_account_indices
-    //     .iter()
-    //     .any(|&x| x != cpi_context.cpi_signature_account_index)
-    // {
-    //     return Ok(Some(Err(
-    //         crate::ErrorCode::CpiSignatureAccountIndexInOutputStateMerkleTreeAccountIndices.into(),
-    //     )));
-    // }
-
-    // let cpi_signature_account = &mut cpi_signature_account_from_merkle_tree_account_mut(
-    //     &mut ctx.remaining_accounts[cpi_context.cpi_signature_account_index as usize],
-    // )?;
-    // let account: &'info AccountInfo =
-    //     &ctx.remaining_accounts[cpi_context.cpi_signature_account_index as usize];
-    // let merkle_tree_account = AccountLoader::<StateMerkleTreeAccount>::try_from(&account).unwrap();
-    // let merkle_tree = &mut merkle_tree_account.load_mut()?;
-    // msg!("cpi signature len {}", CpiSignatureAccount::LEN);
-    // let mut cpi_signature_account =
-    //     CpiSignatureAccount::deserialize_reader(&mut &merkle_tree.cpi_signatures[..]).unwrap();
-    // .as_mut()
-    // .unwrap()
-    // .load_mut()?;
-    // let merkle_tree_pubkey = merkle_tree_account.key();
-    // let mut merkle_tree = merkle_tree_account.load_mut()?;
-    // let deserialized_account = StateMerkleTreeAccount::load_merkle_tree_mut(merkle_tree_account);
-    // ConcurrentMerkleTree::struct_from_bytes_mut(account.data.as_mut_slice())
-    //     .expect("failed to deserialize merkle tree account");
-    // let mut cpi_signature_account =
-    //     CpiSignatureAccount::try_from_slice(&cpi_signature_account.cpi_signatures).unwrap();
     if !cpi_context.execute {
         // TODO: enable for more than invocations by adding an execute tx input, we should have a macro that adds it automatically to a program that wants to activate cpi
         // TODO: remove cpi_signature_account and make the Merkle tree accounts bigger
@@ -115,11 +84,6 @@ pub fn process_cpi_context<'a, 'b, 'c: 'info, 'info>(
                     } else {
                         cpi_signature_account.signatures = vec![inputs.clone()];
                     }
-                    // serialize the cpi signature account
-                    // let mut cpi_signature_account_data = vec![0u8; CpiSignatureAccount::LEN];
-                    // cpi_signature_account
-                    //     .serialize(&mut merkle_tree.cpi_signatures.as_mut())
-                    //     .unwrap();
                 };
             }
             false => {
@@ -127,40 +91,9 @@ pub fn process_cpi_context<'a, 'b, 'c: 'info, 'info>(
             }
         };
         return Ok(Some(Ok(PublicTransactionEvent::default())));
-    } else {
-        if let Some(cpi_signature_account) = &ctx.accounts.cpi_signature_account {
-            inputs.combine(&cpi_signature_account.signatures);
-        }
-        // inputs.combine(&cpi_signature_account.signatures);
+    } else if let Some(cpi_signature_account) = &ctx.accounts.cpi_signature_account {
+        inputs.combine(&cpi_signature_account.signatures);
     }
+
     Ok(None)
 }
-
-// pub fn cpi_signature_account_from_merkle_tree_account_mut<'info>(
-//     account: &mut AccountInfo<'info>,
-// ) -> Result<CpiSignatureAccount> {
-//     let merkle_tree_account = &mut AccountLoader::<StateMerkleTreeAccount>::try_from(account)
-//         .unwrap()
-//         .load_mut()?;
-//     // let merkle_tree_pubkey = merkle_tree_account.key();
-//     // let mut merkle_tree = merkle_tree_account.load_mut()?;
-//     // let deserialized_account = StateMerkleTreeAccount::load_merkle_tree_mut(merkle_tree_account);
-//     // ConcurrentMerkleTree::struct_from_bytes_mut(account.data.as_mut_slice())
-//     //     .expect("failed to deserialize merkle tree account");
-//     let mut cpi_signature_account =
-//         CpiSignatureAccount::try_from_slice(&merkle_tree_account.cpi_signatures).unwrap();
-//     Ok(cpi_signature_account)
-// }
-
-// pub unsafe fn struct_from_bytes_mut(bytes_struct: &[u8]) -> Result<&mut CpiSignatureAccount> {
-//     let expected_bytes_struct_size = std::mem::size_of::<CpiSignatureAccount>();
-//     if bytes_struct.len() != expected_bytes_struct_size {
-//         return Err(crate::ErrorCode::StructBufferSize(
-//             expected_bytes_struct_size,
-//             bytes_struct.len(),
-//         ));
-//     }
-//     let tree: *mut CpiSignatureAccount = bytes_struct.as_ptr() as _;
-
-//     Ok(&mut *tree)
-// }

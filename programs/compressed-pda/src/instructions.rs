@@ -22,13 +22,12 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     cpi_context: Option<CompressedCpiContext>,
 ) -> anchor_lang::Result<PublicTransactionEvent> {
     // signer check ---------------------------------------------------
-    signer_check(&inputs, &ctx)?;
-    write_access_check(&inputs, &ctx.accounts.invoking_program)?;
+    signer_check(inputs, &ctx)?;
+    write_access_check(inputs, &ctx.accounts.invoking_program)?;
     if let Some(cpi_context) = cpi_context {
         let res = process_cpi_context(cpi_context, &mut ctx, inputs)?;
-        match res {
-            Some(event) => return event,
-            None => {}
+        if let Some(event) = res {
+            return event;
         }
     }
     // TODO: if execute and cpi_signature_account combine stored inputs with current inputs
@@ -43,13 +42,13 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     )?;
     msg!("sum check success");
     // compression_lamports ---------------------------------------------------
-    compression_lamports(&inputs, &ctx)?;
+    compression_lamports(inputs, &ctx)?;
 
     let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
-    fetch_roots(&inputs, &ctx, &mut roots)?;
+    fetch_roots(inputs, &ctx, &mut roots)?;
     let mut address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
     // TODO: enable once address merkle tree init is debugged
-    fetch_roots_address_merkle_tree(&inputs, &ctx, &mut address_roots)?;
+    fetch_roots_address_merkle_tree(inputs, &ctx, &mut address_roots)?;
 
     let mut input_compressed_account_hashes =
         vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
@@ -63,17 +62,17 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // insert addresses into address merkle tree queue ---------------------------------------------------
     if !new_addresses.is_empty() {
         derive_new_addresses(
-            &inputs,
+            inputs,
             &ctx,
             &mut input_compressed_account_addresses,
             &mut new_addresses,
         );
-        insert_addresses_into_address_merkle_tree_queue(&inputs, &ctx, &new_addresses)?;
+        insert_addresses_into_address_merkle_tree_queue(inputs, &ctx, &new_addresses)?;
     }
     // TODO: add heap neutral
     hash_input_compressed_accounts(
         &ctx,
-        &inputs,
+        inputs,
         &mut input_compressed_account_hashes,
         &mut input_compressed_account_addresses,
     )?;
@@ -98,13 +97,13 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         .input_compressed_accounts_with_merkle_context
         .is_empty()
     {
-        insert_nullifiers(&inputs, &ctx, &input_compressed_account_hashes)?;
+        insert_nullifiers(inputs, &ctx, &input_compressed_account_hashes)?;
     }
 
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         insert_output_compressed_accounts_into_state_merkle_tree(
-            &inputs,
+            inputs,
             &ctx,
             &mut output_leaf_indices,
             &mut output_compressed_account_hashes,
@@ -114,7 +113,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
 
     // emit state transition event ---------------------------------------------------
     emit_state_transition_event(
-        &inputs,
+        inputs,
         &ctx,
         &input_compressed_account_hashes,
         &output_compressed_account_hashes,

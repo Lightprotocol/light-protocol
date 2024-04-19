@@ -17,10 +17,7 @@ export const getRegisteredProgramPda = () =>
 
 export const getPspAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
-        [
-            Buffer.from('cpi_authority'),
-            new PublicKey(accountCompressionProgram).toBytes(),
-        ],
+        [Buffer.from('cpi_authority')],
         new PublicKey(
             // TODO: can add check to ensure its consistent with the idl
             '6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ',

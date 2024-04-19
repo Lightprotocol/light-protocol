@@ -61,9 +61,8 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: &'a InstructionDataTransfer,
     leaves: &'a mut [[u8; 32]],
-    addresses: &'a mut Vec<Option<[u8; 32]>>,
+    addresses: &'a mut [Option<[u8; 32]>],
 ) -> Result<()> {
-
     let mut none_counter = 0;
     for (j, input_compressed_account_with_context) in inputs
         .input_compressed_accounts_with_merkle_context
@@ -193,7 +192,6 @@ pub fn signer_check(
             }
         } else if compressed_accounts.compressed_account.owner == ctx.accounts.signer.key()
         {
-            
             Ok(())
         } else {
             msg!(
@@ -219,17 +217,15 @@ pub fn write_access_check(
         .output_compressed_accounts
         .iter()
         .try_for_each(|compressed_account: &CompressedAccount| {
-            if compressed_account.data.is_none() {
-                Ok(())
-            }else if compressed_account.data.is_some() && compressed_account.owner == authority.key() {
-                Ok(())
-            } else {
+            if compressed_account.owner != authority.key() {
                 msg!(
                     "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  authority {}",
                     compressed_account.owner,
                     authority.key()
                 );
                 err!(crate::ErrorCode::WriteAccessCheckFailed)
+            } else {
+                Ok(())
             }
         }),
         None => Ok(()),

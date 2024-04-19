@@ -35,6 +35,32 @@ export type PspCompressedPda = {
             args: [];
         },
         {
+            name: 'initCpiSignatureAccount';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiSignatureAccount';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'associatedMerkleTree';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
             name: 'executeCompressedTransaction';
             docs: [
                 'This function can be used to transfer sol and execute any other compressed transaction.',
@@ -69,7 +95,7 @@ export type PspCompressedPda = {
                 },
                 {
                     name: 'cpiSignatureAccount';
-                    isMut: false;
+                    isMut: true;
                     isSigner: false;
                     isOptional: true;
                 },
@@ -103,6 +129,14 @@ export type PspCompressedPda = {
                     name: 'inputs';
                     type: 'bytes';
                 },
+                {
+                    name: 'cpiContext';
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext';
+                        };
+                    };
+                },
             ];
             returns: {
                 defined: 'crate::event::PublicTransactionEvent';
@@ -120,8 +154,12 @@ export type PspCompressedPda = {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'slot';
-                        type: 'u64';
+                        name: 'associatedMerkleTree';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'execute';
+                        type: 'bool';
                     },
                     {
                         name: 'signatures';
@@ -221,6 +259,32 @@ export type PspCompressedPda = {
                         type: {
                             array: ['u8', 32];
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedCpiContext';
+            docs: ['To spend multiple compressed'];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'cpiSignatureAccountIndex';
+                        docs: [
+                            'index of the output state Merkle tree that will be used to store cpi signatures',
+                            'The transaction will fail if this index is not consistent in your transaction.',
+                        ];
+                        type: 'u8';
+                    },
+                    {
+                        name: 'execute';
+                        docs: [
+                            'The final cpi of your program needs to set execute to true.',
+                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
+                            'If this is false the transaction will be stored in the cpi signature account.',
+                        ];
+                        type: 'bool';
                     },
                 ];
             };
@@ -368,6 +432,14 @@ export type PspCompressedPda = {
                     {
                         name: 'isCompress';
                         type: 'bool';
+                    },
+                    {
+                        name: 'signerSeeds';
+                        type: {
+                            option: {
+                                vec: 'bytes';
+                            };
+                        };
                     },
                 ];
             };
@@ -602,6 +674,16 @@ export type PspCompressedPda = {
             name: 'DelegateUndefined';
             msg: 'DelegateUndefined while delegated amount is defined';
         },
+        {
+            code: 6030;
+            name: 'CpiSignatureAccountUndefined';
+            msg: 'CpiSignatureAccountUndefined';
+        },
+        {
+            code: 6031;
+            name: 'WriteAccessCheckFailed';
+            msg: 'WriteAccessCheckFailed';
+        },
     ];
 };
 
@@ -635,6 +717,32 @@ export const IDL: PspCompressedPda = {
                 },
                 {
                     name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
+        {
+            name: 'initCpiSignatureAccount',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiSignatureAccount',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'associatedMerkleTree',
                     isMut: false,
                     isSigner: false,
                 },
@@ -676,7 +784,7 @@ export const IDL: PspCompressedPda = {
                 },
                 {
                     name: 'cpiSignatureAccount',
-                    isMut: false,
+                    isMut: true,
                     isSigner: false,
                     isOptional: true,
                 },
@@ -710,6 +818,14 @@ export const IDL: PspCompressedPda = {
                     name: 'inputs',
                     type: 'bytes',
                 },
+                {
+                    name: 'cpiContext',
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext',
+                        },
+                    },
+                },
             ],
             returns: {
                 defined: 'crate::event::PublicTransactionEvent',
@@ -727,8 +843,12 @@ export const IDL: PspCompressedPda = {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'slot',
-                        type: 'u64',
+                        name: 'associatedMerkleTree',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'execute',
+                        type: 'bool',
                     },
                     {
                         name: 'signatures',
@@ -828,6 +948,32 @@ export const IDL: PspCompressedPda = {
                         type: {
                             array: ['u8', 32],
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedCpiContext',
+            docs: ['To spend multiple compressed'],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'cpiSignatureAccountIndex',
+                        docs: [
+                            'index of the output state Merkle tree that will be used to store cpi signatures',
+                            'The transaction will fail if this index is not consistent in your transaction.',
+                        ],
+                        type: 'u8',
+                    },
+                    {
+                        name: 'execute',
+                        docs: [
+                            'The final cpi of your program needs to set execute to true.',
+                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
+                            'If this is false the transaction will be stored in the cpi signature account.',
+                        ],
+                        type: 'bool',
                     },
                 ],
             },
@@ -975,6 +1121,14 @@ export const IDL: PspCompressedPda = {
                     {
                         name: 'isCompress',
                         type: 'bool',
+                    },
+                    {
+                        name: 'signerSeeds',
+                        type: {
+                            option: {
+                                vec: 'bytes',
+                            },
+                        },
                     },
                 ],
             },
@@ -1208,6 +1362,16 @@ export const IDL: PspCompressedPda = {
             code: 6029,
             name: 'DelegateUndefined',
             msg: 'DelegateUndefined while delegated amount is defined',
+        },
+        {
+            code: 6030,
+            name: 'CpiSignatureAccountUndefined',
+            msg: 'CpiSignatureAccountUndefined',
+        },
+        {
+            code: 6031,
+            name: 'WriteAccessCheckFailed',
+            msg: 'WriteAccessCheckFailed',
         },
     ],
 };

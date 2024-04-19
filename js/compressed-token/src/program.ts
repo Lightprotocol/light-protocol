@@ -350,7 +350,7 @@ export class CompressedTokenProgram {
         const [address, _] = PublicKey.findProgramAddressSync(
             [
                 CPI_AUTHORITY_SEED,
-                defaultStaticAccountsStruct().accountCompressionProgram.toBuffer(),
+                // defaultStaticAccountsStruct().accountCompressionProgram.toBuffer(),
             ],
             this.programId,
         );
@@ -507,7 +507,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
 
         const instruction = await this.program.methods
-            .transfer(encodedData)
+            .transfer(encodedData, null)
             .accounts({
                 feePayer: payer!,
                 authority: currentOwner!,
@@ -593,7 +593,7 @@ export class CompressedTokenProgram {
         );
 
         const instruction = await this.program.methods
-            .transfer(encodedData)
+            .transfer(encodedData, null)
             .accounts({
                 feePayer: payer,
                 authority: owner,
@@ -677,7 +677,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
 
         const instruction = await this.program.methods
-            .transfer(encodedData)
+            .transfer(encodedData, null)
             .accounts({
                 feePayer: payer,
                 authority: currentOwner,

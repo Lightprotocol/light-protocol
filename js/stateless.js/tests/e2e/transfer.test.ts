@@ -38,7 +38,6 @@ describe('transfer', () => {
         const { blockhash } = await rpc.getLatestBlockhash();
         const signedTx = buildAndSignTx(ixs, payer, blockhash);
         await sendAndConfirmTx(rpc, signedTx);
-
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             bob.publicKey,
         );

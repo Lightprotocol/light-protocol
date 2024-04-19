@@ -114,9 +114,9 @@ fn cpi_compressed_pda_transfer<'info>(
     Ok(())
 }
 
-fn create_compressed_pda_data<'info>(
+fn create_compressed_pda_data(
     lock_up_time: u64,
-    ctx: &Context<'_, '_, '_, '_, EscrowCompressedTokensWithCompressedPda<'info>>,
+    ctx: &Context<'_, '_, '_, '_, EscrowCompressedTokensWithCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
 ) -> Result<CompressedAccount> {
     let current_slot = Clock::get()?.slot;
@@ -309,7 +309,7 @@ pub fn process_withdraw_compressed_tokens_with_compressed_pda<'info>(
     Ok(())
 }
 
-fn create_compressed_pda_data_based_on_diff<'info>(
+fn create_compressed_pda_data_based_on_diff(
     input_compressed_pda: &PackedInputCompressedPda,
 ) -> Result<(CompressedAccountWithMerkleContext, CompressedAccount)> {
     let current_slot = Clock::get()?.slot;

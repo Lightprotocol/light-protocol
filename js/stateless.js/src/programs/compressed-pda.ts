@@ -304,12 +304,13 @@ export class LightSystemProgram {
                 relayFee: null,
                 compressionLamports: null,
                 isCompress: false,
+                signerSeeds: null,
             },
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
-            .executeCompressedTransaction(data)
+            .executeCompressedTransaction(data, null)
             .accounts({
                 ...defaultStaticAccountsStruct(),
                 signer: payer,
@@ -389,12 +390,13 @@ export class LightSystemProgram {
                 relayFee: null,
                 compressionLamports: lamports,
                 isCompress: true,
+                signerSeeds: null,
             },
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
-            .executeCompressedTransaction(data)
+            .executeCompressedTransaction(data, null)
             .accounts({
                 ...defaultStaticAccountsStruct(),
                 signer: payer,
@@ -459,12 +461,13 @@ export class LightSystemProgram {
                 relayFee: null,
                 compressionLamports: lamports,
                 isCompress: false,
+                signerSeeds: null,
             },
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
-            .executeCompressedTransaction(data)
+            .executeCompressedTransaction(data, null)
             .accounts({
                 ...defaultStaticAccountsStruct(),
                 signer: payer,
