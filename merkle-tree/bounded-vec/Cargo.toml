@@ -8,5 +8,5 @@ solana = ["solana-program"]
 
 [dependencies]
 bytemuck = { version = "1.14", features = ["min_const_generics"] }
-solana-program = { version = ">=1.17, <1.18", optional = true }
+solana-program = { version = "1.18.11", optional = true }
 thiserror = "1.0"
