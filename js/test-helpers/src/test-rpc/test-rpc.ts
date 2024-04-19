@@ -1,28 +1,26 @@
 import {
+    ConnectionConfig,
     ParsedMessageAccount,
     ParsedTransactionWithMeta,
     PublicKey,
 } from '@solana/web3.js';
-import { LightWasm } from '@lightprotocol/hasher.rs';
+import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     defaultStaticAccountsStruct,
     defaultTestStateTreeAccounts,
-} from '../constants';
-import { parseEvents, parsePublicTransactionEventWithIdl } from './parse-event';
-import { MerkleTree } from './merkle-tree';
-import { CompressedProofWithContext } from '../rpc-interface';
-import { BN254, PublicTransactionEvent, bn } from '../state';
-import { BN } from '@coral-xyz/anchor';
-import axios from 'axios';
-import {
+    CompressedProofWithContext,
+    BN254,
+    PublicTransactionEvent,
+    Rpc,
+    bn,
     negateAndCompressProof,
+    parseEvents,
+    parsePublicTransactionEventWithIdl,
     proofFromJsonStruct,
-} from './parse-validity-proof';
-import { Rpc } from '../rpc';
+    toHex,
+} from '@lightprotocol/stateless.js';
 
-function toHex(bnString: string) {
-    return '0x' + new BN(bnString).toString(16);
-}
+import { MerkleTree } from '../merkle-tree/merkle-tree';
 
 export interface TestRpcConfig {
     /** Address of the state tree to index. Default: public default test state
@@ -36,6 +34,50 @@ export interface TestRpcConfig {
     log?: boolean;
 }
 
+/**
+ * Returns a mock RPC instance for use in unit tests.
+ *
+ * @param endpoint                RPC endpoint URL. Defaults to
+ *                                'http://127.0.0.1:8899'.
+ * @param proverEndpoint          Prover server endpoint URL. Defaults to
+ *                                'http://localhost:3001'.
+ * @param lightWasm               Wasm hasher instance.
+ * @param merkleTreeAddress       Address of the merkle tree to index. Defaults
+ *                                to the public default test state tree.
+ * @param nullifierQueueAddress   Optional address of the associated nullifier
+ *                                queue.
+ * @param depth                   Depth of the merkle tree.
+ * @param log                     Log proof generation time.
+ */
+export async function getTestRpc(
+    endpoint: string = 'http://127.0.0.1:8899',
+    compressionApiEndpoint: string = 'http://localhost:8784',
+    proverEndpoint: string = 'http://localhost:3001',
+    lightWasm?: LightWasm,
+    merkleTreeAddress?: PublicKey,
+    nullifierQueueAddress?: PublicKey,
+    depth?: number,
+    log = false,
+) {
+    lightWasm = lightWasm || (await WasmFactory.getInstance());
+
+    const defaultAccounts = defaultTestStateTreeAccounts();
+
+    return new TestRpc(
+        endpoint,
+        lightWasm,
+        compressionApiEndpoint,
+        proverEndpoint,
+        undefined,
+        {
+            merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
+            nullifierQueueAddress:
+                nullifierQueueAddress || defaultAccounts.nullifierQueue,
+            depth: depth || defaultAccounts.merkleTreeHeight,
+            log,
+        },
+    );
+}
 /**
  * Simple mock rpc for unit tests that simulates the compression rpc interface.
  * Fetches, parses events and builds merkletree on-demand, i.e. it does not persist state.
@@ -67,11 +109,17 @@ export class TestRpc extends Rpc {
     constructor(
         endpoint: string,
         hasher: LightWasm,
+        compressionApiEndpoint: string,
         proverEndpoint: string,
+        connectionConfig?: ConnectionConfig,
         testRpcConfig?: TestRpcConfig,
-        connectionConfig?: string,
     ) {
-        super(endpoint, proverEndpoint, connectionConfig);
+        super(
+            endpoint,
+            compressionApiEndpoint,
+            proverEndpoint,
+            connectionConfig,
+        );
 
         const { merkleTreeAddress, nullifierQueueAddress, depth, log } =
             testRpcConfig ?? {};
@@ -175,13 +223,13 @@ export class TestRpc extends Rpc {
         const hexPathElementsAll = leafIndices.map(leafIndex => {
             const pathElements: string[] = tree.path(leafIndex).pathElements;
 
-            const hexPathElements = pathElements.map(value => toHex(value));
+            const hexPathElements = pathElements.map(value => toHex(bn(value)));
 
             return hexPathElements;
         });
 
         const roots = new Array(compressedAccountHashes.length).fill(
-            toHex(tree.root()),
+            toHex(bn(tree.root())),
         );
 
         const inputs = {
@@ -189,7 +237,7 @@ export class TestRpc extends Rpc {
             inPathIndices: leafIndices,
             inPathElements: hexPathElementsAll,
             leaves: compressedAccountHashes.map(compressedAccountHash =>
-                toHex(compressedAccountHash.toString()),
+                toHex(compressedAccountHash),
             ),
         };
 
@@ -214,10 +262,20 @@ export class TestRpc extends Rpc {
         // TODO: pass url into rpc constructor
         const SERVER_URL = 'http://localhost:3001';
         const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
-        const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
 
-        const parsed = proofFromJsonStruct(response.data);
-
+        const response = await fetch(INCLUSION_PROOF_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: inputsData,
+        });
+        if (!response.ok) {
+            throw new Error(`Error fetching proof: ${response.statusText}`);
+        }
+        // TOOD: add type coercion
+        const data: any = await response.json();
+        const parsed = proofFromJsonStruct(data);
         const compressedProof = negateAndCompressProof(parsed);
 
         if (this.log) console.timeEnd(logMsg);
@@ -230,8 +288,8 @@ export class TestRpc extends Rpc {
             rootIndices: leafIndices.map(_ => allLeafIndices.length),
             leafIndices,
             leaves: compressedAccountHashes,
-            merkleTree: this.merkleTreeAddress,
-            nullifierQueue: this.nullifierQueueAddress,
+            merkleTrees: leafIndices.map(_ => this.merkleTreeAddress),
+            nullifierQueues: leafIndices.map(_ => this.nullifierQueueAddress),
         };
         return value;
     }

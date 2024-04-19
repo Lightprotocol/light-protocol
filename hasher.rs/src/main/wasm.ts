@@ -120,9 +120,12 @@ const loadWasmSimd = async (module?: InitInput) => {
       return wasmHasher({
         blake2str: blake2strSimd,
         blake2: blake2Simd,
-        poseidon: poseidonSimd
+        poseidon: poseidonSimd,
       });
     });
+  }
+  if (simdMemory === undefined) {
+    throw new Error("simdMemory is undefined");
   }
   return await simdMemory;
 };
@@ -136,6 +139,9 @@ const loadWasm = async (module?: InitInput) => {
         poseidon: poseidonWasm,
       });
     });
+  }
+  if (sisdMemory === undefined) {
+    throw new Error("sisdMemory is undefined");
   }
   return await sisdMemory;
 };

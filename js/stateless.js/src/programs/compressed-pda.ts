@@ -4,10 +4,11 @@ import {
     Keypair,
     Connection,
     TransactionInstruction,
-    AccountMeta,
     ComputeBudgetProgram,
     SystemProgram,
 } from '@solana/web3.js';
+import { Buffer } from 'buffer';
+
 import { IDL, LightCompressedPda } from '../idls/light_compressed_pda';
 import { useWallet } from '../wallet';
 import {
@@ -23,7 +24,6 @@ import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
-import { placeholderValidityProof } from '../test-utils';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -260,7 +260,7 @@ export class LightSystemProgram {
      */
     static async transfer(
         params: TransferParams,
-    ): Promise<TransactionInstruction[]> {
+    ): Promise<TransactionInstruction> {
         const {
             payer,
             recentValidityProof,
@@ -322,12 +322,7 @@ export class LightSystemProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        const instructions = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
-
-        return instructions;
+        return instruction;
     }
 
     /**
@@ -356,7 +351,7 @@ export class LightSystemProgram {
     // TODO: add support for non-fee-payer owner
     static async compress(
         params: CompressParams,
-    ): Promise<TransactionInstruction[]> {
+    ): Promise<TransactionInstruction> {
         const { payer, outputStateTree, toAddress } = params;
 
         /// Create output state
@@ -377,7 +372,7 @@ export class LightSystemProgram {
         const data = this.program.coder.types.encode(
             'InstructionDataTransfer',
             {
-                proof: placeholderValidityProof(),
+                proof: null,
                 inputRootIndices: [],
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
                 newAddressParams: [],
@@ -407,12 +402,7 @@ export class LightSystemProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        const instructions = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
-
-        return instructions;
+        return instruction;
     }
 
     /**
@@ -422,7 +412,7 @@ export class LightSystemProgram {
     /// TODO: add check that outputStateTree is provided or supplemented if change exists
     static async decompress(
         params: DecompressParams,
-    ): Promise<TransactionInstruction[]> {
+    ): Promise<TransactionInstruction> {
         const { payer, outputStateTree, toAddress } = params;
 
         /// Create output state
@@ -477,44 +467,37 @@ export class LightSystemProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        const instructions = [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
-
-        return instructions;
+        return instruction;
     }
 }
 
-// /**
-//  * @internal
-//  *
-//  * Selects the minimal number of compressed accounts for a transfer
-//  * 1. Sorts the accounts by amount in descending order
-//  * 2. Accumulates the lamports amount until it is greater than or equal to the transfer
-//  *    amount
-//  */
-// function _selectMinCompressedAccountsForTransfer(
-//     compressedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[],
-//     transferAmount: BN,
-// ): {
-//     selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[];
-//     total: BN;
-// } {
-//     let accumulatedAmount = bn(0);
-//     const selectedAccounts: (UtxoWithMerkleContext | UtxoWithMerkleProof)[] =
-//         [];
+/**
+ * Selects the minimal number of compressed SOL accounts for a transfer.
+ *
+ * 1. Sorts the accounts by amount in descending order
+ * 2. Accumulates the amount until it is greater than or equal to the transfer
+ *    amount
+ */
+export function selectMinCompressedSolAccountsForTransfer(
+    accounts: CompressedAccountWithMerkleContext[],
+    transferLamports: BN | number,
+): [selectedAccounts: CompressedAccountWithMerkleContext[], total: BN] {
+    let accumulatedLamports = bn(0);
+    transferLamports = bn(transferLamports);
 
-//     compressedAccounts.sort((a, b) =>
-//         Number(bn(b.lamports).sub(bn(a.lamports))),
-//     );
-//     for (const utxo of compressedAccounts) {
-//         if (accumulatedAmount.gte(bn(transferAmount))) break;
-//         accumulatedAmount = accumulatedAmount.add(bn(utxo.lamports));
-//         selectedAccounts.push(utxo);
-//     }
-//     if (accumulatedAmount.lt(bn(transferAmount))) {
-//         throw new Error('Not enough balance for transfer');
-//     }
-//     return { selectedAccounts, total: accumulatedAmount };
-// }
+    const selectedAccounts: CompressedAccountWithMerkleContext[] = [];
+
+    accounts.sort((a, b) => b.lamports.cmp(a.lamports));
+
+    for (const account of accounts) {
+        if (accumulatedLamports.gte(bn(transferLamports))) break;
+        accumulatedLamports = accumulatedLamports.add(account.lamports);
+        selectedAccounts.push(account);
+    }
+
+    if (accumulatedLamports.lt(bn(transferLamports))) {
+        throw new Error('Not enough balance for transfer');
+    }
+
+    return [selectedAccounts, accumulatedLamports];
+}

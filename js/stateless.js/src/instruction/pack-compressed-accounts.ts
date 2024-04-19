@@ -1,7 +1,7 @@
 import { AccountMeta, PublicKey } from '@solana/web3.js';
 import { PackedCompressedAccountWithMerkleContext } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
-import { toArray } from '../utils';
+import { toArray } from '../utils/conversion';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not

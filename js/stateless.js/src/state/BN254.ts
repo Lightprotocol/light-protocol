@@ -1,10 +1,11 @@
 // TODO: consider implementing BN254 as wrapper class around _BN mirroring
 // PublicKey this would encapsulate our runtime checks and also enforce
 // typesafety at compile time
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+
 import { FIELD_SIZE } from '../constants';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
+import { bs58 } from '@coral-xyz/anchor/dist/esm/utils/bytes';
 import { Buffer } from 'buffer';
 
 /**
@@ -19,7 +20,7 @@ export const bn = (
     number: string | number | BN | Buffer | Uint8Array | number[],
     base?: number | 'hex' | undefined,
     endian?: BN.Endianness | undefined,
-) => new BN(number, base, endian);
+): BN => new BN(number, base, endian);
 
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (
@@ -51,7 +52,8 @@ function enforceSize(bigintNumber: BN254): BN254 {
 
 /** Convert <254-bit bigint to Base58 string. Fills up to 32 bytes. */
 export function encodeBN254toBase58(bigintNumber: BN254, pad = 32): string {
-    let buffer = Buffer.from(bigintNumber.toString(16), 'hex');
+    console.log('bigintNumber', bigintNumber);
+    let buffer = Buffer.from(bigintNumber.toString('hex'), 'hex');
     // Ensure the buffer is 32 bytes. If not, pad it with leading zeros.
     if (buffer.length < pad) {
         const padding = Buffer.alloc(pad - buffer.length);

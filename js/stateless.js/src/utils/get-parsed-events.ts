@@ -1,10 +1,71 @@
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { ParsedTransactionWithMeta } from '@solana/web3.js';
-import { LightSystemProgram } from '../programs';
+// TODO: Remove from stateless.js once Indexer returns rootSeq/rootIndex, root
+// with 'getCompressedAccountProof'.
+import {
+    ParsedTransactionWithMeta,
+    ParsedMessageAccount,
+} from '@solana/web3.js';
 import { defaultStaticAccountsStruct } from '../constants';
 import { PublicTransactionEvent } from '../state';
+import { Rpc } from '../rpc';
+import { bs58 } from '@coral-xyz/anchor/dist/esm/utils/bytes';
+import { LightSystemProgram } from '../programs';
+import { Buffer } from 'buffer';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
+
+/**
+ * @internal
+ * Returns newest first. Reverse before rebuilding state tree.
+ */
+export async function getParsedEvents(
+    rpc: Rpc,
+): Promise<PublicTransactionEvent[]> {
+    const { noopProgram, accountCompressionProgram } =
+        defaultStaticAccountsStruct();
+
+    /// Get raw transactions
+    const signatures = (
+        await rpc.getConfirmedSignaturesForAddress2(
+            accountCompressionProgram,
+            undefined,
+            'confirmed',
+        )
+    ).map(s => s.signature);
+    const txs = await rpc.getParsedTransactions(signatures, {
+        maxSupportedTransactionVersion: 0,
+        commitment: 'confirmed',
+    });
+
+    /// Filter by NOOP program
+    const transactionEvents = txs.filter(
+        (tx: ParsedTransactionWithMeta | null) => {
+            if (!tx) {
+                return false;
+            }
+            const accountKeys = tx.transaction.message.accountKeys;
+
+            const hasSplNoopAddress = accountKeys.some(
+                (item: ParsedMessageAccount) => {
+                    const itemStr =
+                        typeof item === 'string'
+                            ? item
+                            : item.pubkey.toBase58();
+                    return itemStr === noopProgram.toBase58();
+                },
+            );
+
+            return hasSplNoopAddress;
+        },
+    );
+
+    /// Parse events
+    const parsedEvents = parseEvents(
+        transactionEvents,
+        parsePublicTransactionEventWithIdl,
+    );
+
+    return parsedEvents;
+}
 
 export const parseEvents = <T>(
     indexerEventsTransactions: (ParsedTransactionWithMeta | null)[],
@@ -37,7 +98,7 @@ export const parseEvents = <T>(
                 ) {
                     const data = bs58.decode(ixInner.data);
 
-                    const decodedEvent = deserializeFn(data, tx);
+                    const decodedEvent = deserializeFn(Buffer.from(data), tx);
 
                     if (decodedEvent !== null && decodedEvent !== undefined) {
                         transactions.push(decodedEvent as NonNullable<T>);

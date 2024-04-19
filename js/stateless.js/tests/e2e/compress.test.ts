@@ -1,13 +1,9 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { newAccountWithLamports } from '../../src/test-utils';
-import {
-    Rpc,
-    compressLamports,
-    createRpc,
-    decompressLamports,
-} from '../../src';
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
+import { compressLamports, decompressLamports } from '../../src';
 
 /// TODO: add test case for payer != address
 describe('compress', () => {

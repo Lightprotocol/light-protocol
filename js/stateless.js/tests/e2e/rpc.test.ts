@@ -1,14 +1,10 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { getTestRpc, newAccountWithLamports } from '../../src/test-utils';
-import {
-    CompressedAccountWithMerkleContext,
-    Rpc,
-    bn,
-    compressLamports,
-    createRpc,
-} from '../../src';
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
+import { compressLamports } from '../../src/actions';
+import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 
 /// TODO: add test case for payer != address
 describe('rpc / photon', () => {
@@ -108,7 +104,7 @@ describe('rpc / photon', () => {
         const proof = compressedAccountProof.merkleProof.map(x => x.toString());
 
         /// TODO: photon: don't return the root
-        expect(proof.slice(0, -1)).toStrictEqual(refMerkleProof);
+        expect(proof).toStrictEqual(refMerkleProof);
 
         await compressLamports(
             rpc,
@@ -121,10 +117,6 @@ describe('rpc / photon', () => {
             payer.publicKey,
         );
         expect(compressedAccounts?.length).toStrictEqual(2);
-
-        /// TODO: remove once merkleproof debugged
-        const hash2 = compressedAccounts![1].hash;
-        await (await getTestRpc()).getValidityProof([bn(hash2)]);
     });
 
     it('getHealth', async () => {

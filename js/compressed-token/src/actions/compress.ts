@@ -3,6 +3,7 @@ import {
     PublicKey,
     Signer,
     TransactionSignature,
+    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import {
     bn,
@@ -48,7 +49,7 @@ export async function compress(
 ): Promise<TransactionSignature> {
     amount = bn(amount);
 
-    const ixs = await CompressedTokenProgram.compress({
+    const ix = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
         owner: owner.publicKey,
         source: sourceTokenAccount,
@@ -60,7 +61,12 @@ export async function compress(
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
-    const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+    const signedTx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
     const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
     return txId;
 }

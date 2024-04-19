@@ -1,4 +1,5 @@
 import {
+    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
@@ -35,7 +36,7 @@ export async function compressLamports(
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    const ixs = await LightSystemProgram.compress({
+    const ix = await LightSystemProgram.compress({
         payer: payer.publicKey,
         toAddress,
         lamports,
@@ -44,7 +45,12 @@ export async function compressLamports(
             : defaultTestStateTreeAccounts().merkleTree, // TODO: should fetch the current shared state tree
     });
 
-    const tx = buildAndSignTx(ixs, payer, blockhash, []);
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 

@@ -1,13 +1,14 @@
 import { describe, it, assert, beforeAll } from 'vitest';
-import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
-
-import { Keypair, Signer } from '@solana/web3.js';
-import { defaultTestStateTreeAccounts } from '../../src/constants';
 import {
-    newAccountWithLamports,
-    placeholderValidityProof,
-} from '../../src/test-utils';
-import { LightSystemProgram, Rpc, createRpc } from '../../src';
+    sendAndConfirmTx,
+    buildAndSignTx,
+} from '../../src/utils/send-and-confirm';
+import { ComputeBudgetProgram, Keypair, Signer } from '@solana/web3.js';
+import { defaultTestStateTreeAccounts } from '../../src/constants';
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
+import { LightSystemProgram } from '../../src/programs';
+import { placeholderValidityProof } from '../../src/utils/parse-validity-proof';
 
 describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
@@ -24,7 +25,7 @@ describe('transfer', () => {
     it('should send compressed lamports alice -> bob', async () => {
         const proof_mock = placeholderValidityProof();
 
-        const ixs = await LightSystemProgram.transfer({
+        const ix = await LightSystemProgram.transfer({
             payer: payer.publicKey,
             inputCompressedAccounts: [],
             toAddress: bob.publicKey,
@@ -36,7 +37,14 @@ describe('transfer', () => {
 
         /// Send
         const { blockhash } = await rpc.getLatestBlockhash();
-        const signedTx = buildAndSignTx(ixs, payer, blockhash);
+        const signedTx = buildAndSignTx(
+            [
+                ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+                ix,
+            ],
+            payer,
+            blockhash,
+        );
         await sendAndConfirmTx(rpc, signedTx);
 
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(

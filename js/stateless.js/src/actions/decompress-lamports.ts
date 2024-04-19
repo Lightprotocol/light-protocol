@@ -1,4 +1,5 @@
 import {
+    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
@@ -54,7 +55,7 @@ export async function decompressLamports(
     );
 
     const { blockhash } = await rpc.getLatestBlockhash();
-    const ixs = await LightSystemProgram.decompress({
+    const ix = await LightSystemProgram.decompress({
         payer: payer.publicKey,
         toAddress: recipient,
         outputStateTree: outputStateTree,
@@ -64,7 +65,12 @@ export async function decompressLamports(
         lamports,
     });
 
-    const tx = buildAndSignTx(ixs, payer, blockhash, []);
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 

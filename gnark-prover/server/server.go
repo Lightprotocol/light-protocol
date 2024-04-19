@@ -9,6 +9,7 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"net/http"
+	"github.com/gorilla/handlers"
 	//"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -86,7 +87,16 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 	proverMux.Handle("/combined", combinedHandler{provingSystem: provingSystem})
 
 	proverMux.Handle("/health", healthHandler{})
-	proverServer := &http.Server{Addr: config.ProverAddress, Handler: proverMux}
+
+	  // Setup CORS
+	  corsHandler := handlers.CORS(
+        handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
+		// TODO: Enforce strict CORS policy
+        handlers.AllowedOrigins([]string{"*"}),
+        handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+    )
+
+	proverServer := &http.Server{Addr: config.ProverAddress, Handler: corsHandler(proverMux)}
 	proverJob := spawnServerJob(proverServer, "prover server")
 	logging.Logger().Info().Str("addr", config.ProverAddress).Msg("app server started")
 
