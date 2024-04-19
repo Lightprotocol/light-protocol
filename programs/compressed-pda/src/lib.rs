@@ -7,6 +7,8 @@ pub mod utils;
 pub use instructions::*;
 pub use sol_compression::*;
 pub mod compressed_account;
+pub mod compressed_cpi;
+pub use compressed_cpi::*;
 pub mod create_address;
 pub mod nullify_state;
 pub mod sdk;
@@ -78,6 +80,10 @@ pub enum ErrorCode {
     LengthMismatch,
     #[msg("DelegateUndefined while delegated amount is defined")]
     DelegateUndefined,
+    #[msg("CpiSignatureAccountUndefined")]
+    CpiSignatureAccountUndefined,
+    #[msg("WriteAccessCheckFailed")]
+    WriteAccessCheckFailed,
 }
 
 #[program]
@@ -97,8 +103,17 @@ pub mod psp_compressed_pda {
         Ok(())
     }
 
-    // TODO: remove and use merkle tree account instead
-    pub fn init_cpi_signature_account(_ctx: Context<InitializeCpiSignatureAccount>) -> Result<()> {
+    pub fn init_cpi_signature_account(ctx: Context<InitializeCpiSignatureAccount>) -> Result<()> {
+        // check that merkle tree is initialized
+        let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;
+        merkle_tree_account.load_merkle_tree()?;
+        ctx.accounts
+            .cpi_signature_account
+            .init(ctx.accounts.associated_merkle_tree.key());
+        msg!(
+            "initialized cpi signature account pubkey {:?}",
+            ctx.accounts.cpi_signature_account.key()
+        );
         Ok(())
     }
 
@@ -108,12 +123,19 @@ pub mod psp_compressed_pda {
     pub fn execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
+        cpi_context: Option<CompressedCpiContext>,
     ) -> Result<crate::event::PublicTransactionEvent> {
-        msg!("execute_compressed_transaction");
+        // TODO: remove manual deserialization
         let mut inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         inputs.check_input_lengths()?;
-        process_execute_compressed_transaction(&mut inputs, ctx)
+        match process_execute_compressed_transaction(&mut inputs, ctx, cpi_context) {
+            Ok(event) => Ok(event),
+            Err(e) => {
+                msg!("inputs: {:?}", inputs);
+                Err(e)
+            }
+        }
     }
 
     // /// This function can be used to transfer sol and execute any other compressed transaction.

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use psp_compressed_pda::compressed_cpi::CompressedCpiContext;
 
 pub mod process_mint;
 pub mod process_transfer;
@@ -46,8 +47,9 @@ pub mod psp_compressed_token {
     pub fn transfer<'info>(
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
+        cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        process_transfer::process_transfer(ctx, inputs)
+        process_transfer::process_transfer(ctx, inputs, cpi_context)
     }
 
     // TODO: implement update mint, freeze compressed_account, thaw compressed_account

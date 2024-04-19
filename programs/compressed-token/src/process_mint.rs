@@ -36,7 +36,7 @@ pub struct CreateMintInstruction<'info> {
     pub mint_authority_pda: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
     /// CHECK: TODO
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump)]
+    #[account(seeds = [b"cpi_authority"], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
 }
 
@@ -110,20 +110,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     output_compressed_accounts: &[CompressedAccount],
 ) -> Result<()> {
-    let inputs_struct = InstructionDataTransfer {
-        relay_fee: None,
-        input_compressed_accounts_with_merkle_context: Vec::new(),
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
-        output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
-        input_root_indices: Vec::new(),
-        proof: None,
-        new_address_params: Vec::new(),
-        compression_lamports: None,
-        is_compress: false,
-    };
-
-    let mut inputs = Vec::new();
-    InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
     let authority_bytes = ctx.accounts.authority.key().to_bytes();
     let mint_bytes = ctx.accounts.mint.key().to_bytes();
     let seeds = [
@@ -140,6 +126,21 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         mint_bytes.as_slice(),
         bump,
     ];
+    let inputs_struct = InstructionDataTransfer {
+        relay_fee: None,
+        input_compressed_accounts_with_merkle_context: Vec::new(),
+        output_compressed_accounts: output_compressed_accounts.to_vec(),
+        output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
+        input_root_indices: Vec::new(),
+        proof: None,
+        new_address_params: Vec::new(),
+        compression_lamports: None,
+        is_compress: false,
+        signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
+    };
+
+    let mut inputs = Vec::new();
+    InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = psp_compressed_pda::cpi::accounts::TransferInstruction {
@@ -151,11 +152,11 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
             .psp_account_compression_authority
             .to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        cpi_signature_account: None,
         invoking_program: None,
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: None,
+        cpi_signature_account: None,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -164,7 +165,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     );
 
     cpi_ctx.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
-    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, None)?;
     Ok(())
 }
 
@@ -233,7 +234,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(mut, seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
+    #[account(mut, seeds = [b"cpi_authority"], bump, seeds::program = psp_compressed_pda::ID,)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:

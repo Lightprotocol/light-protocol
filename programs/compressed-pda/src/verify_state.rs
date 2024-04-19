@@ -63,6 +63,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     leaves: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
 ) -> Result<()> {
+
     let mut none_counter = 0;
     for (j, input_compressed_account_with_context) in inputs
         .input_compressed_accounts_with_merkle_context
@@ -168,17 +169,18 @@ pub fn signer_check(
         //   - The drawback is that the pda signer is the owner of the compressed account which is confusing
         if compressed_accounts.compressed_account.data.is_some() {
             let invoking_program_id = ctx.accounts.invoking_program.as_ref().unwrap().key();
-            let signer = Pubkey::find_program_address(
-                &[b"cpi_authority"],
+            let signer = Pubkey::create_program_address(
+                &inputs.signer_seeds.as_ref().unwrap().iter().map(|x|x.as_slice()).collect::<Vec::<&[u8]>>()[..],
                 &invoking_program_id,
-            )
-            .0;
-            if signer != ctx.accounts.signer.key()
-                && invoking_program_id != compressed_accounts.compressed_account.owner
+            ).map_err(ProgramError::from)?;
+            if signer == ctx.accounts.signer.key()
+                && invoking_program_id == compressed_accounts.compressed_account.owner
             {
+                Ok(())
+            } else {
                 msg!(
                     "program signer check failed derived cpi signer {} !=  signer {}",
-                    compressed_accounts.compressed_account.owner,
+                    signer,
                     ctx.accounts.signer.key()
                 );
                 msg!(
@@ -187,22 +189,51 @@ pub fn signer_check(
                     invoking_program_id
                 );
                 err!(ErrorCode::SignerCheckFailed)
-            } else {
-                Ok(())
+
             }
-        } else if compressed_accounts.compressed_account.owner != ctx.accounts.signer.key()
+        } else if compressed_accounts.compressed_account.owner == ctx.accounts.signer.key()
         {
+            
+            Ok(())
+        } else {
             msg!(
                 "signer check failed compressed account owner {} !=  signer {}",
                 compressed_accounts.compressed_account.owner,
                 ctx.accounts.signer.key()
             );
             err!(ErrorCode::SignerCheckFailed)
-        } else {
-            Ok(())
         }
     })?;
     Ok(())
+}
+
+/// Checks the write access for output compressed accounts.
+/// Only program owned output accounts can hold data.
+/// Every output account that holds data has to be owned by the invoking_program.
+pub fn write_access_check(
+    inputs: &InstructionDataTransfer,
+    authority: &Option<UncheckedAccount>,
+) -> Result<()> {
+    match authority {
+        Some(authority) => inputs
+        .output_compressed_accounts
+        .iter()
+        .try_for_each(|compressed_account: &CompressedAccount| {
+            if compressed_account.data.is_none() {
+                Ok(())
+            }else if compressed_account.data.is_some() && compressed_account.owner == authority.key() {
+                Ok(())
+            } else {
+                msg!(
+                    "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  authority {}",
+                    compressed_account.owner,
+                    authority.key()
+                );
+                err!(crate::ErrorCode::WriteAccessCheckFailed)
+            }
+        }),
+        None => Ok(()),
+    }
 }
 
 pub fn verify_state_proof(

@@ -10,19 +10,6 @@
 // - create escrow pda and just prove that utxo exists -> read utxo from compressed token account
 // release compressed tokens
 
-// TODO: 2. escrow tokens with compressed pda
-// create test env
-// create mint and mint tokens
-// escrow compressed tokens - with compressed pda
-// release compressed tokens
-
-// TODO: 3. escrow tokens by decompression with compressed pda
-// this design pattern can be used to use compressed accounts with an AMMM
-// create test env
-// create mint and mint tokens
-// decomcompress compressed tokens into program owned token account - with compressed pda
-// release compressed tokens
-
 use light_test_utils::test_env::setup_test_programs_with_accounts;
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
 

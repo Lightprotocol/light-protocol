@@ -1,6 +1,7 @@
 use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    compressed_cpi::{process_cpi_context, CompressedCpiContext, CpiSignatureAccount},
     compression_lamports,
     create_address::insert_addresses_into_address_merkle_tree_queue,
     event::{emit_state_transition_event, PublicTransactionEvent},
@@ -8,53 +9,28 @@ use crate::{
     utils::CompressedProof,
     verify_state::{
         fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts, signer_check,
-        sum_check, verify_state_proof,
+        sum_check, verify_state_proof, write_access_check,
     },
     CompressedSolPda, ErrorCode,
 };
-
 use account_compression::program::AccountCompression;
-use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &mut InstructionDataTransfer,
-    ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    mut ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> anchor_lang::Result<PublicTransactionEvent> {
     // signer check ---------------------------------------------------
     signer_check(&inputs, &ctx)?;
-    let mut execute = true;
-
-    // TODO: enable for more than invocations by adding an execute tx input, we should have a macro that adds it automatically to a program that wants to activate cpi
-    // TODO: remove cpi_signature_account and make the Merkle tree accounts bigger
-    match ctx.accounts.cpi_signature_account.is_some() {
-        true => {
-            if let Some(cpi_signature_account) = &mut ctx.accounts.cpi_signature_account {
-                msg!("cpi_signature_account detected");
-                // Check conditions and modify the signatures
-                if cpi_signature_account.signatures.is_empty() {
-                    msg!("cpi signatures are empty");
-                    // cpi signature account should only be used with mutiple compressed accounts owned by different programs
-                    // thus the first invocation execute is assumed to be false
-                    cpi_signature_account.execute = false;
-                    cpi_signature_account.signatures.push(inputs.clone());
-                    execute = false;
-                } else if cpi_signature_account.signatures[0].proof.as_ref().unwrap()
-                    == inputs.proof.as_ref().unwrap()
-                {
-                    // cpi_signature_account.signatures.push(inputs.clone());
-                    inputs.combine(&cpi_signature_account.signatures);
-                } else {
-                    cpi_signature_account.signatures = vec![inputs.clone()];
-                    execute = false;
-                }
-            };
+    write_access_check(&inputs, &ctx.accounts.invoking_program)?;
+    if let Some(cpi_context) = cpi_context {
+        let res = process_cpi_context(cpi_context, &mut ctx, inputs)?;
+        match res {
+            Some(event) => return event,
+            None => {}
         }
-        false => {}
-    };
-    if !execute {
-        return Ok(PublicTransactionEvent::default());
     }
-
     // TODO: if execute and cpi_signature_account combine stored inputs with current inputs
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
@@ -185,7 +161,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump,)]
+    #[account(seeds = [b"cpi_authority"], bump,)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program: Program<'info, AccountCompression>,
@@ -199,43 +175,6 @@ pub struct TransferInstruction<'info> {
     pub system_program: Option<Program<'info, System>>,
 }
 
-// Security:
-// - checking the slot is not enough there can be multiple transactions in the same slot
-// - the CpiSignatureAccount must be derived from the first Merkle tree account as the current transaction
-// - to check that all data in the CpiSignature account is from the same transaction we compare the proof bytes
-// - I need to guaratee that all the data in the cpi signature account is from the same transaction
-//   - if we just overwrite the data in the account if the proof is different we cannot be sure because the program could be malicious
-//   - wouldn't the same proofs be enough, if you overwrite something then I discard everything that is in the account -> these utxos will not be spent
-//   - do I need to check ownership before or after? before we need to check who invoked the program
-//   - we need a transaction hash that hashes the complete instruction data, this will be a pain to produce offchain Sha256(proof, input_account_hashes, output_account_hashes, relay_fee, compression_lamports)
-//   - the last tx passes the hash and tries to recalculate the hash
-/// collects invocations without proofs
-/// invocations are collected and processed when an invocation with a proof is received
-#[aligned_sized(anchor)]
-#[account]
-#[derive(Debug, PartialEq, Default)]
-pub struct CpiSignatureAccount {
-    pub slot: u64,
-    pub execute: bool,
-    pub signatures: Vec<InstructionDataTransfer>,
-}
-
-pub const CPI_SEED: &[u8] = b"cpi_signature_pda";
-
-#[derive(Accounts)]
-pub struct InitializeCpiSignatureAccount<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-    #[account(
-        init,
-        payer = fee_payer,
-        seeds = [CPI_SEED],
-        bump,
-        space = 1024 * 8,
-    )]
-    pub compressed_sol_pda: Account<'info, CpiSignatureAccount>,
-    pub system_program: Program<'info, System>,
-}
 // TODO: add checks for lengths of vectors
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataTransfer {
@@ -249,6 +188,7 @@ pub struct InstructionDataTransfer {
     pub relay_fee: Option<u64>,
     pub compression_lamports: Option<u64>,
     pub is_compress: bool,
+    pub signer_seeds: Option<Vec<Vec<u8>>>,
 }
 
 impl InstructionDataTransfer {
@@ -287,6 +227,7 @@ fn test_combine_instruction_data_transfer() {
         relay_fee: Some(1),
         compression_lamports: Some(1),
         is_compress: true,
+        signer_seeds: None,
     };
     let other = InstructionDataTransfer {
         proof: Some(CompressedProof {
@@ -304,6 +245,7 @@ fn test_combine_instruction_data_transfer() {
         relay_fee: Some(1),
         compression_lamports: Some(1),
         is_compress: true,
+        signer_seeds: None,
     };
     instruction_data_transfer.combine(&[other]);
     assert_eq!(instruction_data_transfer.new_address_params.len(), 2);

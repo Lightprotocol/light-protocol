@@ -42,6 +42,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use spl_token::instruction::initialize_mint;
+#[derive(Debug)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
     pub root_indices: Vec<u16>,
@@ -211,6 +212,7 @@ impl TestIndexer {
     ) -> ProofRpcResult {
         println!("compressed_accounts {:?}", compressed_accounts);
         println!("new_addresses {:?}", new_addresses);
+        println!("self.merkle_tree.root() {:?}", self.merkle_tree.root());
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload, path) =
             match (compressed_accounts, new_addresses) {
@@ -419,7 +421,7 @@ impl TestIndexer {
     /// adds the token_compressed_accounts to the token_compressed_accounts
     pub fn add_compressed_accounts_with_token_data(&mut self, event_bytes: Vec<u8>) {
         let event_bytes = event_bytes.clone();
-        println!("event_bytes {:?}", event_bytes);
+
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
         let indices = self.add_event_and_compressed_accounts(event);
         for index in indices.iter() {

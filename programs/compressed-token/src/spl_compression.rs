@@ -1,6 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use anchor_spl::token::Transfer;
-use psp_compressed_pda::append_state::get_seeds;
 
 use crate::{CompressedTokenInstructionDataTransfer, TransferInstruction};
 
@@ -86,10 +85,10 @@ pub fn transfer<'info>(
     token_program: &AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
-    let (seed, bump) = get_seeds(&crate::ID, &authority.key())?;
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
-
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let accounts = Transfer {
         from: from.to_account_info(),
         to: to.to_account_info(),

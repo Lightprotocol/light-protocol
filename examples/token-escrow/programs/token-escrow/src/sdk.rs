@@ -28,7 +28,7 @@ pub fn create_escrow_instruction(
     input_params: CreateEscrowInstructionInputs,
     escrow_amount: u64,
 ) -> Instruction {
-    let cpi_signer = Pubkey::find_program_address(
+    let token_owner_pda = Pubkey::find_program_address(
         &[b"escrow".as_ref(), input_params.signer.as_ref()],
         &crate::id(),
     );
@@ -76,7 +76,6 @@ pub fn create_escrow_instruction(
         psp_compressed_pda::utils::get_cpi_authority_pda(&psp_compressed_pda::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
         signer: *input_params.signer,
-        cpi_signer: cpi_signer.0,
         noop_program: NOOP_PROGRAM_ID,
         compressed_token_program: psp_compressed_token::ID,
         compressed_pda_program: psp_compressed_pda::ID,
@@ -86,6 +85,7 @@ pub fn create_escrow_instruction(
         account_compression_authority,
         timelock_pda,
         system_program: solana_sdk::system_program::ID,
+        token_owner_pda: token_owner_pda.0,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -101,7 +101,7 @@ pub fn create_withdrawal_escrow_instruction(
     input_params: CreateEscrowInstructionInputs,
     withdrawal_amount: u64,
 ) -> Instruction {
-    let cpi_signer = Pubkey::find_program_address(
+    let token_owner_pda = Pubkey::find_program_address(
         &[b"escrow".as_ref(), input_params.signer.as_ref()],
         &crate::id(),
     );
@@ -121,14 +121,14 @@ pub fn create_withdrawal_escrow_instruction(
         input_params.root_indices,
         input_params.proof,
         *input_params.mint,
-        &cpi_signer.0,
+        &token_owner_pda.0,
         false,
         None,
     )
     .unwrap();
 
     let instruction_data = crate::instruction::WithdrawCompressedEscrowTokensWithPda {
-        bump: cpi_signer.1,
+        bump: token_owner_pda.1,
         withdrawal_amount,
         proof: Some(input_params.proof.clone()),
         root_indices: input_params.root_indices.to_vec(),
@@ -149,7 +149,7 @@ pub fn create_withdrawal_escrow_instruction(
         psp_compressed_pda::utils::get_cpi_authority_pda(&psp_compressed_pda::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
         signer: *input_params.signer,
-        cpi_signer: cpi_signer.0,
+        token_owner_pda: token_owner_pda.0,
         noop_program: NOOP_PROGRAM_ID,
         compressed_token_program: psp_compressed_token::ID,
         compressed_pda_program: psp_compressed_pda::ID,

@@ -27,11 +27,8 @@ pub fn check_registered_or_signer<
 ) -> Result<()> {
     match ctx.accounts.get_registered_program_pda() {
         Some(account) => {
-            let derived_address = Pubkey::find_program_address(
-                &[b"cpi_authority", ctx.program_id.to_bytes().as_ref()],
-                &account.pubkey,
-            )
-            .0;
+            let derived_address =
+                Pubkey::find_program_address(&[b"cpi_authority"], &account.pubkey).0;
             if ctx.accounts.get_signing_address().key() == derived_address {
                 Ok(())
             } else {

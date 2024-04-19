@@ -4,7 +4,7 @@ use anchor_lang::{
     solana_program::{account_info::AccountInfo, pubkey::Pubkey},
 };
 
-use crate::{append_state::get_seeds, InstructionDataTransfer, TransferInstruction};
+use crate::{InstructionDataTransfer, TransferInstruction};
 
 #[account]
 #[aligned_sized(anchor)]
@@ -96,10 +96,10 @@ pub fn transfer_lamports<'info>(
     msg!("to lamports: {}", to.lamports());
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
-    let (seed, bump) = get_seeds(&crate::ID, &authority.key())?;
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
-
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         &[authority.clone(), from.clone(), to.clone()],

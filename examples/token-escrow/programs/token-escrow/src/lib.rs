@@ -11,6 +11,7 @@ pub mod sdk;
 
 pub use compressed_pda_escrow::*;
 pub use compressed_token_escrow::*;
+use psp_compressed_pda::compressed_cpi::CompressedCpiContext;
 use psp_compressed_pda::NewAddressParamsPacked;
 
 #[error_code]
@@ -98,6 +99,7 @@ pub mod token_escrow {
         output_state_merkle_tree_account_indices: Vec<u8>,
         pubkey_array: Vec<Pubkey>,
         new_address_params: NewAddressParamsPacked,
+        cpi_context: CompressedCpiContext,
     ) -> Result<()> {
         process_escrow_compressed_tokens_with_compressed_pda(
             ctx,
@@ -111,6 +113,40 @@ pub mod token_escrow {
             output_state_merkle_tree_account_indices,
             pubkey_array,
             new_address_params,
+            cpi_context,
+        )
+    }
+
+    /// Escrows compressed tokens, for a certain number of slots.
+    /// Transfers compressed tokens to compressed token account owned by cpi_signer.
+    /// Tokens are locked for lock_up_time slots.
+    pub fn withdraw_compressed_tokens_with_compressed_pda<'info>(
+        ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
+        withdrawal_amount: u64,
+        proof: Option<CompressedProof>,
+        root_indices: Vec<u16>,
+        mint: Pubkey,
+        signer_is_delegate: bool,
+        input_token_data_with_context: Vec<InputTokenDataWithContext>,
+        output_state_merkle_tree_account_indices: Vec<u8>,
+        pubkey_array: Vec<Pubkey>,
+        cpi_context: CompressedCpiContext,
+        input_compressed_pda: PackedInputCompressedPda,
+        bump: u8,
+    ) -> Result<()> {
+        process_withdraw_compressed_tokens_with_compressed_pda(
+            ctx,
+            withdrawal_amount,
+            proof,
+            root_indices,
+            mint,
+            signer_is_delegate,
+            input_token_data_with_context,
+            output_state_merkle_tree_account_indices,
+            pubkey_array,
+            cpi_context,
+            input_compressed_pda,
+            bump,
         )
     }
 }

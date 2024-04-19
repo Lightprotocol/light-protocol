@@ -11,14 +11,7 @@ pub fn get_registered_program_pda(program_id: &Pubkey) -> Pubkey {
 }
 
 pub fn get_cpi_authority_pda(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        &[
-            b"cpi_authority",
-            account_compression::ID.to_bytes().as_slice(),
-        ],
-        program_id,
-    )
-    .0
+    Pubkey::find_program_address(&[b"cpi_authority"], program_id).0
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]

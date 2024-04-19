@@ -133,13 +133,17 @@ pub fn create_execute_compressed_instruction(
         new_address_params: new_address_params_packed,
         compression_lamports,
         is_compress,
+        signer_seeds: None,
     };
 
     let mut inputs = Vec::new();
 
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let instruction_data = crate::instruction::ExecuteCompressedTransaction { inputs };
+    let instruction_data = crate::instruction::ExecuteCompressedTransaction {
+        inputs,
+        cpi_context: None,
+    };
 
     let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
 
@@ -150,11 +154,11 @@ pub fn create_execute_compressed_instruction(
         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
         account_compression_program: account_compression::ID,
         psp_account_compression_authority: get_cpi_authority_pda(&crate::ID),
-        cpi_signature_account: None,
         invoking_program: None,
         compressed_sol_pda,
         compression_recipient,
         system_program: Some(solana_sdk::system_program::ID),
+        cpi_signature_account: None,
     };
     Instruction {
         program_id: crate::ID,

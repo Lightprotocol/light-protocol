@@ -1,10 +1,7 @@
 use account_compression::IndexedArrayAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
-use crate::{
-    append_state::get_seeds,
-    instructions::{InstructionDataTransfer, TransferInstruction},
-};
+use crate::instructions::{InstructionDataTransfer, TransferInstruction};
 
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Inserts nullifiers into the queue.
@@ -63,9 +60,10 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     merkle_tree_account_infos: Vec<AccountInfo<'a>>,
     nullifiers: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let (seed, bump) = get_seeds(program_id, &authority.key())?;
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
 
     let accounts = account_compression::cpi::accounts::InsertIntoIndexedArrays {
         authority: authority.to_account_info(),

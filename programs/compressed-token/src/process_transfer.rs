@@ -6,6 +6,7 @@ use psp_compressed_pda::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
     },
+    compressed_cpi::CompressedCpiContext,
     utils::CompressedProof,
     InstructionDataTransfer as PspCompressedPdaInstructionDataTransfer,
 };
@@ -25,6 +26,7 @@ use crate::{spl_compression::process_compression, ErrorCode};
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataTransfer =
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
@@ -83,6 +85,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         &output_compressed_accounts,
         inputs.output_state_merkle_tree_account_indices,
         inputs.proof,
+        cpi_context,
     )?;
     Ok(())
 }
@@ -116,7 +119,22 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     output_compressed_accounts: &[CompressedAccount],
     output_state_merkle_tree_account_indices: Vec<u8>,
     proof: Option<CompressedProof>,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
+    let (_, bump) = get_cpi_authority_pda();
+    let bump = &[bump];
+    let seeds = [b"cpi_authority".as_slice(), bump];
+
+    let signer_seeds = &[&seeds[..]];
+    let cpi_signature_account = match cpi_context.as_ref() {
+        Some(cpi_context) => {
+            let cpi_signature_account = ctx.remaining_accounts
+                [cpi_context.cpi_signature_account_index as usize]
+                .to_account_info();
+            Some(cpi_signature_account)
+        }
+        None => None,
+    };
     let inputs_struct = PspCompressedPdaInstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
@@ -127,17 +145,12 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         new_address_params: Vec::new(),
         compression_lamports: None,
         is_compress: false,
+        signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
     };
 
     let mut inputs = Vec::new();
     PspCompressedPdaInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let (_, bump) = get_cpi_authority_pda();
-    let bump = &[bump];
-    let id = account_compression::ID.to_bytes();
-    let seeds = [b"cpi_authority".as_slice(), id.as_slice(), bump];
-
-    let signer_seeds = &[&seeds[..]];
     let cpi_accounts = psp_compressed_pda::cpi::accounts::TransferInstruction {
         signer: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
@@ -147,15 +160,11 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
             .psp_account_compression_authority
             .to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        cpi_signature_account: ctx
-            .accounts
-            .cpi_signature_account
-            .as_ref()
-            .map(|account| account.to_account_info()),
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: None,
+        cpi_signature_account,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -164,7 +173,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    psp_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, cpi_context)?;
     Ok(())
 }
 
@@ -216,7 +225,7 @@ pub struct TransferInstruction<'info> {
     pub authority: Signer<'info>,
     // This is the cpi signer
     /// CHECK: that mint authority is derived from signer
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump,)]
+    #[account(seeds = [b"cpi_authority"], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
     /// CHECK: this account
@@ -224,7 +233,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority", account_compression::ID.to_bytes().as_slice()], bump, seeds::program = psp_compressed_pda::ID,)]
+    #[account(seeds = [b"cpi_authority"], bump, seeds::program = psp_compressed_pda::ID,)]
     pub psp_account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
@@ -235,8 +244,6 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
-    #[account(mut)]
-    pub cpi_signature_account: Option<AccountInfo<'info>>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -445,13 +452,7 @@ impl DataHasher for TokenData {
 }
 
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            b"cpi_authority",
-            account_compression::ID.key().to_bytes().as_slice(),
-        ],
-        &crate::ID,
-    )
+    Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID)
 }
 
 #[cfg(not(target_os = "solana"))]
@@ -511,7 +512,10 @@ pub mod transfer_sdk {
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
-        let instruction_data = crate::instruction::Transfer { inputs };
+        let instruction_data = crate::instruction::Transfer {
+            inputs,
+            cpi_context: None,
+        };
 
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,
@@ -530,7 +534,6 @@ pub mod transfer_sdk {
             token_pool_pda,
             decompress_token_account,
             token_program: token_pool_pda.map(|_| Token::id()),
-            cpi_signature_account: None,
         };
 
         Instruction {
@@ -568,6 +571,10 @@ pub mod transfer_sdk {
         for token_data in input_token_data {
             // convenience signer check to throw a meaningful error
             if token_data.owner != *owner {
+                println!(
+                    "owner: {:?}, token_data.owner: {:?}",
+                    owner, token_data.owner
+                );
                 return Err(TransferSdkError::SignerCheckFailed);
             }
         }

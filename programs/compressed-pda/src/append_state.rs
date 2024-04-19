@@ -83,9 +83,10 @@ pub fn append_leaves_cpi<'a, 'b>(
     out_merkle_trees_account_infos: Vec<AccountInfo<'a>>,
     leaves: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let (seed, bump) = get_seeds(program_id, &authority.key())?;
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
 
     let accounts = account_compression::cpi::accounts::AppendLeaves {
         authority: authority.to_account_info(),
@@ -100,13 +101,11 @@ pub fn append_leaves_cpi<'a, 'b>(
     Ok(())
 }
 
-#[inline(never)]
-pub fn get_seeds<'a>(program_id: &'a Pubkey, cpi_signer: &'a Pubkey) -> Result<([u8; 32], u8)> {
-    let seed = account_compression::ID.key().to_bytes();
-    let (key, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-        &[b"cpi_authority", seed.as_slice()],
-        program_id,
-    );
-    assert_eq!(key, *cpi_signer);
-    Ok((seed, bump))
-}
+// #[inline(never)]
+// pub fn get_seeds<'a>(program_id: &'a Pubkey, cpi_signer: &'a Pubkey) -> Result<([u8; 32], u8)> {
+//     // let seed = account_compression::ID.key().to_bytes();
+//     let (key, bump) =
+//         anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
+//     assert_eq!(key, *cpi_signer);
+//     Ok((seed, bump))
+// }

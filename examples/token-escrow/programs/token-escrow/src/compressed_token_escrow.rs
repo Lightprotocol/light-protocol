@@ -24,7 +24,7 @@ pub fn process_escrow_compressed_tokens_with_pda<'info>(
 
     let escrow_token_data = TokenTransferOutputData {
         amount: escrow_amount,
-        owner: ctx.accounts.cpi_signer.key(),
+        owner: ctx.accounts.token_owner_pda.key(),
         lamports: None,
     };
     let change_token_data = create_change_output_compressed_token_account(
@@ -74,7 +74,7 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
         &[escrow_token_data],
-        &ctx.accounts.cpi_signer.key(),
+        &ctx.accounts.token_owner_pda.key(),
     );
     let output_compressed_accounts = vec![escrow_token_data, change_token_data];
 
@@ -96,15 +96,20 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
 pub struct EscrowCompressedTokensWithPda<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
+    /// CHECK:
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
-    pub cpi_signer: AccountInfo<'info>,
+    pub token_owner_pda: AccountInfo<'info>,
     pub compressed_token_program: Program<'info, psp_compressed_token::program::PspCompressedToken>,
     pub compressed_pda_program: Program<'info, psp_compressed_pda::program::PspCompressedPda>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
+    /// CHECK:
     pub account_compression_authority: AccountInfo<'info>,
+    /// CHECK:
     pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
+    /// CHECK:
     pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK:
     pub noop_program: AccountInfo<'info>,
     #[account(init_if_needed, seeds = [b"timelock".as_slice(), signer.key.to_bytes().as_slice()],bump, payer = signer, space = 8 + 8)]
     pub timelock_pda: Account<'info, EscrowTimeLock>,
@@ -163,7 +168,6 @@ pub fn cpi_compressed_token_transfer<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
-        cpi_signature_account: None,
     };
 
     let mut cpi_ctx = CpiContext::new(
@@ -172,7 +176,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    psp_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
+    psp_compressed_token::cpi::transfer(cpi_ctx, inputs, None)?;
     Ok(())
 }
 
@@ -211,8 +215,8 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
 
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = psp_compressed_token::cpi::accounts::TransferInstruction {
-        fee_payer: ctx.accounts.cpi_signer.to_account_info(),
-        authority: ctx.accounts.cpi_signer.to_account_info(),
+        fee_payer: ctx.accounts.token_owner_pda.to_account_info(),
+        authority: ctx.accounts.token_owner_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         psp_account_compression_authority: ctx
@@ -229,7 +233,6 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
-        cpi_signature_account: None,
     };
 
     let mut cpi_ctx = CpiContext::new_with_signer(
@@ -239,6 +242,6 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    psp_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
+    psp_compressed_token::cpi::transfer(cpi_ctx, inputs, None)?;
     Ok(())
 }
