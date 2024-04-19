@@ -1,9 +1,6 @@
-import { Connection, Keypair, PublicKey, Signer } from '@solana/web3.js';
+import { Connection, Keypair, Signer } from '@solana/web3.js';
 import { confirmTx } from '../utils';
 import { Rpc } from '../rpc';
-import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
-import { defaultTestStateTreeAccounts } from '../constants';
-import { TestRpc } from './test-rpc';
 
 let c = 1;
 
@@ -27,43 +24,6 @@ export function getConnection(): Connection {
     const url = 'http://127.0.0.1:8899';
     const connection = new Connection(url, 'confirmed');
     return connection;
-}
-
-/**
- * Returns a mock RPC instance for use in unit tests.
- *
- * @param endpoint                RPC endpoint URL. Defaults to
- *                                'http://127.0.0.1:8899'.
- * @param proverEndpoint          Prover server endpoint URL. Defaults to
- *                                'http://localhost:3001'.
- * @param lightWasm               Wasm hasher instance.
- * @param merkleTreeAddress       Address of the merkle tree to index. Defaults
- *                                to the public default test state tree.
- * @param nullifierQueueAddress   Optional address of the associated nullifier
- *                                queue.
- * @param depth                   Depth of the merkle tree.
- * @param log                     Log proof generation time.
- */
-export async function getTestRpc(
-    endpoint = 'http://127.0.0.1:8899',
-    proverEndpoint = 'http://localhost:3001',
-    lightWasm?: LightWasm,
-    merkleTreeAddress?: PublicKey,
-    nullifierQueueAddress?: PublicKey,
-    depth?: number,
-    log = false,
-) {
-    lightWasm = lightWasm || (await WasmFactory.getInstance());
-
-    const defaultAccounts = defaultTestStateTreeAccounts();
-
-    return new TestRpc(endpoint, lightWasm, proverEndpoint, {
-        merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
-        nullifierQueueAddress:
-            nullifierQueueAddress || defaultAccounts.nullifierQueue,
-        depth: depth || defaultAccounts.merkleTreeHeight,
-        log,
-    });
 }
 
 /**

@@ -3,7 +3,7 @@ import {
     ParsedTransactionWithMeta,
     PublicKey,
 } from '@solana/web3.js';
-import { LightWasm } from '@lightprotocol/hasher.rs';
+import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     defaultStaticAccountsStruct,
     defaultTestStateTreeAccounts,
@@ -13,7 +13,7 @@ import { MerkleTree } from './merkle-tree';
 import { CompressedProofWithContext } from '../rpc-interface';
 import { BN254, PublicTransactionEvent, bn } from '../state';
 import { BN } from '@coral-xyz/anchor';
-import axios from 'axios';
+
 import {
     negateAndCompressProof,
     proofFromJsonStruct,
@@ -36,6 +36,42 @@ export interface TestRpcConfig {
     log?: boolean;
 }
 
+/**
+ * Returns a mock RPC instance for use in unit tests.
+ *
+ * @param endpoint                RPC endpoint URL. Defaults to
+ *                                'http://127.0.0.1:8899'.
+ * @param proverEndpoint          Prover server endpoint URL. Defaults to
+ *                                'http://localhost:3001'.
+ * @param lightWasm               Wasm hasher instance.
+ * @param merkleTreeAddress       Address of the merkle tree to index. Defaults
+ *                                to the public default test state tree.
+ * @param nullifierQueueAddress   Optional address of the associated nullifier
+ *                                queue.
+ * @param depth                   Depth of the merkle tree.
+ * @param log                     Log proof generation time.
+ */
+export async function getTestRpc(
+    endpoint = 'http://127.0.0.1:8899',
+    proverEndpoint = 'http://localhost:3001',
+    lightWasm?: LightWasm,
+    merkleTreeAddress?: PublicKey,
+    nullifierQueueAddress?: PublicKey,
+    depth?: number,
+    log = false,
+) {
+    lightWasm = lightWasm || (await WasmFactory.getInstance());
+
+    const defaultAccounts = defaultTestStateTreeAccounts();
+
+    return new TestRpc(endpoint, lightWasm, proverEndpoint, {
+        merkleTreeAddress: merkleTreeAddress || defaultAccounts.merkleTree,
+        nullifierQueueAddress:
+            nullifierQueueAddress || defaultAccounts.nullifierQueue,
+        depth: depth || defaultAccounts.merkleTreeHeight,
+        log,
+    });
+}
 /**
  * Simple mock rpc for unit tests that simulates the compression rpc interface.
  * Fetches, parses events and builds merkletree on-demand, i.e. it does not persist state.
@@ -214,10 +250,20 @@ export class TestRpc extends Rpc {
         // TODO: pass url into rpc constructor
         const SERVER_URL = 'http://localhost:3001';
         const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
-        const response = await axios.post(INCLUSION_PROOF_URL, inputsData);
 
-        const parsed = proofFromJsonStruct(response.data);
-
+        const response = await fetch(INCLUSION_PROOF_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: inputsData,
+        });
+        if (!response.ok) {
+            throw new Error(`Error fetching proof: ${response.statusText}`);
+        }
+        // TOOD: add type coercion
+        const data: any = await response.json();
+        const parsed = proofFromJsonStruct(data);
         const compressedProof = negateAndCompressProof(parsed);
 
         if (this.log) console.timeEnd(logMsg);

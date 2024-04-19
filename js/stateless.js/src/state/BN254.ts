@@ -1,7 +1,7 @@
 // TODO: consider implementing BN254 as wrapper class around _BN mirroring
 // PublicKey this would encapsulate our runtime checks and also enforce
 // typesafety at compile time
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import * as bs58 from 'bs58';
 import { FIELD_SIZE } from '../constants';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
@@ -19,7 +19,7 @@ export const bn = (
     number: string | number | BN | Buffer | Uint8Array | number[],
     base?: number | 'hex' | undefined,
     endian?: BN.Endianness | undefined,
-) => new BN(number, base, endian);
+): BN => new BN(number, base, endian);
 
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (
