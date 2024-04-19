@@ -76,8 +76,7 @@ async fn init_mock_indexer(
 /// 4. should succeed: in compressed account inserted in (1.) and valid zkp
 #[tokio::test]
 async fn test_execute_compressed_transaction() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
+    let env: EnvWithAccounts = setup_test_programs_with_accounts(None).await;
 
     let mut mock_indexer = init_mock_indexer(&env, true, false, false).await;
     let mut context = env.context;
@@ -85,7 +84,7 @@ async fn test_execute_compressed_transaction() {
 
     let payer_pubkey = payer.pubkey();
 
-    let merkle_tree_pubkey = env.merkle_tree_pubkey.clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let indexed_array_pubkey = env.indexed_array_pubkey;
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -306,14 +305,13 @@ async fn test_execute_compressed_transaction() {
 /// Tests Execute compressed transaction with address:
 /// 1. should fail: create out compressed account with address without input compressed account with address or created address
 /// 2. should succeed: create out compressed account with new created address
-/// 3. should fail: create two addresses with the same seet
+/// 3. should fail: create two addresses with the same seeds
 /// 4. should succeed: create two addresses with different seeds
 /// 5. should succeed: create multiple addresses with different seeds and spend input compressed accounts
 ///    testing: (input accounts, new addresses) (1, 1), (1, 2), (2, 1), (2, 2)
 #[tokio::test]
 async fn test_with_address() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
+    let env: EnvWithAccounts = setup_test_programs_with_accounts(None).await;
 
     let mut mock_indexer = init_mock_indexer(&env, true, true, false).await;
 
@@ -377,7 +375,7 @@ async fn test_with_address() {
         &env.address_merkle_tree_queue_pubkey,
         &env.merkle_tree_pubkey,
         &env.indexed_array_pubkey,
-        &vec![address_seed],
+        &[address_seed],
         &Vec::new(),
         true,
     )
@@ -474,7 +472,7 @@ async fn test_with_address() {
         &env.address_merkle_tree_queue_pubkey,
         &env.merkle_tree_pubkey,
         &env.indexed_array_pubkey,
-        &vec![address_seed_2, address_seed_2],
+        &[address_seed_2, address_seed_2],
         &Vec::new(),
         true,
     )
@@ -497,7 +495,7 @@ async fn test_with_address() {
         &env.address_merkle_tree_queue_pubkey,
         &env.merkle_tree_pubkey,
         &env.indexed_array_pubkey,
-        &vec![address_seed_2, address_seed_3],
+        &[address_seed_2, address_seed_3],
         &Vec::new(),
         true,
     )
@@ -530,7 +528,7 @@ async fn test_with_address() {
         // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
         for j in 0..n_new_addresses {
             let mut address_seed = [n_input_compressed_accounts as u8; 32];
-            address_seed[j + (n_new_addresses * 2)] = 0 as u8;
+            address_seed[j + (n_new_addresses * 2)] = 0_u8;
             address_vec.push(address_seed);
         }
 
@@ -556,7 +554,7 @@ async fn test_with_address() {
                 .iter()
                 .any(|x| x.compressed_account.address
                     == Some(
-                        derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap()
+                        derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap()
                     )));
         }
         // input compressed accounts are spent
@@ -570,6 +568,7 @@ async fn test_with_address() {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_addresses(
     context: &mut ProgramTestContext,
     mock_indexer: &mut MockIndexer,
@@ -577,13 +576,13 @@ pub async fn create_addresses(
     address_merkle_tree_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
-    address_seeds: &Vec<[u8; 32]>,
-    input_compressed_accounts: &Vec<CompressedAccountWithMerkleContext>,
+    address_seeds: &[[u8; 32]],
+    input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
 ) -> BanksTransactionResultWithMetadata {
     let mut derived_addresses = Vec::new();
     for address_seed in address_seeds.iter() {
-        let derived_address = derive_address(&address_merkle_tree_pubkey, &address_seed).unwrap();
+        let derived_address = derive_address(address_merkle_tree_pubkey, address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
     let mut compressed_account_hashes = Vec::new();
@@ -595,7 +594,7 @@ pub async fn create_addresses(
             compressed_account_hashes.push(
                 compressed_account
                     .compressed_account
-                    .hash(&merkle_tree_pubkey, &compressed_account.leaf_index)
+                    .hash(merkle_tree_pubkey, &compressed_account.leaf_index)
                     .unwrap(),
             );
         }
@@ -608,7 +607,7 @@ pub async fn create_addresses(
     let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
             compressed_account_input_hashes,
-            Some(&derived_addresses.as_slice()),
+            Some(derived_addresses.as_slice()),
             context,
         )
         .await;
@@ -618,7 +617,7 @@ pub async fn create_addresses(
         let new_address_params = NewAddressParams {
             address_queue_pubkey: *address_merkle_tree_queue_pubkey,
             address_merkle_tree_pubkey: *address_merkle_tree_pubkey,
-            seed: seed.clone(),
+            seed: *seed,
             address_merkle_tree_root_index: proof_rpc_res.address_root_indices[i],
         };
         address_params.push(new_address_params);
@@ -630,9 +629,7 @@ pub async fn create_addresses(
             lamports: 0,
             owner: context.payer.pubkey(),
             data: None,
-            address: Some(
-                derive_address(&address_merkle_tree_pubkey, &address_param.seed).unwrap(),
-            ),
+            address: Some(derive_address(address_merkle_tree_pubkey, &address_param.seed).unwrap()),
         });
     }
 
@@ -659,7 +656,7 @@ pub async fn create_addresses(
         &vec![*merkle_tree_pubkey; input_compressed_accounts.len()],
         input_compressed_accounts
             .iter()
-            .map(|x| x.leaf_index.clone())
+            .map(|x| x.leaf_index)
             .collect::<Vec<u32>>()
             .as_slice(),
         &vec![*nullifier_queue_pubkey; input_compressed_accounts.len()],
@@ -688,8 +685,7 @@ pub async fn create_addresses(
 
 #[tokio::test]
 async fn test_with_compression() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
+    let env: EnvWithAccounts = setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
     let payer = context.payer.insecure_clone();
 
@@ -1083,7 +1079,7 @@ impl MockIndexer {
         let mut indexed_array = IndexedArray::<light_hasher::Poseidon, usize, 1000>::default();
 
         let init_value = BigUint::from_str_radix(
-            &"21888242871839275222246405745257275088548364400416034343698204186575808495617",
+            "21888242871839275222246405745257275088548364400416034343698204186575808495617",
             10,
         )
         .unwrap()
@@ -1264,7 +1260,7 @@ impl MockIndexer {
         self.add_event_and_compressed_accounts(event);
     }
 
-    /// Checks for every address in an output compressed account whether there is an input compressed account with the same address
+    /// Checks for every address in an output compressed account whether there is an input-compressed account with the same address
     /// If there is no input account with the same address, the address has been created in the transaction
     pub fn get_created_addresses_from_events(event: &PublicTransactionEvent) -> Vec<[u8; 32]> {
         // get all addresses from output compressed accounts
@@ -1282,7 +1278,7 @@ impl MockIndexer {
                         && x.compressed_account.address.unwrap() == **address
                 })
             })
-            .map(|x| *x)
+            .copied()
             .collect()
     }
 
@@ -1361,10 +1357,7 @@ impl MockIndexer {
         }
 
         for (index_in_indexed_array, compressed_account) in compressed_accounts_to_nullify.iter() {
-            let leaf_index = self
-                .merkle_tree
-                .get_leaf_index(&compressed_account)
-                .unwrap();
+            let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
                 .get_proof_of_leaf(leaf_index, false)

@@ -71,8 +71,8 @@ pub fn create_output_compressed_accounts(
     amounts: &[u64],
     lamports: Option<&[Option<u64>]>,
 ) -> Vec<CompressedAccount> {
-    let defaul = vec![None; pubkeys.len()];
-    let lamports = lamports.unwrap_or(defaul.as_slice());
+    let default = vec![None; pubkeys.len()];
+    let lamports = lamports.unwrap_or(default.as_slice());
     pubkeys
         .iter()
         .zip(amounts.iter())
@@ -131,8 +131,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
     ];
-    let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
+    let (_, bump) = Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
     let bump = &[bump];
     let seeds = [
         MINT_AUTHORITY_SEED,
@@ -181,8 +180,7 @@ pub fn mint_spl_to_pool_pda<'info>(
         authority_bytes.as_slice(),
         mint_bytes.as_slice(),
     ];
-    let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
+    let (_, bump) = Pubkey::find_program_address(seeds.as_slice(), ctx.program_id);
     let bump = &[bump];
     let seeds = [
         MINT_AUTHORITY_SEED,
@@ -248,13 +246,13 @@ pub fn get_token_authority_pda(signer: &Pubkey, mint: &Pubkey) -> Pubkey {
         signer_seed.as_slice(),
         mint_seed.as_slice(),
     ];
-    let (address, _) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+    let (address, _) = Pubkey::find_program_address(seeds, &crate::ID);
     address
 }
 
 pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
     let seeds = &[POOL_SEED, mint.as_ref()];
-    let (address, _) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+    let (address, _) = Pubkey::find_program_address(seeds, &crate::ID);
     address
 }
 

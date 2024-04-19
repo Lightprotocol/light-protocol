@@ -33,6 +33,12 @@ enum RelayerUpdateError {
     MerkleTreeUpdate(Vec<BanksClientError>),
 }
 
+// This is not a correct value you would normally use in relayer, A
+// correct size would be number of leaves which the merkle tree can fit
+// (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 4 mln
+// elements ain't easy and is not worth doing here.
+const INDEXED_ARRAY_ELEMENTS: usize = 200;
+
 async fn create_and_initialize_address_queue(
     context: &mut ProgramTestContext,
     payer_pubkey: &Pubkey,
@@ -90,12 +96,12 @@ fn initialize_address_merkle_tree_ix(
         index: 1u64,
         owner: payer,
         delegate: None,
-        height: ADDRESS_MERKLE_TREE_HEIGHT as u64,
-        changelog_size: ADDRESS_MERKLE_TREE_CHANGELOG as u64,
-        roots_size: ADDRESS_MERKLE_TREE_ROOTS as u64,
-        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH as u64,
+        height: ADDRESS_MERKLE_TREE_HEIGHT,
+        changelog_size: ADDRESS_MERKLE_TREE_CHANGELOG,
+        roots_size: ADDRESS_MERKLE_TREE_ROOTS,
+        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
     };
-    let initialize_ix = Instruction {
+    Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(context.payer.pubkey(), true),
@@ -103,8 +109,7 @@ fn initialize_address_merkle_tree_ix(
             AccountMeta::new_readonly(system_program::ID, false),
         ],
         data: instruction_data.data(),
-    };
-    initialize_ix
+    }
 }
 
 async fn create_and_initialize_address_merkle_tree(context: &mut ProgramTestContext) -> Keypair {
@@ -167,6 +172,7 @@ async fn insert_addresses(
     context.banks_client.process_transaction(transaction).await
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn update_merkle_tree(
     context: &mut ProgramTestContext,
     address_queue_pubkey: Pubkey,
@@ -191,8 +197,7 @@ async fn update_merkle_tree(
             .deserialized()
             .load_merkle_tree()
             .unwrap();
-        let changelog_index = address_merkle_tree.changelog_index();
-        changelog_index
+        address_merkle_tree.changelog_index()
     };
     let instruction_data = UpdateAddressMerkleTree {
         changelog_index: changelog_index as u16,
@@ -229,15 +234,8 @@ async fn relayer_update(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
 ) -> Result<(), RelayerUpdateError> {
-    let mut relayer_indexing_array = Box::new(IndexedArray::<
-        Poseidon,
-        usize,
-        // This is not a correct value you would normally use in relayer, A
-        // correct size would be number of leaves which the merkle tree can fit
-        // (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 4 mln
-        // elements ain't easy and is not worth doing here.
-        200,
-    >::default());
+    let mut relayer_indexing_array =
+        Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_ELEMENTS>>::default();
     let mut relayer_merkle_tree = Box::new(
         reference::IndexedMerkleTree::<Poseidon, usize>::new(
             ADDRESS_MERKLE_TREE_HEIGHT as usize,
@@ -275,9 +273,9 @@ async fn relayer_update(
             .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
             .unwrap();
 
-        // Get the Merkle proof for updaring low element.
+        // Get the Merkle proof for updating low element.
         let low_address_proof = relayer_merkle_tree
-            .get_proof_of_leaf(usize::from(old_low_address.index), false)
+            .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
         // Update on-chain tree.
@@ -329,7 +327,7 @@ async fn relayer_update(
 }
 
 // TODO: enable address Merkle tree tests
-/// Tests insertion of addresses to the queue, dequeuing and Merkle tree update.
+/// Tests insertion of addresses to the queue, de-queuing and Merkle tree update.
 #[tokio::test]
 #[ignore]
 async fn test_address_queue() {
@@ -379,18 +377,12 @@ async fn test_address_queue() {
         get_hash_set::<u16, AddressQueueAccount>(&mut context, address_queue_keypair.pubkey()).await
     };
 
-    assert_eq!(
-        address_queue
-            .contains(&address1, address_merkle_tree.merkle_tree.sequence_number)
-            .unwrap(),
-        true
-    );
-    assert_eq!(
-        address_queue
-            .contains(&address2, address_merkle_tree.merkle_tree.sequence_number)
-            .unwrap(),
-        true
-    );
+    assert!(address_queue
+        .contains(&address1, address_merkle_tree.merkle_tree.sequence_number)
+        .unwrap());
+    assert!(address_queue
+        .contains(&address2, address_merkle_tree.merkle_tree.sequence_number)
+        .unwrap());
 
     relayer_update(
         &mut context,
@@ -426,15 +418,9 @@ async fn test_insert_invalid_low_element() {
     // Local indexing array and queue. We will use them to get the correct
     // elements and Merkle proofs, which we will modify later, to pass invalid
     // values. 😈
-    let mut local_indexed_array = Box::new(IndexedArray::<
-        Poseidon,
-        usize,
-        // This is not a correct value you would normally use in relayer, A
-        // correct size would be number of leaves which the merkle tree can fit
-        // (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 4 mln
-        // elements ain't easy and is not worth doing here.
-        200,
-    >::default());
+
+    let mut local_indexed_array =
+        Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_ELEMENTS>>::default();
     let mut local_merkle_tree = Box::new(
         reference::IndexedMerkleTree::<Poseidon, usize>::new(
             ADDRESS_MERKLE_TREE_HEIGHT as usize,
@@ -504,7 +490,7 @@ async fn test_insert_invalid_low_element() {
     // (Invalid) low nullifier.
     let low_element = local_indexed_array.get(1).cloned().unwrap();
     let low_element_next_value = local_indexed_array
-        .get(usize::from(low_element.next_index))
+        .get(low_element.next_index)
         .cloned()
         .unwrap()
         .value;
@@ -547,7 +533,7 @@ async fn test_insert_invalid_low_element() {
     // (Invalid) low nullifier.
     let low_element = local_indexed_array.get(0).cloned().unwrap();
     let low_element_next_value = local_indexed_array
-        .get(usize::from(low_element.next_index))
+        .get(low_element.next_index)
         .cloned()
         .unwrap()
         .value;

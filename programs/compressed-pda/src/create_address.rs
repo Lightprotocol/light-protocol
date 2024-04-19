@@ -10,7 +10,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     addresses: &'a [[u8; 32]],
-) -> anchor_lang::Result<()> {
+) -> Result<()> {
     let address_merkle_tree_account_infos = inputs
         .new_address_params
         .iter()

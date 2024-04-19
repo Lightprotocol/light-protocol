@@ -13,7 +13,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
-) -> anchor_lang::Result<()> {
+) -> Result<()> {
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     for (j, mt_index) in inputs
@@ -102,10 +102,8 @@ pub fn append_leaves_cpi<'a, 'b>(
 #[inline(never)]
 pub fn get_seeds<'a>(program_id: &'a Pubkey, cpi_signer: &'a Pubkey) -> Result<([u8; 32], u8)> {
     let seed = account_compression::ID.key().to_bytes();
-    let (key, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-        &[b"cpi_authority", seed.as_slice()],
-        program_id,
-    );
+    let (key, bump) =
+        Pubkey::find_program_address(&[b"cpi_authority", seed.as_slice()], program_id);
     assert_eq!(key, *cpi_signer);
     Ok((seed, bump))
 }

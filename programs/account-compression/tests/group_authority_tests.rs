@@ -31,10 +31,8 @@ async fn test_create_and_update_group() {
     let mut context = program_test.start_with_context().await;
 
     let seed = [1u8; 32];
-    let group_accounts = anchor_lang::prelude::Pubkey::find_program_address(
-        &[GROUP_AUTHORITY_SEED, seed.as_slice()],
-        &account_compression::ID,
-    );
+    let group_accounts =
+        Pubkey::find_program_address(&[GROUP_AUTHORITY_SEED, seed.as_slice()], &ID);
 
     let instruction_data = account_compression::instruction::InitializeGroupAuthority {
         _seed: seed,
@@ -42,7 +40,7 @@ async fn test_create_and_update_group() {
     };
 
     let instruction = Instruction {
-        program_id: account_compression::ID,
+        program_id: ID,
         accounts: vec![
             AccountMeta::new(context.payer.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
@@ -74,7 +72,7 @@ async fn test_create_and_update_group() {
 
     // update with new authority
     let instruction = Instruction {
-        program_id: account_compression::ID,
+        program_id: ID,
         accounts: vec![
             AccountMeta::new(context.payer.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
@@ -105,7 +103,7 @@ async fn test_create_and_update_group() {
         authority: context.payer.pubkey(),
     };
     let instruction = Instruction {
-        program_id: account_compression::ID,
+        program_id: ID,
         accounts: vec![
             AccountMeta::new(context.payer.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
@@ -134,7 +132,7 @@ async fn test_create_and_update_group() {
         program_id: compressed_pda_id,
     };
     let instruction = Instruction {
-        program_id: account_compression::ID,
+        program_id: ID,
         accounts: vec![
             AccountMeta::new(updated_keypair.pubkey(), true),
             AccountMeta::new(registered_program_pda, false),
@@ -164,7 +162,7 @@ async fn test_create_and_update_group() {
         program_id: other_program_id,
     };
     let instruction = Instruction {
-        program_id: account_compression::ID,
+        program_id: ID,
         accounts: vec![
             AccountMeta::new(context.payer.pubkey(), true),
             AccountMeta::new(registered_program_pda, false),

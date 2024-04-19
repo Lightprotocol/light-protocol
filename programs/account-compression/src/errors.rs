@@ -21,7 +21,7 @@ pub enum AccountCompressionErrorCode {
     #[msg("InvalidVerifier")]
     InvalidVerifier,
     #[msg(
-        "Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves."
+        "Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves."
     )]
     NumberOfLeavesMismatch,
     #[msg("Provided noop program public key is invalid")]

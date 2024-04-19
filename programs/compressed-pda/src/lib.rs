@@ -32,12 +32,12 @@ pub enum ErrorCode {
     ComputeRpcSumFailed,
     #[msg("InUtxosAlreadyAdded")]
     InUtxosAlreadyAdded,
-    #[msg("NumberOfLeavesMissmatch")]
-    NumberOfLeavesMissmatch,
-    #[msg("MerkleTreePubkeysMissmatch")]
-    MerkleTreePubkeysMissmatch,
-    #[msg("NullifierArrayPubkeysMissmatch")]
-    NullifierArrayPubkeysMissmatch,
+    #[msg("NumberOfLeavesMismatch")]
+    NumberOfLeavesMismatch,
+    #[msg("MerkleTreePubkeysMismatch")]
+    MerkleTreePubkeysMismatch,
+    #[msg("NullifierArrayPubkeysMismatch")]
+    NullifierArrayPubkeysMismatch,
     #[msg("InvalidNoopPubkey")]
     InvalidNoopPubkey,
     #[msg("InvalidPublicInputsLength")]
@@ -108,7 +108,7 @@ pub mod light_compressed_pda {
     pub fn execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
-    ) -> Result<crate::event::PublicTransactionEvent> {
+    ) -> Result<event::PublicTransactionEvent> {
         msg!("execute_compressed_transaction");
         let inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;

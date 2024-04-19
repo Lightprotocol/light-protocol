@@ -9,7 +9,10 @@ import {
     IDL as LightCompressedPdaIDL,
     LightCompressedPda,
 } from './light_compressed_pda';
-import { IDL as LightUserRegistryIDL, LightUserRegistry } from './light_user_registry';
+import {
+    IDL as LightUserRegistryIDL,
+    LightUserRegistry,
+} from './light_user_registry';
 
 export {
     AccountCompressionIDL,

@@ -35,7 +35,7 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
             expected_remaining_accounts,
             ctx.remaining_accounts.len()
         );
-        return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
+        return err!(AccountCompressionErrorCode::NumberOfLeavesMismatch);
     }
 
     let mut queue_map = QueueMap::new();

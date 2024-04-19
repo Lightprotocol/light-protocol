@@ -51,7 +51,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
     input_compressed_account_hashes: &[[u8; 32]],
     output_compressed_account_hashes: &[[u8; 32]],
     output_leaf_indices: &[u32],
-) -> anchor_lang::Result<PublicTransactionEvent> {
+) -> Result<PublicTransactionEvent> {
     // TODO: add message and compression_lamports
     let event = PublicTransactionEvent {
         input_compressed_account_hashes: input_compressed_account_hashes.to_vec(),

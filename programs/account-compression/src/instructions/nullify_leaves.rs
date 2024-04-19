@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::prelude::*;
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::event::{ChangelogEvent, Changelogs};
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
@@ -156,7 +156,7 @@ fn insert_nullifier(
 
 #[inline(never)]
 pub fn from_vec(vec: &[[u8; 32]]) -> Result<BoundedVec<[u8; 32]>> {
-    let proof: [[u8; 32]; 16] = (vec).try_into().unwrap();
+    let proof: [[u8; 32]; 16] = vec.try_into().unwrap();
     let mut bounded_vec = BoundedVec::with_capacity(26);
     bounded_vec.extend(proof).map_err(ProgramError::from)?;
     Ok(bounded_vec)
