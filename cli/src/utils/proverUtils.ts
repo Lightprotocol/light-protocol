@@ -1,3 +1,5 @@
+import { getProverNameByArch } from "./initTestEnv";
+
 export type ProofInputs = {
   roots: string[];
   inPathIndices: number[];
@@ -7,7 +9,7 @@ export type ProofInputs = {
 export function provingArgs(inputs: string): string {
   const arg0 = "echo";
   const arg1 = inputs;
-  const arg2 = "./bin/light-prover";
+  const arg2 = `bin/${getProverNameByArch()}`;
   const arg3 = "prove";
 
   const arg4 = provingKey(parseProofInputs(inputs).roots.length);

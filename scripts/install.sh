@@ -206,6 +206,7 @@ rustup component add clippy
 rustup component add rustfmt
 
 cargo install cargo-expand wasm-pack
+cargo install photon-indexer --version 0.11.0
 
 echo "📥 Downloading Node.js"
 download_and_extract \
