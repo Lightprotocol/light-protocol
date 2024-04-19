@@ -14,7 +14,6 @@ light-hasher = { path = "../../merkle-tree/hasher" }
 light-indexed-merkle-tree = { path = "../../merkle-tree/indexed" }
 light-utils = { path = "../../utils" }
 # ark dependencies
-# ark-circom = { git = "https://github.com/Lightprotocol/circom-compat.git", branch = "feat/multi-dimension-input" }
 ark-serialize = "0.4.2"
 ark-ec = "0.4.2"
 ark-ff = "0.4.2"
