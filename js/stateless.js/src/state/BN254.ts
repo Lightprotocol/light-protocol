@@ -19,7 +19,7 @@ export const bn = (
     number: string | number | BN | Buffer | Uint8Array | number[],
     base?: number | 'hex' | undefined,
     endian?: BN.Endianness | undefined,
-) => new BN(number, base, endian);
+): BN => new BN(number, base, endian);
 
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (

@@ -4,17 +4,19 @@
     "description": "Light Javascript API",
     "sideEffects": false,
     "type": "module",
-    "main": "./dist/umd/index.js",
-    "module": "./dist/es/index.js",
+    "main": "dist/cjs/index.cjs",
+    "module": "dist/es/index.js",
+    "browser": "dist/browser/index.js",
+    "types": "dist/types/index.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/types/main/index.d.ts",
             "import": "./dist/es/index.js",
+            "require": "./dist/cjs/index.cjs",
+            "browser": "./dist/browser/index.js",
+            "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/index.cjs"
-        },
-        "./package.json": "./package.json"
+        }
     },
-    "types": "./dist/types/index.d.ts",
     "files": [
         "dist"
     ],
@@ -32,7 +34,8 @@
         "test:e2e:serde": "vitest run tests/e2e/serde.test.ts",
         "test:verbose": "vitest run --reporter=verbose",
         "pull-idls": "../../scripts/push-stateless-js-idls.sh",
-        "build": "rimraf dist && pnpm run pull-idls && pnpm build:bundle",
+        "build": "rollup -c",
+        "dev": "rollup -c -w",
         "build:bundle": "rollup -c --bundleConfigAsCjs",
         "format": "prettier --write .",
         "lint": "eslint ."
@@ -46,10 +49,12 @@
     "license": "Apache-2.0",
     "devDependencies": {
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^25.0.7",
         "@rollup/plugin-json": "^6.1.0",
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@rollup/plugin-replace": "^5.0.5",
+        "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.5",
         "@types/node": "^20.10.2",
         "@typescript-eslint/eslint-plugin": "^6.7.3",
@@ -65,6 +70,7 @@
         "prettier": "^3.0.3",
         "rimraf": "^5.0.5",
         "rollup": "^4.6.1",
+        "rollup-plugin-dts": "^6.1.0",
         "rollup-plugin-polyfill-node": "^0.13.0",
         "ts-node": "^10.9.1",
         "tslib": "^2.6.2",
