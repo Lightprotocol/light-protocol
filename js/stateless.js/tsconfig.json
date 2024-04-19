@@ -6,14 +6,13 @@
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
         "strict": true,
-        "declaration": true,
-        "declarationDir": "dist/types",
+        "declaration": false,
         "target": "ESNext",
         "module": "ESNext",
         "moduleResolution": "Node",
-        "lib": ["ESNext"],
+        "lib": ["ESNext", "DOM"],
         "types": ["vitest/importMeta", "node"],
         "skipLibCheck": true
     },
-    "include": ["./src/**/*.ts", "rollup.config.js"]
+    "include": ["./src/**/*.ts"]
 }

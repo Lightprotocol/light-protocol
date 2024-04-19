@@ -1,8 +1,9 @@
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import * as bs58 from 'bs58';
 import { ParsedTransactionWithMeta } from '@solana/web3.js';
 import { LightSystemProgram } from '../programs';
 import { defaultStaticAccountsStruct } from '../constants';
 import { PublicTransactionEvent } from '../state';
+import { Buffer } from 'buffer';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 
@@ -37,7 +38,7 @@ export const parseEvents = <T>(
                 ) {
                     const data = bs58.decode(ixInner.data);
 
-                    const decodedEvent = deserializeFn(data, tx);
+                    const decodedEvent = deserializeFn(Buffer.from(data), tx);
 
                     if (decodedEvent !== null && decodedEvent !== undefined) {
                         transactions.push(decodedEvent as NonNullable<T>);

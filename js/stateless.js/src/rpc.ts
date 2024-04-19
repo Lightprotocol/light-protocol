@@ -4,6 +4,8 @@ import {
     SolanaJSONRPCError,
     PublicKey,
 } from '@solana/web3.js';
+import { Buffer } from 'buffer';
+
 import {
     BalanceResult,
     CompressedAccountResult,
@@ -35,7 +37,9 @@ import { array, create, nullable } from 'superstruct';
 import { toCamelCase } from './utils/conversion';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
-import { getTestRpc } from './test-utils';
+/// FIXME: this is a circular dependency:
+/// implement getValidityProof directly in RPC
+import { getTestRpc } from './test-utils/test-rpc';
 
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',

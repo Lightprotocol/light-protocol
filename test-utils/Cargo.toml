@@ -16,8 +16,8 @@ ark-ff = "0.4"
 light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1" }
 num-bigint = "0.4"
 num-traits = "0.2"
-solana-program-test = "1.17.4"
-solana-sdk = "1.17.4"
+solana-program-test = "1.18.11"
+solana-sdk = "1.18.11"
 thiserror = "1.0"
 light-macros = {path = "../macros/light"}
 account-compression = {path = "../programs/account-compression", features = ["cpi"],  optional= true}
