@@ -23,13 +23,11 @@ light-compressed-token = { path = "../../../../programs/compressed-token"  , fea
 light-compressed-pda = { path = "../../../../programs/compressed-pda"  , features = ["cpi"]}
 account-compression = { path = "../../../../programs/account-compression" , features = ["cpi"] }
 
-
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.17.4"
-
+solana-sdk = "1.18.11"
 
 [dev-dependencies]
-solana-program-test = "1.17.4"
+solana-program-test = "1.18.11"
 light-test-utils = { version = "0.1.0", path = "../../../../test-utils", default-features= true, features = ["test_indexer"] }
 reqwest = "0.11.26"
 tokio = "1.36.0"

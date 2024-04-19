@@ -8,7 +8,7 @@ solana = ["solana-program"]
 
 [dependencies]
 light-poseidon = "0.2.0"
-solana-program = { version = ">=1.17, <1.18", optional = true }
+solana-program = { version = "1.18.11", optional = true }
 thiserror = "1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]

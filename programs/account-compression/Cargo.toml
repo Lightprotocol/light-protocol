@@ -35,21 +35,17 @@ light-utils = { version = "0.1.0", path = "../../utils" }
 light-macros = { version = "0.3.1", path = "../../macros/light/" }
 num-bigint = "0.4"
 
-# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
-ahash = "=0.8.6"
-
 ark-serialize = "^0.4.0"
 num-traits = "0.2.18"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.17.4"
+solana-sdk = "1.18.11"
 
 [dev-dependencies]
 log = "0.4"
 memoffset = "0.9"
-solana-client-wasm = "1.17.4"
-solana-program-test = ">=1.17, <1.18"
-solana-sdk = ">=1.17, <1.18"
+solana-program-test = "1.18.11"
+solana-sdk = "1.18.11"
 thiserror = "1.0"
 tokio = "1.35"
 spl-account-compression = {version="0.3.0", features=["cpi"]}

@@ -26,15 +26,13 @@ bytemuck = "1.14"
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
 light-heap = { version = "0.1.0", path = "../../heap", optional = true }
 account-compression = { version = "0.3.1", path = "../account-compression", features = ["cpi"]  }
-# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
-ahash = "=0.8.6"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.17.4"
+solana-sdk = "1.18.11"
 
 [dev-dependencies]
-solana-program-test = "1.17.4"
-solana-sdk = "1.17.4"
+solana-program-test = "1.18.11"
+solana-sdk = "1.18.11"
 tokio = "1.36.0"
 light-test-utils = { version = "0.1.0", path = "../../test-utils", default-features = false }
 light-macros= { version = "0.3.1", path = "../../macros/light" }
