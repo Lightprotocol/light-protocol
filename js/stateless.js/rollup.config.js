@@ -18,8 +18,8 @@ const rolls = fmt => ({
         ...(fmt === 'umd'
             ? {
                   globals: {
-                      '@coral-xyz/anchor': 'anchor',
                       '@solana/web3.js': 'web3.js',
+                      '@coral-xyz/anchor': 'anchor',
                   },
               }
             : {}),
@@ -31,12 +31,7 @@ const rolls = fmt => ({
             outDir: `dist/${fmt}`,
             rootDir: 'src',
         }),
-        commonjs({
-            include: [
-                '../../node_modules/.pnpm/tweetnacl@1.0.3/node_modules/tweetnacl/nacl-fast.js',
-                '../../node_modules/.pnpm/bs58@5.0.0/node_modules/bs58/index.js',
-            ],
-        }),
+        commonjs(),
         /// TODO: distinguish between node and browser
         nodePolyfills(),
         resolve(),

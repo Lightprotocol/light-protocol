@@ -1,4 +1,4 @@
-import * as bs58 from 'bs58';
+import { bs58 } from '@coral-xyz/anchor/dist/esm/utils/bytes';
 import { ParsedTransactionWithMeta } from '@solana/web3.js';
 import { LightSystemProgram } from '../programs';
 import { defaultStaticAccountsStruct } from '../constants';
