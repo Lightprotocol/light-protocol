@@ -37,7 +37,7 @@ pub fn create_escrow_instruction(
     input_params: CreateCompressedPdaEscrowInstructionInputs,
     escrow_amount: u64,
 ) -> Instruction {
-    let token_owner_pda = get_token_owner_pda(&input_params.signer);
+    let token_owner_pda = get_token_owner_pda(input_params.signer);
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_compressed_account_merkle_tree_pubkeys,
         input_params.leaf_indices,
@@ -147,7 +147,7 @@ pub fn create_withdrawal_instruction(
     input_params: CreateCompressedPdaWithdrawalInstructionInputs,
     withdrawal_amount: u64,
 ) -> Instruction {
-    let (token_owner_pda, bump) = get_token_owner_pda(&input_params.signer);
+    let (token_owner_pda, bump) = get_token_owner_pda(input_params.signer);
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_compressed_account_merkle_tree_pubkeys,
         &input_params.leaf_indices[1..],

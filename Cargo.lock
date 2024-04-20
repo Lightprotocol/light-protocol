@@ -3981,6 +3981,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "program-owned-account-test"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "circuitlib-rs",
+ "light-hasher",
+ "light-test-utils",
+ "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "psp-compressed-pda",
+ "psp-compressed-token",
+ "reqwest",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
+]
+
+[[package]]
 name = "psp-compressed-pda"
 version = "0.3.0"
 dependencies = [

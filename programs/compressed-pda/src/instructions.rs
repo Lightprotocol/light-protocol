@@ -24,7 +24,13 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
 ) -> anchor_lang::Result<PublicTransactionEvent> {
     // signer check ---------------------------------------------------
     signer_check(inputs, &ctx)?;
-    write_access_check(inputs, &ctx.accounts.invoking_program)?;
+
+    write_access_check(
+        inputs,
+        &ctx.accounts.invoking_program,
+        &ctx.accounts.signer.key(),
+    )?;
+
     if let Some(cpi_context) = cpi_context {
         let res = process_cpi_context(cpi_context, &mut ctx, inputs)?;
         if let Some(event) = res {

@@ -152,7 +152,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
             .psp_account_compression_authority
             .to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: None,
+        invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: None,
@@ -242,6 +242,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK: this account will be checked by psp compressed pda program
     #[account(mut)]
     pub merkle_tree: UncheckedAccount<'info>,
+    pub self_program: Program<'info, crate::program::PspCompressedToken>,
 }
 
 pub fn get_token_authority_pda(signer: &Pubkey, mint: &Pubkey) -> Pubkey {
@@ -330,6 +331,7 @@ pub mod mint_sdk {
             ),
             account_compression_program: account_compression::ID,
             merkle_tree: *merkle_tree,
+            self_program: crate::ID,
         };
 
         Instruction {

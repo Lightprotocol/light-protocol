@@ -208,27 +208,60 @@ pub fn signer_check(
 /// Checks the write access for output compressed accounts.
 /// Only program owned output accounts can hold data.
 /// Every output account that holds data has to be owned by the invoking_program.
+/// For every account that has data, the owner has to be the invoking_program.
 pub fn write_access_check(
     inputs: &InstructionDataTransfer,
-    authority: &Option<UncheckedAccount>,
+    invoking_program_id: &Option<UncheckedAccount>,
+    signer: &Pubkey,
 ) -> Result<()> {
-    match authority {
-        Some(authority) => inputs
+    // is triggered if one output account has data
+    let output_account_has_data = inputs
         .output_compressed_accounts
         .iter()
-        .try_for_each(|compressed_account: &CompressedAccount| {
-            if compressed_account.owner != authority.key() {
-                msg!(
-                    "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  authority {}",
-                    compressed_account.owner,
-                    authority.key()
-                );
-                err!(crate::ErrorCode::WriteAccessCheckFailed)
-            } else {
+        .filter(|compressed_account| compressed_account.data.is_some())
+        .collect::<Vec<&CompressedAccount>>();
+    if !output_account_has_data.is_empty() {
+        match invoking_program_id {
+            Some(invoking_program_id) => {
+                let seeds = match inputs.signer_seeds.as_ref() {
+                    Some(seeds) => seeds.iter().map(|x| x.as_slice()).collect::<Vec<&[u8]>>(),
+                    None => {
+                        msg!("signer seeds not provided but trying to create compressed output account with data");
+                        return err!(crate::ErrorCode::SignerSeedsNotProvided);
+                    }
+                };
+                let derived_signer =
+                    Pubkey::create_program_address(&seeds[..], &invoking_program_id.key())
+                        .map_err(ProgramError::from)?;
+                if derived_signer != *signer {
+                    msg!(
+                        "Signer/Program cannot write into an account it doesn't own. Write access check failed derived cpi signer {} !=  signer {}",
+                        signer,
+                        signer
+                    );
+                    return err!(crate::ErrorCode::SignerCheckFailed);
+                }
+                output_account_has_data.iter().try_for_each(|compressed_account| {
+                    if compressed_account.owner == invoking_program_id.key() {
+                        Ok(())
+                    } else {
+                        msg!(
+                            "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
+                            compressed_account.owner,
+                            invoking_program_id.key()
+                        );
+                        err!(crate::ErrorCode::WriteAccessCheckFailed)
+                    }
+                })?;
                 Ok(())
             }
-        }),
-        None => Ok(()),
+            None => {
+                msg!("invoking program id not provided but trying to create compressed output account with data");
+                err!(crate::ErrorCode::InvokingProgramNotProvided)
+            }
+        }
+    } else {
+        Ok(())
     }
 }
 
@@ -248,7 +281,6 @@ pub fn verify_state_proof(
             compressed_proof,
         )
     } else if !addresses.is_empty() {
-        msg!("create address verification currently not checked");
         verify_create_addresses_zkp(address_roots, addresses, compressed_proof)
     } else {
         verify_merkle_proof_zkp(roots, leaves, compressed_proof)

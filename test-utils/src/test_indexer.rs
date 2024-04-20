@@ -80,7 +80,7 @@ impl TestIndexer {
         payer: Keypair,
         inclusion: bool,
         non_inclusion: bool,
-        combined: bool,
+        gnark_bin_path: &str,
     ) -> Self {
         let mut vec_proof_types = vec![];
         if inclusion {
@@ -89,20 +89,13 @@ impl TestIndexer {
         if non_inclusion {
             vec_proof_types.push(ProofType::NonInclusion);
         }
-        if combined {
-            vec_proof_types.push(ProofType::Combined);
-        }
         if vec_proof_types.is_empty() {
             panic!("At least one proof type must be selected");
         }
 
-        spawn_gnark_server(
-            // correct path so that the examples can be run
-            "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-            true,
-            vec_proof_types.as_slice(),
-        )
-        .await;
+        // correct path so that the examples can be run:
+        // "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        spawn_gnark_server(gnark_bin_path, true, vec_proof_types.as_slice()).await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,

@@ -49,7 +49,7 @@ async fn test_escrow_with_compressed_pda() {
         payer.insecure_clone(),
         true,
         true,
-        false,
+        "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     );
     let mint = create_mint_helper(&mut context, &payer).await;
     let mut test_indexer = test_indexer.await;

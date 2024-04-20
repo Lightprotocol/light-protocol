@@ -84,6 +84,10 @@ pub enum ErrorCode {
     CpiSignatureAccountUndefined,
     #[msg("WriteAccessCheckFailed")]
     WriteAccessCheckFailed,
+    #[msg("InvokingProgramNotProvided")]
+    InvokingProgramNotProvided,
+    #[msg("SignerSeedsNotProvided")]
+    SignerSeedsNotProvided,
 }
 
 #[program]
