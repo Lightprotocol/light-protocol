@@ -12,8 +12,7 @@
     "react": "^18",
     "react-dom": "^18",
     "next": "14.2.2",
-    "@lightprotocol/stateless.js": "workspace:*",
-    "@lightprotocol/hasher.rs": "workspace:*"
+    "@lightprotocol/stateless.js": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5",

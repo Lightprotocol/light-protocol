@@ -1,58 +1,80 @@
-js clients for the light protocol system programs
+# TS clients for ZK Compression
 
-### Requirements
+Use this to interact with programs using ZK Compression on Solana via the
+Compression RPC Api.
 
-reproduced on mac m2:
+### Installation
 
--   node: v20.9.0
--   rustup 1.26.0, rustc 1.73.0, cargo 1.73.0
--   solana-cli 1.17.5
+**For use in Node.js or a web application**
 
-## Producing events for indexing
+```bash
+npm install --save @lightprotocol/stateless.js
+```
 
-First, activate the devenv
+### Documentation and examples
 
-`. ./scripts/devenv.sh`
+-   [Latest Source code](https://github.com/lightprotocol/lightprotocol/tree/main/js/stateless.js)
+-   Documentation and examples will be linked here soon!
 
-If you're new, run
+### Getting help
 
-`./scripts/install.sh`
+Have a question or a problem?
+Check on the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discord.gg/Uzzf6a7zKr) Developer Discord servers!
 
-Run the monorepo build script
-`./scripts/build.sh`
+When asking for help, please include:
 
-Go to stateless.js
-`cd js/stateless.js`
+-   A detailed description of what you're trying to achieve
+-   Source code, if possible
+-   The text of any errors you encountered, with stacktraces if available
 
-and run
-`pnpm run test-validator`
+### Contributing
 
-this starts a solana-test-validator + auto-initialized the env, programs, and accounts Light needs. Keep the validator running.
+The ZK Compression system programs and clients are maintained by
+[Light](https://github.com/lightprotocol) as a part of the Light Protocol.
 
-now open another terminal, enter the devenv + stateless.js again,
+The ZK Compression RPC API and its indexer implementation is maintained by
+[Helius Labs](https://github.com/helius-labs).
 
-`cd js/stateless.js`
+Light and ZK Compression are open protocols and contributions are welcome. If
+you're interested in contributing, please open a PR on the respective
+repository.
 
-now run:
+If you found a bug or would like to request a feature, please file an
+[issue](https://github.com/lightprotocol/lightprotocol/issues/new).
 
-`pnpm emit-event:transfer`
+### Disclaimer
 
-This runs ./tests/e2e/transfer-emit-events.test.ts which executes a simple compressed sol transfer against the test-validator. You'll be able to index the emitted events (output utxos) according to the event rust structs.
+All claims, content, designs, algorithms, estimates, roadmaps, specifications,
+and performance measurements described in this project are done with Light
+Protocol Labs' ("Labs") best efforts. It is up to the reader to check and
+validate their accuracy and truthfulness. Furthermore nothing in this project
+constitutes a solicitation for investment.
 
-### Troubleshooting
+Any content produced by Labs or developer resources that Labs provides, are for
+educational and inspiration purposes only. Labs does not encourage, induce or
+sanction the deployment, integration or use of any such applications (including
+the code comprising the Light blockchain protocol) in violation of applicable
+laws or regulations and hereby prohibits any such deployment, integration or
+use. This includes use of any such applications by the reader (a) in violation
+of export control or sanctions laws of the United States or any other applicable
+jurisdiction, (b) if the reader is located in or ordinarily resident in a
+country or territory subject to comprehensive sanctions administered by the U.S.
+Office of Foreign Assets Control (OFAC), or (c) if the reader is or is working
+on behalf of a Specially Designated National (SDN) or a person subject to
+similar blocking or denied party prohibitions.
 
-If you're having trouble building the project or cli,
-
--   Nuke git clean -xfd (careful)
-
--   re-run install.sh etc
-
--   you may want to manually build the programs (anchor build)
-    or manually build the cli (`pnpm run build` in ./cli) before running
-    `./cli/test_bin/run test-validator`
-
-### Other side notes
-
-1. This is unsafe. We don't verify ZKPs yet, nor do we validate tree roots.
-2. this is also what allows us to make up input-utxos for emit-event:transfer
-3. on-chain runs a sumcheck on the state transition (outputs, inputs).
+The reader should be aware that U.S. export control and sanctions laws prohibit
+U.S. persons (and other persons that are subject to such laws) from transacting
+with persons in certain countries and territories or that are on the SDN list.
+As a project based primarily on open-source software, it is possible that such
+sanctioned persons may nevertheless bypass prohibitions, obtain the code
+comprising the Light blockchain protocol (or other project code or applications)
+and deploy, integrate, or otherwise use it. Accordingly, there is a risk to
+individuals that other persons using the Light blockchain protocol may be
+sanctioned persons and that transactions with such persons would be a violation
+of U.S. export controls and sanctions law. This risk applies to individuals,
+organizations, and other ecosystem participants that deploy, integrate, or use
+the Light blockchain protocol code directly (e.g., as a node operator), and
+individuals that transact on the Light blockchain protocol implementation
+through clients, other kinds of nodes, third party interfaces, and/or wallet
+software.

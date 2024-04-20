@@ -316,9 +316,6 @@ importers:
 
   examples/browser/nextjs:
     dependencies:
-      '@lightprotocol/hasher.rs':
-        specifier: workspace:*
-        version: link:../../../hasher.rs
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../../../js/stateless.js
