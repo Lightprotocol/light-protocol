@@ -1,7 +1,7 @@
-# TS clients for ZK Compression
+# TS client for ZK Compression
 
 Use this to interact with programs using ZK Compression on Solana via the
-Compression RPC Api.
+Compression RPC API.
 
 ### Installation
 
@@ -19,7 +19,7 @@ npm install --save @lightprotocol/stateless.js
 ### Getting help
 
 Have a question or a problem?
-Check on the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discord.gg/Uzzf6a7zKr) Developer Discord servers!
+Check out the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discord.gg/Uzzf6a7zKr) Developer Discord servers!
 
 When asking for help, please include:
 
@@ -36,11 +36,12 @@ The ZK Compression RPC API and its indexer implementation is maintained by
 [Helius Labs](https://github.com/helius-labs).
 
 Light and ZK Compression are open protocols and contributions are welcome. If
-you're interested in contributing, please open a PR on the respective
-repository.
+you have a contribution, please open a PR on the respective repository.
 
 If you found a bug or would like to request a feature, please file an
 [issue](https://github.com/lightprotocol/lightprotocol/issues/new).
+
+If you found a security vulnerability, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
 
 ### Disclaimer
 
