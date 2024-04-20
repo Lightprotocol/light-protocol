@@ -2,11 +2,46 @@
 import Image from "next/image";
 import styles from "./page.module.css";
 import React from "react";
-import { Rpc } from "@lightprotocol/stateless.js";
+import {
+  Rpc,
+  compressLamports,
+  confirmTx,
+  createRpc,
+  initSolOmnibusAccount,
+} from "@lightprotocol/stateless.js";
+import { Keypair } from "@solana/web3.js";
+
+const localnetSolOmnibusAccountAuthority = Keypair.generate();
+const payer = Keypair.generate();
+
+async function initAndFund(rpc: Rpc) {
+  const signature = await rpc.requestAirdrop(payer.publicKey, 10000000000);
+  const signature2 = await rpc.requestAirdrop(
+    localnetSolOmnibusAccountAuthority.publicKey,
+    10000000000
+  );
+  await confirmTx(rpc, signature);
+  await confirmTx(rpc, signature2);
+
+  await initSolOmnibusAccount(rpc, localnetSolOmnibusAccountAuthority);
+}
 
 export default function Home() {
   React.useEffect(() => {
-    console.log("RPC: ", Rpc);
+    const rpc = createRpc();
+    console.log("payer: ", payer.publicKey.toBase58());
+    (async () => {
+      await initAndFund(rpc);
+
+      const payerAccounts = await rpc.getCompressedAccountsByOwner(
+        payer.publicKey
+      );
+
+      console.log("compressedAccounts: ", payerAccounts);
+
+      const txId = await compressLamports(rpc, payer, 1e6, payer.publicKey);
+      console.log("txId: ", txId);
+    })();
   }, []);
   return (
     <main className={styles.main}>
