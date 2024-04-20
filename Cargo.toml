@@ -12,6 +12,7 @@ members = [
     "utils",
     "xtask",
     "examples/token-escrow/programs/*",
+    "crank"
 ]
 
 [profile.release]

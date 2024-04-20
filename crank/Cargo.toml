@@ -1,0 +1,26 @@
+[package]
+name = "crank"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = {version = "4.0.26", features = ["derive"]}
+solana-sdk = "1.17.4"
+solana-client = "1.17.4"
+tiny-bip39 = "0.8.2"
+chrono = "0.4.37"
+time = "0.3.34"
+account-compression = { version = "0.3.1", path = "../programs/account-compression", features = ["cpi"] }
+light-hash-set = { version = "0.1.0", path = "../merkle-tree/hash-set", features = ["solana"] }
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.36.0", features = ["rt", "macros", "rt-multi-thread"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"]  }
+futures = "0.3.30"
+
+[dev-dependencies]
+function_name = "0.3.0"
+serial_test = "2.0.0"
+rstest = "0.18.2"

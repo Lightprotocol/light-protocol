@@ -30,6 +30,20 @@ pub struct StateMerkleTreeAccount {
 }
 
 impl StateMerkleTreeAccount {
+
+    pub fn copy_merkle_tree_boxed(&self) -> Result<Box<ConcurrentMerkleTree26<Poseidon>>> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::copy_from_bytes(
+                &self.state_merkle_tree_struct,
+                &self.state_merkle_tree_filled_subtrees,
+                &self.state_merkle_tree_changelog,
+                &self.state_merkle_tree_roots,
+            )
+                .map_err(ProgramError::from)?
+        };
+        Ok(Box::new(tree))
+    }
+
     pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
         let tree = unsafe {
             ConcurrentMerkleTree26::copy_from_bytes(
