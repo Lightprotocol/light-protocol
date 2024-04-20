@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-To report security issues please send an e-mail to [security@lightprlotocol.com](mailto:security@lightprotocol.com).
+To report security issues please send an e-mail to [security@lightprotocol.com](mailto:security@lightprotocol.com).
 
 For sensitive information or critical issues, please contact the above e-mail address with 'CRITICAL' in the subject line and we will respond with a mechanism to securely communicate.
 
