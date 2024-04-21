@@ -1,12 +1,12 @@
 #![cfg(not(target_os = "solana"))]
 
-use account_compression::{Pubkey, NOOP_PROGRAM_ID};
+use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_pda::utils::CompressedProof;
+use light_compressed_pda::CompressedProof;
 use light_compressed_token::{
     transfer_sdk::create_inputs_and_remaining_accounts_checked, TokenTransferOutputData,
 };
-use solana_sdk::instruction::Instruction;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 #[derive(Debug, Clone, Copy)]
 pub struct CreateEscrowInstructionInputs<'a> {

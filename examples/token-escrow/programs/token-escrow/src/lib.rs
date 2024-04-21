@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_pda::utils::CompressedProof;
+use light_compressed_pda::CompressedProof;
 use light_compressed_token::TokenTransferOutputData;
 use light_compressed_token::{CompressedTokenInstructionDataTransfer, InputTokenDataWithContext};
 pub mod sdk;
@@ -202,6 +202,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new(
@@ -249,7 +250,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
 
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = light_compressed_token::cpi::accounts::TransferInstruction {
-        fee_payer: ctx.accounts.cpi_signer.to_account_info(),
+        fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.cpi_signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
@@ -264,6 +265,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new_with_signer(

@@ -13,6 +13,17 @@ pub type StateMerkleTree<'a> = ConcurrentMerkleTree26<'a, Poseidon>;
 pub struct StateMerkleTreeAccount {
     /// Unique index.
     pub index: u64,
+    /// This fee is used for rent for the next account.
+    /// It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over
+    pub rollover_fee: u64,
+    /// The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).
+    pub rollover_threshold: u64,
+    /// Tip for maintaining the account.
+    pub tip: u64,
+    /// The slot when the account was rolled over, a rolled over account should not be written to.
+    pub rolledover_slot: u64,
+    /// If current slot is greater than rolledover_slot + close_threshold and the account is empty it can be closed.
+    pub close_threshold: u64,
     /// Public key of the next Merkle tree.
     pub next_merkle_tree: Pubkey,
     /// Owner of the Merkle tree.
@@ -134,6 +145,11 @@ mod test {
     fn test_load_merkle_tree() {
         let mut account = StateMerkleTreeAccount {
             index: 1,
+            rollover_fee: 0,
+            tip: 0,
+            rollover_threshold: 100,
+            rolledover_slot: 0,
+            close_threshold: 0,
             next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
             owner: Pubkey::new_from_array([2u8; 32]),
             delegate: Pubkey::new_from_array([3u8; 32]),

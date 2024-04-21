@@ -5,7 +5,6 @@ use num_bigint::BigUint;
 
 use crate::{
     address_queue_from_bytes_zero_copy_mut,
-    errors::AccountCompressionErrorCode,
     state::address::{AddressMerkleTreeAccount, AddressQueueAccount},
 };
 
@@ -25,11 +24,9 @@ pub fn process_update_address_merkle_tree<'info>(
     // Index of the Merkle tree changelog.
     changelog_index: u16,
     // Address to dequeue.
-    value: [u8; 32],
+    value_index: u16,
     // Index of the next address.
     next_index: usize,
-    // Value of the next address.
-    next_value: [u8; 32],
     // Low address.
     low_address_index: u64,
     low_address_value: [u8; 32],
@@ -38,9 +35,6 @@ pub fn process_update_address_merkle_tree<'info>(
     low_address_next_value: [u8; 32],
     // Merkle proof for updating the low address.
     low_address_proof: [[u8; 32]; 16],
-    // ZK proof for integrity of provided `address_next_index` and
-    // `address_next_value`.
-    _next_address_proof: [u8; 128],
 ) -> Result<()> {
     let address_queue = ctx.accounts.queue.to_account_info();
     let mut address_queue = address_queue.try_borrow_mut_data()?;
@@ -50,7 +44,11 @@ pub fn process_update_address_merkle_tree<'info>(
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
     let sequence_number = merkle_tree.merkle_tree.sequence_number;
-    let value = BigUint::from_bytes_le(value.as_slice());
+
+    let value = address_queue
+        .by_value_index(value_index as usize, None)
+        .unwrap()
+        .value_biguint();
 
     // Update the address with ranges adjusted to the Merkle tree state.
     let address: IndexedElement<usize> = IndexedElement {
@@ -60,7 +58,6 @@ pub fn process_update_address_merkle_tree<'info>(
     };
 
     // Convert byte inputs to big integers.
-    let next_value = BigUint::from_bytes_be(&next_value);
     let low_address: IndexedElement<usize> = IndexedElement {
         index: low_address_index as usize,
         value: BigUint::from_bytes_be(&low_address_value),
@@ -68,17 +65,24 @@ pub fn process_update_address_merkle_tree<'info>(
     };
     let low_address_next_value = BigUint::from_bytes_be(&low_address_next_value);
 
+    let mut bounded_vec = BoundedVec::with_capacity(26);
+    for element in low_address_proof {
+        bounded_vec.push(element).map_err(ProgramError::from)?;
+    }
     // Update the Merkle tree.
+    // Inputs check:
+    // - changelog index gets values from account
+    // - address is selected by value index from hashset
+    // - low address and low address next value are validated with low address Merkle proof
     merkle_tree
         .update(
             usize::from(changelog_index),
             address,
-            &next_value,
             low_address,
             &low_address_next_value,
-            &mut BoundedVec::from_array(&low_address_proof),
+            &mut bounded_vec,
         )
-        .map_err(|_| AccountCompressionErrorCode::AddressMerkleTreeUpdate)?;
+        .map_err(ProgramError::from)?;
 
     // Mark the address with the current sequence number.
     // TODO: replace with root history sequence number

@@ -12,7 +12,6 @@ pub mod nullify_state;
 pub mod sdk;
 pub mod sol_compression;
 pub mod verify_state;
-pub mod verifying_keys;
 
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 
@@ -40,18 +39,8 @@ pub enum ErrorCode {
     NullifierArrayPubkeysMismatch,
     #[msg("InvalidNoopPubkey")]
     InvalidNoopPubkey,
-    #[msg("InvalidPublicInputsLength")]
-    InvalidPublicInputsLength,
-    #[msg("Decompress G1 Failed")]
-    DecompressG1Failed,
-    #[msg("Decompress G2 Failed")]
-    DecompressG2Failed,
-    #[msg("CreateGroth16VerifierFailed")]
-    CreateGroth16VerifierFailed,
     #[msg("ProofVerificationFailed")]
     ProofVerificationFailed,
-    #[msg("PublicInputsTryIntoFailed")]
-    PublicInputsTryIntoFailed,
     #[msg("CompressedAccountHashError")]
     CompressedAccountHashError,
     #[msg("InvalidAddress")]
@@ -78,6 +67,10 @@ pub enum ErrorCode {
     LengthMismatch,
     #[msg("DelegateUndefined while delegated amount is defined")]
     DelegateUndefined,
+    #[msg("AdditionOverflowForDecompressSol")]
+    AdditionOverflowForDecompressSol,
+    #[msg("InsufficientLamportsForDecompressSol")]
+    InsufficientLamportsForDecompressSol,
 }
 
 // // TODO(vadorovsky): Come up with some less glass chewy way of reusing

@@ -60,9 +60,11 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
     append_leaves_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
+        &ctx.accounts.fee_payer,
         &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
         &ctx.accounts.noop_program,
+        &ctx.accounts.system_program,
         out_merkle_trees_account_infos,
         output_compressed_account_hashes.to_vec(),
     )?;
@@ -76,9 +78,11 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
 pub fn append_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,
+    fee_payer: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     registered_program_pda: &'b AccountInfo<'a>,
     log_wrapper: &'b AccountInfo<'a>,
+    system_program: &'b AccountInfo<'a>,
     out_merkle_trees_account_infos: Vec<AccountInfo<'a>>,
     leaves: Vec<[u8; 32]>,
 ) -> Result<()> {
@@ -87,9 +91,11 @@ pub fn append_leaves_cpi<'a, 'b>(
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
 
     let accounts = account_compression::cpi::accounts::AppendLeaves {
+        fee_payer: fee_payer.to_account_info(),
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
         log_wrapper: log_wrapper.to_account_info(),
+        system_program: system_program.to_account_info(),
     };
 
     let mut cpi_ctx =

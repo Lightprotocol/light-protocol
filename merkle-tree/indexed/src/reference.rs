@@ -5,12 +5,13 @@ use light_concurrent_merkle_tree::light_hasher::{errors::HasherError, Hasher};
 use light_merkle_tree_reference::{MerkleTree, ReferenceMerkleTreeError};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 use thiserror::Error;
 
 use crate::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
+    FIELD_SIZE_SUB_ONE,
 };
 
 #[derive(Debug, Error)]
@@ -56,6 +57,22 @@ where
             merkle_tree,
             _index: PhantomData,
         })
+    }
+
+    pub fn init(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
+        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
+        let nullifier_bundle = indexed_array.append(&init_value)?;
+        let new_low_leaf = nullifier_bundle
+            .new_low_element
+            .hash::<H>(&nullifier_bundle.new_element.value)?;
+
+        self.merkle_tree.update(&new_low_leaf, 0)?;
+        let new_leaf = nullifier_bundle
+            .new_element
+            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        self.merkle_tree.append(&new_leaf)?;
+        Ok(())
     }
 
     pub fn get_proof_of_leaf(

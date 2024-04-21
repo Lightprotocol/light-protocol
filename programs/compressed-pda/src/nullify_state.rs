@@ -1,11 +1,9 @@
-use account_compression::IndexedArrayAccount;
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_macros::heap_neutral;
-
 use crate::{
     append_state::get_seeds,
     instructions::{InstructionDataTransfer, TransferInstruction},
 };
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_macros::heap_neutral;
 
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Inserts nullifiers into the queue.
@@ -24,29 +22,15 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
         indexed_array_account_infos
             .push(ctx.remaining_accounts[account.nullifier_queue_pubkey_index as usize].clone());
-        let unpacked_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(
-            &ctx.remaining_accounts[account.nullifier_queue_pubkey_index as usize],
-        )
-        .unwrap();
-        let array_account = unpacked_queue_account.load()?;
-
-        let account_is_associated_with_state_merkle_tree = state_merkle_tree_account_infos
-            .iter()
-            .any(|x| x.key() == array_account.associated_merkle_tree);
-
-        if !account_is_associated_with_state_merkle_tree {
-            msg!(
-                "Nullifier queue account {:?} is not associated with any state Merkle tree. Provided state Merkle trees {:?}",
-                ctx.remaining_accounts[account.nullifier_queue_pubkey_index as usize].key(), state_merkle_tree_account_infos);
-            return Err(crate::ErrorCode::InvalidNullifierQueue.into());
-        }
     }
 
     insert_nullifiers_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
+        &ctx.accounts.fee_payer.to_account_info(),
         &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
+        &ctx.accounts.system_program.to_account_info(),
         indexed_array_account_infos,
         state_merkle_tree_account_infos,
         nullifiers.to_vec(),
@@ -61,8 +45,10 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
 pub fn insert_nullifiers_cpi<'a, 'b>(
     program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,
+    fee_payer: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     registered_program_pda: &'b AccountInfo<'a>,
+    system_program: &'b AccountInfo<'a>,
     nullifier_queue_account_infos: Vec<AccountInfo<'a>>,
     merkle_tree_account_infos: Vec<AccountInfo<'a>>,
     nullifiers: Vec<[u8; 32]>,
@@ -72,8 +58,10 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
 
     let accounts = account_compression::cpi::accounts::InsertIntoIndexedArrays {
+        fee_payer: fee_payer.to_account_info(),
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
+        system_program: system_program.to_account_info(),
     };
 
     let mut cpi_ctx =

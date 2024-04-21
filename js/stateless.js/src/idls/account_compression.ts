@@ -85,12 +85,17 @@ export type AccountCompression = {
     ];
     instructions: [
         {
-            name: 'initializeAddressQueue';
+            name: 'initializeAddressMerkleTreeAndQueue';
             accounts: [
                 {
                     name: 'authority';
                     isMut: true;
                     isSigner: true;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
                 },
                 {
                     name: 'queue';
@@ -114,75 +119,27 @@ export type AccountCompression = {
                     };
                 },
                 {
-                    name: 'associatedMerkleTree';
+                    name: 'addressMerkleTreeConfig';
                     type: {
-                        option: 'publicKey';
+                        defined: 'AddressMerkleTreeConfig';
                     };
                 },
                 {
-                    name: 'capacityIndices';
-                    type: 'u16';
-                },
-                {
-                    name: 'capacityValues';
-                    type: 'u16';
-                },
-                {
-                    name: 'sequenceThreshold';
-                    type: 'u64';
-                },
-            ];
-        },
-        {
-            name: 'initializeAddressMerkleTree';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'index';
-                    type: 'u64';
-                },
-                {
-                    name: 'owner';
-                    type: 'publicKey';
-                },
-                {
-                    name: 'delegate';
+                    name: 'addressQueueConfig';
                     type: {
-                        option: 'publicKey';
+                        defined: 'AddressQueueConfig';
                     };
-                },
-                {
-                    name: 'height';
-                    type: 'u64';
-                },
-                {
-                    name: 'changelogSize';
-                    type: 'u64';
-                },
-                {
-                    name: 'rootsSize';
-                    type: 'u64';
-                },
-                {
-                    name: 'canopyDepth';
-                    type: 'u64';
                 },
             ];
         },
         {
             name: 'insertAddresses';
             accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
                 {
                     name: 'authority';
                     isMut: false;
@@ -193,6 +150,11 @@ export type AccountCompression = {
                     isMut: false;
                     isSigner: false;
                     isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
                 },
             ];
             args: [
@@ -208,6 +170,7 @@ export type AccountCompression = {
         },
         {
             name: 'updateAddressMerkleTree';
+            docs: ['Updates the address Merkle tree with a new address.'];
             accounts: [
                 {
                     name: 'authority';
@@ -232,19 +195,11 @@ export type AccountCompression = {
                 },
                 {
                     name: 'value';
-                    type: {
-                        array: ['u8', 32];
-                    };
+                    type: 'u16';
                 },
                 {
                     name: 'nextIndex';
                     type: 'u64';
-                },
-                {
-                    name: 'nextValue';
-                    type: {
-                        array: ['u8', 32];
-                    };
                 },
                 {
                     name: 'lowAddressIndex';
@@ -277,18 +232,55 @@ export type AccountCompression = {
                         ];
                     };
                 },
+            ];
+        },
+        {
+            name: 'rolloverAddressMerkleTreeAndQueue';
+            accounts: [
                 {
-                    name: 'nextAddressProof';
-                    type: {
-                        array: ['u8', 128];
-                    };
+                    name: 'feePayer';
+                    isMut: false;
+                    isSigner: true;
+                    docs: ['Signer used to pay rollover and protocol fees.'];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'newAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldAddressMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldQueue';
+                    isMut: true;
+                    isSigner: false;
                 },
             ];
+            args: [];
         },
         {
             name: 'initializeGroupAuthority';
             docs: [
-                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
             ];
             accounts: [
                 {
@@ -373,11 +365,10 @@ export type AccountCompression = {
             ];
         },
         {
-            name: 'initializeStateMerkleTree';
+            name: 'initializeStateMerkleTreeAndNullifierQueue';
             docs: [
                 'Initializes a new Merkle tree from config bytes.',
                 'Index is an optional identifier and not checked by the program.',
-                'TODO: think the index over',
             ];
             accounts: [
                 {
@@ -387,6 +378,11 @@ export type AccountCompression = {
                 },
                 {
                     name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'nullifierQueue';
                     isMut: true;
                     isSigner: false;
                 },
@@ -412,25 +408,15 @@ export type AccountCompression = {
                     };
                 },
                 {
-                    name: 'height';
-                    type: 'u64';
-                },
-                {
-                    name: 'changelogSize';
-                    type: 'u64';
-                },
-                {
-                    name: 'rootsSize';
-                    type: 'u64';
-                },
-                {
-                    name: 'canopyDepth';
-                    type: 'u64';
-                },
-                {
-                    name: 'associatedQueue';
+                    name: 'stateMerkleTreeConfig';
                     type: {
-                        option: 'publicKey';
+                        defined: 'StateMerkleTreeConfig';
+                    };
+                },
+                {
+                    name: 'nullifierQueueConfig';
+                    type: {
+                        defined: 'NullifierQueueConfig';
                     };
                 },
             ];
@@ -438,6 +424,12 @@ export type AccountCompression = {
         {
             name: 'appendLeavesToMerkleTrees';
             accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                    docs: ['Signer used to pay rollover and protocol fees.'];
+                },
                 {
                     name: 'authority';
                     isMut: false;
@@ -451,6 +443,11 @@ export type AccountCompression = {
                 },
                 {
                     name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
                     isMut: false;
                     isSigner: false;
                 },
@@ -528,62 +525,13 @@ export type AccountCompression = {
             ];
         },
         {
-            name: 'initializeIndexedArray';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'indexedArray';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'index';
-                    type: 'u64';
-                },
-                {
-                    name: 'owner';
-                    type: 'publicKey';
-                },
-                {
-                    name: 'delegate';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'associatedMerkleTree';
-                    type: {
-                        option: 'publicKey';
-                    };
-                },
-                {
-                    name: 'capacityIndices';
-                    type: 'u16';
-                },
-                {
-                    name: 'capacityValues';
-                    type: 'u16';
-                },
-                {
-                    name: 'sequenceThreshold';
-                    type: 'u64';
-                },
-            ];
-        },
-        {
             name: 'insertIntoIndexedArrays';
             accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
                 {
                     name: 'authority';
                     isMut: false;
@@ -594,6 +542,11 @@ export type AccountCompression = {
                     isMut: false;
                     isSigner: false;
                     isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
                 },
             ];
             args: [
@@ -606,6 +559,49 @@ export type AccountCompression = {
                     };
                 },
             ];
+        },
+        {
+            name: 'rolloverStateMerkleTreeNullifierQueuePair';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: false;
+                    isSigner: true;
+                    docs: ['Signer used to pay rollover and protocol fees.'];
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'newStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newNullifierQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldStateMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldNullifierQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [];
         },
     ];
     accounts: [
@@ -628,12 +624,40 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'registeredProgram';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'pubkey';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
             name: 'indexedArrayAccount';
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'index';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverFee';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        docs: ['Tip for maintaining the account.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledoverSlot';
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ];
                         type: 'u64';
                     },
                     {
@@ -648,16 +672,8 @@ export type AccountCompression = {
                         name: 'associatedMerkleTree';
                         type: 'publicKey';
                     },
-                ];
-            };
-        },
-        {
-            name: 'registeredProgram';
-            type: {
-                kind: 'struct';
-                fields: [
                     {
-                        name: 'pubkey';
+                        name: 'nextQueue';
                         type: 'publicKey';
                     },
                 ];
@@ -673,6 +689,18 @@ export type AccountCompression = {
                         type: 'u64';
                     },
                     {
+                        name: 'rolloverFee';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledoverSlot';
+                        type: 'u64';
+                    },
+                    {
                         name: 'owner';
                         type: 'publicKey';
                     },
@@ -682,6 +710,10 @@ export type AccountCompression = {
                     },
                     {
                         name: 'associatedMerkleTree';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nextQueue';
                         type: 'publicKey';
                     },
                 ];
@@ -696,6 +728,30 @@ export type AccountCompression = {
                         name: 'index';
                         docs: ['Unique index.'];
                         type: 'u64';
+                    },
+                    {
+                        name: 'rolloverFee';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledoverSlot';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'associatedQueue';
+                        type: 'publicKey';
                     },
                     {
                         name: 'nextMerkleTree';
@@ -761,6 +817,40 @@ export type AccountCompression = {
                         type: 'u64';
                     },
                     {
+                        name: 'rolloverFee';
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        docs: ['Tip for maintaining the account.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledoverSlot';
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'closeThreshold';
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and the account is empty it can be closed.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
                         name: 'nextMerkleTree';
                         docs: ['Public key of the next Merkle tree.'];
                         type: 'publicKey';
@@ -813,6 +903,94 @@ export type AccountCompression = {
                         };
                     },
                 ];
+            };
+        },
+    ];
+    types: [
+        {
+            name: 'StateMerkleTreeConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'changelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootsSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'canopyDepth';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NullifierQueueConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'capacityIndices';
+                        type: 'u16';
+                    },
+                    {
+                        name: 'capacityValues';
+                        type: 'u16';
+                    },
+                    {
+                        name: 'sequenceThreshold';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'AddressMerkleTreeConfig';
+            type: {
+                kind: 'alias';
+                value: {
+                    defined: 'StateMerkleTreeConfig';
+                };
+            };
+        },
+        {
+            name: 'AddressQueueConfig';
+            type: {
+                kind: 'alias';
+                value: {
+                    defined: 'NullifierQueueConfig';
+                };
             };
         },
     ];
@@ -927,6 +1105,31 @@ export type AccountCompression = {
             name: 'LeafNotFound';
             msg: 'Could not find the leaf in the queue';
         },
+        {
+            code: 6022;
+            name: 'RolloverThresholdTooHigh';
+            msg: 'RolloverThresholdTooHigh';
+        },
+        {
+            code: 6023;
+            name: 'MerkleTreeAndQueueNotAssociated';
+            msg: 'MerkleTreeAndQueueNotAssociated';
+        },
+        {
+            code: 6024;
+            name: 'MerkleTreeAlreadyRolledOver';
+            msg: 'MerkleTreeAlreadyRolledOver';
+        },
+        {
+            code: 6025;
+            name: 'NotReadyForRollover';
+            msg: 'NotReadyForRollover';
+        },
+        {
+            code: 6026;
+            name: 'RolloverNotConfigured';
+            msg: 'RolloverNotConfigured';
+        },
     ];
 };
 
@@ -1017,12 +1220,17 @@ export const IDL: AccountCompression = {
     ],
     instructions: [
         {
-            name: 'initializeAddressQueue',
+            name: 'initializeAddressMerkleTreeAndQueue',
             accounts: [
                 {
                     name: 'authority',
                     isMut: true,
                     isSigner: true,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
                 },
                 {
                     name: 'queue',
@@ -1046,75 +1254,27 @@ export const IDL: AccountCompression = {
                     },
                 },
                 {
-                    name: 'associatedMerkleTree',
+                    name: 'addressMerkleTreeConfig',
                     type: {
-                        option: 'publicKey',
+                        defined: 'AddressMerkleTreeConfig',
                     },
                 },
                 {
-                    name: 'capacityIndices',
-                    type: 'u16',
-                },
-                {
-                    name: 'capacityValues',
-                    type: 'u16',
-                },
-                {
-                    name: 'sequenceThreshold',
-                    type: 'u64',
-                },
-            ],
-        },
-        {
-            name: 'initializeAddressMerkleTree',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'index',
-                    type: 'u64',
-                },
-                {
-                    name: 'owner',
-                    type: 'publicKey',
-                },
-                {
-                    name: 'delegate',
+                    name: 'addressQueueConfig',
                     type: {
-                        option: 'publicKey',
+                        defined: 'AddressQueueConfig',
                     },
-                },
-                {
-                    name: 'height',
-                    type: 'u64',
-                },
-                {
-                    name: 'changelogSize',
-                    type: 'u64',
-                },
-                {
-                    name: 'rootsSize',
-                    type: 'u64',
-                },
-                {
-                    name: 'canopyDepth',
-                    type: 'u64',
                 },
             ],
         },
         {
             name: 'insertAddresses',
             accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
                 {
                     name: 'authority',
                     isMut: false,
@@ -1125,6 +1285,11 @@ export const IDL: AccountCompression = {
                     isMut: false,
                     isSigner: false,
                     isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
                 },
             ],
             args: [
@@ -1140,6 +1305,7 @@ export const IDL: AccountCompression = {
         },
         {
             name: 'updateAddressMerkleTree',
+            docs: ['Updates the address Merkle tree with a new address.'],
             accounts: [
                 {
                     name: 'authority',
@@ -1164,19 +1330,11 @@ export const IDL: AccountCompression = {
                 },
                 {
                     name: 'value',
-                    type: {
-                        array: ['u8', 32],
-                    },
+                    type: 'u16',
                 },
                 {
                     name: 'nextIndex',
                     type: 'u64',
-                },
-                {
-                    name: 'nextValue',
-                    type: {
-                        array: ['u8', 32],
-                    },
                 },
                 {
                     name: 'lowAddressIndex',
@@ -1209,18 +1367,55 @@ export const IDL: AccountCompression = {
                         ],
                     },
                 },
+            ],
+        },
+        {
+            name: 'rolloverAddressMerkleTreeAndQueue',
+            accounts: [
                 {
-                    name: 'nextAddressProof',
-                    type: {
-                        array: ['u8', 128],
-                    },
+                    name: 'feePayer',
+                    isMut: false,
+                    isSigner: true,
+                    docs: ['Signer used to pay rollover and protocol fees.'],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'newAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldAddressMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldQueue',
+                    isMut: true,
+                    isSigner: false,
                 },
             ],
+            args: [],
         },
         {
             name: 'initializeGroupAuthority',
             docs: [
-                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
             ],
             accounts: [
                 {
@@ -1305,11 +1500,10 @@ export const IDL: AccountCompression = {
             ],
         },
         {
-            name: 'initializeStateMerkleTree',
+            name: 'initializeStateMerkleTreeAndNullifierQueue',
             docs: [
                 'Initializes a new Merkle tree from config bytes.',
                 'Index is an optional identifier and not checked by the program.',
-                'TODO: think the index over',
             ],
             accounts: [
                 {
@@ -1319,6 +1513,11 @@ export const IDL: AccountCompression = {
                 },
                 {
                     name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'nullifierQueue',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1344,25 +1543,15 @@ export const IDL: AccountCompression = {
                     },
                 },
                 {
-                    name: 'height',
-                    type: 'u64',
-                },
-                {
-                    name: 'changelogSize',
-                    type: 'u64',
-                },
-                {
-                    name: 'rootsSize',
-                    type: 'u64',
-                },
-                {
-                    name: 'canopyDepth',
-                    type: 'u64',
-                },
-                {
-                    name: 'associatedQueue',
+                    name: 'stateMerkleTreeConfig',
                     type: {
-                        option: 'publicKey',
+                        defined: 'StateMerkleTreeConfig',
+                    },
+                },
+                {
+                    name: 'nullifierQueueConfig',
+                    type: {
+                        defined: 'NullifierQueueConfig',
                     },
                 },
             ],
@@ -1370,6 +1559,12 @@ export const IDL: AccountCompression = {
         {
             name: 'appendLeavesToMerkleTrees',
             accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                    docs: ['Signer used to pay rollover and protocol fees.'],
+                },
                 {
                     name: 'authority',
                     isMut: false,
@@ -1383,6 +1578,11 @@ export const IDL: AccountCompression = {
                 },
                 {
                     name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
                     isMut: false,
                     isSigner: false,
                 },
@@ -1460,62 +1660,13 @@ export const IDL: AccountCompression = {
             ],
         },
         {
-            name: 'initializeIndexedArray',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'indexedArray',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'index',
-                    type: 'u64',
-                },
-                {
-                    name: 'owner',
-                    type: 'publicKey',
-                },
-                {
-                    name: 'delegate',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'associatedMerkleTree',
-                    type: {
-                        option: 'publicKey',
-                    },
-                },
-                {
-                    name: 'capacityIndices',
-                    type: 'u16',
-                },
-                {
-                    name: 'capacityValues',
-                    type: 'u16',
-                },
-                {
-                    name: 'sequenceThreshold',
-                    type: 'u64',
-                },
-            ],
-        },
-        {
             name: 'insertIntoIndexedArrays',
             accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
                 {
                     name: 'authority',
                     isMut: false,
@@ -1526,6 +1677,11 @@ export const IDL: AccountCompression = {
                     isMut: false,
                     isSigner: false,
                     isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
                 },
             ],
             args: [
@@ -1538,6 +1694,49 @@ export const IDL: AccountCompression = {
                     },
                 },
             ],
+        },
+        {
+            name: 'rolloverStateMerkleTreeNullifierQueuePair',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: false,
+                    isSigner: true,
+                    docs: ['Signer used to pay rollover and protocol fees.'],
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'newStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newNullifierQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldStateMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldNullifierQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [],
         },
     ],
     accounts: [
@@ -1560,12 +1759,40 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'registeredProgram',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'pubkey',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
             name: 'indexedArrayAccount',
             type: {
                 kind: 'struct',
                 fields: [
                     {
                         name: 'index',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverFee',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        docs: ['Tip for maintaining the account.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledoverSlot',
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ],
                         type: 'u64',
                     },
                     {
@@ -1580,16 +1807,8 @@ export const IDL: AccountCompression = {
                         name: 'associatedMerkleTree',
                         type: 'publicKey',
                     },
-                ],
-            },
-        },
-        {
-            name: 'registeredProgram',
-            type: {
-                kind: 'struct',
-                fields: [
                     {
-                        name: 'pubkey',
+                        name: 'nextQueue',
                         type: 'publicKey',
                     },
                 ],
@@ -1605,6 +1824,18 @@ export const IDL: AccountCompression = {
                         type: 'u64',
                     },
                     {
+                        name: 'rolloverFee',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledoverSlot',
+                        type: 'u64',
+                    },
+                    {
                         name: 'owner',
                         type: 'publicKey',
                     },
@@ -1614,6 +1845,10 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'associatedMerkleTree',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nextQueue',
                         type: 'publicKey',
                     },
                 ],
@@ -1628,6 +1863,30 @@ export const IDL: AccountCompression = {
                         name: 'index',
                         docs: ['Unique index.'],
                         type: 'u64',
+                    },
+                    {
+                        name: 'rolloverFee',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledoverSlot',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'associatedQueue',
+                        type: 'publicKey',
                     },
                     {
                         name: 'nextMerkleTree',
@@ -1693,6 +1952,40 @@ export const IDL: AccountCompression = {
                         type: 'u64',
                     },
                     {
+                        name: 'rolloverFee',
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        docs: ['Tip for maintaining the account.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledoverSlot',
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'closeThreshold',
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and the account is empty it can be closed.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
                         name: 'nextMerkleTree',
                         docs: ['Public key of the next Merkle tree.'],
                         type: 'publicKey',
@@ -1745,6 +2038,94 @@ export const IDL: AccountCompression = {
                         },
                     },
                 ],
+            },
+        },
+    ],
+    types: [
+        {
+            name: 'StateMerkleTreeConfig',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'changelogSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootsSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'canopyDepth',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NullifierQueueConfig',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'capacityIndices',
+                        type: 'u16',
+                    },
+                    {
+                        name: 'capacityValues',
+                        type: 'u16',
+                    },
+                    {
+                        name: 'sequenceThreshold',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'AddressMerkleTreeConfig',
+            type: {
+                kind: 'alias',
+                value: {
+                    defined: 'StateMerkleTreeConfig',
+                },
+            },
+        },
+        {
+            name: 'AddressQueueConfig',
+            type: {
+                kind: 'alias',
+                value: {
+                    defined: 'NullifierQueueConfig',
+                },
             },
         },
     ],
@@ -1858,6 +2239,31 @@ export const IDL: AccountCompression = {
             code: 6021,
             name: 'LeafNotFound',
             msg: 'Could not find the leaf in the queue',
+        },
+        {
+            code: 6022,
+            name: 'RolloverThresholdTooHigh',
+            msg: 'RolloverThresholdTooHigh',
+        },
+        {
+            code: 6023,
+            name: 'MerkleTreeAndQueueNotAssociated',
+            msg: 'MerkleTreeAndQueueNotAssociated',
+        },
+        {
+            code: 6024,
+            name: 'MerkleTreeAlreadyRolledOver',
+            msg: 'MerkleTreeAlreadyRolledOver',
+        },
+        {
+            code: 6025,
+            name: 'NotReadyForRollover',
+            msg: 'NotReadyForRollover',
+        },
+        {
+            code: 6026,
+            name: 'RolloverNotConfigured',
+            msg: 'RolloverNotConfigured',
         },
     ],
 };

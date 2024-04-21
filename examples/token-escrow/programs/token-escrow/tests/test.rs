@@ -205,3 +205,31 @@ async fn test_escrow() {
     );
     assert_eq!(token_data_escrow_change.owner, cpi_signer);
 }
+
+// TODO: complete once #604 is merged
+// init program owned merkle tree
+// 1. should fail: try to mint to program owned merkle tree
+// - mint to user owned merkle tree
+// 2. should succeed: escrow to program owned merkle tree (change token utxo is now in program owned merkle tree)
+// - Should users be able to spend from program owned merkle tree? (probably not, but we don't want tokens to get stuck)
+// - we should make this configurablelkiuj
+// #[tokio::test]
+// async fn test_program_owned_merkle_tree() {
+//     let env: light_test_utils::test_env::EnvWithAccounts = setup_test_programs_with_accounts(Some(
+//         vec![(String::from("token_escrow"), token_escrow::ID)],
+//     ))
+//     .await;
+//     let mut context = env.context;
+//     let payer = context.payer.insecure_clone();
+
+//     let program_owned_merkle_tree = Keypair::new();
+//     let program_owned_queue = Keypair::new();
+//     create_state_merkle_tree_and_queue_account(
+//         &payer,
+//         &mut context,
+//         &program_owned_merkle_tree,
+//         &program_owned_queue,
+//         Some(token_escrow::ID),
+//     )
+//     .await;
+// }

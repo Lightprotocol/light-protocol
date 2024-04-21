@@ -16,9 +16,9 @@ use light_circuitlib_rs::{
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    utils::CompressedProof,
 };
 use light_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
@@ -61,7 +61,6 @@ impl TestIndexer {
         indexed_array_pubkey: Pubkey,
         payer: Keypair,
     ) -> Self {
-        // TODO: add path to gnark bin as parameter
         // we should have a release and download the binary to target
         spawn_gnark_server(
             // correct path so that the examples can be run
@@ -169,7 +168,6 @@ impl TestIndexer {
         for compressed_account in event.input_compressed_accounts.iter() {
             self.compressed_accounts
                 .retain(|x| x.compressed_account != compressed_account.compressed_account);
-            // TODO: nullify compressed_account in Merkle tree, not implemented yet
             self.nullified_compressed_accounts
                 .push(compressed_account.clone());
             if let Some((index, _)) = self
@@ -234,10 +232,10 @@ impl TestIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let indexed_array = unsafe {
-            get_hash_set::<u16, account_compression::IndexedArrayAccount>(
-                context,
-                self.indexed_array_pubkey,
-            )
+            get_hash_set::<
+                u16,
+                account_compression::processor::initialize_nullifier_queue::IndexedArrayAccount,
+            >(context, self.indexed_array_pubkey)
             .await
         };
         let merkle_tree_account =
@@ -292,10 +290,10 @@ impl TestIndexer {
             .unwrap();
 
             let indexed_array = unsafe {
-                get_hash_set::<u16, account_compression::IndexedArrayAccount>(
-                    context,
-                    self.indexed_array_pubkey,
-                )
+                get_hash_set::<
+                    u16,
+                    account_compression::processor::initialize_nullifier_queue::IndexedArrayAccount,
+                >(context, self.indexed_array_pubkey)
                 .await
             };
             let array_element = indexed_array

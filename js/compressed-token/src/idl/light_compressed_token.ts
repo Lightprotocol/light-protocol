@@ -123,6 +123,11 @@ export type LightCompressedToken = {
                     isMut: true;
                     isSigner: false;
                 },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
             ];
             args: [
                 {
@@ -144,7 +149,7 @@ export type LightCompressedToken = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                 },
                 {
@@ -204,6 +209,11 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
                 },
             ];
             args: [
@@ -376,6 +386,32 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'CompressedProof';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'a';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'b';
+                        type: {
+                            array: ['u8', 64];
+                        };
+                    },
+                    {
+                        name: 'c';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'InstructionDataTransfer';
             type: {
                 kind: 'struct';
@@ -492,32 +528,6 @@ export type LightCompressedToken = {
                     {
                         name: 'addressMerkleTreeRootIndex';
                         type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedProof';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'a';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'b';
-                        type: {
-                            array: ['u8', 64];
-                        };
-                    },
-                    {
-                        name: 'c';
-                        type: {
-                            array: ['u8', 32];
-                        };
                     },
                 ];
             };
@@ -973,6 +983,11 @@ export const IDL: LightCompressedToken = {
                     isMut: true,
                     isSigner: false,
                 },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
             ],
             args: [
                 {
@@ -994,7 +1009,7 @@ export const IDL: LightCompressedToken = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                 },
                 {
@@ -1054,6 +1069,11 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
                 },
             ],
             args: [
@@ -1226,6 +1246,32 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
+            name: 'CompressedProof',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'a',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'b',
+                        type: {
+                            array: ['u8', 64],
+                        },
+                    },
+                    {
+                        name: 'c',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'InstructionDataTransfer',
             type: {
                 kind: 'struct',
@@ -1342,32 +1388,6 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'addressMerkleTreeRootIndex',
                         type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedProof',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'a',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'b',
-                        type: {
-                            array: ['u8', 64],
-                        },
-                    },
-                    {
-                        name: 'c',
-                        type: {
-                            array: ['u8', 32],
-                        },
                     },
                 ],
             },

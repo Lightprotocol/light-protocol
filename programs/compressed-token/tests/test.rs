@@ -1,6 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
+    initialize_nullifier_queue::IndexedArrayAccount,
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     StateMerkleTreeAccount,
 };
@@ -14,10 +15,10 @@ use light_circuitlib_rs::{
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
-    utils::CompressedProof,
 };
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
@@ -928,9 +929,7 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
+            InstructionError::Custom(light_verifier::VerifierError::ProofVerificationFailed.into())
         ))
     );
 
@@ -955,9 +954,7 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
+            InstructionError::Custom(light_verifier::VerifierError::ProofVerificationFailed.into())
         ))
     );
 
@@ -993,9 +990,7 @@ async fn test_invalid_inputs() {
         res.result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
+            InstructionError::Custom(light_verifier::VerifierError::ProofVerificationFailed.into())
         ))
     );
 
@@ -1153,8 +1148,6 @@ async fn assert_mint_to<'a>(
     let merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(context, mock_indexer.merkle_tree_pubkey)
             .await;
-    // let merkle_tree =
-    //     state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
     let merkle_tree = merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -1541,11 +1534,7 @@ impl MockIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let indexed_array = unsafe {
-            get_hash_set::<u16, account_compression::IndexedArrayAccount>(
-                context,
-                self.indexed_array_pubkey,
-            )
-            .await
+            get_hash_set::<u16, IndexedArrayAccount>(context, self.indexed_array_pubkey).await
         };
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
@@ -1595,11 +1584,7 @@ impl MockIndexer {
             .unwrap();
 
             let indexed_array = unsafe {
-                get_hash_set::<u16, account_compression::IndexedArrayAccount>(
-                    context,
-                    self.indexed_array_pubkey,
-                )
-                .await
+                get_hash_set::<u16, IndexedArrayAccount>(context, self.indexed_array_pubkey).await
             };
             let array_element = indexed_array
                 .by_value_index(*index_in_indexed_array, Some(merkle_tree.sequence_number))

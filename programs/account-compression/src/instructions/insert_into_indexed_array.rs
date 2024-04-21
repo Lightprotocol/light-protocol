@@ -92,8 +92,6 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-// TODO: add a function to merkle tree program that creates a new Merkle tree and indexed array account in the same transaction with consistent parameters and add them to the group
-// we can use the same group regulate permissions for the de compression pool program
 pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InitializeIndexedArrays<'info>>,
     index: u64,
@@ -124,8 +122,6 @@ pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
         )
         .unwrap()
     };
-
-    // Explicitly initializing the indexed array is not necessary as default values are all zero.
     Ok(())
 }
 

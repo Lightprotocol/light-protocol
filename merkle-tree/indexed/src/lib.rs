@@ -180,7 +180,6 @@ where
         &mut self,
         changelog_index: usize,
         new_element: IndexedElement<I>,
-        new_element_next_value: &BigUint,
         low_element: IndexedElement<I>,
         low_element_next_value: &BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
@@ -227,7 +226,7 @@ where
         )?;
 
         // Append new element.
-        let new_leaf = new_element.hash::<H>(new_element_next_value)?;
+        let new_leaf = new_element.hash::<H>(low_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
         Ok(())

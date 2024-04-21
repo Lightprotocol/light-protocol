@@ -1,4 +1,4 @@
-export type LightSystem = {
+export type LightRegistry = {
     version: '0.3.0';
     name: 'light_system';
     constants: [
@@ -190,7 +190,7 @@ export type LightSystem = {
     ];
 };
 
-export const IDL: LightSystem = {
+export const IDL: LightRegistry = {
     version: '0.3.0',
     name: 'light_system',
     constants: [

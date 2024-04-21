@@ -1,4 +1,3 @@
-use account_compression::AddressQueueAccount;
 use anchor_lang::prelude::*;
 
 use crate::{
@@ -10,69 +9,52 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     addresses: &'a [[u8; 32]],
-) -> Result<()> {
-    let address_merkle_tree_account_infos = inputs
-        .new_address_params
-        .iter()
-        .map(|params| {
-            ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone()
-        })
-        .collect::<Vec<AccountInfo>>();
-    let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
-    for params in inputs.new_address_params.iter() {
-        indexed_array_account_infos
+) -> anchor_lang::Result<()> {
+    let mut remaining_accounts =
+        Vec::<AccountInfo>::with_capacity(inputs.new_address_params.len() * 2);
+    inputs.new_address_params.iter().for_each(|params| {
+        remaining_accounts
             .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
-        let unpacked_queue_account = AccountLoader::<AddressQueueAccount>::try_from(
-            &ctx.remaining_accounts[params.address_queue_account_index as usize],
-        )
-        .unwrap();
-        let array_account = unpacked_queue_account.load()?;
-        let account_is_associated_with_address_merkle_tree = address_merkle_tree_account_infos
-            .iter()
-            .any(|x| x.key() == array_account.associated_merkle_tree.key());
-        if !account_is_associated_with_address_merkle_tree {
-            msg!(
-                "Address queue account {:?} is not associated with any address Merkle tree. Provided address Merkle trees {:?}",
-                ctx.remaining_accounts[params.address_queue_account_index as usize].key(), address_merkle_tree_account_infos[params.address_queue_account_index as usize].key());
-            return Err(crate::ErrorCode::InvalidAddressQueue.into());
-        }
-    }
+        remaining_accounts
+            .push(ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone())
+    });
+
     insert_addresses_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
+        &ctx.accounts.fee_payer.to_account_info(),
         &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
-        indexed_array_account_infos,
-        address_merkle_tree_account_infos,
+        &ctx.accounts.system_program.to_account_info(),
+        remaining_accounts,
         addresses.to_vec(),
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn insert_addresses_cpi<'a, 'b>(
     program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,
+    fee_payer: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     registered_program_pda: &'b AccountInfo<'a>,
-    adddress_queue_account_infos: Vec<AccountInfo<'a>>,
-    address_merkle_tree_account_infos: Vec<AccountInfo<'a>>,
+    system_program: &'b AccountInfo<'a>,
+    remaining_accounts: Vec<AccountInfo<'a>>,
     addresses: Vec<[u8; 32]>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, &authority.key())?;
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
     let accounts = account_compression::cpi::accounts::InsertAddresses {
+        fee_payer: fee_payer.to_account_info(),
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
+        system_program: system_program.to_account_info(),
     };
 
     let mut cpi_ctx =
         CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
-    cpi_ctx
-        .remaining_accounts
-        .extend(adddress_queue_account_infos);
-    cpi_ctx
-        .remaining_accounts
-        .extend(address_merkle_tree_account_infos);
+    cpi_ctx.remaining_accounts.extend(remaining_accounts);
 
     account_compression::cpi::insert_addresses(cpi_ctx, addresses)
 }

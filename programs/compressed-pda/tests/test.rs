@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::{
+    initialize_nullifier_queue::IndexedArrayAccount,
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
     },
@@ -21,11 +22,11 @@ use light_circuitlib_rs::{
     gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
     sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    utils::CompressedProof,
     CompressedSolPda, ErrorCode, NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
@@ -46,7 +47,7 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
-use std::{assert_eq, ops::Sub, println, vec::Vec};
+use std::ops::Sub;
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
@@ -100,6 +101,7 @@ async fn test_execute_compressed_transaction() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -147,6 +149,7 @@ async fn test_execute_compressed_transaction() {
     // check invalid proof
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -174,6 +177,7 @@ async fn test_execute_compressed_transaction() {
     }];
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
         &output_compressed_accounts,
@@ -212,6 +216,7 @@ async fn test_execute_compressed_transaction() {
         .await;
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -259,6 +264,7 @@ async fn test_execute_compressed_transaction() {
     // double spend
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -283,6 +289,7 @@ async fn test_execute_compressed_transaction() {
     }];
     // invalid compressed_account
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -334,6 +341,7 @@ async fn test_with_address() {
         .await;
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -414,6 +422,7 @@ async fn test_with_address() {
         address: Some(derived_address),
     }];
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -519,11 +528,6 @@ async fn test_with_address() {
     for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
         let compressed_input_accounts =
             mock_indexer.compressed_accounts[1..n_input_compressed_accounts].to_vec();
-        println!(
-            "\nn_input_compressed_accounts {:?}",
-            n_input_compressed_accounts
-        );
-        println!("n_new_addresses {:?}\n", n_new_addresses);
         let mut address_vec = Vec::new();
         // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
         for j in 0..n_new_addresses {
@@ -600,10 +604,6 @@ pub async fn create_addresses(
         }
         Some(compressed_account_hashes.as_slice())
     };
-    println!(
-        "compressed_account_input_hashes {:?}",
-        compressed_account_hashes
-    );
     let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
             compressed_account_input_hashes,
@@ -646,6 +646,7 @@ pub async fn create_addresses(
 
     // create two new addresses with the same see should fail
     let instruction = create_execute_compressed_instruction(
+        &context.payer.pubkey(),
         &context.payer.pubkey().clone(),
         input_compressed_accounts
             .iter()
@@ -733,6 +734,7 @@ async fn test_with_compression() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -768,6 +770,7 @@ async fn test_with_compression() {
         ))
     );
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -805,6 +808,7 @@ async fn test_with_compression() {
     );
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -884,6 +888,7 @@ async fn test_with_compression() {
     let recipient = Pubkey::new_unique();
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -922,6 +927,7 @@ async fn test_with_compression() {
     );
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -1081,7 +1087,7 @@ impl MockIndexer {
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
-            vec_proof_types.as_slice(),
+            &vec_proof_types,
         )
         .await;
 
@@ -1126,8 +1132,6 @@ impl MockIndexer {
         new_addresses: Option<&[[u8; 32]]>,
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
-        println!("compressed_accounts {:?}", compressed_accounts);
-        println!("new_addresses {:?}", new_addresses);
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload, path) =
             match (compressed_accounts, new_addresses) {
@@ -1353,11 +1357,7 @@ impl MockIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let indexed_array = unsafe {
-            get_hash_set::<u16, account_compression::IndexedArrayAccount>(
-                context,
-                self.indexed_array_pubkey,
-            )
-            .await
+            get_hash_set::<u16, IndexedArrayAccount>(context, self.indexed_array_pubkey).await
         };
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
@@ -1406,11 +1406,7 @@ impl MockIndexer {
             .await
             .unwrap();
             let indexed_array = unsafe {
-                get_hash_set::<u16, account_compression::IndexedArrayAccount>(
-                    context,
-                    self.indexed_array_pubkey,
-                )
-                .await
+                get_hash_set::<u16, IndexedArrayAccount>(context, self.indexed_array_pubkey).await
             };
             let array_element = indexed_array
                 .by_value_index(*index_in_indexed_array, Some(merkle_tree.sequence_number))

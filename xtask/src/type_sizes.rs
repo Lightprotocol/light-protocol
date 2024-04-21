@@ -1,6 +1,7 @@
 use std::mem;
 
 use account_compression::{
+    initialize_nullifier_queue::IndexedArrayAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES,
@@ -8,7 +9,7 @@ use account_compression::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
         STATE_MERKLE_TREE_ROOTS,
     },
-    AddressMerkleTreeAccount, AddressQueueAccount, IndexedArrayAccount, StateMerkleTreeAccount,
+    AddressMerkleTreeAccount, AddressQueueAccount, StateMerkleTreeAccount,
 };
 use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
