@@ -206,6 +206,7 @@ pub fn sum_check(
 
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
+    #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     // This is the cpi signer

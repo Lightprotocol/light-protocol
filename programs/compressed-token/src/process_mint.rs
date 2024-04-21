@@ -15,7 +15,6 @@ pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority_pda";
 pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(mut)]
     pub authority: Signer<'info>,
     #[account(init,
               seeds = [
@@ -209,7 +208,6 @@ pub fn mint_spl_to_pool_pda<'info>(
 pub struct MintToInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(mut)]
     pub authority: Signer<'info>,
     // This is the cpi signer
     /// CHECK: that mint authority is derived from signer

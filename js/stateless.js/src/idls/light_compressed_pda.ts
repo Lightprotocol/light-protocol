@@ -44,7 +44,7 @@ export type LightCompressedPda = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                 },
                 {
@@ -665,7 +665,7 @@ export const IDL: LightCompressedPda = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                 },
                 {

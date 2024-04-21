@@ -4,10 +4,11 @@ import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
 import { Keypair, Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import {
+    getTestRpc,
     newAccountWithLamports,
     placeholderValidityProof,
 } from '../../src/test-utils';
-import { LightSystemProgram, Rpc, createRpc } from '../../src';
+import { LightSystemProgram, Rpc } from '../../src';
 
 describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
@@ -16,7 +17,7 @@ describe('transfer', () => {
     let bob: Signer;
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate();
     });
@@ -37,8 +38,8 @@ describe('transfer', () => {
         /// Send
         const { blockhash } = await rpc.getLatestBlockhash();
         const signedTx = buildAndSignTx(ixs, payer, blockhash);
-        await sendAndConfirmTx(rpc, signedTx);
-
+        let res = await sendAndConfirmTx(rpc, signedTx);
+        console.log('res', res);
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             bob.publicKey,
         );

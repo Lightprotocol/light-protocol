@@ -313,11 +313,12 @@ export class LightSystemProgram {
             .executeCompressedTransaction(data)
             .accounts({
                 ...defaultStaticAccountsStruct(),
-                signer: payer,
+                feePayer: payer,
+                authority: payer,
                 invokingProgram: this.programId,
                 compressedSolPda: null,
                 compressionRecipient: null,
-                systemProgram: null,
+                systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -398,7 +399,8 @@ export class LightSystemProgram {
             .executeCompressedTransaction(data)
             .accounts({
                 ...defaultStaticAccountsStruct(),
-                signer: payer,
+                feePayer: payer,
+                authority: payer,
                 invokingProgram: this.programId,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: null,
@@ -468,7 +470,8 @@ export class LightSystemProgram {
             .executeCompressedTransaction(data)
             .accounts({
                 ...defaultStaticAccountsStruct(),
-                signer: payer,
+                feePayer: payer,
+                authority: payer,
                 invokingProgram: this.programId,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: toAddress,

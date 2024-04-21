@@ -24,7 +24,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -70,7 +70,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -149,7 +149,7 @@ export type LightCompressedToken = {
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: false;
+                    isMut: true;
                     isSigner: true;
                 },
                 {
@@ -884,7 +884,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -930,7 +930,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -1009,7 +1009,7 @@ export const IDL: LightCompressedToken = {
             accounts: [
                 {
                     name: 'feePayer',
-                    isMut: false,
+                    isMut: true,
                     isSigner: true,
                 },
                 {

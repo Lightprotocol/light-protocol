@@ -414,37 +414,37 @@ mod test {
             1
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
                     .merkle_tree_pubkey_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
                     .merkle_tree_pubkey_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
                     .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
                     .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.output_state_merkle_tree_account_indices[0]
                     as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.output_state_merkle_tree_account_indices[1]
                     as usize],
             AccountMeta::new(merkle_tree_pubkey, false)

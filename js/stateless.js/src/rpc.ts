@@ -315,6 +315,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         if (res.result.value === null) {
             return [];
         }
+        console.log('res.result.value', res.result.value);
         const accounts: CompressedAccountWithMerkleContext[] = [];
         /// TODO: clean up. Make typesafe
         res.result.value.items.map((item: any) => {

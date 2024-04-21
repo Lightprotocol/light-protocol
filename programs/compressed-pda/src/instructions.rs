@@ -157,6 +157,7 @@ pub fn derive_new_addresses(
 /// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
+    #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     /// CHECK: this account
