@@ -8,9 +8,8 @@ import {
 } from "../psp-utils";
 import path from "path";
 import fs from "fs";
-
+import which from "which";
 import { spawn } from "child_process";
-
 const find = require("find-process");
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
@@ -47,8 +46,16 @@ export async function initTestEnv({
   await initAccounts();
   if (indexer) {
     await killIndexer();
-    spawnBinary("photon");
-    await sleep(5000);
+    const resolvedOrNull = which.sync("photon", { nothrow: true });
+    if (resolvedOrNull === null) {
+      const message =
+        "Photon indexer not found. Please install it by running `cargo install photon-indexer --version 0.11.0`";
+      console.log(message);
+      throw new Error(message);
+    } else {
+      spawnBinary("photon", false);
+      await sleep(5000);
+    }
   }
 
   if (prover) {
@@ -58,14 +65,21 @@ export async function initTestEnv({
     args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
     args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
     args.push("--circuit-dir", circuitDir);
-    spawnBinary("light-prover", args);
+    spawnBinary(getProverNameByArch(), true, args);
     await sleep(10000);
   }
 }
 
-function spawnBinary(binaryName: string, args: string[] = []) {
-  const binDir = path.join(__dirname, "../..", "bin");
-  const command = path.join(binDir, binaryName);
+function spawnBinary(
+  binaryName: string,
+  cli_bin: boolean,
+  args: string[] = [],
+) {
+  let command = binaryName;
+  if (cli_bin) {
+    const binDir = path.join(__dirname, "../..", "bin");
+    command = path.join(binDir, binaryName);
+  }
   const out = fs.openSync(`test-ledger/${binaryName}.log`, "a");
   const err = fs.openSync(`test-ledger/${binaryName}.log`, "a");
 
@@ -251,6 +265,8 @@ export async function killTestValidator() {
 }
 
 export async function killProver() {
+  await killProcess(getProverNameByArch());
+  // Temporary fix for the case when prover is instantiated via prover.sh:
   await killProcess("light-prover");
 }
 
@@ -263,4 +279,21 @@ export async function killProcess(processName: string) {
   for (const proc of processList) {
     process.kill(proc.pid);
   }
+}
+
+export function getProverNameByArch(): string {
+  const platform = process.platform;
+  const arch = process.arch;
+
+  if (!platform || !arch) {
+    throw new Error("Unsupported platform or architecture");
+  }
+
+  let binaryName = `prover-${platform}-${arch}`;
+
+  if (platform.toString() === "windows") {
+    binaryName += ".exe";
+  }
+
+  return binaryName;
 }
