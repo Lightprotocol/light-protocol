@@ -120,7 +120,7 @@ pub fn is_prime(n: f64) -> bool {
     true
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub struct HashSetCell {
     value: [u8; 32],
     sequence_number: Option<usize>,
@@ -161,16 +161,16 @@ where
 {
     /// Capacity of `indices`, which is a prime number larger than the expected
     /// number of elements and an included load factor.
-    capacity_indices: usize,
+    pub capacity_indices: usize,
     /// Capacity of `values`, which is equal to the expected number of elements.
-    capacity_values: usize,
+    pub capacity_values: usize,
     /// Difference of sequence numbers, after which the given element can be
     /// replaced by an another one (with a sequence number higher than the
     /// threshold).
-    sequence_threshold: usize,
+    pub sequence_threshold: usize,
 
     /// Index of the next vacant cell in the value array.
-    next_value_index: *mut usize,
+    pub next_value_index: *mut usize,
 
     /// An array of indices which maps a hash set key to the index of its
     /// value which is stored in the `values` array. It has a size greater
@@ -486,7 +486,7 @@ where
         &self,
         value: &BigUint,
         current_sequence_number: Option<usize>,
-    ) -> Result<Option<&mut HashSetCell>, HashSetError> {
+    ) -> Result<Option<(&mut HashSetCell, I)>, HashSetError> {
         for i in 0..self.capacity_values {
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
@@ -501,7 +501,7 @@ where
                     );
                     if let Some(value_bucket) = value_bucket {
                         if &value_bucket.value_biguint() == value {
-                            return Ok(Some(value_bucket));
+                            return Ok(Some((value_bucket, *value_index)));
                         }
                     }
                 }
@@ -529,6 +529,21 @@ where
                     }
                 } else {
                     return Ok(Some(value_bucket));
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Returns a first available element that does not have a sequence number.
+    pub fn first_no_seq(&self) -> Result<Option<(HashSetCell, u16)>, HashSetError> {
+        for i in 0..self.capacity_values {
+            let value_bucket = unsafe { &mut *self.values.as_ptr().add(i) };
+
+            if let Some(value_bucket) = value_bucket {
+                if value_bucket.sequence_number.is_none() {
+                    return Ok(Some((*value_bucket, i as u16)));
                 }
             }
         }
@@ -591,7 +606,7 @@ where
         let element = self.find_element(value, None)?;
 
         match element {
-            Some(element) => {
+            Some((element, _)) => {
                 element.sequence_number = Some(sequence_number + self.sequence_threshold);
                 Ok(())
             }
@@ -888,20 +903,28 @@ mod test {
             hs.insert(&nullifier, seq as usize).unwrap();
             assert_eq!(hs.contains(&nullifier, seq).unwrap(), true);
             assert_eq!(
-                hs.find_element(&nullifier, Some(seq)).unwrap().cloned(),
-                Some(HashSetCell {
+                hs.find_element(&nullifier, Some(seq))
+                    .unwrap()
+                    .unwrap()
+                    .0
+                    .clone(),
+                HashSetCell {
                     value: bigint_to_be_bytes_array(&nullifier).unwrap(),
                     sequence_number: None,
-                })
+                }
             );
 
             hs.mark_with_sequence_number(&nullifier, seq).unwrap();
             assert_eq!(
-                hs.find_element(&nullifier, Some(seq)).unwrap().cloned(),
-                Some(HashSetCell {
+                hs.find_element(&nullifier, Some(seq))
+                    .unwrap()
+                    .unwrap()
+                    .0
+                    .clone(),
+                HashSetCell {
                     value: bigint_to_be_bytes_array(&nullifier).unwrap(),
                     sequence_number: Some(2400 + seq)
-                })
+                }
             );
 
             // Trying to insert the same nullifier, before reaching the

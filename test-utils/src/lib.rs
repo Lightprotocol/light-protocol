@@ -21,6 +21,7 @@ pub mod test_env;
 #[cfg(feature = "test_indexer")]
 pub mod test_indexer;
 
+#[derive(Debug, Clone)]
 pub struct AccountZeroCopy<'a, T> {
     pub account: Pin<Box<Account>>,
     deserialized: *const T,

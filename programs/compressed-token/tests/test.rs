@@ -1,6 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
+    initialize_nullifier_queue::IndexedArrayAccount,
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     StateMerkleTreeAccount,
 };
@@ -14,10 +15,10 @@ use light_circuitlib_rs::{
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
-    utils::CompressedProof,
 };
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
@@ -1014,8 +1015,6 @@ async fn assert_mint_to<'a>(
     let merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(context, mock_indexer.merkle_tree_pubkey)
             .await;
-    // let merkle_tree =
-    //     state_merkle_tree_from_bytes(&merkle_tree_account.deserialized.state_merkle_tree);
     let merkle_tree = merkle_tree_account
         .deserialized()
         .copy_merkle_tree()

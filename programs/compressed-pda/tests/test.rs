@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::{
+    initialize_nullifier_queue::IndexedArrayAccount,
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
     },
@@ -21,11 +22,11 @@ use light_circuitlib_rs::{
     gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
     sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    utils::CompressedProof,
     CompressedSolPda, ErrorCode, NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
@@ -47,7 +48,7 @@ use solana_sdk::{
     signer::Signer,
     transaction::{Transaction, TransactionError},
 };
-use std::{assert_eq, ops::Sub, println, vec::Vec};
+use std::ops::Sub;
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
@@ -99,6 +100,7 @@ async fn test_execute_compressed_transaction() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -135,6 +137,7 @@ async fn test_execute_compressed_transaction() {
     // check invalid proof
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -162,6 +165,7 @@ async fn test_execute_compressed_transaction() {
     }];
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
         &output_compressed_accounts,
@@ -201,6 +205,7 @@ async fn test_execute_compressed_transaction() {
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -237,6 +242,7 @@ async fn test_execute_compressed_transaction() {
     // double spend
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -261,6 +267,7 @@ async fn test_execute_compressed_transaction() {
     }];
     // invalid compressed_account
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -310,6 +317,7 @@ async fn test_with_address() {
         .await;
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -386,6 +394,7 @@ async fn test_with_address() {
         address: Some(derived_address),
     }];
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -483,11 +492,6 @@ async fn test_with_address() {
     for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
         let compressed_input_accounts =
             mock_indexer.compressed_accounts[1..n_input_compressed_accounts].to_vec();
-        println!(
-            "\nn_input_compressed_accounts {:?}",
-            n_input_compressed_accounts
-        );
-        println!("n_new_addresses {:?}\n", n_new_addresses);
         let mut address_vec = Vec::new();
         // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
         for j in 0..n_new_addresses {
@@ -564,10 +568,6 @@ pub async fn create_addresses(
         }
         Some(compressed_account_hashes.as_slice())
     };
-    println!(
-        "compressed_account_input_hashes {:?}",
-        compressed_account_hashes
-    );
     let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
             compressed_account_input_hashes,
@@ -610,6 +610,7 @@ pub async fn create_addresses(
 
     // create two new addresses with the same see should fail
     let instruction = create_execute_compressed_instruction(
+        &context.payer.pubkey(),
         &context.payer.pubkey().clone(),
         input_compressed_accounts
             .iter()
@@ -692,6 +693,7 @@ async fn test_with_compression() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -721,6 +723,7 @@ async fn test_with_compression() {
     // should fail because of insufficient input funds
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -752,6 +755,7 @@ async fn test_with_compression() {
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -827,6 +831,7 @@ async fn test_with_compression() {
     let recipient = Pubkey::new_unique();
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -858,6 +863,7 @@ async fn test_with_compression() {
     assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -1044,8 +1050,6 @@ impl MockIndexer {
         new_addresses: Option<&[[u8; 32]]>,
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
-        println!("compressed_accounts {:?}", compressed_accounts);
-        println!("new_addresses {:?}", new_addresses);
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload, path) =
             match (compressed_accounts, new_addresses) {

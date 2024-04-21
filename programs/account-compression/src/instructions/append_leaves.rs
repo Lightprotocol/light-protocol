@@ -13,12 +13,15 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
+    #[account(mut)]
+    /// Signer used to pay rollover and protocol fees.
+    pub fee_payer: Signer<'info>,
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     pub authority: Signer<'info>,
-    // TODO: Add fee payer.
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting
     pub log_wrapper: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 impl GroupAccess for StateMerkleTreeAccount {
@@ -71,24 +74,34 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     for (mt, leaves) in merkle_tree_map.values() {
         let merkle_tree_account = AccountLoader::<StateMerkleTreeAccount>::try_from(mt).unwrap();
         let merkle_tree_pubkey = merkle_tree_account.key();
-        let mut merkle_tree = merkle_tree_account.load_mut()?;
+        let lamports: u64;
+        {
+            let mut merkle_tree = merkle_tree_account.load_mut()?;
+            lamports = merkle_tree.tip + merkle_tree.rollover_fee;
+            check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(&ctx, &merkle_tree)?;
 
-        check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(&ctx, &merkle_tree)?;
-
-        msg!("inserting leaves: {:?}", leaves);
-        let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
-        let (first_changelog_index, first_sequence_number) = merkle_tree
-            .append_batch(&leaves[..])
-            .map_err(ProgramError::from)?;
-        let changelog_event = merkle_tree
-            .get_changelog_event(
-                merkle_tree_pubkey.to_bytes(),
-                first_changelog_index,
-                first_sequence_number,
-                leaves.len(),
-            )
-            .map_err(ProgramError::from)?;
-        changelog_events.push(changelog_event);
+            msg!("inserting leaves: {:?}", leaves);
+            let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
+            let (first_changelog_index, first_sequence_number) = merkle_tree
+                .append_batch(&leaves[..])
+                .map_err(ProgramError::from)?;
+            let changelog_event = merkle_tree
+                .get_changelog_event(
+                    merkle_tree_pubkey.to_bytes(),
+                    first_changelog_index,
+                    first_sequence_number,
+                    leaves.len(),
+                )
+                .map_err(ProgramError::from)?;
+            changelog_events.push(changelog_event);
+        }
+        if lamports > 0 {
+            transfer_lamports_cpi(
+                &ctx.accounts.fee_payer,
+                &merkle_tree_account.to_account_info(),
+                lamports,
+            )?;
+        }
     }
     let changelog_event = Changelogs {
         changelogs: changelog_events,
@@ -102,71 +115,27 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-#[cfg(not(target_os = "solana"))]
-pub mod sdk {
-    use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-    use solana_sdk::{
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-    };
+pub fn transfer_lamports<'info>(
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
+    lamports: u64,
+) -> Result<()> {
+    let compressed_sol_pda_lamports = from.as_ref().lamports();
 
-    use crate::utils::constants::{
-        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS,
-    };
+    **from.as_ref().try_borrow_mut_lamports()? =
+        compressed_sol_pda_lamports.checked_sub(lamports).unwrap();
+    let recipient_lamports = to.as_ref().lamports();
+    **to.as_ref().try_borrow_mut_lamports()? = recipient_lamports.checked_add(lamports).unwrap();
+    Ok(())
+}
 
-    pub fn create_initialize_merkle_tree_instruction(
-        payer: Pubkey,
-        merkle_tree_pubkey: Pubkey,
-        associated_queue: Option<Pubkey>,
-    ) -> Instruction {
-        let instruction_data: crate::instruction::InitializeStateMerkleTree =
-            crate::instruction::InitializeStateMerkleTree {
-                index: 1u64,
-                owner: payer,
-                delegate: None,
-                height: STATE_MERKLE_TREE_HEIGHT,
-                changelog_size: STATE_MERKLE_TREE_CHANGELOG,
-                roots_size: STATE_MERKLE_TREE_ROOTS,
-                canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-                associated_queue,
-            };
-        Instruction {
-            program_id: crate::ID,
-            accounts: vec![
-                AccountMeta::new(payer, true),
-                AccountMeta::new(merkle_tree_pubkey, false),
-                AccountMeta::new_readonly(system_program::ID, false),
-            ],
-            data: instruction_data.data(),
-        }
-    }
-
-    pub fn create_insert_leaves_instruction(
-        leaves: Vec<[u8; 32]>,
-        payer: Pubkey,
-        merkle_tree_pubkeys: Vec<Pubkey>,
-    ) -> Instruction {
-        let instruction_data = crate::instruction::AppendLeavesToMerkleTrees { leaves };
-
-        let accounts = crate::accounts::AppendLeaves {
-            authority: payer,
-            registered_program_pda: None,
-            log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,
-        };
-        let merkle_tree_account_metas = merkle_tree_pubkeys
-            .iter()
-            .map(|pubkey| AccountMeta::new(*pubkey, false))
-            .collect::<Vec<AccountMeta>>();
-
-        Instruction {
-            program_id: crate::ID,
-            accounts: [
-                accounts.to_account_metas(Some(true)),
-                merkle_tree_account_metas,
-            ]
-            .concat(),
-            data: instruction_data.data(),
-        }
-    }
+pub fn transfer_lamports_cpi<'info>(
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
+    lamports: u64,
+) -> Result<()> {
+    let instruction =
+        anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
+    anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;
+    Ok(())
 }

@@ -1,6 +1,7 @@
 use std::mem;
 
 use account_compression::{
+    initialize_nullifier_queue::IndexedArrayAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES,
