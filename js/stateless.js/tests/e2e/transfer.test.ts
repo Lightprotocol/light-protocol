@@ -1,13 +1,14 @@
 import { describe, it, assert, beforeAll } from 'vitest';
-import { sendAndConfirmTx, buildAndSignTx } from '../../src/utils';
-
+import {
+    sendAndConfirmTx,
+    buildAndSignTx,
+} from '../../src/utils/send-and-confirm';
 import { Keypair, Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import {
-    newAccountWithLamports,
-    placeholderValidityProof,
-} from '../../src/test-utils';
-import { LightSystemProgram, Rpc, createRpc } from '../../src';
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
+import { LightSystemProgram } from '../../src/programs';
+import { placeholderValidityProof } from '../../src/utils/parse-validity-proof';
 
 describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();

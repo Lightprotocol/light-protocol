@@ -36,6 +36,8 @@ export type MerkleContextWithMerkleProof = MerkleContext & {
     merkleProof: BN254[];
     /** Index of state root the merkleproof is valid for, expires after n slots */
     rootIndex: number;
+    /** Current root */
+    root: BN254;
 };
 
 export const createCompressedAccount = (

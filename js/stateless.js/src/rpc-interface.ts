@@ -28,16 +28,17 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+// TODO: Rename Compressed -> ValidityProof
 // TODO: consistent types
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
-    roots: string[];
+    roots: BN[];
     // for now we assume latest root = allLeaves.length
     rootIndices: number[];
     leafIndices: number[];
     leaves: BN[];
-    merkleTree: PublicKey;
-    nullifierQueue: PublicKey;
+    merkleTrees: PublicKey[];
+    nullifierQueues: PublicKey[];
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
@@ -184,17 +185,18 @@ export const CompressedAccountResult = pick({
 /**
  * @internal
  */
-/// TODO: update: delegatedAmount, state, programOwner/tokenOwner, data includes the values?, no closeAuth!
+/// TODO: update: delegatedAmount, state, programOwner/tokenOwner, data includes
+/// the values?, no closeAuth!
 export const CompressedTokenAccountResult = pick({
-    address: nullable(PublicKeyFromString), // TODO: why is this here
-    amount: BNFromBase10String, // why string
+    address: nullable(PublicKeyFromString),
+    amount: BNFromBase10String,
     delegate: nullable(PublicKeyFromString),
-    closeAuthority: nullable(PublicKeyFromString), // TODO: remove
+    closeAuthority: nullable(PublicKeyFromString),
     isNative: boolean(),
     frozen: boolean(),
     mint: PublicKeyFromString,
-    owner: PublicKeyFromString, // owner or user?
-    //
+    owner: PublicKeyFromString,
+
     hash: BN254FromString,
     data: Base64EncodedCompressedAccountDataResult,
     dataHash: nullable(BN254FromString),
@@ -202,8 +204,7 @@ export const CompressedTokenAccountResult = pick({
     lamports: BNFromInt,
     tree: PublicKeyFromString,
     seq: BNFromInt,
-    // slotUpdated: BNFromInt, TODO: add owner (?): TODO: check whether this
-    // implicitly assumes tokenprogram as account owner
+    // slotUpdated: BNFromInt, TODO: add owner (?)
     leafIndex: number(),
 });
 

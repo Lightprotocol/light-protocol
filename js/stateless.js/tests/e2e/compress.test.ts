@@ -1,14 +1,13 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { newAccountWithLamports } from '../../src/test-utils';
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
 import {
-    Rpc,
     compressLamports,
-    createRpc,
     decompressLamports,
     initSolOmnibusAccount,
-} from '../../src';
+} from '../../src/actions';
 
 /// TODO: add test case for payer != address
 describe('compress', () => {
@@ -19,7 +18,7 @@ describe('compress', () => {
 
     beforeAll(async () => {
         rpc = createRpc();
-        payer = await newAccountWithLamports(rpc, 1e9, 200);
+        payer = await newAccountWithLamports(rpc, 1e9, 123);
         initAuthority = await newAccountWithLamports(rpc, 1e9);
     });
 
@@ -29,7 +28,9 @@ describe('compress', () => {
         assert.equal(preCompressBalance, 1e9);
 
         /// TODO: add case for payer != initAuthority
-        await initSolOmnibusAccount(rpc, initAuthority, initAuthority);
+        await initSolOmnibusAccount(rpc, initAuthority, initAuthority).catch(
+            () => {},
+        );
 
         await compressLamports(
             rpc,

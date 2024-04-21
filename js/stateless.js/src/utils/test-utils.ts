@@ -1,5 +1,5 @@
 import { Connection, Keypair, Signer } from '@solana/web3.js';
-import { confirmTx } from '../utils';
+import { confirmTx } from '../utils/send-and-confirm';
 import { Rpc } from '../rpc';
 
 let c = 1;

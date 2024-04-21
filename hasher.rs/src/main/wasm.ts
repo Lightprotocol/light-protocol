@@ -6,12 +6,12 @@ import type {
   HasherLoadOptions,
 } from "./model.js";
 
-import {
+import init, {
   blake2 as blake2Wasm,
   blake2str as blake2strWasm,
   poseidon as poseidonWasm,
 } from "./wasm/light_wasm_hasher";
-import {
+import simdInit, {
   blake2 as blake2Simd,
   blake2str as blake2strSimd,
   poseidon as poseidonSimd,
@@ -116,7 +116,6 @@ let sisdMemory: Promise<LightWasmCreator> | undefined;
 let simdMemory: Promise<LightWasmCreator> | undefined;
 const loadWasmSimd = async (module?: InitInput) => {
   if (simdMemory === undefined) {
-    //@ts-ignore
     simdMemory = simdInit(module ?? wasmSimdInit?.()).then((x) => {
       return wasmHasher({
         blake2str: blake2strSimd,
@@ -133,7 +132,6 @@ const loadWasmSimd = async (module?: InitInput) => {
 
 const loadWasm = async (module?: InitInput) => {
   if (sisdMemory === undefined) {
-    //@ts-ignore
     sisdMemory = init(module ?? wasmInit?.()).then((x) => {
       return wasmHasher({
         blake2str: blake2strWasm,

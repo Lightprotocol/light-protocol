@@ -1,24 +1,23 @@
-# TS client for ZK Compression
+# Test helpers for ZK Compression and Light Protocol
 
-Use this to interact with programs using ZK Compression on Solana via the
-Compression RPC API.
+Provides utilities including a Poseidon MerkleTree implementation and a TestRPC for locally testing the ZK Compression JSON API.
 
 ### Installation
 
 **For use in Node.js or a web application**
 
 ```bash
-npm install --save @lightprotocol/stateless.js
+npm install --save @lightprotocol/test-helpers
 ```
 
 ```bash
-# Install peer dependencies
-npm install --save @solana/web3.js @coral-xyz/anchor
+# Install peer dependencies if they are not already installed
+npm install --save @lightprotocol/stateless.js @lightprotocol/hasher.rs
 ```
 
 ### Documentation and examples
 
--   [Latest Source code](https://github.com/lightprotocol/lightprotocol/tree/main/js/stateless.js)
+-   [Latest Source code](https://github.com/lightprotocol/lightprotocol/tree/main/js/test-helpers)
 -   Documentation and examples will be linked here soon!
 
 ### Getting help

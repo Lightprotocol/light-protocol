@@ -5,7 +5,6 @@ import {
     PublicKey,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-
 import {
     BalanceResult,
     CompressedAccountResult,
@@ -27,41 +26,42 @@ import {
     BN254,
     bn,
     CompressedAccountWithMerkleContext,
-    createBN254,
     encodeBN254toBase58,
     createCompressedAccountWithMerkleContext,
     createMerkleContext,
     TokenData,
 } from './state';
 import { array, create, nullable } from 'superstruct';
-import { toCamelCase } from './utils/conversion';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
-/// FIXME: this is a circular dependency:
-/// implement getValidityProof directly in RPC
-import { getTestRpc } from './test-utils/test-rpc';
+
+interface HexInputsForProver {
+    roots: string[];
+    inPathIndices: number[];
+    inPathElements: string[][];
+    leaves: string[];
+}
+import { toCamelCase } from './utils/conversion';
+import { getParsedEvents } from './utils/get-parsed-events';
+import {
+    proofFromJsonStruct,
+    negateAndCompressProof,
+} from './utils/parse-validity-proof';
 
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',
     compressionApiEndpoint: string = 'http://localhost:8784',
+    proverEndpoint: string = 'http://localhost:3001',
     config?: ConnectionConfig,
 ): Rpc {
-    if (typeof endpointOrWeb3JsConnection === 'string') {
-        return new Rpc(
-            endpointOrWeb3JsConnection,
-            compressionApiEndpoint,
-            undefined,
-            config,
-        );
-    }
-    return new Rpc(
-        endpointOrWeb3JsConnection.rpcEndpoint,
-        compressionApiEndpoint,
-        undefined,
-        config,
-    );
+    const endpoint =
+        typeof endpointOrWeb3JsConnection === 'string'
+            ? endpointOrWeb3JsConnection
+            : endpointOrWeb3JsConnection.rpcEndpoint;
+    return new Rpc(endpoint, compressionApiEndpoint, proverEndpoint, config);
 }
 
+/** @internal */
 const rpcRequest = async (
     rpcEndpoint: string,
     method: string,
@@ -92,20 +92,53 @@ const rpcRequest = async (
     return await response.json();
 };
 
+/// TODO: replace with dynamic nullifierQueue
 const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
 
+/**
+ * @internal
+ * This only works with uncranked state trees in local test environments.
+ */
+export const getRootSeq = async (rpc: Rpc): Promise<number> => {
+    const events = (await getParsedEvents(rpc)).reverse();
+    const leaves = [];
+    for (const event of events) {
+        for (
+            let index = 0;
+            index < event.outputCompressedAccounts.length;
+            index++
+        ) {
+            const hash = event.outputCompressedAccountHashes[index];
+
+            leaves.push(hash);
+        }
+    }
+    /// This only
+    const rootSeq = leaves.length;
+    return rootSeq;
+};
+
+/**
+ * @internal
+ * convert BN to hex with '0x' prefix
+ */
+export function toHex(bn: BN) {
+    return '0x' + bn.toString(16);
+}
+
 export class Rpc extends Connection implements CompressionApiInterface {
-    /// TODO: can photon expose the default methods as well?
     compressionApiEndpoint: string;
+    proverEndpoint: string;
+
     constructor(
         endpoint: string,
         compressionApiEndpoint: string,
-        // TODO: implement
-        proverEndpoint?: string,
+        proverEndpoint: string,
         config?: ConnectionConfig,
     ) {
         super(endpoint, config || 'confirmed');
         this.compressionApiEndpoint = compressionApiEndpoint;
+        this.proverEndpoint = proverEndpoint;
     }
 
     async getCompressedAccount(
@@ -198,13 +231,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
+        const proofWithoutRoot = res.result.value.proof.slice(0, -1);
+        const root = res.result.value.proof[res.result.value.proof.length - 1];
+        const rootIndex = await getRootSeq(this);
+
         const value: MerkleContextWithMerkleProof = {
             hash: res.result.value.hash.toArray(),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
-            merkleProof: res.result.value.proof,
-            nullifierQueue: mockNullifierQueue,
-            rootIndex: 0, // TODO: add root index
+            merkleProof: proofWithoutRoot,
+            nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
+            rootIndex, // TODO: use root index from indexer
+            root, // TODO: use root from indexer
         };
         return value;
     }
@@ -258,7 +296,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /** Retrieve the merkle proof for a compressed account */
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
-    ): Promise<MerkleContextWithMerkleProof[] | null> {
+    ): Promise<MerkleContextWithMerkleProof[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getMultipleCompressedAccountProofs',
@@ -275,21 +313,26 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         if (res.result.value === null) {
-            return null;
+            throw new Error(
+                `failed to get proofs for compressed accounts ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
+            );
         }
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
+        const rootIndex = await getRootSeq(this);
+
         res.result.value.map((proof: any) => {
+            const proofWithoutRoot = proof.proof.slice(0, -1);
+            const root = proof.proof[proof.proof.length - 1];
             const value: MerkleContextWithMerkleProof = {
-                hash: proof.hash.toArray(), // FIXME
+                hash: proof.hash.toArray(),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
-                merkleProof: proof.proof.map((proof: any) =>
-                    createBN254(proof),
-                ),
-                nullifierQueue: mockNullifierQueue,
-                rootIndex: 0, // TODO: add root index
+                merkleProof: proofWithoutRoot,
+                nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
+                rootIndex, // TODO: use root index from indexer
+                root, // TODO: use root from indexer
             };
             merkleProofs.push(value);
         });
@@ -345,13 +388,64 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return accounts;
     }
 
-    /// TODO: Implement self
+    /**
+     * Retrieves a validity proof for compressed accounts, proving their
+     * existence in their respective state trees.
+     *
+     * Allows verifiers to verify state validity without recomputing the merkle
+     * proof path, therefore reducing verification and data cost.
+     *
+     * @param hashes    Array of BN254 hashes.
+     * @returns         validity proof with context
+     */
     async getValidityProof(
         hashes: BN254[],
     ): Promise<CompressedProofWithContext> {
-        const rpc = await getTestRpc();
-        const proof = await rpc.getValidityProof(hashes);
-        return proof;
+        /// get merkle proofs
+        const merkleProofsWithContext =
+            await this.getMultipleCompressedAccountProofs(hashes);
+
+        /// to hex
+        const inputs: HexInputsForProver = {
+            roots: merkleProofsWithContext.map(ctx => toHex(bn(ctx.root))),
+            inPathIndices: merkleProofsWithContext.map(
+                proof => proof.leafIndex,
+            ),
+            inPathElements: merkleProofsWithContext.map(proof =>
+                proof.merkleProof.map(proof => toHex(proof)),
+            ),
+            leaves: merkleProofsWithContext.map(proof => toHex(bn(proof.hash))),
+        };
+        const inputsData = JSON.stringify(inputs);
+        const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
+        const response = await fetch(INCLUSION_PROOF_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: inputsData,
+        });
+        if (!response.ok) {
+            throw new Error(`Error fetching proof: ${response.statusText}`);
+        }
+
+        // TOOD: add type checks
+        const data: any = await response.json();
+        const parsed = proofFromJsonStruct(data);
+        const compressedProof = negateAndCompressProof(parsed);
+
+        const value: CompressedProofWithContext = {
+            compressedProof,
+            roots: merkleProofsWithContext.map(proof => proof.root),
+            rootIndices: merkleProofsWithContext.map(proof => proof.rootIndex),
+            leafIndices: merkleProofsWithContext.map(proof => proof.leafIndex),
+            leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
+            merkleTrees: merkleProofsWithContext.map(proof => proof.merkleTree),
+            nullifierQueues: merkleProofsWithContext.map(
+                proof => proof.nullifierQueue,
+            ),
+        };
+        return value;
     }
 
     async getHealth(): Promise<string> {
@@ -454,6 +548,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     ): Promise<ParsedTokenAccount[]> {
         throw new Error('Method not implemented.');
     }
+    /// TODO: implement compressed token balance
     async getCompressedTokenAccountBalance(
         hash: BN254,
     ): Promise<{ amount: BN }> {
