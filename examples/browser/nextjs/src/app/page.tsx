@@ -126,7 +126,7 @@ const SendButton: FC = () => {
             );
 
         /// 3. Create and send compressed transfer
-        const sendInstructions = await LightSystemProgram.transfer({
+        const sendInstruction = await LightSystemProgram.transfer({
             payer: publicKey,
             toAddress: recipient,
             lamports: 1e7,
@@ -135,6 +135,10 @@ const SendButton: FC = () => {
             recentValidityProof: compressedProof,
             recentInputStateRootIndices: rootIndices,
         });
+        const sendInstructions = [
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
+            sendInstruction,
+        ];
 
         const {
             context: { slot: minContextSlotSend },
