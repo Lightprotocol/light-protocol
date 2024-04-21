@@ -57,8 +57,19 @@ pub fn decompress_lamports<'a, 'b, 'c: 'info, 'info>(
         Some(lamports) => lamports,
         None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForDecompressSol),
     };
-    compressed_sol_pda.sub_lamports(lamports)?;
-    recipient.add_lamports(lamports)?;
+
+    let compressed_sol_pda_lamports = compressed_sol_pda.as_ref().lamports();
+    **compressed_sol_pda.as_ref().try_borrow_mut_lamports()? =
+        match compressed_sol_pda_lamports.checked_sub(lamports) {
+            Some(lamports) => anchor_lang::Result::Ok(lamports),
+            None => return err!(crate::ErrorCode::InsufficientLamportsForDecompressSol),
+        }?;
+    let recipient_lamports = recipient.as_ref().lamports();
+    **recipient.as_ref().try_borrow_mut_lamports()? = match recipient_lamports.checked_add(lamports)
+    {
+        Some(lamports) => anchor_lang::Result::Ok(lamports),
+        None => return err!(crate::ErrorCode::AdditionOverflowForDecompressSol),
+    }?;
     Ok(())
 }
 
@@ -76,7 +87,7 @@ pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
     };
 
     transfer_lamports(
-        &ctx.accounts.signer.to_account_info(),
+        &ctx.accounts.authority.to_account_info(),
         &recipient,
         &ctx.accounts.account_compression_authority.to_account_info(),
         lamports,

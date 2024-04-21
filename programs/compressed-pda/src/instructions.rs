@@ -157,7 +157,8 @@ pub fn derive_new_addresses(
 /// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
-    pub signer: Signer<'info>,
+    pub fee_payer: Signer<'info>,
+    pub authority: Signer<'info>,
     /// CHECK: this account
     #[account(
     seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
@@ -177,7 +178,7 @@ pub struct TransferInstruction<'info> {
     pub compressed_sol_pda: Option<Account<'info, CompressedSolPda>>,
     #[account(mut)]
     pub compression_recipient: Option<UncheckedAccount<'info>>,
-    pub system_program: Option<Program<'info, System>>,
+    pub system_program: Program<'info, System>,
 }
 
 /// collects invocations without proofs

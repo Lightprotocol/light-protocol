@@ -61,7 +61,6 @@ impl TestIndexer {
         indexed_array_pubkey: Pubkey,
         payer: Keypair,
     ) -> Self {
-        // TODO: add path to gnark bin as parameter
         // we should have a release and download the binary to target
         spawn_gnark_server(
             // correct path so that the examples can be run
@@ -169,7 +168,6 @@ impl TestIndexer {
         for compressed_account in event.input_compressed_accounts.iter() {
             self.compressed_accounts
                 .retain(|x| x.compressed_account != compressed_account.compressed_account);
-            // TODO: nullify compressed_account in Merkle tree, not implemented yet
             self.nullified_compressed_accounts
                 .push(compressed_account.clone());
             if let Some((index, _)) = self

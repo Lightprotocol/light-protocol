@@ -29,3 +29,6 @@ pub use update_group_authority::*;
 
 pub mod register_program;
 pub use register_program::*;
+
+pub mod rollover_state_merkle_tree;
+pub use rollover_state_merkle_tree::*;

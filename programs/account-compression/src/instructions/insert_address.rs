@@ -4,6 +4,7 @@ use num_bigint::BigUint;
 use crate::{
     address_queue_from_bytes_zero_copy_mut,
     errors::AccountCompressionErrorCode,
+    transfer_lamports,
     utils::{
         check_registered_or_signer::{check_registered_or_signer, GroupAccounts},
         queue::{QueueBundle, QueueMap},
@@ -13,6 +14,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct InsertAddresses<'info> {
+    pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
 }
@@ -80,7 +82,7 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
             "Inserting into address queue {:?}",
             queue_bundle.queue.key()
         );
-
+        let lamports;
         let address_queue = AccountLoader::<AddressQueueAccount>::try_from(queue_bundle.queue)?;
         {
             let address_queue = address_queue.load()?;
@@ -91,6 +93,7 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
             if queue_bundle.merkle_tree.key() != address_queue.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
+            lamports = address_queue.tip + address_queue.rollover_fee;
             drop(address_queue);
         }
 
@@ -112,6 +115,13 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
             address_queue
                 .insert(&address, sequence_number)
                 .map_err(ProgramError::from)?;
+        }
+        if lamports > 0 {
+            transfer_lamports(
+                &ctx.accounts.fee_payer,
+                &queue_bundle.queue.to_account_info(),
+                lamports,
+            )?;
         }
     }
 

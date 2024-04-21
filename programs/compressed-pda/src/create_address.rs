@@ -40,6 +40,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
     insert_addresses_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
+        &ctx.accounts.fee_payer.to_account_info(),
         &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
         indexed_array_account_infos,
@@ -48,9 +49,11 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn insert_addresses_cpi<'a, 'b>(
     program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,
+    fee_payer: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     registered_program_pda: &'b AccountInfo<'a>,
     adddress_queue_account_infos: Vec<AccountInfo<'a>>,
@@ -61,6 +64,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
     let accounts = account_compression::cpi::accounts::InsertAddresses {
+        fee_payer: fee_payer.to_account_info(),
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
     };

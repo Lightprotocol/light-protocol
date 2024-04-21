@@ -139,7 +139,8 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
 
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
-        signer: ctx.accounts.cpi_authority_pda.to_account_info(),
+        fee_payer: ctx.accounts.fee_payer.to_account_info(),
+        authority: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
@@ -148,7 +149,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -228,6 +229,7 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -523,6 +525,7 @@ pub mod transfer_sdk {
             token_pool_pda,
             decompress_token_account,
             token_program: token_pool_pda.map(|_| Token::id()),
+            system_program: solana_sdk::system_program::ID,
         };
 
         Ok(Instruction {

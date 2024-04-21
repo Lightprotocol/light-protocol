@@ -202,6 +202,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new(
@@ -264,6 +265,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new_with_signer(

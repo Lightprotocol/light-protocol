@@ -14,6 +14,8 @@ pub const PROGRAM_ID: &str = "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN";
 
 #[program]
 pub mod account_compression {
+    use self::utils::constants::STATE_MERKLE_TREE_HEIGHT;
+
     use super::*;
 
     pub fn initialize_address_queue<'info>(
@@ -25,6 +27,9 @@ pub mod account_compression {
         capacity_indices: u16,
         capacity_values: u16,
         sequence_threshold: u64,
+        tip: u64,
+        rollover_threshold: Option<u64>,
+        close_threshold: Option<u64>,
     ) -> Result<()> {
         process_initialize_address_queue(
             ctx,
@@ -35,6 +40,9 @@ pub mod account_compression {
             capacity_indices,
             capacity_values,
             sequence_threshold,
+            tip,
+            rollover_threshold,
+            close_threshold,
         )
     }
 
@@ -43,11 +51,14 @@ pub mod account_compression {
         index: u64,
         owner: Pubkey,
         delegate: Option<Pubkey>,
-        height: u64,
         changelog_size: u64,
         roots_size: u64,
         canopy_depth: u64,
+        tip: u64,
+        rollover_threshold: Option<u64>,
+        close_threshold: Option<u64>,
     ) -> Result<()> {
+        let height = STATE_MERKLE_TREE_HEIGHT as u32;
         process_initialize_address_merkle_tree(
             ctx,
             index,
@@ -57,6 +68,9 @@ pub mod account_compression {
             changelog_size,
             roots_size,
             canopy_depth,
+            tip,
+            rollover_threshold,
+            close_threshold,
         )
     }
 
@@ -137,22 +151,28 @@ pub mod account_compression {
         index: u64,
         owner: Pubkey,
         delegate: Option<Pubkey>,
-        height: u64,
         changelog_size: u64,
         roots_size: u64,
         canopy_depth: u64,
         associated_queue: Option<Pubkey>,
+        tip: u64,
+        rollover_threshold: Option<u64>,
+        close_threshold: Option<u64>,
     ) -> Result<()> {
+        let height = STATE_MERKLE_TREE_HEIGHT as u32;
         process_initialize_state_merkle_tree(
-            ctx,
+            &ctx.accounts.merkle_tree,
             index,
             owner,
             delegate,
-            height,
-            changelog_size,
-            roots_size,
-            canopy_depth,
+            &height,
+            &changelog_size,
+            &roots_size,
+            &canopy_depth,
             associated_queue,
+            tip,
+            rollover_threshold,
+            close_threshold,
         )
     }
 
@@ -191,7 +211,8 @@ pub mod account_compression {
         sequence_threshold: u64,
     ) -> Result<()> {
         process_initialize_indexed_array(
-            ctx,
+            ctx.accounts.indexed_array.to_account_info(),
+            &ctx.accounts.indexed_array,
             index,
             owner,
             delegate,
@@ -207,6 +228,12 @@ pub mod account_compression {
         elements: Vec<[u8; 32]>,
     ) -> Result<()> {
         process_insert_into_indexed_arrays(ctx, &elements)
+    }
+
+    pub fn rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeNullifierQueuePair<'info>>,
+    ) -> Result<()> {
+        process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
     // TODO: insert into indexed array just insert into one array instead of possibly multiple

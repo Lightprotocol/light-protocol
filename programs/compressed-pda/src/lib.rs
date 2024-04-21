@@ -78,6 +78,10 @@ pub enum ErrorCode {
     LengthMismatch,
     #[msg("DelegateUndefined while delegated amount is defined")]
     DelegateUndefined,
+    #[msg("AdditionOverflowForDecompressSol")]
+    AdditionOverflowForDecompressSol,
+    #[msg("InsufficientLamportsForDecompressSol")]
+    InsufficientLamportsForDecompressSol,
 }
 
 // // TODO(vadorovsky): Come up with some less glass chewy way of reusing

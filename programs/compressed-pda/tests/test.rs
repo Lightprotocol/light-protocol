@@ -100,6 +100,7 @@ async fn test_execute_compressed_transaction() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -147,6 +148,7 @@ async fn test_execute_compressed_transaction() {
     // check invalid proof
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -174,6 +176,7 @@ async fn test_execute_compressed_transaction() {
     }];
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
         &output_compressed_accounts,
@@ -212,6 +215,7 @@ async fn test_execute_compressed_transaction() {
         .await;
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -259,6 +263,7 @@ async fn test_execute_compressed_transaction() {
     // double spend
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -283,6 +288,7 @@ async fn test_execute_compressed_transaction() {
     }];
     // invalid compressed_account
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -334,6 +340,7 @@ async fn test_with_address() {
         .await;
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -414,6 +421,7 @@ async fn test_with_address() {
         address: Some(derived_address),
     }];
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -646,6 +654,7 @@ pub async fn create_addresses(
 
     // create two new addresses with the same see should fail
     let instruction = create_execute_compressed_instruction(
+        &context.payer.pubkey(),
         &context.payer.pubkey().clone(),
         input_compressed_accounts
             .iter()
@@ -733,6 +742,7 @@ async fn test_with_compression() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -768,6 +778,7 @@ async fn test_with_compression() {
         ))
     );
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -805,6 +816,7 @@ async fn test_with_compression() {
     );
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -884,6 +896,7 @@ async fn test_with_compression() {
     let recipient = Pubkey::new_unique();
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -922,6 +935,7 @@ async fn test_with_compression() {
     );
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,

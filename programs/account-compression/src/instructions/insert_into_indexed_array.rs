@@ -7,6 +7,7 @@ use num_bigint::BigUint;
 
 use crate::{
     errors::AccountCompressionErrorCode,
+    transfer_lamports,
     utils::{
         check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
         queue::{QueueBundle, QueueMap},
@@ -16,6 +17,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct InsertIntoIndexedArrays<'info> {
+    pub fee_payer: Signer<'info>,
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
@@ -55,6 +57,7 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
             "Inserting into indexed array {:?}",
             queue_bundle.queue.key()
         );
+        let lamports: u64;
 
         let indexed_array = AccountLoader::<IndexedArrayAccount>::try_from(queue_bundle.queue)?;
         {
@@ -66,26 +69,35 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
             if queue_bundle.merkle_tree.key() != indexed_array.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
+            lamports = indexed_array.tip + indexed_array.rollover_fee;
         }
+        {
+            let merkle_tree =
+                AccountLoader::<StateMerkleTreeAccount>::try_from(queue_bundle.merkle_tree)?;
+            let sequence_number = {
+                let merkle_tree = merkle_tree.load()?;
+                merkle_tree.load_merkle_tree()?.sequence_number
+            };
 
-        let merkle_tree =
-            AccountLoader::<StateMerkleTreeAccount>::try_from(queue_bundle.merkle_tree)?;
-        let sequence_number = {
-            let merkle_tree = merkle_tree.load()?;
-            merkle_tree.load_merkle_tree()?.sequence_number
-        };
+            let indexed_array = indexed_array.to_account_info();
+            let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+            let mut indexed_array =
+                unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
 
-        let indexed_array = indexed_array.to_account_info();
-        let mut indexed_array = indexed_array.try_borrow_mut_data()?;
-        let mut indexed_array =
-            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
-
-        for element in queue_bundle.elements.iter() {
-            msg!("Inserting element {:?}", element);
-            let element = BigUint::from_bytes_be(element.as_slice());
-            indexed_array
-                .insert(&element, sequence_number)
-                .map_err(ProgramError::from)?;
+            for element in queue_bundle.elements.iter() {
+                msg!("Inserting element {:?}", element);
+                let element = BigUint::from_bytes_be(element.as_slice());
+                indexed_array
+                    .insert(&element, sequence_number)
+                    .map_err(ProgramError::from)?;
+            }
+        }
+        if lamports > 0 {
+            transfer_lamports(
+                &ctx.accounts.fee_payer,
+                &queue_bundle.queue.to_account_info(),
+                lamports,
+            )?;
         }
     }
 
@@ -95,7 +107,8 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
 // TODO: add a function to merkle tree program that creates a new Merkle tree and indexed array account in the same transaction with consistent parameters and add them to the group
 // we can use the same group regulate permissions for the de compression pool program
 pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InitializeIndexedArrays<'info>>,
+    indexed_array_account_info: AccountInfo<'info>,
+    indexed_array_account_loader: &'a AccountLoader<'info, IndexedArrayAccount>,
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
@@ -105,15 +118,16 @@ pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
     sequence_threshold: u64,
 ) -> Result<()> {
     {
-        let mut indexed_array_account = ctx.accounts.indexed_array.load_init()?;
+        let mut indexed_array_account = indexed_array_account_loader.load_init()?;
         indexed_array_account.index = index;
         indexed_array_account.owner = owner;
         indexed_array_account.delegate = delegate.unwrap_or(owner);
         indexed_array_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
+        indexed_array_account.rolledover_slot = u64::MAX;
         drop(indexed_array_account);
     }
 
-    let indexed_array = ctx.accounts.indexed_array.to_account_info();
+    let indexed_array = indexed_array_account_info;
     let mut indexed_array = indexed_array.try_borrow_mut_data()?;
     let _ = unsafe {
         indexed_array_from_bytes_zero_copy_init(
@@ -142,9 +156,19 @@ pub struct InitializeIndexedArrays<'info> {
 #[aligned_sized(anchor)]
 pub struct IndexedArrayAccount {
     pub index: u64,
+    pub rollover_fee: u64,
+    /// The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).
+    pub rollover_threshold: u64,
+    /// Tip for maintaining the account.
+    pub tip: u64,
+    /// The slot when the account was rolled over, a rolled over account should not be written to.
+    pub rolledover_slot: u64,
+    /// If current slot is greater than rolledover_slot + close_threshold and the account is empty it can be closed.
+    pub close_threshold: u64,
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub associated_merkle_tree: Pubkey,
+    pub next_queue: Pubkey,
 }
 
 impl GroupAccess for IndexedArrayAccount {
@@ -182,7 +206,6 @@ impl IndexedArrayAccount {
 /// the provided account data have correct size and alignment.
 pub unsafe fn indexed_array_from_bytes_copy(
     mut data: RefMut<'_, &mut [u8]>,
-    // data: &'a mut [u8],
 ) -> Result<HashSet<u16>> {
     let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
     let queue = HashSet::<u16>::from_bytes_copy(data).map_err(ProgramError::from)?;

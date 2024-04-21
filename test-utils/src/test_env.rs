@@ -201,7 +201,7 @@ pub async fn setup_test_programs_with_accounts(
     let indexed_array_pubkey = indexed_array_keypair.pubkey();
 
     let instruction =
-        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(indexed_array_pubkey));
+        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(indexed_array_pubkey), 0, Some(95), None);
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -354,10 +354,12 @@ pub fn initialize_address_merkle_tree_ix(
         index: 1u64,
         owner: payer,
         delegate: None,
-        height: account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT,
         changelog_size: account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG,
         roots_size: account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS,
         canopy_depth: account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+        tip: 0,
+        rollover_threshold: Some(95),
+        close_threshold: None,
     };
     Instruction {
         program_id: ACCOUNT_COMPRESSION_ID,

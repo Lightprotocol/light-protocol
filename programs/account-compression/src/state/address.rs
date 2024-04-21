@@ -16,6 +16,11 @@ use crate::utils::check_registered_or_signer::GroupAccess;
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct AddressQueueAccount {
     pub index: u64,
+    pub rollover_fee: u64,
+    pub tip: u64,
+    pub rollover_threshold: u64,
+    pub rolledover_slot: u64,
+    pub close_threshold: u64,
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub associated_merkle_tree: Pubkey,
@@ -97,6 +102,11 @@ pub unsafe fn address_queue_from_bytes_zero_copy_init(
 pub struct AddressMerkleTreeAccount {
     /// Unique index.
     pub index: u64,
+    pub rollover_fee: u64,
+    pub tip: u64,
+    pub rollover_threshold: u64,
+    pub rolledover_slot: u64,
+    pub close_threshold: u64,
     /// Public key of the next Merkle tree.
     pub next_merkle_tree: Pubkey,
     /// Owner of the Merkle tree.

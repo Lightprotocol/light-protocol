@@ -17,6 +17,7 @@ pub fn get_compressed_sol_pda() -> Pubkey {
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_execute_compressed_instruction(
+    fee_payer: &Pubkey,
     payer: &Pubkey,
     input_compressed_accounts: &[CompressedAccount],
     output_compressed_accounts: &[CompressedAccount],
@@ -144,7 +145,8 @@ pub fn create_execute_compressed_instruction(
     let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
 
     let accounts = crate::accounts::TransferInstruction {
-        signer: *payer,
+        fee_payer: *fee_payer,
+        authority: *payer,
         // authority_pda: get_cpi_authority_pda(&crate::ID),
         registered_program_pda: get_registered_program_pda(&crate::ID),
         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
@@ -154,7 +156,7 @@ pub fn create_execute_compressed_instruction(
         invoking_program: None,
         compressed_sol_pda,
         compression_recipient,
-        system_program: Some(solana_sdk::system_program::ID),
+        system_program: solana_sdk::system_program::ID,
     };
     Instruction {
         program_id: crate::ID,
@@ -329,6 +331,7 @@ mod test {
         };
         let input_compressed_account_leaf_indices = vec![0, 1];
         let instruction = create_execute_compressed_instruction(
+            &payer,
             &payer,
             &input_compressed_accounts.clone(),
             &output_compressed_accounts.clone(),

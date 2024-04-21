@@ -14,7 +14,6 @@ use crate::{
 pub struct NullifyLeaves<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     pub authority: Signer<'info>,
-    // TODO: Add fee payer.
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting
     pub log_wrapper: UncheckedAccount<'info>,

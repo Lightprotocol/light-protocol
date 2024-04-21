@@ -177,13 +177,13 @@ pub fn signer_check(
                 &invoking_program_id,
             )
             .0;
-            if signer != ctx.accounts.signer.key()
+            if signer != ctx.accounts.authority.key()
                 && invoking_program_id != compressed_accounts.compressed_account.owner
             {
                 msg!(
                     "program signer check failed derived cpi signer {} !=  signer {}",
                     compressed_accounts.compressed_account.owner,
-                    ctx.accounts.signer.key()
+                    ctx.accounts.authority.key()
                 );
                 msg!(
                     "program signer check failed compressed account owner {} !=  invoking_program_id {}",
@@ -194,12 +194,12 @@ pub fn signer_check(
             } else {
                 Ok(())
             }
-        } else if compressed_accounts.compressed_account.owner != ctx.accounts.signer.key()
+        } else if compressed_accounts.compressed_account.owner != ctx.accounts.authority.key()
         {
             msg!(
                 "signer check failed compressed account owner {} !=  signer {}",
                 compressed_accounts.compressed_account.owner,
-                ctx.accounts.signer.key()
+                ctx.accounts.authority.key()
             );
             err!(ErrorCode::SignerCheckFailed)
         } else {
@@ -259,7 +259,6 @@ pub fn verify_create_addresses_zkp(
     }
 }
 
-// TODO: this is currently mock code, add correct verifying keys
 #[inline(never)]
 pub fn verify_create_addresses_and_merkle_proof_zkp(
     roots: &[[u8; 32]],

@@ -123,6 +123,11 @@ export type LightCompressedToken = {
                     isMut: true;
                     isSigner: false;
                 },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
             ];
             args: [
                 {
@@ -204,6 +209,11 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                     isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
                 },
             ];
             args: [
@@ -973,6 +983,11 @@ export const IDL: LightCompressedToken = {
                     isMut: true,
                     isSigner: false,
                 },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
             ],
             args: [
                 {
@@ -1054,6 +1069,11 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                     isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
                 },
             ],
             args: [

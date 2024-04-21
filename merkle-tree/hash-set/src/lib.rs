@@ -161,16 +161,16 @@ where
 {
     /// Capacity of `indices`, which is a prime number larger than the expected
     /// number of elements and an included load factor.
-    capacity_indices: usize,
+    pub capacity_indices: usize,
     /// Capacity of `values`, which is equal to the expected number of elements.
-    capacity_values: usize,
+    pub capacity_values: usize,
     /// Difference of sequence numbers, after which the given element can be
     /// replaced by an another one (with a sequence number higher than the
     /// threshold).
-    sequence_threshold: usize,
+    pub sequence_threshold: usize,
 
     /// Index of the next vacant cell in the value array.
-    next_value_index: *mut usize,
+    pub next_value_index: *mut usize,
 
     /// An array of indices which maps a hash set key to the index of its
     /// value which is stored in the `values` array. It has a size greater

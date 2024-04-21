@@ -43,7 +43,12 @@ export type LightCompressedPda = {
             ];
             accounts: [
                 {
-                    name: 'signer';
+                    name: 'feePayer';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
                     isMut: false;
                     isSigner: true;
                 },
@@ -95,7 +100,6 @@ export type LightCompressedPda = {
                     name: 'systemProgram';
                     isMut: false;
                     isSigner: false;
-                    isOptional: true;
                 },
             ];
             args: [
@@ -602,6 +606,16 @@ export type LightCompressedPda = {
             name: 'DelegateUndefined';
             msg: 'DelegateUndefined while delegated amount is defined';
         },
+        {
+            code: 6030;
+            name: 'AdditionOverflowForDecompressSol';
+            msg: 'AdditionOverflowForDecompressSol';
+        },
+        {
+            code: 6031;
+            name: 'InsufficientLamportsForDecompressSol';
+            msg: 'InsufficientLamportsForDecompressSol';
+        },
     ];
 };
 
@@ -650,7 +664,12 @@ export const IDL: LightCompressedPda = {
             ],
             accounts: [
                 {
-                    name: 'signer',
+                    name: 'feePayer',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
                     isMut: false,
                     isSigner: true,
                 },
@@ -702,7 +721,6 @@ export const IDL: LightCompressedPda = {
                     name: 'systemProgram',
                     isMut: false,
                     isSigner: false,
-                    isOptional: true,
                 },
             ],
             args: [
@@ -1208,6 +1226,16 @@ export const IDL: LightCompressedPda = {
             code: 6029,
             name: 'DelegateUndefined',
             msg: 'DelegateUndefined while delegated amount is defined',
+        },
+        {
+            code: 6030,
+            name: 'AdditionOverflowForDecompressSol',
+            msg: 'AdditionOverflowForDecompressSol',
+        },
+        {
+            code: 6031,
+            name: 'InsufficientLamportsForDecompressSol',
+            msg: 'InsufficientLamportsForDecompressSol',
         },
     ],
 };

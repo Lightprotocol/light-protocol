@@ -96,10 +96,12 @@ fn initialize_address_merkle_tree_ix(
         index: 1u64,
         owner: payer,
         delegate: None,
-        height: ADDRESS_MERKLE_TREE_HEIGHT,
-        changelog_size: ADDRESS_MERKLE_TREE_CHANGELOG,
-        roots_size: ADDRESS_MERKLE_TREE_ROOTS,
-        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+        changelog_size: ADDRESS_MERKLE_TREE_CHANGELOG as u64,
+        roots_size: ADDRESS_MERKLE_TREE_ROOTS as u64,
+        canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH as u64,
+        tip: 0,
+        rollover_threshold: None,
+        close_threshold: None,
     };
     Instruction {
         program_id: ID,
