@@ -8,7 +8,6 @@ import {
     bn,
     compressLamports,
     createRpc,
-    initSolOmnibusAccount,
 } from '../../src';
 
 /// TODO: add test case for payer != address
@@ -16,7 +15,7 @@ describe('rpc / photon', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
     let rpc: Rpc;
     let payer: Signer;
-    let initAuthority: Signer;
+
     let preCompressBalance: number;
     let postCompressBalance: number;
     let compressLamportsAmount: number;
@@ -60,12 +59,11 @@ describe('rpc / photon', () => {
         rpc = createRpc();
 
         payer = await newAccountWithLamports(rpc, 1e9, 200);
-        initAuthority = await newAccountWithLamports(rpc, 1e9);
 
         /// compress
         compressLamportsAmount = 20;
         preCompressBalance = await rpc.getBalance(payer.publicKey);
-        await initSolOmnibusAccount(rpc, initAuthority, initAuthority);
+
         await compressLamports(
             rpc,
             payer,

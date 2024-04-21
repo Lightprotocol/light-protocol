@@ -7,7 +7,6 @@ import {
     compressLamports,
     createRpc,
     decompressLamports,
-    initSolOmnibusAccount,
 } from '../../src';
 
 /// TODO: add test case for payer != address
@@ -15,21 +14,16 @@ describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
     let rpc: Rpc;
     let payer: Signer;
-    let initAuthority: Signer;
 
     beforeAll(async () => {
         rpc = createRpc();
         payer = await newAccountWithLamports(rpc, 1e9, 200);
-        initAuthority = await newAccountWithLamports(rpc, 1e9);
     });
 
     it('should compress lamports and then decompress', async () => {
         const compressLamportsAmount = 20;
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(preCompressBalance, 1e9);
-
-        /// TODO: add case for payer != initAuthority
-        await initSolOmnibusAccount(rpc, initAuthority, initAuthority);
 
         await compressLamports(
             rpc,

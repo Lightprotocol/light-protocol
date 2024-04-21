@@ -992,7 +992,25 @@ async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
     let env = setup_test_programs_with_accounts(None).await;
     let mut context = env.context;
+    let payer = context.payer.insecure_clone();
+    // cannot move this into setup_test_programs_with_accounts because solana program test does not like deve dependencies that import the program itself
+    let compressed_sol_pda = get_compressed_sol_pda();
+    let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
+        fee_payer: payer.pubkey(),
+        compressed_sol_pda,
+        system_program: anchor_lang::solana_program::system_program::ID,
+    };
+    use anchor_lang::ToAccountMetas;
+    let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
 
+    let instruction = Instruction {
+        program_id: light_compressed_pda::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction_data.data(),
+    };
+    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
     // List of public keys to fetch and export
     let pubkeys = vec![
         ("merkle_tree_pubkey", env.merkle_tree_pubkey),
@@ -1005,6 +1023,7 @@ async fn regenerate_accounts() {
             "address_merkle_tree_queue",
             env.address_merkle_tree_queue_pubkey,
         ),
+        ("sol_pool_pda", compressed_sol_pda),
     ];
 
     for (name, pubkey) in pubkeys {

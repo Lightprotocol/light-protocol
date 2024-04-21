@@ -10,11 +10,15 @@ describe("init-sol-pool", () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(keypair.publicKey);
   });
-
   test
-    .stdout({ print: true })
+    .stderr()
     .command(["init-sol-pool"])
-    .it(`init-sol-pool`, (ctx) => {
-      expect(ctx.stdout).to.contain("init-sol-pool successful");
-    });
+    .catch((ctx) => {
+      expect(ctx.message).to.contain(
+        "Failed to init-sol-pool!\nAlready inited.",
+      );
+    })
+    .it(
+      "expects init-sol-pool command to fail due to already initialized pool",
+    );
 });
