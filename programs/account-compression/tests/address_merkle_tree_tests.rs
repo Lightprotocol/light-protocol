@@ -35,7 +35,7 @@ enum RelayerUpdateError {
 
 // This is not a correct value you would normally use in relayer, A
 // correct size would be number of leaves which the merkle tree can fit
-// (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 4 mln
+// (`MERKLE_TREE_LEAVES`). Allocating an indexing array for over 67 mln
 // elements ain't easy and is not worth doing here.
 const INDEXED_ARRAY_ELEMENTS: usize = 200;
 
