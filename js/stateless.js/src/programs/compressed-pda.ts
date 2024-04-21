@@ -168,6 +168,7 @@ export class LightSystemProgram {
     /**
      * @internal
      * Cwct1kQLwJm8Z3HetLu8m4SXkhD6FZ5fXbJQCxTxPnGY
+     *
      */
     static deriveCompressedSolPda(): PublicKey {
         const seeds = [COMPRESSED_SOL_PDA_SEED];

@@ -2,7 +2,6 @@ import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { requestAirdrop } from "../../helpers/helpers";
-import { createRpc, initSolOmnibusAccount } from "@lightprotocol/stateless.js";
 
 describe("compress-sol", () => {
   const keypair = defaultSolanaWalletKeypair();
@@ -12,10 +11,6 @@ describe("compress-sol", () => {
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(keypair.publicKey);
-    const rpc = createRpc();
-    try {
-      await initSolOmnibusAccount(rpc, keypair, keypair);
-    } catch (e) {}
   });
 
   test
