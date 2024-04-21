@@ -21,7 +21,7 @@ use crate::{
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-) -> anchor_lang::Result<PublicTransactionEvent> {
+) -> Result<PublicTransactionEvent> {
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
     sum_check(
@@ -40,7 +40,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // TODO: add check that if compressed account is program owned that it is signed by the program (if an account has data it is program owned, if the program account is set compressed accounts are program owned)
     match ctx.accounts.cpi_signature_account.borrow() {
         Some(_cpi_signature_account) => {
-            // needs to check every compressed account and make sure that signaures exist in cpi_signature_account
+            // needs to check every compressed account and make sure that signatures exist in cpi_signature_account
             msg!("cpi_signature check is not implemented");
             err!(ErrorCode::CpiSignerCheckFailed)
         }
@@ -97,7 +97,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             inputs.proof.as_ref().unwrap(),
         )?;
     }
-    // insert nullifiers (input compressed account hashes)---------------------------------------------------
+    // insert nullifies (input compressed account hashes)---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()

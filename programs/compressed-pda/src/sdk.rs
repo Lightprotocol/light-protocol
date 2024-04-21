@@ -396,7 +396,7 @@ mod test {
             deserialized_instruction_data.compression_lamports.unwrap(),
             100
         );
-        assert_eq!(deserialized_instruction_data.is_compress, true);
+        assert!(deserialized_instruction_data.is_compress);
         let mut ref_account_meta = AccountMeta::new(payer, true);
         ref_account_meta.is_writable = false;
         assert_eq!(instruction.accounts[0], ref_account_meta);

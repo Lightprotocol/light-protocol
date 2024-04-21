@@ -11,7 +11,7 @@ use light_macros::pubkey;
 #[cfg(feature = "light_program")]
 use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
-    create_initiatialize_group_authority_instruction, create_register_program_instruction,
+    create_initialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 #[cfg(feature = "light_program")]
@@ -143,7 +143,7 @@ pub async fn setup_test_programs_with_accounts(
     let (group_pda, seed) = get_group_account();
 
     let instruction =
-        create_initiatialize_group_authority_instruction(payer.pubkey(), group_pda, seed);
+        create_initialize_group_authority_instruction(payer.pubkey(), group_pda, seed);
 
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await

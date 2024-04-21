@@ -5,7 +5,7 @@ use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-pub fn create_initiatialize_group_authority_instruction(
+pub fn create_initialize_group_authority_instruction(
     signer_pubkey: Pubkey,
     group_accounts: Pubkey,
     seed: [u8; 32],
@@ -17,7 +17,7 @@ pub fn create_initiatialize_group_authority_instruction(
     };
 
     Instruction {
-        program_id: account_compression::ID,
+        program_id: ID,
         accounts: vec![
             AccountMeta::new(signer_pubkey, true),
             AccountMeta::new(group_accounts, false),
@@ -70,7 +70,7 @@ pub fn create_register_program_instruction(
             AccountMeta::new(authority_pda.0, false),
             AccountMeta::new(cpi_authority_pda.0, false),
             AccountMeta::new(group_account, false),
-            AccountMeta::new_readonly(account_compression::ID, false),
+            AccountMeta::new_readonly(ID, false),
             AccountMeta::new_readonly(system_program::ID, false),
             AccountMeta::new(registered_program_pda, false),
         ],
@@ -119,9 +119,6 @@ pub fn create_initialize_governance_authority_instruction(
 }
 pub fn get_group_account() -> (Pubkey, [u8; 32]) {
     let seed = [1u8; 32];
-    let group_account = anchor_lang::prelude::Pubkey::find_program_address(
-        &[GROUP_AUTHORITY_SEED, seed.as_slice()],
-        &account_compression::ID,
-    );
+    let group_account = Pubkey::find_program_address(&[GROUP_AUTHORITY_SEED, seed.as_slice()], &ID);
     (group_account.0, seed)
 }

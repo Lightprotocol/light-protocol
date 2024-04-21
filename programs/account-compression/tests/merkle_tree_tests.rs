@@ -95,11 +95,8 @@ async fn functional_1_initialize_state_merkle_tree(
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-        context,
-        merkle_tree_pubkey,
-    )
-    .await;
+    let merkle_tree =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, merkle_tree_pubkey).await;
     assert_eq!(merkle_tree.deserialized().owner, *payer_pubkey);
     assert_eq!(merkle_tree.deserialized().delegate, *payer_pubkey);
     assert_eq!(merkle_tree.deserialized().index, 1);
@@ -121,8 +118,8 @@ pub async fn fail_2_append_leaves_with_invalid_inputs(
     };
 
     let instruction = Instruction {
-        program_id: account_compression::ID,
-        accounts: vec![
+        program_id: ID,
+        accounts: [
             accounts.to_account_metas(Some(true)),
             vec![AccountMeta::new(*merkle_tree_pubkey, false)],
         ]
@@ -136,9 +133,9 @@ pub async fn fail_2_append_leaves_with_invalid_inputs(
         &vec![&context.payer],
         context.last_blockhash,
     );
-    let remaining_accounts_missmatch_error =
+    let remaining_accounts_mismatch_error =
         context.banks_client.process_transaction(transaction).await;
-    assert!(remaining_accounts_missmatch_error.is_err());
+    assert!(remaining_accounts_mismatch_error.is_err());
 }
 
 pub async fn functional_3_append_leaves_to_merkle_tree(
@@ -146,11 +143,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     merkle_tree_pubkey: &Pubkey,
 ) {
     let payer = context.payer.insecure_clone();
-    let old_merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-        context,
-        *merkle_tree_pubkey,
-    )
-    .await;
+    let old_merkle_tree =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree.deserialized().copy_merkle_tree().unwrap();
 
     let instruction = [create_insert_leaves_instruction(
@@ -163,11 +157,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
         .await
         .unwrap();
 
-    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-        context,
-        *merkle_tree_pubkey,
-    )
-    .await;
+    let merkle_tree =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *merkle_tree_pubkey).await;
     let merkle_tree = merkle_tree.deserialized().copy_merkle_tree().unwrap();
     assert_eq!(merkle_tree.next_index, old_merkle_tree.next_index + 2);
 
@@ -192,8 +183,8 @@ pub async fn fail_4_append_leaves_with_invalid_authority(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
 ) {
-    let invalid_autority = Keypair::new();
-    airdrop_lamports(context, &invalid_autority.pubkey(), 1_000_000_000)
+    let invalid_authority = Keypair::new();
+    airdrop_lamports(context, &invalid_authority.pubkey(), 1_000_000_000)
         .await
         .unwrap();
     let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees {
@@ -201,14 +192,14 @@ pub async fn fail_4_append_leaves_with_invalid_authority(
     };
 
     let accounts = account_compression::accounts::AppendLeaves {
-        authority: invalid_autority.pubkey(),
+        authority: invalid_authority.pubkey(),
         registered_program_pda: None,
         log_wrapper: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
     };
 
     let instruction = Instruction {
-        program_id: account_compression::ID,
-        accounts: vec![
+        program_id: ID,
+        accounts: [
             accounts.to_account_metas(Some(true)),
             vec![AccountMeta::new(*merkle_tree_pubkey, false)],
         ]
@@ -217,13 +208,13 @@ pub async fn fail_4_append_leaves_with_invalid_authority(
     };
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&invalid_autority.pubkey()),
-        &vec![&invalid_autority],
+        Some(&invalid_authority.pubkey()),
+        &vec![&invalid_authority],
         context.last_blockhash,
     );
-    let remaining_accounts_missmatch_error =
+    let remaining_accounts_mismatch_error =
         context.banks_client.process_transaction(transaction).await;
-    assert!(remaining_accounts_missmatch_error.is_err());
+    assert!(remaining_accounts_mismatch_error.is_err());
 }
 
 /// Tests:
@@ -384,6 +375,7 @@ async fn test_nullify_leaves() {
     .unwrap_err();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn nullify(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
@@ -393,7 +385,7 @@ pub async fn nullify(
     change_log_index: u64,
     leaf_queue_index: u16,
     element_index: u64,
-) -> std::result::Result<(), BanksClientError> {
+) -> Result<(), BanksClientError> {
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(element_index as usize, false)
         .unwrap()
@@ -404,8 +396,8 @@ pub async fn nullify(
     let instructions = [
         account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
             vec![change_log_index].as_slice(),
-            vec![leaf_queue_index.clone()].as_slice(),
-            vec![element_index as u64].as_slice(),
+            vec![leaf_queue_index].as_slice(),
+            vec![element_index].as_slice(),
             vec![proof].as_slice(),
             &context.payer.pubkey(),
             merkle_tree_pubkey,
@@ -416,11 +408,8 @@ pub async fn nullify(
 
     create_and_send_transaction(context, &instructions, &payer.pubkey(), &[&payer]).await?;
 
-    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-        context,
-        *merkle_tree_pubkey,
-    )
-    .await;
+    let merkle_tree =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *merkle_tree_pubkey).await;
     reference_merkle_tree
         .update(&ZERO_BYTES[0], element_index as usize)
         .unwrap();
@@ -473,7 +462,7 @@ pub async fn nullify(
 /// 2. Functional: Insert into indexed array
 /// 3. Failing: Insert the same elements into indexed array again (3 and 1 element(s))
 /// 4. Failing: Insert into indexed array with invalid authority
-/// 5. Functional: Insert one element into into indexed array
+/// 5. Functional: Insert one element into indexed array
 #[tokio::test]
 async fn test_init_and_insert_into_indexed_array() {
     let mut program_test = ProgramTest::default();
@@ -545,8 +534,8 @@ async fn functional_1_initialize_indexed_array(
     associated_merkle_tree: Option<Pubkey>,
 ) -> Pubkey {
     let size = account_compression::IndexedArrayAccount::size(
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+        STATE_INDEXED_ARRAY_INDICES as usize,
+        STATE_INDEXED_ARRAY_VALUES as usize,
     )
     .unwrap();
     let account_create_ix = create_account_instruction(
@@ -559,7 +548,7 @@ async fn functional_1_initialize_indexed_array(
             .unwrap()
             .minimum_balance(size),
         &ID,
-        Some(&indexed_array_keypair),
+        Some(indexed_array_keypair),
     );
     let indexed_array_pubkey = indexed_array_keypair.pubkey();
 
@@ -592,7 +581,7 @@ async fn functional_1_initialize_indexed_array(
     .deserialized();
     assert_eq!(
         indexed_array.associated_merkle_tree,
-        associated_merkle_tree.unwrap_or(Pubkey::default())
+        associated_merkle_tree.unwrap_or_default()
     );
     assert_eq!(indexed_array.index, 1);
     assert_eq!(indexed_array.owner, *payer_pubkey);
@@ -704,12 +693,12 @@ async fn functional_5_test_insert_into_indexed_arrays(
 }
 
 async fn insert_into_indexed_arrays(
-    elements: &Vec<[u8; 32]>,
+    elements: &[[u8; 32]],
     payer: &Keypair,
     indexed_array_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     context: &mut ProgramTestContext,
-) -> std::result::Result<(), BanksClientError> {
+) -> Result<(), BanksClientError> {
     let instruction_data = account_compression::instruction::InsertIntoIndexedArrays {
         elements: elements.to_vec(),
     };
@@ -728,8 +717,8 @@ async fn insert_into_indexed_arrays(
     ]);
 
     let instruction = Instruction {
-        program_id: account_compression::ID,
-        accounts: vec![accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        program_id: ID,
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
     let transaction = Transaction::new_signed_with_payer(

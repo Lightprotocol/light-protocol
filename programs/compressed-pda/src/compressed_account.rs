@@ -68,7 +68,7 @@ pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u
     let hash = match hash_to_bn254_field_size_le(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
-        Some(hash) => Ok::<[u8; 32], crate::Error>(hash.0),
+        Some(hash) => Ok::<[u8; 32], Error>(hash.0),
         None => return Err(crate::ErrorCode::DeriveAddressError.into()),
     }?;
 
@@ -102,7 +102,7 @@ mod tests {
         let hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
-        let hash_manual = Poseidon::hashv(&vec![
+        let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_le(&owner.to_bytes())
                 .unwrap()
                 .0
@@ -132,7 +132,7 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
 
-        let hash_manual = Poseidon::hashv(&vec![
+        let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_le(&owner.to_bytes())
                 .unwrap()
                 .0
@@ -159,7 +159,7 @@ mod tests {
         let no_address_hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
-        let hash_manual = Poseidon::hashv(&vec![
+        let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_le(&owner.to_bytes())
                 .unwrap()
                 .0
@@ -188,7 +188,7 @@ mod tests {
         let no_address_no_data_hash = compressed_account
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
-        let hash_manual = Poseidon::hashv(&vec![
+        let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_le(&owner.to_bytes())
                 .unwrap()
                 .0

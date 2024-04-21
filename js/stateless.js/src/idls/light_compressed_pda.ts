@@ -105,7 +105,7 @@ export type LightCompressedPda = {
                 },
             ];
             returns: {
-                defined: 'crate::event::PublicTransactionEvent';
+                defined: 'event::PublicTransactionEvent';
             };
         },
     ];
@@ -489,18 +489,18 @@ export type LightCompressedPda = {
         },
         {
             code: 6007;
-            name: 'NumberOfLeavesMissmatch';
-            msg: 'NumberOfLeavesMissmatch';
+            name: 'NumberOfLeavesMismatch';
+            msg: 'NumberOfLeavesMismatch';
         },
         {
             code: 6008;
-            name: 'MerkleTreePubkeysMissmatch';
-            msg: 'MerkleTreePubkeysMissmatch';
+            name: 'MerkleTreePubkeysMismatch';
+            msg: 'MerkleTreePubkeysMismatch';
         },
         {
             code: 6009;
-            name: 'NullifierArrayPubkeysMissmatch';
-            msg: 'NullifierArrayPubkeysMissmatch';
+            name: 'NullifierArrayPubkeysMismatch';
+            msg: 'NullifierArrayPubkeysMismatch';
         },
         {
             code: 6010;
@@ -712,7 +712,7 @@ export const IDL: LightCompressedPda = {
                 },
             ],
             returns: {
-                defined: 'crate::event::PublicTransactionEvent',
+                defined: 'event::PublicTransactionEvent',
             },
         },
     ],
@@ -1096,18 +1096,18 @@ export const IDL: LightCompressedPda = {
         },
         {
             code: 6007,
-            name: 'NumberOfLeavesMissmatch',
-            msg: 'NumberOfLeavesMissmatch',
+            name: 'NumberOfLeavesMismatch',
+            msg: 'NumberOfLeavesMismatch',
         },
         {
             code: 6008,
-            name: 'MerkleTreePubkeysMissmatch',
-            msg: 'MerkleTreePubkeysMissmatch',
+            name: 'MerkleTreePubkeysMismatch',
+            msg: 'MerkleTreePubkeysMismatch',
         },
         {
             code: 6009,
-            name: 'NullifierArrayPubkeysMissmatch',
-            msg: 'NullifierArrayPubkeysMissmatch',
+            name: 'NullifierArrayPubkeysMismatch',
+            msg: 'NullifierArrayPubkeysMismatch',
         },
         {
             code: 6010,

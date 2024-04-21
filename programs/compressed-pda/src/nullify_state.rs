@@ -14,7 +14,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     nullifiers: &'a [[u8; 32]],
-) -> anchor_lang::Result<()> {
+) -> Result<()> {
     let state_merkle_tree_account_infos = inputs
         .input_compressed_accounts_with_merkle_context
         .iter()

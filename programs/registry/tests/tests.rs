@@ -3,7 +3,7 @@
 use account_compression::{self, GroupAuthority, RegisteredProgram};
 use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
-    create_initiatialize_group_authority_instruction, create_register_program_instruction,
+    create_initialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 use light_test_utils::{
@@ -28,7 +28,7 @@ pub async fn setup_test_programs_with_accounts() -> ProgramTestContext {
     let (group_account, seed) = get_group_account();
 
     let instruction =
-        create_initiatialize_group_authority_instruction(payer.pubkey(), group_account, seed);
+        create_initialize_group_authority_instruction(payer.pubkey(), group_account, seed);
 
     create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
         .await

@@ -22,7 +22,7 @@ impl<'info> GroupAccounts<'info> for InsertAddresses<'info> {
         &self.authority
     }
 
-    fn get_registered_program_pda(&self) -> &Option<Account<'info, crate::RegisteredProgram>> {
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
         &self.registered_program_pda
     }
 }

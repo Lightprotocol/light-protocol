@@ -166,7 +166,7 @@ pub fn sum_check(
     output_amounts: &[u64],
     compression_amount: Option<&u64>,
     is_compress: bool,
-) -> anchor_lang::Result<()> {
+) -> Result<()> {
     let mut sum: u64 = 0;
     for input_token_data in input_token_data_elements.iter() {
         sum = sum

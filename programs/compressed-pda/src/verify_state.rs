@@ -106,7 +106,7 @@ pub fn sum_check(
     relay_fee: &Option<u64>,
     compression_lamports: &Option<u64>,
     is_compress: &bool,
-) -> anchor_lang::Result<()> {
+) -> Result<()> {
     let mut sum: u64 = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
         sum = sum

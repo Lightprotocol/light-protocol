@@ -40,7 +40,7 @@ impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
     }
 }
 
-/// for every leaf one Merkle tree account has to be passed as remaing account
+/// for every leaf one Merkle tree account has to be passed as remaining account
 /// for every leaf could be inserted into a different Merkle tree account
 /// 1. deduplicate Merkle trees and identify into which tree to insert what leaf
 /// 2. iterate over every unique Merkle tree and batch insert leaves

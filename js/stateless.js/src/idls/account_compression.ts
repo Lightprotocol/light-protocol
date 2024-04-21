@@ -288,7 +288,7 @@ export type AccountCompression = {
         {
             name: 'initializeGroupAuthority';
             docs: [
-                'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
             ];
             accounts: [
                 {
@@ -865,7 +865,7 @@ export type AccountCompression = {
         {
             code: 6009;
             name: 'NumberOfLeavesMismatch';
-            msg: 'Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves.';
+            msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.';
         },
         {
             code: 6010;
@@ -1220,7 +1220,7 @@ export const IDL: AccountCompression = {
         {
             name: 'initializeGroupAuthority',
             docs: [
-                'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
             ],
             accounts: [
                 {
@@ -1797,7 +1797,7 @@ export const IDL: AccountCompression = {
         {
             code: 6009,
             name: 'NumberOfLeavesMismatch',
-            msg: 'Leaves <> remaining accounts missmatch. The number of remaining accounts must match the number of leaves.',
+            msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.',
         },
         {
             code: 6010,

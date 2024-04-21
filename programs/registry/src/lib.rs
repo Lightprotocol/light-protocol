@@ -126,7 +126,7 @@ pub struct LightGovernanceAuthority {
     pub authority: Pubkey,
     pub bump: u8,
     pub _padding: [u8; 7],
-    pub rewards: Vec<u64>, // initing with storage for 8 u64s TODO: add instruction to resize
+    pub rewards: Vec<u64>, // initializing with storage for 8 u64s TODO: add instruction to resize
 }
 
 #[derive(Accounts)]
