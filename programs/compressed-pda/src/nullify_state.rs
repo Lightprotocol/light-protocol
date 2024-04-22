@@ -1,4 +1,4 @@
-use account_compression::IndexedArrayAccount;
+use account_compression::NullifierQueueAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 
@@ -20,11 +20,11 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         .iter()
         .map(|account| ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize].clone())
         .collect::<Vec<AccountInfo<'info>>>();
-    let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
+    let mut nullifier_queue_account_infos = Vec::<AccountInfo>::new();
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
-        indexed_array_account_infos
+        nullifier_queue_account_infos
             .push(ctx.remaining_accounts[account.nullifier_queue_pubkey_index as usize].clone());
-        let unpacked_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(
+        let unpacked_queue_account = AccountLoader::<NullifierQueueAccount>::try_from(
             &ctx.remaining_accounts[account.nullifier_queue_pubkey_index as usize],
         )
         .unwrap();
@@ -47,7 +47,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.account_compression_program,
         &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
-        indexed_array_account_infos,
+        nullifier_queue_account_infos,
         state_merkle_tree_account_infos,
         nullifiers.to_vec(),
     )?;
@@ -71,7 +71,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
 
-    let accounts = account_compression::cpi::accounts::InsertIntoIndexedArrays {
+    let accounts = account_compression::cpi::accounts::InsertIntoNullifierQueues {
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
     };
@@ -83,5 +83,5 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
         .extend(nullifier_queue_account_infos);
     cpi_ctx.remaining_accounts.extend(merkle_tree_account_infos);
     msg!("inserting nullifiers {:?}", nullifiers);
-    account_compression::cpi::insert_into_indexed_arrays(cpi_ctx, nullifiers)
+    account_compression::cpi::insert_into_nullifier_queues(cpi_ctx, nullifiers)
 }

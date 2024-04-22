@@ -4,11 +4,11 @@ use account_compression::{
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES,
-        ADDRESS_QUEUE_VALUES, STATE_INDEXED_ARRAY_INDICES, STATE_INDEXED_ARRAY_VALUES,
-        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS,
+        ADDRESS_QUEUE_VALUES, STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG,
+        STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
+        STATE_NULLIFIER_QUEUE_VALUES,
     },
-    AddressMerkleTreeAccount, AddressQueueAccount, IndexedArrayAccount, StateMerkleTreeAccount,
+    AddressMerkleTreeAccount, AddressQueueAccount, NullifierQueueAccount, StateMerkleTreeAccount,
 };
 use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
@@ -51,9 +51,9 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "IndexedArrayAccount".to_owned(),
-            space: IndexedArrayAccount::size(
-                STATE_INDEXED_ARRAY_INDICES as usize,
-                STATE_INDEXED_ARRAY_VALUES as usize,
+            space: NullifierQueueAccount::size(
+                STATE_NULLIFIER_QUEUE_INDICES as usize,
+                STATE_NULLIFIER_QUEUE_VALUES as usize,
             )
             .unwrap(),
         },

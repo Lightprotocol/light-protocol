@@ -15,17 +15,17 @@ use crate::{
 };
 
 #[derive(Accounts)]
-pub struct InsertIntoIndexedArrays<'info> {
+pub struct InsertIntoNullifierQueues<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
-/// Inserts every element into the indexed array.
+/// Inserts every element into the nullifier queue.
 /// Throws an error if the element already exists.
-/// Expects an indexed queue account as for every index as remaining account.
-pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
+/// Expects a nullifier queue account as for every index as remaining account.
+pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
     elements: &'a [[u8; 32]],
 ) -> Result<()> {
     let expected_remaining_accounts = elements.len() * 2;
@@ -52,18 +52,18 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
 
     for queue_bundle in queue_map.values() {
         msg!(
-            "Inserting into indexed array {:?}",
+            "Inserting into nullifier queue {:?}",
             queue_bundle.queue.key()
         );
 
-        let indexed_array = AccountLoader::<IndexedArrayAccount>::try_from(queue_bundle.queue)?;
+        let nullifier_queue = AccountLoader::<NullifierQueueAccount>::try_from(queue_bundle.queue)?;
         {
-            let indexed_array = indexed_array.load()?;
-            check_registered_or_signer::<InsertIntoIndexedArrays, IndexedArrayAccount>(
+            let nullifier_queue = nullifier_queue.load()?;
+            check_registered_or_signer::<InsertIntoNullifierQueues, NullifierQueueAccount>(
                 &ctx,
-                &indexed_array,
+                &nullifier_queue,
             )?;
-            if queue_bundle.merkle_tree.key() != indexed_array.associated_merkle_tree {
+            if queue_bundle.merkle_tree.key() != nullifier_queue.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
         }
@@ -75,15 +75,15 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
             merkle_tree.load_merkle_tree()?.sequence_number
         };
 
-        let indexed_array = indexed_array.to_account_info();
-        let mut indexed_array = indexed_array.try_borrow_mut_data()?;
-        let mut indexed_array =
-            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
+        let nullifier_queue = nullifier_queue.to_account_info();
+        let mut nullifier_queue = nullifier_queue.try_borrow_mut_data()?;
+        let mut nullifier_queue =
+            unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut nullifier_queue).unwrap() };
 
         for element in queue_bundle.elements.iter() {
             msg!("Inserting element {:?}", element);
             let element = BigUint::from_bytes_be(element.as_slice());
-            indexed_array
+            nullifier_queue
                 .insert(&element, sequence_number)
                 .map_err(ProgramError::from)?;
         }
@@ -92,10 +92,11 @@ pub fn process_insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-// TODO: add a function to merkle tree program that creates a new Merkle tree and indexed array account in the same transaction with consistent parameters and add them to the group
+// TODO: add a function to merkle tree program that creates a new Merkle tree and nullifier queue account \
+// in the same transaction with consistent parameters and add them to the group
 // we can use the same group regulate permissions for the de compression pool program
-pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InitializeIndexedArrays<'info>>,
+pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, InitializeNullifierQueues<'info>>,
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
@@ -105,19 +106,19 @@ pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
     sequence_threshold: u64,
 ) -> Result<()> {
     {
-        let mut indexed_array_account = ctx.accounts.indexed_array.load_init()?;
-        indexed_array_account.index = index;
-        indexed_array_account.owner = owner;
-        indexed_array_account.delegate = delegate.unwrap_or(owner);
-        indexed_array_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
-        drop(indexed_array_account);
+        let mut nullifier_queue_account = ctx.accounts.nullifier_queue.load_init()?;
+        nullifier_queue_account.index = index;
+        nullifier_queue_account.owner = owner;
+        nullifier_queue_account.delegate = delegate.unwrap_or(owner);
+        nullifier_queue_account.associated_merkle_tree = associated_merkle_tree.unwrap_or_default();
+        drop(nullifier_queue_account);
     }
 
-    let indexed_array = ctx.accounts.indexed_array.to_account_info();
-    let mut indexed_array = indexed_array.try_borrow_mut_data()?;
+    let nullifier_queue = ctx.accounts.nullifier_queue.to_account_info();
+    let mut nullifier_queue = nullifier_queue.try_borrow_mut_data()?;
     let _ = unsafe {
-        indexed_array_from_bytes_zero_copy_init(
-            &mut indexed_array,
+        nullifier_queue_from_bytes_zero_copy_init(
+            &mut nullifier_queue,
             capacity_indices.into(),
             capacity_values.into(),
             sequence_threshold as usize,
@@ -125,29 +126,29 @@ pub fn process_initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
         .unwrap()
     };
 
-    // Explicitly initializing the indexed array is not necessary as default values are all zero.
+    // Explicitly initializing the nullifier queue is not necessary as default values are all zero.
     Ok(())
 }
 
 #[derive(Accounts)]
-pub struct InitializeIndexedArrays<'info> {
+pub struct InitializeNullifierQueues<'info> {
     pub authority: Signer<'info>,
     #[account(zero)]
-    pub indexed_array: AccountLoader<'info, IndexedArrayAccount>,
+    pub nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Debug, PartialEq)]
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-pub struct IndexedArrayAccount {
+pub struct NullifierQueueAccount {
     pub index: u64,
     pub owner: Pubkey,
     pub delegate: Pubkey,
     pub associated_merkle_tree: Pubkey,
 }
 
-impl GroupAccess for IndexedArrayAccount {
+impl GroupAccess for NullifierQueueAccount {
     fn get_owner(&self) -> &Pubkey {
         &self.owner
     }
@@ -157,7 +158,7 @@ impl GroupAccess for IndexedArrayAccount {
     }
 }
 
-impl<'info> GroupAccounts<'info> for InsertIntoIndexedArrays<'info> {
+impl<'info> GroupAccounts<'info> for InsertIntoNullifierQueues<'info> {
     fn get_signing_address(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -166,7 +167,7 @@ impl<'info> GroupAccounts<'info> for InsertIntoIndexedArrays<'info> {
     }
 }
 
-impl IndexedArrayAccount {
+impl NullifierQueueAccount {
     pub fn size(capacity_indices: usize, capacity_values: usize) -> Result<usize> {
         Ok(8 + mem::size_of::<Self>()
             + HashSet::<u16>::size_in_account(capacity_indices, capacity_values)
@@ -174,49 +175,49 @@ impl IndexedArrayAccount {
     }
 }
 
-/// Creates a copy of `IndexedArray` from the given account data.
+/// Creates a copy of `NullifierQueue` from the given account data.
 ///
 /// # Safety
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn indexed_array_from_bytes_copy(
+pub unsafe fn nullifier_queue_from_bytes_copy(
     mut data: RefMut<'_, &mut [u8]>,
     // data: &'a mut [u8],
 ) -> Result<HashSet<u16>> {
-    let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
+    let data = &mut data[8 + mem::size_of::<NullifierQueueAccount>()..];
     let queue = HashSet::<u16>::from_bytes_copy(data).map_err(ProgramError::from)?;
     Ok(queue)
 }
 
-/// Casts the given account data to an `IndexedArrayZeroCopy` instance.
+/// Casts the given account data to an `HashSetZeroCopy` instance.
 ///
 /// # Safety
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn indexed_array_from_bytes_zero_copy_mut(
+pub unsafe fn nullifier_queue_from_bytes_zero_copy_mut(
     data: &mut [u8],
 ) -> Result<HashSetZeroCopy<u16>> {
-    let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
+    let data = &mut data[8 + mem::size_of::<NullifierQueueAccount>()..];
     let queue =
         HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
     Ok(queue)
 }
 
-/// Casts the given account data to an `IndexedArrayZeroCopy` instance.
+/// Casts the given account data to an `HashSetZeroCopy` instance.
 ///
 /// # Safety
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn indexed_array_from_bytes_zero_copy_init(
+pub unsafe fn nullifier_queue_from_bytes_zero_copy_init(
     data: &mut [u8],
     capacity_indices: usize,
     capacity_values: usize,
     sequence_threshold: usize,
 ) -> Result<HashSetZeroCopy<u16>> {
-    let data = &mut data[8 + mem::size_of::<IndexedArrayAccount>()..];
+    let data = &mut data[8 + mem::size_of::<NullifierQueueAccount>()..];
     let queue = HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
         data,
         capacity_indices,
@@ -228,24 +229,24 @@ pub unsafe fn indexed_array_from_bytes_zero_copy_init(
 }
 
 #[cfg(not(target_os = "solana"))]
-pub mod indexed_array_sdk {
+pub mod nullifier_queue_sdk {
     use anchor_lang::{system_program, InstructionData};
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
     };
 
-    pub fn create_initialize_indexed_array_instruction(
+    pub fn create_initialize_nullifier_queue_instruction(
         payer: Pubkey,
-        indexed_array_pubkey: Pubkey,
+        nullifier_queue_pubkey: Pubkey,
         index: u64,
         associated_merkle_tree: Option<Pubkey>,
         capacity_indices: u16,
         capacity_values: u16,
         sequence_threshold: u64,
     ) -> Instruction {
-        let instruction_data: crate::instruction::InitializeIndexedArray =
-            crate::instruction::InitializeIndexedArray {
+        let instruction_data: crate::instruction::InitializeNullifierQueue =
+            crate::instruction::InitializeNullifierQueue {
                 index,
                 owner: payer,
                 delegate: None,
@@ -258,7 +259,7 @@ pub mod indexed_array_sdk {
             program_id: crate::ID,
             accounts: vec![
                 AccountMeta::new(payer, true),
-                AccountMeta::new(indexed_array_pubkey, false),
+                AccountMeta::new(nullifier_queue_pubkey, false),
                 AccountMeta::new_readonly(system_program::ID, false),
             ],
             data: instruction_data.data(),

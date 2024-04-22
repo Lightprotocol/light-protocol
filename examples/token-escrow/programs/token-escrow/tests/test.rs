@@ -46,10 +46,10 @@ async fn test_escrow() {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
     let test_indexer = TestIndexer::new(
         merkle_tree_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         payer.insecure_clone(),
     );
     let mint = create_mint_helper(&mut context, &payer).await;
@@ -90,7 +90,7 @@ async fn test_escrow() {
         lock_up_time: 0,
         signer: &payer_pubkey,
         input_compressed_account_merkle_tree_pubkeys: &[merkle_tree_pubkey],
-        nullifier_array_pubkeys: &[indexed_array_pubkey],
+        nullifier_array_pubkeys: &[nullifier_queue_pubkey],
         output_compressed_account_merkle_tree_pubkeys: &[merkle_tree_pubkey, merkle_tree_pubkey],
         output_compressed_accounts: &Vec::new(),
         root_indices: &root_indices,
@@ -164,7 +164,7 @@ async fn test_escrow() {
         lock_up_time: 0,
         signer: &payer_pubkey,
         input_compressed_account_merkle_tree_pubkeys: &[merkle_tree_pubkey],
-        nullifier_array_pubkeys: &[indexed_array_pubkey],
+        nullifier_array_pubkeys: &[nullifier_queue_pubkey],
         output_compressed_account_merkle_tree_pubkeys: &[merkle_tree_pubkey, merkle_tree_pubkey],
         output_compressed_accounts: &Vec::new(),
         root_indices: &root_indices,

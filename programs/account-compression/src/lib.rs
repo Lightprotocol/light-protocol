@@ -180,8 +180,8 @@ pub mod account_compression {
     }
 
     // TODO: add insert into merkle tree function that inserts multiple leaves into a single merkle tree
-    pub fn initialize_indexed_array<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeIndexedArrays<'info>>,
+    pub fn initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InitializeNullifierQueues<'info>>,
         index: u64,
         owner: Pubkey,
         delegate: Option<Pubkey>,
@@ -190,7 +190,7 @@ pub mod account_compression {
         capacity_values: u16,
         sequence_threshold: u64,
     ) -> Result<()> {
-        process_initialize_indexed_array(
+        process_initialize_nullifier_queue(
             ctx,
             index,
             owner,
@@ -202,11 +202,11 @@ pub mod account_compression {
         )
     }
 
-    pub fn insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
+    pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
         elements: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_into_indexed_arrays(ctx, &elements)
+        process_insert_into_nullifier_queues(ctx, &elements)
     }
 
     // TODO: insert into indexed array just insert into one array instead of possibly multiple

@@ -2,13 +2,13 @@
 
 use account_compression::{
     self,
-    indexed_array_sdk::create_initialize_indexed_array_instruction,
     instructions::append_leaves::sdk::{
         create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
     },
+    nullifier_queue_sdk::create_initialize_nullifier_queue_instruction,
     utils::constants::{
-        STATE_INDEXED_ARRAY_INDICES, STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
-        STATE_INDEXED_ARRAY_VALUES,
+        STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+        STATE_NULLIFIER_QUEUE_VALUES,
     },
     Pubkey, StateMerkleTreeAccount, ID,
 };
@@ -223,7 +223,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority(
 /// 3. Failing: nullify leaf with invalid leaf queue index
 /// 4. Failing: nullify leaf with invalid change log index
 /// 5. Functional: nullify other leaf
-/// 6. Failing: nullify leaf with indexed array that is not associated with the merkle tree
+/// 6. Failing: nullify leaf with nullifier queue that is not associated with the merkle tree
 #[tokio::test]
 async fn test_nullify_leaves() {
     let mut program_test = ProgramTest::default();
@@ -239,33 +239,33 @@ async fn test_nullify_leaves() {
 
     let payer = context.payer.insecure_clone();
     let payer_pubkey = context.payer.pubkey();
-    let indexed_array_keypair = Keypair::new();
+    let nullifier_queue_keypair = Keypair::new();
 
     let merkle_tree_pubkey = functional_1_initialize_state_merkle_tree(
         &mut context,
         &payer_pubkey,
-        Some(indexed_array_keypair.pubkey()),
+        Some(nullifier_queue_keypair.pubkey()),
     )
     .await;
 
-    let indexed_array_pubkey = functional_1_initialize_indexed_array(
+    let nullifier_queue_pubkey = functional_1_initialize_nullifier_queue(
         &mut context,
         &payer_pubkey,
-        &indexed_array_keypair,
+        &nullifier_queue_keypair,
         Some(merkle_tree_pubkey),
     )
     .await;
     let other_merkle_tree_pubkey = functional_1_initialize_state_merkle_tree(
         &mut context,
         &payer_pubkey,
-        Some(indexed_array_keypair.pubkey()),
+        Some(nullifier_queue_keypair.pubkey()),
     )
     .await;
-    let invalid_indexed_array_keypair = Keypair::new();
-    let invalid_indexed_array_pubkey = functional_1_initialize_indexed_array(
+    let invalid_nullifier_queue_keypair = Keypair::new();
+    let invalid_nullifier_queue_pubkey = functional_1_initialize_nullifier_queue(
         &mut context,
         &payer_pubkey,
-        &invalid_indexed_array_keypair,
+        &invalid_nullifier_queue_keypair,
         Some(other_merkle_tree_pubkey),
     )
     .await;
@@ -274,10 +274,10 @@ async fn test_nullify_leaves() {
 
     let elements = vec![[1u8; 32], [2u8; 32]];
 
-    insert_into_indexed_arrays(
+    insert_into_nullifier_queues(
         &elements,
         &payer,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         &mut context,
     )
@@ -295,7 +295,7 @@ async fn test_nullify_leaves() {
     nullify(
         &mut context,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
         &elements[0],
         2,
@@ -312,7 +312,7 @@ async fn test_nullify_leaves() {
     nullify(
         &mut context,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
         &elements[1],
         valid_changelog_index,
@@ -326,7 +326,7 @@ async fn test_nullify_leaves() {
     nullify(
         &mut context,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
         &elements[1],
         valid_changelog_index,
@@ -339,7 +339,7 @@ async fn test_nullify_leaves() {
     nullify(
         &mut context,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
         &elements[1],
         invalid_change_log_index,
@@ -351,7 +351,7 @@ async fn test_nullify_leaves() {
     nullify(
         &mut context,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
         &elements[1],
         valid_changelog_index,
@@ -364,7 +364,7 @@ async fn test_nullify_leaves() {
     nullify(
         &mut context,
         &merkle_tree_pubkey,
-        &invalid_indexed_array_pubkey,
+        &invalid_nullifier_queue_pubkey,
         &mut reference_merkle_tree,
         &elements[0],
         2,
@@ -379,7 +379,7 @@ async fn test_nullify_leaves() {
 pub async fn nullify(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     reference_merkle_tree: &mut light_merkle_tree_reference::MerkleTree<Poseidon>,
     element: &[u8; 32],
     change_log_index: u64,
@@ -401,7 +401,7 @@ pub async fn nullify(
             vec![proof].as_slice(),
             &context.payer.pubkey(),
             merkle_tree_pubkey,
-            indexed_array_pubkey,
+            nullifier_queue_pubkey,
         ),
     ];
     let payer = context.payer.insecure_clone();
@@ -423,14 +423,14 @@ pub async fn nullify(
         reference_merkle_tree.root()
     );
 
-    let indexed_array = unsafe {
-        get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+    let nullifier_queue = unsafe {
+        get_hash_set::<u16, account_compression::NullifierQueueAccount>(
             context,
-            *indexed_array_pubkey,
+            *nullifier_queue_pubkey,
         )
         .await
     };
-    let array_element = indexed_array
+    let array_element = nullifier_queue
         .by_value_index(
             leaf_queue_index.into(),
             Some(
@@ -458,13 +458,13 @@ pub async fn nullify(
 }
 
 /// Tests:
-/// 1. Functional: Initialize indexed array
-/// 2. Functional: Insert into indexed array
-/// 3. Failing: Insert the same elements into indexed array again (3 and 1 element(s))
-/// 4. Failing: Insert into indexed array with invalid authority
-/// 5. Functional: Insert one element into indexed array
+/// 1. Functional: Initialize nullifier queue
+/// 2. Functional: Insert into nullifier queue
+/// 3. Failing: Insert the same elements into nullifier queue again (3 and 1 element(s))
+/// 4. Failing: Insert into nullifier queue with invalid authority
+/// 5. Functional: Insert one element into nullifier queue
 #[tokio::test]
-async fn test_init_and_insert_into_indexed_array() {
+async fn test_init_and_insert_into_nullifier_queue() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -481,61 +481,61 @@ async fn test_init_and_insert_into_indexed_array() {
     let merkle_tree_pubkey =
         functional_1_initialize_state_merkle_tree(&mut context, &payer_pubkey, None).await;
 
-    let indexed_array_keypair = Keypair::new();
-    let indexed_array_pubkey = functional_1_initialize_indexed_array(
+    let nullifier_queue_keypair = Keypair::new();
+    let nullifier_queue_pubkey = functional_1_initialize_nullifier_queue(
         &mut context,
         &payer_pubkey,
-        &indexed_array_keypair,
+        &nullifier_queue_keypair,
         Some(merkle_tree_pubkey),
     )
     .await;
 
-    functional_2_test_insert_into_indexed_arrays(
+    functional_2_test_insert_into_nullifier_queues(
         &mut context,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
     )
     .await;
 
-    fail_3_insert_same_elements_into_indexed_array(
+    fail_3_insert_same_elements_into_nullifier_queue(
         &mut context,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![[3u8; 32], [1u8; 32], [1u8; 32]],
     )
     .await;
-    fail_3_insert_same_elements_into_indexed_array(
+    fail_3_insert_same_elements_into_nullifier_queue(
         &mut context,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![[1u8; 32]],
     )
     .await;
     fail_4_insert_with_invalid_signer(
         &mut context,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
         vec![[3u8; 32]],
     )
     .await;
 
-    functional_5_test_insert_into_indexed_arrays(
+    functional_5_test_insert_into_nullifier_queues(
         &mut context,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &merkle_tree_pubkey,
     )
     .await;
 }
 
-async fn functional_1_initialize_indexed_array(
+async fn functional_1_initialize_nullifier_queue(
     context: &mut ProgramTestContext,
     payer_pubkey: &Pubkey,
-    indexed_array_keypair: &Keypair,
+    nullifier_queue_keypair: &Keypair,
     associated_merkle_tree: Option<Pubkey>,
 ) -> Pubkey {
-    let size = account_compression::IndexedArrayAccount::size(
-        STATE_INDEXED_ARRAY_INDICES as usize,
-        STATE_INDEXED_ARRAY_VALUES as usize,
+    let size = account_compression::NullifierQueueAccount::size(
+        STATE_NULLIFIER_QUEUE_INDICES as usize,
+        STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
     .unwrap();
     let account_create_ix = create_account_instruction(
@@ -548,24 +548,24 @@ async fn functional_1_initialize_indexed_array(
             .unwrap()
             .minimum_balance(size),
         &ID,
-        Some(indexed_array_keypair),
+        Some(nullifier_queue_keypair),
     );
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
 
-    let instruction = create_initialize_indexed_array_instruction(
+    let instruction = create_initialize_nullifier_queue_instruction(
         *payer_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         1u64,
         associated_merkle_tree,
-        STATE_INDEXED_ARRAY_INDICES,
-        STATE_INDEXED_ARRAY_VALUES,
-        STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
+        STATE_NULLIFIER_QUEUE_INDICES,
+        STATE_NULLIFIER_QUEUE_VALUES,
+        STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &indexed_array_keypair],
+        &[&context.payer, &nullifier_queue_keypair],
         context.last_blockhash,
     );
     context
@@ -573,44 +573,44 @@ async fn functional_1_initialize_indexed_array(
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    let indexed_array = AccountZeroCopy::<account_compression::IndexedArrayAccount>::new(
+    let nullifier_queue = AccountZeroCopy::<account_compression::NullifierQueueAccount>::new(
         context,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
     )
     .await
     .deserialized();
     assert_eq!(
-        indexed_array.associated_merkle_tree,
+        nullifier_queue.associated_merkle_tree,
         associated_merkle_tree.unwrap_or_default()
     );
-    assert_eq!(indexed_array.index, 1);
-    assert_eq!(indexed_array.owner, *payer_pubkey);
-    assert_eq!(indexed_array.delegate, *payer_pubkey);
+    assert_eq!(nullifier_queue.index, 1);
+    assert_eq!(nullifier_queue.owner, *payer_pubkey);
+    assert_eq!(nullifier_queue.delegate, *payer_pubkey);
 
-    indexed_array_pubkey
+    nullifier_queue_pubkey
 }
 
-async fn functional_2_test_insert_into_indexed_arrays(
+async fn functional_2_test_insert_into_nullifier_queues(
     context: &mut ProgramTestContext,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
 ) {
     let payer = context.payer.insecure_clone();
 
     let elements = vec![[1_u8; 32], [2_u8; 32]];
-    insert_into_indexed_arrays(
+    insert_into_nullifier_queues(
         &elements,
         &payer,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         merkle_tree_pubkey,
         context,
     )
     .await
     .unwrap();
     let array = unsafe {
-        get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+        get_hash_set::<u16, account_compression::NullifierQueueAccount>(
             context,
-            *indexed_array_pubkey,
+            *nullifier_queue_pubkey,
         )
         .await
     };
@@ -622,18 +622,18 @@ async fn functional_2_test_insert_into_indexed_arrays(
     assert_eq!(array_element_1.sequence_number(), None);
 }
 
-async fn fail_3_insert_same_elements_into_indexed_array(
+async fn fail_3_insert_same_elements_into_nullifier_queue(
     context: &mut ProgramTestContext,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     elements: Vec<[u8; 32]>,
 ) {
     let payer = context.payer.insecure_clone();
 
-    insert_into_indexed_arrays(
+    insert_into_nullifier_queues(
         &elements,
         &payer,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         merkle_tree_pubkey,
         context,
     )
@@ -643,7 +643,7 @@ async fn fail_3_insert_same_elements_into_indexed_array(
 
 async fn fail_4_insert_with_invalid_signer(
     context: &mut ProgramTestContext,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     elements: Vec<[u8; 32]>,
 ) {
@@ -651,10 +651,10 @@ async fn fail_4_insert_with_invalid_signer(
     airdrop_lamports(context, &invalid_signer.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    insert_into_indexed_arrays(
+    insert_into_nullifier_queues(
         &elements,
         &invalid_signer,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         merkle_tree_pubkey,
         context,
     )
@@ -662,28 +662,28 @@ async fn fail_4_insert_with_invalid_signer(
     .unwrap_err();
 }
 
-async fn functional_5_test_insert_into_indexed_arrays(
+async fn functional_5_test_insert_into_nullifier_queues(
     context: &mut ProgramTestContext,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
 ) {
     let payer = context.payer.insecure_clone();
 
     let element = 3_u32.to_biguint().unwrap();
     let elements = vec![bigint_to_be_bytes_array(&element).unwrap()];
-    insert_into_indexed_arrays(
+    insert_into_nullifier_queues(
         &elements,
         &payer,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         merkle_tree_pubkey,
         context,
     )
     .await
     .unwrap();
     let array = unsafe {
-        get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+        get_hash_set::<u16, account_compression::NullifierQueueAccount>(
             context,
-            *indexed_array_pubkey,
+            *nullifier_queue_pubkey,
         )
         .await
     };
@@ -692,23 +692,23 @@ async fn functional_5_test_insert_into_indexed_arrays(
     assert_eq!(array_element.sequence_number(), None);
 }
 
-async fn insert_into_indexed_arrays(
+async fn insert_into_nullifier_queues(
     elements: &[[u8; 32]],
     payer: &Keypair,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     context: &mut ProgramTestContext,
 ) -> Result<(), BanksClientError> {
-    let instruction_data = account_compression::instruction::InsertIntoIndexedArrays {
+    let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: elements.to_vec(),
     };
-    let accounts = account_compression::accounts::InsertIntoIndexedArrays {
+    let accounts = account_compression::accounts::InsertIntoNullifierQueues {
         authority: payer.pubkey(),
         registered_program_pda: None,
     };
     let mut remaining_accounts = Vec::with_capacity(elements.len() * 2);
     remaining_accounts.extend(vec![
-        AccountMeta::new(*indexed_array_pubkey, false);
+        AccountMeta::new(*nullifier_queue_pubkey, false);
         elements.len()
     ]);
     remaining_accounts.extend(vec![

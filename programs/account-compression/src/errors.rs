@@ -42,8 +42,8 @@ pub enum AccountCompressionErrorCode {
     NumberOfProofsMismatch,
     #[msg("InvalidMerkleProof")]
     InvalidMerkleProof,
-    #[msg("InvalidIndexedArray")]
-    InvalidIndexedArray,
+    #[msg("InvalidNullifierQueue")]
+    InvalidNullifierQueue,
     #[msg("InvalidMerkleTree")]
     InvalidMerkleTree,
     #[msg("Could not find the leaf in the queue")]

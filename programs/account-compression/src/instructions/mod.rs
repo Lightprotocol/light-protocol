@@ -12,8 +12,8 @@ pub use update_address_merkle_tree::*;
 pub mod initialize_concurrent_merkle_tree;
 pub use initialize_concurrent_merkle_tree::*;
 
-pub mod insert_into_indexed_array;
-pub use insert_into_indexed_array::*;
+pub mod insert_into_nullifier_queue;
+pub use insert_into_nullifier_queue::*;
 
 pub mod append_leaves;
 pub use append_leaves::*;
