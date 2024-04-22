@@ -33,7 +33,7 @@
         "test:index": "vitest run tests/e2e/program.test.ts",
         "test:e2e:serde": "vitest run tests/e2e/serde.test.ts",
         "test:verbose": "vitest run --reporter=verbose",
-        "pull-idls": "../../scripts/push-stateless-js-idls.sh",
+        "pull-idls": "../../scripts/push-stateless-js-idls.sh && ../../scripts/push-compressed-token-idl.sh",
         "build": "rimraf dist && pnpm pull-idls && pnpm build:bundle",
         "build:bundle": "rollup -c",
         "format": "prettier --write .",

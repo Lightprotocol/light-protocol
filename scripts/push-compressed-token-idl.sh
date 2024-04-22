@@ -6,6 +6,10 @@ PDA_FILE="target/idl/light_compressed_pda.json"
 TOKEN_FILE="target/idl/light_compressed_token.json"
 DEST_DIR="js/compressed-token/src/idl"
 TS_FILE="$DEST_DIR/light_compressed_token.ts" # ts output file path
+
+DEST_DIR_STATELESS="js/stateless.js/src/idls"
+TS_FILE_STATELESS="$DEST_DIR_STATELESS/light_compressed_token.ts" # ts output file path
+
 TYPE_NAME="LightCompressedToken" # ts type name
 
 # Check if jq is installed
@@ -25,7 +29,7 @@ MERGED_TYPES=$(jq -s '.[0] + .[1]' <(echo "$PDA_TYPES") <(echo "$TOKEN_TYPES"))
 # Generate TS content
 MERGED_CONTENT=$(jq --argjson types "$MERGED_TYPES" '.types = $types' "$TOKEN_FILE")
 
-# Generate TypeScript file with JSON object inline
+# Generate TypeScript file with JSON object inline and place it in both destinations
 {
   echo -n "export type ${TYPE_NAME} = "
   echo "$MERGED_CONTENT"
@@ -33,9 +37,9 @@ MERGED_CONTENT=$(jq --argjson types "$MERGED_TYPES" '.types = $types' "$TOKEN_FI
   echo -n "export const IDL: ${TYPE_NAME} = "
   echo "$MERGED_CONTENT"
   echo ";"
-} > "$TS_FILE"
+} | tee "$TS_FILE" > "$TS_FILE_STATELESS"
 
-echo "IDL for $TYPE_NAME generated at $TS_FILE"
+echo "IDL for $TYPE_NAME generated at $TS_FILE and $TS_FILE_STATELESS"
 
 
 # fmt 
@@ -45,6 +49,6 @@ then
     exit 1
 fi
 
-pnpm prettier --write "$TS_FILE"
-echo "Prettier formatting applied to $TS_FILE"
+pnpm prettier --write "$TS_FILE" "$TS_FILE_STATELESS"
+echo "Prettier formatting applied to $TS_FILE and $TS_FILE_STATELESS"
 
