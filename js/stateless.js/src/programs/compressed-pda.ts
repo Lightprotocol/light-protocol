@@ -79,8 +79,6 @@ type TransferParams = {
 /// - add option to merge with input state
 /**
  * Defines the parameters for the transfer method
- * @property {PublicKey} [merkleTree] - State tree account for the compressed tokens.
- *
  */
 type CompressParams = {
     /**
@@ -223,7 +221,6 @@ export class LightSystemProgram {
         const outputCompressedAccounts: CompressedAccount[] = [
             createCompressedAccount(
                 inputCompressedAccounts[0].owner,
-                // lamports.add(
                 changeLamports,
             ),
             createCompressedAccount(toAddress, lamports),
@@ -369,16 +366,6 @@ export class LightSystemProgram {
             remainingAccountMetas,
         } = packCompressedAccounts([], 1, outputStateTree);
 
-        console.log(
-            'packedInputCompressedAccounts',
-            packedInputCompressedAccounts,
-        );
-        console.log('outputCompressedAccount', outputCompressedAccount);
-        console.log(
-            'outputStateMerkleTreeIndices',
-            outputStateMerkleTreeIndices,
-        );
-        console.log('lamports', lamports);
         /// Encode instruction data
         const data = this.program.coder.types.encode(
             'InstructionDataTransfer',
@@ -398,8 +385,6 @@ export class LightSystemProgram {
                 isCompress: true,
             },
         );
-
-        console.log('data:', data);
 
         /// Build anchor instruction
         const instruction = await this.program.methods

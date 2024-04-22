@@ -116,9 +116,7 @@ export const getRootSeq = async (rpc: Rpc): Promise<number> => {
             leaves.push(hash);
         }
     }
-    /// This only
-    const rootSeq = leaves.length;
-    return rootSeq;
+    return leaves.length;
 };
 
 /**
