@@ -62,6 +62,17 @@ export async function decompress(
         amount,
     );
 
+    console.log(
+        `found ${inputAccounts.length} out of ${compressedTokenAccounts.length}`,
+        'selected input accounts: ',
+        inputAccounts.map(
+            x =>
+                x.compressedAccount.hash +
+                ' / ' +
+                x.compressedAccount.hash.length,
+        ),
+    );
+
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );

@@ -2,6 +2,7 @@
 import {
     LightSystemProgram,
     bn,
+    buildTx,
     confirmTx,
     createRpc,
     defaultTestStateTreeAccounts,
@@ -80,17 +81,10 @@ const SendButton: FC = () => {
 
         const {
             context: { slot: minContextSlot },
-            value: { blockhash, lastValidBlockHeight },
+            value: blockhashCtx,
         } = await connection.getLatestBlockhashAndContext();
 
-        const messageV0 = new TransactionMessage({
-            payerKey: publicKey,
-            recentBlockhash: blockhash,
-            instructions: compressInstructions,
-        }).compileToV0Message();
-
-        console.log('!msg');
-        const transaction = new VersionedTransaction(messageV0);
+       const tx = buildTx(publicKey, compressInstructions, blockhashCtx)
 
         const signature = await sendTransaction(transaction, connection, {
             minContextSlot,

@@ -98,10 +98,11 @@ const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
 /**
  * @internal
  * This only works with uncranked state trees in local test environments.
+ * TODO: implement as seq MOD rootHistoryArray.length, or move to indexer
  */
 export const getRootSeq = async (rpc: Rpc): Promise<number> => {
     const events = (await getParsedEvents(rpc)).reverse();
-    const leaves = [];
+    const leaves: number[][] = [];
     for (const event of events) {
         for (
             let index = 0;
@@ -167,7 +168,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             createMerkleContext(
                 item.tree!,
                 mockNullifierQueue,
-                item.hash.toArray(),
+                item.hash.toArray(undefined, 32),
                 item.leafIndex,
             ),
             item.owner,
@@ -175,9 +176,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
             // TODO: fix. add typesafety to the rest
             item.data
                 ? {
-                      discriminator: item.discriminator.toArray('le'),
+                      discriminator: item.discriminator.toArray('le', 8),
                       data: Buffer.from(item.data, 'base64'),
-                      dataHash: item.dataHash!.toArray('le'), //FIXME: need to calculate the hash or return from server
+                      dataHash: item.dataHash!.toArray('le', 32),
                   }
                 : undefined,
 
@@ -236,7 +237,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const rootIndex = await getRootSeq(this);
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray(),
+            hash: res.result.value.hash.toArray(undefined, 32),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: proofWithoutRoot,
@@ -255,7 +256,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             'getMultipleCompressedAccounts',
             hashes.map(hash => encodeBN254toBase58(hash)),
         );
-        console.log('unsafeRes', unsafeRes);
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(MultipleCompressedAccountsResult),
@@ -275,16 +275,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(),
+                    item.hash.toArray(undefined, 32),
                     item.leafIndex,
                 ),
                 item.owner,
                 bn(item.lamports),
                 item.data && {
                     /// TODO: validate whether we need to convert to 'le' here
-                    discriminator: item.discriminator.toArray('le'),
+                    discriminator: item.discriminator.toArray('le', 8),
                     data: Buffer.from(item.data, 'base64'),
-                    dataHash: item.dataHash.toArray('le'), //FIXME: need to calculate the hash or return from server
+                    dataHash: item.dataHash.toArray('le', 32), //FIXME: need to calculate the hash or return from server
                 },
                 item.address,
             );
@@ -298,10 +298,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
+        console.log(
+            `@getMultipleCompressedAccountProofs ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
+        );
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getMultipleCompressedAccountProofs',
             hashes.map(hash => encodeBN254toBase58(hash)),
+        );
+
+        console.log(
+            '@getMultipleCompressedAccountProofs unsafeRes',
+            JSON.stringify(unsafeRes),
         );
         const res = create(
             unsafeRes,
@@ -327,7 +335,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             const proofWithoutRoot = proof.proof.slice(0, -1);
             const root = proof.proof[proof.proof.length - 1];
             const value: MerkleContextWithMerkleProof = {
-                hash: proof.hash.toArray(),
+                hash: proof.hash.toArray(undefined, 32),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proofWithoutRoot,
@@ -370,15 +378,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(),
+                    item.hash.toArray(undefined, 32),
                     item.leafIndex,
                 ),
                 item.owner,
                 bn(item.lamports),
                 item.data && {
-                    discriminator: item.discriminator.toArray('le'),
+                    discriminator: item.discriminator.toArray('le', 8),
                     data: Buffer.from(item.data, 'base64'),
-                    dataHash: item.dataHash.toArray('le'), //FIXME: need to calculate the hash or return from server
+                    dataHash: item.dataHash.toArray('le', 32), //FIXME: need to calculate the hash or return from server
                 },
                 item.address,
             );
@@ -406,7 +414,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const merkleProofsWithContext =
             await this.getMultipleCompressedAccountProofs(hashes);
 
-        console.log('merkoeprofos', JSON.stringify(merkleProofsWithContext));
+        console.log('found merkleproofs', merkleProofsWithContext.length);
+        console.log(
+            'merkleproofs with ctx',
+            JSON.stringify(merkleProofsWithContext),
+        );
+        console.log(
+            'mproofs len',
+            merkleProofsWithContext.map(proof => proof.merkleProof.length),
+        );
         /// to hex
         const inputs: HexInputsForProver = {
             roots: merkleProofsWithContext.map(ctx => toHex(bn(ctx.root))),
@@ -418,9 +434,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
             ),
             leaves: merkleProofsWithContext.map(proof => toHex(bn(proof.hash))),
         };
+
         const inputsData = JSON.stringify(inputs);
 
         console.log('inputsData', inputsData);
+
         const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
         const response = await fetch(INCLUSION_PROOF_URL, {
             method: 'POST',
@@ -508,15 +526,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(),
+                    item.hash.toArray(undefined, 32),
                     item.leafIndex,
                 ),
                 new PublicKey('9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE'), // TODO: photon should return programOwner
                 bn(item.lamports),
                 item.data && {
-                    discriminator: item.discriminator.toArray('le'),
+                    discriminator: item.discriminator.toArray('le', 8),
                     data: Buffer.from(item.data, 'base64'),
-                    dataHash: item.dataHash.toArray('le'), //FIXME: need to calculate the hash or return from server
+                    dataHash: item.dataHash.toArray('le', 32), //FIXME: need to calculate the hash or return from server
                 },
                 item.address,
             );

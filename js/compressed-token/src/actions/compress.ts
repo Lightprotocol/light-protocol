@@ -49,7 +49,7 @@ export async function compress(
 ): Promise<TransactionSignature> {
     amount = bn(amount);
 
-    const ix = await CompressedTokenProgram.compress({
+    const ixs = await CompressedTokenProgram.compress({
         payer: payer.publicKey,
         owner: owner.publicKey,
         source: sourceTokenAccount,
@@ -59,14 +59,19 @@ export async function compress(
         outputStateTree: merkleTree,
     });
 
-    const { blockhash } = await rpc.getLatestBlockhash();
+    const blockhashCtx = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
     const signedTx = buildAndSignTx(
-        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        ixs,
         payer,
-        blockhash,
+        blockhashCtx.blockhash,
         additionalSigners,
     );
-    const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
+    const txId = await sendAndConfirmTx(
+        rpc,
+        signedTx,
+        confirmOptions,
+        blockhashCtx,
+    );
     return txId;
 }

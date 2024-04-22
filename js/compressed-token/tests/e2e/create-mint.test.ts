@@ -59,7 +59,7 @@ describe('createMint', () => {
 
     beforeAll(async () => {
         rpc = createRpc();
-        payer = await newAccountWithLamports(rpc);
+        payer = await newAccountWithLamports(rpc, 1e9);
     });
 
     it('should create mint', async () => {

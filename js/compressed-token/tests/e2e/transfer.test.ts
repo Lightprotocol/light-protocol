@@ -82,7 +82,7 @@ describe('transfer', () => {
 
     beforeAll(async () => {
         rpc = createRpc();
-        payer = await newAccountWithLamports(rpc);
+        payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
@@ -97,9 +97,9 @@ describe('transfer', () => {
         ).mint;
     });
 
-    beforeEach(async () => {
-        bob = await newAccountWithLamports(rpc);
-        charlie = await newAccountWithLamports(rpc);
+    beforeAll(async () => {
+        bob = await newAccountWithLamports(rpc, 1e9);
+        charlie = await newAccountWithLamports(rpc, 1e9);
 
         await mintTo(
             rpc,

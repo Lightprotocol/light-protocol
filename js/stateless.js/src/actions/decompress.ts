@@ -12,7 +12,7 @@ import { BN } from '@coral-xyz/anchor';
 import { CompressedAccountWithMerkleContext, bn } from '../state';
 
 /**
- * Init the SOL omnibus account for Light
+ * Decompress lamports into a solana account
  *
  * @param rpc             RPC to use
  * @param payer           Payer of the transaction and initialization fees
@@ -25,7 +25,7 @@ import { CompressedAccountWithMerkleContext, bn } from '../state';
  */
 /// TODO: add multisig support
 /// TODO: add support for payer != owner
-export async function decompressLamports(
+export async function decompress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
@@ -49,7 +49,14 @@ export async function decompressLamports(
             `Not enough compressed lamports. Expected ${lamports}, got ${inputLamports}`,
         );
     }
-
+    console.log(
+        'found: ',
+        userCompressedAccountsWithMerkleContext.length,
+        'input hashes',
+        userCompressedAccountsWithMerkleContext.map(
+            x => x.hash + '' + x.hash.length,
+        ),
+    );
     const proof = await rpc.getValidityProof(
         userCompressedAccountsWithMerkleContext.map(x => bn(x.hash)),
     );

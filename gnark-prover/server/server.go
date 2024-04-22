@@ -88,10 +88,10 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 
 	proverMux.Handle("/health", healthHandler{})
 
-	  // Setup CORS
-	  corsHandler := handlers.CORS(
-        handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
-		// TODO: Enforce strict CORS policy
+	// Setup CORS
+	// TODO: Enforce strict CORS policy
+	corsHandler := handlers.CORS(
+		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
         handlers.AllowedOrigins([]string{"*"}),
         handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
     )

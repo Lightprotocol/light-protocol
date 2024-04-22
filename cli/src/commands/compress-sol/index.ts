@@ -42,7 +42,7 @@ class CompressSolCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
 
       const rpc = createRpc(getSolanaRpcUrl());
-      txId = await compressLamports(rpc, payer, amount, toPublicKey);
+      txId = await compress(rpc, payer, amount, toPublicKey);
 
       loader.stop(false);
       console.log(

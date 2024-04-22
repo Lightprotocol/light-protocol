@@ -45,11 +45,6 @@
     ],
     "author": "",
     "license": "Apache-2.0",
-    "peerDependencies": {
-        "@solana/web3.js": "^1.87.6",
-        "@lightprotocol/stateless.js": "workspace:*",
-        "@solana/spl-token": "^0.3.7"
-    },
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0",
         "@solana/web3.js": "^1.87.6",

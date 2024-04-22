@@ -13,7 +13,7 @@ import { BN } from '@coral-xyz/anchor';
 import { defaultTestStateTreeAccounts } from '../constants';
 
 /**
- * Init the SOL omnibus account for Light
+ * Compress lamports to a solana address
  *
  * @param rpc             RPC to use
  * @param payer           Payer of the transaction and initialization fees
@@ -26,7 +26,7 @@ import { defaultTestStateTreeAccounts } from '../constants';
  */
 /// TODO: add multisig support
 /// TODO: add support for payer != owner
-export async function compressLamports(
+export async function compress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,

@@ -31,13 +31,7 @@ test.describe('RPC in browser', () => {
             );
 
             await initSolOmnibusAccount(rpc, initAuthority, initAuthority);
-            await compressLamports(
-                rpc,
-                payer,
-                1e9,
-                payer.publicKey,
-                merkleTree,
-            );
+            await compress(rpc, payer, 1e9, payer.publicKey, merkleTree);
         } catch (error) {
             console.log('error: ', error);
         }

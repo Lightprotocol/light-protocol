@@ -42,7 +42,7 @@ class DecompressSolCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
 
       const rpc = createRpc(getSolanaRpcUrl());
-      const txId = await decompressLamports(rpc, payer, amount, toPublicKey);
+      const txId = await decompress(rpc, payer, amount, toPublicKey);
       loader.stop(false);
       console.log(
         "\x1b[32mdecompress-sol:\x1b[0m ",
