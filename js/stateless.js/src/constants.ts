@@ -54,7 +54,7 @@ export const defaultTestStateTreeAccounts = () => {
 };
 
 export const nullifierQueuePubkey =
-    '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ'; // also called indexed_array
+    '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ'; // also called nullifier_queue
 
 export const merkletreePubkey = '5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W';
 

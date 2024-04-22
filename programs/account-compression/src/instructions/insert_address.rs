@@ -64,7 +64,7 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
                 msg!(
                     "Address queue account {:?} is not associated with any address Merkle tree. Provided accounts {:?}",
                     queue.key(), ctx.remaining_accounts);
-                return err!(AccountCompressionErrorCode::InvalidIndexedArray);
+                return err!(AccountCompressionErrorCode::InvalidNullifierQueue);
             }
         };
 

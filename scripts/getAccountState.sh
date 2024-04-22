@@ -2,7 +2,7 @@
 
 # run this to regenerate the following accounts:
 # merkle_tree_pubkey
-# indexed_array_pubkey
+# nullifier_queue_pubkey
 # governance_authority_pda
 # group_pda
 # 

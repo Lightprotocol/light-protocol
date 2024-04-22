@@ -178,10 +178,10 @@ async fn test_mint_to() {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
     let mock_indexer = MockIndexer::new(
         merkle_tree_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         payer.insecure_clone(),
     );
     let recipient_keypair = Keypair::new();
@@ -242,10 +242,10 @@ async fn test_transfer() {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
     let mock_indexer = MockIndexer::new(
         merkle_tree_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         payer.insecure_clone(),
     );
     let recipient_keypair = Keypair::new();
@@ -337,7 +337,7 @@ async fn test_transfer() {
         &payer_pubkey,
         &recipient_keypair.pubkey(),               // authority
         &[merkle_tree_pubkey],                     // input_compressed_account_merkle_tree_pubkeys
-        &[indexed_array_pubkey],                   // nullifier_array_pubkeys
+        &[nullifier_queue_pubkey],                 // nullifier_array_pubkeys
         &[merkle_tree_pubkey, merkle_tree_pubkey], // output_compressed_account_merkle_tree_pubkeys
         &[
             // output_compressed_accounts
@@ -405,10 +405,10 @@ async fn test_decompression() {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
     let mock_indexer = MockIndexer::new(
         merkle_tree_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         payer.insecure_clone(),
         // Some(0), // TODO: check if required
     );
@@ -505,7 +505,7 @@ async fn test_decompression() {
         &payer_pubkey,
         &recipient_keypair.pubkey(),       // authority
         &[merkle_tree_pubkey],             // input_compressed_account_merkle_tree_pubkeys
-        &[indexed_array_pubkey],           // nullifier_array_pubkeys
+        &[nullifier_queue_pubkey],         // nullifier_array_pubkeys
         &[merkle_tree_pubkey],             // output_compressed_account_merkle_tree_pubkeys
         &[change_out_compressed_account],  // output_compressed_accounts
         &root_indices,                     // root_indices
@@ -630,10 +630,10 @@ async fn test_invalid_inputs() {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let indexed_array_pubkey = env.indexed_array_pubkey;
+    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
     let mock_indexer = MockIndexer::new(
         merkle_tree_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         payer.insecure_clone(),
     );
     let recipient_keypair = Keypair::new();
@@ -719,7 +719,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -746,7 +746,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -773,7 +773,7 @@ async fn test_invalid_inputs() {
         zero_amount,
         zero_amount,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -799,7 +799,7 @@ async fn test_invalid_inputs() {
         double_amount,
         double_amount,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -827,7 +827,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         invalid_lamports_amount,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -879,7 +879,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -915,7 +915,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -942,7 +942,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &payer,
         &proof,
         &root_indices,
@@ -980,7 +980,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -1018,7 +1018,7 @@ async fn test_invalid_inputs() {
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &recipient_keypair,
         &proof,
         &root_indices,
@@ -1042,7 +1042,7 @@ async fn create_transfer_out_utxo_test(
     change_token_transfer_output: TokenTransferOutputData,
     transfer_recipient_token_transfer_output: TokenTransferOutputData,
     merkle_tree_pubkey: &Pubkey,
-    indexed_array_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
     payer: &Keypair,
     proof: &CompressedProof,
     root_indices: &[u16],
@@ -1062,8 +1062,8 @@ async fn create_transfer_out_utxo_test(
     let instruction = transfer_sdk::create_transfer_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
-        &[*merkle_tree_pubkey],   // input compressed account Merkle trees
-        &[*indexed_array_pubkey], // input compressed account indexed arrays
+        &[*merkle_tree_pubkey],     // input compressed account Merkle trees
+        &[*nullifier_queue_pubkey], // input compressed account nullifier queues
         &[*merkle_tree_pubkey, *merkle_tree_pubkey], // output compressed account Merkle trees
         &[
             change_token_transfer_output,
@@ -1349,7 +1349,7 @@ async fn assert_transfer<'a>(
 #[derive(Debug)]
 pub struct MockIndexer {
     pub merkle_tree_pubkey: Pubkey,
-    pub indexed_array_pubkey: Pubkey,
+    pub nullifier_queue_pubkey: Pubkey,
     pub payer: Keypair,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
@@ -1366,7 +1366,11 @@ pub struct TokenDataWithContext {
 }
 
 impl MockIndexer {
-    async fn new(merkle_tree_pubkey: Pubkey, indexed_array_pubkey: Pubkey, payer: Keypair) -> Self {
+    async fn new(
+        merkle_tree_pubkey: Pubkey,
+        nullifier_queue_pubkey: Pubkey,
+        payer: Keypair,
+    ) -> Self {
         spawn_gnark_server(
             "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
             true,
@@ -1381,7 +1385,7 @@ impl MockIndexer {
 
         Self {
             merkle_tree_pubkey,
-            indexed_array_pubkey,
+            nullifier_queue_pubkey,
             payer,
             compressed_accounts: vec![],
             nullified_compressed_accounts: vec![],
@@ -1540,10 +1544,10 @@ impl MockIndexer {
     /// Check compressed_accounts in the queue array which are not nullified yet
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
-        let indexed_array = unsafe {
-            get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+        let nullifier_queue = unsafe {
+            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
                 context,
-                self.indexed_array_pubkey,
+                self.nullifier_queue_pubkey,
             )
             .await
         };
@@ -1557,13 +1561,13 @@ impl MockIndexer {
 
         let mut compressed_account_to_nullify = Vec::new();
 
-        for (i, element) in indexed_array.iter() {
+        for (i, element) in nullifier_queue.iter() {
             if element.sequence_number().is_none() {
                 compressed_account_to_nullify.push((i, element.value_bytes()));
             }
         }
 
-        for (index_in_indexed_array, compressed_account) in compressed_account_to_nullify.iter() {
+        for (index_in_nullifier_queue, compressed_account) in compressed_account_to_nullify.iter() {
             let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
@@ -1576,12 +1580,12 @@ impl MockIndexer {
             let instructions = [
                 account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
                     vec![change_log_index].as_slice(),
-                    vec![(*index_in_indexed_array) as u16].as_slice(),
+                    vec![(*index_in_nullifier_queue) as u16].as_slice(),
                     vec![0u64].as_slice(),
                     vec![proof].as_slice(),
                     &context.payer.pubkey(),
                     &self.merkle_tree_pubkey,
-                    &self.indexed_array_pubkey,
+                    &self.nullifier_queue_pubkey,
                 ),
             ];
 
@@ -1594,15 +1598,15 @@ impl MockIndexer {
             .await
             .unwrap();
 
-            let indexed_array = unsafe {
-                get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+            let nullifier_queue = unsafe {
+                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
                     context,
-                    self.indexed_array_pubkey,
+                    self.nullifier_queue_pubkey,
                 )
                 .await
             };
-            let array_element = indexed_array
-                .by_value_index(*index_in_indexed_array, Some(merkle_tree.sequence_number))
+            let array_element = nullifier_queue
+                .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))
                 .unwrap();
             assert_eq!(&array_element.value_bytes(), compressed_account);
             let merkle_tree_account =

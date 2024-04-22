@@ -1,9 +1,9 @@
 #[cfg(feature = "light_program")]
 use account_compression::{
-    indexed_array_sdk::create_initialize_indexed_array_instruction,
     initialize_address_queue_sdk::create_initialize_address_queue_instruction,
-    instruction::InitializeAddressMerkleTree, state::AddressMerkleTreeAccount, GroupAuthority,
-    RegisteredProgram,
+    instruction::InitializeAddressMerkleTree,
+    nullifier_queue_sdk::create_initialize_nullifier_queue_instruction,
+    state::AddressMerkleTreeAccount, GroupAuthority, RegisteredProgram,
 };
 #[cfg(feature = "light_program")]
 use anchor_lang::{system_program, InstructionData};
@@ -66,7 +66,7 @@ pub async fn setup_test_programs(
 pub struct EnvWithAccounts {
     pub context: ProgramTestContext,
     pub merkle_tree_pubkey: Pubkey,
-    pub indexed_array_pubkey: Pubkey,
+    pub nullifier_queue_pubkey: Pubkey,
     pub governance_authority: Keypair,
     pub governance_authority_pda: Pubkey,
     pub group_pda: Pubkey,
@@ -82,7 +82,7 @@ pub const MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
     207, 69, 44, 121, 118, 153, 17, 179, 183, 115, 34, 163, 127, 102, 214, 1, 87, 175, 177, 95, 49,
     65, 69,
 ];
-pub const INDEXED_ARRAY_TEST_KEYPAIR: [u8; 64] = [
+pub const NULLIFIER_QUEUE_TEST_KEYPAIR: [u8; 64] = [
     222, 130, 14, 179, 120, 234, 200, 231, 112, 214, 179, 171, 214, 95, 225, 61, 71, 61, 96, 214,
     47, 253, 213, 178, 11, 77, 16, 2, 7, 24, 106, 218, 45, 107, 25, 100, 70, 71, 137, 47, 210, 248,
     220, 223, 11, 204, 205, 89, 248, 48, 211, 168, 11, 25, 219, 158, 99, 47, 127, 248, 142, 107,
@@ -184,7 +184,7 @@ pub async fn setup_test_programs_with_accounts(
     .unwrap();
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
 
-    let account_create_ix = crate::create_account_instruction(
+    let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,
         context
@@ -197,11 +197,11 @@ pub async fn setup_test_programs_with_accounts(
         Some(&merkle_tree_keypair),
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-    let indexed_array_keypair = Keypair::from_bytes(&INDEXED_ARRAY_TEST_KEYPAIR).unwrap();
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
 
     let instruction =
-        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(indexed_array_pubkey));
+        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(nullifier_queue_pubkey));
 
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
@@ -214,10 +214,10 @@ pub async fn setup_test_programs_with_accounts(
         .process_transaction(transaction.clone())
         .await
         .unwrap();
-    create_indexed_array_account(
+    create_nullifier_queue_account(
         &payer,
         &mut context,
-        &indexed_array_keypair,
+        &nullifier_queue_keypair,
         &merkle_tree_pubkey,
     )
     .await;
@@ -242,7 +242,7 @@ pub async fn setup_test_programs_with_accounts(
     EnvWithAccounts {
         context,
         merkle_tree_pubkey,
-        indexed_array_pubkey,
+        nullifier_queue_pubkey,
         group_pda,
         governance_authority: payer,
         governance_authority_pda: authority_pda.0,
@@ -253,18 +253,18 @@ pub async fn setup_test_programs_with_accounts(
 }
 
 #[cfg(feature = "light_program")]
-pub async fn create_indexed_array_account(
+pub async fn create_nullifier_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
-    indexed_array_keypair: &Keypair,
+    nullifier_queue_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
 ) {
-    let size = account_compression::IndexedArrayAccount::size(
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+    let size = account_compression::NullifierQueueAccount::size(
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
     .unwrap();
-    let account_create_ix = crate::create_account_instruction(
+    let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
         context
@@ -274,21 +274,21 @@ pub async fn create_indexed_array_account(
             .unwrap()
             .minimum_balance(size),
         &ACCOUNT_COMPRESSION_ID,
-        Some(indexed_array_keypair),
+        Some(nullifier_queue_keypair),
     );
-    let instruction = create_initialize_indexed_array_instruction(
+    let instruction = create_initialize_nullifier_queue_instruction(
         payer.pubkey(),
-        indexed_array_keypair.pubkey(),
+        nullifier_queue_keypair.pubkey(),
         0,
         Some(*merkle_tree_pubkey),
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES,
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES,
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES,
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES,
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, instruction],
         Some(&payer.pubkey()),
-        &vec![&payer, &indexed_array_keypair],
+        &vec![&payer, &nullifier_queue_keypair],
         context.last_blockhash,
     );
     context
@@ -310,7 +310,7 @@ pub async fn create_address_queue_account(
         account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
     )
     .unwrap();
-    let account_create_ix = crate::create_account_instruction(
+    let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
         context

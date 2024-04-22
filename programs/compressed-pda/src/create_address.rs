@@ -18,9 +18,9 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
             ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone()
         })
         .collect::<Vec<AccountInfo>>();
-    let mut indexed_array_account_infos = Vec::<AccountInfo>::new();
+    let mut nullifier_queue_account_infos = Vec::<AccountInfo>::new();
     for params in inputs.new_address_params.iter() {
-        indexed_array_account_infos
+        nullifier_queue_account_infos
             .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
         let unpacked_queue_account = AccountLoader::<AddressQueueAccount>::try_from(
             &ctx.remaining_accounts[params.address_queue_account_index as usize],
@@ -42,7 +42,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
         &ctx.accounts.account_compression_program,
         &ctx.accounts.account_compression_authority,
         &ctx.accounts.registered_program_pda.to_account_info(),
-        indexed_array_account_infos,
+        nullifier_queue_account_infos,
         address_merkle_tree_account_infos,
         addresses.to_vec(),
     )
@@ -53,7 +53,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
     account_compression_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     registered_program_pda: &'b AccountInfo<'a>,
-    adddress_queue_account_infos: Vec<AccountInfo<'a>>,
+    address_queue_account_infos: Vec<AccountInfo<'a>>,
     address_merkle_tree_account_infos: Vec<AccountInfo<'a>>,
     addresses: Vec<[u8; 32]>,
 ) -> Result<()> {
@@ -69,7 +69,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
         CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx
         .remaining_accounts
-        .extend(adddress_queue_account_infos);
+        .extend(address_queue_account_infos);
     cpi_ctx
         .remaining_accounts
         .extend(address_merkle_tree_account_infos);

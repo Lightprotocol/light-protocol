@@ -39,7 +39,7 @@ use spl_token::instruction::initialize_mint;
 #[derive(Debug)]
 pub struct TestIndexer {
     pub merkle_tree_pubkey: Pubkey,
-    pub indexed_array_pubkey: Pubkey,
+    pub nullifier_queue_pubkey: Pubkey,
     pub payer: Keypair,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
@@ -58,7 +58,7 @@ pub struct TokenDataWithContext {
 impl TestIndexer {
     pub async fn new(
         merkle_tree_pubkey: Pubkey,
-        indexed_array_pubkey: Pubkey,
+        nullifier_queue_pubkey: Pubkey,
         payer: Keypair,
     ) -> Self {
         // TODO: add path to gnark bin as parameter
@@ -78,7 +78,7 @@ impl TestIndexer {
 
         Self {
             merkle_tree_pubkey,
-            indexed_array_pubkey,
+            nullifier_queue_pubkey,
             payer,
             compressed_accounts: vec![],
             nullified_compressed_accounts: vec![],
@@ -233,16 +233,15 @@ impl TestIndexer {
     /// Check compressed_accounts in the queue array which are not nullified yet
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
-        let indexed_array = unsafe {
-            get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+        let nullifier_queue = unsafe {
+            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
                 context,
-                self.indexed_array_pubkey,
+                self.nullifier_queue_pubkey,
             )
             .await
         };
         let merkle_tree_account =
-            crate::AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
-                .await;
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
         let merkle_tree = merkle_tree_account
             .deserialized()
             .copy_merkle_tree()
@@ -251,17 +250,14 @@ impl TestIndexer {
 
         let mut compressed_account_to_nullify = Vec::new();
 
-        for (i, element) in indexed_array.iter() {
+        for (i, element) in nullifier_queue.iter() {
             if element.sequence_number().is_none() {
                 compressed_account_to_nullify.push((i, element.value_bytes()));
             }
         }
 
-        for (index_in_indexed_array, compressed_account) in compressed_account_to_nullify.iter() {
-            let leaf_index = self
-                .merkle_tree
-                .get_leaf_index(&compressed_account)
-                .unwrap();
+        for (index_in_nullifier_queue, compressed_account) in compressed_account_to_nullify.iter() {
+            let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
             let proof: Vec<[u8; 32]> = self
                 .merkle_tree
                 .get_proof_of_leaf(leaf_index, false)
@@ -273,12 +269,12 @@ impl TestIndexer {
             let instructions = [
                 account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
                     vec![change_log_index].as_slice(),
-                    vec![(*index_in_indexed_array) as u16].as_slice(),
+                    vec![(*index_in_nullifier_queue) as u16].as_slice(),
                     vec![0u64].as_slice(),
                     vec![proof].as_slice(),
                     &context.payer.pubkey(),
                     &self.merkle_tree_pubkey,
-                    &self.indexed_array_pubkey,
+                    &self.nullifier_queue_pubkey,
                 ),
             ];
 
@@ -291,15 +287,15 @@ impl TestIndexer {
             .await
             .unwrap();
 
-            let indexed_array = unsafe {
-                get_hash_set::<u16, account_compression::IndexedArrayAccount>(
+            let nullifier_queue = unsafe {
+                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
                     context,
-                    self.indexed_array_pubkey,
+                    self.nullifier_queue_pubkey,
                 )
                 .await
             };
-            let array_element = indexed_array
-                .by_value_index(*index_in_indexed_array, Some(merkle_tree.sequence_number))
+            let array_element = nullifier_queue
+                .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))
                 .unwrap();
             assert_eq!(&array_element.value_bytes(), compressed_account);
             let merkle_tree_account =
@@ -394,8 +390,8 @@ pub async fn mint_tokens_helper(
     let instruction = create_mint_to_instruction(
         &payer_pubkey,
         &payer_pubkey,
-        &mint,
-        &merkle_tree_pubkey,
+        mint,
+        merkle_tree_pubkey,
         amounts,
         recipients,
     );

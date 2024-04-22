@@ -6,7 +6,7 @@ use light_macros::heap_neutral;
 
 use crate::{
     emit_indexer_event, errors::AccountCompressionErrorCode,
-    indexed_array_from_bytes_zero_copy_mut, state::StateMerkleTreeAccount, IndexedArrayAccount,
+    nullifier_queue_from_bytes_zero_copy_mut, state::StateMerkleTreeAccount, NullifierQueueAccount,
     RegisteredProgram,
 };
 
@@ -22,7 +22,7 @@ pub struct NullifyLeaves<'info> {
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
-    pub indexed_array: AccountLoader<'info, IndexedArrayAccount>,
+    pub nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
 }
 
 // TODO: implement for multiple nullifiers got a stack frame error with a loop
@@ -36,7 +36,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
     {
-        let array_account = ctx.accounts.indexed_array.load()?;
+        let array_account = ctx.accounts.nullifier_queue.load()?;
         if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
             msg!(
             "Nullifier queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
@@ -84,19 +84,20 @@ fn insert_nullifier(
     ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
 ) -> Result<()> {
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-    if merkle_tree.associated_queue != ctx.accounts.indexed_array.key() {
+    if merkle_tree.associated_queue != ctx.accounts.nullifier_queue.key() {
         msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
             merkle_tree.associated_queue,
-            ctx.accounts.indexed_array.key()
+            ctx.accounts.nullifier_queue.key()
         );
-        return Err(AccountCompressionErrorCode::InvalidIndexedArray.into());
+        return Err(AccountCompressionErrorCode::InvalidNullifierQueue.into());
     }
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
-    let indexed_array = ctx.accounts.indexed_array.to_account_info();
-    let mut indexed_array = indexed_array.try_borrow_mut_data()?;
-    let mut indexed_array = unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array)? };
+    let nullifier_queue = ctx.accounts.nullifier_queue.to_account_info();
+    let mut nullifier_queue = nullifier_queue.try_borrow_mut_data()?;
+    let mut nullifier_queue =
+        unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
 
     let allowed_proof_size = merkle_tree.height - merkle_tree.canopy_depth;
     if proofs[0].len() != allowed_proof_size {
@@ -112,7 +113,7 @@ fn insert_nullifier(
 
     let mut changelogs: Vec<ChangelogEvent> = Vec::with_capacity(leaves_queue_indices.len());
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
-        let leaf_cell = indexed_array
+        let leaf_cell = nullifier_queue
             .by_value_index(*leaf_queue_index as usize, None)
             .cloned()
             .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
@@ -138,7 +139,7 @@ fn insert_nullifier(
         changelogs.push(changelog_event);
 
         // TODO: replace with root history sequence number
-        indexed_array
+        nullifier_queue
             .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
             .map_err(ProgramError::from)?;
     }
@@ -174,7 +175,7 @@ pub mod sdk_nullify {
         proofs: &[Vec<[u8; 32]>],
         payer: &Pubkey,
         merkle_tree_pubkey: &Pubkey,
-        indexed_array_pubkey: &Pubkey,
+        nullifier_queue_pubkey: &Pubkey,
     ) -> Instruction {
         let instruction_data = crate::instruction::NullifyLeaves {
             leaves_queue_indices: leaves_queue_indices.to_vec(),
@@ -188,7 +189,7 @@ pub mod sdk_nullify {
             registered_program_pda: None,
             log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,
             merkle_tree: *merkle_tree_pubkey,
-            indexed_array: *indexed_array_pubkey,
+            nullifier_queue: *nullifier_queue_pubkey,
         };
 
         Instruction {

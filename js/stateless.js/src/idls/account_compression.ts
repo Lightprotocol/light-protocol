@@ -28,17 +28,17 @@ export type AccountCompression = {
             value: '10';
         },
         {
-            name: 'STATE_INDEXED_ARRAY_INDICES';
+            name: 'STATE_NULLIFIER_QUEUE_INDICES';
             type: 'u16';
             value: '6857';
         },
         {
-            name: 'STATE_INDEXED_ARRAY_VALUES';
+            name: 'STATE_NULLIFIER_QUEUE_VALUES';
             type: 'u16';
             value: '4800';
         },
         {
-            name: 'STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD';
+            name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD';
             type: 'u64';
             value: '2400';
         },
@@ -491,7 +491,7 @@ export type AccountCompression = {
                     isSigner: false;
                 },
                 {
-                    name: 'indexedArray';
+                    name: 'nullifierQueue';
                     isMut: true;
                     isSigner: false;
                 },
@@ -528,7 +528,7 @@ export type AccountCompression = {
             ];
         },
         {
-            name: 'initializeIndexedArray';
+            name: 'initializeNullifierQueue';
             accounts: [
                 {
                     name: 'authority';
@@ -536,7 +536,7 @@ export type AccountCompression = {
                     isSigner: true;
                 },
                 {
-                    name: 'indexedArray';
+                    name: 'nullifierQueue';
                     isMut: true;
                     isSigner: false;
                 },
@@ -582,7 +582,7 @@ export type AccountCompression = {
             ];
         },
         {
-            name: 'insertIntoIndexedArrays';
+            name: 'insertIntoNullifierQueues';
             accounts: [
                 {
                     name: 'authority';
@@ -628,7 +628,7 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'indexedArrayAccount';
+            name: 'nullifierQueueAccount';
             type: {
                 kind: 'struct';
                 fields: [
@@ -914,8 +914,8 @@ export type AccountCompression = {
         },
         {
             code: 6019;
-            name: 'InvalidIndexedArray';
-            msg: 'InvalidIndexedArray';
+            name: 'InvalidNullifierQueue';
+            msg: 'InvalidNullifierQueue';
         },
         {
             code: 6020;
@@ -960,17 +960,17 @@ export const IDL: AccountCompression = {
             value: '10',
         },
         {
-            name: 'STATE_INDEXED_ARRAY_INDICES',
+            name: 'STATE_NULLIFIER_QUEUE_INDICES',
             type: 'u16',
             value: '6857',
         },
         {
-            name: 'STATE_INDEXED_ARRAY_VALUES',
+            name: 'STATE_NULLIFIER_QUEUE_VALUES',
             type: 'u16',
             value: '4800',
         },
         {
-            name: 'STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD',
+            name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD',
             type: 'u64',
             value: '2400',
         },
@@ -1423,7 +1423,7 @@ export const IDL: AccountCompression = {
                     isSigner: false,
                 },
                 {
-                    name: 'indexedArray',
+                    name: 'nullifierQueue',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1460,7 +1460,7 @@ export const IDL: AccountCompression = {
             ],
         },
         {
-            name: 'initializeIndexedArray',
+            name: 'initializeNullifierQueue',
             accounts: [
                 {
                     name: 'authority',
@@ -1468,7 +1468,7 @@ export const IDL: AccountCompression = {
                     isSigner: true,
                 },
                 {
-                    name: 'indexedArray',
+                    name: 'nullifierQueue',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1514,7 +1514,7 @@ export const IDL: AccountCompression = {
             ],
         },
         {
-            name: 'insertIntoIndexedArrays',
+            name: 'insertIntoNullifierQueues',
             accounts: [
                 {
                     name: 'authority',
@@ -1560,7 +1560,7 @@ export const IDL: AccountCompression = {
             },
         },
         {
-            name: 'indexedArrayAccount',
+            name: 'nullifierQueueAccount',
             type: {
                 kind: 'struct',
                 fields: [
@@ -1846,8 +1846,8 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6019,
-            name: 'InvalidIndexedArray',
-            msg: 'InvalidIndexedArray',
+            name: 'InvalidNullifierQueue',
+            msg: 'InvalidNullifierQueue',
         },
         {
             code: 6020,
