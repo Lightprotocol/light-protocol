@@ -1,12 +1,6 @@
-import {
-    ConnectionConfig,
-    ParsedMessageAccount,
-    ParsedTransactionWithMeta,
-    PublicKey,
-} from '@solana/web3.js';
+import { ConnectionConfig, PublicKey } from '@solana/web3.js';
 import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
 import {
-    defaultStaticAccountsStruct,
     defaultTestStateTreeAccounts,
     CompressedProofWithContext,
     BN254,
@@ -14,13 +8,25 @@ import {
     Rpc,
     bn,
     negateAndCompressProof,
-    parseEvents,
-    parsePublicTransactionEventWithIdl,
     proofFromJsonStruct,
     toHex,
+    MerkleContextWithMerkleProof,
+    getRootSeq,
+    HexInputsForProver,
+    CompressedAccountWithMerkleContext,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
+import { BN } from '@coral-xyz/anchor';
+import {
+    getCompressedAccountByHashTest,
+    getCompressedAccountsByOwnerTest,
+    getMultipleCompressedAccountsByHashTest,
+} from './get-compressed-accounts';
+import { getCompressedTokenAccountsByOwnerTest } from './get-compressed-token-accounts';
 
 import { MerkleTree } from '../merkle-tree/merkle-tree';
+import { getParsedEvents } from './get-parsed-events';
 
 export interface TestRpcConfig {
     /** Address of the state tree to index. Default: public default test state
@@ -134,66 +140,38 @@ export class TestRpc extends Rpc {
         this.log = log ?? false;
     }
 
-    /**
-     * @internal
-     * Returns newest first
-     * */
-    async getParsedEvents(): Promise<PublicTransactionEvent[]> {
-        const { noopProgram, accountCompressionProgram } =
-            defaultStaticAccountsStruct();
-
-        /// Get raw transactions
-        const signatures = (
-            await this.getConfirmedSignaturesForAddress2(
-                accountCompressionProgram,
-                undefined,
-                'confirmed',
-            )
-        ).map(s => s.signature);
-        const txs = await this.getParsedTransactions(signatures, {
-            maxSupportedTransactionVersion: 0,
-            commitment: 'confirmed',
-        });
-
-        /// Filter by NOOP program
-        const transactionEvents = txs.filter(
-            (tx: ParsedTransactionWithMeta | null) => {
-                if (!tx) {
-                    return false;
-                }
-                const accountKeys = tx.transaction.message.accountKeys;
-
-                const hasSplNoopAddress = accountKeys.some(
-                    (item: ParsedMessageAccount) => {
-                        const itemStr =
-                            typeof item === 'string'
-                                ? item
-                                : item.pubkey.toBase58();
-                        return itemStr === noopProgram.toBase58();
-                    },
-                );
-
-                return hasSplNoopAddress;
-            },
-        );
-
-        /// Parse events
-        const parsedEvents = parseEvents(
-            transactionEvents,
-            parsePublicTransactionEventWithIdl,
-        );
-
-        return parsedEvents;
+    async getCompressedAccount(
+        hash: BN254,
+    ): Promise<CompressedAccountWithMerkleContext | null> {
+        const account = await getCompressedAccountByHashTest(this, hash);
+        return account ?? null;
     }
 
-    /** Retrieve validity proof for compressed accounts */
-    async getValidityProof(
-        compressedAccountHashes: BN254[],
-    ): Promise<CompressedProofWithContext> {
-        /// rebuild tree
-        const events: PublicTransactionEvent[] =
-            await this.getParsedEvents().then(events => events.reverse());
+    async getCompressedBalance(_hash: BN254): Promise<BN | null> {
+        throw new Error('Method not implemented.');
+    }
 
+    async getCompressedAccountProof(
+        hash: BN254,
+    ): Promise<MerkleContextWithMerkleProof> {
+        const proofs = await this.getMultipleCompressedAccountProofs([hash]);
+        return proofs[0];
+    }
+
+    async getMultipleCompressedAccounts(
+        hashes: BN254[],
+    ): Promise<CompressedAccountWithMerkleContext[]> {
+        return await getMultipleCompressedAccountsByHashTest(this, hashes);
+    }
+
+    /** Retrieve the merkle proof for a compressed account */
+    async getMultipleCompressedAccountProofs(
+        hashes: BN254[],
+    ): Promise<MerkleContextWithMerkleProof[]> {
+        /// Build tree
+        const events: PublicTransactionEvent[] = await getParsedEvents(
+            this,
+        ).then(events => events.reverse());
         const allLeaves: number[][] = [];
         const allLeafIndices: number[] = [];
         for (const event of events) {
@@ -208,7 +186,6 @@ export class TestRpc extends Rpc {
                 allLeafIndices.push(event.outputLeafIndices[index]);
             }
         }
-
         const tree = new MerkleTree(
             this.depth,
             this.lightWasm,
@@ -216,53 +193,90 @@ export class TestRpc extends Rpc {
         );
 
         /// create merkle proofs
-        const leafIndices = compressedAccountHashes.map(compressedAccountHash =>
-            tree.indexOf(compressedAccountHash.toString()),
-        );
+        const leafIndices = hashes.map(hash => tree.indexOf(hash.toString()));
 
-        const hexPathElementsAll = leafIndices.map(leafIndex => {
+        const bnPathElementsAll = leafIndices.map(leafIndex => {
             const pathElements: string[] = tree.path(leafIndex).pathElements;
 
-            const hexPathElements = pathElements.map(value => toHex(bn(value)));
+            const bnPathElements = pathElements.map(value => bn(value));
 
-            return hexPathElements;
+            return bnPathElements;
         });
 
-        const roots = new Array(compressedAccountHashes.length).fill(
-            toHex(bn(tree.root())),
-        );
+        const roots = new Array(hashes.length).fill(bn(tree.root()));
 
-        const inputs = {
-            roots,
-            inPathIndices: leafIndices,
-            inPathElements: hexPathElementsAll,
-            leaves: compressedAccountHashes.map(compressedAccountHash =>
-                toHex(compressedAccountHash),
-            ),
-        };
+        const rootIndex = await getRootSeq(this);
+
+        if (rootIndex !== allLeaves.length) {
+            throw new Error(
+                `Root index mismatch: expected ${allLeaves.length}, got ${rootIndex}`,
+            );
+        }
+
+        /// assemble return type
+        const merkleProofs: MerkleContextWithMerkleProof[] = [];
+        for (let i = 0; i < hashes.length; i++) {
+            const merkleProof: MerkleContextWithMerkleProof = {
+                hash: hashes[i].toArray(undefined, 32),
+                merkleTree: this.merkleTreeAddress,
+                leafIndex: leafIndices[i],
+                merkleProof: bnPathElementsAll[i], // hexPathElementsAll[i].map(hex => bn(hex)),
+                nullifierQueue: this.nullifierQueueAddress,
+                rootIndex: allLeaves.length,
+                root: roots[i],
+            };
+            merkleProofs.push(merkleProof);
+        }
 
         /// Validate
-        compressedAccountHashes.forEach((compressedAccountHash, index) => {
-            const leafIndex = leafIndices[index];
-            const computedHash = tree.elements()[leafIndex].toString();
-            if (computedHash !== compressedAccountHash.toString()) {
+        merkleProofs.forEach((proof, index) => {
+            const leafIndex = proof.leafIndex;
+            const computedHash = tree.elements()[leafIndex]; //.toString();
+            const hashArr = bn(computedHash).toArray(undefined, 32);
+            if (!hashArr.every((val, index) => val === proof.hash[index])) {
                 throw new Error(
-                    `Mismatch at index ${index}: expected ${compressedAccountHash.toString()}, got ${computedHash}`,
+                    `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,
                 );
             }
         });
+
+        return merkleProofs;
+    }
+
+    async getCompressedAccountsByOwner(
+        owner: PublicKey,
+    ): Promise<CompressedAccountWithMerkleContext[]> {
+        const accounts = await getCompressedAccountsByOwnerTest(this, owner);
+        return accounts;
+    }
+
+    /** Retrieve validity proof for compressed accounts */
+    async getValidityProof(
+        hashes: BN254[],
+    ): Promise<CompressedProofWithContext> {
+        const merkleProofsWithContext =
+            await this.getMultipleCompressedAccountProofs(hashes);
+
+        const inputs: HexInputsForProver = {
+            roots: merkleProofsWithContext.map(proof => toHex(proof.root)),
+            inPathIndices: merkleProofsWithContext.map(
+                proof => proof.leafIndex,
+            ),
+            inPathElements: merkleProofsWithContext.map(proof =>
+                proof.merkleProof.map(hex => toHex(hex)),
+            ),
+            leaves: merkleProofsWithContext.map(proof => toHex(bn(proof.hash))),
+        };
 
         const inputsData = JSON.stringify(inputs);
 
         let logMsg: string = '';
         if (this.log) {
-            logMsg = `Proof generation for depth:${this.depth} n:${compressedAccountHashes.length}`;
+            logMsg = `Proof generation for depth:${this.depth} n:${hashes.length}`;
             console.time(logMsg);
         }
-        // TODO: pass url into rpc constructor
-        const SERVER_URL = 'http://localhost:3001';
-        const INCLUSION_PROOF_URL = `${SERVER_URL}/inclusion`;
 
+        const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
         const response = await fetch(INCLUSION_PROOF_URL, {
             method: 'POST',
             headers: {
@@ -273,6 +287,7 @@ export class TestRpc extends Rpc {
         if (!response.ok) {
             throw new Error(`Error fetching proof: ${response.statusText}`);
         }
+
         // TOOD: add type coercion
         const data: any = await response.json();
         const parsed = proofFromJsonStruct(data);
@@ -280,17 +295,48 @@ export class TestRpc extends Rpc {
 
         if (this.log) console.timeEnd(logMsg);
 
-        // TODO: in prover server, fix property names
         const value: CompressedProofWithContext = {
             compressedProof,
-            roots: roots,
-            // TODO: temporary
-            rootIndices: leafIndices.map(_ => allLeafIndices.length),
-            leafIndices,
-            leaves: compressedAccountHashes,
-            merkleTrees: leafIndices.map(_ => this.merkleTreeAddress),
-            nullifierQueues: leafIndices.map(_ => this.nullifierQueueAddress),
+            roots: merkleProofsWithContext.map(proof => proof.root),
+            rootIndices: merkleProofsWithContext.map(proof => proof.rootIndex),
+            leafIndices: merkleProofsWithContext.map(proof => proof.leafIndex),
+            leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
+            merkleTrees: merkleProofsWithContext.map(proof => proof.merkleTree),
+            nullifierQueues: merkleProofsWithContext.map(
+                proof => proof.nullifierQueue,
+            ),
         };
+
         return value;
+    }
+
+    async getHealth(): Promise<string> {
+        return await this.getHealth();
+    }
+
+    async getSlot(): Promise<number> {
+        return await this.getSlot();
+    }
+    async getCompressedTokenAccountsByOwner(
+        owner: PublicKey,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<ParsedTokenAccount[]> {
+        return await getCompressedTokenAccountsByOwnerTest(
+            this,
+            owner,
+            options!.mint!,
+        );
+    }
+    async getCompressedTokenAccountsByDelegate(
+        _delegate: PublicKey,
+        _options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<ParsedTokenAccount[]> {
+        throw new Error('Method not implemented.');
+    }
+
+    async getCompressedTokenAccountBalance(
+        _hash: BN254,
+    ): Promise<{ amount: BN }> {
+        throw new Error('Method not implemented.');
     }
 }

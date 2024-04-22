@@ -1,24 +1,23 @@
 import { PublicKey } from '@solana/web3.js';
 import {
-    MerkleContext,
-    defaultTestStateTreeAccounts,
-    PublicTransactionEvent,
-    CompressedAccount,
+    TokenData,
+    CompressedTokenProgram,
+} from '@lightprotocol/compressed-token';
+import {
     CompressedAccountWithMerkleContext,
+    CompressedAccount,
+    PublicTransactionEvent,
+    MerkleContext,
     createCompressedAccountWithMerkleContext,
+    defaultTestStateTreeAccounts,
     Rpc,
+    ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
-import { CompressedTokenProgram } from './program';
-import { TokenData } from './types';
-
-export type CompressedAccountWithParsedTokenData = {
-    compressedAccountWithMerkleContext: CompressedAccountWithMerkleContext;
-    parsed: TokenData;
-};
+import { getParsedEvents } from './get-parsed-events';
 
 export type EventWithParsedTokenTlvData = {
-    inputCompressedAccounts: CompressedAccountWithParsedTokenData[];
-    outputCompressedAccounts: CompressedAccountWithParsedTokenData[];
+    inputCompressedAccounts: ParsedTokenAccount[];
+    outputCompressedAccounts: ParsedTokenAccount[];
 };
 
 /** @internal */
@@ -57,7 +56,7 @@ async function parseEventWithTokenTlvData(
     const pubkeyArray = event.pubkeyArray;
     const inputHashes = event.inputCompressedAccountHashes;
     /// TODO: consider different structure
-    const inputCompressedAccountWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
+    const inputCompressedAccountWithParsedTokenData: ParsedTokenAccount[] =
         event.inputCompressedAccounts.map((compressedAccount, i) => {
             const merkleContext: MerkleContext = {
                 merkleTree:
@@ -85,13 +84,13 @@ async function parseEventWithTokenTlvData(
                 compressedAccount.compressedAccount.address ?? undefined,
             );
             return {
-                compressedAccountWithMerkleContext: withMerkleContext,
+                compressedAccount: withMerkleContext,
                 parsed: parsedData,
             };
         });
 
     const outputHashes = event.outputCompressedAccountHashes;
-    const outputCompressedAccountsWithParsedTokenData: CompressedAccountWithParsedTokenData[] =
+    const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
         event.outputCompressedAccounts.map((compressedAccount, i) => {
             const merkleContext: MerkleContext = {
                 merkleTree:
@@ -118,7 +117,7 @@ async function parseEventWithTokenTlvData(
                 compressedAccount.address ?? undefined,
             );
             return {
-                compressedAccountWithMerkleContext: withMerkleContext,
+                compressedAccount: withMerkleContext,
                 parsed: parsedData,
             };
         });
@@ -140,9 +139,7 @@ async function parseEventWithTokenTlvData(
  */
 export async function getCompressedTokenAccounts(
     events: PublicTransactionEvent[],
-    owner: PublicKey,
-    mint: PublicKey,
-): Promise<CompressedAccountWithParsedTokenData[]> {
+): Promise<ParsedTokenAccount[]> {
     const eventsWithParsedTokenTlvData: EventWithParsedTokenTlvData[] =
         await Promise.all(
             events.map(event => parseEventWithTokenTlvData(event)),
@@ -161,35 +158,28 @@ export async function getCompressedTokenAccounts(
             !allInCompressedAccounts.some(
                 inCompressedAccount =>
                     JSON.stringify(
-                        inCompressedAccount.compressedAccountWithMerkleContext
-                            .hash,
+                        inCompressedAccount.compressedAccount.hash,
                     ) ===
                     JSON.stringify(
-                        outputCompressedAccount
-                            .compressedAccountWithMerkleContext.hash,
+                        outputCompressedAccount.compressedAccount.hash,
                     ),
             ),
     );
 
-    /// apply filter (owner, mint)
-    return unspentCompressedAccounts.filter(
-        acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
-    );
+    return unspentCompressedAccounts;
 }
 
 /** @internal */
-export async function getCompressedTokenAccountsForTest(
+export async function getCompressedTokenAccountsByOwnerTest(
     rpc: Rpc,
-    refSender: PublicKey,
-    refMint: PublicKey,
-) {
-    // @ts-ignore
-    const events = await rpc.getParsedEvents();
+    owner: PublicKey,
+    mint: PublicKey,
+): Promise<ParsedTokenAccount[]> {
+    const events = await getParsedEvents(rpc);
 
-    const compressedTokenAccounts = await getCompressedTokenAccounts(
-        events,
-        refSender,
-        refMint,
+    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+
+    return compressedTokenAccounts.filter(
+        acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );
-    return compressedTokenAccounts;
 }

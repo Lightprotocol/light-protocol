@@ -1,6 +1,5 @@
 export * from './airdrop';
 export * from './conversion';
-export * from './get-parsed-events';
 export * from './parse-validity-proof';
 export * from './pipe';
 export * from './send-and-confirm';

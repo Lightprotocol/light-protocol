@@ -6,7 +6,6 @@ const config: PlaywrightTestConfig = {
         port: 4004,
         cwd: '.',
         timeout: 15 * 1000,
-        // reuseExistingServer: !process.env.CI,
     },
     testDir: './tests/e2e/browser',
 };

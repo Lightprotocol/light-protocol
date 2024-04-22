@@ -5,6 +5,7 @@ import {
     PublicKey,
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+
 import {
     BalanceResult,
     CompressedAccountResult,
@@ -35,18 +36,19 @@ import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
 
-interface HexInputsForProver {
+export interface HexInputsForProver {
     roots: string[];
     inPathIndices: number[];
     inPathElements: string[][];
     leaves: string[];
 }
 import { toCamelCase } from './utils/conversion';
-import { getParsedEvents } from './utils/get-parsed-events';
+
 import {
     proofFromJsonStruct,
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
+import { getTestRpc, getParsedEvents } from '@lightprotocol/test-helpers';
 
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',
@@ -62,7 +64,7 @@ export function createRpc(
 }
 
 /** @internal */
-const rpcRequest = async (
+export const rpcRequest = async (
     rpcEndpoint: string,
     method: string,
     params: any = [], // TODO: array?
@@ -298,19 +300,21 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
-        console.log(
-            `@getMultipleCompressedAccountProofs ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
+        /// TODO: remove this once root is returned from indexer
+        const testRpc = await getTestRpc(
+            this.rpcEndpoint,
+            this.compressionApiEndpoint,
+            this.proverEndpoint,
         );
+        const testProofInfo =
+            await testRpc.getMultipleCompressedAccountProofs(hashes);
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getMultipleCompressedAccountProofs',
             hashes.map(hash => encodeBN254toBase58(hash)),
         );
 
-        console.log(
-            '@getMultipleCompressedAccountProofs unsafeRes',
-            JSON.stringify(unsafeRes),
-        );
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(array(MerkeProofResult)),
@@ -331,9 +335,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const rootIndex = await getRootSeq(this);
 
-        res.result.value.map((proof: any) => {
-            const proofWithoutRoot = proof.proof.slice(0, -1);
-            const root = proof.proof[proof.proof.length - 1];
+        for (const proof of res.result.value) {
+            const proofWithoutRoot: BN[] = proof.proof.slice(0, -1);
+
+            // const root = proof.proof[proof.proof.length - 1];
             const value: MerkleContextWithMerkleProof = {
                 hash: proof.hash.toArray(undefined, 32),
                 merkleTree: proof.merkleTree,
@@ -341,12 +346,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleProof: proofWithoutRoot,
                 nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
                 rootIndex, // TODO: use root index from indexer
-                root, // TODO: use root from indexer
+                root: bn(testProofInfo[res.result.value.indexOf(proof)].root), // TODO: use root from indexer
             };
             merkleProofs.push(value);
-        });
-
-        return merkleProofs;
+        }
+        /// TODO: switch back to using photon merkle proofs once fixed
+        return testProofInfo;
     }
 
     async getCompressedAccountsByOwner(
@@ -414,15 +419,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const merkleProofsWithContext =
             await this.getMultipleCompressedAccountProofs(hashes);
 
-        console.log('found merkleproofs', merkleProofsWithContext.length);
-        console.log(
-            'merkleproofs with ctx',
-            JSON.stringify(merkleProofsWithContext),
-        );
-        console.log(
-            'mproofs len',
-            merkleProofsWithContext.map(proof => proof.merkleProof.length),
-        );
         /// to hex
         const inputs: HexInputsForProver = {
             roots: merkleProofsWithContext.map(ctx => toHex(bn(ctx.root))),
@@ -436,8 +432,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         };
 
         const inputsData = JSON.stringify(inputs);
-
-        console.log('inputsData', inputsData);
 
         const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
         const response = await fetch(INCLUSION_PROOF_URL, {
@@ -517,7 +511,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         if (res.result.value === null) {
-            throw new Error('not implemented. NULL result');
+            throw new Error('not implemented: NULL result');
         }
         const accounts: ParsedTokenAccount[] = [];
         /// TODO: clean up. Make typesafe
@@ -565,8 +559,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /// TODO: implement delegate
     async getCompressedTokenAccountsByDelegate(
-        delegate: PublicKey,
-        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        _delegate: PublicKey,
+        _options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
         throw new Error('Method not implemented.');
     }

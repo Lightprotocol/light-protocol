@@ -97,7 +97,7 @@ describe('transfer', () => {
         ).mint;
     });
 
-    beforeAll(async () => {
+    beforeEach(async () => {
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
 

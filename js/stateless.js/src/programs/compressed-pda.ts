@@ -221,11 +221,12 @@ export class LightSystemProgram {
         validateSameOwner(inputCompressedAccounts);
 
         const outputCompressedAccounts: CompressedAccount[] = [
-            // createCompressedAccount(toAddress, lamports),
             createCompressedAccount(
                 inputCompressedAccounts[0].owner,
-                lamports.add(changeLamports),
+                // lamports.add(
+                changeLamports,
             ),
+            createCompressedAccount(toAddress, lamports),
         ];
         return outputCompressedAccounts;
     }
@@ -368,12 +369,22 @@ export class LightSystemProgram {
             remainingAccountMetas,
         } = packCompressedAccounts([], 1, outputStateTree);
 
+        console.log(
+            'packedInputCompressedAccounts',
+            packedInputCompressedAccounts,
+        );
+        console.log('outputCompressedAccount', outputCompressedAccount);
+        console.log(
+            'outputStateMerkleTreeIndices',
+            outputStateMerkleTreeIndices,
+        );
+        console.log('lamports', lamports);
         /// Encode instruction data
         const data = this.program.coder.types.encode(
             'InstructionDataTransfer',
             {
                 proof: null,
-                inputRootIndices: [],
+                inputRootIndices: Buffer.from(new Uint8Array([])),
                 /// TODO: here and on-chain: option<newAddressInputs> or similar.
                 newAddressParams: [],
                 inputCompressedAccountsWithMerkleContext:
@@ -387,6 +398,8 @@ export class LightSystemProgram {
                 isCompress: true,
             },
         );
+
+        console.log('data:', data);
 
         /// Build anchor instruction
         const instruction = await this.program.methods

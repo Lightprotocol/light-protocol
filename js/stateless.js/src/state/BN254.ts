@@ -54,7 +54,7 @@ function enforceSize(bigintNumber: BN254): BN254 {
 export function encodeBN254toBase58(bigintNumber: BN): string {
     /// enforce size
     const bn254 = createBN254(bigintNumber);
-    let bn254Buffer = bn254.toArrayLike(Buffer, undefined, 32);
+    const bn254Buffer = bn254.toArrayLike(Buffer, undefined, 32);
 
     return bs58.encode(bn254Buffer);
 }

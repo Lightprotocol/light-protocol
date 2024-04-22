@@ -1,22 +1,22 @@
-// TODO: Remove from stateless.js once Indexer returns rootSeq/rootIndex, root
-// with 'getCompressedAccountProof'.
 import {
-    ParsedTransactionWithMeta,
+    LightSystemProgram,
+    PublicTransactionEvent,
+    Rpc,
+    defaultStaticAccountsStruct,
+} from '@lightprotocol/stateless.js';
+import {
     ParsedMessageAccount,
+    ParsedTransactionWithMeta,
 } from '@solana/web3.js';
-import { defaultStaticAccountsStruct } from '../constants';
-import { PublicTransactionEvent } from '../state';
-import { Rpc } from '../rpc';
-import { bs58 } from '@coral-xyz/anchor/dist/esm/utils/bytes';
-import { LightSystemProgram } from '../programs';
-import { Buffer } from 'buffer';
+import bs58 from 'bs58';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 
 /**
  * @internal
- * Returns newest first. Reverse before rebuilding state tree.
- */
+ * Returns newest first.
+ *
+ * */
 export async function getParsedEvents(
     rpc: Rpc,
 ): Promise<PublicTransactionEvent[]> {

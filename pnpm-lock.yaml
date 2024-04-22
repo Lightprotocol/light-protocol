@@ -560,6 +560,9 @@ importers:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
         version: 0.29.0
+      '@lightprotocol/test-helpers':
+        specifier: workspace:*
+        version: link:../test-helpers
       '@noble/hashes':
         specifier: ^1.3.2
         version: 1.3.2
@@ -672,6 +675,9 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.29.0
         version: 0.29.0
+      '@lightprotocol/compressed-token':
+        specifier: workspace:*
+        version: link:../compressed-token
       '@lightprotocol/hasher.rs':
         specifier: workspace:*
         version: link:../../hasher.rs
@@ -687,6 +693,9 @@ importers:
       bn.js:
         specifier: ^5.2.1
         version: 5.2.1
+      bs58:
+        specifier: ^5.0.0
+        version: 5.0.0
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -8695,7 +8704,7 @@ packages:
     dependencies:
       chai: 4.3.10
       child_process: 1.0.2
-      ffjavascript: 0.2.62
+      ffjavascript: 0.2.63
       fnv-plus: 1.3.1
       r1csfile: 0.0.41
       snarkjs: 0.5.0

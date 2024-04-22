@@ -6,7 +6,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { compressLamports, createRpc } from "@lightprotocol/stateless.js";
+import { compress, createRpc } from "@lightprotocol/stateless.js";
 
 class CompressSolCommand extends Command {
   static summary = "Compress SOL.";

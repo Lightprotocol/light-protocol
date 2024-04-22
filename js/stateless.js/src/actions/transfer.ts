@@ -52,6 +52,13 @@ export async function transfer(
         lamports,
     );
 
+    /// TODO: remove once we have remove testrpc from RPC
+    /// Here for debugging
+    // const testRpc = (await getTestRpc()) as Rpc;
+    // await testRpc.getValidityProof(
+    //     inputAccounts.map(account => bn(account.hash)),
+    // );
+
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
     );

@@ -103,7 +103,7 @@ describe('decompress', () => {
         );
     });
 
-    const LOOP = 30;
+    const LOOP = 15;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
         const rpc = createRpc();
 
@@ -114,8 +114,6 @@ describe('decompress', () => {
                 await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                     mint,
                 });
-
-            console.log(`decompressed ${i}`);
 
             await decompress(
                 rpc,

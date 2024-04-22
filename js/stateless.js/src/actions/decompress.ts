@@ -49,14 +49,7 @@ export async function decompress(
             `Not enough compressed lamports. Expected ${lamports}, got ${inputLamports}`,
         );
     }
-    console.log(
-        'found: ',
-        userCompressedAccountsWithMerkleContext.length,
-        'input hashes',
-        userCompressedAccountsWithMerkleContext.map(
-            x => x.hash + '' + x.hash.length,
-        ),
-    );
+
     const proof = await rpc.getValidityProof(
         userCompressedAccountsWithMerkleContext.map(x => bn(x.hash)),
     );
