@@ -6,7 +6,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { compressLamports, createRpc } from "@lightprotocol/stateless.js";
+import { compress, getTestRpc } from "@lightprotocol/stateless.js";
 
 class CompressSolCommand extends Command {
   static summary = "Compress SOL.";
@@ -41,8 +41,8 @@ class CompressSolCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = createRpc(getSolanaRpcUrl());
-      txId = await compressLamports(rpc, payer, amount, toPublicKey);
+      const rpc = await getTestRpc(getSolanaRpcUrl());
+      txId = await compress(rpc, payer, amount, toPublicKey);
 
       loader.stop(false);
       console.log(

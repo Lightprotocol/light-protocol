@@ -112,7 +112,9 @@ export function selectMinCompressedTokenAccountsForTransfer(
     }
 
     if (accumulatedAmount.lt(bn(transferAmount))) {
-        throw new Error('Not enough balance for transfer');
+        throw new Error(
+            `Not enough balance for transfer. Required: ${transferAmount.toString()}, available: ${accumulatedAmount.toString()}`,
+        );
     }
 
     return [

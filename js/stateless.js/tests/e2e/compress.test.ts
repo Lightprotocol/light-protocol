@@ -1,14 +1,10 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
-import { newAccountWithLamports } from '../../src/test-utils';
-import {
-    Rpc,
-    compressLamports,
-    createRpc,
-    decompressLamports,
-} from '../../src';
-
+import { newAccountWithLamports } from '../../src/utils/test-utils';
+import { Rpc, createRpc } from '../../src/rpc';
+import { compress, decompress } from '../../src';
+import { getTestRpc } from '../../src/test-helpers';
 /// TODO: add test case for payer != address
 describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
@@ -16,8 +12,8 @@ describe('compress', () => {
     let payer: Signer;
 
     beforeAll(async () => {
-        rpc = createRpc();
-        payer = await newAccountWithLamports(rpc, 1e9, 200);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc);
     });
 
     it('should compress lamports and then decompress', async () => {
@@ -25,7 +21,7 @@ describe('compress', () => {
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(preCompressBalance, 1e9);
 
-        await compressLamports(
+        await compress(
             rpc,
             payer,
             compressLamportsAmount,
@@ -53,7 +49,7 @@ describe('compress', () => {
         const decompressLamportsAmount = 15;
         const decompressRecipient = payer.publicKey;
 
-        await decompressLamports(
+        await decompress(
             rpc,
             payer,
             decompressLamportsAmount,

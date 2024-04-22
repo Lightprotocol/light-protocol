@@ -1,10 +1,11 @@
 // TODO: consider implementing BN254 as wrapper class around _BN mirroring
 // PublicKey this would encapsulate our runtime checks and also enforce
 // typesafety at compile time
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+
 import { FIELD_SIZE } from '../constants';
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
+import { bs58 } from '@coral-xyz/anchor/dist/esm/utils/bytes';
 import { Buffer } from 'buffer';
 
 /**
@@ -19,7 +20,7 @@ export const bn = (
     number: string | number | BN | Buffer | Uint8Array | number[],
     base?: number | 'hex' | undefined,
     endian?: BN.Endianness | undefined,
-) => new BN(number, base, endian);
+): BN => new BN(number, base, endian);
 
 /** Create a bigint instance with <254-bit max size and base58 capabilities */
 export const createBN254 = (
@@ -49,29 +50,13 @@ function enforceSize(bigintNumber: BN254): BN254 {
     return bigintNumber;
 }
 
-/** Convert <254-bit bigint to Base58 string. Fills up to 32 bytes. */
-export function encodeBN254toBase58(bigintNumber: BN254, pad = 32): string {
-    let buffer = Buffer.from(bigintNumber.toString(16), 'hex');
-    // Ensure the buffer is 32 bytes. If not, pad it with leading zeros.
-    if (buffer.length < pad) {
-        const padding = Buffer.alloc(pad - buffer.length);
-        buffer = Buffer.concat([padding, buffer], pad);
-    }
-    return bs58.encode(buffer);
-}
-/** Convert Base58 string to <254-bit Solana Public key*/
-export function bigint254ToPublicKey(bigintNumber: BN254): PublicKey {
-    const paddedBase58 = encodeBN254toBase58(bigintNumber);
-    return new PublicKey(paddedBase58);
-}
+/** Convert <254-bit bigint to Base58 string.  */
+export function encodeBN254toBase58(bigintNumber: BN): string {
+    /// enforce size
+    const bn254 = createBN254(bigintNumber);
+    const bn254Buffer = bn254.toArrayLike(Buffer, undefined, 32);
 
-// FIXME: assumes <254 bit pubkey. just use consistent type (pubkey254)
-/** Convert Solana Public key to <254-bit bigint */
-export function PublicKeyToBN254(publicKey: PublicKey): BN254 {
-    const buffer = publicKey.toBuffer();
-    // Remove leading zeros from the buffer
-    const trimmedBuffer = buffer.subarray(buffer.findIndex(byte => byte !== 0));
-    return createBN254(trimmedBuffer);
+    return bs58.encode(bn254Buffer);
 }
 
 //@ts-ignore
@@ -117,37 +102,41 @@ if (import.meta.vitest) {
     });
 
     describe('encodeBN254toBase58 function', () => {
-        it('should convert a BN254 to a base58 string, no pad', () => {
-            const bigint = createBN254('100');
-            const base58 = encodeBN254toBase58(bigint, 0);
-            expect(base58).toBe('2j');
-        });
-
-        it('should convert a BN254 to a base58 string, with pad', () => {
+        it('should convert a BN254 to a base58 string, pad to 32 implicitly', () => {
             const bigint = createBN254('100');
             const base58 = encodeBN254toBase58(bigint);
             expect(base58).toBe('11111111111111111111111111111112j');
         });
+
+        it('should match transformation via pubkey', () => {
+            const refHash = [
+                13, 225, 248, 105, 237, 121, 108, 70, 70, 197, 240, 130, 226,
+                236, 129, 58, 213, 50, 236, 99, 216, 99, 91, 201, 141, 76, 196,
+                33, 41, 181, 236, 187,
+            ];
+            const base58 = encodeBN254toBase58(bn(refHash));
+
+            const pubkeyConv = new PublicKey(refHash).toBase58();
+            expect(base58).toBe(pubkeyConv);
+        });
+
+        it('should pad to 32 bytes converting BN to Pubkey', () => {
+            const refHash31 = [
+                13, 225, 248, 105, 237, 121, 108, 70, 70, 197, 240, 130, 226,
+                236, 129, 58, 213, 50, 236, 99, 216, 99, 91, 201, 141, 76, 196,
+                33, 41, 181, 236,
+            ];
+            const base58 = encodeBN254toBase58(bn(refHash31));
+
+            expect(
+                createBN254(base58, 'base58').toArray(undefined, 32),
+            ).to.be.deep.equal([0].concat(refHash31));
+        });
+
         it('should throw an error for a value that is too large', () => {
             expect(() => createBN254(FIELD_SIZE)).toThrow(
                 'Value is too large. Max <254 bits',
             );
-        });
-    });
-
-    describe('bigint254ToPublicKey function', () => {
-        it('should convert a BN254 to a PublicKey', () => {
-            const bigint = createBN254('100');
-            const publicKey = bigint254ToPublicKey(bigint);
-            expect(publicKey).toBeInstanceOf(PublicKey);
-        });
-    });
-
-    describe('PublicKeyToBigint254 function', () => {
-        it('should convert a PublicKey to a BN254', () => {
-            const publicKey = PublicKey.unique();
-            const bigint = PublicKeyToBN254(publicKey);
-            expect(bigint).toBeInstanceOf(BN);
         });
     });
 }

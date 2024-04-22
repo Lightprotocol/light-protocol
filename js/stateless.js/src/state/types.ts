@@ -1,5 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 
 /// TODO: Consider flattening and implementing an IR in Beet.
 export interface PackedCompressedAccountWithMerkleContext {
@@ -43,7 +44,7 @@ export interface PublicTransactionEvent {
     outputLeafIndices: number[]; // Vec<u32>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
-    deCompressLamports: BN | null; // Option<u64>
+    compressionLamports: BN | null; // Option<u64>
     pubkeyArray: PublicKey[]; // Vec<PublicKey>
     message: Uint8Array | null; // Option<bytes>
 }
@@ -55,8 +56,8 @@ export interface InstructionDataTransfer {
     outputCompressedAccounts: CompressedAccount[];
     outputStateMerkleTreeAccountIndices: Buffer; // bytes // FIXME: into Vec<u8> on-chain
     relayFee: BN | null; // Option<u64>
-    deCompressLamports: BN | null; // Option<u64>
-    isCompression: boolean; // bool
+    compressionLamports: BN | null; // Option<u64>
+    isCompress: boolean; // bool
     newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
 }
 

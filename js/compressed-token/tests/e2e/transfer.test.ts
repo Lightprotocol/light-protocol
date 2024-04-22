@@ -5,12 +5,11 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    createRpc,
+    getTestRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
 import { createMint, mintTo, transfer } from '../../src/actions';
-import { CompressedAccountWithParsedTokenData } from '../../src/get-compressed-token-accounts';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -81,8 +80,8 @@ describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
-        payer = await newAccountWithLamports(rpc);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
@@ -98,8 +97,8 @@ describe('transfer', () => {
     });
 
     beforeEach(async () => {
-        bob = await newAccountWithLamports(rpc);
-        charlie = await newAccountWithLamports(rpc);
+        bob = await newAccountWithLamports(rpc, 1e9);
+        charlie = await newAccountWithLamports(rpc, 1e9);
 
         await mintTo(
             rpc,
@@ -115,8 +114,6 @@ describe('transfer', () => {
     it('should transfer from bob -> charlie', async () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
-
-        const rpc = createRpc();
 
         const bobPreCompressedTokenAccounts =
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {

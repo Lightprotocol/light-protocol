@@ -1,4 +1,5 @@
 import {
+    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
@@ -12,7 +13,7 @@ import { BN } from '@coral-xyz/anchor';
 import { defaultTestStateTreeAccounts } from '../constants';
 
 /**
- * Init the SOL omnibus account for Light
+ * Compress lamports to a solana address
  *
  * @param rpc             RPC to use
  * @param payer           Payer of the transaction and initialization fees
@@ -25,7 +26,7 @@ import { defaultTestStateTreeAccounts } from '../constants';
  */
 /// TODO: add multisig support
 /// TODO: add support for payer != owner
-export async function compressLamports(
+export async function compress(
     rpc: Rpc,
     payer: Signer,
     lamports: number | BN,
@@ -35,7 +36,7 @@ export async function compressLamports(
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    const ixs = await LightSystemProgram.compress({
+    const ix = await LightSystemProgram.compress({
         payer: payer.publicKey,
         toAddress,
         lamports,
@@ -44,7 +45,12 @@ export async function compressLamports(
             : defaultTestStateTreeAccounts().merkleTree, // TODO: should fetch the current shared state tree
     });
 
-    const tx = buildAndSignTx(ixs, payer, blockhash, []);
+    const tx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        [],
+    );
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 

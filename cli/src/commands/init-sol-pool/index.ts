@@ -5,7 +5,7 @@ import {
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
 } from "../../utils/utils";
-import { createRpc, initSolOmnibusAccount } from "@lightprotocol/stateless.js";
+import { getTestRpc, initSolOmnibusAccount } from "@lightprotocol/stateless.js";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 
 class InitSolPoolCommand extends Command {
@@ -37,7 +37,7 @@ class InitSolPoolCommand extends Command {
     loader.start();
 
     try {
-      const rpc = createRpc(getSolanaRpcUrl());
+      const rpc = await getTestRpc(getSolanaRpcUrl());
       const txId = await initSolOmnibusAccount(rpc, payer, authorityKeypair);
       loader.stop(false);
       console.log(

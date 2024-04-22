@@ -14,7 +14,6 @@ import {
     LightSystemProgram,
     ParsedTokenAccount,
     TokenTransferOutputData,
-    accountCompressionProgram,
     bn,
     confirmConfig,
     defaultStaticAccountsStruct,

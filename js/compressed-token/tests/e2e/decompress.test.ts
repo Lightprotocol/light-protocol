@@ -5,11 +5,11 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    createRpc,
+    getTestRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
-import { compress, createMint, decompress, mintTo } from '../../src/actions';
+import { createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 
 /**
@@ -67,8 +67,8 @@ describe('decompress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
-        payer = await newAccountWithLamports(rpc);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
 
@@ -82,8 +82,8 @@ describe('decompress', () => {
             )
         ).mint;
 
-        bob = await newAccountWithLamports(rpc);
-        charlie = await newAccountWithLamports(rpc);
+        bob = await newAccountWithLamports(rpc, 1e9);
+        charlie = await newAccountWithLamports(rpc, 1e9);
 
         charlieAta = await createAssociatedTokenAccount(
             rpc,
@@ -103,33 +103,37 @@ describe('decompress', () => {
         );
     });
 
-    it('should decompress from bob -> charlieAta', async () => {
-        const rpc = createRpc();
-        const recipientAtaBalanceBefore =
-            await rpc.getTokenAccountBalance(charlieAta);
-        const senderCompressedTokenBalanceBefore =
-            await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+    const LOOP = 30;
+    it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
+        rpc = await getTestRpc();
+
+        for (let i = 0; i < LOOP; i++) {
+            const recipientAtaBalanceBefore =
+                await rpc.getTokenAccountBalance(charlieAta);
+            const senderCompressedTokenBalanceBefore =
+                await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
+                    mint,
+                });
+
+            await decompress(
+                rpc,
+                payer,
                 mint,
-            });
+                bn(5),
+                bob,
+                charlieAta,
+                merkleTree,
+            );
 
-        await decompress(
-            rpc,
-            payer,
-            mint,
-            bn(900),
-            bob,
-            charlieAta,
-            merkleTree,
-        );
-
-        await assertDecompress(
-            rpc,
-            bn(recipientAtaBalanceBefore.value.amount),
-            charlieAta,
-            mint,
-            bn(900),
-            bob.publicKey,
-            senderCompressedTokenBalanceBefore,
-        );
+            await assertDecompress(
+                rpc,
+                bn(recipientAtaBalanceBefore.value.amount),
+                charlieAta,
+                mint,
+                bn(5),
+                bob.publicKey,
+                senderCompressedTokenBalanceBefore,
+            );
+        }
     });
 });

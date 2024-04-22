@@ -5,7 +5,7 @@ import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
 import {
     Rpc,
-    createRpc,
+    getTestRpc,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
 
@@ -58,8 +58,8 @@ describe('createMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        rpc = createRpc();
-        payer = await newAccountWithLamports(rpc);
+        rpc = await getTestRpc();
+        payer = await newAccountWithLamports(rpc, 1e9);
     });
 
     it('should create mint', async () => {

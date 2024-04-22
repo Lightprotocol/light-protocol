@@ -5,7 +5,6 @@ packages:
   - "circuit-lib/**"
   - "hasher.rs/**"
   - "cli/**"
-  - "web/webapp/**"
   - "account-compression/programs/**"
   - "js/stateless.js/**"
   - "js/compressed-token/**"
