@@ -26,7 +26,8 @@ use light_compressed_token::{
 };
 use light_hasher::Poseidon;
 use light_test_utils::{
-    airdrop_lamports, create_account_instruction, create_and_send_transaction, get_hash_set,
+    airdrop_lamports, create_account_instruction, create_and_send_transaction,
+    create_and_send_transaction_with_event, get_hash_set,
     test_env::setup_test_programs_with_accounts, AccountZeroCopy,
 };
 use num_bigint::BigInt;
@@ -195,34 +196,24 @@ async fn test_mint_to() {
         vec![amount; 1],
         vec![recipient_keypair.pubkey(); 1],
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
 
     let mut mock_indexer = mock_indexer.await;
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_compressed_accounts_with_token_data(event);
     assert_mint_to(
         &mut context,
         &mock_indexer,
@@ -259,33 +250,23 @@ async fn test_transfer() {
         vec![amount],
         vec![recipient_keypair.pubkey()],
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
     let mut mock_indexer = mock_indexer.await;
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_compressed_accounts_with_token_data(event);
     assert_mint_to(
         &mut context,
         &mock_indexer,
@@ -357,33 +338,23 @@ async fn test_transfer() {
     )
     .unwrap();
 
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        [&payer, &recipient_keypair].as_slice(),
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer, &recipient_keypair],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
 
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_compressed_accounts_with_token_data(event);
 
     assert_transfer(
         &mut context,
@@ -426,33 +397,23 @@ async fn test_decompression() {
         vec![amount],
         vec![recipient_keypair.pubkey()],
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.last_blockhash,
-    );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
     let mut mock_indexer = mock_indexer.await;
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_compressed_accounts_with_token_data(event);
     assert_mint_to(
         &mut context,
         &mock_indexer,
@@ -521,28 +482,17 @@ async fn test_decompression() {
     )
     .unwrap();
 
-    let transaction = Transaction::new_signed_with_payer(
+    let event = create_and_send_transaction_with_event(
+        &mut context,
         &[instruction],
-        Some(&payer_pubkey),
-        [&payer, &recipient_keypair].as_slice(),
-        context.last_blockhash,
-    );
-
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+        &payer_pubkey,
+        &[&payer, &recipient_keypair],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
 
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_compressed_accounts_with_token_data(event);
 
     let compress_out_compressed_account = TokenTransferOutputData {
         amount: 1000,
@@ -579,27 +529,16 @@ async fn test_decompression() {
     )
     .unwrap();
 
-    let transaction = Transaction::new_signed_with_payer(
+    let event = create_and_send_transaction_with_event(
+        &mut context,
         &[approve_instruction, instruction],
-        Some(&payer_pubkey),
-        [&payer, &recipient_keypair].as_slice(),
-        context.last_blockhash,
-    );
-
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+        &payer_pubkey,
+        &[&payer, &recipient_keypair],
     )
-    .await;
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    .await
+    .unwrap()
+    .unwrap();
+    mock_indexer.add_compressed_accounts_with_token_data(event);
     assert!(mock_indexer
         .token_compressed_accounts
         .iter()
@@ -650,33 +589,23 @@ async fn test_invalid_inputs() {
         vec![amount],
         vec![recipient_keypair.pubkey()],
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
     let old_merkle_tree = old_merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
     let mut mock_indexer = mock_indexer.await;
-    mock_indexer.add_compressed_accounts_with_token_data(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_compressed_accounts_with_token_data(event);
     assert_mint_to(
         &mut context,
         &mock_indexer,
@@ -1523,9 +1452,7 @@ impl MockIndexer {
     /// adds the input_compressed_accounts to the nullified_compressed_accounts
     /// deserializes token data from the output_compressed_accounts
     /// adds the token_compressed_accounts to the token_compressed_accounts
-    pub fn add_compressed_accounts_with_token_data(&mut self, event_bytes: Vec<u8>) {
-        let event_bytes = event_bytes.clone();
-        let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
+    pub fn add_compressed_accounts_with_token_data(&mut self, event: PublicTransactionEvent) {
         let indices = self.add_event_and_compressed_accounts(event);
         for index in indices.iter() {
             let data = self.compressed_accounts[*index]

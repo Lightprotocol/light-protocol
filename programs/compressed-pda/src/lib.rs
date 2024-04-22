@@ -108,7 +108,7 @@ pub mod light_compressed_pda {
     pub fn execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
-    ) -> Result<event::PublicTransactionEvent> {
+    ) -> Result<()> {
         msg!("execute_compressed_transaction");
         let inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
