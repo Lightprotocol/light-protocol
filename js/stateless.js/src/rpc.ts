@@ -48,7 +48,7 @@ import {
     proofFromJsonStruct,
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
-import { getTestRpc, getParsedEvents } from '@lightprotocol/test-helpers';
+import { getTestRpc, getParsedEvents } from '../../test-helpers';
 
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',

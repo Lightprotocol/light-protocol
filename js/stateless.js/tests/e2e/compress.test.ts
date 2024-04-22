@@ -4,7 +4,7 @@ import { defaultTestStateTreeAccounts } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import { compress, decompress } from '../../src';
-
+import { getTestRpc } from '../../src/test-helpers';
 /// TODO: add test case for payer != address
 describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
@@ -12,7 +12,7 @@ describe('compress', () => {
     let payer: Signer;
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc);
     });
 

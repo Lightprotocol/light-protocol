@@ -7,7 +7,7 @@ import {
     newAccountWithLamports,
     bn,
     defaultTestStateTreeAccounts,
-    createRpc,
+    getTestRpc,
     Rpc,
 } from '@lightprotocol/stateless.js';
 
@@ -48,7 +48,7 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = Keypair.generate();

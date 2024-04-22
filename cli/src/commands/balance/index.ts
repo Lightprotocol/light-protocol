@@ -1,7 +1,7 @@
 import { Command, Flags } from "@oclif/core";
 import { CustomLoader, getSolanaRpcUrl } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { createRpc } from "@lightprotocol/stateless.js";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 
 class BalanceCommand extends Command {
   static summary = "Get balance";
@@ -28,7 +28,8 @@ class BalanceCommand extends Command {
     try {
       const refMint = new PublicKey(flags["mint"]);
       const refOwner = new PublicKey(flags["owner"]);
-      const rpc = createRpc(getSolanaRpcUrl());
+
+      const rpc = await getTestRpc(getSolanaRpcUrl());
       const tokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         refOwner,
         { mint: refMint },

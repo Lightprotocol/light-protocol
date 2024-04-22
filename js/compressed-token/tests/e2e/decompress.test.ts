@@ -5,7 +5,7 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    createRpc,
+    getTestRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
@@ -67,7 +67,7 @@ describe('decompress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -105,7 +105,7 @@ describe('decompress', () => {
 
     const LOOP = 15;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
-        const rpc = createRpc();
+        const rpc = await getTestRpc();
 
         for (let i = 0; i < LOOP; i++) {
             const recipientAtaBalanceBefore =

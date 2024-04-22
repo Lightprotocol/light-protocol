@@ -1,22 +1,6 @@
 import { ConnectionConfig, PublicKey } from '@solana/web3.js';
 import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
-import {
-    defaultTestStateTreeAccounts,
-    CompressedProofWithContext,
-    BN254,
-    PublicTransactionEvent,
-    Rpc,
-    bn,
-    negateAndCompressProof,
-    proofFromJsonStruct,
-    toHex,
-    MerkleContextWithMerkleProof,
-    getRootSeq,
-    HexInputsForProver,
-    CompressedAccountWithMerkleContext,
-    GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ParsedTokenAccount,
-} from '@lightprotocol/stateless.js';
+
 import { BN } from '@coral-xyz/anchor';
 import {
     getCompressedAccountByHashTest,
@@ -27,6 +11,21 @@ import { getCompressedTokenAccountsByOwnerTest } from './get-compressed-token-ac
 
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
+import { defaultTestStateTreeAccounts } from '../../constants';
+import { Rpc, getRootSeq, HexInputsForProver, toHex } from '../../rpc';
+import {
+    CompressedProofWithContext,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ParsedTokenAccount,
+} from '../../rpc-interface';
+import {
+    BN254,
+    CompressedAccountWithMerkleContext,
+    MerkleContextWithMerkleProof,
+    PublicTransactionEvent,
+    bn,
+} from '../../state';
+import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
 
 export interface TestRpcConfig {
     /** Address of the state tree to index. Default: public default test state

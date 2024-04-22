@@ -1,20 +1,18 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { Rpc, createRpc } from '../../src/rpc';
+import { Rpc } from '../../src/rpc';
 import { bn, compress } from '../../src';
 import { transfer } from '../../src/actions/transfer';
-import { getTestRpc } from '@lightprotocol/test-helpers';
+import { getTestRpc } from '../../src/test-helpers';
 
 describe('transfer', () => {
     let rpc: Rpc;
-    let testRpc: Rpc;
     let payer: Signer;
     let bob: Signer;
 
     beforeAll(async () => {
-        rpc = createRpc();
-        testRpc = (await getTestRpc()) as Rpc;
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc, 2e9, 112);
         bob = await newAccountWithLamports(rpc, 2e9, 113);
 

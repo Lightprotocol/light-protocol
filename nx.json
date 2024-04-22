@@ -13,11 +13,11 @@
   "targetDefaults": {
     "build": {
       "inputs": ["noMarkdown", "^noMarkdown"],
-      "dependsOn": []
+      "dependsOn": ["^build"]
     },
     "test": {
       "inputs": ["noMarkdown", "^noMarkdown"],
-      "dependsOn": ["build"]
+      "dependsOn": ["^build", "build"]
     }
   }
 }

@@ -8,6 +8,7 @@ import {
     createRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
 import { compress, createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
@@ -65,7 +66,7 @@ describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -104,7 +105,7 @@ describe('compress', () => {
     });
 
     it('should compress from bobAta -> charlie', async () => {
-        const rpc = createRpc();
+        rpc = await getTestRpc();
         const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
         const recipientCompressedTokenBalanceBefore =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {

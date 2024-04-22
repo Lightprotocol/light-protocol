@@ -6,7 +6,7 @@ import {
   getSolanaRpcUrl,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { createRpc } from "@lightprotocol/stateless.js";
+import { getTestRpc } from "@lightprotocol/stateless.js";
 import { decompress } from "@lightprotocol/compressed-token";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 
@@ -53,7 +53,7 @@ class DecompressSplCommand extends Command {
       const mintPublicKey = new PublicKey(mint);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = createRpc(getSolanaRpcUrl());
+      const rpc = await getTestRpc(getSolanaRpcUrl());
 
       const recipientAta = await getOrCreateAssociatedTokenAccount(
         rpc,

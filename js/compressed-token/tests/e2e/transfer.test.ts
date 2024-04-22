@@ -5,12 +5,11 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    createRpc,
+    getTestRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
 import { createMint, mintTo, transfer } from '../../src/actions';
-import { CompressedAccountWithParsedTokenData } from '../../src/get-compressed-token-accounts';
 
 /**
  * Assert that we created recipient and change ctokens for the sender, with all
@@ -81,7 +80,7 @@ describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = createRpc();
+        rpc = await getTestRpc();
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -116,7 +115,7 @@ describe('transfer', () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
 
-        const rpc = createRpc();
+        const rpc = await getTestRpc();
 
         const bobPreCompressedTokenAccounts =
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
