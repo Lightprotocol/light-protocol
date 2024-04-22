@@ -64,8 +64,9 @@ export async function getTestRpc(
     depth?: number,
     log = false,
 ) {
+    console.log('HI');
     lightWasm = lightWasm || (await WasmFactory.getInstance());
-
+    console.log('WASM LOADED', lightWasm);
     const defaultAccounts = defaultTestStateTreeAccounts();
 
     return new TestRpc(

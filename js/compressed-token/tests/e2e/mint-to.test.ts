@@ -48,7 +48,7 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = (await getTestRpc()) as Rpc;
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = Keypair.generate();

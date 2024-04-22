@@ -54,6 +54,7 @@
         "tweetnacl": "^1.0.3"
     },
     "devDependencies": {
+        "@lightprotocol/hasher.rs": "workspace:*",
         "@types/node": "^20.10.2",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@rollup/plugin-typescript": "^11.1.5",

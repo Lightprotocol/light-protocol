@@ -41,7 +41,7 @@ class DecompressSolCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = getTestRpc(getSolanaRpcUrl());
+      const rpc = await getTestRpc(getSolanaRpcUrl());
       const txId = await decompress(rpc, payer, amount, toPublicKey);
       loader.stop(false);
       console.log(

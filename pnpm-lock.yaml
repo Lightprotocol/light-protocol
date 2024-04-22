@@ -503,6 +503,9 @@ importers:
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.19.5)
+      '@lightprotocol/hasher.rs':
+        specifier: workspace:*
+        version: link:../../hasher.rs
       '@rollup/plugin-typescript':
         specifier: ^11.1.5
         version: 11.1.5(rollup@4.6.1)(tslib@2.6.2)(typescript@5.3.2)

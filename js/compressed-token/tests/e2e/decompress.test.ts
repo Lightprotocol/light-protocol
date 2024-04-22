@@ -67,7 +67,7 @@ describe('decompress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = (await getTestRpc()) as Rpc;
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -105,7 +105,7 @@ describe('decompress', () => {
 
     const LOOP = 15;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
-        const rpc = await getTestRpc();
+        rpc = (await getTestRpc()) as Rpc;
 
         for (let i = 0; i < LOOP; i++) {
             const recipientAtaBalanceBefore =

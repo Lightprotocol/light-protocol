@@ -66,7 +66,7 @@ describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = (await getTestRpc()) as Rpc;
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -105,7 +105,6 @@ describe('compress', () => {
     });
 
     it('should compress from bobAta -> charlie', async () => {
-        rpc = await getTestRpc();
         const senderAtaBalanceBefore = await rpc.getTokenAccountBalance(bobAta);
         const recipientCompressedTokenBalanceBefore =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {

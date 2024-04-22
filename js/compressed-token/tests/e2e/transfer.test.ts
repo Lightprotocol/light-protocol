@@ -80,7 +80,7 @@ describe('transfer', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = (await getTestRpc()) as Rpc;
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
@@ -114,8 +114,6 @@ describe('transfer', () => {
     it('should transfer from bob -> charlie', async () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
-
-        const rpc = await getTestRpc();
 
         const bobPreCompressedTokenAccounts =
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {

@@ -58,7 +58,7 @@ describe('createMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        rpc = (await getTestRpc()) as Rpc;
         payer = await newAccountWithLamports(rpc, 1e9);
     });
 
