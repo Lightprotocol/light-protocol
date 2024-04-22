@@ -32,7 +32,6 @@ pub mod token_escrow {
         signer_is_delegate: bool,
         input_token_data_with_context: Vec<InputTokenDataWithContext>,
         output_state_merkle_tree_account_indices: Vec<u8>,
-        pubkey_array: Vec<Pubkey>,
     ) -> Result<()> {
         // set timelock
         let current_slot = Clock::get()?.slot;
@@ -59,7 +58,6 @@ pub mod token_escrow {
             input_token_data_with_context,
             output_compressed_accounts,
             output_state_merkle_tree_account_indices,
-            pubkey_array,
         )
     }
 
@@ -75,7 +73,6 @@ pub mod token_escrow {
         signer_is_delegate: bool,
         input_token_data_with_context: Vec<InputTokenDataWithContext>,
         output_state_merkle_tree_account_indices: Vec<u8>,
-        pubkey_array: Vec<Pubkey>,
     ) -> Result<()> {
         let current_slot = Clock::get()?.slot;
         if current_slot > ctx.accounts.timelock_pda.slot {
@@ -104,7 +101,6 @@ pub mod token_escrow {
             input_token_data_with_context,
             output_compressed_accounts,
             output_state_merkle_tree_account_indices,
-            pubkey_array,
         )
     }
 }
@@ -169,7 +165,6 @@ pub fn cpi_compressed_token_transfer<'info>(
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
     output_compressed_accounts: Vec<TokenTransferOutputData>,
     output_state_merkle_tree_account_indices: Vec<u8>,
-    pubkey_array: Vec<Pubkey>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof,
@@ -179,7 +174,6 @@ pub fn cpi_compressed_token_transfer<'info>(
         input_token_data_with_context,
         output_compressed_accounts,
         output_state_merkle_tree_account_indices,
-        pubkey_array,
         is_compress: false,
         compression_amount: None,
     };
@@ -225,7 +219,6 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
     output_compressed_accounts: Vec<TokenTransferOutputData>,
     output_state_merkle_tree_account_indices: Vec<u8>,
-    pubkey_array: Vec<Pubkey>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof,
@@ -235,7 +228,6 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         input_token_data_with_context,
         output_compressed_accounts,
         output_state_merkle_tree_account_indices,
-        pubkey_array,
         is_compress: false,
         compression_amount: None,
     };

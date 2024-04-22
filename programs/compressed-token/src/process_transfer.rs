@@ -32,6 +32,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     let (mut compressed_input_accounts, input_token_data) = inputs
         .get_input_compressed_accounts_with_merkle_context_and_check_signer(
             &ctx.accounts.authority.key(),
+            ctx.remaining_accounts,
         )?;
 
     sum_check(
@@ -260,7 +261,6 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
     pub output_compressed_accounts: Vec<TokenTransferOutputData>,
     pub output_state_merkle_tree_account_indices: Vec<u8>,
-    pub pubkey_array: Vec<Pubkey>,
     pub is_compress: bool,
     pub compression_amount: Option<u64>,
 }
@@ -269,19 +269,21 @@ impl CompressedTokenInstructionDataTransfer {
     pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer(
         &self,
         signer: &Pubkey,
+        remaining_accounts: &[AccountInfo<'_>],
     ) -> Result<(Vec<CompressedAccountWithMerkleContext>, Vec<TokenData>)> {
         let mut input_compressed_accounts_with_merkle_context: Vec<
             CompressedAccountWithMerkleContext,
         > = Vec::<CompressedAccountWithMerkleContext>::new();
         let mut input_token_data_vec: Vec<TokenData> = Vec::new();
         let owner = if self.signer_is_delegate {
-            self.pubkey_array[0]
+            remaining_accounts[0].key()
         } else {
             *signer
         };
         for input_token_data in self.input_token_data_with_context.iter() {
             if self.signer_is_delegate
-                && *signer != self.pubkey_array[input_token_data.delegate_index.unwrap() as usize]
+                && *signer
+                    != remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
             {
                 return err!(ErrorCode::SignerCheckFailed);
             }
@@ -300,9 +302,9 @@ impl CompressedTokenInstructionDataTransfer {
                 mint: self.mint,
                 owner,
                 amount: input_token_data.amount,
-                delegate: input_token_data
-                    .delegated_amount
-                    .map(|_| self.pubkey_array[input_token_data.delegate_index.unwrap() as usize]),
+                delegate: input_token_data.delegated_amount.map(|_| {
+                    remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
+                }),
                 state: AccountState::Initialized,
                 is_native: input_token_data.is_native,
                 delegated_amount: input_token_data.delegated_amount.unwrap_or_default(),
@@ -588,8 +590,10 @@ pub mod transfer_sdk {
         compression_amount: Option<u64>,
     ) -> (Vec<AccountMeta>, CompressedTokenInstructionDataTransfer) {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+        if let Some(owner_if_delegate_is_signer) = owner_if_delegate_is_signer {
+            remaining_accounts.insert(owner_if_delegate_is_signer, 0);
+        }
         let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
-        let mut pubkey_array: HashMap<Pubkey, u8> = HashMap::new();
         let mut index = 0;
         for (i, (mt, leaf_index)) in input_compressed_account_merkle_tree_pubkeys
             .iter()
@@ -603,12 +607,12 @@ pub mod transfer_sdk {
                 }
             };
             let delegate_index = match input_token_data[i].delegate {
-                Some(delegate) => match pubkey_array.get(&delegate) {
-                    Some(delegate_index) => Some(*delegate_index),
+                Some(delegate) => match remaining_accounts.get(&delegate) {
+                    Some(delegate_index) => Some(*delegate_index as u8),
                     None => {
-                        pubkey_array.insert(delegate, index);
+                        remaining_accounts.insert(delegate, index);
                         index += 1;
-                        Some(index - 1)
+                        Some((index - 1) as u8)
                     }
                 },
                 None => None,
@@ -666,15 +670,7 @@ pub mod transfer_sdk {
             .iter()
             .map(|(k, _)| k.clone())
             .collect::<Vec<AccountMeta>>();
-        let mut pubkey_array = pubkey_array.into_iter().collect::<Vec<(Pubkey, u8)>>();
-        pubkey_array.sort_by(|a, b| a.1.cmp(&b.1));
-        let mut pubkey_array = pubkey_array
-            .iter()
-            .map(|(k, _)| *k)
-            .collect::<Vec<Pubkey>>();
-        if let Some(owner_if_delegate_is_signer) = owner_if_delegate_is_signer {
-            pubkey_array.insert(0, owner_if_delegate_is_signer);
-        }
+
         let inputs_struct = CompressedTokenInstructionDataTransfer {
             output_compressed_accounts: output_compressed_accounts.to_vec(),
             root_indices: root_indices.to_vec(),
@@ -682,7 +678,6 @@ pub mod transfer_sdk {
             input_token_data_with_context,
             // TODO: support multiple output state merkle trees
             output_state_merkle_tree_account_indices,
-            pubkey_array,
             signer_is_delegate: owner_if_delegate_is_signer.is_some(),
             mint,
             is_compress,
