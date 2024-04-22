@@ -675,9 +675,6 @@ importers:
       '@coral-xyz/anchor':
         specifier: 0.29.0
         version: 0.29.0
-      '@lightprotocol/compressed-token':
-        specifier: workspace:*
-        version: link:../compressed-token
       '@lightprotocol/hasher.rs':
         specifier: workspace:*
         version: link:../../hasher.rs

@@ -1,10 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
 import {
-    TokenData,
-    CompressedTokenProgram,
-} from '@lightprotocol/compressed-token';
-import {
-    CompressedAccountWithMerkleContext,
     CompressedAccount,
     PublicTransactionEvent,
     MerkleContext,
@@ -14,6 +9,23 @@ import {
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
 import { getParsedEvents } from './get-parsed-events';
+import { BN, BorshCoder } from '@coral-xyz/anchor';
+import { IDL } from './light_compressed_token';
+
+const tokenProgramId: PublicKey = new PublicKey(
+    // TODO: can add check to ensure its consistent with the idl
+    '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
+);
+
+type TokenData = {
+    mint: PublicKey;
+    owner: PublicKey;
+    amount: BN;
+    delegate: PublicKey | null;
+    state: number;
+    isNative: BN | null;
+    delegatedAmount: BN;
+};
 
 export type EventWithParsedTokenTlvData = {
     inputCompressedAccounts: ParsedTokenAccount[];
@@ -29,15 +41,12 @@ function parseTokenLayoutWithIdl(
     const { data } = compressedAccount.data;
 
     if (data.length === 0) return null;
-    if (
-        compressedAccount.owner.toBase58() !==
-        CompressedTokenProgram.programId.toBase58()
-    ) {
+    if (compressedAccount.owner.toBase58() !== tokenProgramId.toBase58()) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    const decodedLayout = CompressedTokenProgram.program.coder.types.decode(
+    const decodedLayout = new BorshCoder(IDL).types.decode(
         'TokenData',
         Buffer.from(data),
     );
