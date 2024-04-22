@@ -93,7 +93,6 @@ export async function getTestRpc(
  *
  * For advanced testing use photon: https://github.com/helius-labs/photon
  */
-
 export class TestRpc extends Rpc {
     merkleTreeAddress: PublicKey;
     nullifierQueueAddress: PublicKey;
