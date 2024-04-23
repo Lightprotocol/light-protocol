@@ -1,4 +1,5 @@
-A minimal React app, showcasing the basic use of `@lightprotocol/stateless.js` in a browser environment.
+This project demonstrates how to use `@lightprotocol/stateless.js` to interact
+with the ZK Compression API in a browser environment.
 
 0. Build the Monorepo.
 
@@ -23,4 +24,5 @@ cd ../examples/browser/nextjs &&
 pnpm dev
 ```
 
-This will serve and mount the app at http://localhost:1234 and run the `React.useEffect` hook defined in `page.tsx`.
+This will serve and mount the app at http://localhost:1234 and run the code
+defined in `page.tsx`.
