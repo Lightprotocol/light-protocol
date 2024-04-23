@@ -62,7 +62,6 @@ pub fn create_escrow_instruction(
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
         output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
-        pubkey_array: inputs.pubkey_array,
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -134,7 +133,6 @@ pub fn create_withdrawal_escrow_instruction(
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
         output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
-        pubkey_array: inputs.pubkey_array,
     };
 
     let registered_program_pda = Pubkey::find_program_address(

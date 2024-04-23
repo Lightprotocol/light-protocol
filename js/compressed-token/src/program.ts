@@ -467,7 +467,6 @@ export class CompressedTokenProgram {
             inputTokenDataWithContext,
             outputStateMerkleTreeIndices,
             remainingAccountMetas,
-            pubkeyArray,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
             outputCompressedAccountsLength: outputCompressedAccounts.length,
@@ -488,7 +487,6 @@ export class CompressedTokenProgram {
             outputStateMerkleTreeAccountIndices: Buffer.from(
                 outputStateMerkleTreeIndices,
             ),
-            pubkeyArray,
             compressionAmount: null,
             isCompress: false,
         };
@@ -548,7 +546,6 @@ export class CompressedTokenProgram {
             inputTokenDataWithContext,
             outputStateMerkleTreeIndices,
             remainingAccountMetas,
-            pubkeyArray,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts: [],
             outputCompressedAccountsLength: outputCompressedAccounts.length,
@@ -565,7 +562,6 @@ export class CompressedTokenProgram {
             outputStateMerkleTreeAccountIndices: Buffer.from(
                 outputStateMerkleTreeIndices,
             ),
-            pubkeyArray,
             compressionAmount: amount,
             isCompress: true,
         };
@@ -638,7 +634,6 @@ export class CompressedTokenProgram {
             inputTokenDataWithContext,
             outputStateMerkleTreeIndices,
             remainingAccountMetas,
-            pubkeyArray,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
             outputCompressedAccountsLength: tokenTransferOutputs.length,
@@ -658,7 +653,6 @@ export class CompressedTokenProgram {
             outputStateMerkleTreeAccountIndices: Buffer.from(
                 outputStateMerkleTreeIndices,
             ),
-            pubkeyArray,
             compressionAmount: amount,
             isCompress: false,
         };

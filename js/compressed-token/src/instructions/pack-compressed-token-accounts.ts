@@ -32,7 +32,6 @@ export function packCompressedTokenAccounts(
     inputTokenDataWithContext: InputTokenDataWithContext[];
     outputStateMerkleTreeIndices: number[];
     remainingAccountMetas: AccountMeta[];
-    pubkeyArray: PublicKey[];
 } {
     const {
         inputCompressedTokenAccounts,
@@ -42,17 +41,23 @@ export function packCompressedTokenAccounts(
     } = params;
 
     const _remainingAccounts = remainingAccounts.slice();
+    let delegateIndex = null;
+
+    if (
+        inputCompressedTokenAccounts.length > 0 &&
+        inputCompressedTokenAccounts[0].parsed.delegate
+    ) {
+        delegateIndex = getIndexOrAdd(
+            _remainingAccounts,
+            inputCompressedTokenAccounts[0].parsed.delegate,
+        );
+    }
     /// TODO: move pubkeyArray to remainingAccounts
     /// Currently just packs 'delegate' to pubkeyArray
-    const _pubkeyArray: PublicKey[] = [];
     const packedInputTokenData: InputTokenDataWithContext[] = [];
 
     /// pack inputs
     inputCompressedTokenAccounts.forEach((account: ParsedTokenAccount) => {
-        if (account.parsed.delegate) {
-            _pubkeyArray.push(account.parsed.delegate);
-        }
-
         const merkleTreePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
             account.compressedAccount.merkleTree,
@@ -65,9 +70,7 @@ export function packCompressedTokenAccounts(
 
         packedInputTokenData.push({
             amount: account.parsed.amount,
-            delegateIndex: account.parsed.delegate
-                ? _pubkeyArray.indexOf(account.parsed.delegate)
-                : null,
+            delegateIndex,
             delegatedAmount: account.parsed.delegatedAmount.eq(bn(0))
                 ? null
                 : account.parsed.delegatedAmount,
@@ -103,6 +106,5 @@ export function packCompressedTokenAccounts(
         inputTokenDataWithContext: packedInputTokenData,
         outputStateMerkleTreeIndices,
         remainingAccountMetas,
-        pubkeyArray: _pubkeyArray,
     };
 }
