@@ -15,6 +15,7 @@ import {
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     HealthResult,
+    HexInputsForProver,
     MerkeProofResult,
     MultipleCompressedAccountsResult,
     ParsedTokenAccount,
@@ -36,13 +37,7 @@ import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
 
-export interface HexInputsForProver {
-    roots: string[];
-    inPathIndices: number[];
-    inPathElements: string[][];
-    leaves: string[];
-}
-import { toCamelCase } from './utils/conversion';
+import { toCamelCase, toHex } from './utils/conversion';
 
 import {
     proofFromJsonStruct,
@@ -120,14 +115,6 @@ export const getRootSeq = async (rpc: Rpc): Promise<number> => {
     }
     return leaves.length;
 };
-
-/**
- * @internal
- * convert BN to hex with '0x' prefix
- */
-export function toHex(bn: BN) {
-    return '0x' + bn.toString('hex');
-}
 
 export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;

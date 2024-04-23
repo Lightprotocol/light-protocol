@@ -2,9 +2,8 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc } from '../../src/rpc';
-import { bn, compress } from '../../src';
+import { bn, compress, getTestRpc } from '../../src';
 import { transfer } from '../../src/actions/transfer';
-import { getTestRpc } from '../../src/test-helpers';
 
 describe('transfer', () => {
     let rpc: Rpc;

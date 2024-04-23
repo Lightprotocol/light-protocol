@@ -28,6 +28,14 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+
+export interface HexInputsForProver {
+    roots: string[];
+    inPathIndices: number[];
+    inPathElements: string[][];
+    leaves: string[];
+}
+
 // TODO: Rename Compressed -> ValidityProof
 // TODO: consistent types
 export type CompressedProofWithContext = {

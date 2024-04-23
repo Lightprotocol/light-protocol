@@ -1,4 +1,4 @@
-import { ConnectionConfig, PublicKey } from '@solana/web3.js';
+import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
 import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
 
 import { BN } from '@coral-xyz/anchor';
@@ -12,9 +12,11 @@ import { getCompressedTokenAccountsByOwnerTest } from './get-compressed-token-ac
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
-import { Rpc, getRootSeq, HexInputsForProver, toHex } from '../../rpc';
+import { toHex } from '../../utils/conversion';
+import { HexInputsForProver } from '../../rpc-interface';
 import {
     CompressedProofWithContext,
+    CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ParsedTokenAccount,
 } from '../../rpc-interface';
@@ -92,7 +94,9 @@ export async function getTestRpc(
  *
  * For advanced testing use photon: https://github.com/helius-labs/photon
  */
-export class TestRpc extends Rpc {
+export class TestRpc extends Connection implements CompressionApiInterface {
+    compressionApiEndpoint: string;
+    proverEndpoint: string;
     merkleTreeAddress: PublicKey;
     nullifierQueueAddress: PublicKey;
     lightWasm: LightWasm;
@@ -118,12 +122,9 @@ export class TestRpc extends Rpc {
         connectionConfig?: ConnectionConfig,
         testRpcConfig?: TestRpcConfig,
     ) {
-        super(
-            endpoint,
-            compressionApiEndpoint,
-            proverEndpoint,
-            connectionConfig,
-        );
+        super(endpoint, connectionConfig || 'confirmed');
+        this.compressionApiEndpoint = compressionApiEndpoint;
+        this.proverEndpoint = proverEndpoint;
 
         const { merkleTreeAddress, nullifierQueueAddress, depth, log } =
             testRpcConfig ?? {};
@@ -136,6 +137,10 @@ export class TestRpc extends Rpc {
         this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
         this.depth = depth ?? merkleTreeHeight;
         this.log = log ?? false;
+    }
+
+    async getHealth(): Promise<string> {
+        return 'ok';
     }
 
     async getCompressedAccount(

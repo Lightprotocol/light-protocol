@@ -612,12 +612,6 @@ export type LightCompressedToken = {
                         type: 'bytes';
                     },
                     {
-                        name: 'pubkeyArray';
-                        type: {
-                            vec: 'publicKey';
-                        };
-                    },
-                    {
                         name: 'isCompress';
                         type: 'bool';
                     },
@@ -1460,12 +1454,6 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'outputStateMerkleTreeAccountIndices',
                         type: 'bytes',
-                    },
-                    {
-                        name: 'pubkeyArray',
-                        type: {
-                            vec: 'publicKey',
-                        },
                     },
                     {
                         name: 'isCompress',
