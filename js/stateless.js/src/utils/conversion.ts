@@ -3,9 +3,17 @@ import { bn, createBN254 } from '../state/BN254';
 import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
 
 export function byteArrayToKeypair(byteArray: number[]): Keypair {
     return Keypair.fromSecretKey(Uint8Array.from(byteArray));
+}
+/**
+ * @internal
+ * convert BN to hex with '0x' prefix
+ */
+export function toHex(bn: BN): string {
+    return '0x' + bn.toString('hex');
 }
 
 export const toArray = <T>(value: T | T[]) =>

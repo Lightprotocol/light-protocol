@@ -12,13 +12,12 @@ import {
 import { createMint, mintTo, transfer } from '../../src/actions';
 
 /**
- * Assert that we created recipient and change ctokens for the sender, with all
+ * Assert that we created recipient and change-account for the sender, with all
  * amounts correctly accounted for
  */
-// TODO: assert individual account amounts in balance
 async function assertTransfer(
     rpc: Rpc,
-    senderPreCompressedTokenAccounts: ParsedTokenAccount[], // all
+    senderPreCompressedTokenAccounts: ParsedTokenAccount[],
     refMint: PublicKey,
     refAmount: BN,
     refSender: PublicKey,
@@ -26,7 +25,8 @@ async function assertTransfer(
     expectedAccountCountSenderPost?: number,
     expectedAccountCountRecipientPost?: number,
 ) {
-    /// Transfer can merge input compressedaccounts therefore we need to pass all as ref
+    /// Transfer can merge input compressedaccounts therefore we need to pass
+    /// them all as ref
     const senderPostCompressedTokenAccounts =
         await rpc.getCompressedTokenAccountsByOwner(refSender, {
             mint: refMint,
@@ -114,7 +114,6 @@ describe('transfer', () => {
     it('should transfer from bob -> charlie', async () => {
         /// send 700 from bob -> charlie
         /// bob: 300, charlie: 700
-
         const bobPreCompressedTokenAccounts =
             await rpc.getCompressedTokenAccountsByOwner(bob.publicKey, {
                 mint,
@@ -170,7 +169,6 @@ describe('transfer', () => {
 
         /// send 5 from charlie -> bob
         /// bob: (100+5), charlie: (695+200)
-
         const charliePreCompressedTokenAccounts3 =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
@@ -199,7 +197,6 @@ describe('transfer', () => {
 
         /// send 700 from charlie -> bob, 2 compressed account inputs
         /// bob: (100+5+700), charlie: (195)
-
         const charliePreCompressedTokenAccounts4 =
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,

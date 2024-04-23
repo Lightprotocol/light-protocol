@@ -5,7 +5,6 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    createRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
     getTestRpc,

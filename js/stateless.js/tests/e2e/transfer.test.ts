@@ -13,8 +13,8 @@ describe('transfer', () => {
 
     beforeAll(async () => {
         rpc = await getTestRpc();
-        payer = await newAccountWithLamports(rpc, 2e9, 112);
-        bob = await newAccountWithLamports(rpc, 2e9, 113);
+        payer = await newAccountWithLamports(rpc, 2e9, 256);
+        bob = await newAccountWithLamports(rpc, 2e9, 256);
 
         await compress(rpc, payer, 1e9, payer.publicKey);
     });

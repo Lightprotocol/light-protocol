@@ -11,6 +11,7 @@ import {
     PublicTransactionEvent,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
+    bn,
 } from '../../state';
 
 const tokenProgramId: PublicKey = new PublicKey(
@@ -191,4 +192,37 @@ export async function getCompressedTokenAccountsByOwnerTest(
     return compressedTokenAccounts.filter(
         acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );
+}
+
+export async function getCompressedTokenAccountsByDelegateTest(
+    rpc: Rpc,
+    delegate: PublicKey,
+    mint: PublicKey,
+): Promise<ParsedTokenAccount[]> {
+    const events = await getParsedEvents(rpc);
+
+    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+
+    return compressedTokenAccounts.filter(
+        acc =>
+            acc.parsed.delegate?.equals(delegate) &&
+            acc.parsed.mint.equals(mint),
+    );
+}
+
+export async function getCompressedTokenAccountByHashTest(
+    rpc: Rpc,
+    hash: BN,
+): Promise<ParsedTokenAccount> {
+    const events = await getParsedEvents(rpc);
+
+    const compressedTokenAccounts = await getCompressedTokenAccounts(events);
+
+    const filtered = compressedTokenAccounts.filter(acc =>
+        bn(acc.compressedAccount.hash).eq(hash),
+    );
+    if (filtered.length === 0) {
+        throw new Error('No compressed account found');
+    }
+    return filtered[0];
 }
