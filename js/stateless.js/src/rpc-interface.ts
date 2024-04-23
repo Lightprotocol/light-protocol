@@ -1,5 +1,4 @@
 import { PublicKey, DataSizeFilter, MemcmpFilter } from '@solana/web3.js';
-
 import {
     type as pick,
     number,
@@ -12,7 +11,6 @@ import {
     create,
     unknown,
     any,
-    boolean,
     nullable,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
@@ -28,12 +26,37 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+export interface SignatureWithMetadata {
+    blockTime: number;
+    signature: string;
+    slot: number;
+}
+
+export interface CompressedTransaction {
+    compressionInfo: {
+        closedAccounts: {
+            account: CompressedAccountWithMerkleContext;
+            maybeTokenData: TokenData | null;
+        }[];
+        openedAccounts: {
+            account: CompressedAccountWithMerkleContext;
+            maybeTokenData: TokenData | null;
+        }[];
+    };
+    transaction: any;
+}
+
+export interface HexInputsForProver {
+    roots: string[];
+    inPathIndices: number[];
+    inPathElements: string[][];
+    leaves: string[];
+}
+
 // TODO: Rename Compressed -> ValidityProof
-// TODO: consistent types
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
-    // for now we assume latest root = allLeaves.length
     rootIndices: number[];
     leafIndices: number[];
     leaves: BN[];
@@ -42,7 +65,7 @@ export type CompressedProofWithContext = {
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-    mint?: PublicKey;
+    mint: PublicKey;
     cursor?: string;
     limit?: BN;
 }
@@ -91,7 +114,6 @@ const PublicKeyFromString = coerce(
 /**
  * @internal
  */
-// TODO: use a BN254 class here for the 1st parameter
 const BN254FromString = coerce(instance(BN), string(), value => {
     return createBN254(value, 'base58');
 });
@@ -103,7 +125,7 @@ const BNFromBase10String = coerce(instance(BN), string(), value => bn(value));
  * @internal
  */
 const Base64EncodedCompressedAccountDataResult = coerce(
-    nullable(string()),
+    string(),
     string(),
     value => (value === '' ? null : value),
 );
@@ -167,45 +189,40 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
 /**
  * @internal
  */
-/// Compressed Account With Merkle Context
 export const CompressedAccountResult = pick({
-    hash: BN254FromString,
     address: nullable(PublicKeyFromString),
-    data: Base64EncodedCompressedAccountDataResult,
-    dataHash: nullable(BN254FromString),
-    discriminator: BNFromInt,
-    owner: PublicKeyFromString,
+    hash: BN254FromString,
+    data: nullable(
+        pick({
+            data: Base64EncodedCompressedAccountDataResult,
+            dataHash: BN254FromString,
+            discriminator: BNFromInt,
+        }),
+    ),
     lamports: BNFromInt,
-    tree: nullable(PublicKeyFromString), // TODO: should not be nullable
+    owner: PublicKeyFromString,
+    leafIndex: number(),
+    tree: PublicKeyFromString,
     seq: nullable(BNFromInt),
     slotUpdated: BNFromInt,
-    leafIndex: number(),
+});
+
+export const TokenDataResult = pick({
+    mint: PublicKeyFromString,
+    owner: PublicKeyFromString,
+    amount: BNFromInt,
+    delegate: nullable(PublicKeyFromString),
+    delegatedAmount: BNFromInt,
+    isNative: nullable(BNFromInt),
+    state: string(),
 });
 
 /**
  * @internal
  */
-/// TODO: update: delegatedAmount, state, programOwner/tokenOwner, data includes
-/// the values?, no closeAuth!
 export const CompressedTokenAccountResult = pick({
-    address: nullable(PublicKeyFromString),
-    amount: BNFromBase10String,
-    delegate: nullable(PublicKeyFromString),
-    closeAuthority: nullable(PublicKeyFromString),
-    isNative: boolean(),
-    frozen: boolean(),
-    mint: PublicKeyFromString,
-    owner: PublicKeyFromString,
-
-    hash: BN254FromString,
-    data: Base64EncodedCompressedAccountDataResult,
-    dataHash: nullable(BN254FromString),
-    discriminator: BNFromInt,
-    lamports: BNFromInt,
-    tree: PublicKeyFromString,
-    seq: BNFromInt,
-    // slotUpdated: BNFromInt, TODO: add owner (?)
-    leafIndex: number(),
+    tokenData: TokenDataResult,
+    account: CompressedAccountResult,
 });
 
 /**
@@ -220,7 +237,7 @@ export const MultipleCompressedAccountsResult = pick({
  */
 export const CompressedAccountsByOwnerResult = pick({
     items: array(CompressedAccountResult),
-    // cursor: array(number()), // paginated
+    cursor: nullable(PublicKeyFromString),
 });
 
 /**
@@ -228,7 +245,7 @@ export const CompressedAccountsByOwnerResult = pick({
  */
 export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
     items: array(CompressedTokenAccountResult),
-    // cursor: array(number()), // paginated TODO: add cursor to photon / docs update
+    cursor: nullable(PublicKeyFromString),
 });
 
 /**
@@ -246,9 +263,10 @@ export const HealthResult = string();
  */
 export const MerkeProofResult = pick({
     hash: BN254FromString,
-    merkleTree: PublicKeyFromString,
     leafIndex: number(),
+    merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
+    rootSeq: number(),
 });
 
 /**
@@ -259,62 +277,138 @@ export const MultipleMerkleProofsResult = array(MerkeProofResult);
 /**
  * @internal
  */
-export const BalanceResult = BNFromInt;
+export const BalanceResult = pick({
+    amount: BNFromInt,
+});
 
-/// TODO: we need to add: tree, nullifierQueue, leafIndex, rootIndex
+export const NativeBalanceResult = BNFromInt;
+
+export const TokenBalanceResult = pick({
+    balance: BNFromInt,
+    mint: PublicKeyFromString,
+});
+
+export const TokenBalanceListResult = pick({
+    tokenBalances: array(TokenBalanceResult),
+    cursor: nullable(PublicKeyFromString),
+});
+
 export const AccountProofResult = pick({
     hash: array(number()),
     root: array(number()),
     proof: array(array(number())),
 });
 
+export const toUnixTimestamp = (blockTime: string): number => {
+    return new Date(blockTime).getTime();
+};
+
+export const SignatureListResult = pick({
+    items: array(
+        pick({
+            blockTime: number(),
+            signature: string(),
+            slot: number(),
+        }),
+    ),
+});
+
+export const SignatureListWithCursorResult = pick({
+    items: array(
+        pick({
+            blockTime: number(),
+            signature: string(),
+            slot: number(),
+        }),
+    ),
+    cursor: nullable(PublicKeyFromString),
+});
+
+export const CompressedTransactionResult = pick({
+    compressionInfo: pick({
+        closedAccounts: array(
+            pick({
+                account: CompressedAccountResult,
+                optionTokenData: nullable(TokenDataResult),
+            }),
+        ),
+        openedAccounts: array(
+            pick({
+                account: CompressedAccountResult,
+                optionTokenData: nullable(TokenDataResult),
+            }),
+        ),
+    }),
+    /// TODO: add transaction struct
+    /// https://github.com/solana-labs/solana/blob/27eff8408b7223bb3c4ab70523f8a8dca3ca6645/transaction-status/src/lib.rs#L1061
+    transaction: any(),
+});
+
 export interface CompressionApiInterface {
-    /** Retrieve compressed account by hash or address */
     getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null>;
 
-    /** Retrieve compressed account by hash or address */
     getCompressedBalance(hash: BN254): Promise<BN | null>;
 
-    /** Retrieve merkle proof for a compressed account */
+    getCompressedBalanceByOwner(owner: PublicKey): Promise<BN>;
+
     getCompressedAccountProof(
         hash: BN254,
-    ): Promise<MerkleContextWithMerkleProof>; // TODO: expose context slot
+    ): Promise<MerkleContextWithMerkleProof>;
 
-    /** Retrieve compressed account by hash or address */
     getMultipleCompressedAccounts(
         hashes: BN254[],
-    ): Promise<CompressedAccountWithMerkleContext[] | null>;
+    ): Promise<CompressedAccountWithMerkleContext[]>;
 
-    /** Retrieve multiple merkle proofs for compressed accounts */
     getMultipleCompressedAccountProofs(
         hashes: BN254[],
-    ): Promise<MerkleContextWithMerkleProof[] | null>;
+    ): Promise<MerkleContextWithMerkleProof[]>;
 
-    /** Retrieve compressed accounts by owner */
     getCompressedAccountsByOwner(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[] | null>;
-
-    /** Receive validity Proof for n compressed accounts */
-    getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
-
-    /** Retrieve health status of the node */
-    getHealth(): Promise<string>;
-
-    /** Retrieve the current slot */
-    getSlot(): Promise<number>;
+    ): Promise<CompressedAccountWithMerkleContext[]>;
 
     getCompressedTokenAccountsByOwner(
         publicKey: PublicKey,
-        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
-        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }>;
+
+    getCompressedTokenBalancesByOwner(
+        publicKey: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<{ balance: BN; mint: PublicKey }[]>;
+
+    getSignaturesForCompressedAccount(
+        hash: BN254,
+    ): Promise<SignatureWithMetadata[]>;
+
+    getTransactionWithCompressionInfo(
+        signature: string,
+    ): Promise<CompressedTransaction | null>;
+
+    getCompressionSignaturesForAddress(
+        address: PublicKey,
+    ): Promise<SignatureWithMetadata[]>;
+
+    getCompressionSignaturesForOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]>;
+
+    getCompressionSignaturesForTokenOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]>;
+
+    getIndexerHealth(): Promise<string>;
+
+    getIndexerSlot(): Promise<number>;
+
+    getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
 }

@@ -328,6 +328,9 @@ importers:
       '@coral-xyz/anchor':
         specifier: ^0.30.0
         version: 0.30.0
+      '@lightprotocol/compressed-token':
+        specifier: workspace:*
+        version: link:../../../js/compressed-token
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../../../js/stateless.js
@@ -505,9 +508,24 @@ importers:
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.19.5)
-      '@lightprotocol/hasher.rs':
-        specifier: workspace:*
-        version: link:../../hasher.rs
+      '@rollup/plugin-babel':
+        specifier: ^6.0.4
+        version: 6.0.4(@babel/core@7.23.3)(rollup@4.6.1)
+      '@rollup/plugin-commonjs':
+        specifier: ^25.0.7
+        version: 25.0.7(rollup@4.6.1)
+      '@rollup/plugin-json':
+        specifier: ^6.1.0
+        version: 6.1.0(rollup@4.6.1)
+      '@rollup/plugin-node-resolve':
+        specifier: ^15.2.3
+        version: 15.2.3(rollup@4.6.1)
+      '@rollup/plugin-replace':
+        specifier: ^5.0.5
+        version: 5.0.5(rollup@4.6.1)
+      '@rollup/plugin-terser':
+        specifier: ^0.4.4
+        version: 0.4.4(rollup@4.6.1)
       '@rollup/plugin-typescript':
         specifier: ^11.1.5
         version: 11.1.5(rollup@4.6.1)(tslib@2.6.2)(typescript@5.3.2)
@@ -544,6 +562,12 @@ importers:
       rollup:
         specifier: ^4.6.1
         version: 4.6.1
+      rollup-plugin-copy:
+        specifier: ^3.5.0
+        version: 3.5.0
+      rollup-plugin-dts:
+        specifier: ^6.1.0
+        version: 6.1.0(rollup@4.6.1)(typescript@5.3.2)
       rollup-plugin-polyfill-node:
         specifier: ^0.13.0
         version: 0.13.0(rollup@4.6.1)
@@ -9762,6 +9786,7 @@ packages:
     engines: {node: '>= 0.4.0'}
     dependencies:
       function-bind: 1.1.2
+    dev: true
 
   /hash.js@1.1.7:
     resolution: {integrity: sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==}
@@ -9774,7 +9799,6 @@ packages:
     engines: {node: '>= 0.4'}
     dependencies:
       function-bind: 1.1.2
-    dev: true
 
   /he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
@@ -10089,12 +10113,12 @@ packages:
     resolution: {integrity: sha512-Z7dk6Qo8pOCp3l4tsX2C5ZVas4V+UxwQodwZhLopL91TX8UyyHEXafPcyoeeWuLrwzHcr3igO78wNLwHJHsMCQ==}
     dependencies:
       has: 1.0.3
+    dev: true
 
   /is-core-module@2.13.1:
     resolution: {integrity: sha512-hHrIjvZsftOsvKSn2TRYl63zvxsgE0K+0mYMoH6gD4omR5IWB2KynivBQczo3+wF1cCkjzvptnI9Q0sPU66ilw==}
     dependencies:
       hasown: 2.0.0
-    dev: true
 
   /is-date-object@1.0.5:
     resolution: {integrity: sha512-9YQaSxsAiSwcvS33MBk3wTCVnWK+HhF8VZR2jRxehM16QcVOdHqPn4VPHmRK4lSr38n9JriurInLcP90xsYNfQ==}
@@ -12656,7 +12680,7 @@ packages:
     resolution: {integrity: sha512-njhxM7mV12JfufShqGy3Rz8j11RPdLy4xi15UurGJeoHLfJpVXKdh3ueuOqbYUcDZnffr6X739JBo5LzyahEsw==}
     hasBin: true
     dependencies:
-      is-core-module: 2.13.0
+      is-core-module: 2.13.1
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 

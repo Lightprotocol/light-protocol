@@ -33,9 +33,9 @@ export async function getMultipleCompressedAccountsByHashTest(
     hashes: BN[],
 ): Promise<CompressedAccountWithMerkleContext[]> {
     const unspentAccounts = await getCompressedAccountsForTest(rpc);
-    return unspentAccounts.filter(acc =>
-        hashes.some(hash => bn(acc.hash).eq(hash)),
-    );
+    return unspentAccounts
+        .filter(acc => hashes.some(hash => bn(acc.hash).eq(hash)))
+        .sort((a, b) => b.leafIndex - a.leafIndex);
 }
 
 /// Returns all unspent compressed accounts
