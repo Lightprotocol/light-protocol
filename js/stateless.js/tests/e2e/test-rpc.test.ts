@@ -5,19 +5,18 @@ import {
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { Rpc, createRpc } from '../../src/rpc';
 import { compress, decompress } from '../../src/actions';
 import {
     bn,
     CompressedAccountWithMerkleContext,
     encodeBN254toBase58,
 } from '../../src/state';
-import { getTestRpc } from '../../src/test-helpers';
+import { TestRpc, getTestRpc } from '../../src/test-helpers';
 
 /// TODO: add test case for payer != address
-describe('rpc / photon', () => {
+describe('test-rpc', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
-    let rpc: Rpc;
+    let rpc: TestRpc;
     let payer: Signer;
 
     let preCompressBalance: number;
@@ -182,16 +181,17 @@ describe('rpc / photon', () => {
             await decompress(rpc, payer, lamports, payer.publicKey, merkleTree);
         }
     });
-    it('getHealth', async () => {
+    it('getIndexerHealth', async () => {
         /// getHealth
-        const health = await rpc.getHealth();
+        const health = await rpc.getIndexerHealth();
         assert.strictEqual(health, 'ok');
     });
 
-    it('getSlot', async () => {
-        /// getSlot
-        const slot = await rpc.getSlot();
+    it('getIndexerSlot / getSlot', async () => {
+        const slot = await rpc.getIndexerSlot();
+        const slotWeb3 = await rpc.getSlot();
         assert(slot > 0);
+        assert(slotWeb3 > 0);
     });
 
     it('getCompressedAccount', async () => {

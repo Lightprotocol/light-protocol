@@ -41,7 +41,7 @@ export function packCompressedTokenAccounts(
     } = params;
 
     const _remainingAccounts = remainingAccounts.slice();
-    let delegateIndex: null | number = null;
+    let delegateIndex: number | null = null;
 
     if (
         inputCompressedTokenAccounts.length > 0 &&
