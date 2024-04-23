@@ -4,8 +4,8 @@ import {
     bn,
     buildTx,
     confirmTx,
-    createRpc,
     defaultTestStateTreeAccounts,
+    getTestRpc,
     selectMinCompressedSolAccountsForTransfer,
 } from '@lightprotocol/stateless.js';
 import {
@@ -42,9 +42,15 @@ export default function Home() {
                     <WalletMultiButton />
                     <WalletDisconnectButton />
                     <div>
-                        <label>Check the terminal for tx signatures!</label>
-                        <SendButton />
+                        <label style={{ fontSize: '1.5rem' }}>
+                            Welcome to this very simple example using
+                            Compression in a browser :)
+                        </label>
                     </div>
+                    <div>
+                        <label>Check the terminal for tx signatures!</label>
+                    </div>
+                    <SendButton />
                 </WalletModalProvider>
             </WalletProvider>
         </ConnectionProvider>
@@ -54,10 +60,10 @@ export default function Home() {
 const SendButton: FC = () => {
     const { publicKey, sendTransaction } = useWallet();
 
-    /// Get Connection with compatibility to Compression API
-    const connection = createRpc();
-
     const onClick = useCallback(async () => {
+        /// Get Connection with compatibility to Compression API
+        const connection = await getTestRpc();
+
         if (!publicKey) throw new WalletNotConnectedError();
 
         /// airdrop
@@ -84,21 +90,26 @@ const SendButton: FC = () => {
             value: blockhashCtx,
         } = await connection.getLatestBlockhashAndContext();
 
-       const tx = buildTx(publicKey, compressInstructions, blockhashCtx)
+        const tx = buildTx(
+            compressInstructions,
+            publicKey,
+            blockhashCtx.blockhash,
+        );
 
-        const signature = await sendTransaction(transaction, connection, {
+        const signature = await sendTransaction(tx, connection, {
             minContextSlot,
         });
 
         await connection.confirmTransaction({
-            blockhash,
-            lastValidBlockHeight,
+            blockhash: blockhashCtx.blockhash,
+            lastValidBlockHeight: blockhashCtx.lastValidBlockHeight,
             signature,
         });
 
         console.log(
             `Compressed ${1e8} lamports! txId: https://explorer.solana.com/tx/${signature}?cluster=custom`,
         );
+
         /// Send compressed SOL to a random address
         const recipient = Keypair.generate().publicKey;
 
@@ -144,7 +155,7 @@ const SendButton: FC = () => {
 
         const messageV0Send = new TransactionMessage({
             payerKey: publicKey,
-            recentBlockhash: blockhash,
+            recentBlockhash: blockhashSend,
             instructions: sendInstructions,
         }).compileToV0Message();
 
@@ -167,10 +178,19 @@ const SendButton: FC = () => {
         console.log(
             `Sent ${1e7} lamports to ${recipient.toBase58()} ! txId: https://explorer.solana.com/tx/${signatureSend}?cluster=custom`,
         );
-    }, [publicKey, sendTransaction, connection]);
+    }, [publicKey, sendTransaction]);
 
     return (
-        <button onClick={onClick} disabled={!publicKey}>
+        <button
+            style={{
+                fontSize: '1rem',
+                padding: '1rem',
+                backgroundColor: '#0066ff',
+                cursor: 'pointer',
+            }}
+            onClick={onClick}
+            disabled={!publicKey}
+        >
             Get airdrop, compress and send SOL to a random address!
         </button>
     );
