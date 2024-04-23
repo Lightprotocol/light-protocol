@@ -114,14 +114,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
      *
-     * @param endpoint              endpoint to the solana cluster (use for
-     *                              localnet only)
-     * @param hasher                light wasm hasher instance
+     * @param endpoint                  endpoint to the solana cluster (use for
+     *                                  localnet only)
+     * @param hasher                    light wasm hasher instance
      * @param compressionApiEndpoint    Endpoint to the compression server.
      * @param proverEndpoint            Endpoint to the prover server. defaults
      *                                  to endpoint
      * @param connectionConfig          Optional connection config
-     * @param testRpcConfig         Config for the mock rpc
+     * @param testRpcConfig             Config for the mock rpc
      */
     constructor(
         endpoint: string,

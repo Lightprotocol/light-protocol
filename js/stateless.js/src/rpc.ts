@@ -16,6 +16,7 @@ import {
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     HealthResult,
+    HexInputsForProver,
     MerkeProofResult,
     MultipleCompressedAccountsResult,
     NativeBalanceResult,

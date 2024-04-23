@@ -1,4 +1,4 @@
-import { airdropSol, sleep } from "@lightprotocol/stateless.js";
+import { airdropSol } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
 import {
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
@@ -6,15 +6,80 @@ import {
 } from "./constants";
 import path from "path";
 import fs from "fs";
+import util from "util";
 import which from "which";
-import { spawn } from "child_process";
 import { downloadBinIfNotExists } from "../psp-utils";
 import { executeCommand } from "./process";
 import { startProver } from "./processProverServer";
+import { spawn, exec } from "child_process";
+import axios from "axios";
+
 const find = require("find-process");
+const waitOn = require("wait-on");
+const execAsync = util.promisify(exec);
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 const BASE_PATH = "../../bin/";
+const PHOTON_VERSION = "0.15.0";
+
+async function isExpectedPhotonVersion(
+  requiredVersion: string,
+): Promise<boolean> {
+  try {
+    const { stdout } = await execAsync("photon --version");
+    const version = stdout.trim();
+    return version.includes(requiredVersion);
+  } catch (error) {
+    console.error("Error checking Photon version:", error);
+    return false;
+  }
+}
+
+// Solana test validator can be unreliable when starting up.
+async function confirmServerStability(url: string, attempts: number = 20) {
+  try {
+    for (let i = 0; i < attempts; i++) {
+      const response = await axios.get(url);
+      if (response.status !== 200) {
+        throw new Error("Server failed stability check");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    console.log("Server has passed stability checks.");
+  } catch (error) {
+    console.error("Server stability check failed:", error);
+    throw error;
+  }
+}
+
+export async function waitForServers(
+  servers: { port: number; path: string }[],
+) {
+  const opts = {
+    resources: servers.map(
+      ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
+    ),
+    delay: 1000,
+    timeout: 15000,
+    interval: 300,
+    simultaneous: 2,
+    validateStatus: function (status: number) {
+      return (
+        (status >= 200 && status < 300) || status === 404 || status === 405
+      );
+    },
+  };
+
+  try {
+    await waitOn(opts);
+    servers.forEach((server) => {
+      console.log(`${server.port} is up!`);
+    });
+  } catch (err) {
+    console.error("Error waiting for server to start:", err);
+    throw err;
+  }
+}
 
 export async function initTestEnv({
   additionalPrograms,
@@ -23,6 +88,7 @@ export async function initTestEnv({
   prover = true,
   proveCompressedAccounts = true,
   proveNewAddresses = false,
+  checkPhotonVersion = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -30,6 +96,7 @@ export async function initTestEnv({
   prover: boolean;
   proveCompressedAccounts?: boolean;
   proveNewAddresses?: boolean;
+  checkPhotonVersion?: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -43,19 +110,23 @@ export async function initTestEnv({
     });
   };
   startTestValidator({ additionalPrograms, skipSystemAccounts });
-  await sleep(10000);
+
   await initAccounts();
+
   if (indexer) {
     await killIndexer();
     const resolvedOrNull = which.sync("photon", { nothrow: true });
-    if (resolvedOrNull === null) {
-      const message =
-        "Photon indexer not found. Please install it by running `cargo install photon-indexer --version 0.15.0`";
+
+    if (
+      resolvedOrNull === null ||
+      (checkPhotonVersion && !(await isExpectedPhotonVersion(PHOTON_VERSION)))
+    ) {
+      const message = `Photon indexer not found. Please install it by running \`cargo install photon-indexer --version ${PHOTON_VERSION}\``;
       console.log(message);
       throw new Error(message);
     } else {
       spawnBinary("photon", false);
-      await sleep(5000);
+      await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
     }
   }
 
@@ -252,6 +323,8 @@ export async function startTestValidator({
     command,
     args: [...solanaArgs],
   });
+  await waitForServers([{ port: 8899, path: "/health" }]);
+  await confirmServerStability("http://127.0.0.1:8899/health");
 }
 
 export async function killTestValidator() {
