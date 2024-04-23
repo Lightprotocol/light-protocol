@@ -6,38 +6,28 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 // import terser from '@rollup/plugin-terser';
 
-const rolls = fmt => ({
+const rolls = (fmt, env) => ({
     input: 'src/index.ts',
     output: {
-        dir: 'dist',
+        dir: `dist/${fmt}/${env}`,
         format: fmt,
-        entryFileNames: `${fmt}/[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
+        entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         sourcemap: true,
-        name: pkg.name,
-        ...(fmt === 'umd'
-            ? {
-                  globals: {
-                      '@solana/web3.js': 'web3.js',
-                      '@coral-xyz/anchor': 'anchor',
-                  },
-              }
-            : {}),
     },
     external: ['@solana/web3.js', '@coral-xyz/anchor'],
     plugins: [
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',
-            outDir: `dist/${fmt}`,
+            outDir: `dist/${fmt}/${env}`,
             rootDir: 'src',
         }),
         commonjs(),
-        /// TODO: distinguish between node and browser
-        // nodePolyfills(),
         resolve({
-            preferBuiltins: true,
+            browser: env === 'browser',
+            preferBuiltins: env === 'node',
         }),
-        // terser(),
-    ],
+        env === 'browser' ? nodePolyfills() : undefined,
+    ].filter(Boolean),
 });
 
 const typesConfig = {
@@ -46,4 +36,10 @@ const typesConfig = {
     plugins: [dts()],
 };
 
-export default [rolls('umd'), rolls('cjs'), rolls('es'), typesConfig];
+export default [
+    rolls('cjs', 'browser'),
+    rolls('es', 'browser'),
+    rolls('cjs', 'node'),
+    rolls('es', 'node'),
+    typesConfig,
+];

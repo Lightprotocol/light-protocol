@@ -37,7 +37,7 @@ export interface TestRpcConfig {
     depth?: number;
     /** Log proof generation time */
     log?: boolean;
-}
+}p
 
 /**
  * Returns a mock RPC instance for use in unit tests.

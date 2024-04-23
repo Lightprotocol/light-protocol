@@ -4,17 +4,23 @@
     "description": "JavaScript API for Light and ZK Compression",
     "sideEffects": false,
     "type": "module",
-    "main": "dist/cjs/index.cjs",
-    "module": "dist/es/index.js",
-    "browser": "dist/browser/index.js",
+    "main": "dist/cjs/node/index.cjs",
+    "module": "dist/es/node/index.js",
+    "browser": {
+        "./dist/cjs/node/index.cjs": "./dist/cjs/browser/index.cjs",
+        "./dist/es/node/index.js": "./dist/es/browser/index.js"
+    },
     "types": "dist/types/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/es/index.js",
-            "require": "./dist/cjs/index.cjs",
-            "browser": "./dist/browser/index.js",
+            "import": "./dist/es/node/index.js",
+            "require": "./dist/cjs/node/index.cjs",
+            "browser": {
+                "import": "./dist/es/browser/index.js",
+                "require": "./dist/cjs/browser/index.cjs"
+            },
             "types": "./dist/types/index.d.ts",
-            "default": "./dist/cjs/index.cjs"
+            "default": "./dist/cjs/node/index.cjs"
         }
     },
     "files": [
