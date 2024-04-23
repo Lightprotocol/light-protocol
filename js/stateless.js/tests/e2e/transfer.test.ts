@@ -44,15 +44,16 @@ describe('transfer', () => {
                 bn(0),
             );
 
-            /// get reference proofs
+            /// get reference proofs for sender
             const testProofs = await testRpc.getMultipleCompressedAccountProofs(
-                preReceiverAccounts.map(account => bn(account.hash)),
+                prePayerAccounts.map(account => bn(account.hash)),
             );
 
-            /// get photon proofs
+            /// get photon proofs for sender
             const proofs = await rpc.getMultipleCompressedAccountProofs(
-                preReceiverAccounts.map(account => bn(account.hash)),
+                prePayerAccounts.map(account => bn(account.hash)),
             );
+            console.log('\nTransfer', i + 1, 'of', numberOfTransfers);
 
             /// compare each proof by node and root
             assert.equal(testProofs.length, proofs.length);
@@ -65,6 +66,9 @@ describe('transfer', () => {
                     );
                 });
             });
+
+            console.log('PhotonProofs', JSON.stringify(proofs));
+            console.log('MockProofs', JSON.stringify(testProofs));
             assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
             /// Note: proofs.rootIndex might be divergent if either the
             /// test-validator or photon aren't caught up with the chain state

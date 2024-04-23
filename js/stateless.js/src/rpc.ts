@@ -288,13 +288,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
         /// TODO: remove this once root is returned from indexer
-        const testRpc = await getTestRpc(
-            this.rpcEndpoint,
-            this.compressionApiEndpoint,
-            this.proverEndpoint,
-        );
-        const testProofInfo =
-            await testRpc.getMultipleCompressedAccountProofs(hashes);
+        // const testRpc = await getTestRpc(
+        //     this.rpcEndpoint,
+        //     this.compressionApiEndpoint,
+        //     this.proverEndpoint,
+        // );
+        // const testProofInfo =
+        //     await testRpc.getMultipleCompressedAccountProofs(hashes);
 
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -320,10 +320,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
+        /// Mocks until photon returns seq.
         const rootIndex = await getRootSeq(this);
 
         for (const proof of res.result.value) {
             const proofWithoutRoot: BN[] = proof.proof.slice(0, -1);
+            const root = proof.proof[proof.proof.length - 1];
 
             const value: MerkleContextWithMerkleProof = {
                 hash: proof.hash.toArray(undefined, 32),
@@ -332,12 +334,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleProof: proofWithoutRoot,
                 nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
                 rootIndex, // TODO: use root index from indexer
-                root: bn(testProofInfo[res.result.value.indexOf(proof)].root), // TODO: use root from indexer
+                root: root, // TODO: use root from indexer
             };
             merkleProofs.push(value);
         }
         /// TODO: switch back to using photon merkle proofs once fixed
-        return testProofInfo;
+        return merkleProofs;
     }
 
     async getCompressedAccountsByOwner(
