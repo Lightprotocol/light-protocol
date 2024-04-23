@@ -156,6 +156,55 @@ pub async fn create_and_send_transaction(
     Ok(signature)
 }
 
+pub async fn create_and_send_transaction_with_event<T>(
+    context: &mut ProgramTestContext,
+    instruction: &[Instruction],
+    payer: &Pubkey,
+    signers: &[&Keypair],
+) -> Result<Option<T>, BanksClientError>
+where
+    T: AnchorDeserialize,
+{
+    let transaction = Transaction::new_signed_with_payer(
+        instruction,
+        Some(payer),
+        signers,
+        context.get_new_latest_blockhash().await?,
+    );
+
+    // Simulate the transaction. Currently in banks-client/server, only
+    // simulations are able to track CPIs. Therefore, simulating is the
+    // only way to retrieve the event.
+    let simulation_result = context
+        .banks_client
+        .simulate_transaction(transaction.clone())
+        .await?;
+    // Handle an error nested in the simulation result.
+    if let Some(Err(e)) = simulation_result.result {
+        return Err(BanksClientError::TransactionError(e));
+    }
+
+    // Retrieve the event.
+    let event = simulation_result
+        .simulation_details
+        .and_then(|details| details.inner_instructions)
+        .and_then(|instructions| {
+            instructions.iter().flatten().find_map(|inner_instruction| {
+                T::try_from_slice(inner_instruction.instruction.data.as_slice()).ok()
+            })
+        });
+
+    // If transaction was successful, execute it.
+    if let Some(Ok(())) = simulation_result.result {
+        context
+            .banks_client
+            .process_transaction(transaction)
+            .await?;
+    }
+
+    Ok(event)
+}
+
 pub fn create_account_instruction(
     payer: &Pubkey,
     size: usize,

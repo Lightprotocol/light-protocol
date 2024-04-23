@@ -5,7 +5,7 @@ use account_compression::{
     },
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use anchor_lang::{InstructionData, ToAccountMetas};
 use light_circuitlib_rs::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
@@ -30,7 +30,7 @@ use light_compressed_pda::{
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
-    create_and_send_transaction, get_hash_set,
+    create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
     test_env::{setup_test_programs_with_accounts, EnvWithAccounts},
     AccountZeroCopy,
 };
@@ -38,13 +38,13 @@ use num_bigint::{BigInt, BigUint, ToBigUint};
 use num_traits::{ops::bytes::FromBytes, Num};
 use reqwest::Client;
 use solana_cli_output::CliAccount;
-use solana_program_test::{BanksTransactionResultWithMetadata, ProgramTestContext};
+use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     instruction::{Instruction, InstructionError},
     pubkey::Pubkey,
     signature::Keypair,
     signer::Signer,
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use std::{assert_eq, ops::Sub, println, vec::Vec};
 use tokio::fs::write as async_write;
@@ -114,28 +114,17 @@ async fn test_execute_compressed_transaction() {
         None,
     );
 
-    // TODO: add function to create_send_transaction_update_indexer
-    let transaction = Transaction::new_signed_with_payer(
+    let event = create_and_send_transaction_with_event(
+        &mut context,
         &[instruction],
-        Some(&payer_pubkey),
+        &payer_pubkey,
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
+    mock_indexer.add_event_and_compressed_accounts(event);
 
-    mock_indexer.add_lamport_compressed_accounts(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
     assert_eq!(mock_indexer.compressed_accounts.len(), 1);
     let input_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -226,28 +215,18 @@ async fn test_execute_compressed_transaction() {
         false,
         None,
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     println!("Transaction with zkp -------------------------");
 
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
-    mock_indexer.add_lamport_compressed_accounts(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    .await
+    .unwrap()
+    .unwrap();
+    mock_indexer.add_event_and_compressed_accounts(event);
 
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
@@ -368,7 +347,8 @@ async fn test_with_address() {
             InstructionError::Custom(ErrorCode::InvalidAddress.into())
         ))
     );
-    let res = create_addresses(
+
+    let event = create_addresses(
         &mut context,
         &mut mock_indexer,
         &env.address_merkle_tree_pubkey,
@@ -379,10 +359,10 @@ async fn test_with_address() {
         &Vec::new(),
         true,
     )
-    .await;
-
-    mock_indexer
-        .add_lamport_compressed_accounts(res.metadata.unwrap().return_data.unwrap().data.to_vec());
+    .await
+    .unwrap()
+    .unwrap();
+    mock_indexer.add_event_and_compressed_accounts(event);
     assert_eq!(mock_indexer.compressed_accounts.len(), 1);
     assert_eq!(
         mock_indexer.compressed_accounts[0]
@@ -391,6 +371,7 @@ async fn test_with_address() {
             .unwrap(),
         derived_address
     );
+
     let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
     let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
@@ -428,28 +409,18 @@ async fn test_with_address() {
         false,
         None,
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     println!("Transaction with zkp -------------------------");
-
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
-    mock_indexer.add_lamport_compressed_accounts(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    .await
+    .unwrap()
+    .unwrap();
+
+    mock_indexer.add_event_and_compressed_accounts(event);
     assert_eq!(mock_indexer.compressed_accounts.len(), 1);
     assert_eq!(
         mock_indexer.compressed_accounts[0]
@@ -465,7 +436,7 @@ async fn test_with_address() {
 
     let address_seed_2 = [2u8; 32];
 
-    let res = create_addresses(
+    let event = create_addresses(
         &mut context,
         &mut mock_indexer,
         &env.address_merkle_tree_pubkey,
@@ -478,17 +449,17 @@ async fn test_with_address() {
     )
     .await;
     // Should fail to insert the same address twice in the same tx
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(light_hash_set::HashSetError::ElementAlreadyExists.into())
+    assert!(matches!(
+        event,
+        Err(BanksClientError::TransactionError(
+            // ElementAlreadyExists
+            TransactionError::InstructionError(0, InstructionError::Custom(6002))
         ))
-    );
+    ));
     println!("test 2in -------------------------");
 
     let address_seed_3 = [3u8; 32];
-    let res = create_addresses(
+    let event = create_addresses(
         &mut context,
         &mut mock_indexer,
         &env.address_merkle_tree_pubkey,
@@ -499,9 +470,10 @@ async fn test_with_address() {
         &Vec::new(),
         true,
     )
-    .await;
-    mock_indexer
-        .add_lamport_compressed_accounts(res.metadata.unwrap().return_data.unwrap().data.to_vec());
+    .await
+    .unwrap()
+    .unwrap();
+    mock_indexer.add_event_and_compressed_accounts(event);
 
     // spend one input compressed accounts and create one new address
     println!("test combined -------------------------");
@@ -532,7 +504,7 @@ async fn test_with_address() {
             address_vec.push(address_seed);
         }
 
-        let res = create_addresses(
+        let event = create_addresses(
             &mut context,
             &mut mock_indexer,
             &env.address_merkle_tree_pubkey,
@@ -543,10 +515,10 @@ async fn test_with_address() {
             &compressed_input_accounts,
             false, // TODO: enable once heap optimization is done
         )
-        .await;
-        mock_indexer.add_lamport_compressed_accounts(
-            res.metadata.unwrap().return_data.unwrap().data.to_vec(),
-        );
+        .await
+        .unwrap()
+        .unwrap();
+        mock_indexer.add_event_and_compressed_accounts(event);
         // there exists a compressed account with the address x
         for address_seed in address_vec.iter() {
             assert!(mock_indexer
@@ -579,7 +551,7 @@ pub async fn create_addresses(
     address_seeds: &[[u8; 32]],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
-) -> BanksTransactionResultWithMetadata {
+) -> Result<Option<PublicTransactionEvent>, BanksClientError> {
     let mut derived_addresses = Vec::new();
     for address_seed in address_seeds.iter() {
         let derived_address = derive_address(address_merkle_tree_pubkey, address_seed).unwrap();
@@ -669,18 +641,15 @@ pub async fn create_addresses(
         None,
     );
 
-    let transaction = Transaction::new_signed_with_payer(
+    let event = create_and_send_transaction_with_event::<PublicTransactionEvent>(
+        context,
         &[instruction],
-        Some(&context.payer.pubkey().clone()),
+        &context.payer.pubkey(),
         &[&context.payer.insecure_clone()],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
-    solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
     )
-    .await
-    .unwrap()
+    .await;
+
+    event
 }
 
 #[tokio::test]
@@ -820,17 +789,14 @@ async fn test_with_compression() {
         None,
     );
 
-    let transaction = Transaction::new_signed_with_payer(
+    let event = create_and_send_transaction_with_event(
+        &mut context,
         &[instruction],
-        Some(&payer_pubkey),
+        &payer_pubkey,
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
     )
     .await
+    .unwrap()
     .unwrap();
 
     let compressed_sol_pda_balance = context
@@ -850,8 +816,7 @@ async fn test_with_compression() {
 
     // Wait until now to reduce startup lag by prover server
     let mut mock_indexer = mock_indexer.await;
-    mock_indexer
-        .add_lamport_compressed_accounts(res.metadata.unwrap().return_data.unwrap().data.to_vec());
+    mock_indexer.add_event_and_compressed_accounts(event);
     assert_eq!(mock_indexer.compressed_accounts.len(), 1);
     assert_eq!(
         mock_indexer.compressed_accounts[0]
@@ -936,19 +901,17 @@ async fn test_with_compression() {
         false,
         Some(recipient),
     );
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&payer_pubkey),
-        &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
-    );
     println!("Transaction with zkp -------------------------");
 
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
     )
-    .await;
+    .await
+    .unwrap()
+    .unwrap();
     let recipient_balance = context
         .banks_client
         .get_account(recipient)
@@ -960,15 +923,7 @@ async fn test_with_compression() {
         recipient_balance, compress_amount,
         "recipient balance incorrect, decompress sol failed"
     );
-    mock_indexer.add_lamport_compressed_accounts(
-        res.unwrap()
-            .metadata
-            .unwrap()
-            .return_data
-            .unwrap()
-            .data
-            .to_vec(),
-    );
+    mock_indexer.add_event_and_compressed_accounts(event);
     assert_eq!(mock_indexer.compressed_accounts.len(), 1);
     assert_eq!(
         mock_indexer.compressed_accounts[0]
@@ -1267,16 +1222,6 @@ impl MockIndexer {
             vec![address_merkle_tree.current_root_index as u16; addresses.len()];
 
         (non_inclusion_proof_inputs_json, address_root_indices)
-    }
-
-    /// deserializes an event
-    /// adds the output_compressed_accounts to the compressed_accounts
-    /// removes the input_compressed_accounts from the compressed_accounts
-    /// adds the input_compressed_accounts to the nullified_compressed_accounts
-    pub fn add_lamport_compressed_accounts(&mut self, event_bytes: Vec<u8>) {
-        let event_bytes = event_bytes.clone();
-        let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
-        self.add_event_and_compressed_accounts(event);
     }
 
     /// Checks for every address in an output compressed account whether there is an input-compressed account with the same address

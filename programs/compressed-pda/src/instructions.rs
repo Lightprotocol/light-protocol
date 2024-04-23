@@ -8,7 +8,7 @@ use crate::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     compression_lamports,
     create_address::insert_addresses_into_address_merkle_tree_queue,
-    event::{emit_state_transition_event, PublicTransactionEvent},
+    event::emit_state_transition_event,
     nullify_state::insert_nullifiers,
     utils::CompressedProof,
     verify_state::{
@@ -21,7 +21,7 @@ use crate::{
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-) -> Result<PublicTransactionEvent> {
+) -> Result<()> {
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
     sum_check(
@@ -117,7 +117,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     }
 
     // emit state transition event ---------------------------------------------------
-    let event = emit_state_transition_event(
+    emit_state_transition_event(
         inputs,
         ctx,
         &input_compressed_account_hashes,
@@ -125,7 +125,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &output_leaf_indices,
     )?;
 
-    Ok(event)
+    Ok(())
 }
 
 // DO NOT MAKE HEAP NEUTRAL: this function allocates new heap memory
