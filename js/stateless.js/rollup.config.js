@@ -1,10 +1,9 @@
 import typescript from '@rollup/plugin-typescript';
-import pkg from './package.json' assert { type: 'json' };
 import nodePolyfills from 'rollup-plugin-polyfill-node';
 import dts from 'rollup-plugin-dts';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-// import terser from '@rollup/plugin-terser';
+import copy from 'rollup-plugin-copy';
 
 const rolls = (fmt, env) => ({
     input: 'src/index.ts',
@@ -27,6 +26,26 @@ const rolls = (fmt, env) => ({
             preferBuiltins: env === 'node',
         }),
         env === 'browser' ? nodePolyfills() : undefined,
+        /// Note: This is a temporary hack. Consuming browser apps need access
+        /// to the wasm files next to the sdk bundle, for both browser and node.
+        /// We will remove this once we've extracted test-helpers (test-rpc.ts,
+        /// merkle-tree.ts, which require hasher.rs) into its own library.
+        ...(fmt === 'es'
+            ? [
+                  copy({
+                      targets: [
+                          {
+                              src: 'node_modules/@lightprotocol/hasher.rs/dist/hasher_wasm_simd_bg.wasm',
+                              dest: `dist/${fmt}/${env}`,
+                          },
+                          {
+                              src: 'node_modules/@lightprotocol/hasher.rs/dist/light_wasm_hasher_bg.wasm',
+                              dest: `dist/${fmt}/${env}`,
+                          },
+                      ],
+                  }),
+              ]
+            : []),
     ].filter(Boolean),
 });
 
