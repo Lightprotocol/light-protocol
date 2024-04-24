@@ -246,6 +246,11 @@ async fn test_mint_to_15() {
 }
 
 #[tokio::test]
+async fn test_mint_to_30() {
+    test_mint_to::<25>().await
+}
+
+#[tokio::test]
 async fn test_transfer() {
     let env: light_test_utils::test_env::EnvWithAccounts =
         setup_test_programs_with_accounts(None).await;
