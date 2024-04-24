@@ -13,7 +13,7 @@ RUN go build -v -o /usr/local/bin/light-prover .
 FROM gcr.io/distroless/base-debian11:nonroot
 
 COPY --from=builder /usr/local/bin/light-prover /usr/local/bin/light-prover
-VOLUME /config
+COPY --from=builder /app/circuits /circuits
 
 ENTRYPOINT [ "light-prover" ]
-CMD [ "start", "--config", "config.toml"]
+CMD [ "start", "--inclusion", "--non-inclusion", "--circuit-dir", "/circuits/" ]
