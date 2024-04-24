@@ -60,31 +60,39 @@ pub fn process_mint_to<'info>(
 
     mint_spl_to_pool_pda(&ctx, &amounts)?;
 
-    #[cfg(all(features = "mem-profiling", target_os = "solana"))]
+    #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR
         .log_total_heap("process_mint_to: before create_output_compressed_accounts");
 
-    let output_compressed_accounts = create_output_compressed_accounts(
+    let mut output_compressed_accounts = vec![CompressedAccount::default(); compression_public_keys.len()];
+    create_output_compressed_accounts(
+        &mut output_compressed_accounts,
         ctx.accounts.mint.to_account_info().key(),
         compression_public_keys.as_slice(),
         &amounts,
         None,
     );
 
-    #[cfg(all(features = "mem-profiling", target_os = "solana"))]
+    #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR.log_total_heap("process_mint_to: before cpi");
 
     cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts)?;
     Ok(())
 }
 
+#[heap_neutral]
 pub fn create_output_compressed_accounts(
+    compressed_accounts: &mut [CompressedAccount],
     mint_pubkey: Pubkey,
     pubkeys: &[Pubkey],
     amounts: &[u64],
     lamports: Option<&[Option<u64>]>,
-) -> Vec<CompressedAccount> {
-    let mut compressed_accounts = Vec::with_capacity(pubkeys.len());
+// ) -> Vec<CompressedAccount> {
+) {
+    msg!("pubkeys: {}", pubkeys.len());
+    // let mut compressed_accounts = Vec::with_capacity(pubkeys.len());
+    // let mut compressed_accounts = vec![CompressedAccount::default(); pubkeys.len()];
+    // msg!("compressed_accounts capacity: {}", compressed_accounts.capacity());
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
         let token_data = TokenData {
             mint: mint_pubkey,
@@ -97,21 +105,27 @@ pub fn create_output_compressed_accounts(
         };
 
         let mut token_data_bytes = Vec::with_capacity(mem::size_of::<TokenData>());
+        msg!("token_data_bytes 1 capacity: {}", token_data_bytes.capacity());
         token_data.serialize(&mut token_data_bytes).unwrap();
+        msg!("token_data_bytes 2 len: {}, capacity: {}", token_data_bytes.len(), token_data_bytes.capacity());
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: 2u64.to_le_bytes(),
             data: token_data_bytes,
             data_hash: token_data.hash().unwrap(),
         };
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
-        compressed_accounts.push(CompressedAccount {
+        #[cfg(target_os = "solana")]
+        light_heap::GLOBAL_ALLOCATOR.log_total_heap("pushing compr acc");
+        compressed_accounts[i] = CompressedAccount {
             owner: crate::ID,
             lamports,
             data: Some(data),
             address: None,
-        })
+        };
+        #[cfg(target_os = "solana")]
+        light_heap::GLOBAL_ALLOCATOR.log_total_heap("pushed compr acc");
     }
-    compressed_accounts
+    // compressed_accounts
 }
 
 #[inline(never)]
@@ -120,22 +134,45 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     output_compressed_accounts: &[CompressedAccount],
 ) -> Result<()> {
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR
+        .log_total_heap("cpi: before output_compressed_accounts_vec");
+    let mut output_compressed_accounts_vec = Vec::with_capacity(output_compressed_accounts.len());
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR
+        .log_total_heap("cpi: after output_compressed_accounts_vec");
+    output_compressed_accounts_vec.extend_from_slice(output_compressed_accounts);
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR
+        .log_total_heap("cpi: output_compressed_accounts_vec.extend_from_slice");
     let inputs_struct = InstructionDataTransfer {
         relay_fee: None,
-        // input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
-        input_compressed_accounts_with_merkle_context: vec![],
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
+        input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
+        // input_compressed_accounts_with_merkle_context: vec![],
+        // output_compressed_accounts: output_compressed_accounts.to_vec(),
+        output_compressed_accounts: output_compressed_accounts_vec,
         output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
-        input_root_indices: vec![],
+        input_root_indices: Vec::with_capacity(0),
+        // input_root_indices: vec![],
         proof: None,
-        new_address_params: vec![],
+        new_address_params: Vec::with_capacity(0),
+        // new_address_params: vec![],
         compression_lamports: None,
         is_compress: false,
     };
 
     #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before inputs");
+    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before inputs serialization");
 
+    let inputs_len = 
+        // struct
+        mem::size_of::<InstructionDataTransfer>()
+        // `output_compressed_accounts`
+        + mem::size_of::<CompressedAccount>() * output_compressed_accounts.len()
+        // `output_state_merkle_tree_account_indices`
+        + output_compressed_accounts.len();
+    msg!("inputs len: {}", inputs_len);
+  
     let mut inputs = Vec::with_capacity(
         // struct
         mem::size_of::<InstructionDataTransfer>()
