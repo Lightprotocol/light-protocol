@@ -114,19 +114,19 @@ pub fn create_output_compressed_accounts(
     lamports: Option<&[Option<u64>]>,
     // ) -> Vec<CompressedAccount> {
 ) {
-    msg!("pubkeys: {}", pubkeys.len());
-    msg!(
-        "mem::size_of::<TokenData>(): {}",
-        mem::size_of::<TokenData>()
-    );
+    // msg!("pubkeys: {}", pubkeys.len());
+    // msg!(
+    //     "mem::size_of::<TokenData>(): {}",
+    //     mem::size_of::<TokenData>()
+    // );
 
     // let mut compressed_accounts = Vec::with_capacity(pubkeys.len());
     // let mut compressed_accounts = vec![CompressedAccount::default(); pubkeys.len()];
     // msg!("compressed_accounts capacity: {}", compressed_accounts.capacity());
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
         let mut token_data_bytes = Vec::with_capacity(mem::size_of::<TokenData>());
-        #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.log_total_heap("before token_data_bytess");
+        // #[cfg(target_os = "solana")]
+        // light_heap::GLOBAL_ALLOCATOR.log_total_heap("before token_data_bytess");
         #[cfg(target_os = "solana")]
         let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
 
@@ -148,16 +148,16 @@ pub fn create_output_compressed_accounts(
             data_hash: token_data.hash().unwrap(),
         };
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
-        #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.log_total_heap("pushing compr acc");
+        // #[cfg(target_os = "solana")]
+        // light_heap::GLOBAL_ALLOCATOR.log_total_heap("pushing compr acc");
         compressed_accounts[i] = CompressedAccount {
             owner: crate::ID,
             lamports,
             data: Some(data),
             address: None,
         };
-        #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.log_total_heap("after token_data_bytes");
+        // #[cfg(target_os = "solana")]
+        // light_heap::GLOBAL_ALLOCATOR.log_total_heap("after token_data_bytes");
         #[cfg(target_os = "solana")]
         light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
     }

@@ -197,12 +197,12 @@ fn emit_event<'a, 'b, 'c: 'info, 'info>(
 
     // Calling `try_to_vec` allocates too much memory. Allocate the memory, up
     // to the instruction limit, manually.
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before borsh serialization");
+    // #[cfg(target_os = "solana")]
+    // light_heap::GLOBAL_ALLOCATOR.log_total_heap("before borsh serialization");
     let mut data = Vec::with_capacity(10240);
     changelog_event.serialize(&mut data)?;
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("after borsh serialization");
+    // #[cfg(target_os = "solana")]
+    // light_heap::GLOBAL_ALLOCATOR.log_total_heap("after borsh serialization");
 
     emit_indexer_event(data, &ctx.accounts.log_wrapper, &ctx.accounts.authority)?;
 

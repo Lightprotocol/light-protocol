@@ -201,6 +201,7 @@ async fn test_mint_to<const MINTS_AMOUNT: usize>() {
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
+    println!("----------------------------------------- mint_to1");
     let event = create_and_send_transaction_with_event(
         &mut context,
         &[instruction],
@@ -210,6 +211,7 @@ async fn test_mint_to<const MINTS_AMOUNT: usize>() {
     .await
     .unwrap()
     .unwrap();
+    println!("----------------------------------------- mint_to2");
 
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
@@ -247,7 +249,7 @@ async fn test_mint_to_15() {
 
 #[tokio::test]
 async fn test_mint_to_30() {
-    test_mint_to::<25>().await
+    test_mint_to::<28>().await
 }
 
 #[tokio::test]
@@ -1430,28 +1432,28 @@ impl MockIndexer {
         &mut self,
         event: PublicTransactionEvent,
     ) -> Vec<usize> {
-        for compressed_account in event.input_compressed_accounts.iter() {
-            let index = self
-                .compressed_accounts
-                .iter()
-                .position(|x| x.compressed_account == compressed_account.compressed_account)
-                .expect("compressed_account not found");
-            self.compressed_accounts.remove(index);
-            // TODO: nullify compressed_account in Merkle tree, not implemented yet
-            self.nullified_compressed_accounts
-                .push(compressed_account.clone());
-            let index = self
-                .compressed_accounts
-                .iter()
-                .position(|x| x == compressed_account);
-            if let Some(index) = index {
-                let token_compressed_account_element =
-                    self.token_compressed_accounts[index].clone();
-                self.token_compressed_accounts.remove(index);
-                self.token_nullified_compressed_accounts
-                    .push(token_compressed_account_element);
-            }
-        }
+        // for compressed_account in event.input_compressed_accounts.iter() {
+        //     let index = self
+        //         .compressed_accounts
+        //         .iter()
+        //         .position(|x| x.compressed_account == compressed_account.compressed_account)
+        //         .expect("compressed_account not found");
+        //     self.compressed_accounts.remove(index);
+        //     // TODO: nullify compressed_account in Merkle tree, not implemented yet
+        //     self.nullified_compressed_accounts
+        //         .push(compressed_account.clone());
+        //     let index = self
+        //         .compressed_accounts
+        //         .iter()
+        //         .position(|x| x == compressed_account);
+        //     if let Some(index) = index {
+        //         let token_compressed_account_element =
+        //             self.token_compressed_accounts[index].clone();
+        //         self.token_compressed_accounts.remove(index);
+        //         self.token_nullified_compressed_accounts
+        //             .push(token_compressed_account_element);
+        //     }
+        // }
         let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());
         for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
             self.compressed_accounts

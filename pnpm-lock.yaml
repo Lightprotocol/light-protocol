@@ -485,10 +485,6 @@ importers:
 
   hasher.rs/src/main/wasm-simd: {}
 
-  hasher.rs/src/wasm/dist/wasm: {}
-
-  hasher.rs/src/wasm/dist/wasm-simd: {}
-
   js/compressed-token:
     dependencies:
       '@coral-xyz/anchor':
@@ -8887,7 +8883,7 @@ packages:
       '@typescript-eslint/eslint-plugin': 6.7.4(@typescript-eslint/parser@6.21.0)(eslint@8.55.0)(typescript@5.3.2)
       '@typescript-eslint/utils': 7.2.0(eslint@8.55.0)(typescript@5.3.2)
       eslint: 8.55.0
-      vitest: 0.34.6(playwright@1.43.1)
+      vitest: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)
     transitivePeerDependencies:
       - supports-color
       - typescript

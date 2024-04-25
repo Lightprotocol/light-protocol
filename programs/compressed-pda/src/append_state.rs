@@ -5,22 +5,51 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 
 use crate::instructions::{InstructionDataTransfer, TransferInstruction};
+#[cfg(target_os = "solana")]
+use light_heap::GLOBAL_ALLOCATOR;
+use std::mem;
 
 #[heap_neutral]
-pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+pub fn insert_output_compressed_accounts_into_state_merkle_tree<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    const ITER_SIZE: usize,
+>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
+    global_iter: &'a mut usize,
 ) -> Result<()> {
-    let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
+    // msg!(
+    //     "accountinfo mem size: {:?}",
+    //     mem::size_of::<AccountInfo>() * ITER_SIZE
+    // );
+    // #[cfg(target_os = "solana")]
+    // let pos = GLOBAL_ALLOCATOR.log_total_heap("OutputCompressedAccou1");
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
-    for (j, mt_index) in inputs
-        .output_state_merkle_tree_account_indices
-        .iter()
-        .enumerate()
-    {
+    // #[cfg(target_os = "solana")]
+    // let pos = GLOBAL_ALLOCATOR.log_total_heap("OutputCompressedAccou");
+    #[cfg(target_os = "solana")]
+    let pos = GLOBAL_ALLOCATOR.get_heap_pos();
+    let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
+    // #[cfg(target_os = "solana")]
+    // GLOBAL_ALLOCATOR.log_total_heap("past hash set merkle_tree_indices");
+
+    let initial_index = *global_iter;
+    let end = if *global_iter + ITER_SIZE > inputs.output_state_merkle_tree_account_indices.len() {
+        inputs.output_state_merkle_tree_account_indices.len()
+    } else {
+        *global_iter + ITER_SIZE
+    };
+    for mt_index in inputs.output_state_merkle_tree_account_indices[initial_index..end].iter() {
+        let j = *global_iter;
+        // #[cfg(target_os = "solana")]
+        // GLOBAL_ALLOCATOR.log_total_heap(format!("in loop : {:?}", j).as_str());
+        *global_iter += 1;
         let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[*mt_index as usize].key());
         out_merkle_trees_account_infos.push(ctx.remaining_accounts[*mt_index as usize].clone());
         match index {
@@ -56,7 +85,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
             &output_compressed_account_indices[j],
         )?;
     }
-
+    #[cfg(target_os = "solana")]
+    GLOBAL_ALLOCATOR.free_heap(pos);
     append_leaves_cpi(
         ctx.program_id,
         &ctx.accounts.account_compression_program,
@@ -64,7 +94,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         &ctx.accounts.registered_program_pda.to_account_info(),
         &ctx.accounts.noop_program,
         out_merkle_trees_account_infos,
-        output_compressed_account_hashes.to_vec(),
+        output_compressed_account_hashes[initial_index..*global_iter].to_vec(),
     )?;
 
     Ok(())

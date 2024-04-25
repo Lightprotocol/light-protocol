@@ -35,6 +35,32 @@ export type LightCompressedPda = {
             args: [];
         },
         {
+            name: 'initCpiSignatureAccount';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiSignatureAccount';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'associatedMerkleTree';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
             name: 'executeCompressedTransaction';
             docs: [
                 'This function can be used to transfer sol and execute any other compressed transaction.',
@@ -69,7 +95,7 @@ export type LightCompressedPda = {
                 },
                 {
                     name: 'cpiSignatureAccount';
-                    isMut: false;
+                    isMut: true;
                     isSigner: false;
                     isOptional: true;
                 },
@@ -103,10 +129,15 @@ export type LightCompressedPda = {
                     name: 'inputs';
                     type: 'bytes';
                 },
+                {
+                    name: 'cpiContext';
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext';
+                        };
+                    };
+                },
             ];
-            returns: {
-                defined: 'event::PublicTransactionEvent';
-            };
         },
     ];
     accounts: [
@@ -120,8 +151,12 @@ export type LightCompressedPda = {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'slot';
-                        type: 'u64';
+                        name: 'associatedMerkleTree';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'execute';
+                        type: 'bool';
                     },
                     {
                         name: 'signatures';
@@ -154,6 +189,46 @@ export type LightCompressedPda = {
                             defined: 'CompressedAccount';
                         };
                     },
+                    {
+                        name: 'merkleTreePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'merkleTreePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nullifierQueuePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
                     {
                         name: 'merkleTreePubkeyIndex';
                         type: 'u8';
@@ -221,6 +296,32 @@ export type LightCompressedPda = {
                         type: {
                             array: ['u8', 32];
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedCpiContext';
+            docs: ['To spend multiple compressed'];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'cpiSignatureAccountIndex';
+                        docs: [
+                            'index of the output state Merkle tree that will be used to store cpi signatures',
+                            'The transaction will fail if this index is not consistent in your transaction.',
+                        ];
+                        type: 'u8';
+                    },
+                    {
+                        name: 'execute';
+                        docs: [
+                            'The final cpi of your program needs to set execute to true.',
+                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
+                            'If this is false the transaction will be stored in the cpi signature account.',
+                        ];
+                        type: 'bool';
                     },
                 ];
             };
@@ -368,6 +469,14 @@ export type LightCompressedPda = {
                     {
                         name: 'isCompress';
                         type: 'bool';
+                    },
+                    {
+                        name: 'signerSeeds';
+                        type: {
+                            option: {
+                                vec: 'bytes';
+                            };
+                        };
                     },
                 ];
             };
@@ -602,6 +711,26 @@ export type LightCompressedPda = {
             name: 'DelegateUndefined';
             msg: 'DelegateUndefined while delegated amount is defined';
         },
+        {
+            code: 6030;
+            name: 'CpiSignatureAccountUndefined';
+            msg: 'CpiSignatureAccountUndefined';
+        },
+        {
+            code: 6031;
+            name: 'WriteAccessCheckFailed';
+            msg: 'WriteAccessCheckFailed';
+        },
+        {
+            code: 6032;
+            name: 'InvokingProgramNotProvided';
+            msg: 'InvokingProgramNotProvided';
+        },
+        {
+            code: 6033;
+            name: 'SignerSeedsNotProvided';
+            msg: 'SignerSeedsNotProvided';
+        },
     ];
 };
 
@@ -635,6 +764,32 @@ export const IDL: LightCompressedPda = {
                 },
                 {
                     name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [],
+        },
+        {
+            name: 'initCpiSignatureAccount',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiSignatureAccount',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'associatedMerkleTree',
                     isMut: false,
                     isSigner: false,
                 },
@@ -676,7 +831,7 @@ export const IDL: LightCompressedPda = {
                 },
                 {
                     name: 'cpiSignatureAccount',
-                    isMut: false,
+                    isMut: true,
                     isSigner: false,
                     isOptional: true,
                 },
@@ -710,10 +865,15 @@ export const IDL: LightCompressedPda = {
                     name: 'inputs',
                     type: 'bytes',
                 },
+                {
+                    name: 'cpiContext',
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext',
+                        },
+                    },
+                },
             ],
-            returns: {
-                defined: 'event::PublicTransactionEvent',
-            },
         },
     ],
     accounts: [
@@ -727,8 +887,12 @@ export const IDL: LightCompressedPda = {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'slot',
-                        type: 'u64',
+                        name: 'associatedMerkleTree',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'execute',
+                        type: 'bool',
                     },
                     {
                         name: 'signatures',
@@ -761,6 +925,46 @@ export const IDL: LightCompressedPda = {
                             defined: 'CompressedAccount',
                         },
                     },
+                    {
+                        name: 'merkleTreePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'merkleTreePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nullifierQueuePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
                     {
                         name: 'merkleTreePubkeyIndex',
                         type: 'u8',
@@ -828,6 +1032,32 @@ export const IDL: LightCompressedPda = {
                         type: {
                             array: ['u8', 32],
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedCpiContext',
+            docs: ['To spend multiple compressed'],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'cpiSignatureAccountIndex',
+                        docs: [
+                            'index of the output state Merkle tree that will be used to store cpi signatures',
+                            'The transaction will fail if this index is not consistent in your transaction.',
+                        ],
+                        type: 'u8',
+                    },
+                    {
+                        name: 'execute',
+                        docs: [
+                            'The final cpi of your program needs to set execute to true.',
+                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
+                            'If this is false the transaction will be stored in the cpi signature account.',
+                        ],
+                        type: 'bool',
                     },
                 ],
             },
@@ -975,6 +1205,14 @@ export const IDL: LightCompressedPda = {
                     {
                         name: 'isCompress',
                         type: 'bool',
+                    },
+                    {
+                        name: 'signerSeeds',
+                        type: {
+                            option: {
+                                vec: 'bytes',
+                            },
+                        },
                     },
                 ],
             },
@@ -1208,6 +1446,26 @@ export const IDL: LightCompressedPda = {
             code: 6029,
             name: 'DelegateUndefined',
             msg: 'DelegateUndefined while delegated amount is defined',
+        },
+        {
+            code: 6030,
+            name: 'CpiSignatureAccountUndefined',
+            msg: 'CpiSignatureAccountUndefined',
+        },
+        {
+            code: 6031,
+            name: 'WriteAccessCheckFailed',
+            msg: 'WriteAccessCheckFailed',
+        },
+        {
+            code: 6032,
+            name: 'InvokingProgramNotProvided',
+            msg: 'InvokingProgramNotProvided',
+        },
+        {
+            code: 6033,
+            name: 'SignerSeedsNotProvided',
+            msg: 'SignerSeedsNotProvided',
         },
     ],
 };
