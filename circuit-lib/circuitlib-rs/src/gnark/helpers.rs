@@ -14,7 +14,7 @@ use sysinfo::{Signal, System};
 use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
-
+#[derive(Debug)]
 pub enum ProofType {
     Inclusion,
     NonInclusion,

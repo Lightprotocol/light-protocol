@@ -61,10 +61,6 @@ pub fn process_mint_to<'info>(
         &amounts,
         None,
     );
-    msg!(
-        "output_compressed_accounts: {:?}",
-        output_compressed_accounts
-    );
     cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts)?;
     Ok(())
 }
@@ -193,7 +189,7 @@ pub fn mint_spl_to_pool_pda<'info>(
         mint_bytes.as_slice(),
         bump,
     ];
-    msg!("seeds: {:?}", seeds);
+
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = anchor_spl::token::MintTo {
         authority: ctx.accounts.mint_authority_pda.to_account_info(),

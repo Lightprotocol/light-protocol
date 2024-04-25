@@ -56,7 +56,6 @@ async fn init_mock_indexer(
     env: &EnvAccounts,
     inclusion: bool,
     non_inclusion: bool,
-    combined: bool,
 ) -> MockIndexer {
     MockIndexer::new(
         env.merkle_tree_pubkey,
@@ -65,7 +64,6 @@ async fn init_mock_indexer(
         payer.insecure_clone(),
         inclusion,
         non_inclusion,
-        combined,
     )
     .await
 }
@@ -80,7 +78,7 @@ async fn test_execute_compressed_transaction() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.payer.insecure_clone();
-    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false, false).await;
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false).await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -293,7 +291,7 @@ async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.payer.insecure_clone();
-    let mut mock_indexer = init_mock_indexer(&payer, &env, true, true, false).await;
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, true).await;
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
@@ -667,7 +665,6 @@ async fn test_with_compression() {
         payer.insecure_clone(),
         true,
         false,
-        false,
     );
     let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
     let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
@@ -1000,6 +997,8 @@ pub struct MockIndexer {
     pub address_merkle_tree:
         light_indexed_merkle_tree::reference::IndexedMerkleTree<light_hasher::Poseidon, usize>,
     pub indexing_array: IndexedArray<light_hasher::Poseidon, usize, 1000>,
+    pub path: &'static str,
+    pub proof_types: Vec<ProofType>,
 }
 
 impl MockIndexer {
@@ -1010,7 +1009,6 @@ impl MockIndexer {
         payer: Keypair,
         inclusion: bool,
         non_inclusion: bool,
-        combined: bool,
     ) -> Self {
         let mut vec_proof_types = vec![];
         if inclusion {
@@ -1022,13 +1020,9 @@ impl MockIndexer {
         if vec_proof_types.is_empty() {
             panic!("At least one proof type must be selected");
         }
-
-        spawn_gnark_server(
-            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-            true,
-            vec_proof_types.as_slice(),
-        )
-        .await;
+        let path = "../../circuit-lib/circuitlib-rs/scripts/prover.sh";
+        let proof_types = vec_proof_types;
+        spawn_gnark_server(path, true, proof_types.as_slice()).await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
@@ -1062,6 +1056,8 @@ impl MockIndexer {
             merkle_tree,
             address_merkle_tree,
             indexing_array: indexed_array,
+            path,
+            proof_types,
         }
     }
 
@@ -1112,28 +1108,36 @@ impl MockIndexer {
                     panic!("At least one of compressed_accounts or new_addresses must be provided")
                 }
             };
-
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, path))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(json_payload)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
-        let body = response_result.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        ProofRpcResult {
-            root_indices,
-            address_root_indices,
-            proof: CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
+        let mut retries = 5;
+        while retries > 0 {
+            if retries < 3 {
+                spawn_gnark_server(self.path, true, self.proof_types.as_slice()).await;
+            }
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, path))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(json_payload.clone())
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            if response_result.status().is_success() {
+                let body = response_result.text().await.unwrap();
+                let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                return ProofRpcResult {
+                    root_indices,
+                    address_root_indices,
+                    proof: CompressedProof {
+                        a: proof_a,
+                        b: proof_b,
+                        c: proof_c,
+                    },
+                };
+            }
+            retries -= 1;
         }
+        panic!("Failed to get proof from server");
     }
 
     async fn process_inclusion_proofs(

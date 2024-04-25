@@ -347,9 +347,7 @@ export class CompressedTokenProgram {
     /** @internal */
     static get deriveCpiAuthorityPda(): PublicKey {
         const [address, _] = PublicKey.findProgramAddressSync(
-            [
-                CPI_AUTHORITY_SEED,
-            ],
+            [CPI_AUTHORITY_SEED],
             this.programId,
         );
         return address;

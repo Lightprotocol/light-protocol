@@ -62,6 +62,8 @@ pub struct TestIndexer {
     pub address_merkle_tree:
         light_indexed_merkle_tree::reference::IndexedMerkleTree<light_hasher::Poseidon, usize>,
     pub indexing_array: IndexedArray<light_hasher::Poseidon, usize, 1000>,
+    pub path: String,
+    pub proof_types: Vec<ProofType>,
 }
 
 #[derive(Debug, Clone)]
@@ -128,6 +130,8 @@ impl TestIndexer {
             indexing_array: indexed_array,
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
+            path: String::from(gnark_bin_path),
+            proof_types: vec_proof_types,
         }
     }
     /*
@@ -244,27 +248,36 @@ impl TestIndexer {
                 }
             };
 
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, path))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(json_payload)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
-        let body = response_result.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        ProofRpcResult {
-            root_indices,
-            address_root_indices,
-            proof: CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
+        let mut retries = 5;
+        while retries > 0 {
+            if retries < 3 {
+                spawn_gnark_server(self.path.as_str(), true, self.proof_types.as_slice()).await;
+            }
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, path))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(json_payload.clone())
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            if response_result.status().is_success() {
+                let body = response_result.text().await.unwrap();
+                let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                return ProofRpcResult {
+                    root_indices,
+                    address_root_indices,
+                    proof: CompressedProof {
+                        a: proof_a,
+                        b: proof_b,
+                        c: proof_c,
+                    },
+                };
+            }
+            retries -= 1;
         }
+        panic!("Failed to get proof from server");
     }
 
     async fn process_inclusion_proofs(

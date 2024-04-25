@@ -560,8 +560,6 @@ pub mod transfer_sdk {
         owner: &Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
-        // token_pool_pda: Option<Pubkey>,
-        // decompress_token_account: Option<Pubkey>,
     ) -> Result<
         (
             HashMap<Pubkey, usize>,
@@ -613,8 +611,6 @@ pub mod transfer_sdk {
         mint: Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
-        // token_pool_pda: Option<Pubkey>,
-        // decompress_token_account: Option<Pubkey>,
     ) -> (
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
