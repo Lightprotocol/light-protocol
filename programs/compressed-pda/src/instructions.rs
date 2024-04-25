@@ -1,8 +1,7 @@
-use std::borrow::Borrow;
-
 use account_compression::program::AccountCompression;
 use anchor_lang::prelude::*;
 use light_verifier::CompressedProof as CompressedVerifierProof;
+use std::collections::HashMap;
 
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -25,9 +24,6 @@ use crate::{
     },
     CompressedSolPda, ErrorCode,
 };
-use account_compression::program::AccountCompression;
-use anchor_lang::prelude::*;
-use std::collections::HashMap;
 
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &mut InstructionDataTransfer,
@@ -39,7 +35,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     write_access_check(
         inputs,
         &ctx.accounts.invoking_program,
-        &ctx.accounts.signer.key(),
+        &ctx.accounts.authority.key(),
     )?;
 
     if let Some(cpi_context) = cpi_context {

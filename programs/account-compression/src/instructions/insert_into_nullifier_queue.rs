@@ -1,7 +1,7 @@
 use crate::{
     errors::AccountCompressionErrorCode,
     processor::initialize_nullifier_queue::{
-        indexed_array_from_bytes_zero_copy_mut, IndexedArrayAccount,
+        nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
     },
     transfer_lamports_cpi,
     utils::{
@@ -14,7 +14,7 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use num_bigint::BigUint;
 
 #[derive(Accounts)]
-pub struct InsertIntoIndexedArrays<'info> {
+pub struct InsertIntoNullifierQueues<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     /// CHECK: should only be accessed by a registered program/owner/delegate.
@@ -27,7 +27,7 @@ pub struct InsertIntoIndexedArrays<'info> {
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
 pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InsertIntoIndexedArrays<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
     elements: &'a [[u8; 32]],
 ) -> Result<()> {
     let expected_remaining_accounts = elements.len() * 2;
@@ -44,14 +44,15 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
     for i in 0..elements.len() {
         let queue = ctx.remaining_accounts.get(i).unwrap();
         let merkle_tree = ctx.remaining_accounts.get(elements.len() + i).unwrap();
-        let unpacked_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(queue).unwrap();
+        let unpacked_queue_account =
+            AccountLoader::<NullifierQueueAccount>::try_from(queue).unwrap();
         let array_account = unpacked_queue_account.load()?;
 
         if array_account.associated_merkle_tree != merkle_tree.key() {
             msg!(
                 "Nullifier queue account {:?} is not associated with any state Merkle tree {:?}. Associated State Merkle tree {:?}",
                queue.key() ,merkle_tree.key(), array_account.associated_merkle_tree);
-            return Err(AccountCompressionErrorCode::InvalidIndexedArray.into());
+            return Err(AccountCompressionErrorCode::InvalidNullifierQueue.into());
         }
 
         queue_map
@@ -68,10 +69,10 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         );
         let lamports: u64;
 
-        let indexed_array = AccountLoader::<IndexedArrayAccount>::try_from(queue_bundle.queue)?;
+        let indexed_array = AccountLoader::<NullifierQueueAccount>::try_from(queue_bundle.queue)?;
         {
             let indexed_array = indexed_array.load()?;
-            check_registered_or_signer::<InsertIntoIndexedArrays, IndexedArrayAccount>(
+            check_registered_or_signer::<InsertIntoNullifierQueues, NullifierQueueAccount>(
                 &ctx,
                 &indexed_array,
             )?;
@@ -91,7 +92,7 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             let indexed_array = indexed_array.to_account_info();
             let mut indexed_array = indexed_array.try_borrow_mut_data()?;
             let mut indexed_array =
-                unsafe { indexed_array_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
+                unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
 
             for element in queue_bundle.elements.iter() {
                 msg!("Inserting element {:?}", element);

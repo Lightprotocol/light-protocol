@@ -1,15 +1,15 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::{
     self,
-    instructions::append_leaves::sdk::{
-        create_initialize_merkle_tree_instruction, create_insert_leaves_instruction,
-    },
-    nullifier_queue_sdk::create_initialize_nullifier_queue_instruction,
+    errors::AccountCompressionErrorCode,
+    initialize_address_merkle_tree::AccountLoader,
+    initialize_nullifier_queue::NullifierQueueAccount,
+    sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     utils::constants::{
-        STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+        STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
         STATE_NULLIFIER_QUEUE_VALUES,
     },
-    Pubkey, StateMerkleTreeAccount, ID,
+    NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{system_program, InstructionData, Key, Lamports, ToAccountMetas};
 use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
@@ -49,8 +49,8 @@ async fn test_init_and_rollover_state_merkle_tree() {
     );
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-    let indexed_array_keypair = Keypair::new();
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::new();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
     let payer_pubkey = context.payer.pubkey();
@@ -61,7 +61,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &mut context,
         &payer_pubkey,
         &merkle_tree_keypair,
-        &indexed_array_keypair,
+        &nullifier_queue_keypair,
         tip,
         rollover_threshold.clone(),
         close_threshold,
@@ -70,12 +70,12 @@ async fn test_init_and_rollover_state_merkle_tree() {
 
     let merkle_tree_keypair_2 = Keypair::new();
     let merkle_tree_pubkey_2 = merkle_tree_keypair_2.pubkey();
-    let indexed_array_keypair_2 = Keypair::new();
+    let nullifier_queue_keypair_2 = Keypair::new();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
         &payer_pubkey,
         &merkle_tree_keypair_2,
-        &indexed_array_keypair_2,
+        &nullifier_queue_keypair_2,
         tip,
         rollover_threshold.clone(),
         close_threshold,
@@ -121,7 +121,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
 
     let lamports_queue_accounts = context
         .banks_client
-        .get_account(indexed_array_pubkey)
+        .get_account(nullifier_queue_pubkey)
         .await
         .unwrap()
         .unwrap()
@@ -150,7 +150,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
     )
     .await
     .unwrap();
@@ -174,7 +174,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
-        &indexed_array_keypair_2.pubkey(),
+        &nullifier_queue_keypair_2.pubkey(),
     )
     .await
     .unwrap();
@@ -192,7 +192,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey_2,
-        &indexed_array_keypair.pubkey(),
+        &nullifier_queue_keypair.pubkey(),
     )
     .await
     .unwrap();
@@ -217,7 +217,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
     )
     .await
     .unwrap()
@@ -227,7 +227,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &mut context,
         &signer_prior_balance,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
         &new_state_merkle_tree_keypair.pubkey(),
         &new_nullifier_queue_keypair.pubkey(),
     )
@@ -241,7 +241,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &failing_new_nullifier_queue_keypair,
         &failing_new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
-        &indexed_array_pubkey,
+        &nullifier_queue_pubkey,
     )
     .await
     .unwrap();
@@ -264,9 +264,9 @@ pub async fn perform_state_merkle_tree_roll_over(
     nullifier_queue_pubkey: &Pubkey,
 ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
     let payer_pubkey = context.payer.pubkey();
-    let size = IndexedArrayAccount::size(
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
-        account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+    let size = NullifierQueueAccount::size(
+        STATE_NULLIFIER_QUEUE_INDICES as usize,
+        STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
     .unwrap();
     let create_nullifier_queue_instruction = create_account_instruction(
@@ -479,7 +479,8 @@ pub async fn assert_rolled_over_pair(
         false,
         0u64,
     );
-    let new_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(&account_info).unwrap();
+    let new_queue_account =
+        AccountLoader::<NullifierQueueAccount>::try_from(&account_info).unwrap();
     let new_loaded_queue_account = new_queue_account.load().unwrap();
     let mut old_queue_account = context
         .banks_client
@@ -499,7 +500,8 @@ pub async fn assert_rolled_over_pair(
         false,
         0u64,
     );
-    let old_queue_account = AccountLoader::<IndexedArrayAccount>::try_from(&account_info).unwrap();
+    let old_queue_account =
+        AccountLoader::<NullifierQueueAccount>::try_from(&account_info).unwrap();
     let old_loaded_queue_account = old_queue_account.load().unwrap();
 
     assert_eq!(old_loaded_queue_account.rolledover_slot, current_slot);
@@ -546,10 +548,12 @@ pub async fn assert_rolled_over_pair(
         .lamports;
     // rent is reimbursed, 3 signatures cost 3 x 5000 lamports
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
-    let old_address_queue =
-        unsafe { get_hash_set::<u16, IndexedArrayAccount>(context, old_queue_account.key()).await };
-    let new_address_queue =
-        unsafe { get_hash_set::<u16, IndexedArrayAccount>(context, new_queue_account.key()).await };
+    let old_address_queue = unsafe {
+        get_hash_set::<u16, NullifierQueueAccount>(context, old_queue_account.key()).await
+    };
+    let new_address_queue = unsafe {
+        get_hash_set::<u16, NullifierQueueAccount>(context, new_queue_account.key()).await
+    };
 
     assert_eq!(
         old_address_queue.capacity_indices,
@@ -629,9 +633,9 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue(
     );
 
     let size =
-        account_compression::processor::initialize_nullifier_queue::IndexedArrayAccount::size(
-            account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
-            account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+        account_compression::processor::initialize_nullifier_queue::NullifierQueueAccount::size(
+            STATE_NULLIFIER_QUEUE_INDICES as usize,
+            STATE_NULLIFIER_QUEUE_VALUES as usize,
         )
         .unwrap();
     let nullifier_queue_account_create_ix = create_account_instruction(
@@ -848,8 +852,8 @@ async fn test_nullify_leaves() {
     );
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-    let indexed_array_keypair = Keypair::new();
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::new();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
     let payer = context.payer.insecure_clone();
@@ -861,7 +865,7 @@ async fn test_nullify_leaves() {
         &mut context,
         &payer_pubkey,
         &merkle_tree_keypair,
-        &indexed_array_keypair,
+        &nullifier_queue_keypair,
         tip,
         rollover_threshold.clone(),
         close_threshold,
@@ -869,13 +873,13 @@ async fn test_nullify_leaves() {
     .await;
 
     let other_merkle_tree_keypair = Keypair::new();
-    let invalid_indexed_array_keypair = Keypair::new();
-    let invalid_indexed_array_pubkey = indexed_array_keypair.pubkey();
+    let invalid_nullifier_queue_keypair = Keypair::new();
+    let invalid_nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
         &payer_pubkey,
         &other_merkle_tree_keypair,
-        &invalid_indexed_array_keypair,
+        &invalid_nullifier_queue_keypair,
         tip,
         rollover_threshold.clone(),
         close_threshold,
@@ -998,6 +1002,7 @@ pub async fn nullify(
     leaf_queue_index: u16,
     element_index: u64,
 ) -> std::result::Result<(), BanksClientError> {
+    let payer = context.payer.insecure_clone();
     let proof: Vec<[u8; 32]> = reference_merkle_tree
         .get_proof_of_leaf(element_index as usize, false)
         .unwrap()
@@ -1037,11 +1042,7 @@ pub async fn nullify(
     );
 
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-            context,
-            *nullifier_queue_pubkey,
-        )
-        .await
+        get_hash_set::<u16, NullifierQueueAccount>(context, *nullifier_queue_pubkey).await
     };
     let array_element = nullifier_queue
         .by_value_index(
@@ -1064,7 +1065,7 @@ pub async fn nullify(
                 .load_merkle_tree()
                 .unwrap()
                 .sequence_number
-                + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
+                + STATE_MERKLE_TREE_ROOTS as usize
         )
     );
     Ok(())
@@ -1087,8 +1088,8 @@ async fn test_init_and_insert_into_nullifier_queue() {
     );
     let merkle_tree_keypair = Keypair::new();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
-    let indexed_array_keypair = Keypair::new();
-    let indexed_array_pubkey = indexed_array_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::new();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
     let payer_pubkey = context.payer.pubkey();
@@ -1099,7 +1100,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
         &mut context,
         &payer_pubkey,
         &merkle_tree_keypair,
-        &indexed_array_keypair,
+        &nullifier_queue_keypair,
         tip,
         rollover_threshold.clone(),
         close_threshold,
@@ -1161,11 +1162,7 @@ async fn functional_2_test_insert_into_nullifier_queues(
     .await
     .unwrap();
     let array = unsafe {
-        get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-            context,
-            *nullifier_queue_pubkey,
-        )
-        .await
+        get_hash_set::<u16, NullifierQueueAccount>(context, *nullifier_queue_pubkey).await
     };
     let array_element_0 = array.by_value_index(0, None).unwrap();
     assert_eq!(array_element_0.value_bytes(), [1u8; 32]);
@@ -1236,11 +1233,7 @@ async fn functional_5_test_insert_into_nullifier_queues(
     .await
     .unwrap();
     let array = unsafe {
-        get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-            context,
-            *nullifier_queue_pubkey,
-        )
-        .await
+        get_hash_set::<u16, NullifierQueueAccount>(context, *nullifier_queue_pubkey).await
     };
     let array_element = array.by_value_index(2, None).unwrap();
     assert_eq!(array_element.value_biguint(), element);
@@ -1259,6 +1252,7 @@ async fn insert_into_nullifier_queues(
         elements: elements.to_vec(),
     };
     let accounts = account_compression::accounts::InsertIntoNullifierQueues {
+        fee_payer: fee_payer.pubkey(),
         authority: payer.pubkey(),
         registered_program_pda: None,
         system_program: system_program::ID,

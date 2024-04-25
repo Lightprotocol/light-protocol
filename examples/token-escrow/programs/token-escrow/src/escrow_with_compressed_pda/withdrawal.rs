@@ -4,8 +4,7 @@ use light_compressed_pda::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
     },
     compressed_cpi::CompressedCpiContext,
-    utils::CompressedProof,
-    InstructionDataTransfer,
+    CompressedProof, InstructionDataTransfer,
 };
 use light_compressed_token::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
@@ -150,7 +149,8 @@ fn cpi_compressed_pda_withdrawal<'info>(
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
-        signer: ctx.accounts.token_owner_pda.to_account_info(),
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.token_owner_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
@@ -158,7 +158,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
         cpi_signature_account: Some(
             ctx.remaining_accounts[cpi_context.cpi_signature_account_index as usize]
                 .to_account_info(),
@@ -209,7 +209,7 @@ pub fn cpi_compressed_token_withdrawal<'info>(
     CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = light_compressed_token::cpi::accounts::TransferInstruction {
-        fee_payer: ctx.accounts.token_owner_pda.to_account_info(),
+        fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.token_owner_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
@@ -224,6 +224,7 @@ pub fn cpi_compressed_token_withdrawal<'info>(
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
     };
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 

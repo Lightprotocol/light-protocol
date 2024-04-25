@@ -22,7 +22,7 @@ pub mod account_compression {
     use self::{
         initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
         insert_into_nullifier_queue::{
-            process_insert_into_nullifier_queues, InsertIntoIndexedArrays,
+            process_insert_into_nullifier_queues, InsertIntoNullifierQueues,
         },
     };
 
@@ -157,7 +157,7 @@ pub mod account_compression {
         )
     }
 
-    pub fn insert_into_indexed_arrays<'a, 'b, 'c: 'info, 'info>(
+    pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
         elements: Vec<[u8; 32]>,
     ) -> Result<()> {
@@ -172,5 +172,5 @@ pub mod account_compression {
 
     // TODO: insert into indexed array just insert into one array instead of possibly multiple
 
-    // TODO: insert_from_indexed_array_into_merkle_tree ( to nullify transactions)
+    // TODO: insert_from_nullifier_queue_into_merkle_tree ( to nullify transactions)
 }

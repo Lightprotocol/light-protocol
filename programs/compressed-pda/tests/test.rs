@@ -1,6 +1,6 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::{
-    initialize_nullifier_queue::IndexedArrayAccount,
+    initialize_nullifier_queue::NullifierQueueAccount,
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
     },
@@ -1273,11 +1273,7 @@ impl MockIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                context,
-                self.nullifier_queue_pubkey,
-            )
-            .await
+            get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey).await
         };
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
@@ -1327,11 +1323,8 @@ impl MockIndexer {
             .await
             .unwrap();
             let nullifier_queue = unsafe {
-                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                    context,
-                    self.nullifier_queue_pubkey,
-                )
-                .await
+                get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey)
+                    .await
             };
             let array_element = nullifier_queue
                 .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))

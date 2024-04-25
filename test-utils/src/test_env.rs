@@ -2,15 +2,11 @@
 use crate::{create_and_send_transaction, get_account};
 #[cfg(feature = "light_program")]
 use account_compression::{
-    initialize_address_queue_sdk::create_initialize_address_queue_instruction,
-    instruction::InitializeAddressMerkleTree,
-    nullifier_queue_sdk::create_initialize_nullifier_queue_instruction,
-    state::AddressMerkleTreeAccount, GroupAuthority, RegisteredProgram,
-    sdk::create_initialize_merkle_tree_instruction,
+    sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
 #[cfg(feature = "test_indexer")]
 use anchor_lang::ToAccountMetas;
-#[cfg(feature = "light_program")]
+#[cfg(feature = "test_indexer")]
 use anchor_lang::{system_program, InstructionData};
 use light_macros::pubkey;
 #[cfg(feature = "light_program")]
@@ -257,8 +253,8 @@ pub async fn create_state_merkle_tree_and_queue_account(
     );
     let size =
         account_compression::processor::initialize_nullifier_queue::NullifierQueueAccount::size(
-            account_compression::utils::constants::STATE_INDEXED_ARRAY_INDICES as usize,
-            account_compression::utils::constants::STATE_INDEXED_ARRAY_VALUES as usize,
+            account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
+            account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
         )
         .unwrap();
     let nullifier_queue_account_create_ix = crate::create_account_instruction(
@@ -311,6 +307,8 @@ pub async fn create_address_merkle_tree_and_queue_account(
         sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressMerkleTreeConfig,
         AddressQueueConfig,
     };
+
+    use crate::create_account_instruction;
 
     let size = account_compression::AddressQueueAccount::size(
         account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
@@ -371,6 +369,10 @@ pub async fn init_cpi_signature_account(
     merkle_tree_pubkey: &Pubkey,
     cpi_account_keypair: &Keypair,
 ) -> Pubkey {
+    use solana_sdk::instruction::Instruction;
+
+    use crate::create_account_instruction;
+
     let payer = context.payer.insecure_clone();
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(

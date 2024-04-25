@@ -1,20 +1,18 @@
 #![cfg(not(target_os = "solana"))]
 
 use crate::escrow_with_compressed_pda::escrow::PackedInputCompressedPda;
-use account_compression::{Pubkey, NOOP_PROGRAM_ID};
+use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
     compressed_account::{pack_merkle_context, MerkleContext},
     compressed_cpi::CompressedCpiContext,
-    pack_new_address_params,
-    utils::CompressedProof,
-    NewAddressParams,
+    pack_new_address_params, CompressedProof, NewAddressParams,
 };
 use light_compressed_token::{
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
     TokenTransferOutputData,
 };
-use solana_sdk::instruction::Instruction;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
@@ -106,6 +104,7 @@ pub fn create_escrow_instruction(
         account_compression_authority,
         self_program: crate::ID,
         token_owner_pda: token_owner_pda.0,
+        system_program: solana_sdk::system_program::id(),
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -222,6 +221,7 @@ pub fn create_withdrawal_instruction(
         account_compression_authority,
         self_program: crate::ID,
         token_owner_pda,
+        system_program: solana_sdk::system_program::id(),
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

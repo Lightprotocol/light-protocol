@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::{
-    initialize_nullifier_queue::IndexedArrayAccount,
+    initialize_nullifier_queue::NullifierQueueAccount,
     utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
     StateMerkleTreeAccount,
 };
@@ -31,6 +31,7 @@ use light_test_utils::{
     create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
     test_env::setup_test_programs_with_accounts, AccountZeroCopy,
 };
+use light_verifier::VerifierError;
 use num_bigint::BigInt;
 use num_traits::ops::bytes::FromBytes;
 use reqwest::Client;
@@ -807,11 +808,8 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-    assert_custom_error_or_program_error(
-        res,
-        light_compressed_pda::ErrorCode::ProofVerificationFailed.into(),
-    )
-    .unwrap();
+    assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
+        .unwrap();
     let input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
@@ -828,11 +826,8 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-    assert_custom_error_or_program_error(
-        res,
-        light_compressed_pda::ErrorCode::ProofVerificationFailed.into(),
-    )
-    .unwrap();
+    assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
+        .unwrap();
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.is_native = Some(0);
@@ -861,11 +856,8 @@ async fn test_invalid_inputs() {
     .await
     .unwrap();
 
-    assert_custom_error_or_program_error(
-        res,
-        light_compressed_pda::ErrorCode::ProofVerificationFailed.into(),
-    )
-    .unwrap();
+    assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
+        .unwrap();
 
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
@@ -1403,11 +1395,7 @@ impl MockIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                context,
-                self.nullifier_queue_pubkey,
-            )
-            .await
+            get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey).await
         };
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
@@ -1457,11 +1445,8 @@ impl MockIndexer {
             .unwrap();
 
             let nullifier_queue = unsafe {
-                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                    context,
-                    self.nullifier_queue_pubkey,
-                )
-                .await
+                get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey)
+                    .await
             };
             let array_element = nullifier_queue
                 .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))

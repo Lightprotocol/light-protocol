@@ -1,4 +1,3 @@
-use account_compression::NullifierQueueAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 

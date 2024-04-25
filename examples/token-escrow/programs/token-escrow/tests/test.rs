@@ -10,18 +10,18 @@
 // - create escrow pda and just prove that utxo exists -> read utxo from compressed token account
 // release compressed tokens
 
-use account_compression::Pubkey;
 use light_compressed_pda::event::PublicTransactionEvent;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
 use light_test_utils::{airdrop_lamports, create_and_send_transaction_with_event, get_account};
 
+use light_verifier::VerifierError;
 use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
 };
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::Keypair;
-use solana_sdk::{signer::Signer, transaction::Transaction};
+use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 use token_escrow::escrow_with_compressed_pda::sdk::get_token_owner_pda;
 use token_escrow::escrow_with_pda::sdk::{
     create_escrow_instruction, create_withdrawal_escrow_instruction, get_timelock_pda,
@@ -192,9 +192,7 @@ async fn test_escrow_pda() {
         res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
+            InstructionError::Custom(VerifierError::ProofVerificationFailed.into())
         ))
     );
     perform_withdrawal_with_event(

@@ -443,10 +443,10 @@ impl TestIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                context,
-                self.nullifier_queue_pubkey,
-            )
+            get_hash_set::<
+                u16,
+                account_compression::initialize_nullifier_queue::NullifierQueueAccount,
+            >(context, self.nullifier_queue_pubkey)
             .await
         };
         let merkle_tree_account =
@@ -497,10 +497,10 @@ impl TestIndexer {
             .unwrap();
 
             let nullifier_queue = unsafe {
-                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                    context,
-                    self.nullifier_queue_pubkey,
-                )
+                get_hash_set::<
+                    u16,
+                    account_compression::initialize_nullifier_queue::NullifierQueueAccount,
+                >(context, self.nullifier_queue_pubkey)
                 .await
             };
             let array_element = nullifier_queue

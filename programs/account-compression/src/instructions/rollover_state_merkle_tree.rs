@@ -5,8 +5,8 @@ use crate::{
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
         initialize_nullifier_queue::{
-            indexed_array_from_bytes_zero_copy_mut, process_initialize_indexed_array,
-            IndexedArrayAccount,
+            nullifier_queue_from_bytes_zero_copy_mut, process_initialize_nullifier_queue,
+            NullifierQueueAccount,
         },
     },
     state::StateMerkleTreeAccount,
@@ -25,11 +25,11 @@ pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {
     #[account(zero)]
     pub new_state_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(zero)]
-    pub new_nullifier_queue: AccountLoader<'info, IndexedArrayAccount>,
+    pub new_nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
     #[account(mut)]
     pub old_state_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
-    pub old_nullifier_queue: AccountLoader<'info, IndexedArrayAccount>,
+    pub old_nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
 }
 
 impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'info> {
@@ -138,8 +138,8 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
         let nullifier_queue_account = ctx.accounts.old_nullifier_queue.to_account_info();
         let mut nullifier_queue = nullifier_queue_account.try_borrow_mut_data()?;
         let nullifier_queue =
-            unsafe { indexed_array_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
-        process_initialize_indexed_array(
+            unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
+        process_initialize_nullifier_queue(
             ctx.accounts.new_nullifier_queue.to_account_info(),
             &ctx.accounts.new_nullifier_queue,
             queue_index,

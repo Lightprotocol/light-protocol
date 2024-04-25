@@ -8,9 +8,9 @@ use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
     processor::initialize_nullifier_queue::{
-        indexed_array_from_bytes_zero_copy_mut, IndexedArrayAccount,
+        nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
     },
-    state::StateMerkleTreeAccount, NullifierQueueAccount,
+    state::StateMerkleTreeAccount,
     RegisteredProgram,
 };
 

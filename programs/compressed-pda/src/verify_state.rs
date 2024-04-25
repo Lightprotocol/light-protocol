@@ -153,7 +153,7 @@ pub fn sum_check(
 }
 
 #[inline(never)]
-#[heap_neutral]
+// #[heap_neutral]
 pub fn signer_check(
     inputs: &InstructionDataTransfer,
     ctx: &Context<'_, '_, '_, '_, TransferInstruction<'_>>,
@@ -175,8 +175,8 @@ pub fn signer_check(
                 &inputs.signer_seeds.as_ref().unwrap().iter().map(|x|x.as_slice()).collect::<Vec::<&[u8]>>()[..],
                 &invoking_program_id,
             ).map_err(ProgramError::from)?;
-            if signer != ctx.accounts.authority.key()
-                && invoking_program_id != compressed_accounts.compressed_account.owner
+            if signer == ctx.accounts.authority.key()
+                && invoking_program_id == compressed_accounts.compressed_account.owner
             {
                 Ok(())
             } else {
@@ -195,14 +195,14 @@ pub fn signer_check(
             }
         } else if compressed_accounts.compressed_account.owner != ctx.accounts.authority.key()
         {
-            Ok(())
-        } else {
             msg!(
                 "signer check failed compressed account owner {} !=  signer {}",
                 compressed_accounts.compressed_account.owner,
                 ctx.accounts.authority.key()
             );
             err!(ErrorCode::SignerCheckFailed)
+        } else {
+            Ok(())
         }
     })?;
     Ok(())

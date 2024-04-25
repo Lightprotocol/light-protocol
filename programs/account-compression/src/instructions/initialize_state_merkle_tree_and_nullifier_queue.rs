@@ -1,11 +1,11 @@
 use crate::{
     initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
-    initialize_nullifier_queue::{process_initialize_indexed_array, IndexedArrayAccount},
+    initialize_nullifier_queue::{process_initialize_nullifier_queue, NullifierQueueAccount},
     state::StateMerkleTreeAccount,
     utils::constants::{
-        STATE_INDEXED_ARRAY_INDICES, STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
-        STATE_INDEXED_ARRAY_VALUES, STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG,
-        STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
+        STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD, STATE_NULLIFIER_QUEUE_VALUES,
     },
 };
 use anchor_lang::prelude::*;
@@ -18,7 +18,7 @@ pub struct InitializeStateMerkleTreeAndNullifierQueue<'info> {
     #[account(zero)]
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(zero)]
-    pub nullifier_queue: AccountLoader<'info, IndexedArrayAccount>,
+    pub nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
     pub system_program: Program<'info, System>,
 }
 
@@ -58,9 +58,9 @@ pub struct NullifierQueueConfig {
 impl default::Default for NullifierQueueConfig {
     fn default() -> Self {
         Self {
-            capacity_indices: STATE_INDEXED_ARRAY_INDICES,
-            capacity_values: STATE_INDEXED_ARRAY_VALUES,
-            sequence_threshold: STATE_INDEXED_ARRAY_SEQUENCE_THRESHOLD,
+            capacity_indices: STATE_NULLIFIER_QUEUE_INDICES,
+            capacity_values: STATE_NULLIFIER_QUEUE_VALUES,
+            sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
             tip: None,
         }
     }
@@ -104,7 +104,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
     )?;
-    process_initialize_indexed_array(
+    process_initialize_nullifier_queue(
         ctx.accounts.nullifier_queue.to_account_info(),
         &ctx.accounts.nullifier_queue,
         index,

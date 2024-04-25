@@ -7,7 +7,6 @@ use light_compressed_pda::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
     },
     compressed_cpi::CompressedCpiContext,
-    utils::CompressedProof,
     InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};

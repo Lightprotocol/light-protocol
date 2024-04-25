@@ -31,8 +31,5 @@ pub use register_program::*;
 pub mod rollover_state_merkle_tree;
 pub use rollover_state_merkle_tree::*;
 
-pub mod insert_into_nullifier_queue;
-pub use insert_into_nullifier_queue::*;
-
 pub mod rollover_address_merkle_tree_and_queue;
 pub use rollover_address_merkle_tree_and_queue::*;
