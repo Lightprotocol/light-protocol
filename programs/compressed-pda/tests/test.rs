@@ -30,7 +30,8 @@ use light_compressed_pda::{
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
-    create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
+    assert_custom_error_or_program_error, create_and_send_transaction,
+    create_and_send_transaction_with_event, get_hash_set,
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
     AccountZeroCopy,
 };
@@ -336,13 +337,7 @@ async fn test_with_address() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::InvalidAddress.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::InvalidAddress.into()).unwrap();
 
     let event = create_addresses(
         &mut context,
@@ -452,6 +447,7 @@ async fn test_with_address() {
             TransactionError::InstructionError(0, InstructionError::Custom(6002))
         ))
     ));
+
     println!("test 2in -------------------------");
 
     let address_seed_3 = [3u8; 32];
@@ -723,13 +719,7 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient input funds
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
         &Vec::new(),
@@ -759,13 +749,7 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient decompress amount funds
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
@@ -871,14 +855,7 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient output funds
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::SumCheckFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,

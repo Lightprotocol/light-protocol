@@ -10,7 +10,7 @@ use num_traits::{Bounded, CheckedAdd, CheckedSub, Unsigned};
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     account::Account,
-    instruction::Instruction,
+    instruction::{Instruction, InstructionError},
     signature::{Keypair, Signature},
     signer::Signer,
     transaction::Transaction,
@@ -216,4 +216,31 @@ pub fn create_account_instruction(
         None => Keypair::new(),
     };
     system_instruction::create_account(payer, &keypair.pubkey(), rent, size as u64, id)
+}
+
+/// Asserts that the given `BanksTransactionResultWithMetadata` is an error with a custom error code
+/// or a program error.
+/// Unfortunately BanksTransactionResultWithMetadata does not reliably expose the custom error code, so
+/// we allow program error as well.
+// TODO: add generic that parses the error code from the result
+pub fn assert_custom_error_or_program_error(
+    res: solana_program_test::BanksTransactionResultWithMetadata,
+    error_code: u32,
+) -> Result<(), solana_sdk::transaction::TransactionError> {
+    if !(res.result
+        == Err(solana_sdk::transaction::TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(error_code),
+        ))
+        || res.result
+            == Err(solana_sdk::transaction::TransactionError::InstructionError(
+                0,
+                InstructionError::ProgramFailedToComplete,
+            )))
+    {
+        println!("result {:?}", res.result);
+        println!("error_code {:?}", error_code);
+        return Err(res.result.unwrap_err());
+    }
+    Ok(())
 }

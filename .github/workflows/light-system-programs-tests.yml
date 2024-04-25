@@ -73,8 +73,9 @@ jobs:
 
           anchor build
 
-          IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            $subtest
+            echo "$subtest"
+            eval "$subtest"
           done
