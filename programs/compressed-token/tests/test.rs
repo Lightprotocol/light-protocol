@@ -1069,7 +1069,7 @@ async fn assert_mint_to<'a, const MINT: usize>(
     recipient_keypair: &Keypair,
     mint: Pubkey,
     amount: u64,
-    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<Poseidon>,
 ) {
     let token_compressed_account_data = mock_indexer.token_compressed_accounts[0].token_data;
     assert_eq!(token_compressed_account_data.amount, amount);
@@ -1131,7 +1131,7 @@ async fn assert_transfer<'a>(
     mock_indexer: &MockIndexer,
     recipient_out_compressed_account: &TokenTransferOutputData,
     change_out_compressed_account: &TokenTransferOutputData,
-    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<'a, Poseidon>,
+    old_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree26<Poseidon>,
     input_compressed_accounts: &[CompressedAccount],
 ) {
     let merkle_tree_account =

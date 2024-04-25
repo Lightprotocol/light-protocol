@@ -18,22 +18,22 @@ pub const FIELD_SIZE_SUB_ONE: &str =
     "21888242871839275222246405745257275088548364400416034343698204186575808495616";
 
 #[repr(C)]
-pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
+pub struct IndexedMerkleTree<H, I, const HEIGHT: usize>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
+    pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
     _index: PhantomData<I>,
 }
 
-pub type IndexedMerkleTree22<'a, H, I> = IndexedMerkleTree<'a, H, I, 22>;
-pub type IndexedMerkleTree26<'a, H, I> = IndexedMerkleTree<'a, H, I, 26>;
-pub type IndexedMerkleTree32<'a, H, I> = IndexedMerkleTree<'a, H, I, 32>;
-pub type IndexedMerkleTree40<'a, H, I> = IndexedMerkleTree<'a, H, I, 40>;
+pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22>;
+pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26>;
+pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32>;
+pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40>;
 
-impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
@@ -236,7 +236,7 @@ where
     /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
     /// Thus, addresses with higher values than the initial value cannot be inserted.
     pub fn initialize_address_merkle_tree(
-        address_merkle_tree_inited: &mut IndexedMerkleTree<'a, H, I, HEIGHT>,
+        address_merkle_tree_inited: &mut IndexedMerkleTree<H, I, HEIGHT>,
         init_value: BigUint,
     ) -> Result<(), IndexedMerkleTreeError> {
         let mut indexed_array = IndexedArray::<H, I, 2>::default();

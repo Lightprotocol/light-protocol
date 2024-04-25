@@ -1,4 +1,4 @@
-use light_bounded_vec::{BoundedVec, Pod};
+use light_bounded_vec::BoundedVec;
 
 use crate::errors::ConcurrentMerkleTreeError;
 
@@ -17,8 +17,6 @@ pub type ChangelogEntry22 = ChangelogEntry<22>;
 pub type ChangelogEntry26 = ChangelogEntry<26>;
 pub type ChangelogEntry32 = ChangelogEntry<32>;
 pub type ChangelogEntry40 = ChangelogEntry<40>;
-
-unsafe impl<const HEIGHT: usize> Pod for ChangelogEntry<HEIGHT> {}
 
 impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     pub fn new(root: [u8; 32], path: [[u8; 32]; HEIGHT], index: usize) -> Self {

@@ -4,7 +4,7 @@ use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hasher::Poseidon;
 
-pub type StateMerkleTree<'a> = ConcurrentMerkleTree26<'a, Poseidon>;
+pub type StateMerkleTree = ConcurrentMerkleTree26<Poseidon>;
 
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[account(zero_copy)]
@@ -33,7 +33,7 @@ pub struct StateMerkleTreeAccount {
     pub associated_queue: Pubkey,
 
     /// Merkle tree for the transaction state.
-    pub state_merkle_tree_struct: [u8; 256],
+    pub state_merkle_tree_struct: [u8; 224],
     pub state_merkle_tree_filled_subtrees: [u8; 832],
     pub state_merkle_tree_changelog: [u8; 1220800],
     pub state_merkle_tree_roots: [u8; 76800],
@@ -154,7 +154,7 @@ mod test {
             owner: Pubkey::new_from_array([2u8; 32]),
             delegate: Pubkey::new_from_array([3u8; 32]),
             associated_queue: Pubkey::new_from_array([4u8; 32]),
-            state_merkle_tree_struct: [0u8; 256],
+            state_merkle_tree_struct: [0u8; 224],
             state_merkle_tree_filled_subtrees: [0u8; 832],
             state_merkle_tree_changelog: [0u8; 1220800],
             state_merkle_tree_roots: [0u8; 76800],

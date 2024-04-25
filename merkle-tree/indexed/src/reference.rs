@@ -172,12 +172,12 @@ where
 /// We prove non-inclusion by:
 /// 1. Showing that value is greater than leaf_lower_range_value and less than leaf_higher_range_value
 /// 2. Showing that the leaf_hash H(leaf_lower_range_value, leaf_next_index, leaf_higher_value) is included in the root (Merkle tree)
-pub struct NonInclusionProof<'a> {
+pub struct NonInclusionProof {
     pub root: [u8; 32],
     pub value: [u8; 32],
     pub leaf_lower_range_value: [u8; 32],
     pub leaf_higher_range_value: [u8; 32],
     pub leaf_index: usize,
     pub next_index: usize,
-    pub merkle_proof: BoundedVec<'a, [u8; 32]>,
+    pub merkle_proof: BoundedVec<[u8; 32]>,
 }
