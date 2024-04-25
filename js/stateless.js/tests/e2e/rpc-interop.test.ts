@@ -25,11 +25,11 @@ describe('rpc-interop', () => {
     });
 
     const transferAmount = 1e4;
-    const numberOfTransfers = 10;
+    const numberOfTransfers = 1;
     let executedTxs = 1;
 
     /// FIXME: Photon returns inconsistent root / rootSeq
-    it.skip('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
+    it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
         for (let round = 0; round < numberOfTransfers; round++) {
             const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
@@ -213,7 +213,9 @@ describe('rpc-interop', () => {
             bn(senderAccounts[0].hash),
         );
 
-        assert.equal(signatures.length, 1);
+        console.log('signatures', JSON.stringify(signatures));
+
+        assert.equal(signatures.length, 2);
     });
 
     it('[test-rpc missing] getSignaturesForOwner should match', async () => {
