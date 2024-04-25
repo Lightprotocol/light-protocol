@@ -11,6 +11,7 @@ import {
     CompressedAccountsByOwnerResult,
     CompressedProofWithContext,
     CompressedTokenAccountsByOwnerOrDelegateResult,
+    CompressedTransaction,
     CompressedTransactionResult,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -22,6 +23,7 @@ import {
     ParsedTokenAccount,
     SignatureListResult,
     SignatureListWithCursorResult,
+    SignatureWithMetadata,
     SlotResult,
     TokenBalanceListResult,
     jsonRpcResult,
@@ -64,6 +66,126 @@ export function parseAccountData({
         data: Buffer.from(data, 'base64'),
         dataHash: dataHash.toArray('le', 32),
     };
+}
+
+// TODO: support cursor and limit parameters
+/** @internal */
+async function getCompressedTokenAccountsByOwnerOrDelegate(
+    rpc: Rpc,
+    ownerOrDelegate: PublicKey,
+    options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    filterByDelegate: boolean = false,
+): Promise<ParsedTokenAccount[]> {
+    const endpoint = filterByDelegate
+        ? 'getCompressedTokenAccountsByDelegate'
+        : 'getCompressedTokenAccountsByOwner';
+    const propertyToCheck = filterByDelegate ? 'delegate' : 'owner';
+
+    const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {
+        [propertyToCheck]: ownerOrDelegate.toBase58(),
+        mint: options.mint.toBase58(),
+    });
+    const res = create(
+        unsafeRes,
+        jsonRpcResultAndContext(CompressedTokenAccountsByOwnerOrDelegateResult),
+    );
+    if ('error' in res) {
+        throw new SolanaJSONRPCError(
+            res.error,
+            `failed to get info for compressed accounts by ${propertyToCheck} ${ownerOrDelegate.toBase58()}`,
+        );
+    }
+    if (res.result.value === null) {
+        throw new Error('not implemented: NULL result');
+    }
+    const accounts: ParsedTokenAccount[] = [];
+
+    res.result.value.items.map(item => {
+        const _account = item.account;
+        const _tokenData = item.tokenData;
+
+        const compressedAccount: CompressedAccountWithMerkleContext =
+            createCompressedAccountWithMerkleContext(
+                createMerkleContext(
+                    _account.tree!,
+                    mockNullifierQueue,
+                    _account.hash.toArray(undefined, 32),
+                    _account.leafIndex,
+                ),
+                new PublicKey('9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE'),
+                bn(_account.lamports),
+                _account.data ? parseAccountData(_account.data) : undefined,
+                _account.address || undefined,
+            );
+
+        const parsed: TokenData = {
+            mint: _tokenData.mint,
+            owner: _tokenData.owner,
+            amount: _tokenData.amount,
+            delegate: _tokenData.delegate,
+            state: ['uninitialized', 'initialized', 'frozen'].indexOf(
+                _tokenData.state,
+            ),
+            isNative: _tokenData.isNative,
+            delegatedAmount: _tokenData.delegatedAmount,
+        };
+
+        if (
+            parsed[propertyToCheck]?.toBase58() !== ownerOrDelegate.toBase58()
+        ) {
+            throw new Error(
+                `RPC returned token account with ${propertyToCheck} different from requested ${propertyToCheck}`,
+            );
+        }
+
+        accounts.push({
+            compressedAccount,
+            parsed,
+        });
+    });
+    /// TODO: consider custom or different sort. Most recent here.
+    return accounts.sort(
+        (a, b) => b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
+    );
+}
+
+/** @internal */
+function buildCompressedAccountWithMaybeTokenData(account: any): {
+    account: CompressedAccountWithMerkleContext;
+    maybeTokenData: TokenData | null;
+} {
+    const tokenData = account.optionTokenData;
+    const compressedAccount: CompressedAccountWithMerkleContext =
+        createCompressedAccountWithMerkleContext(
+            createMerkleContext(
+                account.tree!,
+                mockNullifierQueue,
+                account.hash.toArray(undefined, 32),
+                account.leafIndex,
+            ),
+            account.owner,
+            bn(account.lamports),
+            account.data ? parseAccountData(account.data) : undefined,
+            account.address || undefined,
+        );
+
+    if (tokenData === null) {
+        return { account: compressedAccount, maybeTokenData: null };
+    }
+
+    const parsed: TokenData = {
+        mint: tokenData.mint,
+        owner: tokenData.owner,
+        amount: tokenData.amount,
+        delegate: tokenData.delegate,
+        state: ['uninitialized', 'initialized', 'frozen'].indexOf(
+            tokenData.state,
+        ),
+        isNative: tokenData.isNative,
+        delegatedAmount: tokenData.delegatedAmount,
+    };
+
+    return { account: compressedAccount, maybeTokenData: parsed };
 }
 
 export function createRpc(
@@ -152,134 +274,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         this.proverEndpoint = proverEndpoint;
     }
 
-    // TODO: support cursor and limit parameters
-    private async getCompressedTokenAccountsByOwnerOrDelegate(
-        ownerOrDelegate: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-        filterByDelegate: boolean = false,
-    ): Promise<ParsedTokenAccount[]> {
-        const endpoint = filterByDelegate
-            ? 'getCompressedTokenAccountsByDelegate'
-            : 'getCompressedTokenAccountsByOwner';
-        const propertyToCheck = filterByDelegate ? 'delegate' : 'owner';
-
-        const unsafeRes = await rpcRequest(
-            this.compressionApiEndpoint,
-            endpoint,
-            {
-                [propertyToCheck]: ownerOrDelegate.toBase58(),
-                mint: options.mint.toBase58(),
-            },
-        );
-        const res = create(
-            unsafeRes,
-            jsonRpcResultAndContext(
-                CompressedTokenAccountsByOwnerOrDelegateResult,
-            ),
-        );
-        if ('error' in res) {
-            throw new SolanaJSONRPCError(
-                res.error,
-                `failed to get info for compressed accounts by ${propertyToCheck} ${ownerOrDelegate.toBase58()}`,
-            );
-        }
-        if (res.result.value === null) {
-            throw new Error('not implemented: NULL result');
-        }
-        const accounts: ParsedTokenAccount[] = [];
-
-        res.result.value.items.map(item => {
-            const _account = item.account;
-            const _tokenData = item.tokenData;
-
-            const compressedAccount: CompressedAccountWithMerkleContext =
-                createCompressedAccountWithMerkleContext(
-                    createMerkleContext(
-                        _account.tree!,
-                        mockNullifierQueue,
-                        _account.hash.toArray(undefined, 32),
-                        _account.leafIndex,
-                    ),
-                    new PublicKey(
-                        '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
-                    ),
-                    bn(_account.lamports),
-                    _account.data ? parseAccountData(_account.data) : undefined,
-                    _account.address || undefined,
-                );
-
-            const parsed: TokenData = {
-                mint: _tokenData.mint,
-                owner: _tokenData.owner,
-                amount: _tokenData.amount,
-                delegate: _tokenData.delegate,
-                state: ['uninitialized', 'initialized', 'frozen'].indexOf(
-                    _tokenData.state,
-                ),
-                isNative: _tokenData.isNative,
-                delegatedAmount: _tokenData.delegatedAmount,
-            };
-
-            if (
-                parsed[propertyToCheck]?.toBase58() !==
-                ownerOrDelegate.toBase58()
-            ) {
-                throw new Error(
-                    `RPC returned token account with ${propertyToCheck} different from requested ${propertyToCheck}`,
-                );
-            }
-
-            accounts.push({
-                compressedAccount,
-                parsed,
-            });
-        });
-        /// TODO: consider custom or different sort. Most recent here.
-        return accounts.sort(
-            (a, b) =>
-                b.compressedAccount.leafIndex - a.compressedAccount.leafIndex,
-        );
-    }
-
-    private buildCompressedAccountWithMaybeTokenData(account: any): {
-        account: CompressedAccountWithMerkleContext;
-        maybeTokenData: TokenData | null;
-    } {
-        const tokenData = account.optionTokenData;
-        const compressedAccount: CompressedAccountWithMerkleContext =
-            createCompressedAccountWithMerkleContext(
-                createMerkleContext(
-                    account.tree!,
-                    mockNullifierQueue,
-                    account.hash.toArray(undefined, 32),
-                    account.leafIndex,
-                ),
-                account.owner,
-                bn(account.lamports),
-                account.data ? parseAccountData(account.data) : undefined,
-                account.address || undefined,
-            );
-
-        if (tokenData === null) {
-            return { account: compressedAccount, maybeTokenData: null };
-        }
-
-        const parsed: TokenData = {
-            mint: tokenData.mint,
-            owner: tokenData.owner,
-            amount: tokenData.amount,
-            delegate: tokenData.delegate,
-            state: ['uninitialized', 'initialized', 'frozen'].indexOf(
-                tokenData.state,
-            ),
-            isNative: tokenData.isNative,
-            delegatedAmount: tokenData.delegatedAmount,
-        };
-
-        return { account: compressedAccount, maybeTokenData: parsed };
-    }
-
     // TODO: add support for 'address' parameter
+    /** Retrieve compressed account by hash */
     async getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
@@ -317,7 +313,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return account;
     }
 
-    /** Get the balance of a compressed sol account */
+    /** Retrieve lamport balance of a compressed account */
     async getCompressedBalance(hash: BN254): Promise<BN> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -365,7 +361,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return bn(res.result.value);
     }
 
-    /** Retrieve the merkle proof for a compressed account */
+    /** Retrieve a recent merkle proof for a compressed account */
     async getCompressedAccountProof(
         hash: BN254,
     ): Promise<MerkleContextWithMerkleProof> {
@@ -408,6 +404,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     // TODO: add support for 'address' parameter
+    /** Retrieve multiple compressed accounts */
     async getMultipleCompressedAccounts(
         hashes: BN254[],
     ): Promise<CompressedAccountWithMerkleContext[]> {
@@ -451,7 +448,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return accounts;
     }
 
-    /** Retrieve the merkle proof for a compressed account */
+    /** Retrieve recent merkle proofs for multiple compressed accounts */
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
@@ -512,6 +509,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     // TODO: support cursor and limit parameters
+    /** Retrieve compressed accounts by owner */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
@@ -557,11 +555,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     // TODO: support cursor and limit parameters
+    /** Retrieve compressed token accounts by owner */
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
-        return this.getCompressedTokenAccountsByOwnerOrDelegate(
+        return getCompressedTokenAccountsByOwnerOrDelegate(
+            this,
             owner,
             options,
             false,
@@ -569,11 +569,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     // TODO: support cursor and limit parameters
+    /** Retrieve compressed token accounts by delegate */
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
-        return this.getCompressedTokenAccountsByOwnerOrDelegate(
+        return getCompressedTokenAccountsByOwnerOrDelegate(
+            this,
             delegate,
             options,
             true,
@@ -581,6 +583,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /// TODO: remove address parameter from indexer
+    /** Retrieve the token balance of a compressed token account */
     async getCompressedTokenAccountBalance(
         hash: BN254,
     ): Promise<{ amount: BN }> {
@@ -606,6 +609,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     // TODO: Support cursor and limit parameters
+    /** Retrieve all compressed token balances for an owner */
     async getCompressedTokenBalancesByOwner(
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -644,13 +648,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return filtered;
     }
 
-    async getSignaturesForCompressedAccount(hash: BN254): Promise<
-        {
-            blockTime: number;
-            signature: string;
-            slot: number;
-        }[]
-    > {
+    /** Retrieve all signatures for a compressed account */
+    async getSignaturesForCompressedAccount(
+        hash: BN254,
+    ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getSignaturesForCompressedAccount',
@@ -673,19 +674,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /// TODO: properly validate transaction type
     /// TODO: rename from 'getTransaction' in indexer
-    async getCompressedTransaction(signature: string): Promise<{
-        compressionInfo: {
-            closedAccounts: {
-                account: CompressedAccountWithMerkleContext;
-                maybeTokenData: TokenData | null;
-            }[];
-            openedAccounts: {
-                account: CompressedAccountWithMerkleContext;
-                maybeTokenData: TokenData | null;
-            }[];
-        };
-        transaction: any;
-    } | null> {
+    async getCompressedTransaction(
+        signature: string,
+    ): Promise<CompressedTransaction | null> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedTransaction',
@@ -714,14 +705,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }[] = [];
 
         res.result.compressionInfo.closedAccounts.map(item => {
-            closedAccounts.push(
-                this.buildCompressedAccountWithMaybeTokenData(item),
-            );
+            closedAccounts.push(buildCompressedAccountWithMaybeTokenData(item));
         });
         res.result.compressionInfo.openedAccounts.map(item => {
-            openedAccounts.push(
-                this.buildCompressedAccountWithMaybeTokenData(item),
-            );
+            openedAccounts.push(buildCompressedAccountWithMaybeTokenData(item));
         });
 
         return {
@@ -732,13 +719,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /// TODO: change the name.
     /// TODO: support cursor and limit parameters
-    async getSignaturesForAddress3(address: PublicKey): Promise<
-        {
-            blockTime: number;
-            signature: string;
-            slot: number;
-        }[]
-    > {
+    /** Retrieve all signatures for a compressed PDA */
+    async getSignaturesForAddress3(
+        address: PublicKey,
+    ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getSignaturesForAddress',
@@ -764,13 +748,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value.items;
     }
 
-    async getSignaturesForOwner(owner: PublicKey): Promise<
-        {
-            blockTime: number;
-            signature: string;
-            slot: number;
-        }[]
-    > {
+    /** Retrieve all signatures for all compressed accounts of an owner */
+    async getSignaturesForOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getSignaturesForOwner',
@@ -797,13 +778,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /// TODO: needs mint
-    async getSignaturesForTokenOwner(owner: PublicKey): Promise<
-        {
-            blockTime: number;
-            signature: string;
-            slot: number;
-        }[]
-    > {
+    /** Retrieve all signatures for all compressed token accounts of an owner */
+    async getSignaturesForTokenOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getSignaturesForTokenOwner',

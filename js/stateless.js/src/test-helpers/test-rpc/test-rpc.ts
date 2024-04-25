@@ -1,19 +1,26 @@
 import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
 import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
-
 import { BN } from '@coral-xyz/anchor';
 import {
     getCompressedAccountByHashTest,
     getCompressedAccountsByOwnerTest,
     getMultipleCompressedAccountsByHashTest,
 } from './get-compressed-accounts';
-import { getCompressedTokenAccountsByOwnerTest } from './get-compressed-token-accounts';
+import {
+    getCompressedTokenAccountByHashTest,
+    getCompressedTokenAccountsByDelegateTest,
+    getCompressedTokenAccountsByOwnerTest,
+} from './get-compressed-token-accounts';
 
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { toHex } from '../../utils/conversion';
-import { HexInputsForProver } from '../../rpc-interface';
+import {
+    CompressedTransaction,
+    HexInputsForProver,
+    SignatureWithMetadata,
+} from '../../rpc-interface';
 import {
     CompressedProofWithContext,
     CompressionApiInterface,
@@ -143,6 +150,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return 'ok';
     }
 
+    /** Retrieve compressed account by hash */
     async getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
@@ -150,10 +158,25 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return account ?? null;
     }
 
-    async getCompressedBalance(_hash: BN254): Promise<BN | null> {
-        throw new Error('Method not implemented.');
+    /** Retrieve lamport balance of a compressed account */
+    async getCompressedBalance(hash: BN254): Promise<BN> {
+        const account = await getCompressedAccountByHashTest(this, hash);
+        if (!account) {
+            throw new Error('Account not found');
+        }
+        return bn(account.lamports);
     }
 
+    /** Retrieve compressed lamport balance of owner */
+    async getCompressedBalanceByOwner(owner: PublicKey): Promise<BN> {
+        const accounts = await this.getCompressedAccountsByOwner(owner);
+        return accounts.reduce(
+            (acc, account) => acc.add(account.lamports),
+            bn(0),
+        );
+    }
+
+    /** Retrieve a recent merkle proof for a compressed account */
     async getCompressedAccountProof(
         hash: BN254,
     ): Promise<MerkleContextWithMerkleProof> {
@@ -161,13 +184,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return proofs[0];
     }
 
+    /** Retrieve multiple compressed accounts */
     async getMultipleCompressedAccounts(
         hashes: BN254[],
     ): Promise<CompressedAccountWithMerkleContext[]> {
         return await getMultipleCompressedAccountsByHashTest(this, hashes);
     }
 
-    /** Retrieve the merkle proof for a compressed account */
+    /** Retrieve recent merkle proofs for multiple compressed accounts */
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
@@ -248,6 +272,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return merkleProofs;
     }
 
+    /** Retrieve compressed accounts by owner */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
@@ -255,7 +280,90 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return accounts;
     }
 
-    /** Retrieve validity proof for compressed accounts */
+    /** Retrieve compressed token accounts by owner */
+    async getCompressedTokenAccountsByOwner(
+        owner: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<ParsedTokenAccount[]> {
+        return await getCompressedTokenAccountsByOwnerTest(
+            this,
+            owner,
+            options!.mint!,
+        );
+    }
+
+    /** Retrieve compressed token accounts by delegate */
+    async getCompressedTokenAccountsByDelegate(
+        delegate: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<ParsedTokenAccount[]> {
+        return await getCompressedTokenAccountsByDelegateTest(
+            this,
+            delegate,
+            options.mint!,
+        );
+    }
+
+    /** Retrieve the token balance of a compressed token account */
+    async getCompressedTokenAccountBalance(
+        hash: BN254,
+    ): Promise<{ amount: BN }> {
+        const account = await getCompressedTokenAccountByHashTest(this, hash);
+        return { amount: bn(account.parsed.amount) };
+    }
+
+    /** Retrieve all compressed token balances for an owner */
+    async getCompressedTokenBalancesByOwner(
+        publicKey: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<{ balance: BN; mint: PublicKey }[]> {
+        const accounts = await getCompressedTokenAccountsByOwnerTest(
+            this,
+            publicKey,
+            options.mint!,
+        );
+        return accounts.map(account => ({
+            balance: bn(account.parsed.amount),
+            mint: account.parsed.mint,
+        }));
+    }
+
+    /** Retrieve all signatures for a compressed account */
+    async getSignaturesForCompressedAccount(
+        hash: BN254,
+    ): Promise<SignatureWithMetadata[]> {
+        throw new Error('getSignaturesForCompressedAccount not implemented');
+    }
+
+    /** Retrieve compressed transaction metadata by signature */
+    async getCompressedTransaction(
+        signature: string,
+    ): Promise<CompressedTransaction | null> {
+        throw new Error('getCompressedTransaction not implemented');
+    }
+
+    /** Retrieve all signatures for a compressed PDA */
+    async getSignaturesForAddress3(
+        address: PublicKey,
+    ): Promise<SignatureWithMetadata[]> {
+        throw new Error('getSignaturesForAddress3 not implemented');
+    }
+
+    /** Retrieve all signatures for all compressed accounts of an owner */
+    async getSignaturesForOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]> {
+        throw new Error('getSignaturesForOwner not implemented');
+    }
+
+    /** Retrieve all signatures for all compressed token accounts of an owner */
+    async getSignaturesForTokenOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]> {
+        throw new Error('getSignaturesForTokenOwner not implemented');
+    }
+
+    /** Retrieve recent validity proof for compressed accounts */
     async getValidityProof(
         hashes: BN254[],
     ): Promise<CompressedProofWithContext> {
@@ -313,28 +421,5 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         };
 
         return value;
-    }
-
-    async getCompressedTokenAccountsByOwner(
-        owner: PublicKey,
-        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]> {
-        return await getCompressedTokenAccountsByOwnerTest(
-            this,
-            owner,
-            options!.mint!,
-        );
-    }
-    async getCompressedTokenAccountsByDelegate(
-        _delegate: PublicKey,
-        _options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ): Promise<ParsedTokenAccount[]> {
-        throw new Error('Method not implemented.');
-    }
-
-    async getCompressedTokenAccountBalance(
-        _hash: BN254,
-    ): Promise<{ amount: BN }> {
-        throw new Error('Method not implemented.');
     }
 }

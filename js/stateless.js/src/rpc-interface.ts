@@ -28,6 +28,26 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+export interface SignatureWithMetadata {
+    blockTime: number;
+    signature: string;
+    slot: number;
+}
+
+export interface CompressedTransaction {
+    compressionInfo: {
+        closedAccounts: {
+            account: CompressedAccountWithMerkleContext;
+            maybeTokenData: TokenData | null;
+        }[];
+        openedAccounts: {
+            account: CompressedAccountWithMerkleContext;
+            maybeTokenData: TokenData | null;
+        }[];
+    };
+    transaction: any;
+}
+
 export interface HexInputsForProver {
     roots: string[];
     inPathIndices: number[];
@@ -361,15 +381,6 @@ export interface CompressionApiInterface {
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]>;
 
-    /** Receive validity Proof for n compressed accounts */
-    getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
-
-    /** Retrieve health status of the node */
-    getHealth(): Promise<string>;
-
-    /** Retrieve the current slot */
-    getSlot(): Promise<number>;
-
     getCompressedTokenAccountsByOwner(
         publicKey: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -381,4 +392,35 @@ export interface CompressionApiInterface {
     ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }>;
+
+    getCompressedTokenBalancesByOwner(
+        publicKey: PublicKey,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+    ): Promise<{ balance: BN; mint: PublicKey }[]>;
+
+    getSignaturesForCompressedAccount(
+        hash: BN254,
+    ): Promise<SignatureWithMetadata[]>;
+
+    getCompressedTransaction(
+        signature: string,
+    ): Promise<CompressedTransaction | null>;
+
+    getSignaturesForAddress3(
+        address: PublicKey,
+    ): Promise<SignatureWithMetadata[]>;
+
+    getSignaturesForOwner(owner: PublicKey): Promise<SignatureWithMetadata[]>;
+
+    getSignaturesForTokenOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]>;
+
+    /** Retrieve health status of the node */
+    getHealth(): Promise<string>;
+
+    /** Retrieve the current slot */
+    getSlot(): Promise<number>;
+    /** Receive validity Proof for n compressed accounts */
+    getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
 }
