@@ -85,6 +85,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         [propertyToCheck]: ownerOrDelegate.toBase58(),
         mint: options.mint.toBase58(),
     });
+
     const res = create(
         unsafeRes,
         jsonRpcResultAndContext(CompressedTokenAccountsByOwnerOrDelegateResult),

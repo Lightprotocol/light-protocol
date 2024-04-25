@@ -190,6 +190,10 @@ export async function getCompressedTokenAccountsByOwnerTest(
 
     const compressedTokenAccounts = await getCompressedTokenAccounts(events);
 
+    console.log(
+        'test-rpc, getCompressedTokenAccountsByOwnerOrDelegate, unsafeRes',
+        JSON.stringify(compressedTokenAccounts),
+    );
     return compressedTokenAccounts.filter(
         acc => acc.parsed.owner.equals(owner) && acc.parsed.mint.equals(mint),
     );

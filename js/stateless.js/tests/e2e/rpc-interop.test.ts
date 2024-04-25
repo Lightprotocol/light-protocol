@@ -18,14 +18,16 @@ describe('rpc-interop', () => {
         testRpc = await getTestRpc();
 
         /// These are constant test accounts in between test runs
-        payer = await newAccountWithLamports(rpc, 10e9, 112);
-        bob = await newAccountWithLamports(rpc, 10e9, 113);
+        payer = await newAccountWithLamports(rpc, 10e9, 256);
+        bob = await newAccountWithLamports(rpc, 10e9, 256);
 
         await compress(rpc, payer, 1e9, payer.publicKey);
     });
 
     const transferAmount = 1e4;
     const numberOfTransfers = 10;
+    let executedTxs = 1;
+
     /// FIXME: Photon returns inconsistent root / rootSeq
     it.skip('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
         for (let round = 0; round < numberOfTransfers; round++) {
@@ -79,6 +81,7 @@ describe('rpc-interop', () => {
             /// class which fetches all events anew.
 
             await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
+            executedTxs++;
 
             const postSenderAccs = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
@@ -202,32 +205,37 @@ describe('rpc-interop', () => {
         });
     });
 
-    it.skip('getSignaturesForCompressedAccount should match', async () => {
+    it('[test-rpc missing] getSignaturesForCompressedAccount should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
         const signatures = await rpc.getSignaturesForCompressedAccount(
             bn(senderAccounts[0].hash),
         );
-        const signaturesTest = await testRpc.getSignaturesForCompressedAccount(
-            bn(senderAccounts[0].hash),
-        );
-        assert.equal(signatures.length, signaturesTest.length);
+
+        assert.equal(signatures.length, 1);
     });
 
-    it.skip('getSignaturesForOwner should match', async () => {
+    it('[test-rpc missing] getSignaturesForOwner should match', async () => {
         const signatures = await rpc.getSignaturesForOwner(payer.publicKey);
-        const signaturesTest = await testRpc.getSignaturesForOwner(
-            payer.publicKey,
+        console.log(
+            '@getSignaturesForOwner signatures',
+            JSON.stringify(signatures),
         );
-        assert.equal(signatures.length, signaturesTest.length);
-        assert.isTrue(
-            signatures.every(
-                (sig, index) =>
-                    sig.signature === signaturesTest[index].signature,
-            ),
-        );
+        assert.equal(signatures.length, executedTxs + 1);
     });
 
     /// TODO: add getCompressedTransaction, getSignaturesForAddress3
+    it.skip('[test-rpc missing] getCompressedTransaction should match', async () => {
+        const signatures = await rpc.getSignaturesForOwner(payer.publicKey);
+
+        const compressedTx = await rpc.getCompressedTransaction(
+            signatures[0].signature,
+        );
+
+        console.log('compressedTx', JSON.stringify(compressedTx));
+        /// is compress
+        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 0);
+        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 1);
+    });
 });
