@@ -96,7 +96,6 @@ export type CompressedTokenInstructionDataTransfer = {
     inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
     outputStateMerkleTreeAccountIndices: Buffer;
-    pubkeyArray: PublicKey[];
     isCompress: boolean;
     compressionAmount: BN | null;
 };

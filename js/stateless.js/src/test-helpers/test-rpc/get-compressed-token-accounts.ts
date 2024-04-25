@@ -108,7 +108,6 @@ async function parseEventWithTokenTlvData(
                 nullifierQueue:
                     // FIXME: fix make dynamic
                     defaultTestStateTreeAccounts().nullifierQueue,
-                // pubkeyArray[event.outputStateMerkleTreeAccountIndices[i]],
                 hash: outputHashes[i],
                 leafIndex: event.outputLeafIndices[i],
             };
