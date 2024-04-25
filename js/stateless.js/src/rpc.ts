@@ -43,7 +43,7 @@ import {
     proofFromJsonStruct,
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
-import { getTestRpc } from './test-helpers/test-rpc/test-rpc';
+
 import { getParsedEvents } from './test-helpers/test-rpc/get-parsed-events';
 
 export function createRpc(
@@ -239,7 +239,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     async getMultipleCompressedAccounts(
         hashes: BN254[],
-    ): Promise<CompressedAccountWithMerkleContext[] | null> {
+    ): Promise<CompressedAccountWithMerkleContext[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getMultipleCompressedAccounts',
@@ -256,7 +256,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
         if (res.result.value === null) {
-            return null;
+            throw new Error(
+                `failed to get info for compressed accounts ${hashes.map(hash => encodeBN254toBase58(hash)).join(', ')}`,
+            );
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
         res.result.value.items.map((item: any) => {

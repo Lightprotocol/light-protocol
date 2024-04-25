@@ -2,19 +2,18 @@ import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
 import { defaultTestStateTreeAccounts } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { Rpc, createRpc } from '../../src/rpc';
 import { compress, decompress } from '../../src/actions';
 import {
     bn,
     CompressedAccountWithMerkleContext,
     encodeBN254toBase58,
 } from '../../src/state';
-import { getTestRpc } from '../../src/test-helpers';
+import { TestRpc, getTestRpc } from '../../src/test-helpers';
 
 /// TODO: add test case for payer != address
-describe('rpc / photon', () => {
+describe('test-rpc', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
-    let rpc: Rpc;
+    let rpc: TestRpc;
     let payer: Signer;
 
     let preCompressBalance: number;

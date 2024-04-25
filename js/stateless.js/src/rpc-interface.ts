@@ -28,7 +28,6 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
-
 export interface HexInputsForProver {
     roots: string[];
     inPathIndices: number[];
@@ -293,17 +292,17 @@ export interface CompressionApiInterface {
     /** Retrieve compressed account by hash or address */
     getMultipleCompressedAccounts(
         hashes: BN254[],
-    ): Promise<CompressedAccountWithMerkleContext[] | null>;
+    ): Promise<CompressedAccountWithMerkleContext[]>;
 
     /** Retrieve multiple merkle proofs for compressed accounts */
     getMultipleCompressedAccountProofs(
         hashes: BN254[],
-    ): Promise<MerkleContextWithMerkleProof[] | null>;
+    ): Promise<MerkleContextWithMerkleProof[]>;
 
     /** Retrieve compressed accounts by owner */
     getCompressedAccountsByOwner(
         owner: PublicKey,
-    ): Promise<CompressedAccountWithMerkleContext[] | null>;
+    ): Promise<CompressedAccountWithMerkleContext[]>;
 
     /** Receive validity Proof for n compressed accounts */
     getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
