@@ -25,7 +25,7 @@ describe('rpc-interop', () => {
     });
 
     const transferAmount = 1e4;
-    const numberOfTransfers = 1;
+    const numberOfTransfers = 3;
     let executedTxs = 1;
 
     /// FIXME: Photon returns inconsistent root / rootSeq
@@ -215,6 +215,7 @@ describe('rpc-interop', () => {
 
         console.log('signatures', JSON.stringify(signatures));
 
+        /// Update this value you change the number of transfers in the first test
         assert.equal(signatures.length, 2);
     });
 
@@ -235,7 +236,6 @@ describe('rpc-interop', () => {
             signatures[0].signature,
         );
 
-        console.log('compressedTx', JSON.stringify(compressedTx));
         /// is compress
         assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 0);
         assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 1);
