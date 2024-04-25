@@ -12,7 +12,7 @@ describe('rpc-interop', () => {
     let rpc: Rpc;
     /// Mock rpc
     let testRpc: TestRpc;
-
+    let executedTxs = 0;
     beforeAll(async () => {
         rpc = createRpc();
         testRpc = await getTestRpc();
@@ -22,11 +22,11 @@ describe('rpc-interop', () => {
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
         await compress(rpc, payer, 1e9, payer.publicKey);
+        executedTxs++;
     });
 
     const transferAmount = 1e4;
     const numberOfTransfers = 3;
-    let executedTxs = 1;
 
     /// FIXME: Photon returns inconsistent root / rootSeq
     it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
@@ -82,7 +82,6 @@ describe('rpc-interop', () => {
 
             await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
             executedTxs++;
-
             const postSenderAccs = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
             );
@@ -177,6 +176,7 @@ describe('rpc-interop', () => {
     it('getMultipleCompressedAccounts should match', async () => {
         /// Emit another compressed account
         await compress(rpc, payer, 1e9, payer.publicKey);
+        executedTxs++;
 
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -215,7 +215,7 @@ describe('rpc-interop', () => {
 
         console.log('signatures', JSON.stringify(signatures));
 
-        /// Update this value you change the number of transfers in the first test
+        /// 1 spent account, so always 2 signatures.
         assert.equal(signatures.length, 2);
     });
 
@@ -225,7 +225,7 @@ describe('rpc-interop', () => {
             '@getSignaturesForOwner signatures',
             JSON.stringify(signatures),
         );
-        assert.equal(signatures.length, executedTxs + 1);
+        assert.equal(signatures.length, executedTxs);
     });
 
     /// TODO: add getCompressedTransaction, getSignaturesForAddress3
