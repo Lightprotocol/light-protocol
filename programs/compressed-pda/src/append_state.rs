@@ -43,7 +43,12 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         }
         // Address has to be created or a compressed account with this address has to be provided as transaction input.
         if let Some(address) = inputs.output_compressed_accounts[j].address {
-            if let Some(position) = addresses.iter().position(|&x| x.unwrap() == address) {
+            msg!("addresses {:?}", addresses);
+            if let Some(position) = addresses
+                .iter()
+                .filter(|x| x.is_some())
+                .position(|&x| x.unwrap() == address)
+            {
                 addresses.remove(position);
             } else {
                 msg!("Address {:?}, has not been created and no compressed account with this address was provided as transaction input", address);
@@ -82,9 +87,10 @@ pub fn append_leaves_cpi<'a, 'b>(
     out_merkle_trees_account_infos: Vec<AccountInfo<'a>>,
     leaves: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let (seed, bump) = get_seeds(program_id, &authority.key())?;
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
 
     let accounts = account_compression::cpi::accounts::AppendLeaves {
         authority: authority.to_account_info(),
@@ -97,13 +103,4 @@ pub fn append_leaves_cpi<'a, 'b>(
     cpi_ctx.remaining_accounts = out_merkle_trees_account_infos;
     account_compression::cpi::append_leaves_to_merkle_trees(cpi_ctx, leaves)?;
     Ok(())
-}
-
-#[inline(never)]
-pub fn get_seeds<'a>(program_id: &'a Pubkey, cpi_signer: &'a Pubkey) -> Result<([u8; 32], u8)> {
-    let seed = account_compression::ID.key().to_bytes();
-    let (key, bump) =
-        Pubkey::find_program_address(&[b"cpi_authority", seed.as_slice()], program_id);
-    assert_eq!(key, *cpi_signer);
-    Ok((seed, bump))
 }

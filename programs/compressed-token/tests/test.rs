@@ -26,8 +26,8 @@ use light_compressed_token::{
 };
 use light_hasher::Poseidon;
 use light_test_utils::{
-    airdrop_lamports, create_account_instruction, create_and_send_transaction,
-    create_and_send_transaction_with_event, get_hash_set,
+    airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
+    create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
     test_env::setup_test_programs_with_accounts, AccountZeroCopy,
 };
 use num_bigint::BigInt;
@@ -37,10 +37,7 @@ use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
 };
 use solana_sdk::{
-    instruction::{Instruction, InstructionError},
-    pubkey::Pubkey,
-    signature::Keypair,
-    signer::Signer,
+    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer,
     transaction::Transaction,
 };
 use spl_token::instruction::initialize_mint;
@@ -130,9 +127,7 @@ async fn assert_create_mint(
 
 #[tokio::test]
 async fn test_create_mint() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, _) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let rent = context
@@ -173,9 +168,7 @@ async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -
 
 #[tokio::test]
 async fn test_mint_to() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -227,9 +220,7 @@ async fn test_mint_to() {
 
 #[tokio::test]
 async fn test_transfer() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -370,9 +361,7 @@ async fn test_transfer() {
 
 #[tokio::test]
 async fn test_decompression() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -563,9 +552,7 @@ async fn test_decompression() {
 /// 5. Invalid delegated amount
 #[tokio::test]
 async fn test_invalid_inputs() {
-    let env: light_test_utils::test_env::EnvWithAccounts =
-        setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -656,14 +643,7 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
-
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
     let transfer_recipient_out_compressed_account_0 = TokenTransferOutputData {
         amount: 1000 - 1,
         owner: transfer_recipient_keypair.pubkey(),
@@ -683,13 +663,8 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::SumCheckFailed.into())
-        ))
-    );
+
+    assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
 
     let zero_amount = TokenTransferOutputData {
         amount: 0,
@@ -710,13 +685,8 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::SumCheckFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
+
     let double_amount = TokenTransferOutputData {
         amount: input_compressed_account_token_data.amount,
         owner: transfer_recipient_keypair.pubkey(),
@@ -736,13 +706,8 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
+
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
     let invalid_lamports_amount = TokenTransferOutputData {
         amount: 1000,
@@ -764,16 +729,11 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ComputeOutputSumFailed.into()
-            )
-        ))
-    );
+    assert_custom_error_or_program_error(
+        res,
+        light_compressed_pda::ErrorCode::ComputeOutputSumFailed.into(),
+    )
+    .unwrap();
 
     let mut input_compressed_account_token_data_invalid_amount =
         mock_indexer.token_compressed_accounts[0].token_data;
@@ -816,14 +776,8 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
@@ -852,17 +806,11 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
-        ))
-    );
-
+    assert_custom_error_or_program_error(
+        res,
+        light_compressed_pda::ErrorCode::ProofVerificationFailed.into(),
+    )
+    .unwrap();
     let input_compressed_accounts = vec![mock_indexer.compressed_accounts
         [mock_indexer.token_compressed_accounts[0].index]
         .clone()];
@@ -879,17 +827,11 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
-        ))
-    );
-
+    assert_custom_error_or_program_error(
+        res,
+        light_compressed_pda::ErrorCode::ProofVerificationFailed.into(),
+    )
+    .unwrap();
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.is_native = Some(0);
@@ -918,15 +860,11 @@ async fn test_invalid_inputs() {
     .await
     .unwrap();
 
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
-        ))
-    );
+    assert_custom_error_or_program_error(
+        res,
+        light_compressed_pda::ErrorCode::ProofVerificationFailed.into(),
+    )
+    .unwrap();
 
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
@@ -955,14 +893,7 @@ async fn test_invalid_inputs() {
     )
     .await
     .unwrap();
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::DelegateUndefined.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::DelegateUndefined.into()).unwrap();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1023,6 +954,7 @@ async fn create_transfer_out_utxo_test(
     )
     .await
 }
+
 pub async fn create_token_account(
     context: &mut ProgramTestContext,
     mint: &Pubkey,

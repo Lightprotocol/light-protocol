@@ -5,6 +5,8 @@ use account_compression::{
     nullifier_queue_sdk::create_initialize_nullifier_queue_instruction,
     state::AddressMerkleTreeAccount, GroupAuthority, RegisteredProgram,
 };
+#[cfg(feature = "test_indexer")]
+use anchor_lang::ToAccountMetas;
 #[cfg(feature = "light_program")]
 use anchor_lang::{system_program, InstructionData};
 use light_macros::pubkey;
@@ -63,8 +65,7 @@ pub async fn setup_test_programs(
     program_test.start_with_context().await
 }
 
-pub struct EnvWithAccounts {
-    pub context: ProgramTestContext,
+pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub governance_authority: Keypair,
@@ -73,6 +74,7 @@ pub struct EnvWithAccounts {
     pub registered_program_pda: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_queue_pubkey: Pubkey,
+    pub cpi_signature_account_pubkey: Pubkey,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -109,22 +111,29 @@ pub const ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR: [u8; 64] = [
     184, 217, 99,
 ];
 
+pub const SIGNATURE_CPI_TEST_KEYPAIR: [u8; 64] = [
+    189, 58, 29, 111, 77, 118, 218, 228, 64, 122, 227, 119, 148, 83, 245, 92, 107, 168, 153, 61,
+    221, 100, 243, 106, 228, 231, 147, 200, 195, 156, 14, 10, 162, 100, 133, 197, 231, 125, 178,
+    71, 33, 62, 223, 145, 136, 210, 160, 96, 75, 148, 143, 30, 41, 89, 205, 141, 248, 204, 48, 157,
+    195, 216, 81, 204,
+];
+
 /// Setup test programs with accounts
 /// deploys:
 /// 1. light program
 /// 2. account_compression program
-/// 3. psp_compressed_token program
-/// 4. psp_compressed_pda program
+/// 3. light_compressed_token program
+/// 4. light_compressed_pda program
 ///
 /// Sets up the following accounts:
 /// 5. creates and initializes governance authority
 /// 6. creates and initializes group authority
-/// 7. registers the psp_compressed_pda program with the group authority
+/// 7. registers the light_compressed_pda program with the group authority
 /// 8. initializes Merkle tree owned by
 #[cfg(feature = "light_program")]
 pub async fn setup_test_programs_with_accounts(
     additional_programs: Option<Vec<(String, Pubkey)>>,
-) -> EnvWithAccounts {
+) -> (ProgramTestContext, EnvAccounts) {
     use crate::airdrop_lamports;
 
     let mut context = setup_test_programs(additional_programs).await;
@@ -238,18 +247,23 @@ pub async fn setup_test_programs_with_accounts(
         &address_merkle_tree_keypair.pubkey(),
     )
     .await;
-
-    EnvWithAccounts {
+    let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
+    #[cfg(feature = "test_indexer")]
+    init_cpi_signature_account(&mut context, &merkle_tree_pubkey, &cpi_signature_keypair).await;
+    (
         context,
-        merkle_tree_pubkey,
-        nullifier_queue_pubkey,
-        group_pda,
-        governance_authority: payer,
-        governance_authority_pda: authority_pda.0,
-        registered_program_pda,
-        address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
-        address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
-    }
+        EnvAccounts {
+            merkle_tree_pubkey,
+            nullifier_queue_pubkey,
+            group_pda,
+            governance_authority: payer,
+            governance_authority_pda: authority_pda.0,
+            registered_program_pda,
+            address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
+            address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
+            cpi_signature_account_pubkey: cpi_signature_keypair.pubkey(),
+        },
+    )
 }
 
 #[cfg(feature = "light_program")]
@@ -400,4 +414,47 @@ pub async fn create_and_initialize_address_merkle_tree(
         context.last_blockhash,
     );
     context.banks_client.process_transaction(transaction).await
+}
+
+#[cfg(feature = "test_indexer")]
+pub async fn init_cpi_signature_account(
+    context: &mut ProgramTestContext,
+    merkle_tree_pubkey: &Pubkey,
+    cpi_account_keypair: &Keypair,
+) -> Pubkey {
+    let payer = context.payer.insecure_clone();
+    let account_size: usize = 20 * 1024 + 8;
+    let account_create_ix = create_account_instruction(
+        &context.payer.pubkey(),
+        account_size,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(account_size),
+        &light_compressed_pda::ID,
+        Some(cpi_account_keypair),
+    );
+    let data = light_compressed_pda::instruction::InitCpiSignatureAccount {};
+    let accounts = light_compressed_pda::accounts::InitializeCpiSignatureAccount {
+        fee_payer: payer.insecure_clone().pubkey(),
+        cpi_signature_account: cpi_account_keypair.pubkey(),
+        system_program: system_program::ID,
+        associated_merkle_tree: *merkle_tree_pubkey,
+    };
+    let instruction = Instruction {
+        program_id: light_compressed_pda::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: data.data(),
+    };
+    create_and_send_transaction(
+        context,
+        &[account_create_ix, instruction],
+        &payer.pubkey(),
+        &[&payer, &cpi_account_keypair],
+    )
+    .await
+    .unwrap();
+    cpi_account_keypair.pubkey()
 }

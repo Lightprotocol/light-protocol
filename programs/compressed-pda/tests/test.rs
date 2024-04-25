@@ -30,8 +30,9 @@ use light_compressed_pda::{
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
-    create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
-    test_env::{setup_test_programs_with_accounts, EnvWithAccounts},
+    assert_custom_error_or_program_error, create_and_send_transaction,
+    create_and_send_transaction_with_event, get_hash_set,
+    test_env::{setup_test_programs_with_accounts, EnvAccounts},
     AccountZeroCopy,
 };
 use num_bigint::{BigInt, BigUint, ToBigUint};
@@ -52,19 +53,18 @@ use tokio::fs::write as async_write;
 // TODO: use lazy_static to spawn the server once
 
 async fn init_mock_indexer(
-    env: &EnvWithAccounts,
+    payer: &Keypair,
+    env: &EnvAccounts,
     inclusion: bool,
     non_inclusion: bool,
-    combined: bool,
 ) -> MockIndexer {
     MockIndexer::new(
         env.merkle_tree_pubkey,
         env.nullifier_queue_pubkey,
         env.address_merkle_tree_pubkey,
-        env.context.payer.insecure_clone(),
+        payer.insecure_clone(),
         inclusion,
         non_inclusion,
-        combined,
     )
     .await
 }
@@ -76,11 +76,10 @@ async fn init_mock_indexer(
 /// 4. should succeed: in compressed account inserted in (1.) and valid zkp
 #[tokio::test]
 async fn test_execute_compressed_transaction() {
-    let env: EnvWithAccounts = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
-    let mut mock_indexer = init_mock_indexer(&env, true, false, false).await;
-    let mut context = env.context;
     let payer = context.payer.insecure_clone();
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false).await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -290,12 +289,10 @@ async fn test_execute_compressed_transaction() {
 ///    testing: (input accounts, new addresses) (1, 1), (1, 2), (2, 1), (2, 2)
 #[tokio::test]
 async fn test_with_address() {
-    let env: EnvWithAccounts = setup_test_programs_with_accounts(None).await;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
-    let mut mock_indexer = init_mock_indexer(&env, true, true, false).await;
-
-    let mut context = env.context;
     let payer = context.payer.insecure_clone();
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, true).await;
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
@@ -340,13 +337,7 @@ async fn test_with_address() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::InvalidAddress.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::InvalidAddress.into()).unwrap();
 
     let event = create_addresses(
         &mut context,
@@ -456,6 +447,7 @@ async fn test_with_address() {
             TransactionError::InstructionError(0, InstructionError::Custom(6002))
         ))
     ));
+
     println!("test 2in -------------------------");
 
     let address_seed_3 = [3u8; 32];
@@ -654,8 +646,7 @@ pub async fn create_addresses(
 
 #[tokio::test]
 async fn test_with_compression() {
-    let env: EnvWithAccounts = setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
 
     let payer_pubkey = payer.pubkey();
@@ -669,7 +660,6 @@ async fn test_with_compression() {
         address_merkle_tree_pubkey,
         payer.insecure_clone(),
         true,
-        false,
         false,
     );
     let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
@@ -729,13 +719,7 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient input funds
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
         &Vec::new(),
@@ -765,13 +749,7 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient decompress amount funds
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::ComputeOutputSumFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
@@ -877,14 +855,7 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient output funds
-
-    assert_eq!(
-        res.result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(ErrorCode::SumCheckFailed.into())
-        ))
-    );
+    assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
@@ -941,19 +912,15 @@ async fn test_with_compression() {
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
-    let env = setup_test_programs_with_accounts(None).await;
-    let mut context = env.context;
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
-    // cannot move this into setup_test_programs_with_accounts because solana program test does not like deve dependencies that import the program itself
     let compressed_sol_pda = get_compressed_sol_pda();
+    let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
     let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
         fee_payer: payer.pubkey(),
         compressed_sol_pda,
         system_program: anchor_lang::solana_program::system_program::ID,
     };
-    use anchor_lang::ToAccountMetas;
-    let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
-
     let instruction = Instruction {
         program_id: light_compressed_pda::ID,
         accounts: accounts.to_account_metas(Some(true)),
@@ -1007,6 +974,8 @@ pub struct MockIndexer {
     pub address_merkle_tree:
         light_indexed_merkle_tree::reference::IndexedMerkleTree<light_hasher::Poseidon, usize>,
     pub indexing_array: IndexedArray<light_hasher::Poseidon, usize, 1000>,
+    pub path: &'static str,
+    pub proof_types: Vec<ProofType>,
 }
 
 impl MockIndexer {
@@ -1017,7 +986,6 @@ impl MockIndexer {
         payer: Keypair,
         inclusion: bool,
         non_inclusion: bool,
-        combined: bool,
     ) -> Self {
         let mut vec_proof_types = vec![];
         if inclusion {
@@ -1026,19 +994,12 @@ impl MockIndexer {
         if non_inclusion {
             vec_proof_types.push(ProofType::NonInclusion);
         }
-        if combined {
-            vec_proof_types.push(ProofType::Combined);
-        }
         if vec_proof_types.is_empty() {
             panic!("At least one proof type must be selected");
         }
-
-        spawn_gnark_server(
-            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-            true,
-            vec_proof_types.as_slice(),
-        )
-        .await;
+        let path = "../../circuit-lib/circuitlib-rs/scripts/prover.sh";
+        let proof_types = vec_proof_types;
+        spawn_gnark_server(path, true, proof_types.as_slice()).await;
 
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
@@ -1072,6 +1033,8 @@ impl MockIndexer {
             merkle_tree,
             address_merkle_tree,
             indexing_array: indexed_array,
+            path,
+            proof_types,
         }
     }
 
@@ -1122,28 +1085,36 @@ impl MockIndexer {
                     panic!("At least one of compressed_accounts or new_addresses must be provided")
                 }
             };
-
-        let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, path))
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(json_payload)
-            .send()
-            .await
-            .expect("Failed to execute request.");
-        assert!(response_result.status().is_success());
-        let body = response_result.text().await.unwrap();
-        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-        ProofRpcResult {
-            root_indices,
-            address_root_indices,
-            proof: CompressedProof {
-                a: proof_a,
-                b: proof_b,
-                c: proof_c,
-            },
+        let mut retries = 5;
+        while retries > 0 {
+            if retries < 3 {
+                spawn_gnark_server(self.path, true, self.proof_types.as_slice()).await;
+            }
+            let response_result = client
+                .post(&format!("{}{}", SERVER_ADDRESS, path))
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .body(json_payload.clone())
+                .send()
+                .await
+                .expect("Failed to execute request.");
+            if response_result.status().is_success() {
+                let body = response_result.text().await.unwrap();
+                let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+                return ProofRpcResult {
+                    root_indices,
+                    address_root_indices,
+                    proof: CompressedProof {
+                        a: proof_a,
+                        b: proof_b,
+                        c: proof_c,
+                    },
+                };
+            }
+            retries -= 1;
         }
+        panic!("Failed to get proof from server");
     }
 
     async fn process_inclusion_proofs(

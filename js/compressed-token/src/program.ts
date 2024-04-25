@@ -347,10 +347,7 @@ export class CompressedTokenProgram {
     /** @internal */
     static get deriveCpiAuthorityPda(): PublicKey {
         const [address, _] = PublicKey.findProgramAddressSync(
-            [
-                CPI_AUTHORITY_SEED,
-                defaultStaticAccountsStruct().accountCompressionProgram.toBuffer(),
-            ],
+            [CPI_AUTHORITY_SEED],
             this.programId,
         );
         return address;
@@ -421,7 +418,6 @@ export class CompressedTokenProgram {
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
         const toPubkeys = toArray(toPubkey);
-
         const ix = await this.program.methods
             .mintTo(toPubkeys, amounts)
             .accounts({
@@ -438,9 +434,9 @@ export class CompressedTokenProgram {
                     systemKeys.accountCompressionAuthority,
                 accountCompressionProgram: systemKeys.accountCompressionProgram,
                 merkleTree,
+                selfProgram: this.programId,
             })
             .instruction();
-
         return ix;
     }
 
@@ -504,7 +500,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
 
         const instruction = await this.program.methods
-            .transfer(encodedData)
+            .transfer(encodedData, null)
             .accounts({
                 feePayer: payer!,
                 authority: currentOwner!,
@@ -588,7 +584,7 @@ export class CompressedTokenProgram {
         );
 
         const instruction = await this.program.methods
-            .transfer(encodedData)
+            .transfer(encodedData, null)
             .accounts({
                 feePayer: payer,
                 authority: owner,
@@ -670,7 +666,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
 
         const instruction = await this.program.methods
-            .transfer(encodedData)
+            .transfer(encodedData, null)
             .accounts({
                 feePayer: payer,
                 authority: currentOwner,

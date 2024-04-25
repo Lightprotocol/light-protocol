@@ -123,6 +123,11 @@ export type LightCompressedToken = {
                     isMut: true;
                     isSigner: false;
                 },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
             ];
             args: [
                 {
@@ -211,6 +216,14 @@ export type LightCompressedToken = {
                     name: 'inputs';
                     type: 'bytes';
                 },
+                {
+                    name: 'cpiContext';
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext';
+                        };
+                    };
+                },
             ];
         },
     ];
@@ -226,6 +239,46 @@ export type LightCompressedToken = {
                             defined: 'CompressedAccount';
                         };
                     },
+                    {
+                        name: 'merkleTreePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'merkleTreePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nullifierQueuePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
                     {
                         name: 'merkleTreePubkeyIndex';
                         type: 'u8';
@@ -293,6 +346,32 @@ export type LightCompressedToken = {
                         type: {
                             array: ['u8', 32];
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedCpiContext';
+            docs: ['To spend multiple compressed'];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'cpiSignatureAccountIndex';
+                        docs: [
+                            'index of the output state Merkle tree that will be used to store cpi signatures',
+                            'The transaction will fail if this index is not consistent in your transaction.',
+                        ];
+                        type: 'u8';
+                    },
+                    {
+                        name: 'execute';
+                        docs: [
+                            'The final cpi of your program needs to set execute to true.',
+                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
+                            'If this is false the transaction will be stored in the cpi signature account.',
+                        ];
+                        type: 'bool';
                     },
                 ];
             };
@@ -440,6 +519,14 @@ export type LightCompressedToken = {
                     {
                         name: 'isCompress';
                         type: 'bool';
+                    },
+                    {
+                        name: 'signerSeeds';
+                        type: {
+                            option: {
+                                vec: 'bytes';
+                            };
+                        };
                     },
                 ];
             };
@@ -967,6 +1054,11 @@ export const IDL: LightCompressedToken = {
                     isMut: true,
                     isSigner: false,
                 },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
             ],
             args: [
                 {
@@ -1055,6 +1147,14 @@ export const IDL: LightCompressedToken = {
                     name: 'inputs',
                     type: 'bytes',
                 },
+                {
+                    name: 'cpiContext',
+                    type: {
+                        option: {
+                            defined: 'CompressedCpiContext',
+                        },
+                    },
+                },
             ],
         },
     ],
@@ -1070,6 +1170,46 @@ export const IDL: LightCompressedToken = {
                             defined: 'CompressedAccount',
                         },
                     },
+                    {
+                        name: 'merkleTreePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'merkleTreePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nullifierQueuePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
                     {
                         name: 'merkleTreePubkeyIndex',
                         type: 'u8',
@@ -1137,6 +1277,32 @@ export const IDL: LightCompressedToken = {
                         type: {
                             array: ['u8', 32],
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedCpiContext',
+            docs: ['To spend multiple compressed'],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'cpiSignatureAccountIndex',
+                        docs: [
+                            'index of the output state Merkle tree that will be used to store cpi signatures',
+                            'The transaction will fail if this index is not consistent in your transaction.',
+                        ],
+                        type: 'u8',
+                    },
+                    {
+                        name: 'execute',
+                        docs: [
+                            'The final cpi of your program needs to set execute to true.',
+                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
+                            'If this is false the transaction will be stored in the cpi signature account.',
+                        ],
+                        type: 'bool',
                     },
                 ],
             },
@@ -1284,6 +1450,14 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'isCompress',
                         type: 'bool',
+                    },
+                    {
+                        name: 'signerSeeds',
+                        type: {
+                            option: {
+                                vec: 'bytes',
+                            },
+                        },
                     },
                 ],
             },

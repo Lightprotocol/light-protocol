@@ -1,10 +1,7 @@
 use account_compression::AddressQueueAccount;
 use anchor_lang::prelude::*;
 
-use crate::{
-    append_state::get_seeds,
-    instructions::{InstructionDataTransfer, TransferInstruction},
-};
+use crate::instructions::{InstructionDataTransfer, TransferInstruction};
 
 pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
@@ -57,9 +54,10 @@ pub fn insert_addresses_cpi<'a, 'b>(
     address_merkle_tree_account_infos: Vec<AccountInfo<'a>>,
     addresses: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let (seed, bump) = get_seeds(program_id, &authority.key())?;
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority", seed.as_slice(), bump][..]];
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let accounts = account_compression::cpi::accounts::InsertAddresses {
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),
