@@ -49,7 +49,7 @@ export type CompressedProofWithContext = {
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-    mint?: PublicKey;
+    mint: PublicKey;
     cursor?: string;
     limit?: BN;
 }
@@ -110,7 +110,7 @@ const BNFromBase10String = coerce(instance(BN), string(), value => bn(value));
  * @internal
  */
 const Base64EncodedCompressedAccountDataResult = coerce(
-    nullable(string()),
+    string(),
     string(),
     value => (value === '' ? null : value),
 );
@@ -174,45 +174,40 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
 /**
  * @internal
  */
-/// Compressed Account With Merkle Context
 export const CompressedAccountResult = pick({
-    hash: BN254FromString,
     address: nullable(PublicKeyFromString),
-    data: Base64EncodedCompressedAccountDataResult,
-    dataHash: nullable(BN254FromString),
-    discriminator: BNFromInt,
-    owner: PublicKeyFromString,
+    hash: BN254FromString,
+    data: nullable(
+        pick({
+            data: Base64EncodedCompressedAccountDataResult,
+            dataHash: BN254FromString,
+            discriminator: BNFromInt,
+        }),
+    ),
     lamports: BNFromInt,
-    tree: nullable(PublicKeyFromString), // TODO: should not be nullable
+    owner: PublicKeyFromString,
+    leafIndex: number(),
+    tree: PublicKeyFromString,
     seq: nullable(BNFromInt),
     slotUpdated: BNFromInt,
-    leafIndex: number(),
 });
 
+export const TokenDataResult = pick({
+    mint: PublicKeyFromString,
+    owner: PublicKeyFromString,
+    amount: BNFromInt,
+    delegate: nullable(PublicKeyFromString),
+    delegatedAmount: BNFromInt,
+    isNative: nullable(BNFromInt),
+    state: string(),
+});
 /**
  * @internal
  */
-/// TODO: update: delegatedAmount, state, programOwner/tokenOwner, data includes
-/// the values?, no closeAuth!
+/// TODO: update with remaining fields as added to token program
 export const CompressedTokenAccountResult = pick({
-    address: nullable(PublicKeyFromString),
-    amount: BNFromBase10String,
-    delegate: nullable(PublicKeyFromString),
-    closeAuthority: nullable(PublicKeyFromString),
-    isNative: boolean(),
-    frozen: boolean(),
-    mint: PublicKeyFromString,
-    owner: PublicKeyFromString,
-
-    hash: BN254FromString,
-    data: Base64EncodedCompressedAccountDataResult,
-    dataHash: nullable(BN254FromString),
-    discriminator: BNFromInt,
-    lamports: BNFromInt,
-    tree: PublicKeyFromString,
-    seq: BNFromInt,
-    // slotUpdated: BNFromInt, TODO: add owner (?)
-    leafIndex: number(),
+    tokenData: TokenDataResult,
+    account: CompressedAccountResult,
 });
 
 /**
@@ -227,7 +222,7 @@ export const MultipleCompressedAccountsResult = pick({
  */
 export const CompressedAccountsByOwnerResult = pick({
     items: array(CompressedAccountResult),
-    // cursor: array(number()), // paginated
+    cursor: nullable(PublicKeyFromString),
 });
 
 /**
@@ -235,7 +230,7 @@ export const CompressedAccountsByOwnerResult = pick({
  */
 export const CompressedTokenAccountsByOwnerOrDelegateResult = pick({
     items: array(CompressedTokenAccountResult),
-    // cursor: array(number()), // paginated TODO: add cursor to photon / docs update
+    cursor: nullable(PublicKeyFromString),
 });
 
 /**
@@ -253,9 +248,10 @@ export const HealthResult = string();
  */
 export const MerkeProofResult = pick({
     hash: BN254FromString,
-    merkleTree: PublicKeyFromString,
     leafIndex: number(),
+    merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
+    rootSeq: number(),
 });
 
 /**
@@ -266,7 +262,21 @@ export const MultipleMerkleProofsResult = array(MerkeProofResult);
 /**
  * @internal
  */
-export const BalanceResult = BNFromInt;
+export const BalanceResult = pick({
+    amount: BNFromInt,
+});
+
+export const NativeBalanceResult = BNFromInt;
+
+export const TokenBalanceResult = pick({
+    balance: BNFromInt,
+    mint: PublicKeyFromString,
+});
+
+export const TokenBalanceListResult = pick({
+    tokenBalances: array(TokenBalanceResult),
+    cursor: nullable(PublicKeyFromString),
+});
 
 /// TODO: we need to add: tree, nullifierQueue, leafIndex, rootIndex
 export const AccountProofResult = pick({
@@ -275,14 +285,61 @@ export const AccountProofResult = pick({
     proof: array(array(number())),
 });
 
+export const SignatureListResult = pick({
+    items: array(
+        pick({
+            blockTime: number(),
+            signature: string(),
+            slot: number(),
+        }),
+    ),
+});
+
+export const SignatureListWithCursorResult = pick({
+    items: array(
+        pick({
+            blockTime: number(),
+            signature: string(),
+            slot: number(),
+        }),
+    ),
+    cursor: nullable(PublicKeyFromString),
+});
+
+export const CompressedTransactionResult = pick({
+    compressionInfo: pick({
+        closedAccounts: array(
+            pick({
+                account: CompressedAccountResult,
+                optionTokenData: nullable(TokenDataResult),
+            }),
+        ),
+        openedAccounts: array(
+            pick({
+                account: CompressedAccountResult,
+                optionTokenData: nullable(TokenDataResult),
+            }),
+        ),
+    }),
+    /// TODO: add transaction struct
+    /// https://github.com/solana-labs/solana/blob/27eff8408b7223bb3c4ab70523f8a8dca3ca6645/transaction-status/src/lib.rs#L1061
+    transaction: any(),
+});
+
 export interface CompressionApiInterface {
     /** Retrieve compressed account by hash or address */
     getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null>;
 
-    /** Retrieve compressed account by hash or address */
+    /**
+     * Retrieve compressed lamport balance of a compressed account by hash or
+     * address.
+     */
     getCompressedBalance(hash: BN254): Promise<BN | null>;
+
+    /** Retrieve compressed lamport balance of an owner */
+    getCompressedBalanceByOwner(owner: PublicKey): Promise<BN>;
 
     /** Retrieve merkle proof for a compressed account */
     getCompressedAccountProof(
@@ -315,12 +372,12 @@ export interface CompressionApiInterface {
 
     getCompressedTokenAccountsByOwner(
         publicKey: PublicKey,
-        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
-        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]>;
 
     getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }>;
