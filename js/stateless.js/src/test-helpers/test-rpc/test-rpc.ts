@@ -269,6 +269,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             }
         });
 
+        console.log(
+            'test-rpc merkleProofs LEN',
+            merkleProofs.map(proof => proof.merkleProof.length),
+        );
+
         return merkleProofs;
     }
 

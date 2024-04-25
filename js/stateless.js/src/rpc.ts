@@ -229,7 +229,6 @@ export const rpcRequest = async (
         const res = await response.json();
         return toCamelCase(res);
     }
-    console.log('unsafe res: ', await response.json());
     return await response.json();
 };
 
@@ -452,7 +451,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
-        /// TODO: remove this once root is returned from indexer
+        /// TODO: remove this once photon is debugged
         // const testRpc = await getTestRpc(
         //     this.rpcEndpoint,
         //     this.compressionApiEndpoint,
@@ -466,6 +465,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             'getMultipleCompressedAccountProofs',
             hashes.map(hash => encodeBN254toBase58(hash)),
         );
+        console.log('photon merkleProofs (unsafe):', JSON.stringify(unsafeRes));
 
         const res = create(
             unsafeRes,
@@ -485,26 +485,23 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
-        /// Mocks until photon returns seq.
-        // const rootIndex = await getRootSeq(this);
-
         for (const proof of res.result.value) {
+            console.log('photon proof length', proof.proof.length);
             const proofWithoutRoot: BN[] = proof.proof.slice(0, -1);
             const root = proof.proof[proof.proof.length - 1];
-            console.log('RPC MULTI ROOT:', root.toString());
+            console.log('photon proof root', root.toString());
 
             const value: MerkleContextWithMerkleProof = {
                 hash: proof.hash.toArray(undefined, 32),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proofWithoutRoot,
-                nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
+                nullifierQueue: mockNullifierQueue, // TODO: emit outputhash nullifierQueue in txevent
                 rootIndex: proof.rootSeq, // TODO: rootSeq % rootHistoryArray.length
                 root: root, // TODO: validate correct root
             };
             merkleProofs.push(value);
         }
-        /// TODO: switch back to using photon merkle proofs once fixed
         return merkleProofs;
     }
 
