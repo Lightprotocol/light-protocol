@@ -49,7 +49,7 @@ export async function initTestEnv({
     const resolvedOrNull = which.sync("photon", { nothrow: true });
     if (resolvedOrNull === null) {
       const message =
-        "Photon indexer not found. Please install it by running `cargo install photon-indexer --version 0.13.0`";
+        "Photon indexer not found. Please install it by running `cargo install photon-indexer --version 0.14.0`";
       console.log(message);
       throw new Error(message);
     } else {

@@ -8,9 +8,7 @@ import { transfer } from '../../src/actions/transfer';
 describe('rpc-interop', () => {
     let payer: Signer;
     let bob: Signer;
-    /// Photon instance
     let rpc: Rpc;
-    /// Mock rpc
     let testRpc: TestRpc;
     let executedTxs = 0;
     beforeAll(async () => {
@@ -26,9 +24,8 @@ describe('rpc-interop', () => {
     });
 
     const transferAmount = 1e4;
-    const numberOfTransfers = 3;
+    const numberOfTransfers = 15;
 
-    /// FIXME: Photon returns inconsistent root / rootSeq
     it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
         for (let round = 0; round < numberOfTransfers; round++) {
             const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
@@ -56,7 +53,6 @@ describe('rpc-interop', () => {
             const proofs = await rpc.getMultipleCompressedAccountProofs(
                 prePayerAccounts.map(account => bn(account.hash)),
             );
-            console.log('\nTransfer', round + 1, 'of', numberOfTransfers);
 
             /// compare each proof by node and root
             assert.equal(testProofs.length, proofs.length);
@@ -70,8 +66,6 @@ describe('rpc-interop', () => {
                 });
             });
 
-            console.log('PhotonProofs', JSON.stringify(proofs));
-            console.log('MockProofs', JSON.stringify(testProofs));
             assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
             /// Note: proofs.rootIndex might be divergent if either the
             /// test-validator or photon aren't caught up with the chain state
@@ -174,7 +168,6 @@ describe('rpc-interop', () => {
     });
 
     it('getMultipleCompressedAccounts should match', async () => {
-        /// Emit another compressed account
         await compress(rpc, payer, 1e9, payer.publicKey);
         executedTxs++;
 
@@ -209,22 +202,30 @@ describe('rpc-interop', () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const signatures = await rpc.getSignaturesForCompressedAccount(
+        const signaturesUnspent = await rpc.getSignaturesForCompressedAccount(
             bn(senderAccounts[0].hash),
         );
 
-        console.log('signatures', JSON.stringify(signatures));
+        /// most recent therefore unspent account
+        assert.equal(signaturesUnspent.length, 1);
+
+        /// Note: assumes largest-first selection mechanism
+        const largestAccount = senderAccounts.reduce((acc, account) =>
+            account.lamports.gt(acc.lamports) ? account : acc,
+        );
+        await transfer(rpc, payer, 1, payer, bob.publicKey);
+        executedTxs++;
+
+        const signaturesSpent = await rpc.getSignaturesForCompressedAccount(
+            bn(largestAccount.hash),
+        );
 
         /// 1 spent account, so always 2 signatures.
-        assert.equal(signatures.length, 2);
+        assert.equal(signaturesSpent.length, 2);
     });
 
     it('[test-rpc missing] getSignaturesForOwner should match', async () => {
         const signatures = await rpc.getSignaturesForOwner(payer.publicKey);
-        console.log(
-            '@getSignaturesForOwner signatures',
-            JSON.stringify(signatures),
-        );
         assert.equal(signatures.length, executedTxs);
     });
 

@@ -164,17 +164,14 @@ describe('rpc-interop token', () => {
         });
     });
 
-    /// TODO: assert congruence with test-rpc implementation
-    it('[test-rpc unused] getSignaturesForTokenOwner should match', async () => {
+    it('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
         const signatures = await rpc.getSignaturesForTokenOwner(bob.publicKey);
 
-        console.log('signatures', JSON.stringify(signatures));
         assert.equal(signatures.length, 2);
 
         const signaturesReceiver = await rpc.getSignaturesForTokenOwner(
             charlie.publicKey,
         );
-        console.log('signaturesReceiver', JSON.stringify(signaturesReceiver));
 
         assert.equal(signaturesReceiver.length, 1);
     });

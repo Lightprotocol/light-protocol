@@ -29,7 +29,7 @@ import {
 import { BN } from '@coral-xyz/anchor';
 
 export interface SignatureWithMetadata {
-    blockTime: string;
+    blockTime: number;
     signature: string;
     slot: number;
 }
@@ -304,11 +304,14 @@ export const AccountProofResult = pick({
     root: array(number()),
     proof: array(array(number())),
 });
+export const toUnixTimestamp = (blockTime: string): number => {
+    return new Date(blockTime).getTime();
+};
 
 export const SignatureListResult = pick({
     items: array(
         pick({
-            blockTime: string(), // change to unix timestamp
+            blockTime: coerce(number(), string(), toUnixTimestamp),
             signature: string(),
             slot: number(),
         }),
@@ -318,7 +321,7 @@ export const SignatureListResult = pick({
 export const SignatureListWithCursorResult = pick({
     items: array(
         pick({
-            blockTime: string(),
+            blockTime: coerce(number(), string(), toUnixTimestamp),
             signature: string(),
             slot: number(),
         }),

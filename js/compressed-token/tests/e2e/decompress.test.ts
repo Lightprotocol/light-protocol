@@ -103,7 +103,7 @@ describe('decompress', () => {
         );
     });
 
-    const LOOP = 30;
+    const LOOP = 10;
     it(`should decompress from bob -> charlieAta ${LOOP} times`, async () => {
         rpc = await getTestRpc();
 

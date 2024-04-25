@@ -386,7 +386,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        console.log('RPC MERKLEPROOF LENGTH:', res.result.value.proof.length);
         const proofWithoutRoot = res.result.value.proof.slice(0, -1);
 
         const root = res.result.value.proof[res.result.value.proof.length - 1];
@@ -445,28 +444,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
             accounts.push(account);
         });
 
-        return accounts;
+        return accounts.sort((a, b) => b.leafIndex - a.leafIndex);
     }
 
     /** Retrieve recent merkle proofs for multiple compressed accounts */
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
-        /// TODO: remove this once photon is debugged
-        // const testRpc = await getTestRpc(
-        //     this.rpcEndpoint,
-        //     this.compressionApiEndpoint,
-        //     this.proverEndpoint,
-        // );
-        // const testProofInfo =
-        //     await testRpc.getMultipleCompressedAccountProofs(hashes);
-
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getMultipleCompressedAccountProofs',
             hashes.map(hash => encodeBN254toBase58(hash)),
         );
-        console.log('photon merkleProofs (unsafe):', JSON.stringify(unsafeRes));
 
         const res = create(
             unsafeRes,
@@ -487,10 +476,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
         for (const proof of res.result.value) {
-            console.log('photon proof length', proof.proof.length);
             const proofWithoutRoot: BN[] = proof.proof.slice(0, -1);
             const root = proof.proof[proof.proof.length - 1];
-            console.log('photon proof root', root.toString());
 
             const value: MerkleContextWithMerkleProof = {
                 hash: proof.hash.toArray(undefined, 32),
@@ -549,7 +536,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             accounts.push(account);
         });
 
-        return accounts;
+        return accounts.sort((a, b) => b.leafIndex - a.leafIndex);
     }
 
     // TODO: support cursor and limit parameters
@@ -558,7 +545,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
-        return getCompressedTokenAccountsByOwnerOrDelegate(
+        return await getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             owner,
             options,
@@ -666,7 +653,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get signatures for compressed account ${hash.toString()}`,
             );
         }
-
         return res.result.value.items;
     }
 
