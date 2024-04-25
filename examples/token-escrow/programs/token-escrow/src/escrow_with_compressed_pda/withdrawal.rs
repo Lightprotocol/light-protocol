@@ -86,14 +86,6 @@ fn create_compressed_pda_data_based_on_diff(
             .hash()
             .map_err(ProgramError::from)?,
     };
-    println!(
-        "old_compressed_account_data: {:?}",
-        old_compressed_account_data.data_hash
-    );
-    println!(
-        "old_compressed_account_data: {:?}",
-        old_compressed_account_data.data_hash
-    );
     let old_compressed_account = CompressedAccount {
         owner: crate::ID,
         lamports: 0,

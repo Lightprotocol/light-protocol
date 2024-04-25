@@ -33,27 +33,27 @@ jobs:
         include:
           - program: account-compression
             sub-tests: '[
-              "cargo test-sbf -p account-compression"
+              "cargo-test-sbf -p account-compression"
             ]'
           - program: light-compressed-pda
             sub-tests: '[
-              "cargo test-sbf -p light-compressed-pda -- --test-threads=1"
+              "cargo-test-sbf -p light-compressed-pda -- --test-threads=1"
             ]'
           - program: light-registry
             sub-tests: '[
-              "cargo test-sbf -p light-registry"
+              "cargo-test-sbf -p light-registry"
             ]'
           - program: light-compressed-token
             sub-tests: '[
-              "cargo test-sbf -p light-compressed-token -- --test-threads=1"
+              "cargo-test-sbf -p light-compressed-token -- --test-threads=1"
             ]'
           - program: token-escrow
             sub-tests: '[
-              "cargo test-sbf -p token-escrow"
+              "cargo-test-sbf -p token-escrow"
             ]'
           - program: program-owned-account-test
             sub-tests: '[
-              "cargo test-sbf -p program-owned-account-test"
+              "cargo-test-sbf -p program-owned-account-test"
             ]'
 
     steps:

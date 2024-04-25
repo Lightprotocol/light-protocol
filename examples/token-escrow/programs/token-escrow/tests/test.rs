@@ -294,7 +294,6 @@ pub async fn perform_escrow_with_event(
     )
     .await?
     .unwrap();
-    println!("event: {:?}", event);
     test_indexer.add_compressed_accounts_with_token_data(event);
     Ok(())
 }
@@ -416,17 +415,6 @@ pub async fn perform_withdrawal(
     };
 
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)
-    // let transaction = Transaction::new_signed_with_payer(
-    //     &[instruction],
-    //     Some(&payer_pubkey),
-    //     &[&payer],
-    //     context.get_new_latest_blockhash().await.unwrap(),
-    // );
-    // solana_program_test::BanksClient::process_transaction_with_metadata(
-    //     &mut context.banks_client,
-    //     transaction,
-    // )
-    // .await
 }
 
 pub async fn perform_withdrawal_with_event(
@@ -454,7 +442,6 @@ pub async fn perform_withdrawal_with_event(
     )
     .await?
     .unwrap();
-    println!("event: {:?}", event);
     test_indexer.add_compressed_accounts_with_token_data(event);
     Ok(())
 }

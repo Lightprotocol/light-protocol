@@ -349,7 +349,6 @@ export class CompressedTokenProgram {
         const [address, _] = PublicKey.findProgramAddressSync(
             [
                 CPI_AUTHORITY_SEED,
-                // defaultStaticAccountsStruct().accountCompressionProgram.toBuffer(),
             ],
             this.programId,
         );

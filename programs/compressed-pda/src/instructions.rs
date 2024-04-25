@@ -35,7 +35,6 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             return Ok(());
         }
     }
-    // TODO: if execute and cpi_signature_account combine stored inputs with current inputs
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
     sum_check(
