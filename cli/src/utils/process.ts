@@ -12,7 +12,6 @@ export async function killProcessByName(processName: string) {
   }
 }
 
-
 export async function killProcessByPort(port: string) {
   await execute("lsof -t -i:3001 | xargs kill -9");
 }
