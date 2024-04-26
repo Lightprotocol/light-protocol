@@ -1,4 +1,4 @@
-name: Release
+name: Release prover binaries
 on:
   push:
     tags:
@@ -20,8 +20,9 @@ jobs:
 
       - name: Build artifacts
         run: |
+          cd gnark-prover
           for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "windows amd64"; do
-            cfg=( "$cfgstr" )
+            IFS=' ' read -r -a cfg <<< "$cfgstr"
             export GOOS="${cfg[0]}"
             export GOARCH="${cfg[1]}"
             export CGO_ENABLED=0
@@ -32,7 +33,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            prover-darwin-amd64
-            prover-darwin-arm64
-            prover-linux-amd64
-            prover-windows-amd64
+            gnark-prover/prover-darwin-amd64
+            gnark-prover/prover-darwin-arm64
+            gnark-prover/prover-linux-amd64
+            gnark-prover/prover-windows-amd64
