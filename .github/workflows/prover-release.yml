@@ -20,6 +20,7 @@ jobs:
 
       - name: Build artifacts
         run: |
+          cd gnark-prover
           for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "windows amd64"; do
             cfg=( "$cfgstr" )
             export GOOS="${cfg[0]}"
