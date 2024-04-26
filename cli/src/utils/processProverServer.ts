@@ -1,5 +1,5 @@
 import path from "path";
-import { killProcessByName, spawnBinary } from "./process";
+import { killProcessByName, killProcessByPort, spawnBinary } from "./process";
 import { LIGHT_PROVER_PROCESS_NAME } from "./constants";
 import { sleep } from "@lightprotocol/stateless.js";
 
@@ -18,6 +18,7 @@ export async function startProver(
   console.log("Kill existing prover process...");
   await killProcessByName(LIGHT_PROVER_PROCESS_NAME);
   await killProcessByName(getProverNameByArch());
+  await killProcessByPort("3001");
 
   const keysDir = path.join(__dirname, "../..", "bin", KEYS_DIR);
   const args = ["start"];

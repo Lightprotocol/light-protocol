@@ -43,6 +43,8 @@ export async function initTestEnv({
     additionalPrograms,
     skipSystemAccounts,
   });
+
+
   startTestValidator(solanaArgs);
   await sleep(10000);
   await initAccounts();
