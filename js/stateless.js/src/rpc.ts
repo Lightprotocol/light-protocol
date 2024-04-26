@@ -52,6 +52,7 @@ import {
 
 import { getParsedEvents } from './test-helpers/test-rpc/get-parsed-events';
 
+/** @internal */
 export function parseAccountData({
     discriminator,
     data,
@@ -68,7 +69,6 @@ export function parseAccountData({
     };
 }
 
-// TODO: support cursor and limit parameters
 /** @internal */
 async function getCompressedTokenAccountsByOwnerOrDelegate(
     rpc: Rpc,
@@ -189,7 +189,16 @@ function buildCompressedAccountWithMaybeTokenData(account: any): {
     return { account: compressedAccount, maybeTokenData: parsed };
 }
 
-/** @internal */
+/**
+ * Establish a Compression-compatible JSON RPC connection
+ *
+ * @param endpointOrWeb3JsConnection    endpoint to the solana cluster or
+ *                                      Connection object
+ * @param compressionApiEndpoint        Endpoint to the compression server
+ * @param proverEndpoint                Endpoint to the prover server. defaults
+ *                                      to endpoint
+ * @param connectionConfig              Optional connection config
+ */
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',
     compressionApiEndpoint: string = 'http://localhost:8784',
@@ -270,12 +279,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Establish a Compression-compatible JSON RPC connection
      *
-     * @param endpoint                  endpoint to the solana cluster (use for
-     *                                  localnet only)
-     * @param compressionApiEndpoint    Endpoint to the compression server.
-     * @param proverEndpoint            Endpoint to the prover server. defaults
-     *                                  to endpoint
-     * @param connectionConfig          Optional connection config
+     * @param endpoint                      Endpoint to the solana cluster
+     * @param compressionApiEndpoint        Endpoint to the compression server
+     * @param proverEndpoint                Endpoint to the prover server.
+     * @param connectionConfig              Optional connection config
      */
     constructor(
         endpoint: string,

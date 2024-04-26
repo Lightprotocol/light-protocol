@@ -100,15 +100,7 @@ describe('createMint', () => {
     });
 
     it('should create mint with payer as authority', async () => {
-        mint = (
-            await createMint(
-                rpc,
-                payer,
-                payer,
-                TEST_TOKEN_DECIMALS,
-                // random mint
-            )
-        ).mint;
+        mint = (await createMint(rpc, payer, payer, TEST_TOKEN_DECIMALS)).mint;
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);
 
