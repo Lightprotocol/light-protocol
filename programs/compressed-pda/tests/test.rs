@@ -984,6 +984,8 @@ async fn regenerate_accounts() {
     let pubkeys = vec![
         ("merkle_tree_pubkey", env.merkle_tree_pubkey),
         ("nullifier_queue_pubkey", env.nullifier_queue_pubkey),
+        ("merkle_tree_pubkey_2", env.merkle_tree_pubkey_2),
+        ("nullifier_queue_pubkey_2", env.nullifier_queue_pubkey_2),
         ("governance_authority_pda", env.governance_authority_pda),
         ("group_pda", env.group_pda),
         ("registered_program_pda", env.registered_program_pda),

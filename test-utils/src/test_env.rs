@@ -60,6 +60,8 @@ pub async fn setup_test_programs(
 pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
+    pub merkle_tree_pubkey_2: Pubkey,
+    pub nullifier_queue_pubkey_2: Pubkey,
     pub governance_authority: Keypair,
     pub governance_authority_pda: Pubkey,
     pub group_pda: Pubkey,
@@ -76,12 +78,28 @@ pub const MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
     207, 69, 44, 121, 118, 153, 17, 179, 183, 115, 34, 163, 127, 102, 214, 1, 87, 175, 177, 95, 49,
     65, 69,
 ];
+
 pub const NULLIFIER_QUEUE_TEST_KEYPAIR: [u8; 64] = [
     222, 130, 14, 179, 120, 234, 200, 231, 112, 214, 179, 171, 214, 95, 225, 61, 71, 61, 96, 214,
     47, 253, 213, 178, 11, 77, 16, 2, 7, 24, 106, 218, 45, 107, 25, 100, 70, 71, 137, 47, 210, 248,
     220, 223, 11, 204, 205, 89, 248, 48, 211, 168, 11, 25, 219, 158, 99, 47, 127, 248, 142, 107,
     196, 110,
 ];
+
+pub const MERKLE_TREE_TEST_KEYPAIR_2: [u8; 64] = [
+    64, 178, 176, 214, 49, 120, 2, 116, 199, 247, 117, 237, 184, 89, 48, 105, 250, 2, 54, 194, 150,
+    98, 220, 18, 173, 255, 76, 103, 29, 169, 163, 47, 36, 86, 183, 26, 49, 49, 107, 255, 72, 200,
+    217, 212, 183, 198, 143, 175, 226, 130, 217, 50, 68, 213, 38, 77, 73, 232, 227, 246, 85, 118,
+    106, 155,
+];
+
+pub const NULLIFIER_QUEUE_TEST_KEYPAIR_2: [u8; 64] = [
+    163, 60, 156, 103, 86, 229, 100, 251, 148, 240, 223, 82, 249, 168, 191, 111, 103, 25, 38, 26,
+    25, 209, 232, 185, 104, 113, 227, 215, 243, 110, 81, 192, 123, 254, 223, 113, 111, 34, 199,
+    119, 189, 132, 67, 3, 110, 23, 100, 48, 155, 25, 176, 149, 206, 229, 229, 193, 12, 163, 38, 33,
+    200, 122, 130, 182,
+];
+
 pub const PAYER_KEYPAIR: [u8; 64] = [
     17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187, 228, 110, 146,
     97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107, 2, 99, 226, 251, 88, 66, 92, 33, 25, 216,
@@ -108,6 +126,13 @@ pub const SIGNATURE_CPI_TEST_KEYPAIR: [u8; 64] = [
     221, 100, 243, 106, 228, 231, 147, 200, 195, 156, 14, 10, 162, 100, 133, 197, 231, 125, 178,
     71, 33, 62, 223, 145, 136, 210, 160, 96, 75, 148, 143, 30, 41, 89, 205, 141, 248, 204, 48, 157,
     195, 216, 81, 204,
+];
+
+pub const SIGNATURE_CPI_TEST_KEYPAIR_2: [u8; 64] = [
+    50, 248, 223, 234, 200, 59, 169, 223, 132, 47, 234, 78, 51, 116, 230, 92, 73, 85, 33, 202, 83,
+    143, 181, 236, 227, 223, 181, 164, 63, 13, 187, 221, 61, 177, 162, 228, 24, 91, 254, 80, 32, 4,
+    77, 91, 106, 148, 214, 95, 141, 76, 144, 17, 146, 230, 254, 150, 248, 63, 156, 59, 72, 168,
+    247, 229,
 ];
 
 /// Setup test programs with accounts
@@ -183,16 +208,30 @@ pub async fn setup_test_programs_with_accounts(
     )
     .await
     .unwrap();
-    let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
+    let merkle_tree_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
+
+    let merkle_tree_keypair_2 = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR_2).unwrap();
+    let merkle_tree_pubkey_2 = merkle_tree_keypair_2.pubkey();
+    let nullifier_queue_keypair_2 = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR_2).unwrap();
+    let nullifier_queue_pubkey_2 = nullifier_queue_keypair_2.pubkey();
 
     create_state_merkle_tree_and_queue_account(
         &payer,
         &mut context,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
+        None,
+    )
+    .await;
+
+    create_state_merkle_tree_and_queue_account(
+        &payer,
+        &mut context,
+        &merkle_tree_keypair_2,
+        &nullifier_queue_keypair_2,
         None,
     )
     .await;
@@ -210,14 +249,27 @@ pub async fn setup_test_programs_with_accounts(
         &address_merkle_tree_keypair,
     )
     .await;
+
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
+    let cpi_signature_keypair_2 = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR_2).unwrap();
+
     #[cfg(feature = "test_indexer")]
     init_cpi_signature_account(&mut context, &merkle_tree_pubkey, &cpi_signature_keypair).await;
+
+    #[cfg(feature = "test_indexer")]
+    init_cpi_signature_account(
+        &mut context,
+        &merkle_tree_pubkey_2,
+        &cpi_signature_keypair_2,
+    )
+    .await;
     (
         context,
         EnvAccounts {
             merkle_tree_pubkey,
             nullifier_queue_pubkey,
+            merkle_tree_pubkey_2,
+            nullifier_queue_pubkey_2,
             group_pda,
             governance_authority: payer,
             governance_authority_pda: authority_pda.0,
