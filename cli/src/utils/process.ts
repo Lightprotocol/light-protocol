@@ -12,6 +12,11 @@ export async function killProcessByName(processName: string) {
   }
 }
 
+
+export async function killProcessByPort(port: string) {
+  await execute("lsof -t -i:3001 | xargs kill -9");
+}
+
 /**
  * Executes a command and logs the output to the console.
  * @param command - Path to the command to be executed.
