@@ -17,9 +17,9 @@ use anchor_lang::AnchorDeserialize;
 use light_compressed_pda::compressed_account::MerkleContext;
 use light_compressed_pda::event::PublicTransactionEvent;
 use light_hasher::{Hasher, Poseidon};
-use light_test_utils::create_and_send_transaction_with_event;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
+use light_test_utils::{create_and_send_transaction_with_event, FeeConfig, TransactionParams};
 use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
 };
@@ -199,6 +199,13 @@ pub async fn perform_escrow_with_event(
         &[instruction],
         &payer.pubkey(),
         &[payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 3,
+            num_new_addresses: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await?;
     test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
@@ -366,6 +373,7 @@ pub async fn perform_withdrawal_with_event(
         &[instruction],
         &payer.pubkey(),
         &[payer],
+        None,
     )
     .await?;
     test_indexer.add_compressed_accounts_with_token_data(event.unwrap());

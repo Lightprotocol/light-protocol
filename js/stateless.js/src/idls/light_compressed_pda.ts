@@ -10,31 +10,6 @@ export type LightCompressedPda = {
     ];
     instructions: [
         {
-            name: 'initCompressSolPda';
-            docs: [
-                'Initializes the compressed sol pda.',
-                'This pda is used to store compressed sol for the protocol.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'compressedSolPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
             name: 'initCpiSignatureAccount';
             accounts: [
                 {
@@ -734,31 +709,6 @@ export const IDL: LightCompressedPda = {
         },
     ],
     instructions: [
-        {
-            name: 'initCompressSolPda',
-            docs: [
-                'Initializes the compressed sol pda.',
-                'This pda is used to store compressed sol for the protocol.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'compressedSolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
         {
             name: 'initCpiSignatureAccount',
             accounts: [

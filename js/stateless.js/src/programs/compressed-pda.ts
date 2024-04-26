@@ -326,25 +326,6 @@ export class LightSystemProgram {
     }
 
     /**
-     * Initialize the compressed sol pda
-     */
-    static async initCompressedSolPda(
-        feePayer: PublicKey,
-    ): Promise<TransactionInstruction> {
-        const accounts = {
-            feePayer,
-            compressedSolPda: this.deriveCompressedSolPda(),
-            systemProgram: SystemProgram.programId,
-        };
-
-        const instruction = await this.program.methods
-            .initCompressSolPda()
-            .accounts(accounts)
-            .instruction();
-        return instruction;
-    }
-
-    /**
      * Creates a transaction instruction that transfers compressed lamports from
      * one owner to another.
      */

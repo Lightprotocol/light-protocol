@@ -25,6 +25,7 @@ pub fn process_initialize_address_merkle_tree(
     tip: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
+    rent: u64,
 ) -> Result<()> {
     let mut address_merkle_tree = address_merkle_tree_loader.load_init()?;
 
@@ -37,7 +38,7 @@ pub fn process_initialize_address_merkle_tree(
 
     address_merkle_tree.rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => {
-            compute_rollover_fee(rollover_threshold, total_number_of_leaves, 0)?
+            compute_rollover_fee(rollover_threshold, total_number_of_leaves, rent)?
         }
         None => 0,
     };
@@ -104,4 +105,61 @@ fn test_compute_rollover_fee() {
 
     let fee = compute_rollover_fee(rollover_threshold, total_number_of_leaves, rent).unwrap();
     assert!((fee + 1) * (total_number_of_leaves * 100 / rollover_threshold) > rent);
+}
+
+/// Prints fees:
+/// every input compressed account incurs a nullifier queue rollover fee
+/// every output compressed account incurs a merkle tree rollover fee
+#[test]
+fn print_compute_rollover_fee() {
+    use crate::{NullifierQueueConfig, StateMerkleTreeConfig};
+    let tree_height = 26;
+    let merkle_tree_rent: u64 = 9496725120;
+    let total_number_of_leaves = 2u64.pow(tree_height);
+    let merkle_tree_config = StateMerkleTreeConfig::default();
+
+    let fee = compute_rollover_fee(
+        merkle_tree_config.rollover_threshold.unwrap(),
+        total_number_of_leaves,
+        merkle_tree_rent,
+    )
+    .unwrap();
+    println!("merkle tree config {:?}", merkle_tree_config);
+    println!("merkle tree rollover fee: {}", fee);
+    println!(
+        "merkle tree rollover fee + tip: {}",
+        fee + merkle_tree_config.tip.unwrap_or_default()
+    );
+
+    let nullifier_config = NullifierQueueConfig::default();
+    let rent = 1796849280;
+
+    let fee = compute_rollover_fee(
+        merkle_tree_config.rollover_threshold.unwrap(),
+        total_number_of_leaves,
+        rent,
+    )
+    .unwrap();
+    println!("nullifier queue config {:?}", nullifier_config);
+    println!("nullifier queue rollover fee: {}", fee);
+    println!(
+        "nullifier queue rollover fee + tip: {}",
+        fee + nullifier_config.tip.unwrap_or_default()
+    );
+    let rent_address_merkle_tree = 9496725120;
+    let rent_address_queue = 1796849280;
+    let rent = rent_address_merkle_tree + rent_address_queue;
+    let fee = compute_rollover_fee(
+        merkle_tree_config.rollover_threshold.unwrap(),
+        total_number_of_leaves,
+        rent,
+    )
+    .unwrap();
+    println!("address merkle tree config {:?}", merkle_tree_config);
+    println!("address queue config {:?}", nullifier_config);
+    println!("address queue rollover fee: {}", fee);
+    println!(
+        "address queue rollover fee + tip: {}",
+        fee + nullifier_config.tip.unwrap_or_default()
+    );
 }

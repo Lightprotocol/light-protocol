@@ -98,13 +98,6 @@ pub mod light_compressed_pda {
     };
     use super::*;
 
-    /// Initializes the compressed sol pda.
-    /// This pda is used to store compressed sol for the protocol.
-    pub fn init_compress_sol_pda(_ctx: Context<InitializeCompressedSolPda>) -> Result<()> {
-        msg!("initialized compress sol pda");
-        Ok(())
-    }
-
     pub fn init_cpi_signature_account(ctx: Context<InitializeCpiSignatureAccount>) -> Result<()> {
         // check that merkle tree is initialized
         let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;

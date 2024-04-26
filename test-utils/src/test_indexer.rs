@@ -609,6 +609,7 @@ pub async fn mint_tokens_helper(
         &[instruction],
         &payer_pubkey,
         &[&mint_authority],
+        None,
     )
     .await
     .unwrap()

@@ -215,9 +215,14 @@ pub async fn perform_create_pda_with_event(
         signer_is_program,
     )
     .await;
-    let event =
-        create_and_send_transaction_with_event(context, &[instruction], &payer_pubkey, &[payer])
-            .await?;
+    let event = create_and_send_transaction_with_event(
+        context,
+        &[instruction],
+        &payer_pubkey,
+        &[payer],
+        None,
+    )
+    .await?;
     test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
     Ok(())
 }

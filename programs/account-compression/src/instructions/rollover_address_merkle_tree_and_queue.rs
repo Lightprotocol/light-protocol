@@ -128,6 +128,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             tip,
             rollover_threshold,
             Some(close_threshold),
+            ctx.accounts.new_address_merkle_tree.get_lamports(),
         )?;
     }
     {

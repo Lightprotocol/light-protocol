@@ -40,7 +40,7 @@ impl default::Default for StateMerkleTreeConfig {
             changelog_size: STATE_MERKLE_TREE_CHANGELOG,
             roots_size: STATE_MERKLE_TREE_ROOTS,
             canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            tip: Some(1337),
+            tip: None,
             rollover_threshold: Some(95),
             close_threshold: None,
         }
@@ -87,7 +87,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         unimplemented!("Only default state roots_size supported.");
     }
     if nullifier_queue_config != NullifierQueueConfig::default() {
-        unimplemented!("Only Deafult nullifier queue config supported.");
+        unimplemented!("Only default nullifier queue config supported.");
     }
 
     process_initialize_state_merkle_tree(
@@ -103,6 +103,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         state_merkle_tree_config.tip.unwrap_or(0),
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
+        ctx.accounts.merkle_tree.get_lamports(),
     )?;
     process_initialize_nullifier_queue(
         ctx.accounts.nullifier_queue.to_account_info(),

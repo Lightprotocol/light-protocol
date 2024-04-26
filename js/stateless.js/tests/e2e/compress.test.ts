@@ -1,6 +1,10 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
-import { defaultTestStateTreeAccounts } from '../../src/constants';
+import {
+    STATE_MERKLE_TREE_ROLLOVER_FEE,
+    STATE_NULLIFIER_QUEUE_ROLLOVER_FEE,
+    defaultTestStateTreeAccounts,
+} from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import { compress, decompress } from '../../src';
@@ -42,7 +46,10 @@ describe('compress', () => {
         const postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCompressBalance,
-            preCompressBalance - compressLamportsAmount - 5000,
+            preCompressBalance -
+                compressLamportsAmount -
+                5000 -
+                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
         );
 
         /// Decompress
@@ -68,7 +75,11 @@ describe('compress', () => {
         const postDecompressBalance = await rpc.getBalance(decompressRecipient);
         assert.equal(
             postDecompressBalance,
-            postCompressBalance + decompressLamportsAmount - 5000,
+            postCompressBalance +
+                decompressLamportsAmount -
+                5000 -
+                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
+                STATE_NULLIFIER_QUEUE_ROLLOVER_FEE.toNumber(),
         );
     });
 });

@@ -29,7 +29,7 @@ use light_hasher::Poseidon;
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
     create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
-    test_env::setup_test_programs_with_accounts, AccountZeroCopy,
+    test_env::setup_test_programs_with_accounts, AccountZeroCopy, FeeConfig, TransactionParams,
 };
 use light_verifier::VerifierError;
 use num_bigint::BigInt;
@@ -202,6 +202,13 @@ async fn test_mint_to() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -254,6 +261,13 @@ async fn test_transfer() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -342,6 +356,13 @@ async fn test_transfer() {
         &[instruction],
         &payer_pubkey,
         &[&payer, &recipient_keypair],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+            num_output_compressed_accounts: 2,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -399,6 +420,13 @@ async fn test_decompression() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -478,6 +506,13 @@ async fn test_decompression() {
         &[instruction],
         &payer_pubkey,
         &[&payer, &recipient_keypair],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -525,6 +560,13 @@ async fn test_decompression() {
         &[approve_instruction, instruction],
         &payer_pubkey,
         &[&payer, &recipient_keypair],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -589,6 +631,13 @@ async fn test_invalid_inputs() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()

@@ -13,7 +13,10 @@
 use light_compressed_pda::event::PublicTransactionEvent;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
-use light_test_utils::{airdrop_lamports, create_and_send_transaction_with_event, get_account};
+use light_test_utils::{
+    airdrop_lamports, create_and_send_transaction_with_event, get_account, FeeConfig,
+    TransactionParams,
+};
 
 use light_verifier::VerifierError;
 use solana_program_test::{
@@ -74,7 +77,6 @@ async fn test_escrow_pda() {
         vec![payer.pubkey()],
     )
     .await;
-    println!("test indexer {:?}", test_indexer.compressed_accounts);
     let escrow_amount = 100u64;
     let lockup_time = 0u64;
     perform_escrow_with_event(
@@ -87,7 +89,6 @@ async fn test_escrow_pda() {
     )
     .await
     .unwrap();
-    println!("here");
     assert_escrow(
         &mut context,
         &test_indexer,
@@ -284,11 +285,20 @@ pub async fn perform_escrow_with_event(
         lock_up_time,
     )
     .await;
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let rent = rent.minimum_balance(16);
     let event = create_and_send_transaction_with_event::<PublicTransactionEvent>(
         context,
         &[instruction],
         &payer.pubkey(),
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 2,
+            num_new_addresses: 0,
+            compress: rent as i64,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await?
     .unwrap();
@@ -437,6 +447,7 @@ pub async fn perform_withdrawal_with_event(
         &[instruction],
         &payer.pubkey(),
         &[&payer],
+        None,
     )
     .await?
     .unwrap();

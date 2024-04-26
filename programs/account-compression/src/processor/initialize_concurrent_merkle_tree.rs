@@ -28,6 +28,7 @@ pub fn process_initialize_state_merkle_tree(
     tip: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
+    rent: u64,
 ) -> Result<()> {
     // Initialize new Merkle trees.
     let mut merkle_tree = merkle_tree_account_loader.load_init()?;
@@ -40,7 +41,7 @@ pub fn process_initialize_state_merkle_tree(
     let total_number_of_leaves = 2u64.pow(*height);
     merkle_tree.rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => {
-            compute_rollover_fee(rollover_threshold, total_number_of_leaves, 0)?
+            compute_rollover_fee(rollover_threshold, total_number_of_leaves, rent)?
         }
         None => 0,
     };

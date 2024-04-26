@@ -132,6 +132,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             tip,
             rollover_threshold,
             Some(close_threshold),
+            ctx.accounts.new_state_merkle_tree.get_lamports(),
         )?;
     }
     {

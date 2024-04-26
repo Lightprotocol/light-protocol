@@ -81,7 +81,8 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
             if queue_bundle.merkle_tree.key() != address_queue.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            lamports = address_queue.tip + address_queue.rollover_fee;
+            lamports =
+                address_queue.tip + address_queue.rollover_fee * queue_bundle.elements.len() as u64;
             drop(address_queue);
         }
 

@@ -77,9 +77,10 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
         let lamports: u64;
         {
             let mut merkle_tree = merkle_tree_account.load_mut()?;
-            lamports = merkle_tree.tip + merkle_tree.rollover_fee;
+            lamports = merkle_tree.tip + merkle_tree.rollover_fee * leaves.len() as u64;
             check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(&ctx, &merkle_tree)?;
-
+            msg!("merkle_tree.tip {:?}", merkle_tree.tip);
+            msg!("merkle_tree.rollover_fee {:?}", merkle_tree.rollover_fee);
             msg!("inserting leaves: {:?}", leaves);
             let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
             let (first_changelog_index, first_sequence_number) = merkle_tree
@@ -95,6 +96,8 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
                 .map_err(ProgramError::from)?;
             changelog_events.push(changelog_event);
         }
+
+        msg!("transferring rollover fee: {}", lamports);
         if lamports > 0 {
             transfer_lamports_cpi(
                 &ctx.accounts.fee_payer,
@@ -120,6 +123,8 @@ pub fn transfer_lamports<'info>(
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
+    msg!("transfer_lamports from {:?} to {:?}", from.key, to.key);
+    msg!("transfer_lamports lamports {:?}", lamports);
     let compressed_sol_pda_lamports = from.as_ref().lamports();
 
     **from.as_ref().try_borrow_mut_lamports()? =
@@ -134,6 +139,8 @@ pub fn transfer_lamports_cpi<'info>(
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
+    msg!("transfer_lamports from {:?} to {:?}", from.key, to.key);
+    msg!("transfer_lamports lamports {:?}", lamports);
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;

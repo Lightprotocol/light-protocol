@@ -22,7 +22,7 @@ use crate::{
         fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts, signer_check,
         sum_check, verify_state_proof, write_access_check,
     },
-    CompressedSolPda, ErrorCode,
+    ErrorCode,
 };
 
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
@@ -109,6 +109,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
             &compressed_verifier_proof,
         )?;
     }
+
     // insert nullifies (input compressed account hashes)---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
@@ -188,8 +189,11 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,
     pub invoking_program: Option<UncheckedAccount<'info>>,
-    #[account(mut)]
-    pub compressed_sol_pda: Option<Account<'info, CompressedSolPda>>,
+    #[account(
+        mut,
+        seeds = [crate::COMPRESSED_SOL_PDA_SEED], bump
+    )]
+    pub compressed_sol_pda: Option<UncheckedAccount<'info>>,
     #[account(mut)]
     pub compression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
