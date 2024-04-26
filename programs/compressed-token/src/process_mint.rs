@@ -8,7 +8,7 @@ use light_compressed_pda::{
 };
 use light_hasher::DataHasher;
 
-use crate::{AccountState, TokenData};
+use crate::{AccountState, InputTokenDataWithContext, TokenData};
 pub const POOL_SEED: &[u8] = b"pool";
 pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority_pda";
 
@@ -67,7 +67,8 @@ pub fn process_mint_to<'info>(
         + amounts.len();
     msg!("inputs len: {}", inputs_len);
 
-    let mut inputs = Vec::<u8>::with_capacity(inputs_len);
+    // move to cpi function?
+    // let inputs = Vec::<u8>::with_capacity(inputs_len);
 
     #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR
@@ -92,10 +93,10 @@ pub fn process_mint_to<'info>(
     
     cpi_execute_compressed_transaction_mint_to(
         &ctx,
-        &output_compressed_accounts,
+        output_compressed_accounts,
         #[cfg(target_os = "solana")]
         pre_compressed_acounts_pos,
-        &mut inputs,
+        inputs_len,
     )?;
     Ok(())
 }
@@ -160,17 +161,18 @@ pub fn create_output_compressed_accounts(
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    output_compressed_accounts: &[CompressedAccount],
+    output_compressed_accounts: Vec<CompressedAccount>,
     #[cfg(target_os = "solana")]
     pre_compressed_acounts_pos: usize,
-    instruction_data_vec: &mut Vec<u8>,
+    // mut instruction_data_vec: Vec<u8>,
+    inputs_len: usize,
 ) -> Result<()> {
     #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR.log_total_heap("cpi: before output_compressed_accounts_vec");
-    let mut output_compressed_accounts_vec = Vec::with_capacity(output_compressed_accounts.len());
+    // let mut output_compressed_accounts_vec = Vec::with_capacity(output_compressed_accounts.len());
     #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR.log_total_heap("cpi: after output_compressed_accounts_vec");
-    output_compressed_accounts_vec.extend_from_slice(output_compressed_accounts);
+    // output_compressed_accounts_vec.extend_from_slice(output_compressed_accounts);
     #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR
         .log_total_heap("cpi: output_compressed_accounts_vec.extend_from_slice");
@@ -189,10 +191,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     //     compression_lamports: None,
     //     is_compress: false,
     // };
-
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before inputs serialization");
-
     
     #[cfg(target_os = "solana")]
     light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
@@ -213,19 +211,30 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         bump,
     ];
 
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before inputs");
+
+    let outputs_len = output_compressed_accounts.len();
     let inputs_struct = InstructionDataTransfer {
         relay_fee: None,
-        input_compressed_accounts_with_merkle_context: Vec::new(),
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
-        output_state_merkle_tree_account_indices: vec![0u8; output_compressed_accounts.len()],
-        input_root_indices: Vec::new(),
+        input_compressed_accounts_with_merkle_context: vec![],
+        output_compressed_accounts,
+        output_state_merkle_tree_account_indices: vec![0u8; outputs_len],
+        input_root_indices: vec![],
         proof: None,
-        new_address_params: Vec::new(),
+        new_address_params: vec![],
         compression_lamports: None,
         is_compress: false,
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
     };
-    InstructionDataTransfer::serialize(&inputs_struct, instruction_data_vec).unwrap();
+
+    
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before inputs serialization");
+
+    // let mut instruction_data_vec = Vec::new();
+    // inputs_struct.serialize(&mut instruction_data_vec).unwrap();
+     let instruction_data_vec = inputs_struct.try_to_vec()?;
 
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {

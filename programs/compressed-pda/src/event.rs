@@ -150,11 +150,11 @@ where
 
 #[inline(never)]
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
+    inputs: InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    input_compressed_account_hashes: &'a Vec<[u8; 32]>,
-    output_compressed_account_hashes: &'a Vec<[u8; 32]>,
-    output_leaf_indices: &'a Vec<u32>,
+    input_compressed_account_hashes: Vec<[u8; 32]>,
+    output_compressed_account_hashes: Vec<[u8; 32]>,
+    output_leaf_indices: Vec<u32>,
 ) -> Result<()> {
     let total_len = input_compressed_account_hashes.len() * mem::size_of::<[u8; 32]>()
         + output_compressed_account_hashes.len() * mem::size_of::<[u8; 32]>()
@@ -164,28 +164,42 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
         + inputs.output_compressed_accounts.len() * mem::size_of::<CompressedAccount>()
         + inputs.output_state_merkle_tree_account_indices.len() * mem::size_of::<u8>()
         + ctx.remaining_accounts.len() * mem::size_of::<Pubkey>();
-    let is_compress = false;
+    // let is_compress = false;
     msg!("total size {}", total_len);
     let mut vec = Vec::with_capacity(total_len);
-    #[cfg(target_os = "solana")]
-    let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
+    // #[cfg(target_os = "solana")]
+    // let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
     // TODO: add compression lamports
-    man_serialize(
-        &mut vec,
+    // man_serialize(
+    //     &mut vec,
+    //     input_compressed_account_hashes,
+    //     output_compressed_account_hashes,
+    //     &inputs.output_compressed_accounts,
+    //     &inputs.output_state_merkle_tree_account_indices,
+    //     output_leaf_indices,
+    //     &inputs.relay_fee,
+    //     is_compress,
+    //     &None,
+    //     &ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
+    //     &None,
+    // )?;
+
+    let event = PublicTransactionEvent {
         input_compressed_account_hashes,
         output_compressed_account_hashes,
-        &inputs.output_compressed_accounts,
-        &inputs.output_state_merkle_tree_account_indices,
+        output_compressed_accounts: inputs.output_compressed_accounts,
+        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
         output_leaf_indices,
-        &inputs.relay_fee,
-        is_compress,
-        &None,
-        &ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
-        &None,
-    )?;
+        relay_fee: inputs.relay_fee,
+        pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
+        compression_lamports: None,
+        message: None,
+        is_compress: false,
+    };
+    event.serialize(&mut vec)?;
 
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
+    // #[cfg(target_os = "solana")]
+    // light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
 
     if ctx.accounts.noop_program.key()
         != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
@@ -207,10 +221,13 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
 #[cfg(test)]
 pub mod test {
     use super::*;
+
     use rand::{
         distributions::{Distribution, Standard},
         Rng,
     };
+
+    use crate::compressed_account::CompressedAccountData;
 
     #[test]
     fn test_manual_vs_borsh_serialization() {

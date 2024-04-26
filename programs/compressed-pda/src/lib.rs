@@ -135,16 +135,10 @@ pub mod light_compressed_pda {
         cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
         // TODO: remove manual deserialization
-        let mut inputs: InstructionDataTransfer =
+        let inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         inputs.check_input_lengths()?;
-        match process_execute_compressed_transaction(&mut inputs, ctx, cpi_context) {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                msg!("inputs: {:?}", inputs);
-                Err(e)
-            }
-        }
+        process_execute_compressed_transaction(inputs, ctx, cpi_context)
     }
 
     // /// This function can be used to transfer sol and execute any other compressed transaction.

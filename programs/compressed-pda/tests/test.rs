@@ -962,14 +962,14 @@ async fn regenerate_accounts() {
 }
 
 #[derive(Debug)]
-pub struct MockIndexer {
+pub struct MockIndexer<'a> {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub payer: Keypair,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
-    pub events: Vec<PublicTransactionEvent>,
+    pub events: Vec<PublicTransactionEvent<'a>>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
     pub address_merkle_tree:
         light_indexed_merkle_tree::reference::IndexedMerkleTree<light_hasher::Poseidon, usize>,

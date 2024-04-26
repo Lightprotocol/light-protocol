@@ -6,7 +6,7 @@ use light_compressed_pda::{
     },
     compressed_cpi::CompressedCpiContext,
     utils::CompressedProof,
-    InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
+    InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer, NewAddressParamsPacked,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
@@ -86,7 +86,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         &ctx,
         compressed_input_accounts,
         inputs.root_indices,
-        &output_compressed_accounts,
+        output_compressed_accounts,
         inputs.output_state_merkle_tree_account_indices,
         inputs.proof,
         cpi_context,
@@ -120,7 +120,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
     input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
     input_root_indices: Vec<u16>,
-    output_compressed_accounts: &[CompressedAccount],
+    output_compressed_accounts: Vec<CompressedAccount>,
     output_state_merkle_tree_account_indices: Vec<u8>,
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
@@ -142,11 +142,11 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let inputs_struct = LightCompressedPdaInstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
+        output_compressed_accounts,
         input_root_indices,
         output_state_merkle_tree_account_indices,
         proof,
-        new_address_params: Vec::new(),
+        new_address_params: vec![],
         compression_lamports: None,
         is_compress: false,
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
