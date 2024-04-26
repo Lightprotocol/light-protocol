@@ -10,31 +10,6 @@ export type LightCompressedPda = {
     ];
     instructions: [
         {
-            name: 'initCompressSolPda';
-            docs: [
-                'Initializes the compressed sol pda.',
-                'This pda is used to store compressed sol for the protocol.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'compressedSolPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
             name: 'initCpiSignatureAccount';
             accounts: [
                 {
@@ -69,7 +44,12 @@ export type LightCompressedPda = {
             ];
             accounts: [
                 {
-                    name: 'signer';
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
                     isMut: false;
                     isSigner: true;
                 },
@@ -121,7 +101,6 @@ export type LightCompressedPda = {
                     name: 'systemProgram';
                     isMut: false;
                     isSigner: false;
-                    isOptional: true;
                 },
             ];
             args: [
@@ -405,6 +384,32 @@ export type LightCompressedPda = {
             };
         },
         {
+            name: 'CompressedProof';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'a';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'b';
+                        type: {
+                            array: ['u8', 64];
+                        };
+                    },
+                    {
+                        name: 'c';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'InstructionDataTransfer';
             type: {
                 kind: 'struct';
@@ -533,32 +538,6 @@ export type LightCompressedPda = {
                 ];
             };
         },
-        {
-            name: 'CompressedProof';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'a';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'b';
-                        type: {
-                            array: ['u8', 64];
-                        };
-                    },
-                    {
-                        name: 'c';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
     ];
     errors: [
         {
@@ -618,118 +597,103 @@ export type LightCompressedPda = {
         },
         {
             code: 6011;
-            name: 'InvalidPublicInputsLength';
-            msg: 'InvalidPublicInputsLength';
-        },
-        {
-            code: 6012;
-            name: 'DecompressG1Failed';
-            msg: 'Decompress G1 Failed';
-        },
-        {
-            code: 6013;
-            name: 'DecompressG2Failed';
-            msg: 'Decompress G2 Failed';
-        },
-        {
-            code: 6014;
-            name: 'CreateGroth16VerifierFailed';
-            msg: 'CreateGroth16VerifierFailed';
-        },
-        {
-            code: 6015;
             name: 'ProofVerificationFailed';
             msg: 'ProofVerificationFailed';
         },
         {
-            code: 6016;
-            name: 'PublicInputsTryIntoFailed';
-            msg: 'PublicInputsTryIntoFailed';
-        },
-        {
-            code: 6017;
+            code: 6012;
             name: 'CompressedAccountHashError';
             msg: 'CompressedAccountHashError';
         },
         {
-            code: 6018;
+            code: 6013;
             name: 'InvalidAddress';
             msg: 'InvalidAddress';
         },
         {
-            code: 6019;
+            code: 6014;
             name: 'InvalidAddressQueue';
             msg: 'InvalidAddressQueue';
         },
         {
-            code: 6020;
+            code: 6015;
             name: 'InvalidNullifierQueue';
             msg: 'InvalidNullifierQueue';
         },
         {
-            code: 6021;
+            code: 6016;
             name: 'DeriveAddressError';
             msg: 'DeriveAddressError';
         },
         {
-            code: 6022;
+            code: 6017;
             name: 'CompressSolTransferFailed';
             msg: 'CompressSolTransferFailed';
         },
         {
-            code: 6023;
+            code: 6018;
             name: 'CompressedSolPdaUndefinedForCompressSol';
             msg: 'CompressedSolPdaUndefinedForCompressSol';
         },
         {
-            code: 6024;
+            code: 6019;
             name: 'DeCompressLamportsUndefinedForCompressSol';
             msg: 'DeCompressLamportsUndefinedForCompressSol';
         },
         {
-            code: 6025;
+            code: 6020;
             name: 'CompressedSolPdaUndefinedForDecompressSol';
             msg: 'CompressedSolPdaUndefinedForDecompressSol';
         },
         {
-            code: 6026;
+            code: 6021;
             name: 'DeCompressLamportsUndefinedForDecompressSol';
             msg: 'DeCompressLamportsUndefinedForDecompressSol';
         },
         {
-            code: 6027;
+            code: 6022;
             name: 'DecompressRecipientUndefinedForDecompressSol';
             msg: 'DecompressRecipientUndefinedForDecompressSol';
         },
         {
-            code: 6028;
+            code: 6023;
             name: 'LengthMismatch';
             msg: 'LengthMismatch';
         },
         {
-            code: 6029;
+            code: 6024;
             name: 'DelegateUndefined';
             msg: 'DelegateUndefined while delegated amount is defined';
         },
         {
-            code: 6030;
+            code: 6025;
             name: 'CpiSignatureAccountUndefined';
             msg: 'CpiSignatureAccountUndefined';
         },
         {
-            code: 6031;
+            code: 6026;
             name: 'WriteAccessCheckFailed';
             msg: 'WriteAccessCheckFailed';
         },
         {
-            code: 6032;
+            code: 6027;
             name: 'InvokingProgramNotProvided';
             msg: 'InvokingProgramNotProvided';
         },
         {
-            code: 6033;
+            code: 6028;
             name: 'SignerSeedsNotProvided';
             msg: 'SignerSeedsNotProvided';
+        },
+        {
+            code: 6029;
+            name: 'AdditionOverflowForDecompressSol';
+            msg: 'AdditionOverflowForDecompressSol';
+        },
+        {
+            code: 6030;
+            name: 'InsufficientLamportsForDecompressSol';
+            msg: 'InsufficientLamportsForDecompressSol';
         },
     ];
 };
@@ -745,31 +709,6 @@ export const IDL: LightCompressedPda = {
         },
     ],
     instructions: [
-        {
-            name: 'initCompressSolPda',
-            docs: [
-                'Initializes the compressed sol pda.',
-                'This pda is used to store compressed sol for the protocol.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'compressedSolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
         {
             name: 'initCpiSignatureAccount',
             accounts: [
@@ -805,7 +744,12 @@ export const IDL: LightCompressedPda = {
             ],
             accounts: [
                 {
-                    name: 'signer',
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
                     isMut: false,
                     isSigner: true,
                 },
@@ -857,7 +801,6 @@ export const IDL: LightCompressedPda = {
                     name: 'systemProgram',
                     isMut: false,
                     isSigner: false,
-                    isOptional: true,
                 },
             ],
             args: [
@@ -1141,6 +1084,32 @@ export const IDL: LightCompressedPda = {
             },
         },
         {
+            name: 'CompressedProof',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'a',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'b',
+                        type: {
+                            array: ['u8', 64],
+                        },
+                    },
+                    {
+                        name: 'c',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'InstructionDataTransfer',
             type: {
                 kind: 'struct',
@@ -1269,32 +1238,6 @@ export const IDL: LightCompressedPda = {
                 ],
             },
         },
-        {
-            name: 'CompressedProof',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'a',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'b',
-                        type: {
-                            array: ['u8', 64],
-                        },
-                    },
-                    {
-                        name: 'c',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
     ],
     errors: [
         {
@@ -1354,118 +1297,103 @@ export const IDL: LightCompressedPda = {
         },
         {
             code: 6011,
-            name: 'InvalidPublicInputsLength',
-            msg: 'InvalidPublicInputsLength',
-        },
-        {
-            code: 6012,
-            name: 'DecompressG1Failed',
-            msg: 'Decompress G1 Failed',
-        },
-        {
-            code: 6013,
-            name: 'DecompressG2Failed',
-            msg: 'Decompress G2 Failed',
-        },
-        {
-            code: 6014,
-            name: 'CreateGroth16VerifierFailed',
-            msg: 'CreateGroth16VerifierFailed',
-        },
-        {
-            code: 6015,
             name: 'ProofVerificationFailed',
             msg: 'ProofVerificationFailed',
         },
         {
-            code: 6016,
-            name: 'PublicInputsTryIntoFailed',
-            msg: 'PublicInputsTryIntoFailed',
-        },
-        {
-            code: 6017,
+            code: 6012,
             name: 'CompressedAccountHashError',
             msg: 'CompressedAccountHashError',
         },
         {
-            code: 6018,
+            code: 6013,
             name: 'InvalidAddress',
             msg: 'InvalidAddress',
         },
         {
-            code: 6019,
+            code: 6014,
             name: 'InvalidAddressQueue',
             msg: 'InvalidAddressQueue',
         },
         {
-            code: 6020,
+            code: 6015,
             name: 'InvalidNullifierQueue',
             msg: 'InvalidNullifierQueue',
         },
         {
-            code: 6021,
+            code: 6016,
             name: 'DeriveAddressError',
             msg: 'DeriveAddressError',
         },
         {
-            code: 6022,
+            code: 6017,
             name: 'CompressSolTransferFailed',
             msg: 'CompressSolTransferFailed',
         },
         {
-            code: 6023,
+            code: 6018,
             name: 'CompressedSolPdaUndefinedForCompressSol',
             msg: 'CompressedSolPdaUndefinedForCompressSol',
         },
         {
-            code: 6024,
+            code: 6019,
             name: 'DeCompressLamportsUndefinedForCompressSol',
             msg: 'DeCompressLamportsUndefinedForCompressSol',
         },
         {
-            code: 6025,
+            code: 6020,
             name: 'CompressedSolPdaUndefinedForDecompressSol',
             msg: 'CompressedSolPdaUndefinedForDecompressSol',
         },
         {
-            code: 6026,
+            code: 6021,
             name: 'DeCompressLamportsUndefinedForDecompressSol',
             msg: 'DeCompressLamportsUndefinedForDecompressSol',
         },
         {
-            code: 6027,
+            code: 6022,
             name: 'DecompressRecipientUndefinedForDecompressSol',
             msg: 'DecompressRecipientUndefinedForDecompressSol',
         },
         {
-            code: 6028,
+            code: 6023,
             name: 'LengthMismatch',
             msg: 'LengthMismatch',
         },
         {
-            code: 6029,
+            code: 6024,
             name: 'DelegateUndefined',
             msg: 'DelegateUndefined while delegated amount is defined',
         },
         {
-            code: 6030,
+            code: 6025,
             name: 'CpiSignatureAccountUndefined',
             msg: 'CpiSignatureAccountUndefined',
         },
         {
-            code: 6031,
+            code: 6026,
             name: 'WriteAccessCheckFailed',
             msg: 'WriteAccessCheckFailed',
         },
         {
-            code: 6032,
+            code: 6027,
             name: 'InvokingProgramNotProvided',
             msg: 'InvokingProgramNotProvided',
         },
         {
-            code: 6033,
+            code: 6028,
             name: 'SignerSeedsNotProvided',
             msg: 'SignerSeedsNotProvided',
+        },
+        {
+            code: 6029,
+            name: 'AdditionOverflowForDecompressSol',
+            msg: 'AdditionOverflowForDecompressSol',
+        },
+        {
+            code: 6030,
+            name: 'InsufficientLamportsForDecompressSol',
+            msg: 'InsufficientLamportsForDecompressSol',
         },
     ],
 };

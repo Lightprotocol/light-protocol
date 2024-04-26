@@ -4,6 +4,7 @@ members = [
     "hasher.rs/src/wasm",
     "heap",
     "circuit-lib/circuitlib-rs",
+    "circuit-lib/verifier",
     "macros/aligned-sized",
     "macros/light",
     "merkle-tree/*",

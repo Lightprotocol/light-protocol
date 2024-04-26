@@ -21,6 +21,7 @@ pub mod test_env;
 #[cfg(feature = "test_indexer")]
 pub mod test_indexer;
 
+#[derive(Debug, Clone)]
 pub struct AccountZeroCopy<'a, T> {
     pub account: Pin<Box<Account>>,
     deserialized: *const T,
@@ -156,15 +157,51 @@ pub async fn create_and_send_transaction(
     Ok(signature)
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct FeeConfig {
+    pub state_merkle_tree_rollover: u64,
+    pub nullifier_queue_rollover: u64,
+    pub address_queue_rollover: u64,
+    pub tip: u64,
+}
+
+impl Default for FeeConfig {
+    fn default() -> Self {
+        Self {
+            state_merkle_tree_rollover: 149,
+            nullifier_queue_rollover: 29,
+            address_queue_rollover: 178,
+            tip: 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TransactionParams {
+    pub num_input_compressed_accounts: u8,
+    pub num_output_compressed_accounts: u8,
+    pub num_new_addresses: u8,
+    pub compress: i64,
+    pub fee_config: FeeConfig,
+}
+
 pub async fn create_and_send_transaction_with_event<T>(
     context: &mut ProgramTestContext,
     instruction: &[Instruction],
     payer: &Pubkey,
     signers: &[&Keypair],
+    transaction_params: Option<TransactionParams>,
 ) -> Result<Option<T>, BanksClientError>
 where
     T: AnchorDeserialize,
 {
+    let pre_balance = context
+        .banks_client
+        .get_account(*payer)
+        .await?
+        .unwrap()
+        .lamports;
+
     let transaction = Transaction::new_signed_with_payer(
         instruction,
         Some(payer),
@@ -201,6 +238,50 @@ where
             .await?;
     }
 
+    // assert correct rollover fee and tip distribution
+    if let Some(transaction_params) = transaction_params {
+        let post_balance = context
+            .banks_client
+            .get_account(*payer)
+            .await?
+            .unwrap()
+            .lamports;
+
+        let mut tip = 0;
+        for rollover in &[
+            transaction_params.num_new_addresses,
+            transaction_params.num_input_compressed_accounts,
+            transaction_params.num_output_compressed_accounts,
+        ] {
+            if *rollover != 0 {
+                tip += transaction_params.fee_config.tip as i64;
+            }
+        }
+
+        let expected_post_balance = pre_balance as i64
+            - i64::from(transaction_params.num_new_addresses)
+                * transaction_params.fee_config.address_queue_rollover as i64
+            - i64::from(transaction_params.num_input_compressed_accounts)
+                * transaction_params.fee_config.nullifier_queue_rollover as i64
+            - i64::from(transaction_params.num_output_compressed_accounts)
+                * transaction_params.fee_config.state_merkle_tree_rollover as i64
+            - transaction_params.compress
+            - 5000
+            - tip;
+
+        if post_balance as i64 != expected_post_balance {
+            println!("transaction_params: {:?}", transaction_params);
+            println!("pre_balance: {}", pre_balance);
+            println!("post_balance: {}", post_balance);
+            println!("expected post_balance: {}", expected_post_balance);
+            return Err(BanksClientError::TransactionError(
+                solana_sdk::transaction::TransactionError::InstructionError(
+                    0,
+                    InstructionError::Custom(11111),
+                ),
+            ));
+        }
+    }
     Ok(event)
 }
 

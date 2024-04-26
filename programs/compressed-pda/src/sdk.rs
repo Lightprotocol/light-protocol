@@ -1,13 +1,16 @@
 #![cfg(not(target_os = "solana"))]
 use std::collections::HashMap;
 
-use account_compression::{AccountMeta, Pubkey};
+use crate::CompressedProof;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use solana_sdk::instruction::Instruction;
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
 
 use crate::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
-    utils::{get_cpi_authority_pda, get_registered_program_pda, CompressedProof},
+    utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataTransfer, NewAddressParamsPacked, COMPRESSED_SOL_PDA_SEED,
 };
 
@@ -17,6 +20,7 @@ pub fn get_compressed_sol_pda() -> Pubkey {
 
 #[allow(clippy::too_many_arguments)]
 pub fn create_execute_compressed_instruction(
+    fee_payer: &Pubkey,
     payer: &Pubkey,
     input_compressed_accounts: &[CompressedAccount],
     output_compressed_accounts: &[CompressedAccount],
@@ -148,7 +152,8 @@ pub fn create_execute_compressed_instruction(
     let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
 
     let accounts = crate::accounts::TransferInstruction {
-        signer: *payer,
+        fee_payer: *fee_payer,
+        authority: *payer,
         // authority_pda: get_cpi_authority_pda(&crate::ID),
         registered_program_pda: get_registered_program_pda(&crate::ID),
         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
@@ -157,7 +162,7 @@ pub fn create_execute_compressed_instruction(
         invoking_program: None,
         compressed_sol_pda,
         compression_recipient,
-        system_program: Some(solana_sdk::system_program::ID),
+        system_program: solana_sdk::system_program::ID,
         cpi_signature_account: None,
     };
     Instruction {
@@ -285,7 +290,8 @@ mod test {
     use anchor_lang::AnchorDeserialize;
 
     use super::*;
-    use crate::{utils::CompressedProof, NewAddressParams};
+    use crate::CompressedProof;
+    use crate::NewAddressParams;
     #[test]
     fn test_create_execute_compressed_transaction() {
         let payer = Pubkey::new_unique();
@@ -333,6 +339,7 @@ mod test {
         };
         let input_compressed_account_leaf_indices = vec![0, 1];
         let instruction = create_execute_compressed_instruction(
+            &payer,
             &payer,
             &input_compressed_accounts.clone(),
             &output_compressed_accounts.clone(),
@@ -400,9 +407,8 @@ mod test {
             deserialized_instruction_data.compression_lamports.unwrap(),
             100
         );
-        assert!(deserialized_instruction_data.is_compress);
-        let mut ref_account_meta = AccountMeta::new(payer, true);
-        ref_account_meta.is_writable = false;
+        assert_eq!(deserialized_instruction_data.is_compress, true);
+        let ref_account_meta = AccountMeta::new(payer, true);
         assert_eq!(instruction.accounts[0], ref_account_meta);
         assert_eq!(
             deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
@@ -415,37 +421,37 @@ mod test {
             1
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
                     .merkle_tree_pubkey_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
                     .merkle_tree_pubkey_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
                     .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
                     .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.output_state_merkle_tree_account_indices[0]
                     as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[10
+            instruction.accounts[11
                 + deserialized_instruction_data.output_state_merkle_tree_account_indices[1]
                     as usize],
             AccountMeta::new(merkle_tree_pubkey, false)

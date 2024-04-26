@@ -1,6 +1,7 @@
 use std::mem;
 
 use account_compression::{
+    initialize_nullifier_queue::NullifierQueueAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES,
@@ -8,7 +9,7 @@ use account_compression::{
         STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
         STATE_NULLIFIER_QUEUE_VALUES,
     },
-    AddressMerkleTreeAccount, AddressQueueAccount, NullifierQueueAccount, StateMerkleTreeAccount,
+    AddressMerkleTreeAccount, AddressQueueAccount, StateMerkleTreeAccount,
 };
 use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
@@ -50,7 +51,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
                 ),
         },
         Type {
-            name: "IndexedArrayAccount".to_owned(),
+            name: "NullifierQueueAccount".to_owned(),
             space: NullifierQueueAccount::size(
                 STATE_NULLIFIER_QUEUE_INDICES as usize,
                 STATE_NULLIFIER_QUEUE_VALUES as usize,

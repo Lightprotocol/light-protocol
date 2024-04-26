@@ -13,21 +13,6 @@ pub struct CompressedSolPda {}
 #[constant]
 pub const COMPRESSED_SOL_PDA_SEED: &[u8] = b"compressed_sol_pda";
 
-#[derive(Accounts)]
-pub struct InitializeCompressedSolPda<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-    #[account(
-        init,
-        payer = fee_payer,
-        seeds = [COMPRESSED_SOL_PDA_SEED],
-        bump,
-        space = CompressedSolPda::LEN,
-    )]
-    pub compressed_sol_pda: Account<'info, CompressedSolPda>,
-    pub system_program: Program<'info, System>,
-}
-
 pub fn compression_lamports<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
@@ -57,8 +42,9 @@ pub fn decompress_lamports<'a, 'b, 'c: 'info, 'info>(
         Some(lamports) => lamports,
         None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForDecompressSol),
     };
-    compressed_sol_pda.sub_lamports(lamports)?;
-    recipient.add_lamports(lamports)?;
+
+    transfer_lamports(&compressed_sol_pda, &recipient, lamports)?;
+
     Ok(())
 }
 
@@ -75,32 +61,38 @@ pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
         None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForCompressSol),
     };
 
-    transfer_lamports(
-        &ctx.accounts.signer.to_account_info(),
+    transfer_lamports_compress(
+        &ctx.accounts.authority.to_account_info(),
         &recipient,
-        &ctx.accounts.account_compression_authority.to_account_info(),
         lamports,
     )
+}
+
+pub fn transfer_lamports_compress<'info>(
+    from: &AccountInfo<'info>,
+    to: &AccountInfo<'info>,
+    lamports: u64,
+) -> Result<()> {
+    let instruction =
+        anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
+    anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;
+    Ok(())
 }
 
 pub fn transfer_lamports<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,
-    authority: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
-    msg!("transfer_lamports {}", lamports);
-    msg!("from lamports: {}", from.lamports());
-    msg!("to lamports: {}", to.lamports());
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID);
+        anchor_lang::prelude::Pubkey::find_program_address(&[COMPRESSED_SOL_PDA_SEED], &crate::ID);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
+    let seeds = &[&[COMPRESSED_SOL_PDA_SEED, bump][..]];
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
-        &[authority.clone(), from.clone(), to.clone()],
+        &[from.clone(), to.clone()],
         seeds,
     )?;
     Ok(())

@@ -1,3 +1,15 @@
+use account_compression::program::AccountCompression;
+use anchor_lang::prelude::*;
+use light_verifier::CompressedProof as CompressedVerifierProof;
+use std::collections::HashMap;
+
+// TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
+#[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedProof {
+    pub a: [u8; 32],
+    pub b: [u8; 64],
+    pub c: [u8; 32],
+}
 use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
@@ -6,16 +18,12 @@ use crate::{
     create_address::insert_addresses_into_address_merkle_tree_queue,
     event::emit_state_transition_event,
     nullify_state::insert_nullifiers,
-    utils::CompressedProof,
     verify_state::{
         fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts, signer_check,
         sum_check, verify_state_proof, write_access_check,
     },
-    CompressedSolPda, ErrorCode,
+    ErrorCode,
 };
-use account_compression::program::AccountCompression;
-use anchor_lang::prelude::*;
-use std::collections::HashMap;
 
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     inputs: &mut InstructionDataTransfer,
@@ -27,7 +35,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     write_access_check(
         inputs,
         &ctx.accounts.invoking_program,
-        &ctx.accounts.signer.key(),
+        &ctx.accounts.authority.key(),
     )?;
 
     if let Some(cpi_context) = cpi_context {
@@ -88,14 +96,20 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         .is_empty()
         || !new_addresses.is_empty()
     {
+        let compressed_verifier_proof = CompressedVerifierProof {
+            a: inputs.proof.as_ref().unwrap().a,
+            b: inputs.proof.as_ref().unwrap().b,
+            c: inputs.proof.as_ref().unwrap().c,
+        };
         verify_state_proof(
             &roots,
             &input_compressed_account_hashes,
             &address_roots,
             new_addresses.as_slice(),
-            inputs.proof.as_ref().unwrap(),
+            &compressed_verifier_proof,
         )?;
     }
+
     // insert nullifies (input compressed account hashes)---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
@@ -156,7 +170,9 @@ pub fn derive_new_addresses(
 /// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
-    pub signer: Signer<'info>,
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+    pub authority: Signer<'info>,
     /// CHECK: this account
     #[account(
     seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
@@ -173,11 +189,14 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,
     pub invoking_program: Option<UncheckedAccount<'info>>,
-    #[account(mut)]
-    pub compressed_sol_pda: Option<Account<'info, CompressedSolPda>>,
+    #[account(
+        mut,
+        seeds = [crate::COMPRESSED_SOL_PDA_SEED], bump
+    )]
+    pub compressed_sol_pda: Option<UncheckedAccount<'info>>,
     #[account(mut)]
     pub compression_recipient: Option<UncheckedAccount<'info>>,
-    pub system_program: Option<Program<'info, System>>,
+    pub system_program: Program<'info, System>,
 }
 
 // TODO: add checks for lengths of vectors

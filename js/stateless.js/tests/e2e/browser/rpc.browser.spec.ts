@@ -6,7 +6,6 @@ import {
     compress,
     createRpc,
     defaultTestStateTreeAccounts,
-    initSolOmnibusAccount,
     newAccountWithLamports,
 } from '../../../src';
 
@@ -17,7 +16,6 @@ test.describe('RPC in browser', () => {
         try {
             const rpc = createRpc();
             const payer = await newAccountWithLamports(rpc, 1000005000, 100);
-            const initAuthority = await newAccountWithLamports(rpc, 1e9);
 
             await page.goto(
                 'http://localhost:4004/tests/e2e/browser/test-page.html',
@@ -25,8 +23,6 @@ test.describe('RPC in browser', () => {
             await page.waitForFunction(
                 () => (window as any).stateless !== undefined,
             );
-
-            await initSolOmnibusAccount(rpc, initAuthority, initAuthority);
             await compress(rpc, payer, 1e9, payer.publicKey, merkleTree);
         } catch (error) {
             console.log('error: ', error);

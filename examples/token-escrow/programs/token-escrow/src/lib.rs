@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_pda::utils::CompressedProof;
+use light_compressed_pda::CompressedProof;
 use light_compressed_token::InputTokenDataWithContext;
 use light_compressed_token::TokenTransferOutputData;
 pub mod escrow_with_compressed_pda;

@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use account_compression::Pubkey;
 use anchor_lang::AnchorDeserialize;
 use light_compressed_pda::compressed_account::CompressedAccountWithMerkleContext;
 use light_hasher::{Hasher, Poseidon};
@@ -19,7 +18,7 @@ use solana_program_test::{
 };
 use solana_sdk::instruction::InstructionError;
 use solana_sdk::signature::Keypair;
-use solana_sdk::{signer::Signer, transaction::Transaction};
+use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn test_create_pda() {
@@ -216,9 +215,14 @@ pub async fn perform_create_pda_with_event(
         signer_is_program,
     )
     .await;
-    let event =
-        create_and_send_transaction_with_event(context, &[instruction], &payer_pubkey, &[payer])
-            .await?;
+    let event = create_and_send_transaction_with_event(
+        context,
+        &[instruction],
+        &payer_pubkey,
+        &[payer],
+        None,
+    )
+    .await?;
     test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
     Ok(())
 }

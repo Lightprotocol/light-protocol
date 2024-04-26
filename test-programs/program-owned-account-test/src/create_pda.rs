@@ -2,8 +2,7 @@ use anchor_lang::prelude::*;
 use light_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountData},
     compressed_cpi::CompressedCpiContext,
-    utils::CompressedProof,
-    InstructionDataTransfer, NewAddressParamsPacked,
+    CompressedProof, InstructionDataTransfer, NewAddressParamsPacked,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 
@@ -90,7 +89,8 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
-        signer: ctx.accounts.signer.to_account_info(),
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
@@ -98,7 +98,7 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
         cpi_signature_account: None,
     };
     let mut cpi_ctx = CpiContext::new(
@@ -141,7 +141,8 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
-        signer: ctx.accounts.cpi_signer.to_account_info(),
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.cpi_signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
@@ -149,7 +150,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
         cpi_signature_account: None,
     };
 
@@ -231,4 +232,5 @@ pub struct CreateCompressedPda<'info> {
     pub self_program: Program<'info, crate::program::ProgramOwnedAccountTest>,
     /// CHECK:
     pub cpi_signer: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }

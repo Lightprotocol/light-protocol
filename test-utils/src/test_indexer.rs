@@ -22,9 +22,9 @@ use light_circuitlib_rs::{
         get_non_inclusion_proof_inputs, NonInclusionProofInputs,
     },
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
-    utils::CompressedProof,
 };
 use light_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
@@ -373,24 +373,8 @@ impl TestIndexer {
         event: PublicTransactionEvent,
     ) -> Vec<usize> {
         for compressed_account in event.input_compressed_accounts.iter() {
-            let index = self
-                .compressed_accounts
-                .iter()
-                .position(|x| x.compressed_account == compressed_account.compressed_account)
-                .expect("compressed_account not found");
-            self.compressed_accounts.remove(index);
-            let token_compressed_account_element = self
-                .token_compressed_accounts
-                .iter()
-                .find(|x| x.index == index);
-            if token_compressed_account_element.is_some() {
-                let token_compressed_account_element =
-                    token_compressed_account_element.unwrap().clone();
-                self.token_compressed_accounts.remove(index);
-                self.token_nullified_compressed_accounts
-                    .push(token_compressed_account_element);
-            }
-            // TODO: nullify compressed_account in Merkle tree, not implemented yet
+            self.compressed_accounts
+                .retain(|x| x.compressed_account != compressed_account.compressed_account);
             self.nullified_compressed_accounts
                 .push(compressed_account.clone());
             let index = self
@@ -459,10 +443,10 @@ impl TestIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                context,
-                self.nullifier_queue_pubkey,
-            )
+            get_hash_set::<
+                u16,
+                account_compression::initialize_nullifier_queue::NullifierQueueAccount,
+            >(context, self.nullifier_queue_pubkey)
             .await
         };
         let merkle_tree_account =
@@ -513,10 +497,10 @@ impl TestIndexer {
             .unwrap();
 
             let nullifier_queue = unsafe {
-                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                    context,
-                    self.nullifier_queue_pubkey,
-                )
+                get_hash_set::<
+                    u16,
+                    account_compression::initialize_nullifier_queue::NullifierQueueAccount,
+                >(context, self.nullifier_queue_pubkey)
                 .await
             };
             let array_element = nullifier_queue
@@ -625,6 +609,7 @@ pub async fn mint_tokens_helper(
         &[instruction],
         &payer_pubkey,
         &[&mint_authority],
+        None,
     )
     .await
     .unwrap()

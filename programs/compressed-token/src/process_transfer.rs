@@ -1,17 +1,16 @@
+use crate::{spl_compression::process_compression, ErrorCode};
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
     },
     compressed_cpi::CompressedCpiContext,
-    utils::CompressedProof,
     InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_le;
-
-use crate::{spl_compression::process_compression, ErrorCode};
 
 /// Process a token transfer instruction
 ///
@@ -153,7 +152,8 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     LightCompressedPdaInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
-        signer: ctx.accounts.cpi_authority_pda.to_account_info(),
+        fee_payer: ctx.accounts.fee_payer.to_account_info(),
+        authority: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
@@ -161,7 +161,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
         cpi_signature_account,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
@@ -219,6 +219,7 @@ pub fn sum_check(
 
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
+    #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
     // This is the cpi signer
@@ -242,6 +243,7 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -458,11 +460,14 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 pub mod transfer_sdk {
     use std::collections::HashMap;
 
-    use account_compression::{AccountMeta, NOOP_PROGRAM_ID};
+    use account_compression::NOOP_PROGRAM_ID;
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::token::Token;
-    use light_compressed_pda::utils::CompressedProof;
-    use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+    use light_compressed_pda::CompressedProof;
+    use solana_sdk::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+    };
 
     use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
     use anchor_lang::error_code;
@@ -535,6 +540,7 @@ pub mod transfer_sdk {
             token_pool_pda,
             decompress_token_account,
             token_program: token_pool_pda.map(|_| Token::id()),
+            system_program: solana_sdk::system_program::ID,
         };
 
         Ok(Instruction {

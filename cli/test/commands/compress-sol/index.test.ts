@@ -6,7 +6,8 @@ import { requestAirdrop } from "../../helpers/helpers";
 describe("compress-sol", () => {
   const keypair = defaultSolanaWalletKeypair();
   const to = keypair.publicKey.toBase58();
-  const amount = 500;
+  // min rent exempt amount is 890_880 lamports
+  const amount = 1000_000;
 
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });

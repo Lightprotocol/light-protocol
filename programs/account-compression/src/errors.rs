@@ -48,4 +48,14 @@ pub enum AccountCompressionErrorCode {
     InvalidMerkleTree,
     #[msg("Could not find the leaf in the queue")]
     LeafNotFound,
+    #[msg("RolloverThresholdTooHigh")]
+    RolloverThresholdTooHigh,
+    #[msg("MerkleTreeAndQueueNotAssociated")]
+    MerkleTreeAndQueueNotAssociated,
+    #[msg("MerkleTreeAlreadyRolledOver")]
+    MerkleTreeAlreadyRolledOver,
+    #[msg("NotReadyForRollover")]
+    NotReadyForRollover,
+    #[msg("RolloverNotConfigured")]
+    RolloverNotConfigured,
 }

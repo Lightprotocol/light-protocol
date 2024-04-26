@@ -58,7 +58,6 @@ fn program_update<H>(
     queue_index: u16,
     nullifier_index: usize,
     nullifier_next_index: usize,
-    nullifier_next_value: &BigUint,
     low_nullifier: IndexedElement<usize>,
     low_nullifier_next_value: &BigUint,
     low_nullifier_proof: &mut BoundedVec<[u8; 32]>,
@@ -81,7 +80,6 @@ where
     merkle_tree.update(
         usize::from(changelog_index),
         nullifier,
-        nullifier_next_value,
         low_nullifier,
         low_nullifier_next_value,
         low_nullifier_proof,
@@ -133,7 +131,6 @@ where
             lowest_from_queue.index,
             nullifier_bundle.new_element.index,
             nullifier_bundle.new_element.next_index,
-            &nullifier_bundle.new_element_next_value,
             old_low_nullifier,
             &old_low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -400,8 +397,6 @@ where
     let nullifier_index = 3_usize;
     // (Invalid) index of the next nullifier.
     let nullifier_next_index = 2_usize;
-    // (Invalid) value of the next nullifier.
-    let nullifier_next_value = nullifier2;
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(1).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
@@ -418,7 +413,6 @@ where
             queue_index,
             nullifier_index,
             nullifier_next_index,
-            &nullifier_next_value,
             low_nullifier,
             &low_nullifier_next_value,
             &mut low_nullifier_proof,
@@ -437,8 +431,6 @@ where
     let nullifier_index = 3_usize;
     // (Invalid) index of the next nullifier. Value: 30.
     let nullifier_next_index = 1_usize;
-    // (Invalid) value of the next nullifier.
-    let nullifier_next_value = nullifier1;
     // (Invalid) low nullifier.
     let low_nullifier = local_indexed_array.get(0).cloned().unwrap();
     let low_nullifier_next_value = local_indexed_array
@@ -455,7 +447,6 @@ where
             queue_index,
             nullifier_index,
             nullifier_next_index,
-            &nullifier_next_value,
             low_nullifier,
             &low_nullifier_next_value,
             &mut low_nullifier_proof,

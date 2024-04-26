@@ -1,13 +1,12 @@
 #[cfg(feature = "light_program")]
+use crate::{create_and_send_transaction, get_account};
+#[cfg(feature = "light_program")]
 use account_compression::{
-    initialize_address_queue_sdk::create_initialize_address_queue_instruction,
-    instruction::InitializeAddressMerkleTree,
-    nullifier_queue_sdk::create_initialize_nullifier_queue_instruction,
-    state::AddressMerkleTreeAccount, GroupAuthority, RegisteredProgram,
+    sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
 #[cfg(feature = "test_indexer")]
 use anchor_lang::ToAccountMetas;
-#[cfg(feature = "light_program")]
+#[cfg(feature = "test_indexer")]
 use anchor_lang::{system_program, InstructionData};
 use light_macros::pubkey;
 #[cfg(feature = "light_program")]
@@ -16,20 +15,13 @@ use light_registry::sdk::{
     create_initialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
-#[cfg(feature = "light_program")]
-use solana_program_test::BanksClientError;
+
 use solana_program_test::{ProgramTest, ProgramTestContext};
 #[cfg(feature = "light_program")]
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    transaction::Transaction,
-};
+use solana_sdk::transaction::Transaction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 #[cfg(feature = "light_program")]
 use solana_sdk::{signature::Signer, system_instruction};
-
-#[cfg(feature = "light_program")]
-use crate::{create_account_instruction, create_and_send_transaction, get_account};
 
 pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
 pub const ACCOUNT_COMPRESSION_ID: Pubkey = pubkey!("5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN");
@@ -192,59 +184,30 @@ pub async fn setup_test_programs_with_accounts(
     .await
     .unwrap();
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
-
-    let account_create_ix = create_account_instruction(
-        &payer.pubkey(),
-        account_compression::state::StateMerkleTreeAccount::LEN,
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
-        &ACCOUNT_COMPRESSION_ID,
-        Some(&merkle_tree_keypair),
-    );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
     let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
 
-    let instruction =
-        account_compression::instructions::append_leaves::sdk::create_initialize_merkle_tree_instruction(payer.pubkey(), merkle_tree_pubkey, Some(nullifier_queue_pubkey));
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[account_create_ix, instruction],
-        Some(&payer.pubkey()),
-        &vec![&payer, &merkle_tree_keypair],
-        context.last_blockhash,
-    );
-    context
-        .banks_client
-        .process_transaction(transaction.clone())
-        .await
-        .unwrap();
-    create_nullifier_queue_account(
+    create_state_merkle_tree_and_queue_account(
         &payer,
         &mut context,
+        &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        &merkle_tree_pubkey,
+        None,
     )
     .await;
 
     let address_merkle_tree_keypair =
         Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
 
-    create_and_initialize_address_merkle_tree(&mut context, &address_merkle_tree_keypair)
-        .await
-        .unwrap();
     let address_merkle_tree_queue_keypair =
         Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
 
-    create_address_queue_account(
+    create_address_merkle_tree_and_queue_account(
         &payer,
         &mut context,
         &address_merkle_tree_queue_keypair,
-        &address_merkle_tree_keypair.pubkey(),
+        &address_merkle_tree_keypair,
     )
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
@@ -267,18 +230,34 @@ pub async fn setup_test_programs_with_accounts(
 }
 
 #[cfg(feature = "light_program")]
-pub async fn create_nullifier_queue_account(
+pub async fn create_state_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
+    merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
-    merkle_tree_pubkey: &Pubkey,
+    program_owner: Option<Pubkey>,
 ) {
-    let size = account_compression::NullifierQueueAccount::size(
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
-    )
-    .unwrap();
-    let account_create_ix = create_account_instruction(
+    use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
+
+    let merkle_tree_account_create_ix = crate::create_account_instruction(
+        &payer.pubkey(),
+        account_compression::state::StateMerkleTreeAccount::LEN,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
+        &ACCOUNT_COMPRESSION_ID,
+        Some(merkle_tree_keypair),
+    );
+    let size =
+        account_compression::processor::initialize_nullifier_queue::NullifierQueueAccount::size(
+            account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
+            account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
+        )
+        .unwrap();
+    let nullifier_queue_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
         context
@@ -290,19 +269,24 @@ pub async fn create_nullifier_queue_account(
         &ACCOUNT_COMPRESSION_ID,
         Some(nullifier_queue_keypair),
     );
-    let instruction = create_initialize_nullifier_queue_instruction(
+
+    let instruction = create_initialize_merkle_tree_instruction(
         payer.pubkey(),
+        merkle_tree_keypair.pubkey(),
         nullifier_queue_keypair.pubkey(),
-        0,
-        Some(*merkle_tree_pubkey),
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES,
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES,
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+        StateMerkleTreeConfig::default(),
+        NullifierQueueConfig::default(),
+        program_owner,
     );
+
     let transaction = Transaction::new_signed_with_payer(
-        &[account_create_ix, instruction],
+        &[
+            merkle_tree_account_create_ix,
+            nullifier_queue_account_create_ix,
+            instruction,
+        ],
         Some(&payer.pubkey()),
-        &vec![&payer, &nullifier_queue_keypair],
+        &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
         context.last_blockhash,
     );
     context
@@ -313,12 +297,19 @@ pub async fn create_nullifier_queue_account(
 }
 
 #[cfg(feature = "light_program")]
-pub async fn create_address_queue_account(
+pub async fn create_address_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
     address_queue_keypair: &Keypair,
-    address_merkle_tree_pubkey: &Pubkey,
+    address_merkle_tree_keypair: &Keypair,
 ) {
+    use account_compression::{
+        sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressMerkleTreeConfig,
+        AddressQueueConfig,
+    };
+
+    use crate::create_account_instruction;
+
     let size = account_compression::AddressQueueAccount::size(
         account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
         account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
@@ -336,19 +327,33 @@ pub async fn create_address_queue_account(
         &ACCOUNT_COMPRESSION_ID,
         Some(address_queue_keypair),
     );
-    let instruction = create_initialize_address_queue_instruction(
-        payer.pubkey(),
-        address_queue_keypair.pubkey(),
+
+    let mt_account_create_ix = crate::create_account_instruction(
+        &payer.pubkey(),
+        account_compression::AddressMerkleTreeAccount::LEN,
+        context
+            .banks_client
+            .get_rent()
+            .await
+            .unwrap()
+            .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
+        &ACCOUNT_COMPRESSION_ID,
+        Some(address_merkle_tree_keypair),
+    );
+
+    let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
         1u64,
-        Some(*address_merkle_tree_pubkey),
-        account_compression::utils::constants::ADDRESS_QUEUE_INDICES,
-        account_compression::utils::constants::ADDRESS_QUEUE_VALUES,
-        account_compression::utils::constants::ADDRESS_QUEUE_SEQUENCE_THRESHOLD,
+        payer.pubkey(),
+        None,
+        address_merkle_tree_keypair.pubkey(),
+        address_queue_keypair.pubkey(),
+        AddressMerkleTreeConfig::default(),
+        AddressQueueConfig::default(),
     );
     let transaction = Transaction::new_signed_with_payer(
-        &[account_create_ix, instruction],
+        &[account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
-        &vec![&payer, &address_queue_keypair],
+        &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
         context.last_blockhash,
     );
     context
@@ -358,70 +363,16 @@ pub async fn create_address_queue_account(
         .unwrap();
 }
 
-#[cfg(feature = "light_program")]
-pub fn initialize_address_merkle_tree_ix(
-    context: &ProgramTestContext,
-    payer: Pubkey,
-    pubkey: Pubkey,
-) -> Instruction {
-    let instruction_data = InitializeAddressMerkleTree {
-        index: 1u64,
-        owner: payer,
-        delegate: None,
-        height: account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT,
-        changelog_size: account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG,
-        roots_size: account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS,
-        canopy_depth: account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
-    };
-    Instruction {
-        program_id: ACCOUNT_COMPRESSION_ID,
-        accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
-            AccountMeta::new(pubkey, true),
-            AccountMeta::new_readonly(system_program::ID, false),
-        ],
-        data: instruction_data.data(),
-    }
-}
-#[cfg(feature = "light_program")]
-pub async fn create_and_initialize_address_merkle_tree(
-    context: &mut ProgramTestContext,
-    address_merkle_tree_keypair: &Keypair,
-) -> Result<(), BanksClientError> {
-    let account_create_ix = create_account_instruction(
-        &context.payer.pubkey(),
-        AddressMerkleTreeAccount::LEN,
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
-        &account_compression::ID,
-        Some(address_merkle_tree_keypair),
-    );
-    // Instruction: initialize address Merkle tree.
-    let initialize_ix = initialize_address_merkle_tree_ix(
-        context,
-        context.payer.pubkey(),
-        address_merkle_tree_keypair.pubkey(),
-    );
-    // Transaction: initialize address Merkle tree.
-    let transaction = Transaction::new_signed_with_payer(
-        &[account_create_ix, initialize_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, address_merkle_tree_keypair],
-        context.last_blockhash,
-    );
-    context.banks_client.process_transaction(transaction).await
-}
-
 #[cfg(feature = "test_indexer")]
 pub async fn init_cpi_signature_account(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
     cpi_account_keypair: &Keypair,
 ) -> Pubkey {
+    use solana_sdk::instruction::Instruction;
+
+    use crate::create_account_instruction;
+
     let payer = context.payer.insecure_clone();
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(

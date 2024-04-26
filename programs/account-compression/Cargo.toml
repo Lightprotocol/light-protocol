@@ -34,6 +34,7 @@ light-indexed-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/index
 light-utils = { version = "0.1.0", path = "../../utils" }
 light-macros = { version = "0.3.1", path = "../../macros/light/" }
 num-bigint = "0.4"
+light-verifier = {path = "../../circuit-lib/verifier" , features = ["solana"] }
 
 ark-serialize = "^0.4.0"
 num-traits = "0.2.18"

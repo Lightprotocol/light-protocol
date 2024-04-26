@@ -2,14 +2,14 @@
 
 use std::collections::HashMap;
 
-use account_compression::{Pubkey, NOOP_PROGRAM_ID};
+use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
     compressed_account::CompressedAccountWithMerkleContext, compressed_cpi::CompressedCpiContext,
-    pack_new_address_params, utils::CompressedProof, NewAddressParams,
+    pack_new_address_params, CompressedProof, NewAddressParams,
 };
 use light_compressed_token::transfer_sdk::to_account_metas;
-use solana_sdk::instruction::Instruction;
+use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::CreatePdaMode;
 
@@ -80,6 +80,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         account_compression_authority,
         self_program: crate::ID,
         cpi_signer,
+        system_program: solana_sdk::system_program::id(),
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -133,6 +134,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         account_compression_authority,
         self_program: crate::ID,
         cpi_signer,
+        system_program: solana_sdk::system_program::id(),
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

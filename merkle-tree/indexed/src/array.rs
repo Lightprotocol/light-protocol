@@ -5,7 +5,7 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
-use crate::errors::IndexedMerkleTreeError;
+use crate::{errors::IndexedMerkleTreeError, FIELD_SIZE_SUB_ONE};
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
@@ -156,6 +156,13 @@ where
         self.elements[..self.len() + 1]
             .iter()
             .find(|&node| node.value == *value)
+    }
+
+    pub fn init(&mut self) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
+        use num_traits::Num;
+        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10)
+            .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
+        self.append(&init_value)
     }
 
     /// Returns the index of the low element for the given `value`, which

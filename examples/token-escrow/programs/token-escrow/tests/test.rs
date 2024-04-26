@@ -10,18 +10,21 @@
 // - create escrow pda and just prove that utxo exists -> read utxo from compressed token account
 // release compressed tokens
 
-use account_compression::Pubkey;
 use light_compressed_pda::event::PublicTransactionEvent;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
-use light_test_utils::{airdrop_lamports, create_and_send_transaction_with_event, get_account};
+use light_test_utils::{
+    airdrop_lamports, create_and_send_transaction_with_event, get_account, FeeConfig,
+    TransactionParams,
+};
 
+use light_verifier::VerifierError;
 use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
 };
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::Keypair;
-use solana_sdk::{signer::Signer, transaction::Transaction};
+use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 use token_escrow::escrow_with_compressed_pda::sdk::get_token_owner_pda;
 use token_escrow::escrow_with_pda::sdk::{
     create_escrow_instruction, create_withdrawal_escrow_instruction, get_timelock_pda,
@@ -74,7 +77,6 @@ async fn test_escrow_pda() {
         vec![payer.pubkey()],
     )
     .await;
-    println!("test indexer {:?}", test_indexer.compressed_accounts);
     let escrow_amount = 100u64;
     let lockup_time = 0u64;
     perform_escrow_with_event(
@@ -87,7 +89,6 @@ async fn test_escrow_pda() {
     )
     .await
     .unwrap();
-    println!("here");
     assert_escrow(
         &mut context,
         &test_indexer,
@@ -192,9 +193,7 @@ async fn test_escrow_pda() {
         res.unwrap().result,
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
-            InstructionError::Custom(
-                light_compressed_pda::ErrorCode::ProofVerificationFailed.into()
-            )
+            InstructionError::Custom(VerifierError::ProofVerificationFailed.into())
         ))
     );
     perform_withdrawal_with_event(
@@ -286,11 +285,20 @@ pub async fn perform_escrow_with_event(
         lock_up_time,
     )
     .await;
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let rent = rent.minimum_balance(16);
     let event = create_and_send_transaction_with_event::<PublicTransactionEvent>(
         context,
         &[instruction],
         &payer.pubkey(),
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 2,
+            num_new_addresses: 0,
+            compress: rent as i64,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await?
     .unwrap();
@@ -439,6 +447,7 @@ pub async fn perform_withdrawal_with_event(
         &[instruction],
         &payer.pubkey(),
         &[&payer],
+        None,
     )
     .await?
     .unwrap();
@@ -501,3 +510,31 @@ pub fn assert_withdrawal(
         escrow_amount - withdrawal_amount
     );
 }
+
+// TODO: complete once #604 is merged
+// init program owned merkle tree
+// 1. should fail: try to mint to program owned merkle tree
+// - mint to user owned merkle tree
+// 2. should succeed: escrow to program owned merkle tree (change token utxo is now in program owned merkle tree)
+// - Should users be able to spend from program owned merkle tree? (probably not, but we don't want tokens to get stuck)
+// - we should make this configurablelkiuj
+// #[tokio::test]
+// async fn test_program_owned_merkle_tree() {
+//     let env: light_test_utils::test_env::EnvWithAccounts = setup_test_programs_with_accounts(Some(
+//         vec![(String::from("token_escrow"), token_escrow::ID)],
+//     ))
+//     .await;
+//     let mut context = env.context;
+//     let payer = context.payer.insecure_clone();
+
+//     let program_owned_merkle_tree = Keypair::new();
+//     let program_owned_queue = Keypair::new();
+//     create_state_merkle_tree_and_queue_account(
+//         &payer,
+//         &mut context,
+//         &program_owned_merkle_tree,
+//         &program_owned_queue,
+//         Some(token_escrow::ID),
+//     )
+//     .await;
+// }

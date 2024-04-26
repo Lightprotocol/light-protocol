@@ -143,7 +143,8 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
-        signer: ctx.accounts.mint_authority_pda.to_account_info(),
+        fee_payer: ctx.accounts.fee_payer.to_account_info(),
+        authority: ctx.accounts.mint_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
@@ -151,7 +152,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         invoking_program: Some(ctx.accounts.self_program.to_account_info()),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
         cpi_signature_account: None,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
@@ -239,6 +240,7 @@ pub struct MintToInstruction<'info> {
     #[account(mut)]
     pub merkle_tree: UncheckedAccount<'info>,
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub system_program: Program<'info, System>,
 }
 
 pub fn get_token_authority_pda(signer: &Pubkey, mint: &Pubkey) -> Pubkey {
@@ -328,6 +330,7 @@ pub mod mint_sdk {
             account_compression_program: account_compression::ID,
             merkle_tree: *merkle_tree,
             self_program: crate::ID,
+            system_program: system_program::ID,
         };
 
         Instruction {

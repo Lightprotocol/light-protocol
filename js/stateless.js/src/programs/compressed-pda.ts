@@ -312,34 +312,16 @@ export class LightSystemProgram {
             .executeCompressedTransaction(data, null)
             .accounts({
                 ...defaultStaticAccountsStruct(),
-                signer: payer,
+                feePayer: payer,
+                authority: payer,
                 invokingProgram: this.programId,
                 compressedSolPda: null,
                 compressionRecipient: null,
-                systemProgram: null,
+                systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        return instruction;
-    }
-
-    /**
-     * Initialize the compressed sol pda
-     */
-    static async initCompressedSolPda(
-        feePayer: PublicKey,
-    ): Promise<TransactionInstruction> {
-        const accounts = {
-            feePayer,
-            compressedSolPda: this.deriveCompressedSolPda(),
-            systemProgram: SystemProgram.programId,
-        };
-
-        const instruction = await this.program.methods
-            .initCompressSolPda()
-            .accounts(accounts)
-            .instruction();
         return instruction;
     }
 
@@ -396,7 +378,8 @@ export class LightSystemProgram {
             .executeCompressedTransaction(data, null)
             .accounts({
                 ...defaultStaticAccountsStruct(),
-                signer: payer,
+                feePayer: payer,
+                authority: payer,
                 invokingProgram: this.programId,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: null,
@@ -466,7 +449,8 @@ export class LightSystemProgram {
             .executeCompressedTransaction(data, null)
             .accounts({
                 ...defaultStaticAccountsStruct(),
-                signer: payer,
+                feePayer: payer,
+                authority: payer,
                 invokingProgram: this.programId,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: toAddress,

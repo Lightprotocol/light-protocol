@@ -1,6 +1,9 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
-import { defaultTestStateTreeAccounts } from '../../src/constants';
+import {
+    STATE_MERKLE_TREE_ROLLOVER_FEE,
+    defaultTestStateTreeAccounts,
+} from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import { compress, decompress } from '../../src/actions';
@@ -142,7 +145,10 @@ describe('rpc / photon', () => {
         postCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCompressBalance,
-            preCompressBalance - compressLamportsAmount - 5000,
+            preCompressBalance -
+                compressLamportsAmount -
+                5000 -
+                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
         );
     });
 

@@ -51,7 +51,7 @@ export const defaultTestStateTreeAccounts = () => {
 };
 
 export const nullifierQueuePubkey =
-    '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ'; // also called nullifier_queue
+    '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ';
 
 export const merkletreePubkey = '5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W';
 
@@ -73,3 +73,30 @@ export const UTXO_MERGE_MAXIMUM = 10;
 export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
     Math.floor(2 ** DEFAULT_MERKLE_TREE_HEIGHT * 0.95),
 );
+
+/**
+ * Fee to provide continous funding for the state Merkle tree.
+ * Once the state Merkle tree is at 95% capacity the accumulated fees
+ * will be used to fund the next state Merkle tree with the same parameters.
+ *
+ * Is charged per output compressed account.
+ */
+export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(149);
+
+/**
+ * Fee to provide continous funding for the nullifier queue corresponding to a state Merkle tree.
+ * Once the state Merkle tree is at 95% capacity the accumulated fees
+ * will be used to fund the next nullifier queue along side the state tree with the same parameters.
+ *
+ * Is charged per input compressed account.
+ */
+export const STATE_NULLIFIER_QUEUE_ROLLOVER_FEE = new BN(29);
+
+/**
+ * Fee to provide continous funding for the address queue and address Merkle tree.
+ * Once the address Merkle tree is at 95% capacity the accumulated fees
+ * will be used to fund the next address queue and address tree with the same parameters.
+ *
+ * Is charged per newly created address.
+ */
+export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(178);

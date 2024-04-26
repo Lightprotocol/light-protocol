@@ -14,7 +14,6 @@ pub mod nullify_state;
 pub mod sdk;
 pub mod sol_compression;
 pub mod verify_state;
-pub mod verifying_keys;
 
 declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 
@@ -42,18 +41,8 @@ pub enum ErrorCode {
     NullifierArrayPubkeysMismatch,
     #[msg("InvalidNoopPubkey")]
     InvalidNoopPubkey,
-    #[msg("InvalidPublicInputsLength")]
-    InvalidPublicInputsLength,
-    #[msg("Decompress G1 Failed")]
-    DecompressG1Failed,
-    #[msg("Decompress G2 Failed")]
-    DecompressG2Failed,
-    #[msg("CreateGroth16VerifierFailed")]
-    CreateGroth16VerifierFailed,
     #[msg("ProofVerificationFailed")]
     ProofVerificationFailed,
-    #[msg("PublicInputsTryIntoFailed")]
-    PublicInputsTryIntoFailed,
     #[msg("CompressedAccountHashError")]
     CompressedAccountHashError,
     #[msg("InvalidAddress")]
@@ -88,6 +77,10 @@ pub enum ErrorCode {
     InvokingProgramNotProvided,
     #[msg("SignerSeedsNotProvided")]
     SignerSeedsNotProvided,
+    #[msg("AdditionOverflowForDecompressSol")]
+    AdditionOverflowForDecompressSol,
+    #[msg("InsufficientLamportsForDecompressSol")]
+    InsufficientLamportsForDecompressSol,
 }
 
 // // TODO(vadorovsky): Come up with some less glass chewy way of reusing
@@ -104,13 +97,6 @@ pub mod light_compressed_pda {
         //  into_inputs,InstructionDataTransfer2,
     };
     use super::*;
-
-    /// Initializes the compressed sol pda.
-    /// This pda is used to store compressed sol for the protocol.
-    pub fn init_compress_sol_pda(_ctx: Context<InitializeCompressedSolPda>) -> Result<()> {
-        msg!("initialized compress sol pda");
-        Ok(())
-    }
 
     pub fn init_cpi_signature_account(ctx: Context<InitializeCpiSignatureAccount>) -> Result<()> {
         // check that merkle tree is initialized

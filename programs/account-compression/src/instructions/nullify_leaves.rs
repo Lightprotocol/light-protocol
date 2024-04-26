@@ -5,8 +5,12 @@ use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 use light_macros::heap_neutral;
 
 use crate::{
-    emit_indexer_event, errors::AccountCompressionErrorCode,
-    nullifier_queue_from_bytes_zero_copy_mut, state::StateMerkleTreeAccount, NullifierQueueAccount,
+    emit_indexer_event,
+    errors::AccountCompressionErrorCode,
+    processor::initialize_nullifier_queue::{
+        nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
+    },
+    state::StateMerkleTreeAccount,
     RegisteredProgram,
 };
 
@@ -14,7 +18,6 @@ use crate::{
 pub struct NullifyLeaves<'info> {
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     pub authority: Signer<'info>,
-    // TODO: Add fee payer.
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting
     pub log_wrapper: UncheckedAccount<'info>,

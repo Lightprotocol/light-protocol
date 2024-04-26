@@ -1,11 +1,11 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::{
+    initialize_nullifier_queue::NullifierQueueAccount,
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS,
     },
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
-use anchor_lang::{InstructionData, ToAccountMetas};
 use light_circuitlib_rs::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
@@ -21,19 +21,19 @@ use light_circuitlib_rs::{
     gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
     non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
 };
+use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
     sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    utils::CompressedProof,
-    CompressedSolPda, ErrorCode, NewAddressParams,
+    ErrorCode, NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction,
     create_and_send_transaction_with_event, get_hash_set,
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
-    AccountZeroCopy,
+    AccountZeroCopy, FeeConfig, TransactionParams,
 };
 use num_bigint::{BigInt, BigUint, ToBigUint};
 use num_traits::{ops::bytes::FromBytes, Num};
@@ -41,13 +41,13 @@ use reqwest::Client;
 use solana_cli_output::CliAccount;
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
-    instruction::{Instruction, InstructionError},
+    instruction::InstructionError,
     pubkey::Pubkey,
     signature::Keypair,
     signer::Signer,
     transaction::{Transaction, TransactionError},
 };
-use std::{assert_eq, ops::Sub, println, vec::Vec};
+use std::ops::Sub;
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
@@ -99,6 +99,7 @@ async fn test_execute_compressed_transaction() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -118,6 +119,13 @@ async fn test_execute_compressed_transaction() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            num_new_addresses: 0,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -134,6 +142,7 @@ async fn test_execute_compressed_transaction() {
     // TODO: assert all compressed account properties
     // check invalid proof
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -162,6 +171,7 @@ async fn test_execute_compressed_transaction() {
     }];
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
         &output_compressed_accounts,
@@ -201,6 +211,7 @@ async fn test_execute_compressed_transaction() {
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -221,6 +232,13 @@ async fn test_execute_compressed_transaction() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 1,
+            num_new_addresses: 0,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -236,6 +254,7 @@ async fn test_execute_compressed_transaction() {
     }];
     // double spend
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -261,6 +280,7 @@ async fn test_execute_compressed_transaction() {
     }];
     // invalid compressed_account
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -310,6 +330,7 @@ async fn test_with_address() {
         .await;
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -387,6 +408,7 @@ async fn test_with_address() {
     }];
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -406,6 +428,13 @@ async fn test_with_address() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 1,
+            num_new_addresses: 0,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -483,11 +512,6 @@ async fn test_with_address() {
     for (n_input_compressed_accounts, n_new_addresses) in test_inputs {
         let compressed_input_accounts =
             mock_indexer.compressed_accounts[1..n_input_compressed_accounts].to_vec();
-        println!(
-            "\nn_input_compressed_accounts {:?}",
-            n_input_compressed_accounts
-        );
-        println!("n_new_addresses {:?}\n", n_new_addresses);
         let mut address_vec = Vec::new();
         // creates multiple seeds by taking the number of input accounts and zeroing out the jth byte
         for j in 0..n_new_addresses {
@@ -564,10 +588,6 @@ pub async fn create_addresses(
         }
         Some(compressed_account_hashes.as_slice())
     };
-    println!(
-        "compressed_account_input_hashes {:?}",
-        compressed_account_hashes
-    );
     let proof_rpc_res = mock_indexer
         .create_proof_for_compressed_accounts(
             compressed_account_input_hashes,
@@ -610,6 +630,7 @@ pub async fn create_addresses(
 
     // create two new addresses with the same see should fail
     let instruction = create_execute_compressed_instruction(
+        &context.payer.pubkey(),
         &context.payer.pubkey().clone(),
         input_compressed_accounts
             .iter()
@@ -638,6 +659,13 @@ pub async fn create_addresses(
         &[instruction],
         &context.payer.pubkey(),
         &[&context.payer.insecure_clone()],
+        Some(TransactionParams {
+            num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+            num_output_compressed_accounts: output_compressed_accounts.len() as u8,
+            num_new_addresses: address_params.len() as u8,
+            compress: 0,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await;
 
@@ -662,20 +690,20 @@ async fn test_with_compression() {
         true,
         false,
     );
-    let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
-    let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
-        fee_payer: payer.pubkey(),
-        compressed_sol_pda: get_compressed_sol_pda(),
-        system_program: anchor_lang::solana_program::system_program::ID,
-    };
-    let instruction = Instruction {
-        program_id: light_compressed_pda::ID,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(),
-    };
-    create_and_send_transaction(&mut context, &[instruction], &payer_pubkey, &[&payer])
-        .await
-        .unwrap();
+    // let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
+    // let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
+    //     fee_payer: payer.pubkey(),
+    //     compressed_sol_pda: get_compressed_sol_pda(),
+    //     system_program: anchor_lang::solana_program::system_program::ID,
+    // };
+    // let instruction = Instruction {
+    //     program_id: light_compressed_pda::ID,
+    //     accounts: accounts.to_account_metas(Some(true)),
+    //     data: instruction_data.data(),
+    // };
+    // create_and_send_transaction(&mut context, &[instruction], &payer_pubkey, &[&payer])
+    //     .await
+    //     .unwrap();
 
     let compress_amount = 1_000_000;
     let output_compressed_accounts = vec![CompressedAccount {
@@ -691,6 +719,7 @@ async fn test_with_compression() {
     };
 
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -721,6 +750,7 @@ async fn test_with_compression() {
     // should fail because of insufficient input funds
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
@@ -753,6 +783,7 @@ async fn test_with_compression() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
@@ -766,12 +797,25 @@ async fn test_with_compression() {
         true,
         None,
     );
-
+    let sender_pre_balance = context
+        .banks_client
+        .get_account(payer_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
     let event = create_and_send_transaction_with_event(
         &mut context,
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            num_new_addresses: 0,
+            compress: compress_amount as i64,
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -784,11 +828,9 @@ async fn test_with_compression() {
         .unwrap()
         .unwrap()
         .lamports;
-    let rent = context.banks_client.get_rent().await.unwrap();
-    let rent = rent.minimum_balance(CompressedSolPda::LEN);
+
     assert_eq!(
-        compressed_sol_pda_balance,
-        compress_amount + rent,
+        compressed_sol_pda_balance, compress_amount,
         "balance of compressed sol pda insufficient, compress sol failed"
     );
 
@@ -801,6 +843,22 @@ async fn test_with_compression() {
             .compressed_account
             .address,
         None
+    );
+    let sender_post_balance = context
+        .banks_client
+        .get_account(payer_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    let network_fee = 5000;
+    let state_merkle_tree_rollover_fee = 150;
+    assert_eq!(
+        sender_pre_balance,
+        sender_post_balance + compress_amount + network_fee + state_merkle_tree_rollover_fee,
+        "sender balance incorrect, compress sol failed diff {}",
+        sender_pre_balance
+            - (sender_pre_balance - compress_amount - network_fee - state_merkle_tree_rollover_fee)
     );
     let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
     let proof_rpc_res = mock_indexer
@@ -826,6 +884,7 @@ async fn test_with_compression() {
     }];
     let recipient = Pubkey::new_unique();
     let instruction = create_execute_compressed_instruction(
+        &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
@@ -859,6 +918,7 @@ async fn test_with_compression() {
 
     let instruction = create_execute_compressed_instruction(
         &payer_pubkey,
+        &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
         &[merkle_tree_pubkey],
@@ -879,6 +939,13 @@ async fn test_with_compression() {
         &[instruction],
         &payer_pubkey,
         &[&payer],
+        Some(TransactionParams {
+            num_input_compressed_accounts: 1,
+            num_output_compressed_accounts: 1,
+            num_new_addresses: 0,
+            compress: 0, // we are decompressing to a new account not the payer
+            fee_config: FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -913,22 +980,6 @@ async fn test_with_compression() {
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
-    let compressed_sol_pda = get_compressed_sol_pda();
-    let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
-    let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
-        fee_payer: payer.pubkey(),
-        compressed_sol_pda,
-        system_program: anchor_lang::solana_program::system_program::ID,
-    };
-    let instruction = Instruction {
-        program_id: light_compressed_pda::ID,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(),
-    };
-    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
-        .await
-        .unwrap();
     // List of public keys to fetch and export
     let pubkeys = vec![
         ("merkle_tree_pubkey", env.merkle_tree_pubkey),
@@ -936,12 +987,11 @@ async fn regenerate_accounts() {
         ("governance_authority_pda", env.governance_authority_pda),
         ("group_pda", env.group_pda),
         ("registered_program_pda", env.registered_program_pda),
-        // ("address_merkle_tree", env.address_merkle_tree_pubkey),
+        ("address_merkle_tree", env.address_merkle_tree_pubkey),
         (
             "address_merkle_tree_queue",
             env.address_merkle_tree_queue_pubkey,
         ),
-        ("sol_pool_pda", compressed_sol_pda),
     ];
 
     for (name, pubkey) in pubkeys {
@@ -1044,8 +1094,6 @@ impl MockIndexer {
         new_addresses: Option<&[[u8; 32]]>,
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
-        println!("compressed_accounts {:?}", compressed_accounts);
-        println!("new_addresses {:?}", new_addresses);
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload, path) =
             match (compressed_accounts, new_addresses) {
@@ -1269,11 +1317,7 @@ impl MockIndexer {
     /// Iterate over these compressed_accounts and nullify them
     pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                context,
-                self.nullifier_queue_pubkey,
-            )
-            .await
+            get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey).await
         };
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
@@ -1323,11 +1367,8 @@ impl MockIndexer {
             .await
             .unwrap();
             let nullifier_queue = unsafe {
-                get_hash_set::<u16, account_compression::NullifierQueueAccount>(
-                    context,
-                    self.nullifier_queue_pubkey,
-                )
-                .await
+                get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey)
+                    .await
             };
             let array_element = nullifier_queue
                 .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))
