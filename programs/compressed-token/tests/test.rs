@@ -239,6 +239,11 @@ async fn test_mint_to_15() {
 }
 
 #[tokio::test]
+async fn test_mint_to_20() {
+    test_mint_to::<20>().await
+}
+
+#[tokio::test]
 async fn test_transfer() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();

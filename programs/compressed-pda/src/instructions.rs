@@ -104,15 +104,23 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         insert_nullifiers(inputs, &ctx, &input_compressed_account_hashes)?;
     }
 
+    #[cfg(target_os = "solana")]
+    use light_heap::GLOBAL_ALLOCATOR;
+    const ITER_SIZE: usize = 15;
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
-        insert_output_compressed_accounts_into_state_merkle_tree(
-            inputs,
-            &ctx,
-            &mut output_leaf_indices,
-            &mut output_compressed_account_hashes,
-            &mut input_compressed_account_addresses,
-        )?;
+        let mut i = 0;
+        for _ in inputs.output_compressed_accounts.iter().step_by(ITER_SIZE) {
+            msg!("i: {}", i);
+            insert_output_compressed_accounts_into_state_merkle_tree::<ITER_SIZE>(
+                inputs,
+                &ctx,
+                &mut output_leaf_indices,
+                &mut output_compressed_account_hashes,
+                &mut input_compressed_account_addresses,
+                &mut i,
+            )?;
+        }
     }
 
     // emit state transition event ---------------------------------------------------

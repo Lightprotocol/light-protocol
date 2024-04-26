@@ -29,6 +29,7 @@ bytemuck = "1.14"
 solana-security-txt = "1.1.0"
 light-hasher = { version = "0.1.0", path = "../../merkle-tree/hasher" }
 light-heap = { version = "0.1.0", path = "../../heap", optional = true }
+light-macros = { version = "0.3.1", path = "../../macros/light" }
 light-utils = { version = "0.1.0", path = "../../utils" }
 
 spl-token = "3.5.0"
