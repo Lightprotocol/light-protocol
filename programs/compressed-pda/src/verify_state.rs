@@ -153,7 +153,7 @@ pub fn sum_check(
 }
 
 #[inline(never)]
-// #[heap_neutral]
+#[heap_neutral]
 pub fn signer_check(
     inputs: &InstructionDataTransfer,
     ctx: &Context<'_, '_, '_, '_, TransferInstruction<'_>>,

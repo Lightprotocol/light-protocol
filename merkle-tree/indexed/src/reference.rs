@@ -59,6 +59,9 @@ where
         })
     }
 
+    /// Initializes the reference indexed merkle tree on par with the
+    /// on-chain indexed concurrent merkle tree.
+    /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
     pub fn init(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
         let mut indexed_array = IndexedArray::<H, I, 2>::default();
         let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
