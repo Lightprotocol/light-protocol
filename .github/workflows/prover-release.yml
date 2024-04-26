@@ -1,4 +1,4 @@
-name: Release
+name: Release prover binaries
 on:
   push:
     tags:
