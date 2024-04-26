@@ -360,7 +360,7 @@ async fn test_transfer() {
             num_new_addresses: 0,
             num_input_compressed_accounts: input_compressed_accounts.len() as u8,
             num_output_compressed_accounts: 2,
-            compress: 0,
+            compress: 5000, // for second signer
             fee_config: FeeConfig::default(),
         }),
     )
@@ -510,7 +510,7 @@ async fn test_decompression() {
             num_new_addresses: 0,
             num_input_compressed_accounts: 1,
             num_output_compressed_accounts: 1,
-            compress: 0,
+            compress: 5000, // for second signer
             fee_config: FeeConfig::default(),
         }),
     )
@@ -564,7 +564,7 @@ async fn test_decompression() {
             num_new_addresses: 0,
             num_input_compressed_accounts: 0,
             num_output_compressed_accounts: 1,
-            compress: 0,
+            compress: 5000, // for second signer
             fee_config: FeeConfig::default(),
         }),
     )

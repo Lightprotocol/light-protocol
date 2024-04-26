@@ -40,7 +40,7 @@ impl default::Default for StateMerkleTreeConfig {
             changelog_size: STATE_MERKLE_TREE_CHANGELOG,
             roots_size: STATE_MERKLE_TREE_ROOTS,
             canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            tip: None,
+            tip: Some(1),
             rollover_threshold: Some(95),
             close_threshold: None,
         }
@@ -61,7 +61,7 @@ impl default::Default for NullifierQueueConfig {
             capacity_indices: STATE_NULLIFIER_QUEUE_INDICES,
             capacity_values: STATE_NULLIFIER_QUEUE_VALUES,
             sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
-            tip: None,
+            tip: Some(1),
         }
     }
 }

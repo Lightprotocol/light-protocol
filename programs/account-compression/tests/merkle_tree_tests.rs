@@ -746,9 +746,9 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .await;
     let old_merkle_tree = old_merkle_tree.deserialized().copy_merkle_tree().unwrap();
-
+    let leaves = vec![[1u8; 32], [2u8; 32]];
     let instruction = [create_insert_leaves_instruction(
-        vec![[1u8; 32], [2u8; 32]],
+        leaves.clone(),
         context.payer.pubkey(),
         context.payer.pubkey(),
         vec![*merkle_tree_pubkey, *merkle_tree_pubkey],
@@ -769,9 +769,13 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .await;
     let merkle_tree_deserialized = merkle_tree.deserialized();
-    let roll_over_fee = merkle_tree_deserialized.rollover_fee + merkle_tree_deserialized.tip;
+    let roll_over_fee = (merkle_tree_deserialized.rollover_fee * (leaves.len() as u64))
+        + merkle_tree_deserialized.tip;
     let merkle_tree = merkle_tree_deserialized.copy_merkle_tree().unwrap();
-    assert_eq!(merkle_tree.next_index, old_merkle_tree.next_index + 2);
+    assert_eq!(
+        merkle_tree.next_index,
+        old_merkle_tree.next_index + leaves.len()
+    );
 
     let mut reference_merkle_tree = ConcurrentMerkleTree26::<Poseidon>::new(
         account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
@@ -782,7 +786,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     .unwrap();
     reference_merkle_tree.init().unwrap();
     reference_merkle_tree
-        .append_batch(&[&[1u8; 32], &[2u8; 32]])
+        .append_batch(&[&leaves[0], &leaves[1]])
         .unwrap();
     assert_eq!(
         merkle_tree.root().unwrap(),

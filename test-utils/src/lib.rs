@@ -162,6 +162,7 @@ pub struct FeeConfig {
     pub state_merkle_tree_rollover: u64,
     pub nullifier_queue_rollover: u64,
     pub address_queue_rollover: u64,
+    pub tip: u64,
 }
 
 impl Default for FeeConfig {
@@ -170,6 +171,7 @@ impl Default for FeeConfig {
             state_merkle_tree_rollover: 149,
             nullifier_queue_rollover: 29,
             address_queue_rollover: 178,
+            tip: 1,
         }
     }
 }
@@ -236,6 +238,7 @@ where
             .await?;
     }
 
+    // assert correct rollover fee and tip distribution
     if let Some(transaction_params) = transaction_params {
         let post_balance = context
             .banks_client
@@ -243,32 +246,34 @@ where
             .await?
             .unwrap()
             .lamports;
-        if post_balance as i64
-            != pre_balance as i64
-                - i64::from(transaction_params.num_new_addresses)
-                    * transaction_params.fee_config.address_queue_rollover as i64
-                - i64::from(transaction_params.num_input_compressed_accounts)
-                    * transaction_params.fee_config.nullifier_queue_rollover as i64
-                - i64::from(transaction_params.num_output_compressed_accounts)
-                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
-                - transaction_params.compress
-                - 5000
-        {
+
+        let mut tip = 0;
+        for rollover in &[
+            transaction_params.num_new_addresses,
+            transaction_params.num_input_compressed_accounts,
+            transaction_params.num_output_compressed_accounts,
+        ] {
+            if *rollover != 0 {
+                tip += transaction_params.fee_config.tip as i64;
+            }
+        }
+
+        let expected_post_balance = pre_balance as i64
+            - i64::from(transaction_params.num_new_addresses)
+                * transaction_params.fee_config.address_queue_rollover as i64
+            - i64::from(transaction_params.num_input_compressed_accounts)
+                * transaction_params.fee_config.nullifier_queue_rollover as i64
+            - i64::from(transaction_params.num_output_compressed_accounts)
+                * transaction_params.fee_config.state_merkle_tree_rollover as i64
+            - transaction_params.compress
+            - 5000
+            - tip;
+
+        if post_balance as i64 != expected_post_balance {
             println!("transaction_params: {:?}", transaction_params);
             println!("pre_balance: {}", pre_balance);
             println!("post_balance: {}", post_balance);
-            println!(
-                "expected post_balance: {}",
-                pre_balance as i64
-                    - i64::from(transaction_params.num_new_addresses)
-                        * transaction_params.fee_config.address_queue_rollover as i64
-                    - i64::from(transaction_params.num_input_compressed_accounts)
-                        * transaction_params.fee_config.nullifier_queue_rollover as i64
-                    - i64::from(transaction_params.num_output_compressed_accounts)
-                        * transaction_params.fee_config.state_merkle_tree_rollover as i64
-                    - transaction_params.compress
-                    - 5000
-            );
+            println!("expected post_balance: {}", expected_post_balance);
             return Err(BanksClientError::TransactionError(
                 solana_sdk::transaction::TransactionError::InstructionError(
                     0,

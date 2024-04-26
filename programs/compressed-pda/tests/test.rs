@@ -852,12 +852,12 @@ async fn test_with_compression() {
         .unwrap()
         .lamports;
     let network_fee = 5000;
-    let state_merkle_tree_rollover_fee = 149;
+    let state_merkle_tree_rollover_fee = 150;
     assert_eq!(
         sender_pre_balance,
         sender_post_balance + compress_amount + network_fee + state_merkle_tree_rollover_fee,
         "sender balance incorrect, compress sol failed diff {}",
-        sender_post_balance
+        sender_pre_balance
             - (sender_pre_balance - compress_amount - network_fee - state_merkle_tree_rollover_fee)
     );
     let compressed_account_with_context = mock_indexer.compressed_accounts[0].clone();
