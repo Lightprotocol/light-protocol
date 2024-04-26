@@ -6,6 +6,7 @@ import {
     confirmTx,
     defaultTestStateTreeAccounts,
     getTestRpc,
+    createRpc,
     selectMinCompressedSolAccountsForTransfer,
 } from '@lightprotocol/stateless.js';
 import {
@@ -61,8 +62,7 @@ const SendButton: FC = () => {
     const { publicKey, sendTransaction } = useWallet();
 
     const onClick = useCallback(async () => {
-        /// Get Connection with compatibility to Compression API
-        const connection = await getTestRpc();
+        const connection = createRpc();
 
         if (!publicKey) throw new WalletNotConnectedError();
 
@@ -79,7 +79,6 @@ const SendButton: FC = () => {
             lamports: 1e8,
             outputStateTree: defaultTestStateTreeAccounts().merkleTree,
         });
-
         const compressInstructions = [
             ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
             compressInstruction,
