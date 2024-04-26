@@ -111,15 +111,16 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     log = false;
 
     /**
-     * Instantiate a mock RPC simulating the compression rpc interface.
+     * Establish a Compression-compatible JSON RPC mock-connection
      *
-     * @param endpoint              endpoint to the solana cluster (use for
-     *                              localnet only)
-     * @param hasher                light wasm hasher instance
-     * @param testRpcConfig         Config for the mock rpc
-     * @param proverEndpoint        Optional endpoint to the prover server.
-     *                              defaults to endpoint
-     * @param connectionConfig      Optional connection config
+     * @param endpoint                  endpoint to the solana cluster (use for
+     *                                  localnet only)
+     * @param hasher                    light wasm hasher instance
+     * @param compressionApiEndpoint    Endpoint to the compression server.
+     * @param proverEndpoint            Endpoint to the prover server. defaults
+     *                                  to endpoint
+     * @param connectionConfig          Optional connection config
+     * @param testRpcConfig             Config for the mock rpc
      */
     constructor(
         endpoint: string,
@@ -146,11 +147,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         this.log = log ?? false;
     }
 
-    async getHealth(): Promise<string> {
-        return 'ok';
-    }
-
-    /** Retrieve compressed account by hash */
+    /**
+     * Fetch the compressed account for the specified account hash
+     */
     async getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
@@ -158,7 +157,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return account ?? null;
     }
 
-    /** Retrieve lamport balance of a compressed account */
+    /**
+     * Fetch the compressed balance for the specified account hash
+     */
     async getCompressedBalance(hash: BN254): Promise<BN> {
         const account = await getCompressedAccountByHashTest(this, hash);
         if (!account) {
@@ -167,7 +168,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return bn(account.lamports);
     }
 
-    /** Retrieve compressed lamport balance of owner */
+    /**
+     * Fetch the total compressed balance for the specified owner public key
+     */
     async getCompressedBalanceByOwner(owner: PublicKey): Promise<BN> {
         const accounts = await this.getCompressedAccountsByOwner(owner);
         return accounts.reduce(
@@ -176,7 +179,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         );
     }
 
-    /** Retrieve a recent merkle proof for a compressed account */
+    /**
+     * Fetch the latest merkle proof for the specified account hash from the
+     * cluster
+     */
     async getCompressedAccountProof(
         hash: BN254,
     ): Promise<MerkleContextWithMerkleProof> {
@@ -184,14 +190,20 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return proofs[0];
     }
 
-    /** Retrieve multiple compressed accounts */
+    /**
+     * Fetch all the account info for multiple compressed accounts specified by
+     * an array of account hashes
+     */
     async getMultipleCompressedAccounts(
         hashes: BN254[],
     ): Promise<CompressedAccountWithMerkleContext[]> {
         return await getMultipleCompressedAccountsByHashTest(this, hashes);
     }
 
-    /** Retrieve recent merkle proofs for multiple compressed accounts */
+    /**
+     * Fetch the latest merkle proofs for multiple compressed accounts specified
+     * by an array account hashes
+     */
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
@@ -232,16 +244,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
         const roots = new Array(hashes.length).fill(bn(tree.root()));
 
-        /// FIXME: I believe this is due to getRootSeq refetching all leaves, so
-        /// there may be a gap between what the merkle proof expects the
-        /// rootIndex to be and what it is by the time getRootSeq executes.
-        // const rootIndex = await getRootSeq(this);
-        // if (rootIndex !== allLeaves.length) {
-        //     throw new Error(
-        //         `Root index mismatch: expected ${allLeaves.length}, got ${rootIndex}`,
-        //     );
-        // }
-
         /// assemble return type
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
         for (let i = 0; i < hashes.length; i++) {
@@ -272,7 +274,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return merkleProofs;
     }
 
-    /** Retrieve compressed accounts by owner */
+    /**
+     * Fetch all the compressed accounts owned by the specified public key.
+     * Owner can be a program or user account
+     */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
@@ -280,7 +285,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return accounts;
     }
 
-    /** Retrieve compressed token accounts by owner */
+    /**
+     * Fetch all the compressed token accounts owned by the specified public
+     * key. Owner can be a program or user account
+     */
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -292,7 +300,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         );
     }
 
-    /** Retrieve compressed token accounts by delegate */
+    /**
+     * Fetch all the compressed accounts delegated to the specified public key.
+     */
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -304,7 +314,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         );
     }
 
-    /** Retrieve the token balance of a compressed token account */
+    /**
+     * Fetch the compressed token balance for the specified account hash
+     */
     async getCompressedTokenAccountBalance(
         hash: BN254,
     ): Promise<{ amount: BN }> {
@@ -312,7 +324,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return { amount: bn(account.parsed.amount) };
     }
 
-    /** Retrieve all compressed token balances for an owner */
+    /**
+     * Fetch all the compressed token balances owned by the specified public
+     * key. Can filter by mint
+     */
     async getCompressedTokenBalancesByOwner(
         publicKey: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -328,42 +343,93 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         }));
     }
 
-    /** Retrieve all signatures for a compressed account */
+    /**
+     * Returns confirmed signatures for transactions involving the specified
+     * account hash forward in time from genesis to the most recent confirmed
+     * block
+     *
+     * @param hash queried account hash
+     */
     async getSignaturesForCompressedAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
-        throw new Error('getSignaturesForCompressedAccount not implemented');
+        throw new Error(
+            'getSignaturesForCompressedAccount not implemented in test-rpc',
+        );
     }
 
-    /** Retrieve compressed transaction metadata by signature */
-    async getCompressedTransaction(
+    /**
+     * Fetch a confirmed or finalized transaction from the cluster. Return with
+     * CompressionInfo
+     */
+    async getTransactionWithCompressionInfo(
         signature: string,
     ): Promise<CompressedTransaction | null> {
-        throw new Error('getCompressedTransaction not implemented');
+        throw new Error('getCompressedTransaction not implemented in test-rpc');
     }
 
-    /** Retrieve all signatures for a compressed PDA */
-    async getSignaturesForAddress3(
+    /**
+     * Returns confirmed signatures for transactions involving the specified
+     * address forward in time from genesis to the most recent confirmed
+     * block
+     *
+     * @param address queried compressed account address
+     */
+    async getCompressionSignaturesForAddress(
         address: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error('getSignaturesForAddress3 not implemented');
     }
 
-    /** Retrieve all signatures for all compressed accounts of an owner */
-    async getSignaturesForOwner(
+    /**
+     * Returns confirmed signatures for compression transactions involving the
+     * specified account owner forward in time from genesis to the
+     * most recent confirmed block
+     *
+     * @param owner queried owner public key
+     */
+    async getCompressionSignaturesForOwner(
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error('getSignaturesForOwner not implemented');
     }
 
-    /** Retrieve all signatures for all compressed token accounts of an owner */
-    async getSignaturesForTokenOwner(
+    /**
+     * Returns confirmed signatures for compression transactions involving the
+     * specified token account owner forward in time from genesis to the most
+     * recent confirmed block
+     */
+    async getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error('getSignaturesForTokenOwner not implemented');
     }
 
-    /** Retrieve recent validity proof for compressed accounts */
+    /**
+     * Fetch the current indexer health status
+     */
+    async getIndexerHealth(): Promise<string> {
+        return 'ok';
+    }
+
+    /**
+     * Fetch the current slot that the node is processing
+     */
+    async getIndexerSlot(): Promise<number> {
+        return 1;
+    }
+
+    /**
+     * Fetch the latest validity proof for compressed accounts specified by an
+     * array of account hashes.
+     *
+     * Validity proofs prove the presence of compressed accounts in state trees,
+     * enabling verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
+     *
+     * @param hashes    Array of BN254 hashes.
+     * @returns         validity proof with context
+     */
     async getValidityProof(
         hashes: BN254[],
     ): Promise<CompressedProofWithContext> {

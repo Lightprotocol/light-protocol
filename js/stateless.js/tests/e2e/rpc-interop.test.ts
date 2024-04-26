@@ -225,15 +225,19 @@ describe('rpc-interop', () => {
     });
 
     it('[test-rpc missing] getSignaturesForOwner should match', async () => {
-        const signatures = await rpc.getSignaturesForOwner(payer.publicKey);
+        const signatures = await rpc.getCompressionSignaturesForOwner(
+            payer.publicKey,
+        );
         assert.equal(signatures.length, executedTxs);
     });
 
     /// TODO: add getCompressedTransaction, getSignaturesForAddress3
     it.skip('[test-rpc missing] getCompressedTransaction should match', async () => {
-        const signatures = await rpc.getSignaturesForOwner(payer.publicKey);
+        const signatures = await rpc.getCompressionSignaturesForOwner(
+            payer.publicKey,
+        );
 
-        const compressedTx = await rpc.getCompressedTransaction(
+        const compressedTx = await rpc.getTransactionWithCompressionInfo(
             signatures[0].signature,
         );
 

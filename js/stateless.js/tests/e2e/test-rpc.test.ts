@@ -175,16 +175,17 @@ describe('test-rpc', () => {
             await decompress(rpc, payer, lamports, payer.publicKey, merkleTree);
         }
     });
-    it('getHealth', async () => {
+    it('getIndexerHealth', async () => {
         /// getHealth
-        const health = await rpc.getHealth();
+        const health = await rpc.getIndexerHealth();
         assert.strictEqual(health, 'ok');
     });
 
-    it('getSlot', async () => {
-        /// getSlot
-        const slot = await rpc.getSlot();
+    it('getIndexerSlot / getSlot', async () => {
+        const slot = await rpc.getIndexerSlot();
+        const slotWeb3 = await rpc.getSlot();
         assert(slot > 0);
+        assert(slotWeb3 > 0);
     });
 
     it('getCompressedAccount', async () => {

@@ -1,5 +1,4 @@
 import { PublicKey, DataSizeFilter, MemcmpFilter } from '@solana/web3.js';
-
 import {
     type as pick,
     number,
@@ -12,7 +11,6 @@ import {
     create,
     unknown,
     any,
-    boolean,
     nullable,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
@@ -56,11 +54,9 @@ export interface HexInputsForProver {
 }
 
 // TODO: Rename Compressed -> ValidityProof
-// TODO: consistent types
 export type CompressedProofWithContext = {
     compressedProof: CompressedProof;
     roots: BN[];
-    // for now we assume latest root = allLeaves.length
     rootIndices: number[];
     leafIndices: number[];
     leaves: BN[];
@@ -118,7 +114,6 @@ const PublicKeyFromString = coerce(
 /**
  * @internal
  */
-// TODO: use a BN254 class here for the 1st parameter
 const BN254FromString = coerce(instance(BN), string(), value => {
     return createBN254(value, 'base58');
 });
@@ -221,10 +216,10 @@ export const TokenDataResult = pick({
     isNative: nullable(BNFromInt),
     state: string(),
 });
+
 /**
  * @internal
  */
-/// TODO: update with remaining fields as added to token program
 export const CompressedTokenAccountResult = pick({
     tokenData: TokenDataResult,
     account: CompressedAccountResult,
@@ -298,12 +293,12 @@ export const TokenBalanceListResult = pick({
     cursor: nullable(PublicKeyFromString),
 });
 
-/// TODO: we need to add: tree, nullifierQueue, leafIndex, rootIndex
 export const AccountProofResult = pick({
     hash: array(number()),
     root: array(number()),
     proof: array(array(number())),
 });
+
 export const toUnixTimestamp = (blockTime: string): number => {
     return new Date(blockTime).getTime();
 };
@@ -311,7 +306,7 @@ export const toUnixTimestamp = (blockTime: string): number => {
 export const SignatureListResult = pick({
     items: array(
         pick({
-            blockTime: coerce(number(), string(), toUnixTimestamp),
+            blockTime: number(),
             signature: string(),
             slot: number(),
         }),
@@ -321,7 +316,7 @@ export const SignatureListResult = pick({
 export const SignatureListWithCursorResult = pick({
     items: array(
         pick({
-            blockTime: coerce(number(), string(), toUnixTimestamp),
+            blockTime: number(),
             signature: string(),
             slot: number(),
         }),
@@ -350,36 +345,26 @@ export const CompressedTransactionResult = pick({
 });
 
 export interface CompressionApiInterface {
-    /** Retrieve compressed account by hash or address */
     getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null>;
 
-    /**
-     * Retrieve compressed lamport balance of a compressed account by hash or
-     * address.
-     */
     getCompressedBalance(hash: BN254): Promise<BN | null>;
 
-    /** Retrieve compressed lamport balance of an owner */
     getCompressedBalanceByOwner(owner: PublicKey): Promise<BN>;
 
-    /** Retrieve merkle proof for a compressed account */
     getCompressedAccountProof(
         hash: BN254,
-    ): Promise<MerkleContextWithMerkleProof>; // TODO: expose context slot
+    ): Promise<MerkleContextWithMerkleProof>;
 
-    /** Retrieve compressed account by hash or address */
     getMultipleCompressedAccounts(
         hashes: BN254[],
     ): Promise<CompressedAccountWithMerkleContext[]>;
 
-    /** Retrieve multiple merkle proofs for compressed accounts */
     getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]>;
 
-    /** Retrieve compressed accounts by owner */
     getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]>;
@@ -405,25 +390,25 @@ export interface CompressionApiInterface {
         hash: BN254,
     ): Promise<SignatureWithMetadata[]>;
 
-    getCompressedTransaction(
+    getTransactionWithCompressionInfo(
         signature: string,
     ): Promise<CompressedTransaction | null>;
 
-    getSignaturesForAddress3(
+    getCompressionSignaturesForAddress(
         address: PublicKey,
     ): Promise<SignatureWithMetadata[]>;
 
-    getSignaturesForOwner(owner: PublicKey): Promise<SignatureWithMetadata[]>;
-
-    getSignaturesForTokenOwner(
+    getCompressionSignaturesForOwner(
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]>;
 
-    /** Retrieve health status of the node */
-    getHealth(): Promise<string>;
+    getCompressionSignaturesForTokenOwner(
+        owner: PublicKey,
+    ): Promise<SignatureWithMetadata[]>;
 
-    /** Retrieve the current slot */
-    getSlot(): Promise<number>;
-    /** Receive validity Proof for n compressed accounts */
+    getIndexerHealth(): Promise<string>;
+
+    getIndexerSlot(): Promise<number>;
+
     getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
 }

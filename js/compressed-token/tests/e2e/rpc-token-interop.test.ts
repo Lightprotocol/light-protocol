@@ -1,6 +1,5 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Keypair, PublicKey, Signer } from '@solana/web3.js';
-
 import {
     Rpc,
     newAccountWithLamports,
@@ -10,7 +9,6 @@ import {
     defaultTestStateTreeAccounts,
     createRpc,
 } from '@lightprotocol/stateless.js';
-
 import { createMint, mintTo, transfer } from '../../src/actions';
 
 const TEST_TOKEN_DECIMALS = 2;
@@ -165,13 +163,14 @@ describe('rpc-interop token', () => {
     });
 
     it('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
-        const signatures = await rpc.getSignaturesForTokenOwner(bob.publicKey);
+        const signatures = await rpc.getCompressionSignaturesForTokenOwner(
+            bob.publicKey,
+        );
 
         assert.equal(signatures.length, 2);
 
-        const signaturesReceiver = await rpc.getSignaturesForTokenOwner(
-            charlie.publicKey,
-        );
+        const signaturesReceiver =
+            await rpc.getCompressionSignaturesForTokenOwner(charlie.publicKey);
 
         assert.equal(signaturesReceiver.length, 1);
     });

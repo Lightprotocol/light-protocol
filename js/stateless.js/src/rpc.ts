@@ -189,6 +189,7 @@ function buildCompressedAccountWithMaybeTokenData(account: any): {
     return { account: compressedAccount, maybeTokenData: parsed };
 }
 
+/** @internal */
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',
     compressionApiEndpoint: string = 'http://localhost:8784',
@@ -259,10 +260,23 @@ export const getRootSeq = async (rpc: Rpc): Promise<number> => {
     return leaves.length;
 };
 
+/**
+ *
+ */
 export class Rpc extends Connection implements CompressionApiInterface {
     compressionApiEndpoint: string;
     proverEndpoint: string;
 
+    /**
+     * Establish a Compression-compatible JSON RPC connection
+     *
+     * @param endpoint                  endpoint to the solana cluster (use for
+     *                                  localnet only)
+     * @param compressionApiEndpoint    Endpoint to the compression server.
+     * @param proverEndpoint            Endpoint to the prover server. defaults
+     *                                  to endpoint
+     * @param connectionConfig          Optional connection config
+     */
     constructor(
         endpoint: string,
         compressionApiEndpoint: string,
@@ -274,8 +288,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
         this.proverEndpoint = proverEndpoint;
     }
 
-    // TODO: add support for 'address' parameter
-    /** Retrieve compressed account by hash */
+    /**
+     * Fetch the compressed account for the specified account hash
+     */
     async getCompressedAccount(
         hash: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
@@ -313,7 +328,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return account;
     }
 
-    /** Retrieve lamport balance of a compressed account */
+    /**
+     * Fetch the compressed balance for the specified account hash
+     */
     async getCompressedBalance(hash: BN254): Promise<BN> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -338,7 +355,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /// TODO: validate that this is just for sol accounts
-    /** Get the balance of all compressed sol accounts by owner */
+    /**
+     * Fetch the total compressed balance for the specified owner public key
+     */
     async getCompressedBalanceByOwner(owner: PublicKey): Promise<BN> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
@@ -361,7 +380,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return bn(res.result.value);
     }
 
-    /** Retrieve a recent merkle proof for a compressed account */
+    /**
+     * Fetch the latest merkle proof for the specified account hash from the
+     * cluster
+     */
     async getCompressedAccountProof(
         hash: BN254,
     ): Promise<MerkleContextWithMerkleProof> {
@@ -402,8 +424,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return value;
     }
 
-    // TODO: add support for 'address' parameter
-    /** Retrieve multiple compressed accounts */
+    /**
+     * Fetch all the account info for multiple compressed accounts specified by
+     * an array of account hashes
+     */
     async getMultipleCompressedAccounts(
         hashes: BN254[],
     ): Promise<CompressedAccountWithMerkleContext[]> {
@@ -447,7 +471,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return accounts.sort((a, b) => b.leafIndex - a.leafIndex);
     }
 
-    /** Retrieve recent merkle proofs for multiple compressed accounts */
+    /**
+     * Fetch the latest merkle proofs for multiple compressed accounts specified
+     * by an array account hashes
+     */
     async getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]> {
@@ -493,8 +520,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return merkleProofs;
     }
 
-    // TODO: support cursor and limit parameters
-    /** Retrieve compressed accounts by owner */
+    /**
+     * Fetch all the compressed accounts owned by the specified public key.
+     * Owner can be a program or user account
+     */
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
@@ -518,8 +547,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return [];
         }
         const accounts: CompressedAccountWithMerkleContext[] = [];
-        /// TODO: clean up. Make typesafe
-        res.result.value.items.map((item: any) => {
+
+        res.result.value.items.map(item => {
             const account = createCompressedAccountWithMerkleContext(
                 createMerkleContext(
                     item.tree!,
@@ -530,7 +559,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 item.owner,
                 bn(item.lamports),
                 item.data ? parseAccountData(item.data) : undefined,
-                item.address,
+                item.address || undefined,
             );
 
             accounts.push(account);
@@ -539,8 +568,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return accounts.sort((a, b) => b.leafIndex - a.leafIndex);
     }
 
-    // TODO: support cursor and limit parameters
-    /** Retrieve compressed token accounts by owner */
+    /**
+     * Fetch all the compressed token accounts owned by the specified public
+     * key. Owner can be a program or user account
+     */
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -553,8 +584,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
     }
 
-    // TODO: support cursor and limit parameters
-    /** Retrieve compressed token accounts by delegate */
+    /**
+     * Fetch all the compressed accounts delegated to the specified public key.
+     */
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -567,8 +599,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
     }
 
-    /// TODO: remove address parameter from indexer
-    /** Retrieve the token balance of a compressed token account */
+    /**
+     * Fetch the compressed token balance for the specified account hash
+     */
     async getCompressedTokenAccountBalance(
         hash: BN254,
     ): Promise<{ amount: BN }> {
@@ -593,8 +626,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return { amount: bn(res.result.value.amount) };
     }
 
-    // TODO: Support cursor and limit parameters
-    /** Retrieve all compressed token balances for an owner */
+    /**
+     * Fetch all the compressed token balances owned by the specified public
+     * key. Can filter by mint
+     */
     async getCompressedTokenBalancesByOwner(
         owner: PublicKey,
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
@@ -633,13 +668,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return filtered;
     }
 
-    /** Retrieve all signatures for a compressed account */
+    /**
+     * Returns confirmed signatures for transactions involving the specified
+     * account hash forward in time from genesis to the most recent confirmed
+     * block
+     *
+     * @param hash queried account hash
+     */
     async getSignaturesForCompressedAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getSignaturesForCompressedAccount',
+            'getCompressionSignaturesForAccount', // TODO: update
             { hash: encodeBN254toBase58(hash) },
         );
         const res = create(
@@ -656,14 +697,16 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value.items;
     }
 
-    /// TODO: properly validate transaction type
-    /// TODO: rename from 'getTransaction' in indexer
-    async getCompressedTransaction(
+    /**
+     * Fetch a confirmed or finalized transaction from the cluster. Return with
+     * CompressionInfo
+     */
+    async getTransactionWithCompressionInfo(
         signature: string,
     ): Promise<CompressedTransaction | null> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getCompressedTransaction',
+            'getTransactionWithCompressionInfo',
             { signature },
         );
         const res = create(
@@ -701,15 +744,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
         };
     }
 
-    /// TODO: change the name.
-    /// TODO: support cursor and limit parameters
-    /** Retrieve all signatures for a compressed PDA */
-    async getSignaturesForAddress3(
+    /**
+     * Returns confirmed signatures for transactions involving the specified
+     * address forward in time from genesis to the most recent confirmed
+     * block
+     *
+     * @param address queried compressed account address
+     */
+    async getCompressionSignaturesForAddress(
         address: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getSignaturesForAddress',
+            'getCompressionSignaturesForAddress',
             { address: address.toBase58() },
         );
 
@@ -732,13 +779,19 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value.items;
     }
 
-    /** Retrieve all signatures for all compressed accounts of an owner */
-    async getSignaturesForOwner(
+    /**
+     * Returns confirmed signatures for compression transactions involving the
+     * specified account owner forward in time from genesis to the
+     * most recent confirmed block
+     *
+     * @param owner queried owner public key
+     */
+    async getCompressionSignaturesForOwner(
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getSignaturesForOwner',
+            'getCompressionSignaturesForOwner',
             { owner: owner.toBase58() },
         );
 
@@ -762,13 +815,17 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /// TODO: needs mint
-    /** Retrieve all signatures for all compressed token accounts of an owner */
-    async getSignaturesForTokenOwner(
+    /**
+     * Returns confirmed signatures for compression transactions involving the
+     * specified token account owner forward in time from genesis to the most
+     * recent confirmed block
+     */
+    async getCompressionSignaturesForTokenOwner(
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getSignaturesForTokenOwner',
+            'getCompressionSignaturesForTokenOwner',
             { owner: owner.toBase58() },
         );
 
@@ -791,10 +848,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value.items;
     }
 
-    async getHealth(): Promise<string> {
+    /**
+     * Fetch the current indexer health status
+     */
+    async getIndexerHealth(): Promise<string> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getHealth',
+            'getIndexerHealth',
         );
         const res = create(unsafeRes, jsonRpcResult(HealthResult));
         if ('error' in res) {
@@ -803,11 +863,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result;
     }
 
-    /** TODO: use from Connection */
-    async getSlot(): Promise<number> {
+    /**
+     * Fetch the current slot that the node is processing
+     */
+    async getIndexerSlot(): Promise<number> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getSlot',
+            'getIndexerSlot',
         );
         const res = create(unsafeRes, jsonRpcResult(SlotResult));
         if ('error' in res) {
@@ -817,11 +879,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Retrieves a validity proof for compressed accounts, proving their
-     * existence in their respective state trees.
+     * Fetch the latest validity proof for compressed accounts specified by an
+     * array of account hashes.
      *
-     * Allows verifiers to verify state validity without recomputing the merkle
-     * proof path, therefore reducing verification and data cost.
+     * Validity proofs prove the presence of compressed accounts in state trees,
+     * enabling verification without recomputing the merkle proof path, thus
+     * lowering verification and data costs.
      *
      * @param hashes    Array of BN254 hashes.
      * @returns         validity proof with context
