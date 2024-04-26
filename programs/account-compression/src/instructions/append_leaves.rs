@@ -190,7 +190,7 @@ fn process_batch<'a, 'c: 'info, 'info>(
 
             msg!("transferring rollover fee: {}", lamports);
             if lamports > 0 {
-                transfer_lamports_cpi(&ctx.accounts.fee_payer, &merkle_tree_acc_info, lamports)?;
+                transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, lamports)?;
             }
 
             leaves_in_batch += leaves_to_process;
