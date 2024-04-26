@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/compressed-token",
-    "version": "0.1.1",
+    "version": "0.1.3",
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "type": "module",
@@ -57,7 +57,7 @@
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0",
         "@solana/web3.js": "^1.87.6",
-        "@lightprotocol/stateless.js": "0.2.0",
+        "@lightprotocol/stateless.js": "0.2.2",
         "@solana/spl-token": "^0.3.7",
         "buffer": "^6.0.3",
         "tweetnacl": "^1.0.3"

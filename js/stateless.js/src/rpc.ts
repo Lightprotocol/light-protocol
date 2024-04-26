@@ -201,8 +201,8 @@ function buildCompressedAccountWithMaybeTokenData(account: any): {
  */
 export function createRpc(
     endpointOrWeb3JsConnection: string | Connection = 'http://127.0.0.1:8899',
-    compressionApiEndpoint: string = 'http://localhost:8784',
-    proverEndpoint: string = 'http://localhost:3001',
+    compressionApiEndpoint: string = 'http://127.0.0.1:8784',
+    proverEndpoint: string = 'http://127.0.0.1:3001',
     config?: ConnectionConfig,
 ): Rpc {
     const endpoint =
