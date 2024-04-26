@@ -33,7 +33,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            prover-darwin-amd64
-            prover-darwin-arm64
-            prover-linux-amd64
-            prover-windows-amd64
+            gnark-prover/prover-darwin-amd64
+            gnark-prover/prover-darwin-arm64
+            gnark-prover/prover-linux-amd64
+            gnark-prover/prover-windows-amd64
