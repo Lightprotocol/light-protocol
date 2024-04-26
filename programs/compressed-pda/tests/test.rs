@@ -690,21 +690,6 @@ async fn test_with_compression() {
         true,
         false,
     );
-    // let instruction_data = light_compressed_pda::instruction::InitCompressSolPda {};
-    // let accounts = light_compressed_pda::accounts::InitializeCompressedSolPda {
-    //     fee_payer: payer.pubkey(),
-    //     compressed_sol_pda: get_compressed_sol_pda(),
-    //     system_program: anchor_lang::solana_program::system_program::ID,
-    // };
-    // let instruction = Instruction {
-    //     program_id: light_compressed_pda::ID,
-    //     accounts: accounts.to_account_metas(Some(true)),
-    //     data: instruction_data.data(),
-    // };
-    // create_and_send_transaction(&mut context, &[instruction], &payer_pubkey, &[&payer])
-    //     .await
-    //     .unwrap();
-
     let compress_amount = 1_000_000;
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: compress_amount,

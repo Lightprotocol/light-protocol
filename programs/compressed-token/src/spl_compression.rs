@@ -85,9 +85,8 @@ pub fn transfer<'info>(
     token_program: &AccountInfo<'info>,
     amount: u64,
 ) -> Result<()> {
-    let (key, bump) =
+    let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID);
-    msg!("cpi authority key {:?}", key);
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let accounts = Transfer {

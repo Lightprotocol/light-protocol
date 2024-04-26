@@ -253,8 +253,6 @@ pub fn transfer_lamports<'info>(
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
-    msg!("transfer_lamports from {:?} to {:?}", from.key, to.key);
-    msg!("transfer_lamports lamports {:?}", lamports);
     let compressed_sol_pda_lamports = from.as_ref().lamports();
 
     **from.as_ref().try_borrow_mut_lamports()? =
@@ -269,8 +267,6 @@ pub fn transfer_lamports_cpi<'info>(
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
-    msg!("transfer_lamports from {:?} to {:?}", from.key, to.key);
-    msg!("transfer_lamports lamports {:?}", lamports);
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;
