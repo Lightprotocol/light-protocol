@@ -1,52 +1,64 @@
 import typescript from '@rollup/plugin-typescript';
-import pkg from './package.json';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
+import dts from 'rollup-plugin-dts';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
+import copy from 'rollup-plugin-copy';
 
-const rolls = fmt => ({
+const rolls = (fmt, env) => ({
     input: 'src/index.ts',
     output: {
-        dir: 'dist',
+        dir: `dist/${fmt}/${env}`,
         format: fmt,
-        entryFileNames: `${fmt}/[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
-        name: pkg.name,
-        globals: {
-            '@coral-xyz/anchor': 'anchor',
-            '@coral-xyz/anchor/dist/cjs/utils/bytes': 'bytes',
-            '@solana/web3.js': 'web3.js',
-            '@solana/spl-account-compression': 'spl-account-compression',
-            '@metaplex-foundation/beet': 'beet',
-            '@metaplex-foundation/beet-solana': 'beet-solana',
-            '@lightprotocol/stateless.js': 'stateless.js',
-            '@lightprotocol/hasher.rs': 'hasher.rs',
-            '@solana/spl-token': 'spl-token',
-            buffer: 'buffer',
-            crypto: 'crypto',
-            superstruct: 'superstruct',
-            tweetnacl: 'tweetnacl',
-        },
+        entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
+        sourcemap: true,
     },
-    external: [
-        '@solana/web3.js',
-        '@solana/spl-account-compression',
-        '@solana/spl-token',
-        '@coral-xyz/anchor',
-        '@coral-xyz/anchor/dist/cjs/utils/bytes',
-        '@lightprotocol/stateless.js',
-        '@lightprotocol/hasher.rs',
-        '@metaplex-foundation/beet',
-        '@metaplex-foundation/beet-solana',
-        'buffer',
-        'superstruct',
-        'tweetnacl',
-    ],
+    external: ['@solana/web3.js', '@coral-xyz/anchor'],
     plugins: [
         typescript({
             target: fmt === 'es' ? 'ES2022' : 'ES2017',
-            outDir: `dist/${fmt}`,
+            outDir: `dist/${fmt}/${env}`,
             rootDir: 'src',
         }),
-        nodePolyfills({ include: ['buffer', 'crypto'] }),
-    ],
+        commonjs(),
+        resolve({
+            browser: env === 'browser',
+            preferBuiltins: env === 'node',
+        }),
+        env === 'browser' ? nodePolyfills() : undefined,
+        /// Note: This is a temporary hack. Consuming browser apps need access
+        /// to the wasm files next to the sdk bundle, for both browser and node.
+        /// We will remove this once we've extracted test-helpers (test-rpc.ts,
+        /// merkle-tree.ts, which require hasher.rs) into its own library.
+        ...(fmt === 'es'
+            ? [
+                  copy({
+                      targets: [
+                          {
+                              src: 'node_modules/@lightprotocol/hasher.rs/dist/hasher_wasm_simd_bg.wasm',
+                              dest: `dist/${fmt}/${env}`,
+                          },
+                          {
+                              src: 'node_modules/@lightprotocol/hasher.rs/dist/light_wasm_hasher_bg.wasm',
+                              dest: `dist/${fmt}/${env}`,
+                          },
+                      ],
+                  }),
+              ]
+            : []),
+    ].filter(Boolean),
 });
 
-export default [rolls('umd'), rolls('cjs'), rolls('es')];
+const typesConfig = {
+    input: 'src/index.ts',
+    output: [{ file: 'dist/types/index.d.ts', format: 'es' }],
+    plugins: [dts()],
+};
+
+export default [
+    rolls('cjs', 'browser'),
+    rolls('es', 'browser'),
+    rolls('cjs', 'node'),
+    rolls('es', 'node'),
+    typesConfig,
+];

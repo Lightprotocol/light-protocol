@@ -4,17 +4,25 @@
     "description": "JS client to interact with the compressed-token program",
     "sideEffects": false,
     "type": "module",
-    "main": "./dist/umd/index.js",
-    "module": "./dist/es/index.js",
+    "main": "dist/cjs/node/index.cjs",
+    "module": "dist/es/node/index.js",
+    "browser": {
+        "./dist/cjs/node/index.cjs": "./dist/cjs/browser/index.cjs",
+        "./dist/es/node/index.js": "./dist/es/browser/index.js"
+    },
+    "types": "dist/types/index.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/types/main/index.d.ts",
-            "import": "./dist/es/index.js",
-            "default": "./dist/cjs/index.cjs"
-        },
-        "./package.json": "./package.json"
+            "import": "./dist/es/node/index.js",
+            "require": "./dist/cjs/node/index.cjs",
+            "browser": {
+                "import": "./dist/es/browser/index.js",
+                "require": "./dist/cjs/browser/index.cjs"
+            },
+            "types": "./dist/types/index.d.ts",
+            "default": "./dist/cjs/node/index.cjs"
+        }
     },
-    "types": "./dist/types/index.d.ts",
     "files": [
         "dist"
     ],
@@ -33,7 +41,7 @@
         "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/*.test.ts",
         "pull-idl": "../../scripts/push-compressed-token-idl.sh",
         "build": "rimraf dist && pnpm run pull-idl && pnpm build:bundle",
-        "build:bundle": "rollup -c --bundleConfigAsCjs",
+        "build:bundle": "rollup -c",
         "format": "prettier --write .",
         "lint": "eslint ."
     },
@@ -58,6 +66,12 @@
         "@lightprotocol/hasher.rs": "workspace:*",
         "@types/node": "^20.10.2",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@rollup/plugin-babel": "^6.0.4",
+        "@rollup/plugin-commonjs": "^25.0.7",
+        "@rollup/plugin-json": "^6.1.0",
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@rollup/plugin-replace": "^5.0.5",
+        "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.5",
         "@typescript-eslint/eslint-plugin": "^6.7.3",
         "eslint": "^8.50.0",
@@ -69,6 +83,8 @@
         "prettier": "^3.0.3",
         "rimraf": "^5.0.5",
         "rollup": "^4.6.1",
+        "rollup-plugin-copy": "^3.5.0",
+        "rollup-plugin-dts": "^6.1.0",
         "rollup-plugin-polyfill-node": "^0.13.0",
         "ts-node": "^10.9.1",
         "tslib": "^2.6.2",
