@@ -605,7 +605,16 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
 
     fail_2_append_leaves_with_invalid_inputs(&mut context, &merkle_tree_pubkey).await;
 
-    functional_3_append_leaves_to_merkle_tree(&mut context, &merkle_tree_pubkey).await;
+    // We should always support appending 60 leaves at once.
+    let leaves = (0u8..=60)
+        .map(|i| {
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, i,
+            ]
+        })
+        .collect::<Vec<[u8; 32]>>();
+    functional_3_append_leaves_to_merkle_tree(&mut context, &merkle_tree_pubkey, &leaves).await;
 
     fail_4_append_leaves_with_invalid_authority(&mut context, &merkle_tree_pubkey).await;
 }
@@ -732,6 +741,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs(
 pub async fn functional_3_append_leaves_to_merkle_tree(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
+    leaves: &Vec<[u8; 32]>,
 ) {
     let payer = context.payer.insecure_clone();
     let pre_account_mt = context
@@ -746,12 +756,11 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .await;
     let old_merkle_tree = old_merkle_tree.deserialized().copy_merkle_tree().unwrap();
-    let leaves = vec![[1u8; 32], [2u8; 32]];
     let instruction = [create_insert_leaves_instruction(
         leaves.clone(),
         context.payer.pubkey(),
         context.payer.pubkey(),
-        vec![*merkle_tree_pubkey, *merkle_tree_pubkey],
+        vec![*merkle_tree_pubkey; leaves.len()],
     )];
 
     create_and_send_transaction(context, &instruction, &payer.pubkey(), &[&payer, &payer])
@@ -785,9 +794,8 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .unwrap();
     reference_merkle_tree.init().unwrap();
-    reference_merkle_tree
-        .append_batch(&[&leaves[0], &leaves[1]])
-        .unwrap();
+    let leaves: Vec<&[u8; 32]> = leaves.iter().collect();
+    reference_merkle_tree.append_batch(&leaves).unwrap();
     assert_eq!(
         merkle_tree.root().unwrap(),
         reference_merkle_tree.root().unwrap()
@@ -890,9 +898,9 @@ async fn test_nullify_leaves() {
     )
     .await;
 
-    functional_3_append_leaves_to_merkle_tree(&mut context, &merkle_tree_pubkey).await;
-
     let elements = vec![[1u8; 32], [2u8; 32]];
+
+    functional_3_append_leaves_to_merkle_tree(&mut context, &merkle_tree_pubkey, &elements).await;
 
     insert_into_nullifier_queues(
         &elements,

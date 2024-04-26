@@ -1004,6 +1004,7 @@ where
         }
     }
 
+    #[inline(never)]
     pub fn get_changelog_event(
         &self,
         merkle_tree_account_pubkey: [u8; 32],
@@ -1014,17 +1015,13 @@ where
         let mut paths = Vec::with_capacity(num_changelog_entries);
         for i in 0..num_changelog_entries {
             let changelog_index = (first_changelog_index + i) % self.changelog_capacity;
-
-            let path_len = self.changelog[changelog_index].path.len();
-            let mut path = Vec::with_capacity(path_len);
-            let path_len =
-                u32::try_from(path_len).map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
+            let mut path = Vec::with_capacity(self.height);
 
             // Add all nodes from the changelog path.
             for (level, node) in self.changelog[changelog_index].path.iter().enumerate() {
                 let level =
                     u32::try_from(level).map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
-                let index = (1 << (path_len - level))
+                let index = (1 << (self.height as u32 - level))
                     + (self.changelog[changelog_index].index as u32 >> level);
                 path.push(PathNode {
                     node: node.to_owned(),
