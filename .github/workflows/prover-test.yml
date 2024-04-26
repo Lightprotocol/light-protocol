@@ -49,15 +49,6 @@ jobs:
           cd gnark-prover
           go test ./prover
 
-      - name: Echo server instances
-        run: |
-          # shellcheck disable=SC2009
-          ps aux | grep prover | grep -v grep || echo "No prover instances running"
-          # shellcheck disable=SC2009
-          ps aux | grep photon | grep -v grep || echo "No photon instances running"
-          # shellcheck disable=SC2009
-          ps aux | grep solana | grep -v grep || echo "No solana instances running"
-
       - name: Integration tests
         run: |
           cd gnark-prover

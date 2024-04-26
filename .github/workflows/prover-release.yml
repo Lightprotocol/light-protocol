@@ -3,6 +3,24 @@ on:
   push:
     tags:
       - '*'
+    branches:
+      - main
+    paths:
+      - "gnark-prover/**"
+      - ".github/workflows/prover-test.yml"
+      - ".github/workflows/prover-release.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "gnark-prover/**"
+      - ".github/workflows/prover-test.yml"
+      - ".github/workflows/prover-release.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 jobs:
   create_release:
