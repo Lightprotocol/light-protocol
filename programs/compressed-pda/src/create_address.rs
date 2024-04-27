@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 
-use crate::instructions::{InstructionDataTransfer, TransferInstruction};
+use crate::{
+    instructions::{InstructionDataTransfer, TransferInstruction},
+    verify_state::check_program_owner_address_merkle_tree,
+};
 
 pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
@@ -9,12 +12,18 @@ pub fn insert_addresses_into_address_merkle_tree_queue<'a, 'b, 'c: 'info, 'info>
 ) -> anchor_lang::Result<()> {
     let mut remaining_accounts =
         Vec::<AccountInfo>::with_capacity(inputs.new_address_params.len() * 2);
-    inputs.new_address_params.iter().for_each(|params| {
+    inputs.new_address_params.iter().try_for_each(|params| {
         remaining_accounts
             .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
-        remaining_accounts
-            .push(ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone())
-    });
+
+        remaining_accounts.push(
+            ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone(),
+        );
+        check_program_owner_address_merkle_tree(
+            &ctx.remaining_accounts[params.address_merkle_tree_account_index as usize],
+            &ctx.accounts.invoking_program,
+        )
+    })?;
 
     insert_addresses_cpi(
         ctx.program_id,

@@ -336,8 +336,8 @@ async fn test_address_queue() {
     create_address_merkle_tree_and_queue_account(
         &payer,
         &mut context,
-        &address_queue_keypair,
         &address_merkle_tree_keypair,
+        &address_queue_keypair,
     )
     .await;
 
@@ -411,8 +411,8 @@ async fn test_insert_invalid_low_element() {
     create_address_merkle_tree_and_queue_account(
         &payer,
         &mut context,
-        &address_queue_keypair,
         &address_merkle_tree_keypair,
+        &address_queue_keypair,
     )
     .await;
 
@@ -601,8 +601,8 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     create_address_merkle_tree_and_queue_account(
         &payer,
         &mut context,
-        &address_queue_keypair,
         &address_merkle_tree_keypair,
+        &address_queue_keypair,
     )
     .await;
 
@@ -611,8 +611,8 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     create_address_merkle_tree_and_queue_account(
         &payer,
         &mut context,
-        &address_queue_keypair_2,
         &address_merkle_tree_keypair_2,
+        &address_queue_keypair_2,
     )
     .await;
     let merkle_tree_config = AddressMerkleTreeConfig::default();

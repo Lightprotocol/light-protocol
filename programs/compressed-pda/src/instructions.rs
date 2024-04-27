@@ -19,8 +19,9 @@ use crate::{
     event::emit_state_transition_event,
     nullify_state::insert_nullifiers,
     verify_state::{
-        fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts, signer_check,
-        sum_check, verify_state_proof, write_access_check,
+        cpi_signer_check, fetch_roots, fetch_roots_address_merkle_tree,
+        hash_input_compressed_accounts, input_compressed_accounts_signer_check,
+        output_compressed_accounts_write_access_check, sum_check, verify_state_proof,
     },
     ErrorCode,
 };
@@ -31,17 +32,27 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
     // signer check ---------------------------------------------------
-    signer_check(&inputs, &ctx)?;
-    write_access_check(
-        &inputs,
+    cpi_signer_check(
+        &inputs.signer_seeds,
         &ctx.accounts.invoking_program,
         &ctx.accounts.authority.key(),
     )?;
+    input_compressed_accounts_signer_check(
+        inputs,
+        &ctx.accounts.invoking_program,
+        &ctx.accounts.authority.key(),
+    )?;
+    output_compressed_accounts_write_access_check(inputs, &ctx.accounts.invoking_program)?;
 
     if let Some(cpi_context) = cpi_context {
         if process_cpi_context(cpi_context, &mut ctx, &mut inputs)?.is_some() {
             return Ok(());
         }
+    }
+    // if invoking program is present then cpi context must be present
+    // TODO: move to plausiblility check
+    else if ctx.accounts.invoking_program.is_some() {
+        return err!(crate::ErrorCode::CpiContextMissing);
     }
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
@@ -89,8 +100,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &mut input_compressed_account_addresses,
     )?;
 
-    // TODO: add heap neutral
-    // verify inclusion proof ---------------------------------------------------
+    // verify state and or address proof ---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()

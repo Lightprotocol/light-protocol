@@ -31,7 +31,7 @@ pub fn process_initialize_address_merkle_tree(
 
     address_merkle_tree.index = index;
     address_merkle_tree.owner = owner;
-    address_merkle_tree.delegate = delegate.unwrap_or(owner);
+    address_merkle_tree.delegate = delegate.unwrap_or_default();
     address_merkle_tree.tip = tip;
     address_merkle_tree.associated_queue = associated_queue;
     let total_number_of_leaves = 2u64.pow(height);

@@ -29,7 +29,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
         let mut nullifier_queue_account = nullifier_queue_account_loader.load_init()?;
         nullifier_queue_account.index = index;
         nullifier_queue_account.owner = owner;
-        nullifier_queue_account.delegate = delegate.unwrap_or(owner);
+        nullifier_queue_account.delegate = delegate.unwrap_or_default();
         nullifier_queue_account.associated_merkle_tree = associated_merkle_tree;
         nullifier_queue_account.rolledover_slot = u64::MAX;
         nullifier_queue_account.tip = tip;

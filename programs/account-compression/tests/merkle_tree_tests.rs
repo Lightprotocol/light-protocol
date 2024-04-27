@@ -673,6 +673,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         state_merkle_tree_config,
         NullifierQueueConfig::default(),
         None,
+        1,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -696,7 +697,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue(
     )
     .await;
     assert_eq!(merkle_tree.deserialized().owner, *payer_pubkey);
-    assert_eq!(merkle_tree.deserialized().delegate, *payer_pubkey);
+    assert_eq!(merkle_tree.deserialized().delegate, Pubkey::default());
     assert_eq!(merkle_tree.deserialized().index, 1);
     merkle_tree_keypair.pubkey()
 }

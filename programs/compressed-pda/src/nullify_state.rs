@@ -1,21 +1,32 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 
-use crate::instructions::{InstructionDataTransfer, TransferInstruction};
+use crate::{
+    instructions::{InstructionDataTransfer, TransferInstruction},
+    verify_state::check_program_owner_state_merkle_tree,
+};
 
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
-/// 2. Inserts nullifiers into the queue.
+/// 2. Checks that if nullifier queue has delegate it invoking_program is delegate.
+/// 3. Inserts nullifiers into the queue.
 #[heap_neutral]
 pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     nullifiers: &'a [[u8; 32]],
 ) -> Result<()> {
-    let state_merkle_tree_account_infos = inputs
+    let state_merkle_tree_account_infos: anchor_lang::Result<Vec<AccountInfo<'info>>> = inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
-        .map(|account| ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize].clone())
-        .collect::<Vec<AccountInfo<'info>>>();
+        .map(|account| {
+            check_program_owner_state_merkle_tree(
+                &ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize],
+                &ctx.accounts.invoking_program,
+            )?;
+
+            Ok(ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize].clone())
+        })
+        .collect();
     let mut nullifier_queue_account_infos = Vec::<AccountInfo>::new();
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
         nullifier_queue_account_infos
@@ -30,7 +41,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.registered_program_pda.to_account_info(),
         &ctx.accounts.system_program.to_account_info(),
         nullifier_queue_account_infos,
-        state_merkle_tree_account_infos,
+        state_merkle_tree_account_infos?,
         nullifiers.to_vec(),
     )?;
 

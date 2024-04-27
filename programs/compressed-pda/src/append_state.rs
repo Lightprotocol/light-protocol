@@ -4,7 +4,10 @@ use account_compression::StateMerkleTreeAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 
-use crate::instructions::{InstructionDataTransfer, TransferInstruction};
+use crate::{
+    instructions::{InstructionDataTransfer, TransferInstruction},
+    verify_state::check_program_owner_state_merkle_tree,
+};
 
 #[heap_neutral]
 pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
@@ -23,6 +26,10 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
     {
         let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[*mt_index as usize].key());
         out_merkle_trees_account_infos.push(ctx.remaining_accounts[*mt_index as usize].clone());
+        check_program_owner_state_merkle_tree(
+            &ctx.remaining_accounts[*mt_index as usize],
+            &ctx.accounts.invoking_program,
+        )?;
         match index {
             Some(index) => {
                 output_compressed_account_indices[j] = *index as u32;

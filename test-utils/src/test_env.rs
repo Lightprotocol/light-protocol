@@ -194,6 +194,7 @@ pub async fn setup_test_programs_with_accounts(
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         None,
+        1,
     )
     .await;
 
@@ -208,6 +209,8 @@ pub async fn setup_test_programs_with_accounts(
         &mut context,
         &address_merkle_tree_queue_keypair,
         &address_merkle_tree_keypair,
+        None,
+        1,
     )
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
@@ -236,6 +239,7 @@ pub async fn create_state_merkle_tree_and_queue_account(
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
+    index: u64,
 ) {
     use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 
@@ -277,6 +281,7 @@ pub async fn create_state_merkle_tree_and_queue_account(
         StateMerkleTreeConfig::default(),
         NullifierQueueConfig::default(),
         program_owner,
+        index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -300,8 +305,10 @@ pub async fn create_state_merkle_tree_and_queue_account(
 pub async fn create_address_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
-    address_queue_keypair: &Keypair,
     address_merkle_tree_keypair: &Keypair,
+    address_queue_keypair: &Keypair,
+    program_owner: Option<Pubkey>,
+    index: u64,
 ) {
     use account_compression::{
         sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressMerkleTreeConfig,
@@ -342,9 +349,9 @@ pub async fn create_address_merkle_tree_and_queue_account(
     );
 
     let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
-        1u64,
+        index,
         payer.pubkey(),
-        None,
+        program_owner,
         address_merkle_tree_keypair.pubkey(),
         address_queue_keypair.pubkey(),
         AddressMerkleTreeConfig::default(),

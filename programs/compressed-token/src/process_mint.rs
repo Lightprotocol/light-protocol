@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_compressed_pda::{
     compressed_account::{CompressedAccount, CompressedAccountData},
-    InstructionDataTransfer,
+    CompressedCpiContext, InstructionDataTransfer,
 };
 use light_hasher::DataHasher;
 
@@ -162,7 +162,14 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     );
 
     cpi_ctx.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, None)?;
+    light_compressed_pda::cpi::execute_compressed_transaction(
+        cpi_ctx,
+        inputs,
+        Some(CompressedCpiContext {
+            execute: true,
+            cpi_signature_account_index: 0,
+        }),
+    )?;
     Ok(())
 }
 

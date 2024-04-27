@@ -695,6 +695,16 @@ export type LightCompressedPda = {
             name: 'InsufficientLamportsForDecompressSol';
             msg: 'InsufficientLamportsForDecompressSol';
         },
+        {
+            code: 6031;
+            name: 'CpiContextMissing';
+            msg: 'InsufficientLamportsForCompressSol';
+        },
+        {
+            code: 6032;
+            name: 'InvalidMerkleTreeOwner';
+            msg: 'InvalidMerkleTreeOwner';
+        },
     ];
 };
 
@@ -1394,6 +1404,16 @@ export const IDL: LightCompressedPda = {
             code: 6030,
             name: 'InsufficientLamportsForDecompressSol',
             msg: 'InsufficientLamportsForDecompressSol',
+        },
+        {
+            code: 6031,
+            name: 'CpiContextMissing',
+            msg: 'InsufficientLamportsForCompressSol',
+        },
+        {
+            code: 6032,
+            name: 'InvalidMerkleTreeOwner',
+            msg: 'InvalidMerkleTreeOwner',
         },
     ],
 };

@@ -3,9 +3,13 @@
 use anchor_lang::AnchorDeserialize;
 use light_compressed_pda::compressed_account::CompressedAccountWithMerkleContext;
 use light_hasher::{Hasher, Poseidon};
-use light_test_utils::create_and_send_transaction_with_event;
-use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
+use light_test_utils::test_env::{
+    create_address_merkle_tree_and_queue_account, setup_test_programs_with_accounts, EnvAccounts,
+};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
+use light_test_utils::{
+    assert_custom_error_or_program_error, create_and_send_transaction_with_event,
+};
 use light_utils::hash_to_bn254_field_size_le;
 use program_owned_account_test::sdk::{
     create_invalidate_not_owned_account_instruction, create_pda_instruction,
@@ -157,6 +161,118 @@ async fn test_create_pda() {
             InstructionError::Custom(light_compressed_pda::ErrorCode::SignerCheckFailed.into())
         ))
     );
+}
+
+#[tokio::test]
+async fn test_create_pda_in_program_owned_merkle_tree() {
+    let (mut context, mut env) = setup_test_programs_with_accounts(Some(vec![(
+        String::from("program_owned_account_test"),
+        program_owned_account_test::ID,
+    )]))
+    .await;
+
+    let payer = context.payer.insecure_clone();
+    let program_owned_address_merkle_tree_keypair = Keypair::new();
+    env.address_merkle_tree_pubkey = program_owned_address_merkle_tree_keypair.pubkey();
+    let program_owned_address_queue_keypair = Keypair::new();
+    env.address_merkle_tree_queue_pubkey = program_owned_address_queue_keypair.pubkey();
+    create_address_merkle_tree_and_queue_account(
+        &payer,
+        &mut context,
+        &program_owned_address_merkle_tree_keypair,
+        &program_owned_address_queue_keypair,
+        Some(program_owned_account_test::ID),
+        2,
+    )
+    .await;
+
+    let test_indexer = TestIndexer::new(
+        env.merkle_tree_pubkey,
+        env.nullifier_queue_pubkey,
+        env.address_merkle_tree_pubkey,
+        payer.insecure_clone(),
+        true,
+        true,
+        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+    );
+
+    let mut test_indexer = test_indexer.await;
+
+    let seed = [1u8; 32];
+    let data = [2u8; 31];
+
+    let payer_pubkey = payer.pubkey();
+    let instruction = perform_create_pda(
+        &env,
+        seed,
+        &mut test_indexer,
+        &mut context,
+        &data,
+        payer_pubkey,
+        &ID,
+        CreatePdaMode::ProgramIsSigner,
+    )
+    .await;
+    let event = create_and_send_transaction_with_event(
+        &mut context,
+        &[instruction],
+        &payer_pubkey,
+        &[&payer],
+        None,
+    )
+    .await
+    .unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
+
+    assert_created_pda(&mut test_indexer, &env, &payer, &seed, &data).await;
+
+    let program_owned_address_merkle_tree_keypair = Keypair::new();
+    env.address_merkle_tree_pubkey = program_owned_address_merkle_tree_keypair.pubkey();
+    let program_owned_address_queue_keypair = Keypair::new();
+    env.address_merkle_tree_queue_pubkey = program_owned_address_queue_keypair.pubkey();
+    create_address_merkle_tree_and_queue_account(
+        &payer,
+        &mut context,
+        &program_owned_address_merkle_tree_keypair,
+        &program_owned_address_queue_keypair,
+        Some(light_compressed_token::ID),
+        2,
+    )
+    .await;
+
+    test_indexer.address_merkle_tree_pubkey = program_owned_address_merkle_tree_keypair.pubkey();
+
+    let seed = [3u8; 32];
+    let data = [4u8; 31];
+
+    let payer_pubkey = payer.pubkey();
+    let instruction = perform_create_pda(
+        &env,
+        seed,
+        &mut test_indexer,
+        &mut context,
+        &data,
+        payer_pubkey,
+        &ID,
+        CreatePdaMode::ProgramIsSigner,
+    )
+    .await;
+    let tx = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&payer],
+        context.get_new_latest_blockhash().await.unwrap(),
+    );
+    let res = context
+        .banks_client
+        .process_transaction_with_metadata(tx)
+        .await
+        .unwrap();
+    assert_custom_error_or_program_error(
+        res,
+        light_compressed_pda::ErrorCode::InvalidMerkleTreeOwner.into(),
+    )
+    .unwrap();
 }
 
 pub async fn perform_create_pda_failing(
