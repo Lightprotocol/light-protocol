@@ -75,7 +75,7 @@ export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
 );
 
 /**
- * Tip to reward the forrester that empties the queues and nullifies leaves.
+ * Tip to reward the forester that empties the queues and nullifies leaves.
  *
  * Is charged per output compressed account.
  */
