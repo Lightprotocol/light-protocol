@@ -50,7 +50,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         }
     }
     // if invoking program is present then cpi context must be present
-    // TODO: move to plausiblility check
+    // TODO: move to plausibility check
     else if ctx.accounts.invoking_program.is_some() {
         return err!(crate::ErrorCode::CpiContextMissing);
     }
