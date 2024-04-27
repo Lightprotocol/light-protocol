@@ -81,6 +81,10 @@ pub enum ErrorCode {
     AdditionOverflowForDecompressSol,
     #[msg("InsufficientLamportsForDecompressSol")]
     InsufficientLamportsForDecompressSol,
+    #[msg("InsufficientLamportsForCompressSol")]
+    CpiContextMissing,
+    #[msg("InvalidMerkleTreeOwner")]
+    InvalidMerkleTreeOwner,
 }
 
 // // TODO(vadorovsky): Come up with some less glass chewy way of reusing
@@ -92,7 +96,6 @@ pub enum ErrorCode {
 pub mod light_compressed_pda {
 
     use self::instructions::{
-        process_execute_compressed_transaction,
         InstructionDataTransfer,
         //  into_inputs,InstructionDataTransfer2,
     };
@@ -148,10 +151,10 @@ pub mod light_compressed_pda {
     //             .map(|a| a.key())
     //             .collect::<Vec<Pubkey>>(),
     //     )?;
-    //     process_execute_compressed_transaction(&inputs, &ctx)
+    //     process_compressed_transaction(&inputs, &ctx)
     // }
 
-    // TODO: add compress and decompress sol as a wrapper around process_execute_compressed_transaction
+    // TODO: add compress and decompress sol as a wrapper around process_compressed_transaction
 
-    // TODO: add create_pda as a wrapper around process_execute_compressed_transaction
+    // TODO: add create_pda as a wrapper around process_compressed_transaction
 }

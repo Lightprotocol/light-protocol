@@ -19,9 +19,10 @@ pub fn create_initialize_merkle_tree_instruction(
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
     delegate: Option<Pubkey>,
+    index: u64,
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
-        index: 1u64,
+        index,
         owner: payer,
         delegate,
         state_merkle_tree_config,

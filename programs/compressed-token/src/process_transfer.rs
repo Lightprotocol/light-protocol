@@ -175,7 +175,11 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, cpi_context)?;
+    let cpi_context = cpi_context.unwrap_or(CompressedCpiContext {
+        execute: true,
+        cpi_signature_account_index: 0,
+    });
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, Some(cpi_context))?;
     Ok(())
 }
 

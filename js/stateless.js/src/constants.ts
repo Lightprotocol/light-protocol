@@ -75,6 +75,13 @@ export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
 );
 
 /**
+ * Tip to reward the forester that empties the queues and nullifies leaves.
+ *
+ * Is charged per output compressed account.
+ */
+export const STATE_MERKLE_TREE_TIP = new BN(1);
+
+/**
  * Fee to provide continous funding for the state Merkle tree.
  * Once the state Merkle tree is at 95% capacity the accumulated fees
  * will be used to fund the next state Merkle tree with the same parameters.

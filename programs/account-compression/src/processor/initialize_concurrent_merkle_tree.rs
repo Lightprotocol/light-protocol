@@ -35,7 +35,7 @@ pub fn process_initialize_state_merkle_tree(
 
     merkle_tree.index = index;
     merkle_tree.owner = owner;
-    merkle_tree.delegate = delegate.unwrap_or(owner);
+    merkle_tree.delegate = delegate.unwrap_or_default();
     merkle_tree.associated_queue = associated_queue;
     merkle_tree.tip = tip;
     let total_number_of_leaves = 2u64.pow(*height);

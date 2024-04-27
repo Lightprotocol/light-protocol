@@ -53,7 +53,7 @@ jobs:
             ]'
           - program: program-owned-account-test
             sub-tests: '[
-              "cargo-test-sbf -p program-owned-account-test"
+              "cargo-test-sbf -p program-owned-account-test -- --test-threads=1"
             ]'
 
     steps:

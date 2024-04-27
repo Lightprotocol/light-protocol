@@ -32,7 +32,7 @@ pub fn process_initialize_address_queue<'info>(
         let mut address_queue_account = queue_loader.load_init()?;
         address_queue_account.index = index;
         address_queue_account.owner = owner;
-        address_queue_account.delegate = delegate.unwrap_or(owner);
+        address_queue_account.delegate = delegate.unwrap_or_default();
         address_queue_account.associated_merkle_tree = associated_merkle_tree;
         address_queue_account.tip = tip;
         // rollover only makes sense in combination with the associated merkle tree

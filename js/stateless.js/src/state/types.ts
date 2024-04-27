@@ -59,7 +59,7 @@ export interface InstructionDataTransfer {
     compressionLamports: BN | null; // Option<u64>
     isCompress: boolean; // bool
     newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
-    signerSeeds: number[][]; // Vec<Vec<u8>>
+    signerSeeds: number[][] | null; // Vec<Vec<u8>>
 }
 
 export interface NewAddressParamsPacked {
