@@ -138,16 +138,14 @@ pub fn create_execute_compressed_instruction(
         compression_lamports,
         is_compress,
         signer_seeds: None,
+        cpi_context: None,
     };
 
     let mut inputs = Vec::new();
 
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let instruction_data = crate::instruction::ExecuteCompressedTransaction {
-        inputs,
-        cpi_context: None,
-    };
+    let instruction_data = crate::instruction::ExecuteCompressedTransaction { inputs };
 
     let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
 
