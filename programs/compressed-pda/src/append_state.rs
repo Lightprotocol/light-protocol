@@ -56,10 +56,18 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
                 return Err(crate::ErrorCode::InvalidAddress.into());
             }
         }
+
+        // NOTE(vadorovsky): Might be needed if we ever experiende memory issues
+        // here. Keeping it just in case.
+        //
+        // #[cfg(target_os = "solana")]
+        // let pos = light_heap::GLOBAL_ALLOCATOR.pos();
         output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j].hash(
             &ctx.remaining_accounts[*mt_index as usize].key(),
             &output_compressed_account_indices[j],
         )?;
+        // #[cfg(target_os = "solana")]
+        // light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
     }
 
     append_leaves_cpi(

@@ -12,6 +12,7 @@ use light_compressed_pda::{
     InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_macros::heap_neutral;
 use light_utils::hash_to_bn254_field_size_le;
 
 /// Process a token transfer instruction
@@ -50,7 +51,13 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     )?;
     process_compression(&inputs, &ctx)?;
 
-    let output_compressed_accounts = crate::create_output_compressed_accounts(
+    let mut output_compressed_accounts =
+        vec![
+            CompressedAccount::with_data_capacity(mem::size_of::<TokenData>());
+            inputs.output_compressed_accounts.len()
+        ];
+    crate::create_output_compressed_accounts(
+        &mut output_compressed_accounts,
         inputs.mint,
         inputs
             .output_compressed_accounts
@@ -411,6 +418,7 @@ pub struct TokenDataClient {
 }
 
 impl DataHasher for TokenData {
+    #[heap_neutral]
     fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
         let delegate = match self.delegate {
             Some(delegate) => {

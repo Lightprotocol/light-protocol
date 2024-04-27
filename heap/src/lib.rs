@@ -30,13 +30,10 @@ impl BumpAllocator {
     }
 
     /// Returns the current position of the heap.
-    ///
-    /// # Safety
-    ///
-    /// This function is unsafe because it returns a raw pointer.
-    pub unsafe fn pos(&self) -> usize {
+    pub fn pos(&self) -> usize {
         let pos_ptr = self.start as *mut usize;
-        *pos_ptr
+        // SAFETY: `start` pointer is always initialized.
+        unsafe { *pos_ptr }
     }
 
     /// Reset heap start cursor to position.
@@ -53,20 +50,14 @@ impl BumpAllocator {
     pub fn log_total_heap(&self, msg: &str) -> u64 {
         const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS as u64 + HEAP_LENGTH as u64;
 
-        let heap_start = unsafe { self.pos() } as u64;
+        let heap_start = self.pos() as u64;
         let heap_used = HEAP_END_ADDRESS - heap_start;
         msg!("{}: total heap used: {}", msg, heap_used);
         heap_used
     }
 
     #[cfg(target_os = "solana")]
-    pub fn get_heap_pos(&self) -> usize {
-        let heap_start = unsafe { self.pos() } as usize;
-        heap_start
-    }
-
-    #[cfg(target_os = "solana")]
-    pub fn free_heap(&self, pos: usize) {
+    pub unsafe fn free_heap(&self, pos: usize) {
         unsafe { self.move_cursor(pos) };
     }
 }
@@ -89,6 +80,7 @@ unsafe impl std::alloc::GlobalAlloc for BumpAllocator {
         *pos_ptr = pos;
         pos as *mut u8
     }
+
     #[inline]
     unsafe fn dealloc(&self, _: *mut u8, _: Layout) {
         // no dellaoc in Solana runtime :*(

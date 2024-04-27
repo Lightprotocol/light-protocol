@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
+use light_macros::heap_neutral;
 use light_utils::hash_to_bn254_field_size_le;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -74,6 +75,22 @@ pub struct CompressedAccount {
     pub data: Option<CompressedAccountData>,
 }
 
+impl CompressedAccount {
+    pub fn with_data_capacity(capacity: usize) -> Self {
+        let data = Some(CompressedAccountData {
+            discriminator: [0u8; 8],
+            data: Vec::with_capacity(capacity),
+            data_hash: [0u8; 32],
+        });
+        Self {
+            owner: Pubkey::default(),
+            lamports: u64::default(),
+            address: None,
+            data,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
@@ -82,6 +99,7 @@ pub struct CompressedAccountData {
 }
 
 impl CompressedAccount {
+    #[heap_neutral]
     pub fn hash(&self, &merkle_tree_pubkey: &Pubkey, leaf_index: &u32) -> Result<[u8; 32]> {
         let capacity = 4 + self.address.is_some() as usize + self.data.is_some() as usize * 2;
         let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
@@ -92,6 +110,7 @@ impl CompressedAccount {
 
         // leaf index and merkle tree pubkey are used to make every compressed account hash unique
         let leaf_index = leaf_index.to_le_bytes();
+
         vec.push(leaf_index.as_slice());
         let truncated_merkle_tree_pubkey =
             hash_to_bn254_field_size_le(&merkle_tree_pubkey.to_bytes())

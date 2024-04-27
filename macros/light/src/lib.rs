@@ -43,7 +43,7 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     // Insert memory management code at the beginning of the function
     let init_code: syn::Stmt = parse_quote! {
         #[cfg(target_os = "solana")]
-        let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
+        let pos = light_heap::GLOBAL_ALLOCATOR.pos();
     };
     let msg = format!("pre: {}", function.sig.ident);
     let log_pre: syn::Stmt = parse_quote! {
@@ -61,7 +61,7 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     };
     let cleanup_code: syn::Stmt = parse_quote! {
         #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
+        unsafe { light_heap::GLOBAL_ALLOCATOR.free_heap(pos) };
     };
     let len = function.block.stmts.len();
     function.block.stmts.insert(len - 1, log_post);
