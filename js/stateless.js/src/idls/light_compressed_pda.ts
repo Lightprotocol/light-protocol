@@ -327,14 +327,6 @@ export type LightCompressedPda = {
                         };
                     },
                     {
-                        name: 'inputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
@@ -1033,14 +1025,6 @@ export const IDL: LightCompressedPda = {
                         type: {
                             vec: {
                                 array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
                             },
                         },
                     },

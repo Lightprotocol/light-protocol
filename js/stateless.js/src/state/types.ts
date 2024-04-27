@@ -38,7 +38,7 @@ export interface CompressedAccountData {
 export interface PublicTransactionEvent {
     inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
-    inputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
+    // inputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
     outputCompressedAccounts: CompressedAccount[];
     outputStateMerkleTreeAccountIndices: Uint8Array; // bytes
     outputLeafIndices: number[]; // Vec<u32>

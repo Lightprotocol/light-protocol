@@ -2659,6 +2659,7 @@ dependencies = [
  "light-verifier",
  "num-bigint 0.4.4",
  "num-traits",
+ "rand 0.8.5",
  "reqwest",
  "serde_json",
  "solana-banks-interface",

@@ -168,8 +168,7 @@ async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -
     mint.pubkey()
 }
 
-#[tokio::test]
-async fn test_mint_to() {
+async fn test_mint_to<const MINTS: usize>() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -188,8 +187,8 @@ async fn test_mint_to() {
         &payer_pubkey,
         &mint,
         &merkle_tree_pubkey,
-        vec![amount; 1],
-        vec![recipient_keypair.pubkey(); 1],
+        vec![amount; MINTS],
+        vec![recipient_keypair.pubkey(); MINTS],
     );
     let old_merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
@@ -205,7 +204,7 @@ async fn test_mint_to() {
         Some(TransactionParams {
             num_new_addresses: 0,
             num_input_compressed_accounts: 0,
-            num_output_compressed_accounts: 1,
+            num_output_compressed_accounts: MINTS as u8,
             compress: 0,
             fee_config: FeeConfig::default(),
         }),
@@ -225,6 +224,46 @@ async fn test_mint_to() {
         &old_merkle_tree,
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_mint_to_1() {
+    test_mint_to::<1>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_5() {
+    test_mint_to::<5>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_10() {
+    test_mint_to::<10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_15() {
+    test_mint_to::<10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_19() {
+    test_mint_to::<19>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_20() {
+    test_mint_to::<20>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_25() {
+    test_mint_to::<25>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_30() {
+    test_mint_to::<30>().await
 }
 
 #[tokio::test]
@@ -1373,21 +1412,26 @@ impl MockIndexer {
         &mut self,
         event: PublicTransactionEvent,
     ) -> Vec<usize> {
-        for compressed_account in event.input_compressed_accounts.iter() {
+        for hash in event.input_compressed_account_hashes.iter() {
             let index = self
                 .compressed_accounts
                 .iter()
-                .position(|x| x.compressed_account == compressed_account.compressed_account)
+                .position(|x| {
+                    x.compressed_account
+                        .hash(&self.merkle_tree_pubkey, &x.leaf_index)
+                        .unwrap()
+                        == *hash
+                })
                 .expect("compressed_account not found");
+            let compressed_account = self.compressed_accounts.get(index).unwrap().clone();
             self.compressed_accounts.remove(index);
             // TODO: nullify compressed_account in Merkle tree, not implemented yet
-            self.nullified_compressed_accounts
-                .push(compressed_account.clone());
-            let index = self
-                .compressed_accounts
+            self.nullified_compressed_accounts.push(compressed_account);
+            let token_account_index = self
+                .token_compressed_accounts
                 .iter()
-                .position(|x| x == compressed_account);
-            if let Some(index) = index {
+                .position(|x| x.index == index);
+            if let Some(index) = token_account_index {
                 let token_compressed_account_element =
                     self.token_compressed_accounts[index].clone();
                 self.token_compressed_accounts.remove(index);

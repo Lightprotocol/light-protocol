@@ -408,14 +408,6 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'inputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
@@ -1345,14 +1337,6 @@ export const IDL: LightCompressedToken = {
                         type: {
                             vec: {
                                 array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
                             },
                         },
                     },
