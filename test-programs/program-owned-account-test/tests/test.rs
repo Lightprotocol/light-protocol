@@ -10,7 +10,7 @@ use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, Tes
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction_with_event,
 };
-use light_utils::hash_to_bn254_field_size_le;
+use light_utils::hash_to_bn254_field_size_be;
 use program_owned_account_test::sdk::{
     create_invalidate_not_owned_account_instruction, create_pda_instruction,
     CreateCompressedPdaInstructionInputs, InvalidateNotOwnedCompressedAccountInstructionInputs,
@@ -423,7 +423,7 @@ pub async fn assert_created_pda(
         1u64.to_le_bytes(),
     );
     let truncated_user_pubkey =
-        hash_to_bn254_field_size_le(&compressed_escrow_pda_data.user_pubkey.to_bytes())
+        hash_to_bn254_field_size_be(&compressed_escrow_pda_data.user_pubkey.to_bytes())
             .unwrap()
             .0;
     assert_eq!(
