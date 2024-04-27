@@ -11,7 +11,6 @@ pub struct PublicTransactionEvent {
     pub input_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_accounts: Vec<CompressedAccount>,
-    // index of Merkle tree account in remaining accounts
     pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub output_leaf_indices: Vec<u32>,
     pub relay_fee: Option<u64>,
@@ -44,26 +43,16 @@ impl SizedEvent for PublicTransactionEvent {
 
 impl PublicTransactionEvent {
     pub fn man_serialize<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        // #[cfg(target_os = "solana")]
-        // let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
-        // input compressed account hashes
         writer.write_all(&(self.input_compressed_account_hashes.len() as u32).to_le_bytes())?;
         for hash in self.input_compressed_account_hashes.iter() {
             writer.write_all(hash)?;
         }
-        // output compressed account hashes
+
         writer.write_all(&(self.output_compressed_account_hashes.len() as u32).to_le_bytes())?;
         for hash in self.output_compressed_account_hashes.iter() {
             writer.write_all(hash)?;
         }
-        // #[cfg(target_os = "solana")]
-        // light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
-        // input compressed accounts
-        // writer.write_all(&(input_compressed_accounts.len() as u32).to_le_bytes())?;
-        // for account in &input_compressed_accounts {}
-        // output compressed accounts
-        #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.log_total_heap("before output compressed accounts");
+
         #[cfg(target_os = "solana")]
         let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
         writer.write_all(&(self.output_compressed_accounts.len() as u32).to_le_bytes())?;
@@ -73,32 +62,20 @@ impl PublicTransactionEvent {
         }
         #[cfg(target_os = "solana")]
         light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
-        msg!("here1");
-        // #[cfg(target_os = "solana")]
-        // let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
-        // output state merkle tree account indices
+
         writer.write_all(
             &(self.output_state_merkle_tree_account_indices.len() as u32).to_le_bytes(),
         )?;
-        // #[cfg(target_os = "solana")]
-        // light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
-        // #[cfg(target_os = "solana")]
-        // let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
+
         for index in self.output_state_merkle_tree_account_indices.iter() {
             writer.write_all(&[*index])?;
         }
-        // #[cfg(target_os = "solana")]
-        // light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
-        // #[cfg(target_os = "solana")]
-        // let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
-        // output leaf indices
+
         writer.write_all(&(self.output_leaf_indices.len() as u32).to_le_bytes())?;
         for index in self.output_leaf_indices.iter() {
             writer.write_all(&index.to_le_bytes())?;
         }
-        // #[cfg(target_os = "solana")]
-        // light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
-        // relay fee
+
         match self.relay_fee {
             Some(relay_fee) => {
                 writer.write_all(&[1])?;

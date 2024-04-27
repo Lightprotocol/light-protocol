@@ -14,6 +14,10 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     root_indices: Vec<u16>,
     bump: u8,
 ) -> Result<()> {
+    let cpi_context = CompressedCpiContext {
+        execute: true,
+        cpi_signature_account_index: (ctx.remaining_accounts.len() - 1) as u8,
+    };
     let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
     let inputs_struct = InstructionDataTransfer {
         relay_fee: None,
@@ -26,11 +30,9 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
         compression_lamports: None,
         is_compress: false,
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
+        cpi_context: Some(cpi_context),
     };
-    let cpi_context = CompressedCpiContext {
-        execute: true,
-        cpi_signature_account_index: (ctx.remaining_accounts.len() - 1) as u8,
-    };
+
     let mut inputs = Vec::new();
     InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -57,7 +59,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, Some(cpi_context))?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 

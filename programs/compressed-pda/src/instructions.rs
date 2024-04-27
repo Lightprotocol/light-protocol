@@ -29,7 +29,6 @@ use crate::{
 pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     mut inputs: InstructionDataTransfer,
     mut ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
     // signer check ---------------------------------------------------
     cpi_signer_check(
@@ -43,7 +42,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.authority.key(),
     )?;
     output_compressed_accounts_write_access_check(&inputs, &ctx.accounts.invoking_program)?;
-
+    let cpi_context = inputs.cpi_context.clone();
     if let Some(cpi_context) = cpi_context {
         if process_cpi_context(cpi_context, &mut ctx, &mut inputs)?.is_some() {
             return Ok(());
@@ -128,15 +127,20 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         insert_nullifiers(&inputs, &ctx, &input_compressed_account_hashes)?;
     }
 
+    const ITER_SIZE: usize = 14;
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
-        insert_output_compressed_accounts_into_state_merkle_tree(
-            &inputs,
-            &ctx,
-            &mut output_leaf_indices,
-            &mut output_compressed_account_hashes,
-            &mut input_compressed_account_addresses,
-        )?;
+        let mut i = 0;
+        for _ in inputs.output_compressed_accounts.iter().step_by(ITER_SIZE) {
+            insert_output_compressed_accounts_into_state_merkle_tree::<ITER_SIZE>(
+                &inputs,
+                &ctx,
+                &mut output_leaf_indices,
+                &mut output_compressed_account_hashes,
+                &mut input_compressed_account_addresses,
+                &mut i,
+            )?;
+        }
     }
 
     // emit state transition event ---------------------------------------------------
@@ -223,6 +227,7 @@ pub struct InstructionDataTransfer {
     pub compression_lamports: Option<u64>,
     pub is_compress: bool,
     pub signer_seeds: Option<Vec<Vec<u8>>>,
+    pub cpi_context: Option<CompressedCpiContext>,
 }
 
 impl InstructionDataTransfer {
@@ -384,6 +389,7 @@ fn test_combine_instruction_data_transfer() {
         compression_lamports: Some(1),
         is_compress: true,
         signer_seeds: None,
+        cpi_context: None,
     };
     let other = InstructionDataTransfer {
         proof: Some(CompressedProof {
@@ -402,6 +408,7 @@ fn test_combine_instruction_data_transfer() {
         compression_lamports: Some(1),
         is_compress: true,
         signer_seeds: None,
+        cpi_context: None,
     };
     instruction_data_transfer.combine(&[other]);
     assert_eq!(instruction_data_transfer.new_address_params.len(), 2);

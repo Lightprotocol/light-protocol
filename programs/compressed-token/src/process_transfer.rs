@@ -49,8 +49,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         inputs.is_compress,
     )?;
     process_compression(&inputs, &ctx)?;
-
-    let output_compressed_accounts = crate::create_output_compressed_accounts(
+    let mut output_compressed_accounts =
+        vec![CompressedAccount::default(); inputs.output_compressed_accounts.len()];
+    crate::create_output_compressed_accounts(
+        &mut output_compressed_accounts,
         inputs.mint,
         inputs
             .output_compressed_accounts
@@ -139,6 +141,10 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         }
         None => None,
     };
+    let cpi_context: CompressedCpiContext = cpi_context.unwrap_or(CompressedCpiContext {
+        execute: true,
+        cpi_signature_account_index: 0,
+    });
     let inputs_struct = LightCompressedPdaInstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
@@ -150,6 +156,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         compression_lamports: None,
         is_compress: false,
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
+        cpi_context: Some(cpi_context),
     };
 
     let mut inputs = Vec::new();
@@ -175,11 +182,8 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    let cpi_context = cpi_context.unwrap_or(CompressedCpiContext {
-        execute: true,
-        cpi_signature_account_index: 0,
-    });
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, Some(cpi_context))?;
+
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 

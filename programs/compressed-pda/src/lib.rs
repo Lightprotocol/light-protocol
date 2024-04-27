@@ -121,13 +121,12 @@ pub mod light_compressed_pda {
     pub fn execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
-        cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
         // TODO: remove manual deserialization
         let inputs: InstructionDataTransfer =
             InstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
         inputs.check_input_lengths()?;
-        process_execute_compressed_transaction(inputs, ctx, cpi_context)
+        process_execute_compressed_transaction(inputs, ctx)
     }
 
     // /// This function can be used to transfer sol and execute any other compressed transaction.
