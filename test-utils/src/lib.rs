@@ -274,6 +274,11 @@ where
             println!("pre_balance: {}", pre_balance);
             println!("post_balance: {}", post_balance);
             println!("expected post_balance: {}", expected_post_balance);
+            println!(
+                "diff post_balance: {}",
+                post_balance as i64 - expected_post_balance
+            );
+            println!("tip: {}", tip);
             return Err(BanksClientError::TransactionError(
                 solana_sdk::transaction::TransactionError::InstructionError(
                     0,

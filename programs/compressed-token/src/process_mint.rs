@@ -5,7 +5,7 @@ use light_compressed_pda::{
     CompressedCpiContext, InstructionDataTransfer,
 };
 use light_hasher::DataHasher;
-
+use std::mem;
 use crate::{AccountState, TokenData};
 pub const POOL_SEED: &[u8] = b"pool";
 pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority_pda";
@@ -53,15 +53,38 @@ pub fn process_mint_to<'info>(
         );
         return err!(crate::ErrorCode::PublicKeyAmountMissmatch);
     }
-
+    let inputs_len = 
+    // struct
+    mem::size_of::<InstructionDataTransfer>()
+    // `output_compressed_accounts`
+    + mem::size_of::<CompressedAccount>() * amounts.len()
+    // `output_state_merkle_tree_account_indices`
+    + amounts.len();
+msg!("inputs len: {}", inputs_len);
+#[cfg(target_os = "solana")]
+    let mut inputs = Vec::<u8>::with_capacity(
+    // struct
+    mem::size_of::<InstructionDataTransfer>()
+        // `output_compressed_accounts`
+        + mem::size_of::<CompressedAccount>() * amounts.len()
+        // `output_state_merkle_tree_account_indices`
+        + amounts.len(),
+);
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR
+        .log_total_heap("process_mint_to: before create_output_compressed_accounts");
+    #[cfg(target_os = "solana")]
+    let pre_compressed_acounts_pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
     mint_spl_to_pool_pda(&ctx, &amounts)?;
+    #[cfg(target_os = "solana")]
     let output_compressed_accounts = create_output_compressed_accounts(
         ctx.accounts.mint.to_account_info().key(),
         compression_public_keys.as_slice(),
         &amounts,
         None,
     );
-    cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts)?;
+    #[cfg(target_os = "solana")]
+    cpi_execute_compressed_transaction_mint_to(&ctx, &output_compressed_accounts, &mut inputs, pre_compressed_acounts_pos)?;
     Ok(())
 }
 
@@ -109,6 +132,9 @@ pub fn create_output_compressed_accounts(
 pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     output_compressed_accounts: &[CompressedAccount],
+    inputs: &mut Vec<u8>,
+    #[cfg(target_os = "solana")]
+    pre_compressed_acounts_pos: usize,
 ) -> Result<()> {
     let authority_bytes = ctx.accounts.authority.key().to_bytes();
     let mint_bytes = ctx.accounts.mint.key().to_bytes();
@@ -138,9 +164,9 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
     };
 
-    let mut inputs = Vec::new();
-    InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
-
+    InstructionDataTransfer::serialize(&inputs_struct,  inputs)?;
+    #[cfg(target_os = "solana")]
+    light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
     let signer_seeds = &[&seeds[..]];
     let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
         fee_payer: ctx.accounts.fee_payer.to_account_info(),
@@ -164,7 +190,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     cpi_ctx.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
     light_compressed_pda::cpi::execute_compressed_transaction(
         cpi_ctx,
-        inputs,
+        inputs.to_owned(),
         Some(CompressedCpiContext {
             execute: true,
             cpi_signature_account_index: 0,
