@@ -12,7 +12,7 @@ use light_compressed_pda::{
     InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
-use light_utils::hash_to_bn254_field_size_le;
+use light_utils::hash_to_bn254_field_size_be;
 
 /// Process a token transfer instruction
 ///
@@ -418,7 +418,7 @@ impl DataHasher for TokenData {
     fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
         let delegate = match self.delegate {
             Some(delegate) => {
-                hash_to_bn254_field_size_le(delegate.to_bytes().as_slice())
+                hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
                     .unwrap()
                     .0
             }
@@ -426,7 +426,7 @@ impl DataHasher for TokenData {
         };
         // let close_authority = match self.close_authority {
         //     Some(close_authority) => {
-        //         hash_to_bn254_field_size_le(close_authority.to_bytes().as_slice())
+        //         hash_to_bn254_field_size_be(close_authority.to_bytes().as_slice())
         //             .unwrap()
         //             .0
         //     }
@@ -440,10 +440,10 @@ impl DataHasher for TokenData {
 
         // TODO: optimize hashing scheme, to not hash rarely used values
         Poseidon::hashv(&[
-            &hash_to_bn254_field_size_le(self.mint.to_bytes().as_slice())
+            &hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())
                 .unwrap()
                 .0,
-            &hash_to_bn254_field_size_le(self.owner.to_bytes().as_slice())
+            &hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())
                 .unwrap()
                 .0,
             &self.amount.to_le_bytes(),

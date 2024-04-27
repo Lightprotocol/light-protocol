@@ -14,12 +14,12 @@ export const toArray = <T>(value: T | T[]) =>
 export const bufToDecStr = (buf: Buffer): string => {
     return createBN254(buf).toString();
 };
-function isSmallerThanBn254FieldSizeLe(bytes: Buffer): boolean {
-    const bigint = bn(bytes, undefined, 'le');
+function isSmallerThanBn254FieldSizeBe(bytes: Buffer): boolean {
+    const bigint = bn(bytes, undefined, 'be');
     return bigint.lt(FIELD_SIZE);
 }
 
-export async function hashToBn254FieldSizeLe(
+export async function hashToBn254FieldSizeBe(
     bytes: Buffer,
 ): Promise<[Buffer, number] | null> {
     let bumpSeed = 255;
@@ -33,9 +33,8 @@ export async function hashToBn254FieldSizeLe(
             throw new Error('Invalid hash length');
         }
         hash[0] = 0;
-        hash[1] = 0;
 
-        if (isSmallerThanBn254FieldSizeLe(Buffer.from(hash))) {
+        if (isSmallerThanBn254FieldSizeBe(Buffer.from(hash))) {
             return [Buffer.from(hash), bumpSeed];
         }
 
@@ -86,25 +85,25 @@ if (import.meta.vitest) {
         });
     });
 
-    describe('isSmallerThanBn254FieldSizeLe function', () => {
+    describe('isSmallerThanBn254FieldSizeBe function', () => {
         it('should return true for a small number', () => {
             const buf = Buffer.from(
                 '0000000000000000000000000000000000000000000000000000000000000000',
                 'hex',
             );
-            expect(isSmallerThanBn254FieldSizeLe(buf)).toBe(true);
+            expect(isSmallerThanBn254FieldSizeBe(buf)).toBe(true);
         });
 
         it('should return false for a large number', () => {
             const buf = Buffer.from(
-                '6500000000000000000000000000000000000000000000000000000000000000',
+                '0000000000000000000000000000000000000000000000000000000000000065',
                 'hex',
             ).reverse();
-            expect(isSmallerThanBn254FieldSizeLe(buf)).toBe(false);
+            expect(isSmallerThanBn254FieldSizeBe(buf)).toBe(false);
         });
     });
 
-    describe('hashToBn254FieldSizeLe function', () => {
+    describe('hashToBn254FieldSizeBe function', () => {
         const refBumpSeed = [252];
         const bytes = [
             131, 219, 249, 246, 221, 196, 33, 3, 114, 23, 121, 235, 18, 229, 71,
@@ -112,14 +111,13 @@ if (import.meta.vitest) {
             231, 116, 33,
         ];
         const refResult = [
-            0, 0, 138, 224, 71, 10, 16, 226, 30, 104, 100, 251, 232, 59, 50,
-            168, 21, 78, 218, 191, 159, 16, 119, 17, 30, 55, 194, 230, 138, 128,
-            18, 44,
+            0, 146, 15, 187, 171, 163, 183, 93, 237, 121, 37, 231, 55, 162, 208,
+            188, 244, 77, 185, 157, 93, 9, 101, 193, 220, 247, 109, 94, 48, 212,
+            98, 149,
         ];
 
         it('should return a valid value for initial buffer', async () => {
-            const result = await hashToBn254FieldSizeLe(Buffer.from(bytes));
-
+            const result = await hashToBn254FieldSizeBe(Buffer.from(bytes));
             expect(Array.from(result![0])).toEqual(refResult);
         });
 
@@ -128,11 +126,11 @@ if (import.meta.vitest) {
                 '0000000000000000000000000000000000000000000000000000000000000000',
                 'hex',
             );
-            const result = await hashToBn254FieldSizeLe(buf);
+            const result = await hashToBn254FieldSizeBe(buf);
             expect(result).not.toBeNull();
             if (result) {
                 expect(result[0]).toBeInstanceOf(Buffer);
-                expect(result[1]).toBe(254);
+                expect(result[1]).toBe(255);
             }
         });
 
@@ -141,26 +139,26 @@ if (import.meta.vitest) {
                 'fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe',
                 'hex',
             );
-            const result = await hashToBn254FieldSizeLe(buf);
+            const result = await hashToBn254FieldSizeBe(buf);
             expect(result).not.toBeNull();
             if (result) {
                 expect(result[1]).toBeLessThanOrEqual(255);
                 expect(result[0]).toBeInstanceOf(Buffer);
                 // Check if the hashed value is indeed smaller than the bn254 field size
-                expect(isSmallerThanBn254FieldSizeLe(result[0])).toBe(true);
+                expect(isSmallerThanBn254FieldSizeBe(result[0])).toBe(true);
             }
         });
 
         it('should correctly hash the input buffer', async () => {
             const buf = Buffer.from('deadbeef', 'hex');
-            const result = await hashToBn254FieldSizeLe(buf);
+            const result = await hashToBn254FieldSizeBe(buf);
             expect(result).not.toBeNull();
             if (result) {
                 // Since the actual hash value depends on the crypto implementation and input,
                 // we cannot predict the exact output. However, we can check if the output is valid.
                 expect(result[0].length).toBe(32); // SHA-256 hash length
                 expect(result[1]).toBeLessThanOrEqual(255);
-                expect(isSmallerThanBn254FieldSizeLe(result[0])).toBe(true);
+                expect(isSmallerThanBn254FieldSizeBe(result[0])).toBe(true);
             }
         });
     });

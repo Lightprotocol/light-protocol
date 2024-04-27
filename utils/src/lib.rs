@@ -79,8 +79,8 @@ pub fn truncate_to_circuit(bytes: &[u8; 32]) -> [u8; 32] {
     truncated
 }
 
-pub fn is_smaller_than_bn254_field_size_le(bytes: &[u8; 32]) -> Result<bool, UtilsError> {
-    let bigint = BigUint::from_bytes_le(bytes);
+pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> Result<bool, UtilsError> {
+    let bigint = BigUint::from_bytes_be(bytes);
     if bigint < ark_bn254::Fr::MODULUS.into() {
         Ok(true)
     } else {
@@ -88,7 +88,7 @@ pub fn is_smaller_than_bn254_field_size_le(bytes: &[u8; 32]) -> Result<bool, Uti
     }
 }
 
-pub fn hash_to_bn254_field_size_le(bytes: &[u8]) -> Option<([u8; 32], u8)> {
+pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
     let mut bump_seed = [std::u8::MAX];
     // loop with decreasing bump seed to find a valid hash which is less than bn254 Fr modulo field size
     for _ in 0..std::u8::MAX {
@@ -97,8 +97,7 @@ pub fn hash_to_bn254_field_size_le(bytes: &[u8]) -> Option<([u8; 32], u8)> {
             // TODO: revisit truncation (without truncation it takes up to 30 hashes to find a valid one, this is not acceptable onchain)
             // truncate to 31 bytes so that value is less than bn254 Fr modulo field size
             hashed_value[0] = 0;
-            hashed_value[1] = 0;
-            if let Ok(true) = is_smaller_than_bn254_field_size_le(&hashed_value) {
+            if let Ok(true) = is_smaller_than_bn254_field_size_be(&hashed_value) {
                 return Some((hashed_value, bump_seed[0]));
             }
         }
@@ -146,13 +145,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hash_to_bn254_field_size_le() {
+    fn test_hash_to_bn254_field_size_be() {
         for _ in 0..10_000 {
             let input_bytes = Pubkey::new_unique().to_bytes(); // Sample input
-            let (hashed_value, _) = hash_to_bn254_field_size_le(input_bytes.as_slice())
+            let (hashed_value, bump) = hash_to_bn254_field_size_be(input_bytes.as_slice())
                 .expect("Failed to find a hash within BN254 field size");
+            assert_eq!(bump, 255, "Bump seed should be 0");
             assert!(
-                is_smaller_than_bn254_field_size_le(&hashed_value).unwrap(),
+                is_smaller_than_bn254_field_size_be(&hashed_value).unwrap(),
                 "Hashed value should be within BN254 field size"
             );
         }

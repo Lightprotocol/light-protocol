@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
-use light_utils::hash_to_bn254_field_size_le;
+use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountWithMerkleContext {
@@ -85,7 +85,7 @@ impl CompressedAccount {
     pub fn hash(&self, &merkle_tree_pubkey: &Pubkey, leaf_index: &u32) -> Result<[u8; 32]> {
         let capacity = 4 + self.address.is_some() as usize + self.data.is_some() as usize * 2;
         let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
-        let truncated_owner = hash_to_bn254_field_size_le(&self.owner.to_bytes())
+        let truncated_owner = hash_to_bn254_field_size_be(&self.owner.to_bytes())
             .unwrap()
             .0;
         vec.push(truncated_owner.as_slice());
@@ -94,7 +94,7 @@ impl CompressedAccount {
         let leaf_index = leaf_index.to_le_bytes();
         vec.push(leaf_index.as_slice());
         let truncated_merkle_tree_pubkey =
-            hash_to_bn254_field_size_le(&merkle_tree_pubkey.to_bytes())
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
                 .0;
         vec.push(truncated_merkle_tree_pubkey.as_slice());
@@ -121,7 +121,7 @@ impl CompressedAccount {
 }
 
 pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
-    let hash = match hash_to_bn254_field_size_le(
+    let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
         Some(hash) => Ok::<[u8; 32], Error>(hash.0),
@@ -159,12 +159,12 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_le(&owner.to_bytes())
+            hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_le(&merkle_tree_pubkey.to_bytes())
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
@@ -189,12 +189,12 @@ mod tests {
             .unwrap();
 
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_le(&owner.to_bytes())
+            hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_le(&merkle_tree_pubkey.to_bytes())
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
@@ -216,12 +216,12 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_le(&owner.to_bytes())
+            hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_le(&merkle_tree_pubkey.to_bytes())
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
@@ -245,12 +245,12 @@ mod tests {
             .hash(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
-            hash_to_bn254_field_size_le(&owner.to_bytes())
+            hash_to_bn254_field_size_be(&owner.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
             leaf_index.to_le_bytes().as_slice(),
-            hash_to_bn254_field_size_le(&merkle_tree_pubkey.to_bytes())
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
                 .unwrap()
                 .0
                 .as_slice(),
