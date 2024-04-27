@@ -372,16 +372,26 @@ impl TestIndexer {
         &mut self,
         event: PublicTransactionEvent,
     ) -> Vec<usize> {
-        for compressed_account in event.input_compressed_accounts.iter() {
-            self.compressed_accounts
-                .retain(|x| x.compressed_account != compressed_account.compressed_account);
-            self.nullified_compressed_accounts
-                .push(compressed_account.clone());
+        for hash in event.input_compressed_account_hashes.iter() {
             let index = self
                 .compressed_accounts
                 .iter()
-                .position(|x| x == compressed_account);
-            if let Some(index) = index {
+                .position(|x| {
+                    x.compressed_account
+                        .hash(&self.merkle_tree_pubkey, &x.leaf_index)
+                        .unwrap()
+                        == *hash
+                })
+                .expect("compressed_account not found");
+            let compressed_account = self.compressed_accounts.get(index).unwrap().clone();
+            self.compressed_accounts.remove(index);
+            // TODO: nullify compressed_account in Merkle tree, not implemented yet
+            self.nullified_compressed_accounts.push(compressed_account);
+            let token_account_index = self
+                .token_compressed_accounts
+                .iter()
+                .position(|x| x.index == index);
+            if let Some(index) = token_account_index {
                 let token_compressed_account_element =
                     self.token_compressed_accounts[index].clone();
                 self.token_compressed_accounts.remove(index);
@@ -411,7 +421,6 @@ impl TestIndexer {
         self.events.push(event);
         indices
     }
-
     /// deserializes an event
     /// adds the output_compressed_accounts to the compressed_accounts
     /// removes the input_compressed_accounts from the compressed_accounts

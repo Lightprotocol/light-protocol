@@ -69,7 +69,7 @@ export async function getCompressedAccountsForTest(rpc: Rpc) {
         }
         for (
             let index = 0;
-            index < event.inputCompressedAccounts.length;
+            index < event.inputCompressedAccountHashes.length;
             index++
         ) {
             const hash = event.inputCompressedAccountHashes[index];
