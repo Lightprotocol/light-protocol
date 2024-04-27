@@ -2,6 +2,7 @@ import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
 import {
     STATE_MERKLE_TREE_ROLLOVER_FEE,
+    STATE_MERKLE_TREE_TIP,
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
@@ -148,7 +149,8 @@ describe('rpc / photon', () => {
             preCompressBalance -
                 compressLamportsAmount -
                 5000 -
-                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
+                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
+                STATE_MERKLE_TREE_TIP.toNumber(),
         );
     });
 

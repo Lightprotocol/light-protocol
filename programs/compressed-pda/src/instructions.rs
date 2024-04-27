@@ -38,11 +38,11 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.authority.key(),
     )?;
     input_compressed_accounts_signer_check(
-        inputs,
+        &inputs,
         &ctx.accounts.invoking_program,
         &ctx.accounts.authority.key(),
     )?;
-    output_compressed_accounts_write_access_check(inputs, &ctx.accounts.invoking_program)?;
+    output_compressed_accounts_write_access_check(&inputs, &ctx.accounts.invoking_program)?;
 
     if let Some(cpi_context) = cpi_context {
         if process_cpi_context(cpi_context, &mut ctx, &mut inputs)?.is_some() {

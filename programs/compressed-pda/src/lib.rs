@@ -96,7 +96,6 @@ pub enum ErrorCode {
 pub mod light_compressed_pda {
 
     use self::instructions::{
-        process_compressed_transaction,
         InstructionDataTransfer,
         //  into_inputs,InstructionDataTransfer2,
     };

@@ -303,7 +303,7 @@ export class LightSystemProgram {
                 relayFee: null,
                 compressionLamports: null,
                 isCompress: false,
-                signerSeeds: [],
+                signerSeeds: null,
             },
         );
 
@@ -314,7 +314,7 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                invokingProgram: this.programId,
+                invokingProgram: null,
                 compressedSolPda: null,
                 compressionRecipient: null,
                 systemProgram: SystemProgram.programId,
@@ -365,7 +365,7 @@ export class LightSystemProgram {
             relayFee: null,
             compressionLamports: lamports,
             isCompress: true,
-            signerSeeds: [],
+            signerSeeds: null,
         };
 
         const data = this.program.coder.types.encode(
@@ -380,7 +380,7 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                invokingProgram: this.programId,
+                invokingProgram: null,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: null,
                 systemProgram: SystemProgram.programId,
@@ -440,7 +440,7 @@ export class LightSystemProgram {
                 relayFee: null,
                 compressionLamports: lamports,
                 isCompress: false,
-                signerSeeds: [],
+                signerSeeds: null,
             },
         );
 
@@ -451,7 +451,7 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                invokingProgram: this.programId,
+                invokingProgram: null,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: toAddress,
                 systemProgram: SystemProgram.programId,

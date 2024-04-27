@@ -207,8 +207,8 @@ pub async fn setup_test_programs_with_accounts(
     create_address_merkle_tree_and_queue_account(
         &payer,
         &mut context,
-        &address_merkle_tree_queue_keypair,
         &address_merkle_tree_keypair,
+        &address_merkle_tree_queue_keypair,
         None,
         1,
     )

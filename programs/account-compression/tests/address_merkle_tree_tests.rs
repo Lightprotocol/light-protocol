@@ -39,8 +39,8 @@ enum RelayerUpdateError {}
 pub async fn create_address_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
-    address_queue_keypair: &Keypair,
     address_merkle_tree_keypair: &Keypair,
+    address_queue_keypair: &Keypair,
 ) {
     let size = account_compression::AddressQueueAccount::size(
         account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
