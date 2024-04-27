@@ -215,7 +215,7 @@ async fn test_mint_to<const MINTS: usize>() {
 
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<MINTS>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -313,7 +313,7 @@ async fn test_transfer() {
     .unwrap();
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<1>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -472,7 +472,7 @@ async fn test_decompression() {
     .unwrap();
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<1>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -683,7 +683,7 @@ async fn test_invalid_inputs() {
     .unwrap();
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<1>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -1073,7 +1073,7 @@ pub async fn create_token_account(
     Ok(())
 }
 
-async fn assert_mint_to<'a>(
+async fn assert_mint_to<'a, const MINT: usize>(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
     recipient_keypair: &Keypair,
@@ -1104,7 +1104,7 @@ async fn assert_mint_to<'a>(
         mock_indexer.merkle_tree.root(),
         "merkle tree root update failed"
     );
-    assert_eq!(merkle_tree.root_index(), 1);
+    assert_eq!(merkle_tree.root_index(), MINT);
     assert_ne!(
         old_merkle_tree.root().unwrap(),
         merkle_tree.root().unwrap(),
@@ -1120,7 +1120,7 @@ async fn assert_mint_to<'a>(
             .data,
     )
     .unwrap();
-    assert_eq!(mint_account.supply, amount);
+    assert_eq!(mint_account.supply, amount * MINT as u64);
 
     let pool = get_token_pool_pda(&mint);
     let pool_account = spl_token::state::Account::unpack(
@@ -1133,7 +1133,7 @@ async fn assert_mint_to<'a>(
             .data,
     )
     .unwrap();
-    assert_eq!(pool_account.amount, amount);
+    assert_eq!(pool_account.amount, amount * MINT as u64);
 }
 
 async fn assert_transfer<'a>(

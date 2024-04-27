@@ -127,9 +127,11 @@ fn process_batch<'a, 'c: 'info, 'info>(
                     &merkle_tree,
                 )?;
 
-                let lamports =
-                    merkle_tree.tip + merkle_tree.rollover_fee * leaves_to_process as u64;
-
+                let mut lamports = merkle_tree.rollover_fee * leaves_to_process as u64;
+                if *leaves_start == 0 {
+                    msg!(" adding tip");
+                    lamports += merkle_tree.tip;
+                }
                 // Insert leaves to the Merkle tree.
                 let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
                 let (first_changelog_index, first_sequence_number) = merkle_tree
