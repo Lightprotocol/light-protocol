@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::{spl_compression::process_compression, ErrorCode};
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
@@ -101,9 +103,11 @@ pub fn add_token_data_to_input_compressed_accounts(
         .iter_mut()
         .enumerate()
     {
+        let mut data = Vec::with_capacity(mem::size_of::<TokenData>());
+        input_token_data[i].serialize(&mut data)?;
         let data = CompressedAccountData {
             discriminator: 2u64.to_le_bytes(),
-            data: input_token_data[i].try_to_vec().unwrap(),
+            data,
             data_hash: input_token_data[i].hash().unwrap(),
         };
         compressed_account_with_context.compressed_account.data = Some(data);
