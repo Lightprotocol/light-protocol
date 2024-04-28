@@ -11,7 +11,7 @@
   "bin": {
     "light": "./test_bin/run"
   },
-  "license": "GPL-3.0",
+  "license": "Apache-2.0",
   "main": "dist/index.js",
   "files": [
     "/accounts",
