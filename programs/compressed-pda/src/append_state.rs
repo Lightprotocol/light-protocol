@@ -6,8 +6,6 @@ use crate::{
 };
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-#[cfg(target_os = "solana")]
-use light_heap::GLOBAL_ALLOCATOR;
 use light_macros::heap_neutral;
 
 #[heap_neutral]

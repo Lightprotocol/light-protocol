@@ -556,6 +556,14 @@ export type LightCompressedToken = {
                             };
                         };
                     },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
                 ];
             };
         },
@@ -1486,6 +1494,14 @@ export const IDL: LightCompressedToken = {
                         type: {
                             option: {
                                 vec: 'bytes',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
                             },
                         },
                     },

@@ -56,12 +56,14 @@ pub fn process_mint_to<'info>(
     {
         let inputs_len =
     // struct
-    mem::size_of::<InstructionDataTransfer>()
+    mem::size_of::<light_compressed_pda::InstructionDataTransfer>()
     // `output_compressed_accounts`
     + mem::size_of::<CompressedAccount>() * amounts.len()
     // `output_state_merkle_tree_account_indices`
-    + amounts.len()+ mem::size_of::<Option::<CompressedCpiContext>>();
+    + amounts.len()+ mem::size_of::<Option::<light_compressed_pda::CompressedCpiContext>>();
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
+        // safety buffer prior to heap pos
+        let buffer = vec![0u8; 8];
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
         let pre_compressed_acounts_pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
@@ -171,7 +173,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         }),
     };
 
-    InstructionDataTransfer::serialize(&inputs_struct, inputs)?;
+    light_compressed_pda::InstructionDataTransfer::serialize(&inputs_struct, inputs)?;
 
     light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
 
