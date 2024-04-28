@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "ZK Compression: Secure Scaling of State on Solana",
   "maintainers": [
     {
@@ -35,25 +35,21 @@
     "@solana-developers/helpers": "^1.5.1",
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.91.4",
-    "@typescript-eslint/eslint-plugin": "^7.6.0",
-    "@typescript-eslint/parser": "^7.6.0",
     "buffer": "^6.0.3",
     "case-anything": "^2.1.13",
-    "chai": "^4.4.1",
     "cli-progress": "^3.12.0",
     "cli-spinners": "^2.9.2",
     "dotenv": "^16.4.5",
     "ffjavascript": "^0.2.63",
     "find-process": "^1.4.7",
-    "fs": "0.0.1-security",
     "node-fetch": "^3.3.2",
     "path": "^0.12.7",
     "snake-case": "^3.0.4",
     "tar": "^6.2.1",
-    "ts-mocha": "^10.0.0",
     "tweetnacl": "^1.0.3",
     "which": "^4.0.0",
-    "zlib": "^1.0.5"
+    "zlib": "^1.0.5",
+    "axios": "^1.6.8"
   },
   "devDependencies": {
     "@oclif/test": "2.3.9",
@@ -64,8 +60,7 @@
     "@types/node": "^20.12.7",
     "@types/tar": "^6.1.12",
     "@types/which": "^3.0.3",
-    "axios": "^1.6.8",
-    "chai": "^4.3.10",
+    "chai": "^4.4.1",
     "eslint": "8.57.0",
     "eslint-config-oclif": "5.1.1",
     "eslint-config-oclif-typescript": "3.1.4",
@@ -76,7 +71,11 @@
     "shx": "^0.3.4",
     "ts-node": "^10.9.2",
     "tslib": "^2.6.2",
-    "typescript": "5.3.2"
+    "typescript": "5.3.2",
+    "@typescript-eslint/eslint-plugin": "^7.6.0",
+    "@typescript-eslint/parser": "^7.6.0",
+    "ts-mocha": "^10.0.0"
+
   },
   "oclif": {
     "bin": "light",
