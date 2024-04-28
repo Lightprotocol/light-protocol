@@ -1,0 +1,14 @@
+[package]
+name = "light-hash-map"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+solana = ["solana-program"]
+
+[dependencies]
+light-utils = { path = "../../utils" }
+num-bigint = "0.4"
+num-traits = "0.2"
+solana-program = { version = "1.18.11", optional = true }
+thiserror = "1.0"

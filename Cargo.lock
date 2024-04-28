@@ -2718,6 +2718,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-hash-map"
+version = "0.1.0"
+dependencies = [
+ "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
 name = "light-hash-set"
 version = "0.1.0"
 dependencies = [

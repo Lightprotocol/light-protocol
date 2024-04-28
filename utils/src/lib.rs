@@ -5,12 +5,14 @@ use std::{
     thread::spawn,
 };
 
+use ark_ff::PrimeField;
 use num_bigint::BigUint;
+use solana_program::keccak::hashv;
 use thiserror::Error;
 
 pub mod bigint;
-use ark_ff::PrimeField;
-use solana_program::keccak::hashv;
+pub mod prime;
+
 const CHUNK_SIZE: usize = 32;
 
 #[derive(Debug, Error)]
