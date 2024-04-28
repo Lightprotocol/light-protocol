@@ -185,21 +185,7 @@ pub mod test {
 
         // Serialize manually
         let mut manual_serialized = Vec::new();
-        event
-            .man_serialize(
-                &mut manual_serialized,
-                // &event.input_compressed_account_hashes,
-                // &event.output_compressed_account_hashes,
-                // &event.output_compressed_accounts,
-                // &event.output_state_merkle_tree_account_indices,
-                // &event.output_leaf_indices,
-                // &event.relay_fee,
-                // event.is_compress,
-                // &event.compression_lamports,
-                // &event.pubkey_array,
-                // &event.message,
-            )
-            .unwrap();
+        event.man_serialize(&mut manual_serialized).unwrap();
 
         // Compare the two byte arrays
         assert_eq!(
@@ -251,21 +237,7 @@ pub mod test {
 
             let borsh_serialized = event.try_to_vec().unwrap();
             let mut manual_serialized = Vec::new();
-            event
-                .man_serialize(
-                    &mut manual_serialized,
-                    // &event.input_compressed_account_hashes,
-                    // &event.output_compressed_account_hashes,
-                    // &event.output_compressed_accounts,
-                    // &event.output_state_merkle_tree_account_indices,
-                    // &event.output_leaf_indices,
-                    // &event.relay_fee,
-                    // event.is_compress,
-                    // &event.compression_lamports,
-                    // &event.pubkey_array,
-                    // &event.message,
-                )
-                .unwrap();
+            event.man_serialize(&mut manual_serialized).unwrap();
 
             assert_eq!(
                 borsh_serialized, manual_serialized,

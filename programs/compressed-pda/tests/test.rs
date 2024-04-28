@@ -1228,28 +1228,6 @@ impl MockIndexer {
         (non_inclusion_proof_inputs_json, address_root_indices)
     }
 
-    /// Checks for every address in an output compressed account whether there is an input-compressed account with the same address
-    /// If there is no input account with the same address, the address has been created in the transaction
-    // pub fn get_created_addresses_from_events(event: &PublicTransactionEvent) -> Vec<[u8; 32]> {
-    //     // get all addresses from output compressed accounts
-    //     let output_compressed_account_addresses: Vec<[u8; 32]> = event
-    //         .output_compressed_accounts
-    //         .iter()
-    //         .map(|x| x.address.unwrap())
-    //         .collect();
-    //     // filter out addresses that are in input compressed accounts
-    //     output_compressed_account_addresses
-    //         .iter()
-    //         .filter(|address| {
-    //             !event.input_compressed_accounts.iter().any(|x| {
-    //                 x.compressed_account.address.is_some()
-    //                     && x.compressed_account.address.unwrap() == **address
-    //             })
-    //         })
-    //         .copied()
-    //         .collect()
-    // }
-
     pub fn add_event_and_compressed_accounts(
         &mut self,
         event: PublicTransactionEvent,
