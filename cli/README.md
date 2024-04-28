@@ -4,7 +4,7 @@ CLI to interact with Light Protocol and ZK compression.
 
 ## Requirements
 
-- Ensure you have Node.js (v19.4.0 or later) and npm installed on your machine.
+- Ensure you have Node >= v20.9.0 installed on your machine.
 
 - You will need a valid Solana filesystem wallet set up at `~/.config/solana/id.json`.
   If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details.
@@ -51,7 +51,6 @@ pnpm link --global
 # Verify the CLI was correctly installed
 which light
 ```
-
 
 ## Usage
 
