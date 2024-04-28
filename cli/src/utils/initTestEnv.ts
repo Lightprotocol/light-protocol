@@ -8,12 +8,27 @@ import {
 } from "../psp-utils";
 import path from "path";
 import fs from "fs";
+import util from "util";
 import which from "which";
-import { spawn } from "child_process";
+import { spawn, exec } from "child_process";
 const find = require("find-process");
+const execAsync = util.promisify(exec);
+
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 const BASE_PATH = "../../bin/";
+const PHOTON_VERSION = "0.15.0";
+
+async function checkPhotonVersion(requiredVersion: string): Promise<boolean> {
+  try {
+    const { stdout } = await execAsync('photon --version');
+    const version = stdout.trim()
+    return version.includes(requiredVersion);
+  } catch (error) {
+    console.error('Error checking Photon version:', error);
+    return false;
+  }
+}
 
 export async function initTestEnv({
   additionalPrograms,
@@ -47,9 +62,10 @@ export async function initTestEnv({
   if (indexer) {
     await killIndexer();
     const resolvedOrNull = which.sync("photon", { nothrow: true });
-    if (resolvedOrNull === null) {
+
+    if (resolvedOrNull === null || !(await checkPhotonVersion(PHOTON_VERSION))) {
       const message =
-        "Photon indexer not found. Please install it by running `cargo install photon-indexer --version 0.15.0`";
+        `Photon indexer not found. Please install it by running \`cargo install photon-indexer --version ${PHOTON_VERSION}\``;
       console.log(message);
       throw new Error(message);
     } else {
