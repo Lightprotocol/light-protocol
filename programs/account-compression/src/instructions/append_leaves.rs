@@ -211,7 +211,6 @@ fn process_batch<'a, 'c: 'info, 'info>(
     Ok(())
 }
 
-// #[heap_neutral]
 #[inline(never)]
 fn emit_event<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,

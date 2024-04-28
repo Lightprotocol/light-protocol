@@ -233,28 +233,28 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
 
 #[tokio::test]
 async fn test_mint_to_1() {
-    test_mint_to::<1, 1>().await
+    test_mint_to::<1, 10>().await
 }
 
-// #[tokio::test]
-// async fn test_mint_to_5() {
-//     test_mint_to::<5, 1>().await
-// }
+#[tokio::test]
+async fn test_mint_to_5() {
+    test_mint_to::<5, 10>().await
+}
 
-// #[tokio::test]
-// async fn test_mint_to_10() {
-//     test_mint_to::<10, 1>().await
-// }
+#[tokio::test]
+async fn test_mint_to_10() {
+    test_mint_to::<10, 10>().await
+}
 
-// #[tokio::test]
-// async fn test_mint_to_20() {
-//     test_mint_to::<20, 1>().await
-// }
+#[tokio::test]
+async fn test_mint_to_20() {
+    test_mint_to::<20, 10>().await
+}
 
-// #[tokio::test]
-// async fn test_mint_to_25() {
-//     test_mint_to::<25, 10>().await
-// }
+#[tokio::test]
+async fn test_mint_to_25() {
+    test_mint_to::<25, 10>().await
+}
 
 #[tokio::test]
 async fn test_transfer() {

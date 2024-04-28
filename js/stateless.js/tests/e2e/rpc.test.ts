@@ -1,5 +1,5 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
-import { Signer } from '@solana/web3.js';
+import {  Signer } from '@solana/web3.js';
 import {
     STATE_MERKLE_TREE_ROLLOVER_FEE,
     STATE_MERKLE_TREE_TIP,
@@ -8,7 +8,10 @@ import {
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc } from '../../src/rpc';
 import { compress, decompress } from '../../src/actions';
-import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
+import {
+    bn,
+    CompressedAccountWithMerkleContext,
+} from '../../src/state';
 import { getTestRpc } from '../../src/test-helpers';
 
 /// TODO: add test case for payer != address

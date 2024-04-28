@@ -64,40 +64,6 @@ async function parseEventWithTokenTlvData(
     event: PublicTransactionEvent,
 ): Promise<EventWithParsedTokenTlvData> {
     const pubkeyArray = event.pubkeyArray;
-    const inputHashes = event.inputCompressedAccountHashes;
-    /// TODO: consider different structure
-    // const inputCompressedAccountWithParsedTokenData: ParsedTokenAccount[] =
-    //     event.inputCompressedAccounts.map((compressedAccount, i) => {
-    //         const merkleContext: MerkleContext = {
-    //             merkleTree:
-    //                 pubkeyArray[compressedAccount.merkleTreePubkeyIndex],
-    //             nullifierQueue:
-    //                 pubkeyArray[compressedAccount.nullifierQueuePubkeyIndex],
-    //             hash: inputHashes[i],
-    //             leafIndex: compressedAccount.leafIndex,
-    //         };
-
-    //         if (!compressedAccount.compressedAccount.data)
-    //             throw new Error('No data');
-
-    //         const parsedData = parseTokenLayoutWithIdl(
-    //             compressedAccount.compressedAccount,
-    //         );
-
-    //         if (!parsedData) throw new Error('Invalid token data');
-
-    //         const withMerkleContext = createCompressedAccountWithMerkleContext(
-    //             merkleContext,
-    //             compressedAccount.compressedAccount.owner,
-    //             compressedAccount.compressedAccount.lamports,
-    //             compressedAccount.compressedAccount.data,
-    //             compressedAccount.compressedAccount.address ?? undefined,
-    //         );
-    //         return {
-    //             compressedAccount: withMerkleContext,
-    //             parsed: parsedData,
-    //         };
-    //     });
 
     const outputHashes = event.outputCompressedAccountHashes;
     const outputCompressedAccountsWithParsedTokenData: ParsedTokenAccount[] =
@@ -132,8 +98,7 @@ async function parseEventWithTokenTlvData(
         });
 
     return {
-        // inputCompressedAccounts: inputCompressedAccountWithParsedTokenData,
-        inputCompressedAccountHashes: inputHashes,
+        inputCompressedAccountHashes: event.inputCompressedAccountHashes,
         outputCompressedAccounts: outputCompressedAccountsWithParsedTokenData,
     };
 }
