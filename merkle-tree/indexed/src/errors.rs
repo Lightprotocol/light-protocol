@@ -1,6 +1,7 @@
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::errors::HasherError,
 };
+use light_hash_map::HashMapError;
 use light_utils::UtilsError;
 use thiserror::Error;
 
@@ -20,6 +21,8 @@ pub enum IndexedMerkleTreeError {
     Hasher(#[from] HasherError),
     #[error("Concurrent Merkle tree error: {0}")]
     ConcurrentMerkleTree(#[from] ConcurrentMerkleTreeError),
+    #[error("Hash map error: {0}")]
+    HashMap(#[from] HashMapError),
     #[error("Utils error {0}")]
     Utils(#[from] UtilsError),
 }
@@ -37,6 +40,7 @@ impl From<IndexedMerkleTreeError> for u32 {
             IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 3005,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
+            IndexedMerkleTreeError::HashMap(e) => e.into(),
             IndexedMerkleTreeError::Utils(e) => e.into(),
         }
     }

@@ -5,8 +5,10 @@ use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::Hasher, ConcurrentMerkleTree,
 };
+use light_hash_map::{HashMap, HashMapError};
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use thiserror::Error;
 
 pub mod array;
 pub mod errors;
@@ -25,6 +27,7 @@ where
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
+    pub changelog: HashMap<u16, BigUint, I>,
     _index: PhantomData<I>,
 }
 
@@ -44,15 +47,19 @@ where
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Result<Self, ConcurrentMerkleTreeError> {
+        changelog_capacity_indices: usize,
+        changelog_capacity_values: usize,
+    ) -> Result<Self, IndexedMerkleTreeError> {
         let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(
             height,
             changelog_size,
             roots_size,
             canopy_depth,
         )?;
+        let changelog = HashMap::new(changelog_capacity_indices, changelog_capacity_values)?;
         Ok(Self {
             merkle_tree,
+            changelog,
             _index: PhantomData,
         })
     }
@@ -179,11 +186,28 @@ where
     pub fn update(
         &mut self,
         changelog_index: usize,
-        new_element: IndexedElement<I>,
+        mut new_element: IndexedElement<I>,
         low_element: IndexedElement<I>,
         low_element_next_value: &BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
+        // Check whether the `next_index` of `low_element` was changed in the
+        // changelog. If yes, we need to use that new value in
+        // `new_element.next_index`.
+        if let Some(current_low_element_next_index) = self.changelog.get(&low_element.value)? {
+            // If `low_element.next_index` is up to date, don't do anything. At
+            // this point any mistakes leading to errors are responsity of the
+            // caller.
+            if &low_element.next_index != current_low_element_next_index {
+                // There are two cases.
+                // 1. The new `current_low_element_index` points to the value
+                //    lower than `new_element`. In such case, that element
+                //    becomes a new low element.
+                // 2. It points to the value higher than `new_element`. In such
+                //    case, it becomes the next element of `new_element`.
+            }
+        }
+
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -213,6 +237,14 @@ where
             next_index: new_element.index,
         };
 
+        // Update the changelog.
+        // * Update the `next_index` of low element.
+        // * Add the new element with its `next_index`.
+        self.changelog
+            .insert(&new_low_element.value, &new_low_element.next_index)?;
+        self.changelog
+            .insert(&new_element.value, &new_element.next_index)?;
+
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
         let old_low_leaf = low_element.hash::<H>(low_element_next_value)?;
@@ -233,7 +265,8 @@ where
     }
 
     /// Initializes the address merkle tree with the given initial value.
-    /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
+    /// The initial value should be a high value since one needs to prove non-inclusion
+    /// of an address prior to insertion.
     /// Thus, addresses with higher values than the initial value cannot be inserted.
     pub fn initialize_address_merkle_tree(
         address_merkle_tree_inited: &mut IndexedMerkleTree<H, I, HEIGHT>,
@@ -246,7 +279,8 @@ where
             .hash::<H>(&nullifier_bundle.new_element.value)?;
         let mut zero_bytes_array = BoundedVec::with_capacity(26);
         for i in 0..16 {
-            // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
+            // PANICS: Calling `unwrap()` pushing into this bounded vec cannot
+            // panic since the array has enough capacity.
             zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
         }
         address_merkle_tree_inited.merkle_tree.update(

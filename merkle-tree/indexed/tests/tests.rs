@@ -16,6 +16,8 @@ const MERKLE_TREE_HEIGHT: usize = 4;
 const MERKLE_TREE_CHANGELOG: usize = 256;
 const MERKLE_TREE_ROOTS: usize = 1024;
 const MERKLE_TREE_CANOPY: usize = 0;
+const MERKLE_TREE_CHANGELOG_INDICES: usize = 1471;
+const MERKLE_TREE_CHANGELOG_VALUES: usize = 1024;
 
 const QUEUE_ELEMENTS: usize = 1024;
 
@@ -217,6 +219,8 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
+            MERKLE_TREE_CHANGELOG_INDICES,
+            MERKLE_TREE_CHANGELOG_VALUES,
         )
         .unwrap(),
     );
@@ -274,6 +278,8 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
+            MERKLE_TREE_CHANGELOG_INDICES,
+            MERKLE_TREE_CHANGELOG_VALUES,
         )
         .unwrap(),
     );
@@ -347,6 +353,8 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
+            MERKLE_TREE_CHANGELOG_INDICES,
+            MERKLE_TREE_CHANGELOG_VALUES,
         )
         .unwrap(),
     );
