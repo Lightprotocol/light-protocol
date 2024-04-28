@@ -2,7 +2,12 @@
   "name": "@lightprotocol/cli",
   "version": "0.1.1-alpha.23",
   "description": "Light Protocol CLI",
-  "author": "@ananas-block, @shigoto-dev19, @sleepyqadir ",
+  "maintainers": [
+    {
+      "name": "Light Protocol Maintainers",
+      "email": "friends@lightprotocol.com"
+    }
+  ],
   "bin": {
     "light": "./test_bin/run"
   },

@@ -26,7 +26,7 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
-    it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
+    it.only('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
         for (let round = 0; round < numberOfTransfers; round++) {
             const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,

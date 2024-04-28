@@ -361,7 +361,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return bn(res.result.value);
     }
 
-    /// TODO: validate that this is just for sol accounts
     /**
      * Fetch the total compressed balance for the specified owner public key
      */
@@ -540,6 +539,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
             { owner: owner.toBase58() },
         );
 
+        console.log(
+            '@getCompressedAccountsByOwner unsafeRes: ',
+            JSON.stringify(unsafeRes),
+        );
         const res = create(
             unsafeRes,
             jsonRpcResultAndContext(CompressedAccountsByOwnerResult),

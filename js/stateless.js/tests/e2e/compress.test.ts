@@ -6,7 +6,7 @@ import {
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { Rpc, createRpc } from '../../src/rpc';
+import { Rpc } from '../../src/rpc';
 import { compress, decompress } from '../../src';
 import { getTestRpc } from '../../src/test-helpers';
 /// TODO: add test case for payer != address

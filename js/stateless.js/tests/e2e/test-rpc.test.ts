@@ -12,6 +12,7 @@ import {
     encodeBN254toBase58,
 } from '../../src/state';
 import { TestRpc, getTestRpc } from '../../src/test-helpers';
+import { createRpc } from '../../src';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
@@ -94,6 +95,13 @@ describe('test-rpc', () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             refPayer.publicKey,
         );
+        console.log('compressedAccounts TESTRPC', compressedAccounts);
+
+        const realRpc = createRpc();
+        const compressedAccountsReal =
+            await realRpc.getCompressedAccountsByOwner(refPayer.publicKey);
+
+        console.log('compressedAccounts REALRPC', compressedAccountsReal);
 
         assert.equal(compressedAccounts.length, 1);
 
