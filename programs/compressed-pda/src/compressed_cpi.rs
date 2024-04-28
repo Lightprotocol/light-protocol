@@ -46,7 +46,7 @@ impl CpiSignatureAccount {
 pub const CPI_SEED: &[u8] = b"cpi_signature_pda";
 
 /// To spend multiple compressed
-#[derive(Debug, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, AnchorSerialize, AnchorDeserialize, PartialEq, Clone)]
 pub struct CompressedCpiContext {
     /// index of the output state Merkle tree that will be used to store cpi signatures
     /// The transaction will fail if this index is not consistent in your transaction.

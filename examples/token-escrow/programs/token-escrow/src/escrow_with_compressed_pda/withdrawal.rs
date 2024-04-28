@@ -132,6 +132,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
     let bump = &[bump];
     let signer_bytes = ctx.accounts.signer.key.to_bytes();
     let seeds: [&[u8]; 3] = [b"escrow".as_slice(), signer_bytes.as_slice(), bump];
+    let cpi_signature_account_index = cpi_context.cpi_signature_account_index;
     let inputs_struct = InstructionDataTransfer {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: vec![old_state],
@@ -143,6 +144,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         compression_lamports: None,
         is_compress: false,
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
+        cpi_context: Some(cpi_context),
     };
 
     let mut inputs = Vec::new();
@@ -160,8 +162,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
         cpi_signature_account: Some(
-            ctx.remaining_accounts[cpi_context.cpi_signature_account_index as usize]
-                .to_account_info(),
+            ctx.remaining_accounts[cpi_signature_account_index as usize].to_account_info(),
         ),
     };
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
@@ -173,7 +174,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, Some(cpi_context))?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 

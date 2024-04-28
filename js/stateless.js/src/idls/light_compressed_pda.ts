@@ -108,14 +108,6 @@ export type LightCompressedPda = {
                     name: 'inputs';
                     type: 'bytes';
                 },
-                {
-                    name: 'cpiContext';
-                    type: {
-                        option: {
-                            defined: 'CompressedCpiContext';
-                        };
-                    };
-                },
             ];
         },
     ];
@@ -327,14 +319,6 @@ export type LightCompressedPda = {
                         };
                     },
                     {
-                        name: 'inputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
@@ -480,6 +464,14 @@ export type LightCompressedPda = {
                         type: {
                             option: {
                                 vec: 'bytes';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
                             };
                         };
                     },
@@ -818,14 +810,6 @@ export const IDL: LightCompressedPda = {
                     name: 'inputs',
                     type: 'bytes',
                 },
-                {
-                    name: 'cpiContext',
-                    type: {
-                        option: {
-                            defined: 'CompressedCpiContext',
-                        },
-                    },
-                },
             ],
         },
     ],
@@ -1037,14 +1021,6 @@ export const IDL: LightCompressedPda = {
                         },
                     },
                     {
-                        name: 'inputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
@@ -1190,6 +1166,14 @@ export const IDL: LightCompressedPda = {
                         type: {
                             option: {
                                 vec: 'bytes',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
                             },
                         },
                     },

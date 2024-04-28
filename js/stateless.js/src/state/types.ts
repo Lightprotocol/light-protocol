@@ -38,7 +38,6 @@ export interface CompressedAccountData {
 export interface PublicTransactionEvent {
     inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
-    inputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
     outputCompressedAccounts: CompressedAccount[];
     outputStateMerkleTreeAccountIndices: Uint8Array; // bytes
     outputLeafIndices: number[]; // Vec<u32>
@@ -60,6 +59,7 @@ export interface InstructionDataTransfer {
     isCompress: boolean; // bool
     newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
     signerSeeds: number[][] | null; // Vec<Vec<u8>>
+    cpiContext: null; // Option<CpiContext>
 }
 
 export interface NewAddressParamsPacked {

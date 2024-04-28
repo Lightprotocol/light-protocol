@@ -12,7 +12,7 @@ use crate::{
     RegisteredProgram,
 };
 
-const BATCH_SIZE: usize = 6;
+const BATCH_SIZE: usize = 7;
 
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
@@ -72,17 +72,11 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
     leaves: &'a [[u8; 32]],
 ) -> Result<()> {
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("append_leaves: start");
-
     if leaves.len() != ctx.remaining_accounts.len() {
         return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
     }
 
     let mut merkle_tree_map = build_merkle_tree_map(leaves, ctx.remaining_accounts);
-
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("append_leaves: merkle tree map");
 
     let mut leaves_start = 0;
     while !merkle_tree_map.is_empty() {
@@ -101,11 +95,9 @@ fn process_batch<'a, 'c: 'info, 'info>(
 ) -> Result<()> {
     let mut leaves_in_batch = 0;
     let mut changelog_events = Vec::with_capacity(BATCH_SIZE);
-
     // A vector of trees which become fully processed and should be removed
     // from the `merkle_tree_map`.
     let mut processed_merkle_trees = Vec::new();
-
     {
         let mut merkle_tree_map_iter = merkle_tree_map.values();
         let mut merkle_tree_map_pair = merkle_tree_map_iter.next();
@@ -115,20 +107,20 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 cmp::min(leaves.len() - *leaves_start, BATCH_SIZE - leaves_in_batch);
             let leaves_end = *leaves_start + leaves_to_process;
 
-            let lamports = {
+            let rollover_fee;
+            let tip;
+            {
                 let merkle_tree =
                     AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
                         .unwrap();
                 let merkle_tree_pubkey = merkle_tree.key();
                 let mut merkle_tree = merkle_tree.load_mut()?;
-
+                rollover_fee = merkle_tree.rollover_fee;
+                tip = merkle_tree.tip;
                 check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
                     ctx,
                     &merkle_tree,
                 )?;
-
-                let lamports =
-                    merkle_tree.tip + merkle_tree.rollover_fee * leaves_to_process as u64;
 
                 // Insert leaves to the Merkle tree.
                 let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
@@ -184,12 +176,11 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 //     )
                 //     .map_err(ProgramError::from)?;
                 // changelog_events.push(changelog_event);
+            }
 
-                lamports
-            };
-
-            msg!("transferring rollover fee: {}", lamports);
-            if lamports > 0 {
+            let lamports = rollover_fee * leaves.len() as u64 + tip;
+            if lamports > 0 && leaves_end == leaves.len() {
+                msg!("transferring rollover fee: {}", lamports);
                 transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, lamports)?;
             }
 
@@ -220,7 +211,6 @@ fn process_batch<'a, 'c: 'info, 'info>(
     Ok(())
 }
 
-#[heap_neutral]
 #[inline(never)]
 fn emit_event<'a, 'b, 'c: 'info, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
@@ -233,19 +223,10 @@ fn emit_event<'a, 'b, 'c: 'info, 'info>(
 
     // Calling `try_to_vec` allocates too much memory. Allocate the memory, up
     // to the instruction limit, manually.
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("before borsh serialization");
     let mut data = Vec::with_capacity(10240);
     changelog_event.serialize(&mut data)?;
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("after borsh serialization");
 
-    emit_indexer_event(data, &ctx.accounts.log_wrapper, &ctx.accounts.authority)?;
-
-    #[cfg(target_os = "solana")]
-    light_heap::GLOBAL_ALLOCATOR.log_total_heap("after invoke");
-
-    Ok(())
+    emit_indexer_event(data, &ctx.accounts.log_wrapper, &ctx.accounts.authority)
 }
 
 pub fn transfer_lamports<'info>(

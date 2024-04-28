@@ -168,63 +168,92 @@ async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -
     mint.pubkey()
 }
 
-#[tokio::test]
-async fn test_mint_to() {
+async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mock_indexer = MockIndexer::new(
+    let mut mock_indexer = MockIndexer::new(
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
         payer.insecure_clone(),
-    );
-    let recipient_keypair = Keypair::new();
-    let mint = create_mint_helper(&mut context, &payer).await;
-    let amount = 10000u64;
-    let instruction = create_mint_to_instruction(
-        &payer_pubkey,
-        &payer_pubkey,
-        &mint,
-        &merkle_tree_pubkey,
-        vec![amount; 1],
-        vec![recipient_keypair.pubkey(); 1],
-    );
-    let old_merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey).await;
-    let old_merkle_tree = old_merkle_tree_account
-        .deserialized()
-        .copy_merkle_tree()
-        .unwrap();
-    let event = create_and_send_transaction_with_event(
-        &mut context,
-        &[instruction],
-        &payer_pubkey,
-        &[&payer],
-        Some(TransactionParams {
-            num_new_addresses: 0,
-            num_input_compressed_accounts: 0,
-            num_output_compressed_accounts: 1,
-            compress: 0,
-            fee_config: FeeConfig::default(),
-        }),
-    )
-    .await
-    .unwrap()
-    .unwrap();
-
-    let mut mock_indexer = mock_indexer.await;
-    mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
-        &mut context,
-        &mock_indexer,
-        &recipient_keypair,
-        mint,
-        amount,
-        &old_merkle_tree,
     )
     .await;
+
+    let recipient_keypair = Keypair::new();
+    let mint = create_mint_helper(&mut context, &payer).await;
+    for i in 0..ITER {
+        let amount = 10000u64;
+        let instruction = create_mint_to_instruction(
+            &payer_pubkey,
+            &payer_pubkey,
+            &mint,
+            &merkle_tree_pubkey,
+            vec![amount; MINTS],
+            vec![recipient_keypair.pubkey(); MINTS],
+        );
+        let old_merkle_tree_account =
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, env.merkle_tree_pubkey)
+                .await;
+        let old_merkle_tree = old_merkle_tree_account
+            .deserialized()
+            .copy_merkle_tree()
+            .unwrap();
+        let event = create_and_send_transaction_with_event(
+            &mut context,
+            &[instruction],
+            &payer_pubkey,
+            &[&payer],
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: 0,
+                num_output_compressed_accounts: MINTS as u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        if i == 0 {
+            mock_indexer.add_compressed_accounts_with_token_data(event);
+            assert_mint_to::<MINTS>(
+                &mut context,
+                &mock_indexer,
+                &recipient_keypair,
+                mint,
+                amount,
+                &old_merkle_tree,
+            )
+            .await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_mint_to_1() {
+    test_mint_to::<1, 10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_5() {
+    test_mint_to::<5, 10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_10() {
+    test_mint_to::<10, 10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_20() {
+    test_mint_to::<20, 10>().await
+}
+
+#[tokio::test]
+async fn test_mint_to_25() {
+    test_mint_to::<25, 10>().await
 }
 
 #[tokio::test]
@@ -274,7 +303,7 @@ async fn test_transfer() {
     .unwrap();
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<1>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -433,7 +462,7 @@ async fn test_decompression() {
     .unwrap();
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<1>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -644,7 +673,7 @@ async fn test_invalid_inputs() {
     .unwrap();
     let mut mock_indexer = mock_indexer.await;
     mock_indexer.add_compressed_accounts_with_token_data(event);
-    assert_mint_to(
+    assert_mint_to::<1>(
         &mut context,
         &mock_indexer,
         &recipient_keypair,
@@ -1034,7 +1063,7 @@ pub async fn create_token_account(
     Ok(())
 }
 
-async fn assert_mint_to<'a>(
+async fn assert_mint_to<'a, const MINT: usize>(
     context: &mut ProgramTestContext,
     mock_indexer: &MockIndexer,
     recipient_keypair: &Keypair,
@@ -1065,7 +1094,7 @@ async fn assert_mint_to<'a>(
         mock_indexer.merkle_tree.root(),
         "merkle tree root update failed"
     );
-    assert_eq!(merkle_tree.root_index(), 1);
+    assert_eq!(merkle_tree.root_index(), MINT);
     assert_ne!(
         old_merkle_tree.root().unwrap(),
         merkle_tree.root().unwrap(),
@@ -1081,7 +1110,7 @@ async fn assert_mint_to<'a>(
             .data,
     )
     .unwrap();
-    assert_eq!(mint_account.supply, amount);
+    assert_eq!(mint_account.supply, amount * MINT as u64);
 
     let pool = get_token_pool_pda(&mint);
     let pool_account = spl_token::state::Account::unpack(
@@ -1094,7 +1123,7 @@ async fn assert_mint_to<'a>(
             .data,
     )
     .unwrap();
-    assert_eq!(pool_account.amount, amount);
+    assert_eq!(pool_account.amount, amount * MINT as u64);
 }
 
 async fn assert_transfer<'a>(
@@ -1373,21 +1402,26 @@ impl MockIndexer {
         &mut self,
         event: PublicTransactionEvent,
     ) -> Vec<usize> {
-        for compressed_account in event.input_compressed_accounts.iter() {
+        for hash in event.input_compressed_account_hashes.iter() {
             let index = self
                 .compressed_accounts
                 .iter()
-                .position(|x| x.compressed_account == compressed_account.compressed_account)
+                .position(|x| {
+                    x.compressed_account
+                        .hash(&self.merkle_tree_pubkey, &x.leaf_index)
+                        .unwrap()
+                        == *hash
+                })
                 .expect("compressed_account not found");
+            let compressed_account = self.compressed_accounts.get(index).unwrap().clone();
             self.compressed_accounts.remove(index);
             // TODO: nullify compressed_account in Merkle tree, not implemented yet
-            self.nullified_compressed_accounts
-                .push(compressed_account.clone());
-            let index = self
-                .compressed_accounts
+            self.nullified_compressed_accounts.push(compressed_account);
+            let token_account_index = self
+                .token_compressed_accounts
                 .iter()
-                .position(|x| x == compressed_account);
-            if let Some(index) = index {
+                .position(|x| x.index == index);
+            if let Some(index) = token_account_index {
                 let token_compressed_account_element =
                     self.token_compressed_accounts[index].clone();
                 self.token_compressed_accounts.remove(index);

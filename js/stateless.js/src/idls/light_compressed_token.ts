@@ -408,14 +408,6 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'inputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
@@ -561,6 +553,14 @@ export type LightCompressedToken = {
                         type: {
                             option: {
                                 vec: 'bytes';
+                            };
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
                             };
                         };
                     },
@@ -1349,14 +1349,6 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'inputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
@@ -1502,6 +1494,14 @@ export const IDL: LightCompressedToken = {
                         type: {
                             option: {
                                 vec: 'bytes',
+                            },
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
                             },
                         },
                     },

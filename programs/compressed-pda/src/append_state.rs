@@ -1,29 +1,41 @@
 use std::collections::HashMap;
 
-use account_compression::StateMerkleTreeAccount;
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_macros::heap_neutral;
-
 use crate::{
     instructions::{InstructionDataTransfer, TransferInstruction},
     verify_state::check_program_owner_state_merkle_tree,
 };
+use account_compression::StateMerkleTreeAccount;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_macros::heap_neutral;
 
 #[heap_neutral]
-pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'info, 'info>(
+pub fn insert_output_compressed_accounts_into_state_merkle_tree<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    const ITER_SIZE: usize,
+>(
     inputs: &'a InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
+    global_iter: &'a mut usize,
 ) -> Result<()> {
-    let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
-    for (j, mt_index) in inputs
-        .output_state_merkle_tree_account_indices
-        .iter()
-        .enumerate()
-    {
+    let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
+
+    let initial_index = *global_iter;
+    let end = if *global_iter + ITER_SIZE > inputs.output_state_merkle_tree_account_indices.len() {
+        inputs.output_state_merkle_tree_account_indices.len()
+    } else {
+        *global_iter + ITER_SIZE
+    };
+    for mt_index in inputs.output_state_merkle_tree_account_indices[initial_index..end].iter() {
+        let j = *global_iter;
+
+        *global_iter += 1;
         let index = merkle_tree_indices.get_mut(&ctx.remaining_accounts[*mt_index as usize].key());
         out_merkle_trees_account_infos.push(ctx.remaining_accounts[*mt_index as usize].clone());
         check_program_owner_state_merkle_tree(
@@ -50,7 +62,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         }
         // Address has to be created or a compressed account with this address has to be provided as transaction input.
         if let Some(address) = inputs.output_compressed_accounts[j].address {
-            msg!("addresses {:?}", addresses);
             if let Some(position) = addresses
                 .iter()
                 .filter(|x| x.is_some())
@@ -78,7 +89,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<'a, 'b, 'c: 'inf
         &ctx.accounts.noop_program,
         &ctx.accounts.system_program,
         out_merkle_trees_account_infos,
-        output_compressed_account_hashes.to_vec(),
+        output_compressed_account_hashes[initial_index..*global_iter].to_vec(),
     )?;
 
     Ok(())

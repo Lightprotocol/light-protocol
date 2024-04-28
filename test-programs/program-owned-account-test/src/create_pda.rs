@@ -83,6 +83,7 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
         compression_lamports: None,
         is_compress: false,
         signer_seeds: None,
+        cpi_context: Some(cpi_context),
     };
 
     let mut inputs = Vec::new();
@@ -108,7 +109,7 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, Some(cpi_context))?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -134,6 +135,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         compression_lamports: None,
         is_compress: false,
         signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
+        cpi_context: Some(cpi_context),
     };
     // defining seeds again so that the cpi doesn't fail we want to test the check in the compressed pda program
     let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
@@ -164,7 +166,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs, Some(cpi_context))?;
+    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
     Ok(())
 }
 
