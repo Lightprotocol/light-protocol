@@ -1,4 +1,4 @@
-# Light CLI
+# ZK Compression CLI
 
 CLI to interact with Light Protocol and ZK compression.
 
@@ -7,11 +7,21 @@ CLI to interact with Light Protocol and ZK compression.
 - Ensure you have Node.js (v19.4.0 or later) and npm installed on your machine.
 
 - You will need a valid Solana filesystem wallet set up at `~/.config/solana/id.json`.
-If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details. 
-The CLI will use this wallet as the default fee payer and mint authority.
+  If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details.
+  The CLI will use this wallet as the default fee payer and mint authority.
 
 ## Installation
 
+### Using npm
+
+```bash
+npm install -g @lightprotocol/cli
+```
+
+### Building from source
+
+If you prefer to build the CLI from source, follow the steps below to install
+the necessary prerequesites.
 
 **1. Activate the Development Environment**
 
@@ -22,6 +32,7 @@ Ensure you are at the root of the monorepo.
 ```
 
 **2. Install and build the monorepo from source. This also builds the CLI.**
+
 ```bash
 ./scripts/install.sh
 ```
@@ -30,17 +41,27 @@ Ensure you are at the root of the monorepo.
 ./scripts/build.sh
 ```
 
-## Usage
-
-
-**1. Navigate to the CLI directory and start the Light test validator**
+**3. Make your CLI available globally**
 
 ```bash
-cd cli && light test-validator
+pnpm link --global
 ```
 
-This starts a Solana test-validator with the Light system programs and accounts, a prover server, and a photon indexer as background processes against a clean ledger.
+```bash
+# Verify the CLI was correctly installed
+which light
+```
 
+
+## Usage
+
+**1. Once globally installed, start the Light test validator**
+
+```bash
+light test-validator
+```
+
+This starts a Solana test-validator with the Light system programs and accounts, a prover server, and the Photon indexer as background processes against a clean ledger.
 
 ```bash
 # Pass the -i flag to start without the indexer
@@ -49,11 +70,10 @@ light test-validator -i
 # Pass the -p flag to start without the prover
 light test-validator -p
 ```
-> **Note:** The CLI currently expects the photon indexer to run at port: `8784` and the gnark-prover at port: `3001`
 
+> **Note:** The CLI currently runs the photon indexer and gnark-prover as background processes at port: `8784` and `3001` respectively.
 
-
-**2. Ensure you have sufficient localnet funds** 
+**2. Ensure you have sufficient localnet funds**
 
 ```bash
 # Airdrop 1 SOL
@@ -64,19 +84,18 @@ solana address
 
 # Print your balance
 solana balance
-
 ```
 
 Now you're all set up to run CLI commands :)
 
 ### Commands
 
-
-#### Create a compressed token mint 
+#### Create a compressed token mint
 
 ```bash
 light create-mint
 ```
+
 ```
 USAGE
   $ light create-mint [--mint-keypair <value>] [--mint-authority <value>]
@@ -95,8 +114,9 @@ FLAGS
 #### Mint compressed tokens to a Solana wallet
 
 ```bash
-light mint-to --mint "YOUR_MINT_ADDRESS" --to "YOUR_WALLET_ADDRESS" --amount 4200000000 
+light mint-to --mint "YOUR_MINT_ADDRESS" --to "YOUR_WALLET_ADDRESS" --amount 4200000000
 ```
+
 ```
 USAGE
   $ light mint-to --mint <value> --to <value> --amount <value>
@@ -110,12 +130,10 @@ FLAGS
   --to=<value>              (required) Recipient address.
 ```
 
-
-
 #### Transfer compressed tokens from one wallet to another
 
 ```bash
-light transfer --mint "YOUR_MINT_ADDRESS" --to "RECIPIENT_WALLET_ADDRESS" --amount 4200000000 
+light transfer --mint "YOUR_MINT_ADDRESS" --to "RECIPIENT_WALLET_ADDRESS" --amount 4200000000
 ```
 
 ```
@@ -132,15 +150,14 @@ FLAGS
 
 ```
 
-
 #### Compress native SOL
 
 > **Note:** Ensure the SOL omnibus account of the Light system program is already initialized by running: `light init-sol-pool`
 
-
 ```bash
 light compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"
 ```
+
 ```
 USAGE
   $ light compress-sol --to <value> --amount <value>
@@ -155,6 +172,7 @@ FLAGS
 ```bash
 light decompress-sol --amount 42 --to "YOUR_WALLET_ADDRESS_BASE58"
 ```
+
 ```
 USAGE
   $ light decompress-sol --to <value> --amount <value>
@@ -167,5 +185,5 @@ FLAGS
 ### Support
 
 - Always feel free to join the [Developer Discord](https://discord.gg/D2cEphnvcY) for help!
-- For more info about the canonical indexer implementation built by Helius, refer to the [Photon codebase](https://github.com/helius-labs/photon).
-- For more info about Light and ZK compression, refer to the [documentation](https://docs.lightprotocol.com/).
+- For more info about the canonical indexer implementation built and maintained by Helius Labs, refer to the [Photon codebase](https://github.com/helius-labs/photon).
+- For more info about Light, refer to the [documentation](https://docs.lightprotocol.com/).
