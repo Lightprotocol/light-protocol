@@ -3,7 +3,6 @@ use anchor_lang::{
     prelude::*,
     solana_program::{instruction::Instruction, program::invoke},
 };
-use light_macros::heap_neutral;
 use std::{io::Write, mem, str::FromStr};
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
@@ -83,9 +82,9 @@ impl PublicTransactionEvent {
             }
             None => writer.write_all(&[0]),
         }?;
-        // is compress
+
         writer.write_all(&[self.is_compress as u8])?;
-        // compression lamports
+
         match self.compression_lamports {
             Some(compression_lamports) => {
                 writer.write_all(&[1])?;
@@ -93,12 +92,12 @@ impl PublicTransactionEvent {
             }
             None => writer.write_all(&[0]),
         }?;
-        // pubkey array
+
         writer.write_all(&(self.pubkey_array.len() as u32).to_le_bytes())?;
         for pubkey in self.pubkey_array.iter() {
             writer.write_all(&pubkey.to_bytes())?;
         }
-        // message
+
         match &self.message {
             Some(message) => {
                 writer.write_all(&[1])?;
@@ -112,29 +111,6 @@ impl PublicTransactionEvent {
     }
 }
 
-// #[inline(never)]
-// pub fn invoke_indexer_transaction_event<T>(event: &T, noop_program: &AccountInfo) -> Result<()>
-// where
-//     T: AnchorSerialize + SizedEvent,
-// {
-//     if noop_program.key()
-//         != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
-//     {
-//         return err!(crate::ErrorCode::InvalidNoopPubkey);
-//     }
-//     let mut data = Vec::with_capacity(event.event_size());
-//     // TODO: add compression lamports
-//     event.man_serialize(&mut data)?;
-//     let instruction = Instruction {
-//         program_id: noop_program.key(),
-//         accounts: vec![],
-//         data,
-//     };
-//     invoke(&instruction, &[noop_program.to_account_info()])?;
-//     Ok(())
-// }
-
-#[heap_neutral]
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
     inputs: InstructionDataTransfer,
     ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,

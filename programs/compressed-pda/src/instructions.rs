@@ -132,6 +132,8 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     if !inputs.output_compressed_accounts.is_empty() {
         let mut i = 0;
         for _ in inputs.output_compressed_accounts.iter().step_by(ITER_SIZE) {
+            // safety buffer prior to heap pos
+            let _buffer = vec![0u8; 8];
             insert_output_compressed_accounts_into_state_merkle_tree::<ITER_SIZE>(
                 &inputs,
                 &ctx,

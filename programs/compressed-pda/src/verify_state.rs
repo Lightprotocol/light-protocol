@@ -258,7 +258,8 @@ pub fn input_compressed_accounts_signer_check(
 /// Only program owned output accounts can hold data.
 /// Every output account that holds data has to be owned by the invoking_program.
 /// For every account that has data, the owner has to be the invoking_program.
-// #[heap_neutral] //TODO: investigate why owned becomes mint when heap_neutral is used
+#[inline(never)]
+#[heap_neutral]
 pub fn output_compressed_accounts_write_access_check(
     inputs: &InstructionDataTransfer,
     invoking_program_id: &Option<UncheckedAccount>,
