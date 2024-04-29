@@ -25,7 +25,7 @@ generate() {
     fi
     CIRCUIT_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.key"
     CIRCUIT_VKEY_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.vkey"
-    CIRCUIT_VKEY_RS_FILE="../programs/compressed-pda/src/verifying_keys/${CIRCUIT_TYPE_RS}_${DEPTH}_${UTXOS}.rs"
+    CIRCUIT_VKEY_RS_FILE="../circuit-lib/verifier/src/verifying_keys/${CIRCUIT_TYPE_RS}_${DEPTH}_${UTXOS}.rs"
 
     echo "Generating ${CIRCUIT_TYPE} circuit for ${UTXOS} UTXOs..."
     echo "go run . setup --circuit ${CIRCUIT_TYPE} --inclusion-utxos ${INCLUSION_UTXOS} --non-inclusion-utxos ${NON_INCLUSION_UTXOS} --inclusion-tree-depth ${DEPTH} --non-inclusion-tree-depth ${DEPTH} --output ${CIRCUIT_FILE} --output-vkey ${CIRCUIT_VKEY_FILE}"
