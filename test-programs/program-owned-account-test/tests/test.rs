@@ -41,6 +41,9 @@ async fn test_create_pda() {
         env.nullifier_queue_pubkey,
         address_merkle_tree_pubkey,
         payer.insecure_clone(),
+        true,
+        true,
+        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     );
 
     let mut test_indexer = test_indexer.await;

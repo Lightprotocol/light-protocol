@@ -18,7 +18,7 @@ else
 fi
 
 # The root of the git repository.
-LIGHT_PROTOCOL_TOPLEVEL="$(git rev-parse --show-toplevel)"
+LIGHT_PROTOCOL_TOPLEVEL="`git rev-parse --show-toplevel`"
 
 # Shell prompt.
 LIGHT_PROTOCOL_OLD_PS1="${PS1:-}"
@@ -36,10 +36,10 @@ NPM_CONFIG_PREFIX="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global"
 
 # Always use our binaries first.
 LIGHT_PROTOCOL_OLD_PATH="${PATH}"
-PATH="${PATH}:${LIGHT_PROTOCOL_TOPLEVEL}/.local/bin"
-PATH="${PATH}:${LIGHT_PROTOCOL_TOPLEVEL}/.local/cargo/bin"
-PATH="${PATH}:${LIGHT_PROTOCOL_TOPLEVEL}/.local/go/bin"
-PATH="${PATH}:${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global/bin"
+PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/bin:${PATH}"
+PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/cargo/bin:${PATH}"
+PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go/bin:${PATH}"
+PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global/bin:${PATH}"
 
 # Define alias of `light` to use the CLI built from source.
 alias light="${LIGHT_PROTOCOL_TOPLEVEL}/cli/test_bin/run"

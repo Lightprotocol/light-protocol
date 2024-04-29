@@ -83,6 +83,7 @@ pub fn create_initialize_mint_instructions(
 }
 
 use anchor_lang::{solana_program::program_pack::Pack, AnchorDeserialize};
+use light_circuitlib_rs::gnark::helpers::{spawn_gnark_server, ProofType};
 use light_circuitlib_rs::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
 
 async fn assert_create_mint(
@@ -1285,6 +1286,12 @@ impl MockIndexer {
         nullifier_queue_pubkey: Pubkey,
         payer: Keypair,
     ) -> Self {
+        spawn_gnark_server(
+            "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+            true,
+            &[ProofType::Inclusion],
+        )
+        .await;
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,

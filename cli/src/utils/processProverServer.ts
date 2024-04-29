@@ -2,8 +2,15 @@ import path from "path";
 import { killProcessByName, killProcessByPort, spawnBinary } from "./process";
 import { LIGHT_PROVER_PROCESS_NAME } from "./constants";
 import { sleep } from "@lightprotocol/stateless.js";
+import { killProcess } from "./initTestEnv";
 
 const KEYS_DIR = "proving-keys/";
+
+export async function killProver() {
+  await killProcess(getProverNameByArch());
+  // Temporary fix for the case when prover is instantiated via prover.sh:
+  await killProcess("light-prover");
+}
 
 export async function startProver(
   proveCompressedAccounts: boolean,

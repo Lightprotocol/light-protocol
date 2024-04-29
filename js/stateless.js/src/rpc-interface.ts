@@ -46,11 +46,15 @@ export interface CompressedTransaction {
     transaction: any;
 }
 
+export interface HexBatchInputsForProver {
+    'input-compressed-accounts': HexInputsForProver[];
+}
+
 export interface HexInputsForProver {
-    roots: string[];
-    inPathIndices: number[];
-    inPathElements: string[][];
-    leaves: string[];
+    root: string;
+    pathIndex: number;
+    pathElements: string[];
+    leaf: string;
 }
 
 // TODO: Rename Compressed -> ValidityProof

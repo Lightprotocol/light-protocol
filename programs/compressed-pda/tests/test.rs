@@ -8,27 +8,25 @@ use account_compression::{
 };
 use light_circuitlib_rs::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
 use light_circuitlib_rs::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
-use light_circuitlib_rs::non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs;
+use light_circuitlib_rs::{
+    gnark::helpers::ProofType,
+    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
+};
 use light_circuitlib_rs::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
         constants::{PROVE_PATH, SERVER_ADDRESS},
         helpers::spawn_gnark_server,
-        inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
     non_inclusion::merkle_non_inclusion_proof_inputs::get_non_inclusion_proof_inputs,
 };
-use light_circuitlib_rs::{
-    gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
-    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
-};
 use light_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
     sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    ErrorCode, NewAddressParams,
+    CompressedProof, ErrorCode, NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
@@ -81,7 +79,7 @@ async fn test_execute_compressed_transaction() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.payer.insecure_clone();
-    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false).await;
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, true).await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -313,7 +311,7 @@ async fn test_execute_compressed_transaction() {
 async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
-    let mut mock_indexer = init_mock_indexer(&payer, &env).await;
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, true).await;
 
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
@@ -1011,6 +1009,8 @@ pub struct MockIndexer {
     pub address_merkle_tree:
         light_indexed_merkle_tree::reference::IndexedMerkleTree<light_hasher::Poseidon, usize>,
     pub indexing_array: IndexedArray<light_hasher::Poseidon, usize, 1000>,
+    pub path: &'static str,
+    pub proof_types: Vec<ProofType>,
 }
 
 impl MockIndexer {
@@ -1019,7 +1019,23 @@ impl MockIndexer {
         nullifier_queue_pubkey: Pubkey,
         address_merkle_tree_pubkey: Pubkey,
         payer: Keypair,
+        inclusion: bool,
+        non_inclusion: bool,
     ) -> Self {
+        let mut vec_proof_types = vec![];
+        if inclusion {
+            vec_proof_types.push(ProofType::Inclusion);
+        }
+        if non_inclusion {
+            vec_proof_types.push(ProofType::NonInclusion);
+        }
+        if vec_proof_types.is_empty() {
+            panic!("At least one proof type must be selected");
+        }
+        let path = "../../circuit-lib/circuitlib-rs/scripts/prover.sh";
+        let proof_types = vec_proof_types;
+        spawn_gnark_server(path, true, proof_types.as_slice()).await;
+
         let merkle_tree = light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -1052,6 +1068,8 @@ impl MockIndexer {
             merkle_tree,
             address_merkle_tree,
             indexing_array: indexed_array,
+            path,
+            proof_types,
         }
     }
 
@@ -1071,12 +1089,7 @@ impl MockIndexer {
                 (None, Some(addresses)) => {
                     let (payload, indices) =
                         self.process_non_inclusion_proofs(addresses, context).await;
-                    (
-                        Vec::<u16>::new(),
-                        indices,
-                        payload.to_string(),
-                        PROVE_PATH,
-                    )
+                    (Vec::<u16>::new(), indices, payload.to_string())
                 }
                 (Some(accounts), Some(addresses)) => {
                     let (inclusion_payload, inclusion_indices) =
@@ -1096,17 +1109,20 @@ impl MockIndexer {
                 }
             };
 
+        let mut retries = 5;
+        while retries > 0 {
+            if retries < 3 {
+                spawn_gnark_server(self.path, true, self.proof_types.as_slice()).await;
+            }
             let response_result = client
-            .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
-            .body(json_payload)
+                .body(json_payload.clone())
                 .send()
                 .await
                 .expect("Failed to execute request.");
-        let is_success = response_result.status().is_success();
+            if response_result.status().is_success() {
                 let body = response_result.text().await.unwrap();
-        println!("response body {:?}", body);
-        assert!(is_success);
                 let proof_json = deserialize_gnark_proof_json(&body).unwrap();
                 let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
                 let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
@@ -1120,6 +1136,10 @@ impl MockIndexer {
                     },
                 };
             }
+            retries -= 1;
+        }
+        panic!("Failed to get proof from server");
+    }
 
     async fn process_inclusion_proofs(
         &self,
@@ -1308,7 +1328,7 @@ impl MockIndexer {
             .unwrap();
             let nullifier_queue = unsafe {
                 get_hash_set::<u16, NullifierQueueAccount>(context, self.nullifier_queue_pubkey)
-                .await
+                    .await
             };
             let array_element = nullifier_queue
                 .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))

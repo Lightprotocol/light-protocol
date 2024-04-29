@@ -2,9 +2,7 @@
     "scripts": {
         "lint:fix": "prettier \"*/**/*{.js,.ts}\" -w",
         "lint": "prettier  \"*/**/*{.js,.ts}\" --check",
-        "kill-validator": "killall solana-test-validator || true && sleep 1",
-        "start-validator": "pnpm kill-validator && ../../cli/test_bin/run test-validator --prove-compressed-accounts --prove-new-addresses",
-        "test": "pnpm start-validator && cargo test-sbf -p token-escrow -- --test-threads 1"
+        "test": "cargo test-sbf -p token-escrow -- --test-threads 1"
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.29.0"

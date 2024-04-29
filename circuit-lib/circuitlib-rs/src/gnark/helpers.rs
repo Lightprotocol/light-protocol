@@ -10,6 +10,7 @@ use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
 use serde_json::json;
+use sysinfo::{Signal, System};
 
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 #[derive(Debug)]
@@ -31,15 +32,38 @@ impl Display for ProofType {
     }
 }
 
-pub async fn spawn_test_validator() {
-    println!("Starting test validator");
-    let cmd = "../../cli/test_bin/run test-validator";
-    Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
-        .spawn()
-        .expect("Failed to start server process");
-    prover_init_wait(cmd).await;
+pub async fn spawn_gnark_server(path: &str, restart: bool, proof_types: &[ProofType]) {
+    if restart {
+        kill_gnark_server();
+    }
+    if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        IS_LOADING.store(true, Ordering::Relaxed);
+        Command::new("sh")
+            .arg("-c")
+            .arg(format!(
+                "{} {}",
+                path,
+                proof_types
+                    .iter()
+                    .map(|p| p.to_string() + " ")
+                    .collect::<String>(),
+            ))
+            .spawn()
+            .expect("Failed to start server process");
+        health_check(20, 5).await;
+        IS_LOADING.store(false, Ordering::Relaxed);
+    }
+}
+
+pub fn kill_gnark_server() {
+    let mut system = System::new_all();
+    system.refresh_all();
+
+    for process in system.processes().values() {
+        if process.name() == "light-prover" {
+            process.kill_with(Signal::Term);
+        }
+    }
 }
 
 pub async fn spawn_prover() {

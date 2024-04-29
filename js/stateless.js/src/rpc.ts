@@ -16,7 +16,6 @@ import {
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     HealthResult,
-    HexInputsForProver,
     MerkeProofResult,
     MultipleCompressedAccountsResult,
     NativeBalanceResult,
@@ -28,6 +27,8 @@ import {
     TokenBalanceListResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
+    HexInputsForProver,
+    HexBatchInputsForProver,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -43,16 +44,6 @@ import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';
 import { BN } from '@coral-xyz/anchor';
 
-export interface HexBatchInputsForProver {
-    'input-compressed-accounts': HexInputsForProver[];
-}
-
-export interface HexInputsForProver {
-    root: string;
-    pathIndex: number;
-    pathElements: string[];
-    leaf: string;
-}
 import { toCamelCase, toHex } from './utils/conversion';
 
 import {
@@ -369,7 +360,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
 
         return bn(res.result.value);
-        }
+    }
 
     /// TODO: validate that this is just for sol accounts
     /**
@@ -657,8 +648,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             {
                 owner: owner.toBase58(),
                 mint: options.mint.toBase58(),
-                },
-            );
+            },
+        );
 
         const res = create(
             unsafeRes,
@@ -921,9 +912,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 pathIndex: merkleProofsWithContext[i].leafIndex,
                 pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
                     toHex(hex),
-            ),
+                ),
                 leaf: toHex(bn(merkleProofsWithContext[i].hash)),
-        };
+            };
             inputs.push(input);
         }
 

@@ -14,7 +14,6 @@
 // release compressed tokens
 
 use anchor_lang::AnchorDeserialize;
-use light_circuitlib_rs::gnark::helpers::spawn_prover;
 use light_compressed_pda::compressed_account::MerkleContext;
 use light_compressed_pda::event::PublicTransactionEvent;
 use light_hasher::{Hasher, Poseidon};
@@ -48,6 +47,9 @@ async fn test_escrow_with_compressed_pda() {
         env.nullifier_queue_pubkey,
         address_merkle_tree_pubkey,
         payer.insecure_clone(),
+        true,
+        true,
+        "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     );
     let mint = create_mint_helper(&mut context, &payer).await;
     let mut test_indexer = test_indexer.await;

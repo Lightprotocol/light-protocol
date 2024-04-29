@@ -444,7 +444,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 pathIndex: merkleProofsWithContext[i].leafIndex,
                 pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
                     toHex(hex),
-            ),
+                ),
                 leaf: toHex(bn(merkleProofsWithContext[i].hash)),
             };
             inputs.push(input);
