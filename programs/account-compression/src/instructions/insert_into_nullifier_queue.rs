@@ -63,10 +63,6 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
     }
 
     for queue_bundle in queue_map.values() {
-        msg!(
-            "Inserting into indexed array {:?}",
-            queue_bundle.queue.key()
-        );
         let lamports: u64;
 
         let indexed_array = AccountLoader::<NullifierQueueAccount>::try_from(queue_bundle.queue)?;
@@ -96,7 +92,6 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
                 unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
 
             for element in queue_bundle.elements.iter() {
-                msg!("Inserting element {:?}", element);
                 let element = BigUint::from_bytes_be(element.as_slice());
                 indexed_array
                     .insert(&element, sequence_number)

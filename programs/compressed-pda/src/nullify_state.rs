@@ -80,6 +80,5 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
         .remaining_accounts
         .extend(nullifier_queue_account_infos);
     cpi_ctx.remaining_accounts.extend(merkle_tree_account_infos);
-    msg!("inserting nullifiers {:?}", nullifiers);
     account_compression::cpi::insert_into_nullifier_queues(cpi_ctx, nullifiers)
 }
