@@ -266,7 +266,7 @@ where
         )?;
 
         let expected_bytes_indexed_changelog_size =
-            mem::size_of::<[u8; 32]>() * self.merkle_tree.changelog.capacity();
+            mem::size_of::<RawIndexedElement<I>>() * self.merkle_tree.changelog.capacity();
         if bytes_indexed_changelog.len() != expected_bytes_indexed_changelog_size {
             return Err(IndexedMerkleTreeError::ChangelogBufferSize(
                 expected_bytes_indexed_changelog_size,

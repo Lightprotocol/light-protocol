@@ -120,7 +120,7 @@ pub struct AddressMerkleTreeAccount {
     pub merkle_tree_changelog: [u8; 1220800],
     pub merkle_tree_roots: [u8; 76800],
     pub merkle_tree_canopy: [u8; 65472],
-    pub address_changelog: [u8; 20480],
+    pub address_changelog: [u8; 17408],
 }
 
 impl AddressMerkleTreeAccount {
