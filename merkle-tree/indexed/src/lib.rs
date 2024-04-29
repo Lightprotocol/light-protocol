@@ -46,9 +46,12 @@ where
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
-    pub next_changelog_index: usize,
-    pub changelog_size: usize,
+
     pub changelog: CyclicBoundedVec<'a, RawIndexedElement<I>>,
+    pub changelog_capacity: usize,
+    pub changelog_length: usize,
+    pub current_changelog_index: usize,
+
     _index: PhantomData<I>,
 }
 
@@ -86,8 +89,9 @@ where
         )?;
         Ok(Self {
             merkle_tree,
-            next_changelog_index: 0,
-            changelog_size: indexed_change_log_size,
+            current_changelog_index: 0,
+            changelog_capacity: indexed_change_log_size,
+            changelog_length: 0,
             changelog: CyclicBoundedVec::with_capacity(indexed_change_log_size),
             _index: PhantomData,
         })
@@ -149,6 +153,20 @@ where
 
         Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
     }
+    pub unsafe fn struct_from_bytes_mut(
+        bytes_struct: &[u8],
+    ) -> Result<&mut Self, ConcurrentMerkleTreeError> {
+        let expected_bytes_struct_size = std::mem::size_of::<Self>();
+        if bytes_struct.len() != expected_bytes_struct_size {
+            return Err(ConcurrentMerkleTreeError::StructBufferSize(
+                expected_bytes_struct_size,
+                bytes_struct.len(),
+            ));
+        }
+        let tree: *mut Self = bytes_struct.as_ptr() as _;
+
+        Ok(&mut *tree)
+    }
 
     /// Casts byte slices into `ConcurrentMerkleTree`.
     ///
@@ -162,6 +180,8 @@ where
         bytes_changelog: &'b mut [u8],
         bytes_roots: &'b mut [u8],
         bytes_canopy: &'b mut [u8],
+        bytes_indexed_struct: &'b mut [u8],
+        bytes_indexed_change_log: &'b mut [u8],
         // bytes_indexed_change_log: &'b mut [u8],
         // next_index: usize,
         // cyclic_vec_size: usize,
@@ -174,12 +194,16 @@ where
             bytes_roots,
             bytes_canopy,
         )?;
-        // let changelog = CyclicBoundedVec::from_raw_parts(
-        //     bytes_indexed_change_log.as_mut_ptr() as _,
-        //     next_index,
-        //     cyclic_vec_size,
-        //     changelog_size,
-        // );
+        let indexed_tree = Self::struct_from_bytes_mut(bytes_indexed_struct)?;
+        indexed_tree.merkle_tree = *merkle_tree;
+
+        let changelog = CyclicBoundedVec::from_raw_parts(
+            bytes_indexed_change_log.as_mut_ptr() as _,
+            indexed_tree.current_changelog_index,
+            indexed_tree.changelog_length,
+            indexed_tree.changelog_capacity,
+        );
+        indexed_tree.changelog = changelog;
 
         // Ok(&mut IndexedMerkleTree {
         //     merkle_tree: *(merkle_tree),
@@ -188,7 +212,8 @@ where
         //     changelog,
         //     _index: PhantomData,
         // })
-        Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
+        Ok(&mut *(indexed_tree))
+        // Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
     }
 
     pub fn init(&mut self) -> Result<(), IndexedMerkleTreeError> {
@@ -228,6 +253,7 @@ where
         self.merkle_tree.validate_proof(leaf, leaf_index, proof)?;
         Ok(())
     }
+
     #[allow(clippy::type_complexity)]
     pub fn patch_low_element(
         &mut self,
@@ -237,6 +263,7 @@ where
             .changelog
             .iter()
             .position(|element| element.index == low_element.index);
+        // key (index) value index in the changelog
 
         match changelog_element_index {
             Some(changelog_element_index) => {
@@ -340,7 +367,6 @@ where
                 index: new_low_element.index,
             })
             .unwrap();
-        self.next_changelog_index = (self.next_changelog_index + 1) % self.changelog_size;
         Ok(())
     }
 
