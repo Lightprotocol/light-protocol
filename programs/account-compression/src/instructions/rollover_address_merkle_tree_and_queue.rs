@@ -109,21 +109,23 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
 
         let merkle_tree = merkle_tree_account_loaded.load_merkle_tree_mut()?;
         // Check 1: Merkle tree is ready to be rolled over
-        if merkle_tree.merkle_tree.next_index
-            < (2u64.pow(merkle_tree.merkle_tree.height as u32) * threshold / 100) as usize
+        if merkle_tree.merkle_tree.merkle_tree.next_index
+            < (2u64.pow(merkle_tree.merkle_tree.merkle_tree.height as u32) * threshold / 100)
+                as usize
         {
             return err!(crate::errors::AccountCompressionErrorCode::NotReadyForRollover);
         }
-        height = merkle_tree.merkle_tree.height;
+        height = merkle_tree.merkle_tree.merkle_tree.height;
         process_initialize_address_merkle_tree(
             &ctx.accounts.new_address_merkle_tree,
             index,
             owner,
             Some(delegate),
-            merkle_tree.merkle_tree.height as u32,
-            merkle_tree.merkle_tree.changelog_capacity as u64,
-            merkle_tree.merkle_tree.roots_capacity as u64,
-            merkle_tree.merkle_tree.canopy_depth as u64,
+            merkle_tree.merkle_tree.merkle_tree.height as u32,
+            merkle_tree.merkle_tree.merkle_tree.changelog_capacity as u64,
+            merkle_tree.merkle_tree.merkle_tree.roots_capacity as u64,
+            merkle_tree.merkle_tree.merkle_tree.canopy_depth as u64,
+            merkle_tree.merkle_tree.merkle_tree.changelog.capacity() as u64,
             ctx.accounts.new_queue.key(),
             tip,
             rollover_threshold,

@@ -90,8 +90,16 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
             let merkle_tree =
                 AccountLoader::<AddressMerkleTreeAccount>::try_from(queue_bundle.merkle_tree)?;
             let sequence_number = {
-                let merkle_tree = merkle_tree.load()?;
-                merkle_tree.load_merkle_tree()?.merkle_tree.sequence_number
+                let mut merkle_tree = merkle_tree.load_mut()?;
+                // TODO(vadorovsky): Load Merkle tree immutably.
+                // Unfortunately, it's impossible without bigger refactoring of
+                // Merkle tree zero-copy abstractions and making them more similar
+                // to `light-hash-set`. But we need to do it eventually.
+                merkle_tree
+                    .load_merkle_tree_mut()?
+                    .merkle_tree
+                    .merkle_tree
+                    .sequence_number
             };
 
             let address_queue = address_queue.to_account_info();

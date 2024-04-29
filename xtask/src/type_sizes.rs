@@ -13,6 +13,7 @@ use account_compression::{
 };
 use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
+use light_indexed_merkle_tree::{IndexedMerkleTree, IndexedMerkleTree26};
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]
@@ -72,7 +73,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "AddressMerkleTree".to_owned(),
-            space: mem::size_of::<ConcurrentMerkleTree26<Poseidon>>(),
+            space: mem::size_of::<IndexedMerkleTree26<Poseidon, u16>>(),
         },
         Type {
             name: "AddressMerkleTree->filled_subtrees".to_owned(),

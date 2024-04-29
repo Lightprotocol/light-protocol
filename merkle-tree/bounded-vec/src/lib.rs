@@ -424,6 +424,11 @@ where
     }
 
     #[inline]
+    pub fn next_index(&self) -> usize {
+        self.next_index
+    }
+
+    #[inline]
     pub fn len(&self) -> usize {
         self.length
     }

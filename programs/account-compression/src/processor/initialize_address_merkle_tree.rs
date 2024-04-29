@@ -1,6 +1,6 @@
 use crate::{errors::AccountCompressionErrorCode, state::AddressMerkleTreeAccount};
 pub use anchor_lang::prelude::*;
-use light_indexed_merkle_tree::{IndexedMerkleTree, FIELD_SIZE_SUB_ONE};
+use light_indexed_merkle_tree::FIELD_SIZE_SUB_ONE;
 use num_bigint::BigUint;
 use num_traits::Num;
 
@@ -21,6 +21,7 @@ pub fn process_initialize_address_merkle_tree(
     changelog_size: u64,
     roots_size: u64,
     canopy_depth: u64,
+    address_changelog_size: u64,
     associated_queue: Pubkey,
     tip: u64,
     rollover_threshold: Option<u64>,
@@ -60,6 +61,9 @@ pub fn process_initialize_address_merkle_tree(
             canopy_depth
                 .try_into()
                 .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
+            address_changelog_size
+                .try_into()
+                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
         )
         .map_err(ProgramError::from)?;
     let address_merkle_tree_inited = address_merkle_tree.load_merkle_tree_mut()?;
@@ -69,7 +73,9 @@ pub fn process_initialize_address_merkle_tree(
     // Initializing the indexed Merkle tree enables non-inclusion proofs without handling the first case specifically.
     // However, it does reduce the available address space by 1.
     let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
-    IndexedMerkleTree::initialize_address_merkle_tree(address_merkle_tree_inited, init_value)
+    address_merkle_tree_inited
+        .merkle_tree
+        .initialize_address_merkle_tree(init_value)
         .map_err(ProgramError::from)?;
     Ok(())
 }

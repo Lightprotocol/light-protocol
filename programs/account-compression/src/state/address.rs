@@ -7,7 +7,9 @@ use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::IndexedMerkleTree26;
+use light_indexed_merkle_tree::zero_copy::{
+    IndexedMerkleTreeZeroCopy26, IndexedMerkleTreeZeroCopyMut26,
+};
 
 use crate::utils::check_registered_or_signer::GroupAccess;
 
@@ -113,7 +115,7 @@ pub struct AddressMerkleTreeAccount {
     pub owner: Pubkey,
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
-    pub merkle_tree_struct: [u8; 256],
+    pub merkle_tree_struct: [u8; 296],
     pub merkle_tree_filled_subtrees: [u8; 832],
     pub merkle_tree_changelog: [u8; 1220800],
     pub merkle_tree_roots: [u8; 76800],
@@ -135,14 +137,15 @@ impl AddressMerkleTreeAccount {
         Ok(tree)
     }
 
-    pub fn load_merkle_tree(&self) -> Result<&IndexedMerkleTree26<Poseidon, usize>> {
+    pub fn load_merkle_tree(&self) -> Result<IndexedMerkleTreeZeroCopy26<Poseidon, usize>> {
         let tree = unsafe {
-            IndexedMerkleTree26::from_bytes(
+            IndexedMerkleTreeZeroCopy26::from_bytes_zero_copy(
                 &self.merkle_tree_struct,
                 &self.merkle_tree_filled_subtrees,
                 &self.merkle_tree_changelog,
                 &self.merkle_tree_roots,
                 &self.merkle_tree_canopy,
+                &self.address_changelog,
             )
             .map_err(ProgramError::from)?
         };
@@ -155,9 +158,10 @@ impl AddressMerkleTreeAccount {
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-    ) -> Result<&mut IndexedMerkleTree26<Poseidon, usize>> {
+        address_changelog_size: usize,
+    ) -> Result<IndexedMerkleTreeZeroCopyMut26<Poseidon, usize>> {
         let tree = unsafe {
-            IndexedMerkleTree26::<Poseidon, usize>::from_bytes_init(
+            IndexedMerkleTreeZeroCopyMut26::<Poseidon, usize>::from_bytes_zero_copy_init(
                 &mut self.merkle_tree_struct,
                 &mut self.merkle_tree_filled_subtrees,
                 &mut self.merkle_tree_changelog,
@@ -167,21 +171,26 @@ impl AddressMerkleTreeAccount {
                 changelog_size,
                 roots_size,
                 canopy_depth,
+                &mut self.address_changelog,
+                address_changelog_size,
             )
             .map_err(ProgramError::from)?
         };
-        tree.init().map_err(ProgramError::from)?;
+        tree.merkle_tree.init().map_err(ProgramError::from)?;
         Ok(tree)
     }
 
-    pub fn load_merkle_tree_mut(&mut self) -> Result<&mut IndexedMerkleTree26<Poseidon, usize>> {
+    pub fn load_merkle_tree_mut(
+        &mut self,
+    ) -> Result<IndexedMerkleTreeZeroCopyMut26<Poseidon, usize>> {
         let tree = unsafe {
-            IndexedMerkleTree26::from_bytes_mut(
+            IndexedMerkleTreeZeroCopyMut26::from_bytes_zero_copy_mut(
                 &mut self.merkle_tree_struct,
                 &mut self.merkle_tree_filled_subtrees,
                 &mut self.merkle_tree_changelog,
                 &mut self.merkle_tree_roots,
                 &mut self.merkle_tree_canopy,
+                &mut self.address_changelog,
             )
             .map_err(ProgramError::from)?
         };
@@ -193,9 +202,9 @@ impl AddressMerkleTreeAccount {
         let roots = unsafe {
             ConcurrentMerkleTree26::<Poseidon>::roots_from_bytes(
                 &self.merkle_tree_roots,
-                tree.merkle_tree.current_root_index + 1,
-                tree.merkle_tree.roots_length,
-                tree.merkle_tree.roots_capacity,
+                tree.merkle_tree.merkle_tree.current_root_index + 1,
+                tree.merkle_tree.merkle_tree.roots_length,
+                tree.merkle_tree.merkle_tree.roots_capacity,
             )
             .map_err(ProgramError::from)?
         };

@@ -12,6 +12,7 @@ use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 pub mod array;
 pub mod errors;
 pub mod reference;
+pub mod zero_copy;
 
 use crate::errors::IndexedMerkleTreeError;
 
@@ -30,6 +31,7 @@ where
 }
 unsafe impl<I> Pod for RawIndexedElement<I> where I: Pod + Clone {}
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
 where
@@ -46,11 +48,7 @@ where
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
-
     pub changelog: CyclicBoundedVec<'a, RawIndexedElement<I>>,
-    pub changelog_capacity: usize,
-    pub changelog_length: usize,
-    pub current_changelog_index: usize,
 
     _index: PhantomData<I>,
 }
@@ -89,131 +87,12 @@ where
         )?;
         Ok(Self {
             merkle_tree,
-            current_changelog_index: 0,
-            changelog_capacity: indexed_change_log_size,
-            changelog_length: 0,
+            // current_changelog_index: 0,
+            // changelog_capacity: indexed_change_log_size,
+            // changelog_length: 0,
             changelog: CyclicBoundedVec::with_capacity(indexed_change_log_size),
             _index: PhantomData,
         })
-    }
-
-    /// Casts byte slices into `ConcurrentMerkleTree`.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. Ensuring the size and alignment of the byte
-    /// slices is the caller's responsibility.
-    pub unsafe fn from_bytes<'b>(
-        bytes_struct: &'b [u8],
-        bytes_filled_subtrees: &'b [u8],
-        bytes_changelog: &'b [u8],
-        bytes_roots: &'b [u8],
-        bytes_canopy: &'b [u8],
-    ) -> Result<&'b Self, ConcurrentMerkleTreeError> {
-        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-        )?;
-
-        Ok(&*(merkle_tree as *const ConcurrentMerkleTree<H, HEIGHT> as *const Self))
-    }
-
-    /// Casts byte slices into `ConcurrentMerkleTree`.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. Ensuring the size and alignment of the byte
-    /// slices is the caller's responsibility.
-    #[allow(clippy::too_many_arguments)]
-    pub unsafe fn from_bytes_init(
-        bytes_struct: &'a mut [u8],
-        bytes_filled_subtrees: &'a mut [u8],
-        bytes_changelog: &'a mut [u8],
-        bytes_roots: &'a mut [u8],
-        bytes_canopy: &'a mut [u8],
-        height: usize,
-        changelog_size: usize,
-        roots_size: usize,
-        canopy_depth: usize,
-    ) -> Result<&'a mut Self, ConcurrentMerkleTreeError> {
-        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-            height,
-            changelog_size,
-            roots_size,
-            canopy_depth,
-        )?;
-
-        Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
-    }
-    pub unsafe fn struct_from_bytes_mut(
-        bytes_struct: &[u8],
-    ) -> Result<&mut Self, ConcurrentMerkleTreeError> {
-        let expected_bytes_struct_size = std::mem::size_of::<Self>();
-        if bytes_struct.len() != expected_bytes_struct_size {
-            return Err(ConcurrentMerkleTreeError::StructBufferSize(
-                expected_bytes_struct_size,
-                bytes_struct.len(),
-            ));
-        }
-        let tree: *mut Self = bytes_struct.as_ptr() as _;
-
-        Ok(&mut *tree)
-    }
-
-    /// Casts byte slices into `ConcurrentMerkleTree`.
-    ///
-    /// # Safety
-    ///
-    /// This is highly unsafe. Ensuring the size and alignment of the byte
-    /// slices is the caller's responsibility.
-    pub unsafe fn from_bytes_mut<'b>(
-        bytes_struct: &'b mut [u8],
-        bytes_filled_subtrees: &'b mut [u8],
-        bytes_changelog: &'b mut [u8],
-        bytes_roots: &'b mut [u8],
-        bytes_canopy: &'b mut [u8],
-        bytes_indexed_struct: &'b mut [u8],
-        bytes_indexed_change_log: &'b mut [u8],
-        // bytes_indexed_change_log: &'b mut [u8],
-        // next_index: usize,
-        // cyclic_vec_size: usize,
-        // changelog_size: usize,
-    ) -> Result<&'b mut Self, ConcurrentMerkleTreeError> {
-        let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
-            bytes_struct,
-            bytes_filled_subtrees,
-            bytes_changelog,
-            bytes_roots,
-            bytes_canopy,
-        )?;
-        let indexed_tree = Self::struct_from_bytes_mut(bytes_indexed_struct)?;
-        indexed_tree.merkle_tree = *merkle_tree;
-
-        let changelog = CyclicBoundedVec::from_raw_parts(
-            bytes_indexed_change_log.as_mut_ptr() as _,
-            indexed_tree.current_changelog_index,
-            indexed_tree.changelog_length,
-            indexed_tree.changelog_capacity,
-        );
-        indexed_tree.changelog = changelog;
-
-        // Ok(&mut IndexedMerkleTree {
-        //     merkle_tree: *(merkle_tree),
-        //     next_changelog_index: 0,
-        //     changelog_size,
-        //     changelog,
-        //     _index: PhantomData,
-        // })
-        Ok(&mut *(indexed_tree))
-        // Ok(&mut *(merkle_tree as *mut ConcurrentMerkleTree<H, HEIGHT> as *mut Self))
     }
 
     pub fn init(&mut self) -> Result<(), IndexedMerkleTreeError> {
@@ -374,7 +253,8 @@ where
     /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
     /// Thus, addresses with higher values than the initial value cannot be inserted.
     pub fn initialize_address_merkle_tree(
-        address_merkle_tree_inited: &mut IndexedMerkleTree<'a, H, I, HEIGHT>,
+        // address_merkle_tree_inited: &mut IndexedMerkleTree<'a, H, I, HEIGHT>,
+        &mut self,
         init_value: BigUint,
     ) -> Result<(), IndexedMerkleTreeError> {
         let mut indexed_array = IndexedArray::<H, I, 2>::default();
@@ -383,12 +263,12 @@ where
             .new_low_element
             .hash::<H>(&nullifier_bundle.new_element.value)?;
         let mut zero_bytes_array = BoundedVec::with_capacity(26);
-        for i in 0..address_merkle_tree_inited.merkle_tree.height {
+        for i in 0..self.merkle_tree.height {
             // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
             zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
         }
-        address_merkle_tree_inited.merkle_tree.update(
-            address_merkle_tree_inited.changelog_index(),
+        self.merkle_tree.update(
+            self.changelog_index(),
             &H::zero_indexed_leaf(),
             &new_low_leaf,
             0,
@@ -398,7 +278,7 @@ where
         let new_leaf = nullifier_bundle
             .new_element
             .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-        address_merkle_tree_inited.merkle_tree.append(&new_leaf)?;
+        self.merkle_tree.append(&new_leaf)?;
         Ok(())
     }
 }

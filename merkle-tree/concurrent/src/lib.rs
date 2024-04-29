@@ -15,19 +15,19 @@ use crate::{
     hash::{compute_parent_node, compute_root},
 };
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct ConcurrentMerkleTreeMetadata {
-    pub height: usize,
-    pub changelog_size: usize,
-    pub current_changelog_index: usize,
-    pub roots_size: usize,
-    pub current_root_index: usize,
-
-    pub next_index: usize,
-    pub sequence_number: usize,
-    pub rightmost_leaf: [u8; 32],
-}
+// #[repr(C)]
+// #[derive(Debug)]
+// pub struct ConcurrentMerkleTreeMetadata {
+//     pub height: usize,
+//     pub changelog_size: usize,
+//     pub current_changelog_index: usize,
+//     pub roots_size: usize,
+//     pub current_root_index: usize,
+//
+//     pub next_index: usize,
+//     pub sequence_number: usize,
+//     pub rightmost_leaf: [u8; 32],
+// }
 
 /// [Concurrent Merkle tree](https://drive.google.com/file/d/1BOpa5OFmara50fTvL0VIVYjtg-qzHCVc/view)
 /// which allows for multiple requests of updating leaves, without making any
@@ -438,7 +438,7 @@ where
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slices is the caller's responsibility.
     #[allow(clippy::too_many_arguments)]
-    unsafe fn fill_vectors_mut<'b>(
+    pub unsafe fn fill_vectors_mut<'b>(
         &'b mut self,
         bytes_filled_subtrees: &'b mut [u8],
         bytes_changelog: &'b mut [u8],
