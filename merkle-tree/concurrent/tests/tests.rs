@@ -275,7 +275,7 @@ where
 
     let changelog_index = merkle_tree.changelog_index();
     merkle_tree
-        .update(changelog_index, &leaf1, &new_leaf1, 0, &mut proof)
+        .update(changelog_index, &leaf1, &new_leaf1, 0, &mut proof, false)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &leaf2]).unwrap();
@@ -318,7 +318,7 @@ where
 
     let changelog_index = merkle_tree.changelog_index();
     merkle_tree
-        .update(changelog_index, &leaf2, &new_leaf2, 1, &mut proof)
+        .update(changelog_index, &leaf2, &new_leaf2, 1, &mut proof, false)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
@@ -360,7 +360,7 @@ where
 
     let changelog_index = merkle_tree.changelog_index();
     merkle_tree
-        .update(changelog_index, &leaf3, &new_leaf3, 2, &mut proof)
+        .update(changelog_index, &leaf3, &new_leaf3, 2, &mut proof, false)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
@@ -403,7 +403,7 @@ where
 
     let changelog_index = merkle_tree.root_index();
     merkle_tree
-        .update(changelog_index, &leaf4, &new_leaf4, 3, &mut proof)
+        .update(changelog_index, &leaf4, &new_leaf4, 3, &mut proof, false)
         .unwrap();
 
     let h1 = H::hashv(&[&new_leaf1, &new_leaf2]).unwrap();
@@ -499,7 +499,7 @@ where
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof, false)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
     }
@@ -522,7 +522,7 @@ where
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof, false)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
     }
@@ -543,7 +543,7 @@ where
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         merkle_tree
-            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof, false)
             .unwrap();
         reference_tree.update(&new_leaf, i).unwrap();
     }
@@ -1026,7 +1026,7 @@ async fn test_spl_compat() {
             let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
 
             concurrent_mt
-                .update(changelog_index, &old_leaf, &new_leaf, 0, &mut proof)
+                .update(changelog_index, &old_leaf, &new_leaf, 0, &mut proof, false)
                 .unwrap();
             spl_concurrent_mt
                 .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), 0 as u32)
@@ -1050,7 +1050,7 @@ async fn test_spl_compat() {
         let mut proof = reference_tree.get_proof_of_leaf(i, false).unwrap();
 
         concurrent_mt
-            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof)
+            .update(changelog_index, &old_leaf, &new_leaf, i, &mut proof, false)
             .unwrap();
         spl_concurrent_mt
             .set_leaf(root, old_leaf, new_leaf, proof.as_slice(), i as u32)

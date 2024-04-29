@@ -73,9 +73,6 @@ where
     where
         H: Hasher,
     {
-        println!("self.value: {:?}", self.value);
-        println!("self.next_index: {:?}", self.next_index.to_be_bytes());
-        println!("next_value: {:?}", next_value);
         let hash = H::hashv(&[
             bigint_to_be_bytes_array::<32>(&self.value)?.as_ref(),
             self.next_index.to_be_bytes().as_ref(),

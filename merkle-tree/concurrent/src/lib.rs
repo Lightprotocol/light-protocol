@@ -768,7 +768,10 @@ where
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if self.changelog_capacity > 1 {
             let mut i = changelog_index;
-            for _ in i..i + self.changelog_length + 1 {
+
+            let lower_range = i;
+            let upper_range = i + self.changelog_length + 1;
+            for _ in lower_range..upper_range {
                 self.changelog[i].update_proof(leaf_index, proof, allow_updates_changelog)?;
                 i = (i + 1) % self.changelog_length;
             }

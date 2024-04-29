@@ -113,12 +113,12 @@ pub struct AddressMerkleTreeAccount {
     pub owner: Pubkey,
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
-
     pub merkle_tree_struct: [u8; 256],
     pub merkle_tree_filled_subtrees: [u8; 832],
     pub merkle_tree_changelog: [u8; 1220800],
     pub merkle_tree_roots: [u8; 76800],
     pub merkle_tree_canopy: [u8; 65472],
+    pub address_changelog: [u8; 20480],
 }
 
 impl AddressMerkleTreeAccount {

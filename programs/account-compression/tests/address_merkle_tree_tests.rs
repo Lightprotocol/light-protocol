@@ -266,7 +266,7 @@ async fn relayer_update(
                 address_merkle_tree.changelog_index(),
                 address_bundle.new_element.clone(),
                 old_low_address.clone(),
-                &old_low_address_next_value,
+                old_low_address_next_value.clone(),
                 &mut bounded_vec,
             )
             .unwrap();
