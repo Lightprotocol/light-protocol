@@ -19,7 +19,7 @@ const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 const BASE_PATH = "../../bin/";
 const PHOTON_VERSION = "0.15.0";
 
-async function checkPhotonVersion(requiredVersion: string): Promise<boolean> {
+async function isExpectedPhotonVersion(requiredVersion: string): Promise<boolean> {
   try {
     const { stdout } = await execAsync('photon --version');
     const version = stdout.trim()
@@ -37,6 +37,7 @@ export async function initTestEnv({
   prover = true,
   proveCompressedAccounts = true,
   proveNewAddresses = false,
+  checkPhotonVersion = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -44,6 +45,7 @@ export async function initTestEnv({
   prover: boolean;
   proveCompressedAccounts?: boolean;
   proveNewAddresses?: boolean;
+  checkPhotonVersion?: boolean;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -63,7 +65,8 @@ export async function initTestEnv({
     await killIndexer();
     const resolvedOrNull = which.sync("photon", { nothrow: true });
 
-    if (resolvedOrNull === null || !(await checkPhotonVersion(PHOTON_VERSION))) {
+    if (resolvedOrNull === null || (checkPhotonVersion && !(await isExpectedPhotonVersion(PHOTON_VERSION)))) {
+
       const message =
         `Photon indexer not found. Please install it by running \`cargo install photon-indexer --version ${PHOTON_VERSION}\``;
       console.log(message);

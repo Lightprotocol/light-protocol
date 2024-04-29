@@ -10,18 +10,15 @@ class SetupCommand extends Command {
   }
 
   static flags = {
-    "without-indexer": Flags.boolean({
-      char: "i",
-      description: "Runs a test validator without indexer service.",
+    "skip-indexer": Flags.boolean({
+      description: "Runs a test validator without starting a new indexer.",
       default: false,
     }),
-    "without-prover": Flags.boolean({
-      char: "p",
-      description: "Runs a test validator without prover service.",
+    "skip-prover": Flags.boolean({
+      description: "Runs a test validator without starting a new prover service.",
       default: false,
     }),
     "skip-system-accounts": Flags.boolean({
-      char: "s",
       description:
         "Runs a test validator without initialized light system accounts.",
       default: false,
@@ -29,12 +26,17 @@ class SetupCommand extends Command {
     "prove-compressed-accounts": Flags.boolean({
       description: "Enable proving of compressed accounts.",
       default: true,
-      exclusive: ["without-prover"],
+      exclusive: ["skip-prover"],
     }),
     "prove-new-addresses": Flags.boolean({
       description: "Enable proving of new addresses.",
       default: false,
-      exclusive: ["without-prover"],
+      exclusive: ["skip-prover"],
+    }),
+    "relax-indexer-version-constraint": Flags.boolean({
+      description: "Enable relaxing of indexer version check",
+      default: false,
+      exclusive: ["skip-indexer"],
     }),
   };
 
@@ -45,10 +47,11 @@ class SetupCommand extends Command {
     loader.start();
     await initTestEnv({
       skipSystemAccounts: flags["skip-system-accounts"],
-      indexer: !flags["without-indexer"],
-      prover: !flags["without-prover"],
+      indexer: !flags["skip-indexer"],
+      prover: !flags["skip-prover"],
       proveCompressedAccounts: flags["prove-compressed-accounts"],
       proveNewAddresses: flags["prove-new-addresses"],
+      checkPhotonVersion: !flags["relax-indexer-version-constraint"],
     });
 
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
