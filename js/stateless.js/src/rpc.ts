@@ -28,7 +28,6 @@ import {
     TokenBalanceListResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
-    HexInputsForProver,
     HexBatchInputsForProver,
 } from './rpc-interface';
 import {
