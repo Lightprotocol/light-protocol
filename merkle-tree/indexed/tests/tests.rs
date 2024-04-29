@@ -1,13 +1,7 @@
 use std::cell::{RefCell, RefMut};
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::{
-    changelog,
-    errors::ConcurrentMerkleTreeError,
-    light_hasher::{Hasher, Poseidon},
-    ConcurrentMerkleTree,
-};
+use light_concurrent_merkle_tree::light_hasher::{Hasher, Poseidon};
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
@@ -86,9 +80,10 @@ where
     merkle_tree.update(
         usize::from(changelog_index),
         nullifier,
-        low_nullifier,
-        low_nullifier_next_value,
+        low_nullifier.clone(),
+        low_nullifier_next_value.clone(),
         low_nullifier_proof,
+        // &mut CyclicBoundedVec::<RawIndexedElement<usize>>::with_capacity(1),
     )
 }
 
@@ -223,6 +218,7 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
+            1,
         )
         .unwrap(),
     );
@@ -280,6 +276,7 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
+            1,
         )
         .unwrap(),
     );
@@ -353,6 +350,7 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
+            1,
         )
         .unwrap(),
     );
@@ -543,78 +541,6 @@ pub fn functional_non_inclusion_test() {
         .unwrap();
 }
 
-#[derive(Debug, Default, Clone, Copy, BorshSerialize, BorshDeserialize)]
-pub struct RawIndexedElement {
-    pub value: [u8; 32],
-    pub next_index: usize,
-    pub next_value: [u8; 32],
-    pub index: usize,
-    pub next_value_index: usize,
-    pub next_value_next_value: [u8; 32],
-    pub next_value_path: [[u8; 32]; 10],
-}
-
-/// Check whether low element has changed
-/// - possibilities:
-///   1. check Merkle proof of -> too expensive costs like 20k CU
-///   2. check whether the array contains the index of the low element if yes then check the next value
-///   3. insert the index in to hash set that stores key: index value: next_value, can be overwritten if capacity requires,
-///         the hashset needs to be able to hold the same element multiple times though, does it?
-///         maybe not, maybe we can just say that we allow every element once and when we use it then we overwrite it immediately instead of overwriting an expired element
-///  
-pub fn patch_low_element<const CHANGELOG_CAPACITY: usize>(
-    value: &BigUint,
-    low_element: &IndexedElement<usize>,
-    changelog_array: &[RawIndexedElement; CHANGELOG_CAPACITY],
-) -> Option<(IndexedElement<usize>, [u8; 32], Option<[[u8; 32]; 10]>)> {
-    // TODO: bench how find performs vs filter
-    // filter would have the advantage that it allows for multiple changes in between
-    // although we just need most recent, then we can zero out the value that we read
-    let changelog_element_index = changelog_array
-        .iter()
-        .position(|element| element.index == low_element.index);
-
-    match changelog_element_index {
-        Some(changelog_element_index) => {
-            let changelog_element = &changelog_array[changelog_element_index];
-            println!("changelog_element: {:?}", changelog_element);
-            println!(
-                "hangelog_element.next_value: {:?}",
-                BigUint::from_bytes_be(&changelog_element.next_value)
-            );
-            println!("low_element.value: {:?}", low_element.value);
-            let mut next_value_path = None;
-            // check that the changelog element is still the low element
-            // if not take the next element which is the high element of that low element
-            let new_low_element = if BigUint::from_bytes_be(&changelog_element.next_value) < *value
-            {
-                next_value_path = Some(changelog_element.next_value_path);
-                IndexedElement {
-                    value: BigUint::from_bytes_be(&changelog_element.next_value),
-                    index: changelog_element.next_index,
-                    next_index: changelog_element.next_value_index,
-                }
-            } else {
-                IndexedElement {
-                    value: BigUint::from_bytes_be(&changelog_element.value),
-                    index: changelog_element.index,
-                    next_index: changelog_element.next_index,
-                }
-            };
-            println!("changelog_element: {:?}", changelog_element);
-
-            // Only use changelog event values, since these originate from an account -> can be trusted
-            // let new_low_element =
-            Some((
-                new_low_element,
-                changelog_element.next_value,
-                next_value_path,
-            ))
-        }
-        None => None,
-    }
-}
-
 /**
  *
  * Range Hash (value, next_index, next_value) -> need next value not next value index
@@ -624,8 +550,6 @@ pub fn patch_low_element<const CHANGELOG_CAPACITY: usize>(
  * 3. append the tree with H(new_inserted_value,index_of_next_value, next_value)
  *
  */
-const merkle_tree_height: usize = 10;
-const canopy_depth: usize = 0;
 /// This test is generating a situation where the low element has to be patched.
 /// Scenario:
 /// 1. two parties start with the initialized indexing array
@@ -638,10 +562,6 @@ pub fn functional_changelog_test() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
 
-    // perform_change_log_test(address_1.clone(), address_2.clone());
-
-    let address_1 = 10_u32.to_biguint().unwrap();
-    let address_2 = 30_u32.to_biguint().unwrap();
     perform_change_log_test(address_1.clone(), address_2.clone());
 }
 
@@ -651,19 +571,16 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
     relayer_indexing_array.init().unwrap();
     // appends the first element
     let mut relayer_merkle_tree =
-        reference::IndexedMerkleTree::<Poseidon, usize>::new(merkle_tree_height, canopy_depth)
-            .unwrap();
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(10, 0).unwrap();
 
-    let mut onchain_changelog_array = [RawIndexedElement::default(); 256];
-    let mut next_changelog_index = 0;
-    let mut onchain_indexed_merkle_tree =
-        IndexedMerkleTree::<Poseidon, usize, merkle_tree_height>::new(
-            merkle_tree_height,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            canopy_depth,
-        )
-        .unwrap();
+    let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, 10>::new(
+        10,
+        MERKLE_TREE_CHANGELOG,
+        MERKLE_TREE_ROOTS,
+        0,
+        1,
+    )
+    .unwrap();
     onchain_indexed_merkle_tree.init().unwrap();
     let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
     IndexedMerkleTree::initialize_address_merkle_tree(
@@ -677,8 +594,8 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
         onchain_indexed_merkle_tree.root().unwrap(),
         "environment setup failed relayer and onchain indexed Merkle tree roots are inconsistent"
     );
-    let mut actor_1_indexed_array_state = relayer_indexing_array.clone();
-    let mut actor_2_indexed_array_state = relayer_indexing_array.clone();
+    let actor_1_indexed_array_state = relayer_indexing_array.clone();
+    let actor_2_indexed_array_state = relayer_indexing_array.clone();
 
     let (old_low_address_1, old_low_address_next_value_1) = actor_1_indexed_array_state
         .find_low_element(&address_1)
@@ -697,37 +614,15 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
                 change_log_index.clone(),
                 address_bundle_1.new_element.clone(),
                 old_low_address_1.clone(),
-                &old_low_address_next_value_1,
+                old_low_address_next_value_1,
                 &mut low_element_proof_1,
+                // &mut onchain_changelog_array,
             )
             .unwrap();
-        onchain_changelog_array[next_changelog_index] = RawIndexedElement {
-            value: bigint_to_be_bytes_array::<32>(&address_bundle_1.new_low_element.value).unwrap(),
-            next_index: address_bundle_1.new_low_element.index,
-            next_value: bigint_to_be_bytes_array::<32>(&address_bundle_1.new_element.value)
-                .unwrap(),
-            index: old_low_address_1.index,
-            next_value_index: address_bundle_1.new_element.index,
-            next_value_next_value: bigint_to_be_bytes_array::<32>(&old_low_address_next_value_1)
-                .unwrap(),
-            next_value_path: onchain_indexed_merkle_tree
-                .merkle_tree
-                .filled_subtrees
-                .to_array()
-                .unwrap(),
-        };
-        // next_changelog_index += 1;
-        // onchain_changelog_array[next_changelog_index] = RawIndexedElement {
-        //     value: bigint_to_be_bytes_array::<32>(&address_bundle_1.new_element.value).unwrap(),
-        //     next_index: address_bundle_1.new_element.index,
-        //     next_value: bigint_to_be_bytes_array::<32>(&old_low_address_next_value_1).unwrap(),
-        //     index: old_low_address_1.index,
-        // };
-        next_changelog_index += 1;
     }
 
     // getting parameters for the second actor with the pre update state
-    let (mut old_low_address, mut old_low_address_next_value) = actor_2_indexed_array_state
+    let (old_low_address, old_low_address_next_value) = actor_2_indexed_array_state
         .find_low_element(&address_1)
         .unwrap();
     let address_bundle = relayer_indexing_array
@@ -738,46 +633,13 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
         .get_proof_of_leaf(old_low_address.index, false)
         .unwrap();
 
-    println!("old_low_address: {:?}", old_low_address);
-    println!(
-        "old_low_address_next_value: {:?}",
-        old_low_address_next_value
-    );
-    // patching the low element
-    let res = patch_low_element(
-        &address_bundle.new_element.value,
-        &old_low_address,
-        &onchain_changelog_array,
-    );
-    let updated_path: Option<[[u8; 32]; 10]> = match res {
-        Some((patched_low_element, patched_low_element_next_value, path_option)) => {
-            old_low_address = patched_low_element;
-            old_low_address_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
-            path_option
-        }
-        None => None,
-    };
-    if updated_path.is_some() {
-        println!("patched proof");
-        low_element_proof = BoundedVec::from_array(&updated_path.unwrap());
-    }
-    println!("patched old_low_address: {:?}", old_low_address);
-    println!(
-        "patched  old_low_address_next_value: {:?}",
-        old_low_address_next_value
-    );
-    // how do I proof that my first low element was included in the tree at some point?
-    // - it doesn't matter because we are just going to use the onchain values and they can be trusted they have been checked before
-    // -> discard all the value that are inputs
-    // so I patched the proof
     onchain_indexed_merkle_tree
         .update(
             change_log_index,
             address_bundle.new_element,
             old_low_address,
-            &old_low_address_next_value,
+            old_low_address_next_value,
             &mut low_element_proof,
-            // &mut onchain_changelog_array,
         )
         .unwrap();
 

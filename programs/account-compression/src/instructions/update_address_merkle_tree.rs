@@ -79,7 +79,7 @@ pub fn process_update_address_merkle_tree<'info>(
             usize::from(changelog_index),
             address,
             low_address,
-            &low_address_next_value,
+            low_address_next_value,
             &mut bounded_vec,
         )
         .map_err(ProgramError::from)?;
