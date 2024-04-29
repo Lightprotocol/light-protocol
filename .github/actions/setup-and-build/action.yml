@@ -1,6 +1,6 @@
 name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
-
+# debugging ci
 runs:
   using: "composite"
   steps:
