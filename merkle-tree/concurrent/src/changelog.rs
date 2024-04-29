@@ -72,9 +72,11 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
             // already updated. Therefore, updating the proof is impossible.
             // We need to return an error and request the caller
             // to retry the update with a new proof.
-            if !allow_updates_in_changelog {
-                return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
-            }
+            //
+            // TODO(vadorovsky): Re-visit optional throwing of this error.
+            // if !allow_updates_in_changelog {
+            //     return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
+            // }
         }
 
         Ok(())
