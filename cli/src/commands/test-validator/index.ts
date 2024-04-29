@@ -15,7 +15,8 @@ class SetupCommand extends Command {
       default: false,
     }),
     "skip-prover": Flags.boolean({
-      description: "Runs a test validator without starting a new prover service.",
+      description:
+        "Runs a test validator without starting a new prover service.",
       default: false,
     }),
     "skip-system-accounts": Flags.boolean({
@@ -34,7 +35,8 @@ class SetupCommand extends Command {
       exclusive: ["skip-prover"],
     }),
     "relax-indexer-version-constraint": Flags.boolean({
-      description: "Disables indexer version check. Only use if you know what you are doing.",
+      description:
+        "Disables indexer version check. Only use if you know what you are doing.",
       default: false,
       exclusive: ["skip-indexer"],
     }),
