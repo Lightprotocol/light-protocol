@@ -117,7 +117,6 @@ JQ_VERSION="jq-1.7.1"
 CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
 LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
-ENABLE_REDIS=$(check_flag --enable-redis "$@")
 
 case "${OS}" in
     "Darwin")
@@ -281,18 +280,5 @@ pnpm install
 
 echo "📦 Installing Playwright"
 pnpm exec playwright install
-
-if [ "$ENABLE_REDIS" = true ] ; then
-    echo "📥 Downloading Redis"
-    mkdir -p "${PREFIX}/redis"
-    download_and_extract \
-        "redis-stable.tar.gz" \
-        "https://download.redis.io/redis-stable.tar.gz" \
-        z \
-        "${PREFIX}/redis" \
-        1
-    make -C ${PREFIX}/redis;
-    cp ${PREFIX}/redis/src/redis-server ${PREFIX}/bin
-fi
 
 echo "✨ Light Protocol development dependencies installed"

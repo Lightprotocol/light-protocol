@@ -13,7 +13,7 @@ RUN go build -v -o /usr/local/bin/light-prover .
 FROM gcr.io/distroless/base-debian11:nonroot
 
 COPY --from=builder /usr/local/bin/light-prover /usr/local/bin/light-prover
-COPY --from=builder /app/circuits /circuits
+COPY --from=builder /app/proving-keys/ /proving-keys/
 
 ENTRYPOINT [ "light-prover" ]
-CMD [ "start", "--inclusion", "--non-inclusion", "--circuit-dir", "/circuits/" ]
+CMD [ "start", "--inclusion", "--non-inclusion", "--keys-dir", "/proving-keys/" ]

@@ -23,8 +23,8 @@ generate() {
         UTXOS="${INCLUSION_UTXOS}_${NON_INCLUSION_UTXOS}"
         CIRCUIT_TYPE_RS="combined"
     fi
-    CIRCUIT_FILE="./circuits/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.key"
-    CIRCUIT_VKEY_FILE="./circuits/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.vkey"
+    CIRCUIT_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.key"
+    CIRCUIT_VKEY_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${UTXOS}.vkey"
     CIRCUIT_VKEY_RS_FILE="../programs/compressed-pda/src/verifying_keys/${CIRCUIT_TYPE_RS}_${DEPTH}_${UTXOS}.rs"
 
     echo "Generating ${CIRCUIT_TYPE} circuit for ${UTXOS} UTXOs..."

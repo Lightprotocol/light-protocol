@@ -29,8 +29,6 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
-        with:
-          enable-redis: false
 
       - name: Run build script
         run: ./scripts/build.sh

@@ -6,27 +6,27 @@ use account_compression::{
     },
     AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
+use light_circuitlib_rs::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
+use light_circuitlib_rs::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
+use light_circuitlib_rs::{
+    gnark::helpers::ProofType,
+    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
+};
 use light_circuitlib_rs::{
     gnark::{
         combined_json_formatter::CombinedJsonStruct,
-        constants::{COMBINED_PATH, INCLUSION_PATH, NON_INCLUSION_PATH, SERVER_ADDRESS},
+        constants::{PROVE_PATH, SERVER_ADDRESS},
         helpers::spawn_gnark_server,
-        inclusion_json_formatter::InclusionJsonStruct,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
     non_inclusion::merkle_non_inclusion_proof_inputs::get_non_inclusion_proof_inputs,
 };
-use light_circuitlib_rs::{
-    gnark::{helpers::ProofType, non_inclusion_json_formatter::NonInclusionJsonStruct},
-    non_inclusion::merkle_non_inclusion_proof_inputs::NonInclusionProofInputs,
-};
-use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
     compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
     sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    ErrorCode, NewAddressParams,
+    CompressedProof, ErrorCode, NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
@@ -79,7 +79,7 @@ async fn test_execute_compressed_transaction() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.payer.insecure_clone();
-    let mut mock_indexer = init_mock_indexer(&payer, &env, true, false).await;
+    let mut mock_indexer = init_mock_indexer(&payer, &env, true, true).await;
 
     let payer_pubkey = payer.pubkey();
 
@@ -310,9 +310,9 @@ async fn test_execute_compressed_transaction() {
 #[tokio::test]
 async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-
     let payer = context.payer.insecure_clone();
     let mut mock_indexer = init_mock_indexer(&payer, &env, true, true).await;
+
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
@@ -1080,21 +1080,16 @@ impl MockIndexer {
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
         let client = Client::new();
-        let (root_indices, address_root_indices, json_payload, path) =
+        let (root_indices, address_root_indices, json_payload) =
             match (compressed_accounts, new_addresses) {
                 (Some(accounts), None) => {
                     let (payload, indices) = self.process_inclusion_proofs(accounts, context).await;
-                    (indices, Vec::new(), payload.to_string(), INCLUSION_PATH)
+                    (indices, Vec::new(), payload.to_string())
                 }
                 (None, Some(addresses)) => {
                     let (payload, indices) =
                         self.process_non_inclusion_proofs(addresses, context).await;
-                    (
-                        Vec::<u16>::new(),
-                        indices,
-                        payload.to_string(),
-                        NON_INCLUSION_PATH,
-                    )
+                    (Vec::<u16>::new(), indices, payload.to_string())
                 }
                 (Some(accounts), Some(addresses)) => {
                     let (inclusion_payload, inclusion_indices) =
@@ -1103,28 +1098,24 @@ impl MockIndexer {
                         self.process_non_inclusion_proofs(addresses, context).await;
 
                     let combined_payload = CombinedJsonStruct {
-                        inclusion: inclusion_payload,
-                        nonInclusion: non_inclusion_payload,
+                        inclusion: inclusion_payload.inputs,
+                        non_inclusion: non_inclusion_payload.inputs,
                     }
                     .to_string();
-                    (
-                        inclusion_indices,
-                        non_inclusion_indices,
-                        combined_payload,
-                        COMBINED_PATH,
-                    )
+                    (inclusion_indices, non_inclusion_indices, combined_payload)
                 }
                 _ => {
                     panic!("At least one of compressed_accounts or new_addresses must be provided")
                 }
             };
+
         let mut retries = 5;
         while retries > 0 {
             if retries < 3 {
                 spawn_gnark_server(self.path, true, self.proof_types.as_slice()).await;
             }
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, path))
+                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(json_payload.clone())
                 .send()
@@ -1154,7 +1145,7 @@ impl MockIndexer {
         &self,
         accounts: &[[u8; 32]],
         context: &mut ProgramTestContext,
-    ) -> (InclusionJsonStruct, Vec<u16>) {
+    ) -> (BatchInclusionJsonStruct, Vec<u16>) {
         let mut inclusion_proofs = Vec::new();
 
         for account in accounts.iter() {
@@ -1164,17 +1155,17 @@ impl MockIndexer {
                 .get_proof_of_leaf(leaf_index, true)
                 .unwrap();
             inclusion_proofs.push(InclusionMerkleProofInputs {
-                roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
-                leaves: BigInt::from_be_bytes(account),
-                in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
-                in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
+                root: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
+                leaf: BigInt::from_be_bytes(account),
+                path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
+                path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
         }
 
         let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
 
         let inclusion_proof_inputs_json =
-            InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
+            BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
 
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
@@ -1197,7 +1188,7 @@ impl MockIndexer {
         &self,
         addresses: &[[u8; 32]],
         context: &mut ProgramTestContext,
-    ) -> (NonInclusionJsonStruct, Vec<u16>) {
+    ) -> (BatchNonInclusionJsonStruct, Vec<u16>) {
         let mut non_inclusion_proofs = Vec::new();
 
         for address in addresses.iter() {
@@ -1211,8 +1202,9 @@ impl MockIndexer {
 
         let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());
         let non_inclusion_proof_inputs_json =
-            NonInclusionJsonStruct::from_non_inclusion_proof_inputs(&non_inclusion_proof_inputs);
-
+            BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
+                &non_inclusion_proof_inputs,
+            );
         let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
             context,
             self.address_merkle_tree_pubkey,

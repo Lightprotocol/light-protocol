@@ -19,6 +19,7 @@ import { toHex } from '../../utils/conversion';
 import {
     CompressedTransaction,
     HexInputsForProver,
+    HexBatchInputsForProver,
     SignatureWithMetadata,
 } from '../../rpc-interface';
 import {
@@ -113,14 +114,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Establish a Compression-compatible JSON RPC mock-connection
      *
-     * @param endpoint                  endpoint to the solana cluster (use for
-     *                                  localnet only)
-     * @param hasher                    light wasm hasher instance
+     * @param endpoint              endpoint to the solana cluster (use for
+     *                              localnet only)
+     * @param hasher                light wasm hasher instance
      * @param compressionApiEndpoint    Endpoint to the compression server.
      * @param proverEndpoint            Endpoint to the prover server. defaults
      *                                  to endpoint
      * @param connectionConfig          Optional connection config
-     * @param testRpcConfig             Config for the mock rpc
+     * @param testRpcConfig         Config for the mock rpc
      */
     constructor(
         endpoint: string,
@@ -436,18 +437,24 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         const merkleProofsWithContext =
             await this.getMultipleCompressedAccountProofs(hashes);
 
-        const inputs: HexInputsForProver = {
-            roots: merkleProofsWithContext.map(proof => toHex(proof.root)),
-            inPathIndices: merkleProofsWithContext.map(
-                proof => proof.leafIndex,
-            ),
-            inPathElements: merkleProofsWithContext.map(proof =>
-                proof.merkleProof.map(hex => toHex(hex)),
-            ),
-            leaves: merkleProofsWithContext.map(proof => toHex(bn(proof.hash))),
+        const inputs: HexInputsForProver[] = [];
+        for (let i = 0; i < merkleProofsWithContext.length; i++) {
+            const input: HexInputsForProver = {
+                root: toHex(merkleProofsWithContext[i].root),
+                pathIndex: merkleProofsWithContext[i].leafIndex,
+                pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
+                    toHex(hex),
+                ),
+                leaf: toHex(bn(merkleProofsWithContext[i].hash)),
+            };
+            inputs.push(input);
+        }
+
+        const batchInputs: HexBatchInputsForProver = {
+            'input-compressed-accounts': inputs,
         };
 
-        const inputsData = JSON.stringify(inputs);
+        const inputsData = JSON.stringify(batchInputs);
 
         let logMsg: string = '';
         if (this.log) {
@@ -455,8 +462,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             console.time(logMsg);
         }
 
-        const INCLUSION_PROOF_URL = `${this.proverEndpoint}/inclusion`;
-        const response = await fetch(INCLUSION_PROOF_URL, {
+        const PROOF_URL = `${this.proverEndpoint}/prove`;
+        const response = await fetch(PROOF_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

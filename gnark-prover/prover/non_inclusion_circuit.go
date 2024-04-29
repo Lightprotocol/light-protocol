@@ -20,8 +20,8 @@ type NonInclusionCircuit struct {
 	InPathIndices  []frontend.Variable   `gnark:"input"`
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
-	NumberOfUtxos int
-	Depth         int
+	NumberOfUtxos uint32
+	Depth         uint32
 }
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
@@ -41,7 +41,7 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 	}
 	roots := abstractor.Call1(api, proof)
 
-	for i := 0; i < circuit.NumberOfUtxos; i++ {
+	for i := 0; i < int(circuit.NumberOfUtxos); i++ {
 		api.AssertIsEqual(roots[i], circuit.Roots[i])
 	}
 	return nil
@@ -63,8 +63,8 @@ func ImportNonInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath stri
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                 int(treeDepth),
-		NumberOfUtxos:         int(numberOfUtxos),
+		Depth:                 treeDepth,
+		NumberOfUtxos:         numberOfUtxos,
 		Roots:                 roots,
 		Values:                values,
 		LeafLowerRangeValues:  leafLowerRangeValues,

@@ -1,15 +1,57 @@
 package prover
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
-func SetupCircuit(circuit string, inclusionTreeDepth uint32, inclusionNumberOfUtxos uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfUtxos uint32) (*ProvingSystem, error) {
-	if circuit == "inclusion" {
+type CircuitType string
+
+const (
+	InputCompressedAccounts             = "input-compressed-accounts"
+	NewAddresses                        = "new-addresses"
+	Combined                CircuitType = "combined"
+	Inclusion               CircuitType = "inclusion"
+	NonInclusion            CircuitType = "non-inclusion"
+)
+
+func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfUtxos uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfUtxos uint32) (*ProvingSystem, error) {
+	if circuit == Inclusion {
 		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfUtxos)
-	} else if circuit == "non-inclusion" {
+	} else if circuit == NonInclusion {
 		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
-	} else if circuit == "combined" {
+	} else if circuit == Combined {
 		return SetupCombined(inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
 	} else {
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
 	}
+}
+
+func ParseCircuitType(data []byte) (CircuitType, error) {
+	var inputs map[string]*json.RawMessage
+	err := json.Unmarshal(data, &inputs)
+	if err != nil {
+		return "", err
+	}
+
+	var _, hasInputCompressedAccounts = inputs["input-compressed-accounts"]
+	var _, hasNewAddresses = inputs["new-addresses"]
+
+	if hasInputCompressedAccounts && hasNewAddresses {
+		return Combined, nil
+	} else if hasInputCompressedAccounts {
+		return Inclusion, nil
+	} else if hasNewAddresses {
+		return NonInclusion, nil
+	}
+	return "", fmt.Errorf("unknown schema")
+}
+
+func IsCircuitEnabled(s []CircuitType, e CircuitType) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }

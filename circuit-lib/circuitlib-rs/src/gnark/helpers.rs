@@ -5,20 +5,18 @@ use std::{
     time::Duration,
 };
 
+use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 use serde::Serialize;
 use serde_json::json;
 use sysinfo::{Signal, System};
 
-use crate::gnark::constants::{HEALTH_CHECK, SERVER_ADDRESS};
-
 static IS_LOADING: AtomicBool = AtomicBool::new(false);
 #[derive(Debug)]
 pub enum ProofType {
     Inclusion,
     NonInclusion,
-    Combined,
 }
 
 impl Display for ProofType {
@@ -29,11 +27,11 @@ impl Display for ProofType {
             match self {
                 ProofType::Inclusion => "inclusion",
                 ProofType::NonInclusion => "non-inclusion",
-                ProofType::Combined => "combined",
             }
         )
     }
 }
+
 pub async fn spawn_gnark_server(path: &str, restart: bool, proof_types: &[ProofType]) {
     if restart {
         kill_gnark_server();
@@ -68,6 +66,31 @@ pub fn kill_gnark_server() {
     }
 }
 
+pub async fn spawn_prover() {
+    let cmd = "../../cli/test_bin/run start-prover";
+    prover_init_wait(cmd).await;
+}
+
+async fn prover_init_wait(cmd: &str) {
+    println!("Waiting for prover to start");
+    if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+        println!("Prover not started yet, waiting...");
+        IS_LOADING.store(true, Ordering::Relaxed);
+        Command::new("sh")
+            .arg("-c")
+            .arg(cmd)
+            .spawn()
+            .expect("Failed to start server process");
+        let result = health_check(20, 5).await;
+        if result {
+            println!("Prover started successfully");
+        } else {
+            panic!("Prover failed to start");
+        }
+        IS_LOADING.store(false, Ordering::Relaxed);
+    }
+}
+
 pub async fn health_check(retries: usize, timeout: usize) -> bool {
     let client = reqwest::Client::new();
     let mut result = false;
@@ -89,8 +112,12 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
     result
 }
 
+pub fn big_int_to_string(big_int: &BigInt) -> String {
+    format!("0x{}", big_int.to_str_radix(16))
+}
+
 pub fn create_vec_of_string(number_of_utxos: usize, element: &BigInt) -> Vec<String> {
-    vec![format!("0x{}", element.to_str_radix(16)); number_of_utxos]
+    vec![big_int_to_string(element); number_of_utxos]
 }
 
 pub fn create_vec_of_u32(number_of_utxos: usize, element: &BigInt) -> Vec<u32> {
