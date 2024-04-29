@@ -20,8 +20,8 @@ func ExtractLean(treeDepth uint32, numberOfUtxos uint32) (string, error) {
 	}
 
 	inclusionCircuit := InclusionCircuit{
-		Depth:          treeDepth,
-		NumberOfUtxos:  numberOfUtxos,
+		Depth:          int(treeDepth),
+		NumberOfUtxos:  int(numberOfUtxos),
 		Roots:          roots,
 		Leaves:         leaves,
 		InPathIndices:  inPathIndices,

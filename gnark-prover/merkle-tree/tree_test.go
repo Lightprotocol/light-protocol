@@ -21,12 +21,9 @@ func TestInclusionParameters_TestTree(t *testing.T) {
 		}
 	}(file)
 
-	var testTreeDepth = []int{26}
-	var testUtxoCount = []int{1, 2, 3, 4}
-
-	for i := 0; i < len(testTreeDepth); i++ {
-		for j := 0; j < len(testUtxoCount); j++ {
-			trees := MakeTestIncludedTrees(testTreeDepth[i], testUtxoCount[j])
+	for i := 1; i <= 4; i++ {
+		for j := 1; j <= 2; j++ {
+			trees := MakeTestIncludedTrees(i, j)
 			for _, tree := range trees {
 				var json, err = tree.Tree.MarshalJSON()
 				if err != nil {
@@ -57,12 +54,9 @@ func TestNonInclusionParameters_TestTree(t *testing.T) {
 		}
 	}(file)
 
-	var testTreeDepth = []int{26}
-	var testUtxoCount = []int{1, 2, 3, 4}
-
-	for i := 0; i < len(testTreeDepth); i++ {
-		for j := 0; j < len(testUtxoCount); j++ {
-			trees := MakeTestNonInclusionTrees(testTreeDepth[i], testUtxoCount[j])
+	for i := 1; i <= 4; i++ {
+		for j := 1; j <= 2; j++ {
+			trees := MakeTestNonInclusionTrees(i, j)
 			for _, tree := range trees {
 				var json, err = tree.Tree.MarshalJSON()
 				if err != nil {
@@ -92,13 +86,25 @@ func TestCombined(t *testing.T) {
 		}
 	}(file)
 
-	var testTreeDepth = []int{26}
-	var testUtxoCount = []int{1, 2, 3, 4}
+	tree1 := BuildTestTree(26, 1, true)
+	tree2 := BuildValidTestNonInclusionTree(26, 1, true)
 
-	for i := 0; i < len(testTreeDepth); i++ {
-		for j := 0; j < len(testUtxoCount); j++ {
-			trees1 := MakeTestIncludedTrees(testTreeDepth[i], testUtxoCount[j])
-			trees2 := MakeTestNonInclusionTrees(testTreeDepth[i], testUtxoCount[j])
+	var combinedParams = prover.CombinedParameters{
+		InclusionParameters:    tree1,
+		NonInclusionParameters: tree2,
+	}
+
+	var json, err2 = combinedParams.MarshalJSON()
+	if err2 != nil {
+		t.Errorf("Error marshalling JSON: %v", err)
+		return
+	}
+	fmt.Println(string(json))
+
+	for i := 1; i <= 4; i++ {
+		for j := 1; j <= 2; j++ {
+			trees1 := MakeTestIncludedTrees(i, j)
+			trees2 := MakeTestNonInclusionTrees(i, j)
 			for k, tree1 := range trees1 {
 				for l, tree2 := range trees2 {
 					var combinedParams = prover.CombinedParameters{
@@ -163,7 +169,7 @@ type InclusionTreeValidPair struct {
 //
 // - `validPair`: A valid tree constructed with input parameters. The Valid field is set to `true`.
 // - `invalidRootPair`: A valid tree but the root value is invalidated by setting it to an integer 999. The Valid field is set to `false`.
-// - `invalidLeafPair`: A valid tree where a leaf value is invalidated by setting it to an integer 999. The Valid field wis set to `false`.
+// - `invalidLeafPair`: A valid tree where a leaf value is invalidated by setting it to an integer 999. The Valid field is set to `false`.
 // - `invalidInPathIndicesPair`: A valid tree but the InPathIndices value is invalidated by setting it to an integer 999. The Valid field is set to `false`.
 // - `invalidInPathElementsPair`: A valid tree where the InPathElements is invalidated by setting a value to an integer 999. The Valid field is set to `false`.
 //
@@ -180,23 +186,23 @@ type InclusionTreeValidPair struct {
 func MakeTestIncludedTrees(depth int, numberOfUtxos int) []InclusionTreeValidPair {
 	var trees []InclusionTreeValidPair
 
-	validTree := BuildTestTree(depth, numberOfUtxos, false)
+	validTree := BuildTestTree(depth, numberOfUtxos, true)
 	validPair := InclusionTreeValidPair{Tree: validTree, Valid: true}
 
 	invalidRootTree := BuildTestTree(depth, numberOfUtxos, true)
-	invalidRootTree.Inputs[0].Root = *big.NewInt(999)
+	invalidRootTree.Root[0] = *big.NewInt(999)
 	invalidRootPair := InclusionTreeValidPair{Tree: invalidRootTree, Valid: false}
 
 	invalidLeafTree := BuildTestTree(depth, numberOfUtxos, true)
-	invalidLeafTree.Inputs[0].Leaf = *big.NewInt(999)
+	invalidLeafTree.Leaf[0] = *big.NewInt(999)
 	invalidLeafPair := InclusionTreeValidPair{Tree: invalidLeafTree, Valid: false}
 
 	invalidInPathIndicesTree := BuildTestTree(depth, numberOfUtxos, true)
-	invalidInPathIndicesTree.Inputs[0].PathIndex = 999
+	invalidInPathIndicesTree.InPathIndices[0] = 999
 	invalidInPathIndicesPair := InclusionTreeValidPair{Tree: invalidInPathIndicesTree, Valid: false}
 
 	invalidInPathElementsTree := BuildTestTree(depth, numberOfUtxos, true)
-	invalidInPathElementsTree.Inputs[0].PathElements[0] = *big.NewInt(999)
+	invalidInPathElementsTree.InPathElements[0][0] = *big.NewInt(999)
 	invalidInPathElementsPair := InclusionTreeValidPair{Tree: invalidInPathElementsTree, Valid: false}
 
 	trees = append(trees, validPair)
@@ -264,7 +270,7 @@ func MakeTestNonInclusionTrees(depth int, numberOfUtxos int) []NonInclusionTreeV
 	validPair := NonInclusionTreeValidPair{Tree: validTree, Valid: true}
 
 	invalidRootTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
-	invalidRootTree.Inputs[0].Root = *big.NewInt(999)
+	invalidRootTree.Root[0] = *big.NewInt(999)
 	invalidRootPair := NonInclusionTreeValidPair{Tree: invalidRootTree, Valid: false}
 
 	invalidLowValueTree := BuildTestNonInclusionTree(depth, numberOfUtxos, true, false, true)
@@ -274,11 +280,11 @@ func MakeTestNonInclusionTrees(depth int, numberOfUtxos int) []NonInclusionTreeV
 	invalidHighValuePair := NonInclusionTreeValidPair{Tree: invalidHighValueTree, Valid: false}
 
 	invalidInPathIndicesTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
-	invalidInPathIndicesTree.Inputs[0].PathIndex = 999
+	invalidInPathIndicesTree.InPathIndices[0] = 999
 	invalidInPathIndicesPair := NonInclusionTreeValidPair{Tree: invalidInPathIndicesTree, Valid: false}
 
 	invalidInPathElementsTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
-	invalidInPathElementsTree.Inputs[0].PathElements[0] = *big.NewInt(999)
+	invalidInPathElementsTree.InPathElements[0][0] = *big.NewInt(999)
 	invalidInPathElementsPair := NonInclusionTreeValidPair{Tree: invalidInPathElementsTree, Valid: false}
 
 	trees = append(trees, validPair)

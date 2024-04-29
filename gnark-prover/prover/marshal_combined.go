@@ -6,8 +6,8 @@ import (
 )
 
 type CombinedParametersJSON struct {
-	InclusionProofInputs    []InclusionProofInputsJSON    `json:"input-compressed-accounts"`
-	NonInclusionProofInputs []NonInclusionProofInputsJSON `json:"new-addresses"`
+	InclusionParametersJSON    `json:"inclusion"`
+	NonInclusionParametersJSON `json:"nonInclusion"`
 }
 
 func ParseCombined(inputJSON string) (NonInclusionParameters, error) {
@@ -20,10 +20,21 @@ func ParseCombined(inputJSON string) (NonInclusionParameters, error) {
 }
 
 func (p *CombinedParameters) MarshalJSON() ([]byte, error) {
-	combined := CombinedParametersJSON{
-		InclusionProofInputs:    p.InclusionParameters.CreateInclusionParametersJSON().Inputs,
-		NonInclusionProofInputs: p.NonInclusionParameters.CreateNonInclusionParametersJSON().Inputs,
+	inclusionParams, err := p.InclusionParameters.MarshalJSON()
+	if err != nil {
+		return nil, err
 	}
+
+	nonInclusionParams, err := p.NonInclusionParameters.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	combined := map[string]json.RawMessage{
+		"inclusion":    json.RawMessage(inclusionParams),
+		"nonInclusion": json.RawMessage(nonInclusionParams),
+	}
+
 	return json.Marshal(combined)
 }
 
@@ -34,27 +45,15 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if _, ok := rawMessages["input-compressed-accounts"]; ok {
-		var params InclusionParametersJSON
-		err := json.Unmarshal(data, &params)
-		if err != nil {
-			return err
-		}
-		p.InclusionParameters = InclusionParameters{Inputs: nil}
-		err = p.InclusionParameters.UpdateWithJSON(params, err)
+	if msg, ok := rawMessages["inclusion"]; ok {
+		err := p.InclusionParameters.UnmarshalJSON(msg)
 		if err != nil {
 			return err
 		}
 	}
 
-	if _, ok := rawMessages["new-addresses"]; ok {
-		var params NonInclusionParametersJSON
-		err := json.Unmarshal(data, &params)
-		if err != nil {
-			return err
-		}
-		p.NonInclusionParameters = NonInclusionParameters{Inputs: nil}
-		err = p.NonInclusionParameters.UpdateWithJSON(params, err)
+	if msg, ok := rawMessages["nonInclusion"]; ok {
+		err := p.NonInclusionParameters.UnmarshalJSON(msg)
 		if err != nil {
 			return err
 		}

@@ -33,7 +33,7 @@ jobs:
         include:
           - program: account-compression
             sub-tests: '[
-              "cargo-test-sbf -p account-compression -- --test-threads=1"
+              "cargo-test-sbf -p account-compression"
             ]'
           - program: light-compressed-pda
             sub-tests: '[
@@ -41,7 +41,7 @@ jobs:
             ]'
           - program: light-registry
             sub-tests: '[
-              "cargo-test-sbf -p light-registry -- --test-threads=1"
+              "cargo-test-sbf -p light-registry"
             ]'
           - program: light-compressed-token
             sub-tests: '[
@@ -49,7 +49,7 @@ jobs:
             ]'
           - program: token-escrow
             sub-tests: '[
-              "cargo-test-sbf -p token-escrow -- --test-threads=1"
+              "cargo-test-sbf -p token-escrow"
             ]'
           - program: program-owned-account-test
             sub-tests: '[
@@ -69,7 +69,7 @@ jobs:
         run: |
           source ./scripts/devenv.sh   
           mkdir -p ./target/deploy
-          cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so   
+          wget https://github.com/Lightprotocol/light-protocol/releases/download/spl-noop-v0.2.0/spl_noop.so -O ./target/deploy/spl_noop.so   
 
           anchor build
 

@@ -220,7 +220,10 @@ async fn create_escrow_ix(
     context: &mut ProgramTestContext,
     lock_up_time: u64,
     escrow_amount: u64,
-) -> (anchor_lang::prelude::Pubkey, Instruction) {
+) -> (
+    anchor_lang::prelude::Pubkey,
+    solana_sdk::instruction::Instruction,
+) {
     let payer_pubkey = payer.pubkey();
     let input_compressed_token_account_data = test_indexer.token_compressed_accounts[0].clone();
 

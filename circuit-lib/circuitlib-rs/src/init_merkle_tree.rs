@@ -46,8 +46,8 @@ fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
     info!("getting proof of leaf");
     // SAFETY: Calling `unwrap()` when the Merkle tree parameters are corect
     // should not cause panic. Returning an error would not be compatible with
-    // unsafe of `once_cell::sync::Lazy` as a static variable.
-    let path_elements = merkle_tree
+    // usafe of `once_cell::sync::Lazy` as a static variable.
+    let in_path_elements = merkle_tree
         .get_proof_of_leaf(0, true)
         .unwrap()
         .iter()
@@ -56,13 +56,13 @@ fn inclusion_merkle_tree_inputs_26() -> InclusionMerkleProofInputs {
     info!("proof of leaf calculated");
     let leaf_bn = BigInt::from_bytes_be(Sign::Plus, &leaf);
     let root_bn = BigInt::from_bytes_be(Sign::Plus, root1);
-    let path_index = BigInt::zero();
+    let in_path_indices = BigInt::zero();
 
     InclusionMerkleProofInputs {
-        root: root_bn,
-        leaf: leaf_bn,
-        path_index,
-        path_elements,
+        roots: root_bn,
+        leaves: leaf_bn,
+        in_path_indices,
+        in_path_elements,
     }
 }
 

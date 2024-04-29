@@ -2,7 +2,7 @@
 mod test {
     use light_circuitlib_rs::{
         gnark::{
-            constants::{PROVE_PATH, SERVER_ADDRESS},
+            constants::{INCLUSION_PATH, SERVER_ADDRESS},
             helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -25,7 +25,7 @@ mod test {
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
             let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
+                .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
                 .body(inputs)
                 .send()
@@ -40,8 +40,8 @@ mod test {
             let mut leaves = Vec::<[u8; 32]>::new();
 
             for _ in 0..*number_of_compressed_accounts {
-                roots.push(big_int_inputs.root.to_bytes_be().1.try_into().unwrap());
-                leaves.push(big_int_inputs.leaf.to_bytes_be().1.try_into().unwrap());
+                roots.push(big_int_inputs.roots.to_bytes_be().1.try_into().unwrap());
+                leaves.push(big_int_inputs.leaves.to_bytes_be().1.try_into().unwrap());
             }
 
             verify_merkle_proof_zkp(

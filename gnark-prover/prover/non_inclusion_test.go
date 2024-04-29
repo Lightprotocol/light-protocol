@@ -38,29 +38,46 @@ func TestNonInclusion(t *testing.T) {
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
-		var numberOfUtxos = params.NumberOfUTXOs()
-		var treeDepth = params.TreeDepth()
+		var numberOfUtxos = len(params.Roots)
+		var treeDepth = len(params.InPathElements[0])
 
 		roots := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.Roots {
+			roots[i] = v
+		}
+
 		values := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.Values {
+			values[i] = v
+		}
+
 		leafLowerRangeValues := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.LeafLowerRangeValues {
+			leafLowerRangeValues[i] = v
+		}
+
 		leafHigherRangeValues := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.LeafHigherRangeValues {
+			leafHigherRangeValues[i] = v
+		}
+
 		leafIndices := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.LeafIndices {
+			leafIndices[i] = v
+		}
 
 		inPathIndices := make([]frontend.Variable, numberOfUtxos)
+		for i, v := range params.InPathIndices {
+			inPathIndices[i] = v
+		}
+
 		inPathElements := make([][]frontend.Variable, numberOfUtxos)
 		for i := 0; i < int(numberOfUtxos); i++ {
 			inPathElements[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		for i, v := range params.Inputs {
-			roots[i] = v.Root
-			values[i] = v.Value
-			leafLowerRangeValues[i] = v.LeafLowerRangeValue
-			leafHigherRangeValues[i] = v.LeafHigherRangeValue
-			leafIndices[i] = v.LeafIndex
-			inPathIndices[i] = v.PathIndex
-			for j, v2 := range v.PathElements {
+		for i, v := range params.InPathElements {
+			for j, v2 := range v {
 				inPathElements[i][j] = v2
 			}
 		}
@@ -77,8 +94,8 @@ func TestNonInclusion(t *testing.T) {
 			circuit.InPathElements[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		circuit.NumberOfUtxos = numberOfUtxos
-		circuit.Depth = treeDepth
+		circuit.NumberOfUtxos = int(numberOfUtxos)
+		circuit.Depth = int(treeDepth)
 
 		// Check if the expected result is "true" or "false"
 		expectedResult := splitLine[0]

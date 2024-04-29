@@ -48,18 +48,18 @@ type InclusionProof struct {
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
 
-	NumberOfUtxos uint32
-	Depth         uint32
+	NumberOfUtxos int
+	Depth         int
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
-	for proofIndex := 0; proofIndex < int(gadget.NumberOfUtxos); proofIndex++ {
+	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
 		hash := MerkleRootGadget{
 			Hash:  gadget.Leaves[proofIndex],
 			Index: gadget.InPathIndices[proofIndex],
 			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Depth: gadget.Depth}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -77,13 +77,13 @@ type NonInclusionProof struct {
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
 
-	NumberOfUtxos uint32
-	Depth         uint32
+	NumberOfUtxos int
+	Depth         int
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
-	for proofIndex := 0; proofIndex < int(gadget.NumberOfUtxos); proofIndex++ {
+	for proofIndex := 0; proofIndex < gadget.NumberOfUtxos; proofIndex++ {
 		leaf := LeafHashGadget{
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
 			LeafIndex:            gadget.LeafIndices[proofIndex],
@@ -95,7 +95,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 			Hash:  currentHash[proofIndex],
 			Index: gadget.InPathIndices[proofIndex],
 			Path:  gadget.InPathElements[proofIndex],
-			Depth: int(gadget.Depth)}
+			Depth: gadget.Depth}
 		currentHash[proofIndex] = abstractor.Call(api, hash)
 		api.AssertIsEqual(currentHash[proofIndex], gadget.Roots[proofIndex])
 	}
@@ -180,29 +180,29 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 	return verifyingKey, nil
 }
 
-func GetKeys(keysDir string, circuitTypes []CircuitType) []string {
+func GetKeys(circuitDir string, inclusion bool, nonInclusion bool) []string {
 	var keys []string
 
-	if IsCircuitEnabled(circuitTypes, Inclusion) {
-		keys = append(keys, keysDir+"inclusion_26_1.key")
-		keys = append(keys, keysDir+"inclusion_26_2.key")
-		keys = append(keys, keysDir+"inclusion_26_3.key")
-		keys = append(keys, keysDir+"inclusion_26_4.key")
-		keys = append(keys, keysDir+"inclusion_26_8.key")
+	if inclusion {
+		keys = append(keys, circuitDir+"inclusion_26_1.key")
+		keys = append(keys, circuitDir+"inclusion_26_2.key")
+		keys = append(keys, circuitDir+"inclusion_26_3.key")
+		keys = append(keys, circuitDir+"inclusion_26_4.key")
+		keys = append(keys, circuitDir+"inclusion_26_8.key")
 	}
-	if IsCircuitEnabled(circuitTypes, NonInclusion) {
-		keys = append(keys, keysDir+"non-inclusion_26_1.key")
-		keys = append(keys, keysDir+"non-inclusion_26_2.key")
+	if nonInclusion {
+		keys = append(keys, circuitDir+"non-inclusion_26_1.key")
+		keys = append(keys, circuitDir+"non-inclusion_26_2.key")
 	}
-	if IsCircuitEnabled(circuitTypes, Combined) {
-		keys = append(keys, keysDir+"combined_26_1_1.key")
-		keys = append(keys, keysDir+"combined_26_1_2.key")
-		keys = append(keys, keysDir+"combined_26_2_1.key")
-		keys = append(keys, keysDir+"combined_26_2_2.key")
-		keys = append(keys, keysDir+"combined_26_3_1.key")
-		keys = append(keys, keysDir+"combined_26_3_2.key")
-		keys = append(keys, keysDir+"combined_26_4_1.key")
-		keys = append(keys, keysDir+"combined_26_4_2.key")
+	if inclusion && nonInclusion {
+		keys = append(keys, circuitDir+"combined_26_1_1.key")
+		keys = append(keys, circuitDir+"combined_26_1_2.key")
+		keys = append(keys, circuitDir+"combined_26_2_1.key")
+		keys = append(keys, circuitDir+"combined_26_2_2.key")
+		keys = append(keys, circuitDir+"combined_26_3_1.key")
+		keys = append(keys, circuitDir+"combined_26_3_2.key")
+		keys = append(keys, circuitDir+"combined_26_4_1.key")
+		keys = append(keys, circuitDir+"combined_26_4_2.key")
 	}
 	return keys
 }

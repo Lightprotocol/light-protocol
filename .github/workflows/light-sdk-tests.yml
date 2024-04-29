@@ -31,6 +31,16 @@ jobs:
                 "@lightprotocol/prover.js:test",
                 "@lightprotocol/cli:test",
             ]'
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v1
@@ -39,6 +49,8 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build

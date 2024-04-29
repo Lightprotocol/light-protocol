@@ -6,7 +6,7 @@ import * as solana from "@solana/web3.js";
 import { Keypair } from "@solana/web3.js";
 import { confirmConfig } from "@lightprotocol/stateless.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "./constants";
+import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "../psp-utils";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import spinner from "cli-spinners";
 

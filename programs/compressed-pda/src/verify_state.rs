@@ -1,16 +1,14 @@
-use anchor_lang::prelude::*;
-
-use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
-use light_macros::heap_neutral;
-use light_verifier::{
-    verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
-    verify_merkle_proof_zkp, CompressedProof,
-};
-
 use crate::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     instructions::{InstructionDataTransfer, TransferInstruction},
     ErrorCode,
+};
+use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
+use anchor_lang::prelude::*;
+use light_macros::heap_neutral;
+use light_verifier::{
+    verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
+    verify_merkle_proof_zkp, CompressedProof,
 };
 
 #[inline(never)]
@@ -215,8 +213,8 @@ pub fn input_compressed_accounts_signer_check(
     signer: &Pubkey,
 ) -> Result<()> {
     inputs
-    .input_compressed_accounts_with_merkle_context
-    .iter()
+        .input_compressed_accounts_with_merkle_context
+        .iter()
         .try_for_each(|compressed_account_with_context: &CompressedAccountWithMerkleContext| {
 
             if compressed_account_with_context.compressed_account.data.is_some()
@@ -231,11 +229,11 @@ pub fn input_compressed_accounts_signer_check(
                 }?;
                 // CHECK 2
                 if invoking_program_id != compressed_account_with_context.compressed_account.owner {
-                msg!(
+                    msg!(
                         "Signer/Program cannot read from an account it doesn't own. Read access check failed compressed account owner {} !=  invoking_program_id {}",
                         compressed_account_with_context.compressed_account.owner,
-                    invoking_program_id
-                );
+                        invoking_program_id
+                    );
                     err!(crate::ErrorCode::SignerCheckFailed)
                 } else {
                     Ok(())
@@ -243,16 +241,16 @@ pub fn input_compressed_accounts_signer_check(
             }
             // CHECK 3
             else if compressed_account_with_context.compressed_account.owner != *signer {
-            msg!(
-                "signer check failed compressed account owner {} !=  signer {}",
+                msg!(
+                    "signer check failed compressed account owner {} !=  signer {}",
                     compressed_account_with_context.compressed_account.owner,
                     signer
-            );
-            err!(ErrorCode::SignerCheckFailed)
+                );
+                err!(ErrorCode::SignerCheckFailed)
             } else {
                 Ok(())
-        }
-    })?;
+            }
+        })?;
     Ok(())
 }
 
@@ -282,19 +280,19 @@ pub fn output_compressed_accounts_write_access_check(
             }
         }?;
         output_account_with_data.iter().try_for_each(|compressed_account| {
-                    if compressed_account.owner == invoking_program_id.key() {
-                        Ok(())
-                    } else {
-                        msg!(
-                            "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
-                            compressed_account.owner,
-                            invoking_program_id.key()
-                        );
+                if compressed_account.owner == invoking_program_id.key() {
+                    Ok(())
+                } else {
+                    msg!(
+                        "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
+                        compressed_account.owner,
+                        invoking_program_id.key()
+                    );
 
-                        msg!("compressed_account: {:?}", compressed_account);
-                        err!(crate::ErrorCode::WriteAccessCheckFailed)
-                    }
-                })?;
+                    msg!("compressed_account: {:?}", compressed_account);
+                    err!(crate::ErrorCode::WriteAccessCheckFailed)
+                }
+            })?;
     }
     Ok(())
 }
@@ -375,7 +373,9 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
 
 #[cfg(test)]
 mod test {
+
     use super::*;
+    use crate::compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext};
 
     #[test]
     fn test_sum_check_passes() {

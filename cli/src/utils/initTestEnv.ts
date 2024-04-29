@@ -1,16 +1,15 @@
 import { airdropSol, sleep } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
 import {
+  downloadBinIfNotExists,
+  executeCommand,
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
   SPL_NOOP_PROGRAM_TAG,
-} from "./constants";
+} from "../psp-utils";
 import path from "path";
 import fs from "fs";
 import which from "which";
 import { spawn } from "child_process";
-import { downloadBinIfNotExists } from "../psp-utils";
-import { executeCommand } from "./process";
-import { startProver } from "./processProverServer";
 const find = require("find-process");
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
@@ -60,7 +59,14 @@ export async function initTestEnv({
   }
 
   if (prover) {
-    await startProver(proveCompressedAccounts, proveNewAddresses);
+    await killProver();
+    const circuitDir = path.join(__dirname, "../..", "bin", "circuits/");
+    const args = ["start"];
+    args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
+    args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
+    args.push("--circuit-dir", circuitDir);
+    spawnBinary(getProverNameByArch(), true, args);
+    await sleep(10000);
   }
 }
 
@@ -258,6 +264,12 @@ export async function killTestValidator() {
   await killProcess("solana-test-validator");
 }
 
+export async function killProver() {
+  await killProcess(getProverNameByArch());
+  // Temporary fix for the case when prover is instantiated via prover.sh:
+  await killProcess("light-prover");
+}
+
 export async function killIndexer() {
   await killProcess("photon");
 }
@@ -267,4 +279,21 @@ export async function killProcess(processName: string) {
   for (const proc of processList) {
     process.kill(proc.pid);
   }
+}
+
+export function getProverNameByArch(): string {
+  const platform = process.platform;
+  const arch = process.arch;
+
+  if (!platform || !arch) {
+    throw new Error("Unsupported platform or architecture");
+  }
+
+  let binaryName = `prover-${platform}-${arch}`;
+
+  if (platform.toString() === "windows") {
+    binaryName += ".exe";
+  }
+
+  return binaryName;
 }

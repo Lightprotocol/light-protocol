@@ -1,63 +1,62 @@
-use crate::gnark::helpers::big_int_to_string;
+use serde::Serialize;
+
 use crate::{
-    gnark::helpers::create_json_from_struct,
+    gnark::helpers::{
+        create_json_from_struct, create_vec_of_string, create_vec_of_u32,
+        create_vec_of_vec_of_string,
+    },
     init_merkle_tree::non_inclusion_merkle_tree_inputs_26,
     non_inclusion::merkle_non_inclusion_proof_inputs::{
         NonInclusionMerkleProofInputs, NonInclusionProofInputs,
     },
 };
-use num_traits::ToPrimitive;
-use serde::Serialize;
 
+#[allow(non_snake_case)]
 #[derive(Serialize, Debug)]
-pub struct BatchNonInclusionJsonStruct {
-    #[serde(rename(serialize = "new-addresses"))]
-    pub inputs: Vec<NonInclusionJsonStruct>,
-}
-
-#[derive(Serialize, Clone, Debug)]
 pub struct NonInclusionJsonStruct {
-    root: String,
-    value: String,
-
-    #[serde(rename(serialize = "pathIndex"))]
-    path_index: u32,
-
-    #[serde(rename(serialize = "pathElements"))]
-    path_elements: Vec<String>,
-
-    #[serde(rename(serialize = "leafLowerRangeValue"))]
-    leaf_lower_range_value: String,
-
-    #[serde(rename(serialize = "leafHigherRangeValue"))]
-    leaf_higher_range_value: String,
-
-    #[serde(rename(serialize = "leafIndex"))]
-    leaf_index: u32,
+    roots: Vec<String>,
+    values: Vec<String>,
+    leafLowerRangeValues: Vec<String>,
+    leafHigherRangeValues: Vec<String>,
+    leafIndices: Vec<u32>,
+    inPathIndices: Vec<u32>,
+    inPathElements: Vec<Vec<String>>,
 }
 
-impl BatchNonInclusionJsonStruct {
+impl NonInclusionJsonStruct {
     fn new_with_public_inputs(number_of_utxos: usize) -> (Self, NonInclusionMerkleProofInputs) {
         let merkle_inputs = non_inclusion_merkle_tree_inputs_26();
-
-        let input = NonInclusionJsonStruct {
-            root: big_int_to_string(&merkle_inputs.root),
-            value: big_int_to_string(&merkle_inputs.value),
-            path_elements: merkle_inputs
-                .merkle_proof_hashed_indexed_element_leaf
-                .iter()
-                .map(big_int_to_string)
-                .collect(),
-            path_index: merkle_inputs
-                .index_hashed_indexed_element_leaf
-                .to_u32()
-                .unwrap(),
-            leaf_index: merkle_inputs.leaf_index.to_u32().unwrap(),
-            leaf_lower_range_value: big_int_to_string(&merkle_inputs.leaf_lower_range_value),
-            leaf_higher_range_value: big_int_to_string(&merkle_inputs.leaf_higher_range_value),
-        };
-        let inputs = vec![input; number_of_utxos];
-        (Self { inputs }, merkle_inputs)
+        let roots = create_vec_of_string(number_of_utxos, &merkle_inputs.root);
+        let values = create_vec_of_string(number_of_utxos, &merkle_inputs.value);
+        let leaf_lower_range_values =
+            create_vec_of_string(number_of_utxos, &merkle_inputs.leaf_lower_range_value);
+        let leaf_higher_range_values =
+            create_vec_of_string(number_of_utxos, &merkle_inputs.leaf_higher_range_value);
+        let leaf_indices = create_vec_of_u32(number_of_utxos, &merkle_inputs.leaf_index);
+        assert_eq!(
+            merkle_inputs.leaf_index,
+            merkle_inputs.index_hashed_indexed_element_leaf
+        );
+        let in_path_indices = create_vec_of_u32(
+            number_of_utxos,
+            &merkle_inputs.index_hashed_indexed_element_leaf,
+        );
+        let in_path_elements = create_vec_of_vec_of_string(
+            number_of_utxos,
+            &merkle_inputs.merkle_proof_hashed_indexed_element_leaf,
+        );
+        (
+            Self {
+                roots,
+                values,
+                leafLowerRangeValues: leaf_lower_range_values,
+                leafHigherRangeValues: leaf_higher_range_values,
+                leafIndices: leaf_indices,
+                inPathIndices: in_path_indices,
+                inPathElements: in_path_elements,
+            },
+            merkle_inputs,
+        )
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -66,32 +65,55 @@ impl BatchNonInclusionJsonStruct {
     }
 
     pub fn from_non_inclusion_proof_inputs(inputs: &NonInclusionProofInputs) -> Self {
-        let mut proof_inputs: Vec<NonInclusionJsonStruct> = Vec::new();
+        let mut roots = Vec::new();
+        let mut values = Vec::new();
+        let mut leaf_lower_range_values = Vec::new();
+        let mut leaf_higher_range_values = Vec::new();
+        let mut leaf_indices = Vec::new();
+        let mut in_path_indices = Vec::new();
+        let mut in_path_elements = Vec::new();
         for input in inputs.0 {
-            let prof_input = NonInclusionJsonStruct {
-                root: big_int_to_string(&input.root),
-                value: big_int_to_string(&input.value),
-                path_index: input.index_hashed_indexed_element_leaf.to_u32().unwrap(),
-                path_elements: input
+            roots.push(format!("0x{}", input.root.to_str_radix(16)));
+            values.push(format!("0x{}", input.value.to_str_radix(16)));
+            leaf_lower_range_values.push(format!(
+                "0x{}",
+                input.leaf_lower_range_value.to_str_radix(16)
+            ));
+            leaf_higher_range_values.push(format!(
+                "0x{}",
+                input.leaf_higher_range_value.to_str_radix(16)
+            ));
+            leaf_indices.push(input.leaf_index.clone().try_into().unwrap());
+            in_path_indices.push(
+                input
+                    .index_hashed_indexed_element_leaf
+                    .clone()
+                    .try_into()
+                    .unwrap(),
+            );
+            in_path_elements.push(
+                input
                     .merkle_proof_hashed_indexed_element_leaf
                     .iter()
-                    .map(big_int_to_string)
+                    .map(|x| format!("0x{}", x.to_str_radix(16)))
                     .collect(),
-                leaf_index: input.leaf_index.to_u32().unwrap(),
-                leaf_lower_range_value: big_int_to_string(&input.leaf_lower_range_value),
-                leaf_higher_range_value: big_int_to_string(&input.leaf_higher_range_value),
-            };
-            proof_inputs.push(prof_input);
+            );
         }
 
         Self {
-            inputs: proof_inputs,
+            roots,
+            values,
+            leafLowerRangeValues: leaf_lower_range_values,
+            leafHigherRangeValues: leaf_higher_range_values,
+            leafIndices: leaf_indices,
+            inPathIndices: in_path_indices,
+            inPathElements: in_path_elements,
         }
     }
 }
 
 pub fn inclusion_inputs_string(number_of_utxos: usize) -> (String, NonInclusionMerkleProofInputs) {
     let (json_struct, public_inputs) =
-        BatchNonInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+        NonInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
     (json_struct.to_string(), public_inputs)
 }

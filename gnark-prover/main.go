@@ -41,8 +41,8 @@ func runCli() {
 					&cli.UintFlag{Name: "non-inclusion-utxos", Usage: "Non-inclusion number of Utxos", Required: false},
 				},
 				Action: func(context *cli.Context) error {
-					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.Inclusion && circuit != prover.NonInclusion && circuit != prover.Combined {
+					circuit := context.String("circuit")
+					if circuit != "inclusion" && circuit != "non-inclusion" && circuit != "combined" {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -53,15 +53,15 @@ func runCli() {
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
 					nonInclusionNumberOfUtxos := uint32(context.Uint("non-inclusion-utxos"))
 
-					if (inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0) && circuit == prover.Inclusion {
+					if (inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0) && circuit == "inclusion" {
 						return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
 					}
 
-					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0) && circuit == prover.NonInclusion {
+					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0) && circuit == "non-inclusion" {
 						return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
 					}
 
-					if circuit == prover.Combined {
+					if circuit == "combined" {
 						if inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0 {
 							return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
 						}
@@ -289,9 +289,9 @@ func runCli() {
 					&cli.BoolFlag{Name: "json-logging", Usage: "enable JSON logging", Required: false},
 					&cli.StringFlag{Name: "prover-address", Usage: "address for the prover server", Value: "localhost:3001", Required: false},
 					&cli.StringFlag{Name: "metrics-address", Usage: "address for the metrics server", Value: "localhost:9998", Required: false},
-					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: false, Value: false},
+					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: false},
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
-					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
+					&cli.StringFlag{Name: "circuit-dir", Usage: "Directory where circuit key files are stored", Value: "./circuits/", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
@@ -326,7 +326,7 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: true},
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
-					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where circuit key files are stored", Value: "./proving-keys/", Required: false},
+					&cli.StringFlag{Name: "circuit-dir", Usage: "Directory where circuit key files are stored", Value: "./circuits/", Required: false},
 					&cli.StringSliceFlag{Name: "keys-file", Aliases: []string{"k"}, Value: cli.NewStringSlice(), Usage: "Proving system file"},
 				},
 				Action: func(context *cli.Context) error {
@@ -345,7 +345,6 @@ func runCli() {
 						return err
 					}
 					var proof *prover.Proof
-
 					if context.Bool("inclusion") {
 						var params prover.InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
@@ -520,7 +519,7 @@ func runCli() {
 }
 
 func LoadKeys(context *cli.Context) ([]*prover.ProvingSystem, error) {
-	keys, _ := getKeysByArgs(context)
+	keys := getKeysByArgs(context)
 	var pss = make([]*prover.ProvingSystem, len(keys))
 	for i, key := range keys {
 		logging.Logger().Info().Msg("Reading proving system from file " + key + "...")
@@ -539,28 +538,11 @@ func LoadKeys(context *cli.Context) ([]*prover.ProvingSystem, error) {
 	return pss, nil
 }
 
-func getKeysByArgs(context *cli.Context) ([]string, error) {
-	var keysDir = context.String("keys-dir")
+func getKeysByArgs(context *cli.Context) []string {
+	var circuitDir = context.String("circuit-dir")
 	var inclusion = context.Bool("inclusion")
 	var nonInclusion = context.Bool("non-inclusion")
-	var circuitTypes []prover.CircuitType = make([]prover.CircuitType, 0)
-	if inclusion {
-		circuitTypes = append(circuitTypes, prover.Inclusion)
-	}
-
-	if nonInclusion {
-		circuitTypes = append(circuitTypes, prover.NonInclusion)
-	}
-
-	if inclusion && nonInclusion {
-		circuitTypes = append(circuitTypes, prover.Combined)
-	}
-
-	if !inclusion && !nonInclusion {
-		return nil, fmt.Errorf("no circuit type provided")
-	}
-
-	return prover.GetKeys(keysDir, circuitTypes), nil
+	return prover.GetKeys(circuitDir, inclusion, nonInclusion)
 }
 
 func createFileAndWriteBytes(filePath string, data []byte) error {

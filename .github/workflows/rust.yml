@@ -29,34 +29,32 @@ concurrency:
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Run install script
+      - name: Cache .local directory
+        uses: actions/cache@v3
+        with:
+          path: .local
+          key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+
+      - name: Install dependencies
         shell: bash
-        run: ./scripts/install.sh
+        run: |
+          ./scripts/install.sh
+          source ./scripts/devenv.sh
 
-      - name: Build workspace
+      - name: Build
+        run: |
+          cd gnark-prover
+          go build
+
+      - name: Build and test
         run: |
           source ./scripts/devenv.sh
-          echo "Rust version: $(rustc --version)"
           cargo build --workspace --all-targets
-
-      - name: Build @lightprotocol/programs
-        run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/programs
-
-      - name: Build CLI
-        run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/cli
-
-      - name: Test workspace
-        run:  |
-          source ./scripts/devenv.sh
           RUST_MIN_STACK=8388608 cargo test --workspace --all-targets

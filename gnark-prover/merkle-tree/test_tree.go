@@ -2,10 +2,12 @@ package merkle_tree
 
 import (
 	"fmt"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"light/light-prover/prover"
 	"math/big"
 	"math/rand"
+	"time"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type PoseidonNode interface {
@@ -139,27 +141,38 @@ func NewTree(depth int) PoseidonTree {
 
 func BuildTestTree(depth int, numberOfUtxos int, random bool) prover.InclusionParameters {
 	tree := NewTree(depth)
+
+	rand.Seed(time.Now().UnixNano())
 	var leaf *big.Int
-	var pathIndex int
+	var inPathIndices int
 	if random {
 		leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(rand.Int63())})
-		pathIndex = rand.Intn(depth)
+		inPathIndices = rand.Intn(depth)
 	} else {
 		leaf, _ = poseidon.Hash([]*big.Int{big.NewInt(1)})
-		pathIndex = 0
+		inPathIndices = 0
 	}
 
-	var inputs = make([]prover.InclusionInputs, numberOfUtxos)
+	inPathElements := tree.Update(inPathIndices, *leaf)
+	root := tree.Root()
+
+	roots := make([]big.Int, numberOfUtxos)
+	inPathIndicesBatch := make([]uint32, numberOfUtxos)
+	inPathElementsBatch := make([][]big.Int, numberOfUtxos)
+	leaves := make([]big.Int, numberOfUtxos)
 
 	for i := 0; i < numberOfUtxos; i++ {
-		inputs[i].Leaf = *leaf
-		inputs[i].PathIndex = uint32(pathIndex)
-		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
-		inputs[i].Root = tree.Root()
+		roots[i] = root
+		inPathIndicesBatch[i] = uint32(inPathIndices)
+		inPathElementsBatch[i] = inPathElements
+		leaves[i] = *leaf
 	}
 
 	return prover.InclusionParameters{
-		Inputs: inputs,
+		Roots:          roots,
+		InPathIndices:  inPathIndicesBatch,
+		InPathElements: inPathElementsBatch,
+		Leaves:         leaves,
 	}
 }
 
@@ -174,56 +187,73 @@ func BuildValidTestNonInclusionTree(depth int, numberOfUtxos int, random bool) p
 func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid bool, lowValue bool) prover.NonInclusionParameters {
 	tree := NewTree(depth)
 
-	var inputs = make([]prover.NonInclusionInputs, numberOfUtxos)
+	rand.Seed(time.Now().UnixNano())
+	var value *big.Int = big.NewInt(0)
+	var inPathIndices int
+	var leafLower *big.Int
+	var leafUpper *big.Int = big.NewInt(2)
+	var leafIndex int
+	if random {
+		leafLower = big.NewInt(int64(rangeIn(0, 1000)))
+		leafUpper.Add(leafUpper, leafLower)
+		numberOfLeaves := 1 << depth
+		leafIndex = rand.Intn(numberOfLeaves)
+		if valid {
+			value.Add(leafLower, big.NewInt(1))
+		} else {
+			if lowValue {
+				value.Add(leafLower, big.NewInt(-1))
+			} else {
+				value.Add(leafUpper, big.NewInt(1))
+			}
+		}
+		inPathIndices = rand.Intn(depth)
+	} else {
+		leafLower = big.NewInt(1)
+		leafUpper = big.NewInt(123)
+		leafIndex = 1
+		if valid {
+			value = big.NewInt(2)
+		} else {
+			value = big.NewInt(4)
+		}
+		inPathIndices = 0
+	}
+
+	leafLowerRangeValue := make([]big.Int, numberOfUtxos)
+	leafHigherRangeValue := make([]big.Int, numberOfUtxos)
+	leafIndices := make([]uint32, numberOfUtxos)
+
+	leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(leafIndex)), leafUpper})
+	if err != nil {
+		fmt.Println("error: ", err)
+	}
+
+	inPathElements := tree.Update(inPathIndices, *leaf)
+	root := tree.Root()
+
+	roots := make([]big.Int, numberOfUtxos)
+	inPathIndicesBatch := make([]uint32, numberOfUtxos)
+	inPathElementsBatch := make([][]big.Int, numberOfUtxos)
+	values := make([]big.Int, numberOfUtxos)
 
 	for i := 0; i < numberOfUtxos; i++ {
-		var value = big.NewInt(0)
-		var leafLower = big.NewInt(0)
-		var leafUpper = big.NewInt(2)
-		var pathIndex int
-		var leafIndex int
-		if random {
-			leafLower = big.NewInt(int64(rangeIn(0, 1000)))
-			leafUpper.Add(leafUpper, leafLower)
-			numberOfLeaves := 1 << depth
-			leafIndex = rand.Intn(numberOfLeaves)
-			if valid {
-				value.Add(leafLower, big.NewInt(1))
-			} else {
-				if lowValue {
-					value.Add(leafLower, big.NewInt(-1))
-				} else {
-					value.Add(leafUpper, big.NewInt(1))
-				}
-			}
-			pathIndex = rand.Intn(depth)
-		} else {
-			leafLower = big.NewInt(1)
-			leafUpper = big.NewInt(123)
-			leafIndex = 1
-			if valid {
-				value = big.NewInt(2)
-			} else {
-				value = big.NewInt(4)
-			}
-			pathIndex = 0
-		}
-
-		leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(leafIndex)), leafUpper})
-		if err != nil {
-			fmt.Println("error: ", err)
-		}
-
-		inputs[i].Value = *value
-		inputs[i].PathIndex = uint32(pathIndex)
-		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
-		inputs[i].Root = tree.Root()
-		inputs[i].LeafLowerRangeValue = *leafLower
-		inputs[i].LeafHigherRangeValue = *leafUpper
-		inputs[i].LeafIndex = uint32(leafIndex)
+		roots[i] = root
+		inPathIndicesBatch[i] = uint32(inPathIndices)
+		inPathElementsBatch[i] = inPathElements
+		values[i] = *value
+		leafLowerRangeValue[i] = *leafLower
+		leafHigherRangeValue[i] = *leafUpper
+		leafIndices[i] = uint32(leafIndex)
 	}
 
 	return prover.NonInclusionParameters{
-		Inputs: inputs,
+		Roots:                 roots,
+		Values:                values,
+		InPathIndices:         inPathIndicesBatch,
+		InPathElements:        inPathElementsBatch,
+		LeafIndices:           leafIndices,
+		LeafLowerRangeValues:  leafLowerRangeValue,
+		LeafHigherRangeValues: leafHigherRangeValue,
 	}
 }

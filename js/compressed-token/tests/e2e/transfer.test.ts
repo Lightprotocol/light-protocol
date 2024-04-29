@@ -25,7 +25,8 @@ async function assertTransfer(
     expectedAccountCountSenderPost?: number,
     expectedAccountCountRecipientPost?: number,
 ) {
-    /// Transfer can merge input compressed accounts therefore we need to pass all as ref
+    /// Transfer can merge input compressedaccounts therefore we need to pass
+    /// them all as ref
     const senderPostCompressedTokenAccounts =
         await rpc.getCompressedTokenAccountsByOwner(refSender, {
             mint: refMint,

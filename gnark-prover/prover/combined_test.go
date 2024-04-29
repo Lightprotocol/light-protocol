@@ -39,64 +39,86 @@ func TestCombined(t *testing.T) {
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
-		assert.NotEqual(len(params.InclusionParameters.Inputs), 0)
-		assert.NotEqual(len(params.NonInclusionParameters.Inputs), 0)
-
-		var inclusionNumberOfUtxos = params.InclusionParameters.NumberOfUTXOs()
-		var inclusionTreeDepth = params.InclusionParameters.TreeDepth()
+		var inclusionNumberOfUtxos = len(params.InclusionParameters.Roots)
+		var inclusionTreeDepth = len(params.InclusionParameters.InPathElements[0])
 
 		inclusionRoots := make([]frontend.Variable, inclusionNumberOfUtxos)
+		for i, v := range params.InclusionParameters.Roots {
+			inclusionRoots[i] = v
+		}
+
 		inclusionLeaves := make([]frontend.Variable, inclusionNumberOfUtxos)
+		for i, v := range params.InclusionParameters.Leaves {
+			inclusionLeaves[i] = v
+		}
+
 		inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfUtxos)
+		for i, v := range params.InclusionParameters.InPathIndices {
+			inclusionInPathIndices[i] = v
+		}
+
 		inclusionInPathElements := make([][]frontend.Variable, inclusionNumberOfUtxos)
-		for i := 0; i < int(inclusionNumberOfUtxos); i++ {
+		for i := 0; i < inclusionNumberOfUtxos; i++ {
 			inclusionInPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
 		}
 
-		for i, v := range params.InclusionParameters.Inputs {
-			inclusionRoots[i] = v.Root
-			inclusionLeaves[i] = v.Leaf
-			inclusionInPathIndices[i] = v.PathIndex
-			for j, v2 := range v.PathElements {
+		for i, v := range params.InclusionParameters.InPathElements {
+			for j, v2 := range v {
 				inclusionInPathElements[i][j] = v2
 			}
 		}
 
-		var nonInclusionNumberOfUtxos = params.NonInclusionParameters.NumberOfUTXOs()
-		var nonInclusionTreeDepth = params.NonInclusionParameters.TreeDepth()
+		var nonInclusionNumberOfUtxos = len(params.NonInclusionParameters.Roots)
+		var nonInclusionTreeDepth = len(params.NonInclusionParameters.InPathElements[0])
 
 		nonInclusionRoots := make([]frontend.Variable, nonInclusionNumberOfUtxos)
+		for i, v := range params.NonInclusionParameters.Roots {
+			nonInclusionRoots[i] = v
+		}
+
 		nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfUtxos)
+		for i, v := range params.NonInclusionParameters.Values {
+			nonInclusionValues[i] = v
+		}
+
 		nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfUtxos)
+		for i, v := range params.NonInclusionParameters.LeafLowerRangeValues {
+			nonInclusionLeafLowerRangeValues[i] = v
+		}
+
 		nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfUtxos)
+		for i, v := range params.NonInclusionParameters.LeafHigherRangeValues {
+			nonInclusionLeafHigherRangeValues[i] = v
+		}
+
 		nonInclusionLeafIndices := make([]frontend.Variable, nonInclusionNumberOfUtxos)
+		for i, v := range params.NonInclusionParameters.LeafIndices {
+			nonInclusionLeafIndices[i] = v
+		}
+
 		nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfUtxos)
+		for i, v := range params.NonInclusionParameters.InPathIndices {
+			nonInclusionInPathIndices[i] = v
+		}
+
 		nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfUtxos)
-		for i := 0; i < int(nonInclusionNumberOfUtxos); i++ {
+		for i := 0; i < nonInclusionNumberOfUtxos; i++ {
 			nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
 		}
 
-		for i, v := range params.NonInclusionParameters.Inputs {
-			nonInclusionRoots[i] = v.Root
-			nonInclusionValues[i] = v.Value
-			nonInclusionLeafLowerRangeValues[i] = v.LeafLowerRangeValue
-			nonInclusionLeafHigherRangeValues[i] = v.LeafHigherRangeValue
-			nonInclusionLeafIndices[i] = v.LeafIndex
-			nonInclusionInPathIndices[i] = v.PathIndex
-			for j, v2 := range v.PathElements {
+		for i, v := range params.NonInclusionParameters.InPathElements {
+			for j, v2 := range v {
 				nonInclusionInPathElements[i][j] = v2
 			}
 		}
 
 		var circuit CombinedCircuit
-		circuit.Inclusion = InclusionCircuit{}
-		circuit.NonInclusion = NonInclusionCircuit{}
 
 		circuit.Inclusion.Roots = make([]frontend.Variable, inclusionNumberOfUtxos)
 		circuit.Inclusion.Leaves = make([]frontend.Variable, inclusionNumberOfUtxos)
 		circuit.Inclusion.InPathIndices = make([]frontend.Variable, inclusionNumberOfUtxos)
 		circuit.Inclusion.InPathElements = make([][]frontend.Variable, inclusionNumberOfUtxos)
-		for i := 0; i < int(inclusionNumberOfUtxos); i++ {
+		for i := 0; i < inclusionNumberOfUtxos; i++ {
 			circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
 		}
 
@@ -110,7 +132,7 @@ func TestCombined(t *testing.T) {
 		circuit.NonInclusion.LeafIndices = make([]frontend.Variable, nonInclusionNumberOfUtxos)
 		circuit.NonInclusion.InPathIndices = make([]frontend.Variable, nonInclusionNumberOfUtxos)
 		circuit.NonInclusion.InPathElements = make([][]frontend.Variable, nonInclusionNumberOfUtxos)
-		for i := 0; i < int(nonInclusionNumberOfUtxos); i++ {
+		for i := 0; i < nonInclusionNumberOfUtxos; i++ {
 			circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
 		}
 

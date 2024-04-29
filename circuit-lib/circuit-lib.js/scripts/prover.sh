@@ -50,8 +50,8 @@ for option in "${options[@]}"; do
   esac
 done
 
-circuit_dir="$root_dir/gnark-prover/proving-keys/"
-cmd="$root_dir/gnark-prover/light-prover start --key-dir=$circuit_dir"
+circuit_dir="$root_dir/gnark-prover/circuits/"
+cmd="$root_dir/gnark-prover/light-prover start --circuit-dir=$circuit_dir"
 if [ "$inclusion" = true ]; then cmd="$cmd --inclusion=true"; fi
 if [ "$non_inclusion" = true ]; then cmd="$cmd --non-inclusion=true"; fi
 if [ "$combined" = true ]; then cmd="$cmd --combined=true"; fi

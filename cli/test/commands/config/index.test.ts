@@ -1,7 +1,7 @@
 import { expect, test } from "@oclif/test";
-import * as fs from "fs";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
-import { DEFAULT_CONFIG } from "../../../src/utils/constants";
+import { DEFAULT_CONFIG } from "../../../src/psp-utils";
+import * as fs from "fs";
 
 describe("config", () => {
   before(async () => {

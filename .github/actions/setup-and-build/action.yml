@@ -1,11 +1,19 @@
 name: Setup and build
 description: Checkout sources, install dependencies, build and prepare for tests
 
+inputs:
+  enable-redis:
+    description: "Enable Redis"
+    required: false
+    default: false
+
 runs:
   using: "composite"
   steps:
     - name: Checkout sources
       uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: Cache Rust dependencies
       uses: actions/cache@v3
@@ -24,7 +32,11 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        ./scripts/install.sh
+        if [[ "${{ inputs.enable_redis }}" == "true" ]]; then
+          ./scripts/install.sh --enable-redis
+        else
+          ./scripts/install.sh
+        fi
         source ./scripts/devenv.sh
 
     - name: Setup pnpm
@@ -58,7 +70,6 @@ runs:
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
         npx nx build @lightprotocol/hasher.rs
         npx nx build @lightprotocol/programs
-        npx nx build @lightprotocol/cli
 
     - name: Check for git changes
       shell: bash

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ROOT_DIR="$(git rev-parse --show-toplevel)";
-KEYS_DIR="${ROOT_DIR}/gnark-prover/proving-keys"
+KEYS_DIR="${ROOT_DIR}/gnark-prover/circuits"
 
 # if KEY_DIR does not exist, create it
 if [ ! -d "$KEYS_DIR" ]; then

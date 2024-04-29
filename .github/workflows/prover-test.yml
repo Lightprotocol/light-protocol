@@ -47,9 +47,9 @@ jobs:
       - name: Unit tests
         run: |
           cd gnark-prover
-          go test ./prover -timeout 30m
+          go test ./prover
 
       - name: Integration tests
         run: |
           cd gnark-prover
-          go test -timeout 30m
+          go test

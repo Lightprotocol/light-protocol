@@ -13,35 +13,32 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 )
 
-type NonInclusionInputs struct {
-	Root         big.Int
-	Value        big.Int
-	PathIndex    uint32
-	PathElements []big.Int
-
-	LeafLowerRangeValue  big.Int
-	LeafHigherRangeValue big.Int
-	LeafIndex            uint32
-}
-
 type NonInclusionParameters struct {
-	Inputs []NonInclusionInputs
+	Roots  []big.Int
+	Values []big.Int
+
+	LeafLowerRangeValues  []big.Int
+	LeafHigherRangeValues []big.Int
+	LeafIndices           []uint32
+
+	InPathIndices  []uint32
+	InPathElements [][]big.Int
 }
 
 func (p *NonInclusionParameters) NumberOfUTXOs() uint32 {
-	return uint32(len(p.Inputs))
+	return uint32(len(p.Roots))
 }
 
 func (p *NonInclusionParameters) TreeDepth() uint32 {
-	if len(p.Inputs) == 0 {
+	if len(p.InPathElements) == 0 {
 		return 0
 	}
-	return uint32(len(p.Inputs[0].PathElements))
+	return uint32(len(p.InPathElements[0]))
 }
 
 func (p *NonInclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint32) error {
 	if p.NumberOfUTXOs() != numOfUTXOs {
-		return fmt.Errorf("wrong number of utxos, p.NumberOfUTXOs: %d, numOfUTXOs = %d", p.NumberOfUTXOs(), numOfUTXOs)
+		return fmt.Errorf("wrong number of utxos: %d", len(p.Roots))
 	}
 	if p.TreeDepth() != treeDepth {
 		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfUTXOs(), p.TreeDepth())
@@ -65,8 +62,8 @@ func R1CSNonInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.Constr
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                 treeDepth,
-		NumberOfUtxos:         numberOfUtxos,
+		Depth:                 int(treeDepth),
+		NumberOfUtxos:         int(numberOfUtxos),
 		Roots:                 roots,
 		Values:                values,
 		LeafLowerRangeValues:  leafLowerRangeValues,
@@ -106,15 +103,15 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
 
 	for i := 0; i < int(ps.NonInclusionNumberOfUtxos); i++ {
-		roots[i] = params.Inputs[i].Root
-		values[i] = params.Inputs[i].Value
-		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
-		leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
-		leafIndices[i] = params.Inputs[i].LeafIndex
-		inPathIndices[i] = params.Inputs[i].PathIndex
+		roots[i] = params.Roots[i]
+		values[i] = params.Values[i]
+		leafLowerRangeValues[i] = params.LeafLowerRangeValues[i]
+		leafHigherRangeValues[i] = params.LeafHigherRangeValues[i]
+		leafIndices[i] = params.LeafIndices[i]
+		inPathIndices[i] = params.InPathIndices[i]
 		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
 		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
-			inPathElements[i][j] = params.Inputs[i].PathElements[j]
+			inPathElements[i][j] = params.InPathElements[i][j]
 		}
 	}
 

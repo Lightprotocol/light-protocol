@@ -1,19 +1,20 @@
-use crate::helpers::bigint_to_u8_32;
 use num_bigint::BigInt;
+
+use crate::helpers::bigint_to_u8_32;
 
 #[derive(Clone, Debug)]
 pub struct InclusionMerkleProofInputs {
-    pub root: BigInt,
-    pub leaf: BigInt,
-    pub path_index: BigInt,
-    pub path_elements: Vec<BigInt>,
+    pub roots: BigInt,
+    pub leaves: BigInt,
+    pub in_path_indices: BigInt,
+    pub in_path_elements: Vec<BigInt>,
 }
 
 impl InclusionMerkleProofInputs {
     pub fn public_inputs_arr(&self) -> [[u8; 32]; 2] {
-        let root = bigint_to_u8_32(&self.root).unwrap();
-        let leaf = bigint_to_u8_32(&self.leaf).unwrap();
-        [root, leaf]
+        let roots = bigint_to_u8_32(&self.roots).unwrap();
+        let leaves = bigint_to_u8_32(&self.leaves).unwrap();
+        [roots, leaves]
     }
 }
 

@@ -75,8 +75,8 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfUtxos
 			Leaves:         inclusionLeaves,
 			InPathIndices:  inclusionInPathIndices,
 			InPathElements: inclusionInPathElements,
-			NumberOfUtxos:  inclusionNumberOfUtxos,
-			Depth:          inclusionTreeDepth,
+			NumberOfUtxos:  int(inclusionNumberOfUtxos),
+			Depth:          int(inclusionTreeDepth),
 		},
 		NonInclusion: NonInclusionCircuit{
 			Roots:                 nonInclusionRoots,
@@ -86,8 +86,8 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfUtxos
 			LeafIndices:           nonInclusionLeafIndices,
 			InPathIndices:         nonInclusionInPathIndices,
 			InPathElements:        nonInclusionInPathElements,
-			NumberOfUtxos:         nonInclusionNumberOfUtxos,
-			Depth:                 nonInclusionTreeDepth,
+			NumberOfUtxos:         int(nonInclusionNumberOfUtxos),
+			Depth:                 int(nonInclusionTreeDepth),
 		},
 	}
 	return circuit
@@ -113,25 +113,25 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 	circuit := InitializeCombinedCircuit(ps.InclusionTreeDepth, ps.InclusionNumberOfUtxos, ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfUtxos)
 
 	for i := 0; i < int(ps.InclusionNumberOfUtxos); i++ {
-		circuit.Inclusion.Roots[i] = params.InclusionParameters.Inputs[i].Root
-		circuit.Inclusion.Leaves[i] = params.InclusionParameters.Inputs[i].Leaf
-		circuit.Inclusion.InPathIndices[i] = params.InclusionParameters.Inputs[i].PathIndex
+		circuit.Inclusion.Roots[i] = params.InclusionParameters.Roots[i]
+		circuit.Inclusion.Leaves[i] = params.InclusionParameters.Leaves[i]
+		circuit.Inclusion.InPathIndices[i] = params.InclusionParameters.InPathIndices[i]
 		circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, ps.InclusionTreeDepth)
 		for j := 0; j < int(ps.InclusionTreeDepth); j++ {
-			circuit.Inclusion.InPathElements[i][j] = params.InclusionParameters.Inputs[i].PathElements[j]
+			circuit.Inclusion.InPathElements[i][j] = params.InclusionParameters.InPathElements[i][j]
 		}
 	}
 
 	for i := 0; i < int(ps.NonInclusionNumberOfUtxos); i++ {
-		circuit.NonInclusion.Roots[i] = params.NonInclusionParameters.Inputs[i].Root
-		circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
-		circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue
-		circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue
-		circuit.NonInclusion.LeafIndices[i] = params.NonInclusionParameters.Inputs[i].LeafIndex
-		circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.Inputs[i].PathIndex
+		circuit.NonInclusion.Roots[i] = params.NonInclusionParameters.Roots[i]
+		circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Values[i]
+		circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.LeafLowerRangeValues[i]
+		circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.LeafHigherRangeValues[i]
+		circuit.NonInclusion.LeafIndices[i] = params.NonInclusionParameters.LeafIndices[i]
+		circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.InPathIndices[i]
 		circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
 		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
-			circuit.NonInclusion.InPathElements[i][j] = params.NonInclusionParameters.Inputs[i].PathElements[j]
+			circuit.NonInclusion.InPathElements[i][j] = params.NonInclusionParameters.InPathElements[i][j]
 		}
 	}
 

@@ -13,31 +13,27 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 )
 
-type InclusionInputs struct {
-	Root         big.Int
-	PathIndex    uint32
-	PathElements []big.Int
-	Leaf         big.Int
-}
-
 type InclusionParameters struct {
-	Inputs []InclusionInputs
+	Roots          []big.Int
+	InPathIndices  []uint32
+	InPathElements [][]big.Int
+	Leaves         []big.Int
 }
 
 func (p *InclusionParameters) NumberOfUTXOs() uint32 {
-	return uint32(len(p.Inputs))
+	return uint32(len(p.Roots))
 }
 
 func (p *InclusionParameters) TreeDepth() uint32 {
-	if len(p.Inputs) == 0 {
+	if len(p.InPathElements) == 0 {
 		return 0
 	}
-	return uint32(len(p.Inputs[0].PathElements))
+	return uint32(len(p.InPathElements[0]))
 }
 
 func (p *InclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint32) error {
 	if p.NumberOfUTXOs() != numOfUTXOs {
-		return fmt.Errorf("wrong number of utxos: %d", p.NumberOfUTXOs())
+		return fmt.Errorf("wrong number of utxos: %d", len(p.Roots))
 	}
 	if p.TreeDepth() != treeDepth {
 		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfUTXOs(), p.TreeDepth())
@@ -56,8 +52,8 @@ func R1CSInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.Constrain
 	}
 
 	circuit := InclusionCircuit{
-		Depth:          treeDepth,
-		NumberOfUtxos:  numberOfUtxos,
+		Depth:          int(treeDepth),
+		NumberOfUtxos:  int(numberOfUtxos),
 		Roots:          roots,
 		Leaves:         leaves,
 		InPathIndices:  inPathIndices,
@@ -89,12 +85,12 @@ func (ps *ProvingSystem) ProveInclusion(params *InclusionParameters) (*Proof, er
 	inPathElements := make([][]frontend.Variable, ps.InclusionNumberOfUtxos)
 
 	for i := 0; i < int(ps.InclusionNumberOfUtxos); i++ {
-		roots[i] = params.Inputs[i].Root
-		leaves[i] = params.Inputs[i].Leaf
-		inPathIndices[i] = params.Inputs[i].PathIndex
+		roots[i] = params.Roots[i]
+		leaves[i] = params.Leaves[i]
+		inPathIndices[i] = params.InPathIndices[i]
 		inPathElements[i] = make([]frontend.Variable, ps.InclusionTreeDepth)
 		for j := 0; j < int(ps.InclusionTreeDepth); j++ {
-			inPathElements[i][j] = params.Inputs[i].PathElements[j]
+			inPathElements[i][j] = params.InPathElements[i][j]
 		}
 	}
 

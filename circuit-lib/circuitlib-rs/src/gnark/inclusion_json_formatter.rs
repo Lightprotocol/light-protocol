@@ -1,47 +1,42 @@
-use crate::gnark::helpers::{big_int_to_string, create_json_from_struct};
+use serde::Serialize;
+
 use crate::{
+    gnark::helpers::{
+        create_json_from_struct, create_vec_of_string, create_vec_of_u32,
+        create_vec_of_vec_of_string,
+    },
     inclusion::{
         merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
         merkle_tree_info::MerkleTreeInfo,
     },
     init_merkle_tree::inclusion_merkle_tree_inputs,
 };
-use num_traits::ToPrimitive;
-use serde::Serialize;
-
-#[derive(Serialize, Debug)]
-pub struct BatchInclusionJsonStruct {
-    #[serde(rename(serialize = "input-compressed-accounts"))]
-    pub inputs: Vec<InclusionJsonStruct>,
-}
-
 #[allow(non_snake_case)]
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Debug)]
 pub struct InclusionJsonStruct {
-    root: String,
-    leaf: String,
-    pathIndex: u32,
-    pathElements: Vec<String>,
+    roots: Vec<String>,
+    leaves: Vec<String>,
+    inPathIndices: Vec<u32>,
+    inPathElements: Vec<Vec<String>>,
 }
 
-impl BatchInclusionJsonStruct {
+impl InclusionJsonStruct {
     fn new_with_public_inputs(number_of_utxos: usize) -> (Self, InclusionMerkleProofInputs) {
         let merkle_inputs = inclusion_merkle_tree_inputs(MerkleTreeInfo::H26);
-
-        let input = InclusionJsonStruct {
-            root: big_int_to_string(&merkle_inputs.root),
-            leaf: big_int_to_string(&merkle_inputs.leaf),
-            pathElements: merkle_inputs
-                .path_elements
-                .iter()
-                .map(big_int_to_string)
-                .collect(),
-            pathIndex: merkle_inputs.path_index.to_u32().unwrap(),
-        };
-
-        let inputs = vec![input; number_of_utxos];
-
-        (Self { inputs }, merkle_inputs)
+        let roots = create_vec_of_string(number_of_utxos, &merkle_inputs.roots);
+        let leaves = create_vec_of_string(number_of_utxos, &merkle_inputs.leaves);
+        let in_path_indices = create_vec_of_u32(number_of_utxos, &merkle_inputs.in_path_indices);
+        let in_path_elements =
+            create_vec_of_vec_of_string(number_of_utxos, &merkle_inputs.in_path_elements);
+        (
+            Self {
+                roots,
+                leaves,
+                inPathIndices: in_path_indices,
+                inPathElements: in_path_elements,
+            },
+            merkle_inputs,
+        )
     }
 
     #[allow(clippy::inherent_to_string)]
@@ -50,25 +45,33 @@ impl BatchInclusionJsonStruct {
     }
 
     pub fn from_inclusion_proof_inputs(inputs: &InclusionProofInputs) -> Self {
-        let mut proof_inputs: Vec<InclusionJsonStruct> = Vec::new();
+        let mut roots = Vec::new();
+        let mut leaves = Vec::new();
+        let mut in_path_indices = Vec::new();
+        let mut in_path_elements = Vec::new();
         for input in inputs.0 {
-            let prof_input = InclusionJsonStruct {
-                root: big_int_to_string(&input.root),
-                leaf: big_int_to_string(&input.leaf),
-                pathIndex: input.path_index.to_u32().unwrap(),
-                pathElements: input.path_elements.iter().map(big_int_to_string).collect(),
-            };
-            proof_inputs.push(prof_input);
+            roots.push(format!("0x{}", input.roots.to_str_radix(16)));
+            leaves.push(format!("0x{}", input.leaves.to_str_radix(16)));
+            in_path_indices.push(input.in_path_indices.clone().try_into().unwrap());
+            in_path_elements.push(
+                input
+                    .in_path_elements
+                    .iter()
+                    .map(|x| format!("0x{}", x.to_str_radix(16)))
+                    .collect(),
+            );
         }
 
         Self {
-            inputs: proof_inputs,
+            roots,
+            leaves,
+            inPathIndices: in_path_indices,
+            inPathElements: in_path_elements,
         }
     }
 }
 
 pub fn inclusion_inputs_string(number_of_utxos: usize) -> (String, InclusionMerkleProofInputs) {
-    let (json_struct, public_inputs) =
-        BatchInclusionJsonStruct::new_with_public_inputs(number_of_utxos);
+    let (json_struct, public_inputs) = InclusionJsonStruct::new_with_public_inputs(number_of_utxos);
     (json_struct.to_string(), public_inputs)
 }

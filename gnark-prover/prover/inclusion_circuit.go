@@ -16,12 +16,13 @@ type InclusionCircuit struct {
 	InPathIndices  []frontend.Variable   `gnark:"input"`
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
-	NumberOfUtxos uint32
-	Depth         uint32
+	NumberOfUtxos int
+	Depth         int
 }
 
 func (circuit *InclusionCircuit) Define(api frontend.API) error {
-	abstractor.CallVoid(api, InclusionProof{
+	// Actual merkle proof verification.
+	abstractor.Call1(api, InclusionProof{
 		Roots:          circuit.Roots,
 		Leaves:         circuit.Leaves,
 		InPathElements: circuit.InPathElements,
@@ -40,8 +41,8 @@ func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string,
 	inPathElements := make([][]frontend.Variable, numberOfUtxos)
 
 	circuit := InclusionCircuit{
-		Depth:          treeDepth,
-		NumberOfUtxos:  numberOfUtxos,
+		Depth:          int(treeDepth),
+		NumberOfUtxos:  int(numberOfUtxos),
 		Roots:          roots,
 		Leaves:         leaves,
 		InPathIndices:  inPathIndices,

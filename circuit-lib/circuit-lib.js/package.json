@@ -5,8 +5,8 @@
   "license": "GPL-3.0",
   "scripts": {
     "test": "pnpm test-gnark",
-    "test-validator": "./../../cli/test_bin/run test-validator --prove-compressed-accounts",
-    "test-gnark": "pnpm test-validator && ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/gnark.test.ts --exit",
+    "test-gnark": "pnpm gnark-prover && ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/gnark.test.ts --exit",
+    "gnark-prover": "./scripts/prover.sh \"inclusion\"",
     "format": "prettier --write \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\"",
     "lint": "pnpm prettier \"tests/**/*.{ts,js}\" \"src/**/*.{ts,js}\" --check",
     "build": "rimraf lib && pnpm tsc"
