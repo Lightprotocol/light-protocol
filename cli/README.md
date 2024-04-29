@@ -63,11 +63,12 @@ light test-validator
 This starts a Solana test-validator with the Light system programs and accounts, a prover server, and the Photon indexer as background processes against a clean ledger.
 
 ```bash
-# Pass the -i flag to start without the indexer
-light test-validator -i
+# Pass --skip-indexer to start without the indexer
+light test-validator --skip-indexer
 
-# Pass the -p flag to start without the prover
-light test-validator -p
+# Pass --skip-prover to start without the prover
+light test-validator --skip-prover
+
 ```
 
 > **Note:** The CLI currently runs the photon indexer and gnark-prover as background processes at port: `8784` and `3001` respectively.

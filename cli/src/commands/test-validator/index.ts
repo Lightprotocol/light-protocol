@@ -34,7 +34,7 @@ class SetupCommand extends Command {
       exclusive: ["skip-prover"],
     }),
     "relax-indexer-version-constraint": Flags.boolean({
-      description: "Enable relaxing of indexer version check",
+      description: "Disables indexer version check. Only use if you know what you are doing.",
       default: false,
       exclusive: ["skip-indexer"],
     }),
