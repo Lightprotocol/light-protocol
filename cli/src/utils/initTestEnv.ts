@@ -1,4 +1,4 @@
-import { airdropSol, sleep } from "@lightprotocol/stateless.js";
+import { airdropSol } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
 import {
   downloadBinIfNotExists,
@@ -11,6 +11,7 @@ import fs from "fs";
 import util from "util";
 import which from "which";
 import { spawn, exec } from "child_process";
+import axios from "axios";
 const find = require("find-process");
 const waitOn = require("wait-on");
 const execAsync = util.promisify(exec);
@@ -32,29 +33,49 @@ async function isExpectedPhotonVersion(
   }
 }
 
-async function waitForServers({ port, path }: { port: number; path: string }) {
+// Solana test validator can be unreliable when starting up.
+async function confirmServerStability(url: string, attempts: number = 20) {
+  try {
+    for (let i = 0; i < attempts; i++) {
+      const response = await axios.get(url);
+      if (response.status !== 200) {
+        throw new Error("Server failed stability check");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    console.log("Server has passed stability checks.");
+  } catch (error) {
+    console.error("Server stability check failed:", error);
+    throw error;
+  }
+}
+
+async function waitForServers(servers: { port: number; path: string }[]) {
   const opts = {
-    resources: [`http-get://127.0.0.1:${port}${path}`],
-    delay: 3000, // Initial delay in ms before checking
-    timeout: 15000, // Timeout in ms, after which it will throw an error
-    interval: 300, // Polling interval in ms
-    simultaneous: 1, // Check one resource at a time
+    resources: servers.map(
+      ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
+    ),
+    delay: 1000,
+    timeout: 15000,
+    interval: 300,
+    simultaneous: 2,
     validateStatus: function (status: number) {
       return (
         (status >= 200 && status < 300) || status === 404 || status === 405
-      ); // Accepts HTTP 2xx, 404, and 405 as success
+      );
     },
   };
 
   try {
     await waitOn(opts);
-    console.log("All servers are up and running!");
+    servers.forEach((server) => {
+      console.log(`${server.port} is up!`);
+    });
   } catch (err) {
-    console.error("Error waiting for servers to start:", err);
-    throw err; // Rethrow or handle as needed
+    console.error("Error waiting for server to start:", err);
+    throw err;
   }
 }
-
 export async function initTestEnv({
   additionalPrograms,
   skipSystemAccounts,
@@ -85,7 +106,8 @@ export async function initTestEnv({
   };
   startTestValidator({ additionalPrograms, skipSystemAccounts });
 
-  await waitForServers({ port: 8899, path: "/health" });
+  await waitForServers([{ port: 8899, path: "/health" }]);
+  await confirmServerStability("http://127.0.0.1:8899/health");
 
   await initAccounts();
 
@@ -102,7 +124,6 @@ export async function initTestEnv({
       throw new Error(message);
     } else {
       spawnBinary("photon", false);
-      await waitForServers({ port: 8784, path: "/getIndexerHealth" });
     }
   }
 
@@ -114,9 +135,10 @@ export async function initTestEnv({
     args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
     args.push("--circuit-dir", circuitDir);
     spawnBinary(getProverNameByArch(), true, args);
-    await waitForServers({ port: 3001, path: "/" });
-
-    // await sleep(10000);
+    await waitForServers([
+      { port: 8784, path: "/getIndexerHealth" },
+      { port: 3001, path: "/" },
+    ]);
   }
 }
 
