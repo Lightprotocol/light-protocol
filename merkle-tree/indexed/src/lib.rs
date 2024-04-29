@@ -183,7 +183,10 @@ where
         low_element: IndexedElement<I>,
         low_element_next_value: &BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
+        // changelog: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
+        println!("new_element: {:?}", new_element.value);
+        println!("low_element: {:?}", low_element.value);
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -216,17 +219,28 @@ where
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
         let old_low_leaf = low_element.hash::<H>(low_element_next_value)?;
+        println!("low_element value: {:?}", low_element.value);
+        println!("low_element index: {:?}", low_element.index());
+        println!("low_element next_index: {:?}", low_element.next_index());
+        println!("old_low_leaf: {:?}", old_low_leaf);
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
+        println!("new_low_leaf: {:?}", new_low_leaf);
+        println!("index: {:?}", low_element.index());
         self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
             &new_low_leaf,
             low_element.index.into(),
             low_leaf_proof,
+            true,
         )?;
 
         // Append new element.
         let new_leaf = new_element.hash::<H>(low_element_next_value)?;
+        println!("new_element value: {:?}", new_element.value);
+        println!("new_element index: {:?}", new_element.index());
+        println!("new_element next_index: {:?}", new_element.next_index());
+        println!("new_leaf: {:?}", new_leaf);
         self.merkle_tree.append(&new_leaf)?;
 
         Ok(())
@@ -245,7 +259,7 @@ where
             .new_low_element
             .hash::<H>(&nullifier_bundle.new_element.value)?;
         let mut zero_bytes_array = BoundedVec::with_capacity(26);
-        for i in 0..16 {
+        for i in 0..address_merkle_tree_inited.merkle_tree.height {
             // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
             zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
         }
@@ -255,6 +269,7 @@ where
             &new_low_leaf,
             0,
             &mut zero_bytes_array,
+            true,
         )?;
         let new_leaf = nullifier_bundle
             .new_element

@@ -759,20 +759,21 @@ where
     ///     element from the changelog to our updated proof).
     ///   * If yes, it means that the same leaf we want to update was already
     ///     updated. In such case, updating the proof is not possible.
-    fn update_proof_from_changelog(
+    pub fn update_proof_from_changelog(
         &self,
         changelog_index: usize,
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
+        allow_updates_changelog: bool,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if self.changelog_capacity > 1 {
-            let mut i = changelog_index + 1;
-            while i != self.changelog_index() + 1 {
-                self.changelog[i].update_proof(leaf_index, proof)?;
+            let mut i = changelog_index;
+            for _ in i..i + self.changelog_length + 1 {
+                self.changelog[i].update_proof(leaf_index, proof, allow_updates_changelog)?;
                 i = (i + 1) % self.changelog_length;
             }
         } else {
-            self.changelog[0].update_proof(leaf_index, proof)?;
+            self.changelog[0].update_proof(leaf_index, proof, allow_updates_changelog)?;
         }
 
         Ok(())
@@ -835,6 +836,7 @@ where
 
         let changelog_entry = ChangelogEntry::new(node, changelog_path, leaf_index);
         self.inc_current_changelog_index()?;
+        // TODO: remove clone
         self.changelog.push(changelog_entry.clone())?;
 
         self.inc_current_root_index()?;
@@ -861,6 +863,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
+        allow_updates_changelog: bool,
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let expected_proof_len = self.height - self.canopy_depth;
         if proof.len() != expected_proof_len {
@@ -877,7 +880,12 @@ where
             self.update_proof_from_canopy(leaf_index, proof)?;
         }
         if self.changelog_capacity > 0 {
-            self.update_proof_from_changelog(changelog_index, leaf_index, proof)?;
+            self.update_proof_from_changelog(
+                changelog_index,
+                leaf_index,
+                proof,
+                allow_updates_changelog,
+            )?;
         }
         self.validate_proof(old_leaf, leaf_index, proof)?;
         self.update_leaf_in_tree(new_leaf, leaf_index, proof)
