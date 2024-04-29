@@ -4,12 +4,14 @@ on:
       - main
     paths:
       - "programs/**"
+      - "circuit-lib/verifier/**"
       - ".github/workflows/light-system-programs-tests.yml"
   pull_request:
     branches:
       - main
     paths:
       - "programs/**"
+      - "circuit-lib/verifier/**"
       - ".github/workflows/light-system-programs-tests.yml"
     types:
       - opened
