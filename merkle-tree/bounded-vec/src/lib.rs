@@ -230,7 +230,7 @@ where
         self.get_mut(self.length - 1)
     }
 
-    pub fn to_array<const N: usize>(self) -> Result<[T; N], BoundedVecError> {
+    pub fn to_array<const N: usize>(&self) -> Result<[T; N], BoundedVecError> {
         if self.len() != N {
             return Err(BoundedVecError::ArraySize(N, self.len()));
         }
