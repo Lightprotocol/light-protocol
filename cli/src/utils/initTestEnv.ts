@@ -109,8 +109,10 @@ export async function initTestEnv({
       recipientPublicKey: payer.publicKey,
     });
   };
+  // We cannot await this promise directly because it will hang the process
   startTestValidator({ additionalPrograms, skipSystemAccounts });
-
+  await waitForServers([{ port: 8899, path: "/health" }]);
+  await confirmServerStability("http://127.0.0.1:8899/health");
   await initAccounts();
 
   if (indexer) {
@@ -323,8 +325,6 @@ export async function startTestValidator({
     command,
     args: [...solanaArgs],
   });
-  await waitForServers([{ port: 8899, path: "/health" }]);
-  await confirmServerStability("http://127.0.0.1:8899/health");
 }
 
 export async function killTestValidator() {
