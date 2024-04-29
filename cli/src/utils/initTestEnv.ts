@@ -12,21 +12,46 @@ import util from "util";
 import which from "which";
 import { spawn, exec } from "child_process";
 const find = require("find-process");
+const waitOn = require("wait-on");
 const execAsync = util.promisify(exec);
-
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 const BASE_PATH = "../../bin/";
 const PHOTON_VERSION = "0.15.0";
 
-async function isExpectedPhotonVersion(requiredVersion: string): Promise<boolean> {
+async function isExpectedPhotonVersion(
+  requiredVersion: string,
+): Promise<boolean> {
   try {
-    const { stdout } = await execAsync('photon --version');
-    const version = stdout.trim()
+    const { stdout } = await execAsync("photon --version");
+    const version = stdout.trim();
     return version.includes(requiredVersion);
   } catch (error) {
-    console.error('Error checking Photon version:', error);
+    console.error("Error checking Photon version:", error);
     return false;
+  }
+}
+
+async function waitForServers({ port, path }: { port: number; path: string }) {
+  const opts = {
+    resources: [`http-get://127.0.0.1:${port}${path}`],
+    delay: 3000, // Initial delay in ms before checking
+    timeout: 15000, // Timeout in ms, after which it will throw an error
+    interval: 300, // Polling interval in ms
+    simultaneous: 1, // Check one resource at a time
+    validateStatus: function (status: number) {
+      return (
+        (status >= 200 && status < 300) || status === 404 || status === 405
+      ); // Accepts HTTP 2xx, 404, and 405 as success
+    },
+  };
+
+  try {
+    await waitOn(opts);
+    console.log("All servers are up and running!");
+  } catch (err) {
+    console.error("Error waiting for servers to start:", err);
+    throw err; // Rethrow or handle as needed
   }
 }
 
@@ -59,21 +84,25 @@ export async function initTestEnv({
     });
   };
   startTestValidator({ additionalPrograms, skipSystemAccounts });
-  await sleep(10000);
+
+  await waitForServers({ port: 8899, path: "/health" });
+
   await initAccounts();
+
   if (indexer) {
     await killIndexer();
     const resolvedOrNull = which.sync("photon", { nothrow: true });
 
-    if (resolvedOrNull === null || (checkPhotonVersion && !(await isExpectedPhotonVersion(PHOTON_VERSION)))) {
-
-      const message =
-        `Photon indexer not found. Please install it by running \`cargo install photon-indexer --version ${PHOTON_VERSION}\``;
+    if (
+      resolvedOrNull === null ||
+      (checkPhotonVersion && !(await isExpectedPhotonVersion(PHOTON_VERSION)))
+    ) {
+      const message = `Photon indexer not found. Please install it by running \`cargo install photon-indexer --version ${PHOTON_VERSION}\``;
       console.log(message);
       throw new Error(message);
     } else {
       spawnBinary("photon", false);
-      await sleep(5000);
+      await waitForServers({ port: 8784, path: "/getIndexerHealth" });
     }
   }
 
@@ -85,7 +114,9 @@ export async function initTestEnv({
     args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
     args.push("--circuit-dir", circuitDir);
     spawnBinary(getProverNameByArch(), true, args);
-    await sleep(10000);
+    await waitForServers({ port: 3001, path: "/" });
+
+    // await sleep(10000);
   }
 }
 
