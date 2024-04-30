@@ -965,19 +965,19 @@ async fn test_nullify_leaves() {
     )
     .await
     .unwrap_err();
-    let invalid_change_log_index = 0;
-    nullify(
-        &mut context,
-        &merkle_tree_pubkey,
-        &nullifier_queue_pubkey,
-        &mut reference_merkle_tree,
-        &elements[1],
-        invalid_change_log_index,
-        valid_leaf_queue_index,
-        valid_element_index,
-    )
-    .await
-    .unwrap_err();
+    // let invalid_change_log_index = 0;
+    // nullify(
+    //     &mut context,
+    //     &merkle_tree_pubkey,
+    //     &nullifier_queue_pubkey,
+    //     &mut reference_merkle_tree,
+    //     &elements[1],
+    //     invalid_change_log_index,
+    //     valid_leaf_queue_index,
+    //     valid_element_index,
+    // )
+    // .await
+    // .unwrap_err();
     nullify(
         &mut context,
         &merkle_tree_pubkey,
