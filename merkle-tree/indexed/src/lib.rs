@@ -263,8 +263,9 @@ where
             .new_low_element
             .hash::<H>(&nullifier_bundle.new_element.value)?;
         let mut zero_bytes_array = BoundedVec::with_capacity(26);
-        for i in 0..self.merkle_tree.height {
-            // : Calling `unwrap()` pushing into this bounded vec cannot panic since the array has enough capacity.
+        for i in 0..self.merkle_tree.height - self.merkle_tree.canopy_depth {
+            // PANICS: Calling `unwrap()` pushing into this bounded vec
+            // cannot panic since it has enough capacity.
             zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
         }
         self.merkle_tree.update(
