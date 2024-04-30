@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "ZK Compression: Secure Scaling of State on Solana",
   "maintainers": [
     {
