@@ -45,6 +45,21 @@ where
         + Pod,
     usize: From<I>,
 {
+    /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
+    /// including dynamic fields.
+    ///
+    /// # Purpose
+    ///
+    /// This method is meant to be used mostly in Solana programs, where memory
+    /// constraints are tight and we want to make sure no data is copied.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the alignment and that the slice
+    /// provides actual data of the hash set is the caller's responsibility.
+    ///
+    /// Calling it in async context (or anyhwere where the underlying data can
+    /// be moved in the memory) is certainly going to cause undefined behavior.
     pub unsafe fn copy_from_bytes(
         bytes_struct: &[u8],
         bytes_filled_subtrees: &[u8],
