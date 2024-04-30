@@ -91,6 +91,7 @@
   },
   "scripts": {
     "add-bins": "./scripts/copyLocalProgramBinaries.sh && scripts/buildProver.sh",
+    "prepublish": "find ./bin -type f -exec chmod +x {} +",
     "build": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm add-bins",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",

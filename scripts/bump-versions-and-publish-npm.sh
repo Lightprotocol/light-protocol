@@ -25,6 +25,7 @@ publish_package() {
     fi
 
     echo "Publishing ${package_name} in directory ${package_dir} with a ${version_type} version bump..."
+
     sleep 5
     if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks); then
         echo "Error occurred while publishing ${package_name}."
