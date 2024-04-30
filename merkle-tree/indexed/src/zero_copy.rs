@@ -46,6 +46,21 @@ where
         + Pod,
     usize: From<I>,
 {
+    /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
+    /// without dynamic fields.
+    ///
+    /// # Purpose
+    ///
+    /// This method is meant to be used mostly in Solana programs, where memory
+    /// constraints are tight and we want to make sure no data is copied.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the alignment and that the slice
+    /// provides actual data of the hash set is the caller's responsibility.
+    ///
+    /// Calling it in async context (or anyhwere where the underlying data can
+    /// be moved in the memory) is certainly going to cause undefined behavior.
     pub unsafe fn struct_from_bytes_zero_copy(
         bytes_struct: &'a [u8],
     ) -> Result<Self, IndexedMerkleTreeError> {
@@ -65,6 +80,21 @@ where
         })
     }
 
+    /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
+    /// including dynamic fields.
+    ///
+    /// # Purpose
+    ///
+    /// This method is meant to be used mostly in Solana programs, where memory
+    /// constraints are tight and we want to make sure no data is copied.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the alignment and that the slice
+    /// provides actual data of the hash set is the caller's responsibility.
+    ///
+    /// Calling it in async context (or anyhwere where the underlying data can
+    /// be moved in the memory) is certainly going to cause undefined behavior.
     pub unsafe fn from_bytes_zero_copy(
         bytes_struct: &'a [u8],
         bytes_filled_subtrees: &'a [u8],
@@ -213,8 +243,21 @@ where
         + Pod,
     usize: From<I>,
 {
-    // TODO(vadorovsky): Add a non-mut method: `from_bytes_zero_copy`.
-
+    /// Casts a byte slice into wrapped `IndexedMerkleTree` structure mutable
+    /// reference, without dynamic fields.
+    ///
+    /// # Purpose
+    ///
+    /// This method is meant to be used mostly in Solana programs, where memory
+    /// constraints are tight and we want to make sure no data is copied.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the alignment and that the slice
+    /// provides actual data of the hash set is the caller's responsibility.
+    ///
+    /// Calling it in async context (or anyhwere where the underlying data can
+    /// be moved in the memory) is certainly going to cause undefined behavior.
     pub unsafe fn struct_from_bytes_zero_copy_mut(
         bytes_struct: &'a [u8],
     ) -> Result<Self, IndexedMerkleTreeError> {
@@ -234,6 +277,16 @@ where
         })
     }
 
+    /// Fills the dynamic fields (vectors) of a newly created
+    /// `IndexerMerkleTreeZeroCopyMut` with the data from provided buffers.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the alignment and that the slice
+    /// provides actual data of the hash set is the caller's responsibility.
+    ///
+    /// Calling it in async context (or anyhwere where the underlying data can
+    /// be moved in the memory) is certainly going to cause undefined behavior.
     #[allow(clippy::too_many_arguments)]
     pub unsafe fn fill_vectors_mut(
         &mut self,
@@ -293,6 +346,14 @@ where
         Ok(())
     }
 
+    /// Casts byte slices into `IndexedMerkleTreeZeroCopyMut` and initializes
+    /// the underlying Merkle tree.
+    ///
+    /// # Safety
+    ///
+    /// This is highly unsafe. Ensuring the size and alignment of the byte
+    /// slices is the caller's responsibility.
+    #[allow(clippy::too_many_arguments)]
     pub unsafe fn from_bytes_zero_copy_init(
         bytes_struct: &'a mut [u8],
         bytes_filled_subtrees: &'a mut [u8],
@@ -340,7 +401,7 @@ where
         Ok(tree)
     }
 
-    /// Casts byte slices into `IndexedMerkleTreeZeroCopy`.
+    /// Casts byte slices into `IndexedMerkleTreeZeroCopyMut`.
     ///
     /// # Safety
     ///
