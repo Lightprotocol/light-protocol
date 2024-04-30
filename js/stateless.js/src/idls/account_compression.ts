@@ -808,7 +808,7 @@ export type AccountCompression = {
                     {
                         name: 'addressChangelog';
                         type: {
-                            array: ['u8', 17408];
+                            array: ['u8', 20480];
                         };
                     },
                 ];
@@ -1991,7 +1991,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'addressChangelog',
                         type: {
-                            array: ['u8', 17408],
+                            array: ['u8', 20480],
                         },
                     },
                 ],
