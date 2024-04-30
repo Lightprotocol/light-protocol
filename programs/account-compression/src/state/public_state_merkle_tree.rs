@@ -48,6 +48,7 @@ impl StateMerkleTreeAccount {
                 &self.state_merkle_tree_filled_subtrees,
                 &self.state_merkle_tree_changelog,
                 &self.state_merkle_tree_roots,
+                &self.state_merkle_tree_canopy,
             )
             .map_err(ProgramError::from)?
         };

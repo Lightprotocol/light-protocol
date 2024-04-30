@@ -75,7 +75,7 @@ where
     /// Cached upper nodes.
     pub canopy: BoundedVec<'a, [u8; 32]>,
 
-    _hasher: PhantomData<H>,
+    pub _hasher: PhantomData<H>,
 }
 
 pub type ConcurrentMerkleTree22<'a, H> = ConcurrentMerkleTree<'a, H, 22>;
@@ -163,6 +163,7 @@ where
         bytes_filled_subtrees: &[u8],
         bytes_changelog: &[u8],
         bytes_roots: &[u8],
+        bytes_canopy: &[u8],
     ) -> Result<Self, ConcurrentMerkleTreeError> {
         let expected_bytes_struct_size = mem::size_of::<Self>();
         if bytes_struct.len() != expected_bytes_struct_size {
@@ -242,6 +243,20 @@ where
             slice::from_raw_parts(bytes_roots.as_ptr() as *const _, (*struct_ref).roots_length);
         for root in roots.iter() {
             merkle_tree.roots.push(*root)?;
+        }
+
+        let canopy_size = Self::canopy_size((*struct_ref).canopy_depth);
+        let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
+        if bytes_canopy.len() != expected_canopy_size {
+            return Err(ConcurrentMerkleTreeError::CanopyBufferSize(
+                expected_canopy_size,
+                bytes_canopy.len(),
+            ));
+        }
+        let canopy: &[[u8; 32]] =
+            slice::from_raw_parts(bytes_canopy.as_ptr() as *const _, canopy_size);
+        for node in canopy.iter() {
+            merkle_tree.canopy.push(*node)?;
         }
 
         Ok(merkle_tree)

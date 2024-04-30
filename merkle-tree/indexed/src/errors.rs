@@ -1,3 +1,4 @@
+use light_bounded_vec::BoundedVecError;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::errors::HasherError,
 };
@@ -24,6 +25,8 @@ pub enum IndexedMerkleTreeError {
     ConcurrentMerkleTree(#[from] ConcurrentMerkleTreeError),
     #[error("Utils error {0}")]
     Utils(#[from] UtilsError),
+    #[error("Bounded vector error: {0}")]
+    BoundedVec(#[from] BoundedVecError),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -41,6 +44,7 @@ impl From<IndexedMerkleTreeError> for u32 {
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
             IndexedMerkleTreeError::Utils(e) => e.into(),
+            IndexedMerkleTreeError::BoundedVec(e) => e.into(),
         }
     }
 }

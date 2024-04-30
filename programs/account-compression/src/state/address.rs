@@ -7,8 +7,9 @@ use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::zero_copy::{
-    IndexedMerkleTreeZeroCopy26, IndexedMerkleTreeZeroCopyMut26,
+use light_indexed_merkle_tree::{
+    copy::IndexedMerkleTreeCopy26,
+    zero_copy::{IndexedMerkleTreeZeroCopy26, IndexedMerkleTreeZeroCopyMut26},
 };
 
 use crate::utils::check_registered_or_signer::GroupAccess;
@@ -124,13 +125,15 @@ pub struct AddressMerkleTreeAccount {
 }
 
 impl AddressMerkleTreeAccount {
-    pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
+    pub fn copy_merkle_tree(&self) -> Result<IndexedMerkleTreeCopy26<Poseidon, usize>> {
         let tree = unsafe {
-            ConcurrentMerkleTree26::copy_from_bytes(
+            IndexedMerkleTreeCopy26::copy_from_bytes(
                 &self.merkle_tree_struct,
                 &self.merkle_tree_filled_subtrees,
                 &self.merkle_tree_changelog,
                 &self.merkle_tree_roots,
+                &self.merkle_tree_canopy,
+                &self.address_changelog,
             )
             .map_err(ProgramError::from)?
         };

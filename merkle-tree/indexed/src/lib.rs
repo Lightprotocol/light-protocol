@@ -10,6 +10,7 @@ use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
+pub mod copy;
 pub mod errors;
 pub mod reference;
 pub mod zero_copy;
