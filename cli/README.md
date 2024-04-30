@@ -1,16 +1,27 @@
-# Light CLI
+# ZK Compression CLI
 
 CLI to interact with Light Protocol and ZK compression.
 
 ## Requirements
 
-- Ensure you have Node.js (v19.4.0 or later) and npm installed on your machine.
+- Ensure you have Node >= v20.9.0 installed on your machine.
 
 - You will need a valid Solana filesystem wallet set up at `~/.config/solana/id.json`.
   If you don't have one yet, visit the [Solana documentation](https://docs.solanalabs.com/cli/wallets/file-system) for details.
   The CLI will use this wallet as the default fee payer and mint authority.
 
 ## Installation
+
+### Using npm
+
+```bash
+npm install -g @lightprotocol/cli
+```
+
+### Building from source
+
+If you prefer to build the CLI from source, follow the steps below to install
+the necessary prerequesites.
 
 **1. Activate the Development Environment**
 
@@ -30,25 +41,37 @@ Ensure you are at the root of the monorepo.
 ./scripts/build.sh
 ```
 
+**3. Make your CLI available globally**
+
+```bash
+pnpm link --global
+```
+
+```bash
+# Verify the CLI was correctly installed
+which light
+```
+
 ## Usage
 
-**1. Navigate to the CLI directory and start the Light test validator**
+**1. Once globally installed, start the Light test validator**
 
 ```bash
-cd cli && light test-validator
+light test-validator
 ```
 
-This starts a Solana test-validator with the Light system programs and accounts, a prover server, and a photon indexer as background processes against a clean ledger.
+This starts a Solana test-validator with the Light system programs and accounts, a prover server, and the Photon indexer as background processes against a clean ledger.
 
 ```bash
-# Pass the -i flag to start without the indexer
-light test-validator -i
+# Pass --skip-indexer to start without the indexer
+light test-validator --skip-indexer
 
-# Pass the -p flag to start without the prover
-light test-validator -p
+# Pass --skip-prover to start without the prover
+light test-validator --skip-prover
+
 ```
 
-> **Note:** The CLI currently expects the photon indexer to run at port: `8784` and the gnark-prover at port: `3001`
+> **Note:** The CLI currently runs the photon indexer and gnark-prover as background processes at port: `8784` and `3001` respectively.
 
 **2. Ensure you have sufficient localnet funds**
 
@@ -61,7 +84,6 @@ solana address
 
 # Print your balance
 solana balance
-
 ```
 
 Now you're all set up to run CLI commands :)
@@ -130,6 +152,8 @@ FLAGS
 
 #### Compress native SOL
 
+> **Note:** Ensure the SOL omnibus account of the Light system program is already initialized by running: `light init-sol-pool`
+
 ```bash
 light compress-sol --amount 1000 --to "YOUR_WALLET_ADDRESS_BASE58"
 ```
@@ -161,5 +185,5 @@ FLAGS
 ### Support
 
 - Always feel free to join the [Developer Discord](https://discord.gg/D2cEphnvcY) for help!
-- For more info about the canonical indexer implementation built by Helius, refer to the [Photon codebase](https://github.com/helius-labs/photon).
-- For more info about Light and ZK compression, refer to the [documentation](https://docs.lightprotocol.com/).
+- For more info about the canonical indexer implementation built and maintained by Helius Labs, refer to the [Photon codebase](https://github.com/helius-labs/photon).
+- For more info about Light, refer to the [documentation](https://docs.lightprotocol.com/).

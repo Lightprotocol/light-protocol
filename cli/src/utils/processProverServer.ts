@@ -2,7 +2,7 @@ import path from "path";
 import { killProcessByName, killProcessByPort, spawnBinary } from "./process";
 import { LIGHT_PROVER_PROCESS_NAME } from "./constants";
 import { sleep } from "@lightprotocol/stateless.js";
-import { killProcess } from "./initTestEnv";
+import { killProcess, waitForServers } from "./initTestEnv";
 
 const KEYS_DIR = "proving-keys/";
 
@@ -35,8 +35,8 @@ export async function startProver(
 
   console.log("Starting prover...");
   spawnBinary(getProverNameByArch(), true, args);
+  await waitForServers([{ port: 3001, path: "/" }]);
   console.log("Prover started successfully!");
-  await sleep(2000);
 }
 
 export function getProverNameByArch(): string {

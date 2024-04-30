@@ -16,6 +16,7 @@ import {
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     HealthResult,
+    HexInputsForProver,
     MerkeProofResult,
     MultipleCompressedAccountsResult,
     NativeBalanceResult,
@@ -27,7 +28,6 @@ import {
     TokenBalanceListResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
-    HexInputsForProver,
     HexBatchInputsForProver,
 } from './rpc-interface';
 import {

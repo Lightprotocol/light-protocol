@@ -11,7 +11,6 @@ import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 import { TestRpc, getTestRpc } from '../../src/test-helpers';
 
 /// TODO: add test case for payer != address
-
 describe('test-rpc', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
     let rpc: TestRpc;

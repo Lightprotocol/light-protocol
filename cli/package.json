@@ -1,16 +1,23 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.1.1-alpha.23",
-  "description": "Light Protocol CLI",
-  "author": "@ananas-block, @shigoto-dev19, @sleepyqadir ",
+  "version": "0.2.2",
+  "description": "ZK Compression: Secure Scaling of State on Solana",
+  "maintainers": [
+    {
+      "name": "Light Protocol maintainers",
+      "email": "friends@lightprotocol.com"
+    }
+  ],
   "bin": {
     "light": "./test_bin/run"
   },
-  "license": "GPL-3.0",
+  "license": "Apache-2.0",
   "main": "dist/index.js",
   "files": [
     "/accounts",
+    "/bin",
     "/dist",
+    "/test_bin",
     "./config.json",
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json"
@@ -18,7 +25,6 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
     "@lightprotocol/compressed-token": "workspace:*",
-    "@lightprotocol/hasher.rs": "workspace:*",
     "@lightprotocol/stateless.js": "workspace:*",
     "@oclif/core": "^3.26.2",
     "@oclif/plugin-autocomplete": "^3.0.13",
@@ -29,28 +35,24 @@
     "@solana-developers/helpers": "^1.5.1",
     "@solana/spl-token": "^0.3.11",
     "@solana/web3.js": "^1.91.4",
-    "@typescript-eslint/eslint-plugin": "^7.6.0",
-    "@typescript-eslint/parser": "^7.6.0",
+    "axios": "^1.6.8",
     "buffer": "^6.0.3",
     "case-anything": "^2.1.13",
-    "chai": "^4.4.1",
     "cli-progress": "^3.12.0",
     "cli-spinners": "^2.9.2",
     "dotenv": "^16.4.5",
     "ffjavascript": "^0.2.63",
     "find-process": "^1.4.7",
-    "fs": "0.0.1-security",
     "node-fetch": "^3.3.2",
     "path": "^0.12.7",
     "snake-case": "^3.0.4",
     "tar": "^6.2.1",
-    "ts-mocha": "^10.0.0",
     "tweetnacl": "^1.0.3",
+    "wait-on": "^7.2.0",
     "which": "^4.0.0",
     "zlib": "^1.0.5"
   },
   "devDependencies": {
-    "@lightprotocol/programs": "workspace:*",
     "@oclif/test": "2.3.9",
     "@types/bn.js": "^5.1.5",
     "@types/chai": "^4.3.14",
@@ -59,8 +61,9 @@
     "@types/node": "^20.12.7",
     "@types/tar": "^6.1.12",
     "@types/which": "^3.0.3",
-    "axios": "^1.6.8",
-    "chai": "^4.3.10",
+    "@typescript-eslint/eslint-plugin": "^7.6.0",
+    "@typescript-eslint/parser": "^7.6.0",
+    "chai": "^4.4.1",
     "eslint": "8.57.0",
     "eslint-config-oclif": "5.1.1",
     "eslint-config-oclif-typescript": "3.1.4",
@@ -69,6 +72,7 @@
     "oclif": "4.8.0",
     "prettier": "^3.0.3",
     "shx": "^0.3.4",
+    "ts-mocha": "^10.0.0",
     "ts-node": "^10.9.2",
     "tslib": "^2.6.2",
     "typescript": "5.3.2"
@@ -95,7 +99,6 @@
     "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "pnpm build && oclif manifest && oclif readme",
     "test-utils": "mocha ./test/utils/index.test.ts -t 10000000 --exit",
-    "test-prove": "mocha ./test/commands/prove/index.test.ts -t 10000000 --exit",
     "test-config": "mocha ./test/commands/config/index.test.ts -t 10000000 --exit",
     "test-create-mint": "mocha ./test/commands/create-mint/index.test.ts -t 10000000 --exit",
     "test-mint-to": "mocha ./test/commands/mint-to/index.test.ts -t 10000000 --exit",
@@ -107,7 +110,7 @@
     "test-decompress-spl": "mocha ./test/commands/decompress-spl/index.test.ts -t 10000000 --exit",
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
-    "test": "pnpm kill && pnpm test-prove && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-balance && pnpm test-compress-sol && pnpm test-decompress-sol",
+    "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-balance && pnpm test-compress-sol && pnpm test-decompress-sol",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
