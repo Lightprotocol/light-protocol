@@ -58,6 +58,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
+    let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),
         &ctx.accounts.queue,
@@ -71,7 +72,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         queue_config.tip.unwrap_or_default(),
         merkle_tree_config.rollover_threshold,
         merkle_tree_config.height,
-        ctx.accounts.merkle_tree.get_lamports(),
+        merkle_tree_rent,
     )?;
     let height = ADDRESS_MERKLE_TREE_HEIGHT as u32;
     process_initialize_address_merkle_tree(
@@ -88,6 +89,6 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         merkle_tree_config.tip.unwrap_or_default(),
         merkle_tree_config.rollover_threshold,
         merkle_tree_config.close_threshold,
-        ctx.accounts.merkle_tree.get_lamports(),
+        merkle_tree_rent,
     )
 }

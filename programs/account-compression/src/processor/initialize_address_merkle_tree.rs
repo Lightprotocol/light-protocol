@@ -89,8 +89,8 @@ pub fn compute_rollover_fee(
         return err!(AccountCompressionErrorCode::RolloverThresholdTooHigh);
     }
     // rent / (total_number_of_leaves * (rollover_threshold / 100))
-    // + 1 to pick the next fee that is higher than the rent
-    Ok((rent * 100 / (number_of_transactions * rollover_threshold)) + 1)
+    // (with ceil division)
+    Ok((rent * 100).div_ceil(number_of_transactions * rollover_threshold))
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn print_compute_rollover_fee() {
         "nullifier queue rollover fee + tip: {}",
         fee + nullifier_config.tip.unwrap_or_default()
     );
-    let rent_address_merkle_tree = 9496725120;
+    let rent_address_merkle_tree = 9639544320;
     let rent_address_queue = 1796849280;
     let rent = rent_address_merkle_tree + rent_address_queue;
     let fee = compute_rollover_fee(
