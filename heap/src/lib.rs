@@ -1,4 +1,5 @@
 use std::{alloc::Layout, mem::size_of, ptr::null_mut, usize};
+pub mod bench;
 
 #[cfg(target_os = "solana")]
 use anchor_lang::{

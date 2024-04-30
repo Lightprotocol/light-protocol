@@ -14,6 +14,7 @@ light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.0" }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.0" }
 light-utils = { path = "../utils", version = "0.1.0" }
+prettytable = "0.10.0"
 quote = "1.0"
 sha2 = "0.10"
 tabled = "0.15"

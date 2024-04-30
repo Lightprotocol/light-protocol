@@ -22,6 +22,8 @@ pub fn insert_nullifiers<
     nullifiers: &'a [[u8; 32]],
     invoking_program: &Option<Pubkey>,
 ) -> Result<()> {
+    light_heap::bench_sbf_start!("cpda: insert_nullifiers_prep_accs");
+
     let state_merkle_tree_account_infos: anchor_lang::Result<Vec<AccountInfo<'info>>> = inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
@@ -44,6 +46,7 @@ pub fn insert_nullifiers<
                 .clone(),
         );
     }
+    light_heap::bench_sbf_end!("cpda: insert_nullifiers_prep_accs");
 
     insert_nullifiers_cpi(
         ctx.program_id,
@@ -74,6 +77,8 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     merkle_tree_account_infos: Vec<AccountInfo<'a>>,
     nullifiers: Vec<[u8; 32]>,
 ) -> Result<()> {
+    light_heap::bench_sbf_start!("cpda:insert_nullifiers_cpi_prep");
+
     let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
     let bump = &[bump];
@@ -92,5 +97,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
         .remaining_accounts
         .extend(nullifier_queue_account_infos);
     cpi_ctx.remaining_accounts.extend(merkle_tree_account_infos);
+    light_heap::bench_sbf_end!("cpda:insert_nullifiers_cpi_prep");
+
     account_compression::cpi::insert_into_nullifier_queues(cpi_ctx, nullifiers)
 }

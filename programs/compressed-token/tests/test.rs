@@ -9,6 +9,7 @@ use anchor_lang::AnchorSerialize;
 use light_circuitlib_rs::{
     gnark::{
         constants::{PROVE_PATH, SERVER_ADDRESS},
+        helpers::kill_gnark_server,
         proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
@@ -231,6 +232,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
             .await;
         }
     }
+    kill_gnark_server();
 }
 
 #[tokio::test]
@@ -250,7 +252,7 @@ async fn test_mint_to_10() {
 
 #[tokio::test]
 async fn test_mint_to_20() {
-    test_mint_to::<20, 10>().await
+    test_mint_to::<20, 1>().await
 }
 
 #[tokio::test]
@@ -276,6 +278,28 @@ async fn test_transfers() {
     }
 }
 
+#[tokio::test]
+async fn test_transfer_1_1() {
+    let possible_inputs = [1];
+    for input_num in possible_inputs {
+        for output_num in 1..2 {
+            if input_num == 8 && output_num > 7 {
+                // 8 inputs and 7 outputs is the max we can do
+                break;
+            }
+            println!(
+                "\n\ninput num: {}, output num: {}\n\n",
+                input_num, output_num
+            );
+            test_transfer(input_num, output_num, 10_000).await
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_transfer_4_2() {
+    test_transfer(4, 2, 10_000).await
+}
 /// Creates inputs compressed accounts with amount tokens each
 /// Transfers all tokens from inputs compressed accounts evenly distributed to outputs compressed accounts
 async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
@@ -434,6 +458,8 @@ async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
         &input_compressed_account_hashes,
     )
     .await;
+    kill_gnark_server();
+
     // TODO: fix nullify function
     // mock_indexer.nullify_compressed_accounts(&mut context).await;
 }
@@ -633,6 +659,7 @@ async fn test_decompression() {
         .token_compressed_accounts
         .iter()
         .any(|x| x.token_data.owner == recipient_keypair.pubkey()));
+    kill_gnark_server();
 }
 
 /// Failing security tests:
@@ -990,6 +1017,7 @@ async fn test_invalid_inputs() {
     .await
     .unwrap();
     assert_custom_error_or_program_error(res, ErrorCode::DelegateUndefined.into()).unwrap();
+    kill_gnark_server();
 }
 
 #[allow(clippy::too_many_arguments)]

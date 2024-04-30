@@ -18,6 +18,7 @@ custom-heap = ["light-heap"]
 mem-profiling = []
 default = ["custom-heap", "mem-profiling"]
 test-sbf = []
+bench-sbf = []
 
 [dependencies]
 anchor-lang = "0.29.0"
