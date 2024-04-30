@@ -271,7 +271,7 @@ where
             self.merkle_tree.changelog_capacity
         );
         let expected_bytes_indexed_changelog_size =
-            mem::size_of::<RawIndexedElement<I>>() * self.merkle_tree.changelog.capacity();
+            mem::size_of::<RawIndexedElement<I>>() * indexed_changelog_capacity;
         #[cfg(feture = "solana")]
         solana_program::msg!(
             "expected_bytes_indexed_changelog_size: {}",
@@ -306,8 +306,6 @@ where
         bytes_indexed_changelog: &'a mut [u8],
         indexed_changelog_size: usize,
     ) -> Result<Self, IndexedMerkleTreeError> {
-        #[cfg(feture = "solana")]
-        solana_program::msg!("compression!");
         let mut tree = Self::struct_from_bytes_zero_copy_mut(bytes_struct)?;
 
         tree.merkle_tree.merkle_tree.height = height;
@@ -321,8 +319,6 @@ where
         tree.merkle_tree.merkle_tree.current_root_index = 0;
 
         tree.merkle_tree.merkle_tree.canopy_depth = canopy_depth;
-
-        tree.merkle_tree.changelog = CyclicBoundedVec::with_capacity(indexed_changelog_size);
 
         tree.fill_vectors_mut(
             bytes_filled_subtrees,

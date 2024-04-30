@@ -253,7 +253,6 @@ where
     /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
     /// Thus, addresses with higher values than the initial value cannot be inserted.
     pub fn initialize_address_merkle_tree(
-        // address_merkle_tree_inited: &mut IndexedMerkleTree<'a, H, I, HEIGHT>,
         &mut self,
         init_value: BigUint,
     ) -> Result<(), IndexedMerkleTreeError> {

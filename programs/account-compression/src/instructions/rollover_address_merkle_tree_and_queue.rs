@@ -125,7 +125,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             merkle_tree.merkle_tree.merkle_tree.changelog_capacity as u64,
             merkle_tree.merkle_tree.merkle_tree.roots_capacity as u64,
             merkle_tree.merkle_tree.merkle_tree.canopy_depth as u64,
-            merkle_tree.merkle_tree.merkle_tree.changelog.capacity() as u64,
+            merkle_tree.merkle_tree.changelog.capacity() as u64,
             ctx.accounts.new_queue.key(),
             tip,
             rollover_threshold,

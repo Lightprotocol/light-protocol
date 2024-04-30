@@ -160,11 +160,6 @@ impl AddressMerkleTreeAccount {
         canopy_depth: usize,
         address_changelog_size: usize,
     ) -> Result<IndexedMerkleTreeZeroCopyMut26<Poseidon, usize>> {
-        msg!("height: {}", height);
-        msg!("changelog_size: {}", changelog_size);
-        msg!("roots_size: {}", roots_size);
-        msg!("canopy depth: {}", canopy_depth);
-        msg!("address_changelog_size: {}", address_changelog_size);
         let tree = unsafe {
             IndexedMerkleTreeZeroCopyMut26::<Poseidon, usize>::from_bytes_zero_copy_init(
                 &mut self.merkle_tree_struct,
@@ -179,10 +174,7 @@ impl AddressMerkleTreeAccount {
                 &mut self.address_changelog,
                 address_changelog_size,
             )
-            .map_err(|e| {
-                msg!("error: {:?}", e);
-                ProgramError::from(e)
-            })?
+            .map_err(ProgramError::from)?
         };
         tree.merkle_tree.init().map_err(ProgramError::from)?;
         Ok(tree)

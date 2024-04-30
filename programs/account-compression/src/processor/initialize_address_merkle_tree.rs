@@ -47,7 +47,6 @@ pub fn process_initialize_address_merkle_tree(
     address_merkle_tree.rolledover_slot = u64::MAX;
     address_merkle_tree.close_threshold = close_threshold.unwrap_or(u64::MAX);
 
-    msg!("bazinga");
     address_merkle_tree
         .load_merkle_tree_init(
             height
