@@ -464,7 +464,7 @@ mod test {
         const INDEXED_CHANGELOG_SIZE: usize = 256;
 
         let mt = unsafe {
-            IndexedMerkleTreeZeroCopyMut::<Poseidon, u16, HEIGHT>::from_bytes_zero_copy_init(
+            IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT>::from_bytes_zero_copy_init(
                 &mut bytes_struct,
                 &mut bytes_filled_subtrees,
                 &mut bytes_changelog,
