@@ -24,8 +24,8 @@
   ],
   "dependencies": {
     "@coral-xyz/anchor": "0.28.0",
-    "@lightprotocol/compressed-token": "0.1.3",
-    "@lightprotocol/stateless.js": "0.2.2",
+    "@lightprotocol/compressed-token": "workspace:*",
+    "@lightprotocol/stateless.js": "workspace:*",
     "@oclif/core": "^3.26.2",
     "@oclif/plugin-autocomplete": "^3.0.13",
     "@oclif/plugin-help": "^6.0.20",
