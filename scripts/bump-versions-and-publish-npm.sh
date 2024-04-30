@@ -25,6 +25,8 @@ publish_package() {
     fi
 
     echo "Publishing ${package_name} in directory ${package_dir} with a ${version_type} version bump..."
+    # set exec permissions
+    find "cli/bin" -type f -exec chmod +x {} +
 
     sleep 5
     if ! (cd "${package_dir}" && pnpm version "${version_type}" && pnpm publish --access public --no-git-checks); then

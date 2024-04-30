@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/cli",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "ZK Compression: Secure Scaling of State on Solana",
   "maintainers": [
     {
@@ -90,8 +90,7 @@
     "topicSeparator": ""
   },
   "scripts": {
-    "add-bins": "./scripts/copyLocalProgramBinaries.sh && scripts/buildProver.sh",
-    "prepublish": "find ./bin -type f -exec chmod +x {} +",
+    "add-bins": "./scripts/copyLocalProgramBinaries.sh && scripts/buildProver.sh && chmod +x ./bin/*",
     "build": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm add-bins",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
