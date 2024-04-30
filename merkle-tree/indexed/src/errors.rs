@@ -32,12 +32,12 @@ pub enum IndexedMerkleTreeError {
 impl From<IndexedMerkleTreeError> for u32 {
     fn from(e: IndexedMerkleTreeError) -> u32 {
         match e {
-            IndexedMerkleTreeError::IntegerOverflow => 3001,
-            IndexedMerkleTreeError::IndexHigherThanMax => 3002,
-            IndexedMerkleTreeError::LowElementNotFound => 3003,
-            IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement => 3004,
-            IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 3005,
-            IndexedMerkleTreeError::ChangelogBufferSize(_, _) => 3006,
+            IndexedMerkleTreeError::IntegerOverflow => 10001,
+            IndexedMerkleTreeError::IndexHigherThanMax => 10002,
+            IndexedMerkleTreeError::LowElementNotFound => 10003,
+            IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement => 10004,
+            IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 10005,
+            IndexedMerkleTreeError::ChangelogBufferSize(_, _) => 10006,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
             IndexedMerkleTreeError::Utils(e) => e.into(),

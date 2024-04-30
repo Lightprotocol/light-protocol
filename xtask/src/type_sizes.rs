@@ -96,7 +96,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "AddressMerkleTree->changelog".to_owned(),
-            space: mem::size_of::<RawIndexedElement<u16>>()
+            space: mem::size_of::<RawIndexedElement<usize>>()
                 * ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG as usize,
         },
     ];

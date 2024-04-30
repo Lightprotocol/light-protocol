@@ -265,8 +265,18 @@ where
             canopy_length,
         )?;
 
+        #[cfg(feture = "solana")]
+        solana_program::msg!(
+            "changelog capacity: {}",
+            self.merkle_tree.changelog_capacity
+        );
         let expected_bytes_indexed_changelog_size =
             mem::size_of::<RawIndexedElement<I>>() * self.merkle_tree.changelog.capacity();
+        #[cfg(feture = "solana")]
+        solana_program::msg!(
+            "expected_bytes_indexed_changelog_size: {}",
+            expected_bytes_indexed_changelog_size
+        );
         if bytes_indexed_changelog.len() != expected_bytes_indexed_changelog_size {
             return Err(IndexedMerkleTreeError::ChangelogBufferSize(
                 expected_bytes_indexed_changelog_size,
@@ -296,6 +306,8 @@ where
         bytes_indexed_changelog: &'a mut [u8],
         indexed_changelog_size: usize,
     ) -> Result<Self, IndexedMerkleTreeError> {
+        #[cfg(feture = "solana")]
+        solana_program::msg!("compression!");
         let mut tree = Self::struct_from_bytes_zero_copy_mut(bytes_struct)?;
 
         tree.merkle_tree.merkle_tree.height = height;
@@ -309,6 +321,8 @@ where
         tree.merkle_tree.merkle_tree.current_root_index = 0;
 
         tree.merkle_tree.merkle_tree.canopy_depth = canopy_depth;
+
+        tree.merkle_tree.changelog = CyclicBoundedVec::with_capacity(indexed_changelog_size);
 
         tree.fill_vectors_mut(
             bytes_filled_subtrees,
@@ -366,5 +380,56 @@ where
         )?;
 
         Ok(tree)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use light_hasher::Poseidon;
+
+    use super::*;
+
+    #[test]
+    fn test_from_bytes_zero_copy_init() {
+        let mut bytes_struct = [0u8; 296];
+        let mut bytes_filled_subtrees = [0u8; 832];
+        let mut bytes_changelog = [0u8; 1220800];
+        let mut bytes_roots = [0u8; 76800];
+        let mut bytes_canopy = [0u8; 65472];
+
+        const HEIGHT: usize = 26;
+        const CHANGELOG_SIZE: usize = 1400;
+        const ROOTS: usize = 2400;
+        const CANOPY_DEPTH: usize = 10;
+
+        let mut bytes_indexed_changelog = [0u8; 20480];
+
+        const INDEXED_CHANGELOG_SIZE: usize = 256;
+
+        let mt = unsafe {
+            IndexedMerkleTreeZeroCopyMut::<Poseidon, u16, HEIGHT>::from_bytes_zero_copy_init(
+                &mut bytes_struct,
+                &mut bytes_filled_subtrees,
+                &mut bytes_changelog,
+                &mut bytes_roots,
+                &mut bytes_canopy,
+                HEIGHT,
+                CHANGELOG_SIZE,
+                ROOTS,
+                CANOPY_DEPTH,
+                &mut bytes_indexed_changelog,
+                INDEXED_CHANGELOG_SIZE,
+            )
+            .unwrap()
+        };
+        mt.merkle_tree.init().unwrap();
+
+        assert_eq!(
+            mt.merkle_tree.merkle_tree.root().unwrap(),
+            [
+                31, 216, 114, 222, 104, 109, 25, 228, 3, 94, 104, 27, 124, 142, 79, 197, 7, 102,
+                233, 55, 135, 141, 70, 48, 130, 255, 202, 209, 122, 217, 210, 162
+            ]
+        );
     }
 }
