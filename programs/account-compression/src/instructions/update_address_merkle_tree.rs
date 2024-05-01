@@ -43,7 +43,7 @@ pub fn process_update_address_merkle_tree<'info>(
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
-    let sequence_number = merkle_tree.merkle_tree.sequence_number;
+    let sequence_number = merkle_tree.merkle_tree.merkle_tree.sequence_number;
 
     let value = address_queue
         .by_value_index(value_index as usize, None)
@@ -52,7 +52,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the address with ranges adjusted to the Merkle tree state.
     let address: IndexedElement<usize> = IndexedElement {
-        index: merkle_tree.merkle_tree.next_index,
+        index: merkle_tree.merkle_tree.merkle_tree.next_index,
         value: value.clone(),
         next_index,
     };
@@ -75,11 +75,12 @@ pub fn process_update_address_merkle_tree<'info>(
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof
     merkle_tree
+        .merkle_tree
         .update(
             usize::from(changelog_index),
             address,
             low_address,
-            &low_address_next_value,
+            low_address_next_value,
             &mut bounded_vec,
         )
         .map_err(ProgramError::from)?;

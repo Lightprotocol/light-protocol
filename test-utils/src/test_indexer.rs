@@ -348,7 +348,7 @@ impl TestIndexer {
             .copy_merkle_tree()
             .unwrap();
         let address_root_indices =
-            vec![address_merkle_tree.current_root_index as u16; addresses.len()];
+            vec![address_merkle_tree.0.merkle_tree.current_root_index as u16; addresses.len()];
 
         (batch_non_inclusion_proof_inputs, address_root_indices)
     }

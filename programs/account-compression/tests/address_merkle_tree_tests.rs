@@ -158,7 +158,7 @@ async fn update_merkle_tree(
             .deserialized()
             .load_merkle_tree()
             .unwrap();
-        let changelog_index = address_merkle_tree.changelog_index();
+        let changelog_index = address_merkle_tree.merkle_tree.changelog_index();
         changelog_index
     };
 
@@ -262,11 +262,12 @@ async fn relayer_update(
             bounded_vec.push(array[i]).unwrap();
         }
         address_merkle_tree
+            .merkle_tree
             .update(
-                address_merkle_tree.changelog_index(),
+                address_merkle_tree.merkle_tree.changelog_index(),
                 address_bundle.new_element.clone(),
                 old_low_address.clone(),
-                &old_low_address_next_value,
+                old_low_address_next_value.clone(),
                 &mut bounded_vec,
             )
             .unwrap();
@@ -373,13 +374,19 @@ async fn test_address_queue() {
 
     assert_eq!(
         address_queue
-            .contains(&address1, address_merkle_tree.merkle_tree.sequence_number)
+            .contains(
+                &address1,
+                address_merkle_tree.merkle_tree.merkle_tree.sequence_number
+            )
             .unwrap(),
         true
     );
     assert_eq!(
         address_queue
-            .contains(&address2, address_merkle_tree.merkle_tree.sequence_number)
+            .contains(
+                &address2,
+                address_merkle_tree.merkle_tree.merkle_tree.sequence_number
+            )
             .unwrap(),
         true
     );

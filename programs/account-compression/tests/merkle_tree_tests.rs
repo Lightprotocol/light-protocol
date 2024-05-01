@@ -965,7 +965,7 @@ async fn test_nullify_leaves() {
     )
     .await
     .unwrap_err();
-    let invalid_change_log_index = 0;
+    let invalid_change_log_index = 10;
     nullify(
         &mut context,
         &merkle_tree_pubkey,

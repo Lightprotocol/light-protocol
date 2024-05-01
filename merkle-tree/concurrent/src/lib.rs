@@ -15,20 +15,6 @@ use crate::{
     hash::{compute_parent_node, compute_root},
 };
 
-#[repr(C)]
-#[derive(Debug)]
-pub struct ConcurrentMerkleTreeMetadata {
-    pub height: usize,
-    pub changelog_size: usize,
-    pub current_changelog_index: usize,
-    pub roots_size: usize,
-    pub current_root_index: usize,
-
-    pub next_index: usize,
-    pub sequence_number: usize,
-    pub rightmost_leaf: [u8; 32],
-}
-
 /// [Concurrent Merkle tree](https://drive.google.com/file/d/1BOpa5OFmara50fTvL0VIVYjtg-qzHCVc/view)
 /// which allows for multiple requests of updating leaves, without making any
 /// of the requests invalid, as long as they are not modyfing the same leaf.
@@ -75,7 +61,7 @@ where
     /// Cached upper nodes.
     pub canopy: BoundedVec<'a, [u8; 32]>,
 
-    _hasher: PhantomData<H>,
+    pub _hasher: PhantomData<H>,
 }
 
 pub type ConcurrentMerkleTree22<'a, H> = ConcurrentMerkleTree<'a, H, 22>;
@@ -163,6 +149,7 @@ where
         bytes_filled_subtrees: &[u8],
         bytes_changelog: &[u8],
         bytes_roots: &[u8],
+        bytes_canopy: &[u8],
     ) -> Result<Self, ConcurrentMerkleTreeError> {
         let expected_bytes_struct_size = mem::size_of::<Self>();
         if bytes_struct.len() != expected_bytes_struct_size {
@@ -242,6 +229,20 @@ where
             slice::from_raw_parts(bytes_roots.as_ptr() as *const _, (*struct_ref).roots_length);
         for root in roots.iter() {
             merkle_tree.roots.push(*root)?;
+        }
+
+        let canopy_size = Self::canopy_size((*struct_ref).canopy_depth);
+        let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
+        if bytes_canopy.len() != expected_canopy_size {
+            return Err(ConcurrentMerkleTreeError::CanopyBufferSize(
+                expected_canopy_size,
+                bytes_canopy.len(),
+            ));
+        }
+        let canopy: &[[u8; 32]] =
+            slice::from_raw_parts(bytes_canopy.as_ptr() as *const _, canopy_size);
+        for node in canopy.iter() {
+            merkle_tree.canopy.push(*node)?;
         }
 
         Ok(merkle_tree)
@@ -438,7 +439,7 @@ where
     /// This is highly unsafe. Ensuring the size and alignment of the byte
     /// slices is the caller's responsibility.
     #[allow(clippy::too_many_arguments)]
-    unsafe fn fill_vectors_mut<'b>(
+    pub unsafe fn fill_vectors_mut<'b>(
         &'b mut self,
         bytes_filled_subtrees: &'b mut [u8],
         bytes_changelog: &'b mut [u8],
@@ -759,20 +760,24 @@ where
     ///     element from the changelog to our updated proof).
     ///   * If yes, it means that the same leaf we want to update was already
     ///     updated. In such case, updating the proof is not possible.
-    fn update_proof_from_changelog(
+    pub fn update_proof_from_changelog(
         &self,
         changelog_index: usize,
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
+        allow_updates_changelog: bool,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if self.changelog_capacity > 1 {
-            let mut i = changelog_index + 1;
-            while i != self.changelog_index() + 1 {
-                self.changelog[i].update_proof(leaf_index, proof)?;
+            let mut i = changelog_index;
+
+            let lower_range = i;
+            let upper_range = i + self.changelog_length + 1;
+            for _ in lower_range..upper_range {
+                self.changelog[i].update_proof(leaf_index, proof, allow_updates_changelog)?;
                 i = (i + 1) % self.changelog_length;
             }
         } else {
-            self.changelog[0].update_proof(leaf_index, proof)?;
+            self.changelog[0].update_proof(leaf_index, proof, allow_updates_changelog)?;
         }
 
         Ok(())
@@ -835,6 +840,7 @@ where
 
         let changelog_entry = ChangelogEntry::new(node, changelog_path, leaf_index);
         self.inc_current_changelog_index()?;
+        // TODO: remove clone
         self.changelog.push(changelog_entry.clone())?;
 
         self.inc_current_root_index()?;
@@ -861,6 +867,7 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
+        allow_updates_changelog: bool,
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let expected_proof_len = self.height - self.canopy_depth;
         if proof.len() != expected_proof_len {
@@ -877,7 +884,12 @@ where
             self.update_proof_from_canopy(leaf_index, proof)?;
         }
         if self.changelog_capacity > 0 {
-            self.update_proof_from_changelog(changelog_index, leaf_index, proof)?;
+            self.update_proof_from_changelog(
+                changelog_index,
+                leaf_index,
+                proof,
+                allow_updates_changelog,
+            )?;
         }
         self.validate_proof(old_leaf, leaf_index, proof)?;
         self.update_leaf_in_tree(new_leaf, leaf_index, proof)

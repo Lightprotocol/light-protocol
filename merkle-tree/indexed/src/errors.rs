@@ -1,3 +1,4 @@
+use light_bounded_vec::BoundedVecError;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, light_hasher::errors::HasherError,
 };
@@ -16,12 +17,16 @@ pub enum IndexedMerkleTreeError {
     LowElementGreaterOrEqualToNewElement,
     #[error("The provided new element is greater or equal to the next element.")]
     NewElementGreaterOrEqualToNextElement,
+    #[error("Invalid changelog buffer size, expected {0}, got {1}")]
+    ChangelogBufferSize(usize, usize),
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
     #[error("Concurrent Merkle tree error: {0}")]
     ConcurrentMerkleTree(#[from] ConcurrentMerkleTreeError),
     #[error("Utils error {0}")]
     Utils(#[from] UtilsError),
+    #[error("Bounded vector error: {0}")]
+    BoundedVec(#[from] BoundedVecError),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -30,14 +35,16 @@ pub enum IndexedMerkleTreeError {
 impl From<IndexedMerkleTreeError> for u32 {
     fn from(e: IndexedMerkleTreeError) -> u32 {
         match e {
-            IndexedMerkleTreeError::IntegerOverflow => 3001,
-            IndexedMerkleTreeError::IndexHigherThanMax => 3002,
-            IndexedMerkleTreeError::LowElementNotFound => 3003,
-            IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement => 3004,
-            IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 3005,
+            IndexedMerkleTreeError::IntegerOverflow => 10001,
+            IndexedMerkleTreeError::IndexHigherThanMax => 10002,
+            IndexedMerkleTreeError::LowElementNotFound => 10003,
+            IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement => 10004,
+            IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 10005,
+            IndexedMerkleTreeError::ChangelogBufferSize(_, _) => 10006,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
             IndexedMerkleTreeError::Utils(e) => e.into(),
+            IndexedMerkleTreeError::BoundedVec(e) => e.into(),
         }
     }
 }

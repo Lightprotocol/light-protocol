@@ -170,7 +170,7 @@ impl Default for FeeConfig {
         Self {
             state_merkle_tree_rollover: 149,
             nullifier_queue_rollover: 29,
-            address_queue_rollover: 178,
+            address_queue_rollover: 181,
             tip: 1,
         }
     }

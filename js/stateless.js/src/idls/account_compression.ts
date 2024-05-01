@@ -63,6 +63,11 @@ export type AccountCompression = {
             value: '10';
         },
         {
+            name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG';
+            type: 'u64';
+            value: '256';
+        },
+        {
             name: 'ADDRESS_QUEUE_INDICES';
             type: 'u16';
             value: '6857';
@@ -773,7 +778,7 @@ export type AccountCompression = {
                     {
                         name: 'merkleTreeStruct';
                         type: {
-                            array: ['u8', 256];
+                            array: ['u8', 296];
                         };
                     },
                     {
@@ -798,6 +803,12 @@ export type AccountCompression = {
                         name: 'merkleTreeCanopy';
                         type: {
                             array: ['u8', 65472];
+                        };
+                    },
+                    {
+                        name: 'addressChangelog';
+                        type: {
+                            array: ['u8', 20480];
                         };
                     },
                 ];
@@ -908,6 +919,52 @@ export type AccountCompression = {
     ];
     types: [
         {
+            name: 'AddressMerkleTreeConfig';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'height';
+                        type: 'u32';
+                    },
+                    {
+                        name: 'changelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rootsSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'canopyDepth';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'addressChangelogSize';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'tip';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'closeThreshold';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'StateMerkleTreeConfig';
             type: {
                 kind: 'struct';
@@ -973,15 +1030,6 @@ export type AccountCompression = {
                         };
                     },
                 ];
-            };
-        },
-        {
-            name: 'AddressMerkleTreeConfig';
-            type: {
-                kind: 'alias';
-                value: {
-                    defined: 'StateMerkleTreeConfig';
-                };
             };
         },
         {
@@ -1196,6 +1244,11 @@ export const IDL: AccountCompression = {
             name: 'ADDRESS_MERKLE_TREE_CANOPY_DEPTH',
             type: 'u64',
             value: '10',
+        },
+        {
+            name: 'ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG',
+            type: 'u64',
+            value: '256',
         },
         {
             name: 'ADDRESS_QUEUE_INDICES',
@@ -1908,7 +1961,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'merkleTreeStruct',
                         type: {
-                            array: ['u8', 256],
+                            array: ['u8', 296],
                         },
                     },
                     {
@@ -1933,6 +1986,12 @@ export const IDL: AccountCompression = {
                         name: 'merkleTreeCanopy',
                         type: {
                             array: ['u8', 65472],
+                        },
+                    },
+                    {
+                        name: 'addressChangelog',
+                        type: {
+                            array: ['u8', 20480],
                         },
                     },
                 ],
@@ -2043,6 +2102,52 @@ export const IDL: AccountCompression = {
     ],
     types: [
         {
+            name: 'AddressMerkleTreeConfig',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'height',
+                        type: 'u32',
+                    },
+                    {
+                        name: 'changelogSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rootsSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'canopyDepth',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'addressChangelogSize',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'tip',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'closeThreshold',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'StateMerkleTreeConfig',
             type: {
                 kind: 'struct',
@@ -2108,15 +2213,6 @@ export const IDL: AccountCompression = {
                         },
                     },
                 ],
-            },
-        },
-        {
-            name: 'AddressMerkleTreeConfig',
-            type: {
-                kind: 'alias',
-                value: {
-                    defined: 'StateMerkleTreeConfig',
-                },
             },
         },
         {

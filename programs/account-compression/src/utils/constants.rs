@@ -28,6 +28,8 @@ pub const ADDRESS_MERKLE_TREE_CHANGELOG: u64 = 1400;
 pub const ADDRESS_MERKLE_TREE_ROOTS: u64 = 2400;
 #[constant]
 pub const ADDRESS_MERKLE_TREE_CANOPY_DEPTH: u64 = 10;
+#[constant]
+pub const ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG: u64 = 256;
 
 #[constant]
 pub const ADDRESS_QUEUE_INDICES: u16 = 6857;

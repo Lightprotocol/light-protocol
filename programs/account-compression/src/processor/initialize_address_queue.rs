@@ -26,7 +26,7 @@ pub fn process_initialize_address_queue<'info>(
     tip: u64,
     rollover_threshold: Option<u64>,
     height: u32,
-    rent: u64,
+    merkle_tree_rent: u64,
 ) -> Result<()> {
     {
         let mut address_queue_account = queue_loader.load_init()?;
@@ -38,8 +38,10 @@ pub fn process_initialize_address_queue<'info>(
         // rollover only makes sense in combination with the associated merkle tree
         let total_number_of_leaves = 2u64.pow(height);
         let queue_rent = queue_account_info.lamports();
+        // Since user doesn't interact with the Merkle tree directly, we need
+        // to charge a `rollover_fee` both for the queue and Merkle tree.
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
-            compute_rollover_fee(rollover_threshold, total_number_of_leaves, rent)?
+            compute_rollover_fee(rollover_threshold, total_number_of_leaves, merkle_tree_rent)?
                 + compute_rollover_fee(rollover_threshold, total_number_of_leaves, queue_rent)?
         } else {
             0

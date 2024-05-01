@@ -4,15 +4,16 @@ use account_compression::{
     initialize_nullifier_queue::NullifierQueueAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
-        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES,
-        ADDRESS_QUEUE_VALUES, STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG,
-        STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
-        STATE_NULLIFIER_QUEUE_VALUES,
+        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
+        ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES, ADDRESS_QUEUE_VALUES,
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
+        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
     },
     AddressMerkleTreeAccount, AddressQueueAccount, StateMerkleTreeAccount,
 };
 use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
+use light_indexed_merkle_tree::{IndexedMerkleTree26, RawIndexedElement};
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]
@@ -72,7 +73,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "AddressMerkleTree".to_owned(),
-            space: mem::size_of::<ConcurrentMerkleTree26<Poseidon>>(),
+            space: mem::size_of::<IndexedMerkleTree26<Poseidon, u16>>(),
         },
         Type {
             name: "AddressMerkleTree->filled_subtrees".to_owned(),
@@ -92,6 +93,11 @@ pub fn type_sizes() -> anyhow::Result<()> {
                 * ConcurrentMerkleTree26::<Poseidon>::canopy_size(
                     ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
                 ),
+        },
+        Type {
+            name: "AddressMerkleTree->changelog".to_owned(),
+            space: mem::size_of::<RawIndexedElement<usize>>()
+                * ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG as usize,
         },
     ];
 

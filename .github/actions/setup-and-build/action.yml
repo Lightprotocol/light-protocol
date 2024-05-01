@@ -66,6 +66,7 @@ runs:
         # Check for unstaged changes
         if ! git diff --quiet; then
           echo "There are unstaged changes after build!"
+          git diff
           exit 1
         fi
 

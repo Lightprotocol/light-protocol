@@ -1220,7 +1220,7 @@ impl MockIndexer {
             .copy_merkle_tree()
             .unwrap();
         let address_root_indices =
-            vec![address_merkle_tree.current_root_index as u16; addresses.len()];
+            vec![address_merkle_tree.0.merkle_tree.current_root_index as u16; addresses.len()];
 
         (non_inclusion_proof_inputs_json, address_root_indices)
     }
