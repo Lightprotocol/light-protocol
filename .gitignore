@@ -24,6 +24,7 @@
 **/.pnpm
 **/.node_modules
 **/.pnpm-lock.yaml
+.npmrc
 
 # Rust
 **/target/
