@@ -1,4 +1,0 @@
-info: uninstalling toolchain 'solana'
-info: toolchain 'solana' uninstalled
-   Compiling blake3 v1.5.0
-   Compiling solana-program v1.18.11 (https://github.com/Lightprotocol/agave?branch=v1.18.11-enforce-cpi-tracking#a24d3c07)

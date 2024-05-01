@@ -1,5 +1,4 @@
 use clap::{ArgAction, Parser};
-use prettytable::{row, Table};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
@@ -17,8 +16,9 @@ pub struct Options {
     #[clap(long, action = ArgAction::SetTrue)]
     build: bool,
 }
+use tabled::{Table, Tabled};
 
-/// cargo xtask bench --t mint_to_10 mint_to_1 mint_to_20 --compressed-token
+/// cargo xtask bench --t mint_to_10  --compressed-token --build
 pub fn bench(opts: Options) -> anyhow::Result<()> {
     let (program, program_id) = if opts.compressed_token {
         (
@@ -144,7 +144,6 @@ pub fn create_bench_report(
                 .parse::<u64>()
                 .unwrap();
             if let Some(value) = benchmarks.get_mut(name) {
-                // value.2 = cu_post;
                 value.3 = mem_end;
             }
         }
@@ -152,19 +151,28 @@ pub fn create_bench_report(
     output_lines.reverse();
     let total_cu = find_total_compute_units(program_id, output_lines).unwrap();
 
-    let mut table = Table::new();
-    table.add_row(row!["Total CU", format_number_with_commas(total_cu)]);
-    // Add a title row
-    table.add_row(row![
-        "Name",
-        "CU Percentage",
-        "CU Pre",
-        "CU Post",
-        "CU Used",
-        "Memory Used",
-        "Memory Start",
-        "Memory End"
-    ]);
+    let mut rows = Vec::new();
+    rows.push(RowData {
+        name: "Total CU".into(),
+        cu_percentage: "".into(),
+        cu_pre: format_number_with_commas(total_cu),
+        cu_post: "".into(),
+        cu_used: "".into(),
+        memory_used: "".into(),
+        memory_start: "".into(),
+        memory_end: "".into(),
+    });
+
+    rows.push(RowData {
+        name: "Name".into(),
+        cu_percentage: "CU Percentage".into(),
+        cu_pre: "CU Pre".into(),
+        cu_post: "CU Post".into(),
+        cu_used: "CU Used".into(),
+        memory_used: "Memory Used".into(),
+        memory_start: "Memory Start".into(),
+        memory_end: "Memory End".into(),
+    });
     for (name, (cu_pre, mem_start, cu_post, mem_end)) in benchmarks {
         let cu_used = cu_pre - cu_post;
         let memory_used = match mem_end.checked_sub(mem_start) {
@@ -174,25 +182,35 @@ pub fn create_bench_report(
             }
         };
         let cu_percentage = (cu_used as f64 / total_cu as f64) * 100.0;
-
-        table.add_row(row![
+        rows.push(RowData {
             name,
-            format!("{:.2}", cu_percentage),
-            format_number_with_commas(cu_pre),
-            format_number_with_commas(cu_post),
-            format_number_with_commas(cu_used),
-            format_number_with_commas(memory_used),
-            format_number_with_commas(mem_start),
-            format_number_with_commas(mem_end)
-        ]);
+            cu_percentage: format!("{:.2}", cu_percentage),
+            cu_pre: format_number_with_commas(cu_pre),
+            cu_post: format_number_with_commas(cu_post),
+            cu_used: format_number_with_commas(cu_used),
+            memory_used: format_number_with_commas(memory_used),
+            memory_start: format_number_with_commas(mem_start),
+            memory_end: format_number_with_commas(mem_end),
+        });
     }
     let path = DESTINATION.to_string() + report_name.as_str() + ".txt";
     println!("Writing report to: {}", path);
     let mut file = File::create(path)?;
+    let table = Table::new(rows);
     write!(file, "{}", table)?;
     Ok(())
 }
-
+#[derive(Tabled)]
+struct RowData {
+    name: String,
+    cu_percentage: String,
+    cu_pre: String,
+    cu_post: String,
+    cu_used: String,
+    memory_used: String,
+    memory_start: String,
+    memory_end: String,
+}
 fn format_number_with_commas(num: u64) -> String {
     let num_str = num.to_string();
     let mut result = String::new();
