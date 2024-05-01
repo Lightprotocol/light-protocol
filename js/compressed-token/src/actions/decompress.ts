@@ -1,4 +1,5 @@
 import {
+    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
@@ -66,7 +67,7 @@ export async function decompress(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
-    const ixs = await CompressedTokenProgram.decompress({
+    const ix = await CompressedTokenProgram.decompress({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,
         toAddress, // TODO: add explicit check that it is a token account
@@ -78,7 +79,12 @@ export async function decompress(
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
-    const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+    const signedTx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
     const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
     return txId;
 }

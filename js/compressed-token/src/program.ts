@@ -4,7 +4,6 @@ import {
     TransactionInstruction,
     SystemProgram,
     Connection,
-    ComputeBudgetProgram,
 } from '@solana/web3.js';
 import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, LightCompressedToken } from './idl/light_compressed_token';
@@ -26,10 +25,9 @@ import {
 import {
     MINT_SIZE,
     TOKEN_PROGRAM_ID,
-    approve,
-    createApproveCheckedInstruction,
     createApproveInstruction,
     createInitializeMint2Instruction,
+    createMintToInstruction,
 } from '@solana/spl-token';
 import {
     CPI_AUTHORITY_SEED,
@@ -139,7 +137,9 @@ export type TransferParams = {
     outputStateTrees?: PublicKey[] | PublicKey;
 };
 
-/** Create Mint account for compressed Tokens */
+/**
+ * Create Mint account for compressed Tokens
+ */
 export type CreateMintParams = {
     /** Tx feepayer */
     feePayer: PublicKey;
@@ -173,12 +173,52 @@ export type MintToParams = {
     merkleTree: PublicKey; // TODO: make optional with default system state trees
 };
 
+/**
+ * Register an existing SPL mint account to the compressed token program
+ * Creates an omnibus account for the mint
+ */
+export type RegisterMintParams = {
+    /** Tx feepayer */
+    feePayer: PublicKey;
+    /** Mint authority */
+    authority: PublicKey;
+    /** Mint public key */
+    mint: PublicKey;
+};
+
+/**
+ * Mint from existing SPL mint to compressed token accounts
+ */
+export type ApproveAndMintToParams = {
+    /** Tx feepayer */
+    feePayer: PublicKey;
+    /** Mint authority */
+    authority: PublicKey;
+    /** Mint authority (associated) token account */
+    authorityTokenAccount: PublicKey;
+    /** Mint public key */
+    mint: PublicKey;
+    /** The Solana Public Key to mint to. */
+    toPubkey: PublicKey;
+    /** The amount of compressed tokens to mint. */
+    amount: BN | number;
+    /** Public key of the state tree to mint into. */
+    merkleTree: PublicKey; // TODO: make optional with default system state trees
+};
+
+/**
+ * Sum up the token amounts of the compressed token accounts
+ */
 export const sumUpTokenAmount = (accounts: ParsedTokenAccount[]): BN => {
     return accounts.reduce(
         (acc, account: ParsedTokenAccount) => acc.add(account.parsed.amount),
         bn(0),
     );
 };
+
+/**
+ * Validate that all the compressed token accounts are owned by the same owner.
+ */
 export const validateSameTokenOwner = (accounts: ParsedTokenAccount[]) => {
     const owner = accounts[0].parsed.owner;
     accounts.forEach(acc => {
@@ -188,16 +228,27 @@ export const validateSameTokenOwner = (accounts: ParsedTokenAccount[]) => {
     });
 };
 
-export const parseInputTokenData = (
-    inputCompressedTokenAccounts: ParsedTokenAccount[],
+/**
+ * Parse compressed token accounts to get the mint, current owner and delegate.
+ */
+export const parseTokenData = (
+    compressedTokenAccounts: ParsedTokenAccount[],
 ) => {
-    const mint = inputCompressedTokenAccounts[0].parsed.mint;
-    const currentOwner = inputCompressedTokenAccounts[0].parsed.owner;
-    const delegate = inputCompressedTokenAccounts[0].parsed.delegate;
+    const mint = compressedTokenAccounts[0].parsed.mint;
+    const currentOwner = compressedTokenAccounts[0].parsed.owner;
+    const delegate = compressedTokenAccounts[0].parsed.delegate;
 
     return { mint, currentOwner, delegate };
 };
 
+/**
+ * Create the output state for a transfer transaction.
+ * @param inputCompressedTokenAccounts  Input state
+ * @param toAddress                     Recipient address
+ * @param amount                        Amount of tokens to transfer
+ * @returns                             Output token data for the transfer
+ *                                      instruction
+ */
 export function createTransferOutputState(
     inputCompressedTokenAccounts: ParsedTokenAccount[],
     toAddress: PublicKey,
@@ -244,6 +295,13 @@ export function createTransferOutputState(
     return outputCompressedAccounts;
 }
 
+/**
+ * Create the output state for a compress transaction.
+ * @param inputCompressedTokenAccounts  Input state
+ * @param amount                        Amount of tokens to compress
+ * @returns                             Output token data for the compress
+ *                                      instruction
+ */
 export function createDecompressOutputState(
     inputCompressedTokenAccounts: ParsedTokenAccount[],
     amount: number | BN,
@@ -287,12 +345,12 @@ export class CompressedTokenProgram {
      * Public key that identifies the CompressedPda program
      */
     static programId: PublicKey = new PublicKey(
-        // TODO: can add check to ensure its consistent with the idl
         '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
     );
 
     private static _program: Program<LightCompressedToken> | null = null;
 
+    /** @internal */
     static get program(): Program<LightCompressedToken> {
         if (!this._program) {
             this.initializeProgram();
@@ -301,12 +359,14 @@ export class CompressedTokenProgram {
     }
 
     /**
+     * @internal
      * Initializes the program statically if not already initialized.
      */
     private static initializeProgram() {
         if (!this._program) {
-            /// We can use a mock connection because we're using the program only for
-            /// serde and building instructions, not for interacting with the network.
+            /// Note: We can use a mock connection because we're using the
+            /// program only for serde and building instructions, not for
+            /// interacting with the network.
             const mockKeypair = Keypair.generate();
             const mockConnection = new Connection(
                 'http://127.0.0.1:8899',
@@ -353,11 +413,15 @@ export class CompressedTokenProgram {
         return address;
     }
 
+    /**
+     * Construct createMint instruction for compressed tokens
+     */
     static async createMint(
         params: CreateMintParams,
     ): Promise<TransactionInstruction[]> {
         const { mint, authority, feePayer, rentExemptBalance } = params;
 
+        /// Create and initialize SPL Mint account
         const createMintAccountInstruction = SystemProgram.createAccount({
             fromPubkey: feePayer,
             lamports: rentExemptBalance,
@@ -376,14 +440,17 @@ export class CompressedTokenProgram {
             TOKEN_PROGRAM_ID,
         );
 
+        /// Fund the mint authority PDA. The authority is system-owned in order
+        /// to natively mint compressed tokens.
         const fundAuthorityPdaInstruction = SystemProgram.transfer({
             fromPubkey: feePayer,
             toPubkey: mintAuthorityPda,
-            lamports: rentExemptBalance, // TODO: check that this is the right PDA size
+            lamports: rentExemptBalance,
         });
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
+        /// Create omnibus compressed mint account
         const ix = await this.program.methods
             .createMint()
             .accounts({
@@ -406,6 +473,39 @@ export class CompressedTokenProgram {
         ];
     }
 
+    /**
+     * Enable compression for an existing SPL mint, creating an omnibus account.
+     * For new mints, use `CompressedTokenProgram.createMint`.
+     */
+    static async registerMint(
+        params: RegisterMintParams,
+    ): Promise<TransactionInstruction[]> {
+        const { mint, authority, feePayer } = params;
+
+        const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+
+        const tokenPoolPda = this.deriveTokenPoolPda(mint);
+
+        const ix = await this.program.methods
+            .createMint()
+            .accounts({
+                mint,
+                feePayer,
+                authority,
+                tokenPoolPda,
+                systemProgram: SystemProgram.programId,
+                mintAuthorityPda,
+                tokenProgram: TOKEN_PROGRAM_ID,
+                cpiAuthorityPda: this.deriveCpiAuthorityPda,
+            })
+            .instruction();
+
+        return [ix];
+    }
+
+    /**
+     * Construct mintTo instruction for compressed tokens
+     */
     static async mintTo(params: MintToParams): Promise<TransactionInstruction> {
         const systemKeys = defaultStaticAccountsStruct();
 
@@ -418,7 +518,7 @@ export class CompressedTokenProgram {
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
         const toPubkeys = toArray(toPubkey);
-        const ix = await this.program.methods
+        const instruction = await this.program.methods
             .mintTo(toPubkeys, amounts)
             .accounts({
                 feePayer,
@@ -437,10 +537,60 @@ export class CompressedTokenProgram {
                 selfProgram: this.programId,
             })
             .instruction();
-        return ix;
+        return instruction;
     }
 
-    static async transfer(params: TransferParams) {
+    /// TODO: add compressBatch functionality for batch minting
+    /**
+     * Mint tokens from registed SPL mint account to a compressed account
+     */
+    static async approveAndMintTo(params: ApproveAndMintToParams) {
+        const {
+            mint,
+            feePayer,
+            authorityTokenAccount,
+            authority,
+            merkleTree,
+            toPubkey,
+        } = params;
+
+        const amount: bigint = BigInt(params.amount.toString());
+
+        /// 1. Mint to mint authority ATA
+        const splMintToInstruction = createMintToInstruction(
+            mint,
+            authorityTokenAccount,
+            authority,
+            amount,
+        );
+
+        /// 2. Compressed token program mintTo
+        const approveInstruction = createApproveInstruction(
+            authorityTokenAccount,
+            this.deriveCpiAuthorityPda,
+            authority,
+            amount,
+        );
+
+        /// 3. Compress from mint authority ATA to recipient compressed account
+        const ixs = await this.compress({
+            payer: feePayer,
+            owner: authority,
+            source: authorityTokenAccount,
+            toAddress: toPubkey,
+            mint,
+            amount: bn(amount.toString()),
+            outputStateTree: merkleTree,
+        });
+
+        return [splMintToInstruction, approveInstruction, ...ixs];
+    }
+    /**
+     * Construct transfer instruction for compressed tokens
+     */
+    static async transfer(
+        params: TransferParams,
+    ): Promise<TransactionInstruction> {
         const {
             payer,
             inputCompressedTokenAccounts,
@@ -458,7 +608,6 @@ export class CompressedTokenProgram {
                 amount,
             );
 
-        /// Pack
         const {
             inputTokenDataWithContext,
             outputStateMerkleTreeIndices,
@@ -469,7 +618,7 @@ export class CompressedTokenProgram {
             outputStateTrees,
         });
 
-        const { mint, currentOwner } = parseInputTokenData(
+        const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,
         );
 
@@ -519,13 +668,16 @@ export class CompressedTokenProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        return [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
+        return instruction;
     }
 
-    static async compress(params: CompressParams) {
+    /**
+     * Construct approve and compress instructions
+     * @returns [approveInstruction, compressInstruction]
+     */
+    static async compress(
+        params: CompressParams,
+    ): Promise<TransactionInstruction[]> {
         const { payer, owner, source, toAddress, mint, outputStateTree } =
             params;
         const amount = bn(params.amount);
@@ -538,7 +690,6 @@ export class CompressedTokenProgram {
             },
         ];
 
-        /// Pack
         const {
             inputTokenDataWithContext,
             outputStateMerkleTreeIndices,
@@ -576,8 +727,6 @@ export class CompressedTokenProgram {
             accountCompressionProgram,
         } = defaultStaticAccountsStruct();
 
-        /// TODO: add support for multiSigners
-        /// TODO: validate that we don't need approveChecked
         const approveInstruction = createApproveInstruction(
             source,
             this.deriveCpiAuthorityPda,
@@ -604,14 +753,15 @@ export class CompressedTokenProgram {
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        return [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            approveInstruction,
-            instruction,
-        ];
+        return [approveInstruction, instruction];
     }
 
-    static async decompress(params: DecompressParams) {
+    /**
+     * Construct decompress instruction
+     */
+    static async decompress(
+        params: DecompressParams,
+    ): Promise<TransactionInstruction> {
         const {
             payer,
             inputCompressedTokenAccounts,
@@ -637,7 +787,7 @@ export class CompressedTokenProgram {
             outputCompressedAccountsLength: tokenTransferOutputs.length,
             outputStateTrees: [outputStateTree],
         });
-        const { mint, currentOwner } = parseInputTokenData(
+        const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,
         );
 
@@ -681,15 +831,12 @@ export class CompressedTokenProgram {
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
-                decompressTokenAccount: toAddress, // token
+                decompressTokenAccount: toAddress,
                 tokenProgram: TOKEN_PROGRAM_ID,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
 
-        return [
-            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }),
-            instruction,
-        ];
+        return instruction;
     }
 }
