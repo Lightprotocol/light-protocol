@@ -982,7 +982,13 @@ async fn regenerate_accounts() {
     for (name, pubkey) in pubkeys {
         // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
         let account = context.banks_client.get_account(pubkey).await.unwrap();
+        println!(
+            "{} DISCRIMINATOR {:?}",
+            name,
+            account.as_ref().unwrap().data[0..8].to_vec()
+        );
         let account = CliAccount::new(&pubkey, &account.unwrap(), true);
+
         // Serialize the account data to JSON. Adjust according to your data structure.
         let json_data = serde_json::to_vec(&account).unwrap();
 
@@ -995,7 +1001,6 @@ async fn regenerate_accounts() {
         async_write(file_path.clone(), json_data).await.unwrap();
     }
 }
-
 #[derive(Debug)]
 pub struct MockIndexer {
     pub merkle_tree_pubkey: Pubkey,
