@@ -1,6 +1,9 @@
 [package]
 name = "light-heap"
 version = "0.1.0"
+description = "Custom heap allocator used in Light Protocol"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]

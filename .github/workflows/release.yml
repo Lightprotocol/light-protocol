@@ -1,72 +1,160 @@
-name: Release programs
+name: Release
 
 on:
   push:
-    tags:
-      - "*"
-
-permissions:
-  contents: write
+    branches:
+      - main
 
 jobs:
-  build:
+  auto-tag:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Setup and build
-        uses: ./.github/actions/setup-and-build
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.4.0
+        with:
+          version: 8
+          run_install: false
 
-      - name: Extract crate name from tag
-        id: extract-crate
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install cargo-workspaces
+        run: cargo install cargo-workspaces
+
+      - name: Extract project
+        id: extract-project
+        shell: bash
         run: |
-          TAG_NAME="${GITHUB_REF#refs/tags/}"
-          CRATE_NAME="$(echo "$TAG_NAME" | rev | cut -d'-' -f2- | rev)"
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
+          PACKAGE=""
+          LANGUAGE=""
 
-          if [[ "$CRATE_NAME" == *"account-compression"* ]]; then
-            ARTIFACT="account_compression.so"
-          elif [[ "$CRATE_NAME" == *"light-compressed-pda"* ]]; then
-            ARTIFACT="light_compressed_pda.so"
-          elif [[ "$CRATE_NAME" == *"light-compressed-token"* ]]; then
-            ARTIFACT="light_compressed_token.so"
-          elif [[ "$CRATE_NAME" == *"light-user-registry"* ]]; then
-            ARTIFACT="light_user_registry.so"
-          elif [[ "$CRATE_NAME" == *"light-registry"* ]]; then
-            ARTIFACT="light_registry.so"
+          if [[ "$COMMIT_MESSAGE" == *"Bump version of all Rust"* ]]; then
+            PACKAGE="all"
+            LANGUAGE="rust"
+          elif [[ "$COMMIT_MESSAGE" == *"Bump version of all TypeScript"* ]]; then
+            PACKAGE="all"
+            LANGUAGE="ts"
+          elif [[ "$COMMIT_MESSAGE" == *"Bump version of Rust project"* ]]; then
+            PACKAGE=$(echo "$COMMIT_MESSAGE" | grep -o "version of Rust project [^ ]*" | cut -d " " -f5)
+            LANGUAGE="rust"
+          elif [[ "$COMMIT_MESSAGE" == *"Bump version of TypeScript project"* ]]; then
+            PACKAGE=$(echo "$COMMIT_MESSAGE" | grep -o "version of TypeScript project [^ ]*" | cut -d " " -f5)
+            LANGUAGE="rust"
           fi
-          echo "crate=$CRATE_NAME" >> "$GITHUB_OUTPUT"
-          echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare artifacts
+          # Needed for Anchor.
+          PACKAGE_SNAKE_CASE=$(echo "$PACKAGE" | tr '-' '_')
+
+          printf "package=%s\package-snake-case=%s\nlanguage=%s\n" "$PACKAGE" "$PACKAGE_SNAKE_CASE" "$LANGUAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Set Git user configuration
         run: |
-          if [[ "$CRATE_NAME" == *"account-compression"* ]]; then
-            cp target/deploy/account_compression.so .
-          elif [[ "$CRATE_NAME" == *"light-compressed-pda"* ]]; then
-            cp target/deploy/light_compressed_pda.so .
-          elif [[ "$CRATE_NAME" == *"light-compressed-token"* ]]; then
-            cp target/deploy/light_compressed_token.so .
-          elif [[ "$CRATE_NAME" == *"light-user-registry"* ]]; then
-            cp target/deploy/light_user_registry.so .
-          elif [[ "$CRATE_NAME" == *"light-registry"* ]]; then
-            cp target/deploy/light_registry.so .
-          fi
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@github.com"
 
-      - name: Release
+      - name: Tag all Rust projects
+        if: steps.extract-project.outputs.package == 'all' && steps.extract-project.outputs.language == 'rust'
+        run: |
+          for PACKAGE in $(cargo ws list); do
+            VERSION=$(cargo pkgid -p "$PACKAGE" | cut -d "@" -f2)
+            echo "Creating tag for Rust package: $PACKAGE v$VERSION"
+            git tag "${PACKAGE}-v${VERSION}"
+            git push origin "${PACKAGE}-v${VERSION}"
+          done
+
+      - name: Tag all TypeScript projects
+        if: steps.extract-project.outputs.package == 'all' && steps.extract-project.outputs.language == 'ts'
+        run: |
+          for dir in $(pnpm m ls --depth -1 --porcelain | grep -v examples | grep -v tsconfig | tail -n+2); do
+            pushd "$dir"
+            PACKAGE=$(basename "$dir")
+            VERSION=$(pnpm list --depth 0 --json | jq -r '.[0].version')
+            echo "Creating tag for TypeScript package: $PACKAGE v$VERSION"
+            git tag "${PACKAGE}-v${VERSION}"
+            git push origin "${PACKAGE}-v${VERSION}"
+            popd
+          done
+
+      - name: Tag Rust project
+        id: tag-rust
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'rust'
+        env:
+          PACKAGE: ${{ steps.extract-project.outputs.version }}
+        run: |
+          VERSION=$(cargo pkgid -p "$PACKAGE" | cut -d "@" -f2)
+          echo "Creating tag for package: $PACKAGE v$VERSION"
+          git tag "${PACKAGE}-v${VERSION}"
+          git push origin "${PACKAGE}-v${VERSION}"
+
+      - name: Tag TypeScript project
+        id: tag-ts
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'ts'
+        env:
+          PACKAGE: ${{ steps.extract-project.outputs.version }}
+        run: |
+          VERSION=$(pnpm list --filter "$1" --depth 0 --json | jq -r '.[0].version')
+          echo "Creating tag for package: $PACKAGE v$VERSION"
+          git tag "${PACKAGE}-v${VERSION}"
+          git push origin "${PACKAGE}-v${VERSION}"
+
+      - name: Log in to crates.io
+        run: |
+          cargo login "${{ secrets.CRATES_IO_TOKEN }}"
+
+      - name: Release all Rust projects
+        if: steps.extract-project.outputs.package == 'all' && steps.extract-project.outputs.language == 'rust'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          PACKAGE: ${{ steps.extract-project.outputs.package }}
+        run: |
+          anchor build
+          cp -r ./target/deploy/*.so .
+          cargo release publish \
+            --workspace --execute --no-confirm
+
+      - name: Release Rust project
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'rust'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          PACKAGE: ${{ steps.extract-project.outputs.package }}
+          PACKAGE_SNAKE_CASE: ${{ steps.extract-project.outputs.package-snake-case }}
+        run: |
+          # Check whether we are building an on-chain program.
+          if [[ $(anchor keys list | grep "$PACKAGE_SNAKE_CASE") -eq 0 ]]; then
+            anchor build -p "$PACKAGE_SNAKE_CASE"
+          fi
+          cp -r ./target/deploy/*.so .
+
+          cargo release publish \
+            --package "$PACKAGE" \
+            --token "$CARGO_REGISTRY_TOKEN"
+
+      - name: Release TypeScript
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'ts'
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+          PACKAGE: ${{ steps.extract-project.outputs.package }}
+        run: |
+            SUBDIR=$(grep "$PACKAGE" pnpm-workspace.yaml | awk -F '"' '{gsub("/\\*\\*", "", $2); print $2}')
+            cd "$SUBDIR"
+            pnpm publish --access public --no-git-checks
+
+      - name: GitHub release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           token: ${{ secrets.PAT_TOKEN }}
           files: |
-            "${{ steps.extract-crate.outputs.artifact }}"
-
-      - name: Run cargo publish
-        # Skip macro-circom, it has a git dependency preventing it from publishing.
-        if: steps.extract-crate.outputs.crate != 'macro-circom'
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: |
-          cargo publish -p "${{ steps.extract-crate.outputs.crate }}" --token "$CARGO_REGISTRY_TOKEN"
+            *.so

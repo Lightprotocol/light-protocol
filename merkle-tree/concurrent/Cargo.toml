@@ -3,6 +3,7 @@ name = "light-concurrent-merkle-tree"
 version = "0.1.0"
 edition = "2021"
 description = "Concurrent Merkle tree implementation"
+repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 
 [features]

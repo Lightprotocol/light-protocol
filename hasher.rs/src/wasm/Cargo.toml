@@ -2,8 +2,9 @@
 name = "light-wasm-hasher"
 version = "0.1.0"
 edition = "2021"
-description = "Light Protocol Rust client"
-license = "GPL-3.0"
+description = "WASM wrapper for blake2 and Poseidon hashing"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
