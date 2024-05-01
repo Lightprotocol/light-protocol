@@ -1,7 +1,10 @@
 use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
-use crate::{address_queue_from_bytes_zero_copy_init, state::AddressQueueAccount};
+use crate::{
+    address_queue_from_bytes_zero_copy_init, state::AddressQueueAccount, AccessMetadata,
+    RolloverMetadata,
+};
 
 #[derive(Accounts)]
 pub struct InitializeAddressQueue<'info> {
@@ -21,22 +24,18 @@ pub fn process_initialize_address_queue<'info>(
     capacity_indices: u16,
     capacity_values: u16,
     sequence_threshold: u64,
-    tip: u64,
+    network_fee: u64,
     rollover_threshold: Option<u64>,
+    close_threshold: Option<u64>,
     height: u32,
     merkle_tree_rent: u64,
 ) -> Result<()> {
     {
-        let mut address_queue_account = queue_loader.load_init()?;
-        address_queue_account.index = index;
-        address_queue_account.owner = owner;
-        address_queue_account.delegate = delegate.unwrap_or_default();
-        address_queue_account.associated_merkle_tree = associated_merkle_tree;
-        address_queue_account.tip = tip;
-        // Rollover only makes sense in combination with the associated merkle tree
+        let mut address_queue = queue_loader.load_init()?;
+
+        // Since user doesn't interact with the Merkle tree directly, we need
+        // to charge a `rollover_fee` both for the queue and Merkle tree.
         let queue_rent = queue_account_info.lamports();
-        // Since user doesn't interact with the Merkle tree directly, we need to
-        // charge a `rollover_fee` both for the queue and Merkle tree.
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
             compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
                 .map_err(ProgramError::from)?
@@ -46,9 +45,19 @@ pub fn process_initialize_address_queue<'info>(
             0
         };
 
-        address_queue_account.rolledover_slot = u64::MAX;
-        address_queue_account.rollover_fee = rollover_fee;
-        drop(address_queue_account);
+        address_queue.init(
+            AccessMetadata::new(owner, delegate),
+            RolloverMetadata::new(
+                index,
+                rollover_fee,
+                rollover_threshold,
+                network_fee,
+                close_threshold,
+            ),
+            associated_merkle_tree,
+        );
+
+        drop(address_queue);
     }
 
     let _ = unsafe {

@@ -51,7 +51,7 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
         let associated_merkle_tree = {
             let queue = AccountLoader::<AddressQueueAccount>::try_from(queue)?;
             let queue = queue.load()?;
-            queue.associated_merkle_tree
+            queue.metadata.associated_merkle_tree
         };
 
         let merkle_tree = ctx.remaining_accounts.get(i + 1).unwrap();
@@ -78,11 +78,12 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
                 &ctx,
                 &address_queue,
             )?;
-            if queue_bundle.merkle_tree.key() != address_queue.associated_merkle_tree {
+            if queue_bundle.merkle_tree.key() != address_queue.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            lamports =
-                address_queue.tip + address_queue.rollover_fee * queue_bundle.elements.len() as u64;
+            lamports = address_queue.metadata.rollover_metadata.network_fee
+                + address_queue.metadata.rollover_metadata.rollover_fee
+                    * queue_bundle.elements.len() as u64;
             drop(address_queue);
         }
 

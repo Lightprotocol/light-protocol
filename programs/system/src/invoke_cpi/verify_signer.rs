@@ -136,13 +136,13 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     let merkle_tree_unpacked = merkle_tree.load()?;
     let next_index = merkle_tree_unpacked.load_next_index()?.try_into().unwrap();
     // TODO: rename delegate to program_owner
-    if merkle_tree_unpacked.delegate != Pubkey::default() {
+    if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == merkle_tree_unpacked.delegate {
+            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
                 msg!(
                     "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
                     invoking_program,
-                    merkle_tree_unpacked.delegate
+                    merkle_tree_unpacked.metadata.access_metadata.delegate
                 );
                 return Ok(next_index);
             }
@@ -160,13 +160,13 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         AccountLoader::<AddressMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
     // TODO: rename delegate to program_owner
-    if merkle_tree_unpacked.delegate != Pubkey::default() {
+    if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == merkle_tree_unpacked.delegate {
+            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
                 msg!(
                     "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
                     invoking_program,
-                    merkle_tree_unpacked.delegate
+                    merkle_tree_unpacked.metadata.access_metadata.delegate
                 );
                 return Ok(());
             }
@@ -174,7 +174,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         msg!(
             "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
             invoking_program,
-            merkle_tree_unpacked.delegate
+            merkle_tree_unpacked.metadata.access_metadata.delegate
         );
         Err(CompressedPdaError::InvalidMerkleTreeOwner.into())
     } else {

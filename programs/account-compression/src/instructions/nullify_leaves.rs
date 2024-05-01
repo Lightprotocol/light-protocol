@@ -40,10 +40,10 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     {
         let array_account = ctx.accounts.nullifier_queue.load()?;
-        if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
+        if array_account.metadata.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
             msg!(
             "NullifyEvents queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
-            array_account.associated_merkle_tree,
+            array_account.metadata.associated_merkle_tree,
             ctx.accounts.merkle_tree.key(),
         );
             return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
@@ -87,10 +87,10 @@ fn insert_nullifier(
     ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
 ) -> Result<()> {
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-    if merkle_tree.associated_queue != ctx.accounts.nullifier_queue.key() {
+    if merkle_tree.metadata.associated_queue != ctx.accounts.nullifier_queue.key() {
         msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
-            merkle_tree.associated_queue,
+            merkle_tree.metadata.associated_queue,
             ctx.accounts.nullifier_queue.key()
         );
         return Err(AccountCompressionErrorCode::InvalidNullifierQueue.into());

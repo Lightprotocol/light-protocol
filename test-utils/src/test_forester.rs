@@ -226,7 +226,10 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
                 .await;
         let address_merkle_tree_deserialized = *address_merkle_tree.deserialized();
         let address_merkle_tree = address_merkle_tree_deserialized.copy_merkle_tree().unwrap();
-        assert_eq!(relayer_merkle_tree.root(), address_merkle_tree.0.root(),);
+        assert_eq!(
+            relayer_merkle_tree.root(),
+            address_merkle_tree.indexed_merkle_tree().root(),
+        );
         let address_queue = unsafe {
             get_hash_set::<u16, AddressQueueAccount>(context, address_queue_pubkey).await
         };
@@ -249,8 +252,11 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
-        let old_sequence_number = address_merkle_tree.0.merkle_tree.sequence_number;
-        let old_root = address_merkle_tree.0.merkle_tree.root();
+        let old_sequence_number = address_merkle_tree
+            .indexed_merkle_tree()
+            .merkle_tree
+            .sequence_number;
+        let old_root = address_merkle_tree.indexed_merkle_tree().merkle_tree.root();
         // Update on-chain tree.
         let update_successful = match update_merkle_tree(
             context,
@@ -345,17 +351,20 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
                 )
                 .unwrap();
             assert_eq!(
-                merkle_tree.0.merkle_tree.sequence_number,
+                merkle_tree
+                    .indexed_merkle_tree()
+                    .merkle_tree
+                    .sequence_number,
                 old_sequence_number + 2
             );
             assert_ne!(
                 old_root,
-                merkle_tree.0.merkle_tree.root(),
+                merkle_tree.indexed_merkle_tree().merkle_tree.root(),
                 "Root did not change."
             );
             assert_eq!(
                 relayer_merkle_tree.root(),
-                merkle_tree.0.merkle_tree.root(),
+                merkle_tree.indexed_merkle_tree().merkle_tree.root(),
                 "Root offchain onchain inconsistent."
             );
         }

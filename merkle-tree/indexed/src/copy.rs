@@ -11,7 +11,7 @@ use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree, RawIndexedElement
 
 #[derive(Debug)]
 pub struct IndexedMerkleTreeCopy<'a, H, I, const HEIGHT: usize>(
-    pub IndexedMerkleTree<'a, H, I, HEIGHT>,
+    IndexedMerkleTree<'a, H, I, HEIGHT>,
 )
 where
     H: Hasher,
@@ -202,5 +202,9 @@ where
         }
 
         Ok(IndexedMerkleTreeCopy(indexed_merkle_tree))
+    }
+
+    pub fn indexed_merkle_tree(&self) -> &IndexedMerkleTree<'a, H, I, HEIGHT> {
+        &self.0
     }
 }

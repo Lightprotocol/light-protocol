@@ -12,29 +12,37 @@ use light_indexed_merkle_tree::{
     zero_copy::{IndexedMerkleTreeZeroCopy26, IndexedMerkleTreeZeroCopyMut26},
 };
 
-use crate::utils::check_registered_or_signer::GroupAccess;
+use crate::{
+    utils::check_registered_or_signer::GroupAccess, AccessMetadata, MerkleTreeMetadata,
+    QueueMetadata, RolloverMetadata,
+};
 
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct AddressQueueAccount {
-    pub index: u64,
-    pub rollover_fee: u64,
-    pub tip: u64,
-    pub rolledover_slot: u64,
-    pub owner: Pubkey,
-    pub delegate: Pubkey,
-    pub associated_merkle_tree: Pubkey,
-    pub next_queue: Pubkey,
+    pub metadata: QueueMetadata,
+}
+
+impl AddressQueueAccount {
+    pub fn init(
+        &mut self,
+        access_metadata: AccessMetadata,
+        rollover_metadata: RolloverMetadata,
+        associated_merkle_tree: Pubkey,
+    ) {
+        self.metadata
+            .init(access_metadata, rollover_metadata, associated_merkle_tree)
+    }
 }
 
 impl GroupAccess for AddressQueueAccount {
     fn get_owner(&self) -> &Pubkey {
-        &self.owner
+        &self.metadata.access_metadata.owner
     }
 
     fn get_delegate(&self) -> &Pubkey {
-        &self.delegate
+        &self.metadata.access_metadata.delegate
     }
 }
 
@@ -102,20 +110,7 @@ pub unsafe fn address_queue_from_bytes_zero_copy_init(
 #[aligned_sized(anchor)]
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct AddressMerkleTreeAccount {
-    /// Unique index.
-    pub index: u64,
-    pub rollover_fee: u64,
-    pub tip: u64,
-    pub rollover_threshold: u64,
-    pub rolledover_slot: u64,
-    pub close_threshold: u64,
-    pub associated_queue: Pubkey,
-    /// Public key of the next Merkle tree.
-    pub next_merkle_tree: Pubkey,
-    /// Owner of the Merkle tree.
-    pub owner: Pubkey,
-    /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
-    pub delegate: Pubkey,
+    pub metadata: MerkleTreeMetadata,
     pub merkle_tree_struct: [u8; 320],
     pub merkle_tree_filled_subtrees: [u8; 832],
     pub merkle_tree_changelog: [u8; 1220800],
@@ -125,6 +120,16 @@ pub struct AddressMerkleTreeAccount {
 }
 
 impl AddressMerkleTreeAccount {
+    pub fn init(
+        &mut self,
+        access_metadata: AccessMetadata,
+        rollover_metadata: RolloverMetadata,
+        associated_queue: Pubkey,
+    ) {
+        self.metadata
+            .init(access_metadata, rollover_metadata, associated_queue)
+    }
+
     pub fn copy_merkle_tree(&self) -> Result<IndexedMerkleTreeCopy26<Poseidon, usize>> {
         let tree = unsafe {
             IndexedMerkleTreeCopy26::copy_from_bytes(

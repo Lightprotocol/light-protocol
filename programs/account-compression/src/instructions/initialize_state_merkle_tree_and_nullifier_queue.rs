@@ -28,7 +28,7 @@ pub struct StateMerkleTreeConfig {
     pub changelog_size: u64,
     pub roots_size: u64,
     pub canopy_depth: u64,
-    pub tip: Option<u64>,
+    pub network_fee: Option<u64>,
     pub rollover_threshold: Option<u64>,
     pub close_threshold: Option<u64>,
 }
@@ -40,7 +40,7 @@ impl default::Default for StateMerkleTreeConfig {
             changelog_size: STATE_MERKLE_TREE_CHANGELOG,
             roots_size: STATE_MERKLE_TREE_ROOTS,
             canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            tip: Some(1),
+            network_fee: Some(1),
             rollover_threshold: Some(95),
             close_threshold: None,
         }
@@ -52,7 +52,7 @@ pub struct NullifierQueueConfig {
     pub capacity_indices: u16,
     pub capacity_values: u16,
     pub sequence_threshold: u64,
-    pub tip: Option<u64>,
+    pub network_fee: Option<u64>,
 }
 
 impl default::Default for NullifierQueueConfig {
@@ -61,7 +61,7 @@ impl default::Default for NullifierQueueConfig {
             capacity_indices: STATE_NULLIFIER_QUEUE_INDICES,
             capacity_values: STATE_NULLIFIER_QUEUE_VALUES,
             sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
-            tip: Some(1),
+            network_fee: Some(1),
         }
     }
 }
@@ -99,7 +99,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         &state_merkle_tree_config.roots_size,
         &state_merkle_tree_config.canopy_depth,
         ctx.accounts.nullifier_queue.key(),
-        state_merkle_tree_config.tip.unwrap_or(0),
+        state_merkle_tree_config.network_fee.unwrap_or(0),
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
         ctx.accounts.merkle_tree.get_lamports(),
@@ -115,7 +115,8 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         nullifier_queue_config.capacity_values,
         nullifier_queue_config.sequence_threshold,
         state_merkle_tree_config.rollover_threshold,
-        nullifier_queue_config.tip.unwrap_or(0),
+        state_merkle_tree_config.close_threshold,
+        nullifier_queue_config.network_fee.unwrap_or(0),
         state_merkle_tree_config.height,
     )?;
     Ok(())

@@ -500,8 +500,12 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                 .deserialized()
                 .copy_merkle_tree()
                 .unwrap();
-            address_root_indices
-                .push(fetched_address_merkle_tree.0.merkle_tree.current_root_index as u16);
+            address_root_indices.push(
+                fetched_address_merkle_tree
+                    .indexed_merkle_tree()
+                    .merkle_tree
+                    .current_root_index as u16,
+            );
         }
 
         let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());

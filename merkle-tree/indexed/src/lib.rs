@@ -8,7 +8,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 
 pub mod array;
 pub mod copy;
@@ -102,6 +102,48 @@ where
         // This low leaf is going to be updated during the first `update`
         // operation.
         self.merkle_tree.append(&H::zero_indexed_leaf())?;
+
+        Ok(())
+    }
+
+    /// Add the hightest element with a maximum value allowed by the prime
+    /// field.
+    ///
+    /// Initializing an indexed Merkle tree not only with the lowest element
+    /// (mandatory for the IMT algorithm to work), but also the highest element,
+    /// makes non-inclusion proofs easier - there is no special case needed for
+    /// the first insertion.
+    ///
+    /// However, it comes with a tradeoff - the space available in the tree
+    /// becomes lower by 1.
+    pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
+        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
+
+        let mut indexed_array = IndexedArray::<H, I, 2>::default();
+        let nullifier_bundle = indexed_array.append(&init_value)?;
+        let new_low_leaf = nullifier_bundle
+            .new_low_element
+            .hash::<H>(&nullifier_bundle.new_element.value)?;
+
+        let mut proof = BoundedVec::with_capacity(self.merkle_tree.height);
+        for i in 0..self.merkle_tree.height - self.merkle_tree.canopy_depth {
+            // PANICS: Calling `unwrap()` pushing into this bounded vec
+            // cannot panic since it has enough capacity.
+            proof.push(H::zero_bytes()[i]).unwrap();
+        }
+
+        self.merkle_tree.update(
+            self.changelog_index(),
+            &H::zero_indexed_leaf(),
+            &new_low_leaf,
+            0,
+            &mut proof,
+        )?;
+
+        let new_leaf = nullifier_bundle
+            .new_element
+            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+        self.merkle_tree.append(&new_leaf)?;
 
         Ok(())
     }
@@ -245,37 +287,5 @@ where
         };
 
         Ok((new_low_element, new_leaf))
-    }
-
-    /// Initializes the address merkle tree with the given initial value.
-    /// The initial value should be a high value since one needs to prove non-inclusion of an address prior to insertion.
-    /// Thus, addresses with higher values than the initial value cannot be inserted.
-    pub fn initialize_address_merkle_tree(
-        &mut self,
-        init_value: BigUint,
-    ) -> Result<(), IndexedMerkleTreeError> {
-        let mut indexed_array = IndexedArray::<H, I, 2>::default();
-        let nullifier_bundle = indexed_array.append(&init_value)?;
-        let new_low_leaf = nullifier_bundle
-            .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
-        let mut zero_bytes_array = BoundedVec::with_capacity(26);
-        for i in 0..self.merkle_tree.height - self.merkle_tree.canopy_depth {
-            // PANICS: Calling `unwrap()` pushing into this bounded vec
-            // cannot panic since it has enough capacity.
-            zero_bytes_array.push(H::zero_bytes()[i]).unwrap();
-        }
-        self.merkle_tree.update(
-            self.changelog_index(),
-            &H::zero_indexed_leaf(),
-            &new_low_leaf,
-            0,
-            &mut zero_bytes_array,
-        )?;
-        let new_leaf = nullifier_bundle
-            .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-        self.merkle_tree.append(&new_leaf)?;
-        Ok(())
     }
 }

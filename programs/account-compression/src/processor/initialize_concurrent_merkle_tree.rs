@@ -1,7 +1,10 @@
 use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
-use crate::{errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount};
+use crate::{
+    errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount, AccessMetadata,
+    RolloverMetadata,
+};
 
 #[derive(Accounts)]
 pub struct InitializeStateMerkleTree<'info> {
@@ -23,7 +26,7 @@ pub fn process_initialize_state_merkle_tree(
     roots_size: &u64,
     canopy_depth: &u64,
     associated_queue: Pubkey,
-    tip: u64,
+    network_fee: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
     rent: u64,
@@ -31,20 +34,24 @@ pub fn process_initialize_state_merkle_tree(
     // Initialize new Merkle trees.
     let mut merkle_tree = merkle_tree_account_loader.load_init()?;
 
-    merkle_tree.index = index;
-    merkle_tree.owner = owner;
-    merkle_tree.delegate = delegate.unwrap_or_default();
-    merkle_tree.associated_queue = associated_queue;
-    merkle_tree.tip = tip;
-    merkle_tree.rollover_fee = match rollover_threshold {
+    let rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => {
             compute_rollover_fee(rollover_threshold, *height, rent).map_err(ProgramError::from)?
         }
         None => 0,
     };
-    merkle_tree.rolledover_slot = u64::MAX;
-    merkle_tree.rollover_threshold = rollover_threshold.unwrap_or(u64::MAX);
-    merkle_tree.close_threshold = close_threshold.unwrap_or(u64::MAX);
+
+    merkle_tree.init(
+        AccessMetadata::new(owner, delegate),
+        RolloverMetadata::new(
+            index,
+            rollover_fee,
+            rollover_threshold,
+            network_fee,
+            close_threshold,
+        ),
+        associated_queue,
+    );
 
     // TODO: think about whether and if yes how to use the Merkle tree index in
     // the future. We could create a group which has ownership over a set of

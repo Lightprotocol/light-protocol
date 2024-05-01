@@ -14,16 +14,20 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
+
 pub mod address_tree_rollover;
 pub mod assert_compressed_tx;
 pub mod assert_token_tx;
 pub mod e2e_test_env;
+pub mod merkle_tree;
+pub mod rollover;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
 pub mod test_env;
 pub mod test_forester;
 pub mod test_indexer;
+
 #[derive(Debug, Clone)]
 pub struct AccountZeroCopy<'a, T> {
     pub account: Pin<Box<Account>>,
@@ -165,7 +169,7 @@ pub struct FeeConfig {
     pub state_merkle_tree_rollover: u64,
     pub nullifier_queue_rollover: u64,
     pub address_queue_rollover: u64,
-    pub tip: u64,
+    pub network_fee: u64,
 }
 
 impl Default for FeeConfig {
@@ -174,7 +178,7 @@ impl Default for FeeConfig {
             state_merkle_tree_rollover: 149,
             nullifier_queue_rollover: 29,
             address_queue_rollover: 181,
-            tip: 1,
+            network_fee: 1,
         }
     }
 }
@@ -257,7 +261,7 @@ where
             transaction_params.num_output_compressed_accounts,
         ] {
             if *rollover != 0 {
-                tip += transaction_params.fee_config.tip as i64;
+                tip += transaction_params.fee_config.network_fee as i64;
             }
         }
 

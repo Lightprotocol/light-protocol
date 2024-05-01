@@ -5,11 +5,11 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use light_utils::fee::compute_rollover_fee;
 
-use crate::InsertIntoNullifierQueues;
 use crate::{
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
-    RegisteredProgram,
+    QueueMetadata, RegisteredProgram, RolloverMetadata,
 };
+use crate::{AccessMetadata, InsertIntoNullifierQueues};
 
 pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     nullifier_queue_account_info: AccountInfo<'info>,
@@ -22,17 +22,13 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     capacity_values: u16,
     sequence_threshold: u64,
     rollover_threshold: Option<u64>,
-    tip: u64,
+    close_threshold: Option<u64>,
+    network_fee: u64,
     height: u32,
 ) -> Result<()> {
     {
-        let mut nullifier_queue_account = nullifier_queue_account_loader.load_init()?;
-        nullifier_queue_account.index = index;
-        nullifier_queue_account.owner = owner;
-        nullifier_queue_account.delegate = delegate.unwrap_or_default();
-        nullifier_queue_account.associated_merkle_tree = associated_merkle_tree;
-        nullifier_queue_account.rolledover_slot = u64::MAX;
-        nullifier_queue_account.tip = tip;
+        let mut nullifier_queue = nullifier_queue_account_loader.load_init()?;
+
         let queue_rent = nullifier_queue_account_info.lamports();
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
             compute_rollover_fee(rollover_threshold, height, queue_rent)
@@ -40,9 +36,23 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
         } else {
             0
         };
-        nullifier_queue_account.rollover_fee = rollover_fee;
-        nullifier_queue_account.rolledover_slot = u64::MAX;
-        drop(nullifier_queue_account);
+
+        nullifier_queue.init(
+            AccessMetadata {
+                owner,
+                delegate: delegate.unwrap_or_default(),
+            },
+            RolloverMetadata::new(
+                index,
+                rollover_fee,
+                rollover_threshold,
+                network_fee,
+                close_threshold,
+            ),
+            associated_merkle_tree,
+        );
+
+        drop(nullifier_queue);
     }
 
     let nullifier_queue = nullifier_queue_account_info;
@@ -59,29 +69,32 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
 pub struct NullifierQueueAccount {
-    pub index: u64,
-    pub rollover_fee: u64,
-    /// Tip for maintaining the account.
-    pub tip: u64,
-    /// The slot when the account was rolled over, a rolled over account should not be written to.
-    pub rolledover_slot: u64,
-    pub owner: Pubkey,
-    pub delegate: Pubkey,
-    pub associated_merkle_tree: Pubkey,
-    pub next_queue: Pubkey,
+    pub metadata: QueueMetadata,
+}
+
+impl NullifierQueueAccount {
+    pub fn init(
+        &mut self,
+        access_metadata: AccessMetadata,
+        rollover_metadata: RolloverMetadata,
+        associated_merkle_tree: Pubkey,
+    ) {
+        self.metadata
+            .init(access_metadata, rollover_metadata, associated_merkle_tree)
+    }
 }
 
 impl GroupAccess for NullifierQueueAccount {
     fn get_owner(&self) -> &Pubkey {
-        &self.owner
+        &self.metadata.access_metadata.owner
     }
 
     fn get_delegate(&self) -> &Pubkey {
-        &self.delegate
+        &self.metadata.access_metadata.delegate
     }
 }
 

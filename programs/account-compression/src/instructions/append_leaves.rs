@@ -27,11 +27,11 @@ pub struct AppendLeaves<'info> {
 
 impl GroupAccess for StateMerkleTreeAccount {
     fn get_owner(&self) -> &Pubkey {
-        &self.owner
+        &self.metadata.access_metadata.owner
     }
 
     fn get_delegate(&self) -> &Pubkey {
-        &self.delegate
+        &self.metadata.access_metadata.delegate
     }
 }
 
@@ -106,8 +106,9 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
 
             let mut merkle_tree_account = merkle_tree_account.load_mut()?;
-            let mut lamports = merkle_tree_account.rollover_fee * (end - start) as u64;
-            lamports += merkle_tree_account.tip;
+            let mut lamports =
+                merkle_tree_account.metadata.rollover_metadata.rollover_fee * (end - start) as u64;
+            lamports += merkle_tree_account.metadata.rollover_metadata.network_fee;
 
             check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
                 ctx,
