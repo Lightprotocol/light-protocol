@@ -29,6 +29,7 @@ pub struct InsertIntoNullifierQueues<'info> {
 pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
     elements: &'a [[u8; 32]],
+    transfer_network_fee: bool,
 ) -> Result<()> {
     let expected_remaining_accounts = elements.len() * 2;
     if expected_remaining_accounts != ctx.remaining_accounts.len() {
@@ -78,7 +79,12 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             if queue_bundle.merkle_tree.key() != indexed_array.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            lamports = indexed_array.metadata.rollover_metadata.network_fee
+            let network_fee = if transfer_network_fee {
+                indexed_array.metadata.rollover_metadata.network_fee
+            } else {
+                0
+            };
+            lamports = network_fee
                 + indexed_array.metadata.rollover_metadata.rollover_fee
                     * queue_bundle.elements.len() as u64;
         }

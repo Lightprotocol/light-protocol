@@ -103,6 +103,15 @@ pub fn process<
         let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
         // insert addresses into address merkle tree queue ---------------------------------------------------
         if !new_addresses.is_empty() {
+            let charge_network_fee = if inputs
+                .input_compressed_accounts_with_merkle_context
+                .is_empty()
+                && inputs.output_compressed_accounts.is_empty()
+            {
+                true
+            } else {
+                false
+            };
             derive_new_addresses(
                 &inputs,
                 &ctx,
@@ -114,6 +123,7 @@ pub fn process<
                 &new_addresses,
                 &inputs.new_address_params,
                 &invoking_program,
+                charge_network_fee,
             )?;
         }
         bench_sbf_start!("cpda_verify_state_proof");
@@ -150,11 +160,17 @@ pub fn process<
         bench_sbf_end!("cpda_verify_state_proof");
         // insert nullifies (input compressed account hashes)---------------------------------------------------
         bench_sbf_start!("cpda_nullifiers");
+        let charge_network_fee = if inputs.output_compressed_accounts.is_empty() {
+            true
+        } else {
+            false
+        };
         insert_nullifiers(
             &inputs,
             &ctx,
             &input_compressed_account_hashes,
             &invoking_program,
+            charge_network_fee,
         )?;
         bench_sbf_end!("cpda_nullifiers");
     } else if inputs.proof.is_some() {

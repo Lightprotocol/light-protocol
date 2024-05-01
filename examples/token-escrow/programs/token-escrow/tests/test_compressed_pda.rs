@@ -273,7 +273,7 @@ async fn create_escrow_ix<R: RpcConnection>(
         proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
-        cpi_signature_account: &env.cpi_signature_account_pubkey,
+        cpi_signature_account: &env.cpi_context_account_pubkey,
     };
     let instruction = create_escrow_instruction(create_ix_inputs.clone(), escrow_amount);
     (payer_pubkey, instruction)
@@ -480,7 +480,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &token_escrow.token_data.mint,
-        cpi_signature_account: &env.cpi_signature_account_pubkey,
+        cpi_signature_account: &env.cpi_context_account_pubkey,
         old_lock_up_time,
         new_lock_up_time,
         address: compressed_escrow_pda.compressed_account.address.unwrap(),

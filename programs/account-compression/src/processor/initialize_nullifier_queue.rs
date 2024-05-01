@@ -3,13 +3,12 @@ use std::{cell::RefMut, mem};
 use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
-use light_utils::fee::compute_rollover_fee;
 
 use crate::{
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
-    QueueMetadata, RegisteredProgram, RolloverMetadata,
+    QueueMetadata, RegisteredProgram,
 };
-use crate::{AccessMetadata, InsertIntoNullifierQueues};
+use crate::{AccessMetadata, InsertIntoNullifierQueues, RolloverMetadata};
 
 pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     nullifier_queue_account_info: AccountInfo<'info>,
@@ -24,31 +23,21 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
     network_fee: u64,
-    height: u32,
 ) -> Result<()> {
     {
         let mut nullifier_queue = nullifier_queue_account_loader.load_init()?;
-
-        let queue_rent = nullifier_queue_account_info.lamports();
-        let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
-            compute_rollover_fee(rollover_threshold, height, queue_rent)
-                .map_err(ProgramError::from)?
-        } else {
-            0
-        };
-
+        let mut rollover_meta_data = RolloverMetadata::default();
+        rollover_meta_data.index = index;
+        rollover_meta_data.rollover_threshold = rollover_threshold.unwrap_or_default();
+        rollover_meta_data.close_threshold = close_threshold.unwrap_or(u64::MAX);
+        rollover_meta_data.rolledover_slot = u64::MAX;
+        rollover_meta_data.network_fee = network_fee;
         nullifier_queue.init(
             AccessMetadata {
                 owner,
                 delegate: delegate.unwrap_or_default(),
             },
-            RolloverMetadata::new(
-                index,
-                rollover_fee,
-                rollover_threshold,
-                network_fee,
-                close_threshold,
-            ),
+            rollover_meta_data,
             associated_merkle_tree,
         );
 
@@ -80,11 +69,11 @@ impl NullifierQueueAccount {
     pub fn init(
         &mut self,
         access_metadata: AccessMetadata,
-        rollover_metadata: RolloverMetadata,
+        rollover_meta_data: RolloverMetadata,
         associated_merkle_tree: Pubkey,
     ) {
         self.metadata
-            .init(access_metadata, rollover_metadata, associated_merkle_tree)
+            .init(access_metadata, rollover_meta_data, associated_merkle_tree)
     }
 }
 

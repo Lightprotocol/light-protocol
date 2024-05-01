@@ -579,10 +579,11 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         rpc.get_payer().pubkey(),
         merkle_tree_pubkey,
         queue_keypair.pubkey(),
-        state_merkle_tree_config,
+        state_merkle_tree_config.clone(),
         NullifierQueueConfig::default(),
         None,
         1,
+        0,
     );
 
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
@@ -597,33 +598,10 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         latest_blockhash,
     );
     rpc.process_transaction(transaction.clone()).await.unwrap();
-    let merkle_tree = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree_pubkey).await;
-
-    assert_eq!(
-        merkle_tree.deserialized().metadata.rollover_metadata.index,
-        1
-    );
-    // TODO(vadorovsky): Assert fees.
-    assert_eq!(
-        merkle_tree.deserialized().metadata.next_merkle_tree,
-        Pubkey::default()
-    );
-    assert_eq!(
-        merkle_tree.deserialized().metadata.access_metadata.owner,
-        *payer_pubkey
-    );
-    assert_eq!(
-        merkle_tree.deserialized().metadata.access_metadata.delegate,
-        Pubkey::default()
-    );
-    assert_eq!(
-        merkle_tree.deserialized().metadata.associated_queue,
-        queue_keypair.pubkey()
-    );
-
-    let merkle_tree = merkle_tree.deserialized().copy_merkle_tree().unwrap();
     assert_merkle_tree_initialized(
-        &merkle_tree,
+        rpc,
+        &merkle_tree_pubkey,
+        &queue_keypair.pubkey(),
         STATE_MERKLE_TREE_HEIGHT as usize,
         STATE_MERKLE_TREE_CHANGELOG as usize,
         STATE_MERKLE_TREE_ROOTS as usize,
@@ -632,7 +610,12 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         1,
         0,
         &Poseidon::zero_bytes()[0],
-    );
+        rollover_threshold,
+        close_threshold,
+        network_fee,
+        payer_pubkey,
+    )
+    .await;
 
     merkle_tree_keypair.pubkey()
 }
@@ -1207,6 +1190,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: elements.to_vec(),
+        charge_network_fee: true,
     };
     let accounts = account_compression::accounts::InsertIntoNullifierQueues {
         fee_payer: fee_payer.pubkey(),

@@ -57,7 +57,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
     //     &ctx,
     //     &merkle_tree,
     // )?;
-    let (queue_metadata, height) = {
+    let queue_metadata = {
         let mut merkle_tree_account_loaded = ctx.accounts.old_state_merkle_tree.load_mut()?;
         let mut queue_account_loaded = ctx.accounts.old_nullifier_queue.load_mut()?;
 
@@ -97,9 +97,10 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             Some(merkle_tree_metadata.rollover_metadata.rollover_threshold),
             Some(merkle_tree_metadata.rollover_metadata.close_threshold),
             ctx.accounts.new_state_merkle_tree.get_lamports(),
+            ctx.accounts.new_nullifier_queue.get_lamports(),
         )?;
 
-        (queue_metadata, height)
+        queue_metadata
     };
     {
         let nullifier_queue_account = ctx.accounts.old_nullifier_queue.to_account_info();
@@ -119,7 +120,6 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             Some(queue_metadata.rollover_metadata.rollover_threshold),
             Some(queue_metadata.rollover_metadata.close_threshold),
             queue_metadata.rollover_metadata.network_fee,
-            height as u32,
         )?;
     }
     let lamports = ctx.accounts.new_nullifier_queue.get_lamports()

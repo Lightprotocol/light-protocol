@@ -463,7 +463,10 @@ pub async fn insert_addresses<R: RpcConnection>(
     addresses: Vec<[u8; 32]>,
 ) -> Result<(), RpcError> {
     let num_addresses = addresses.len();
-    let instruction_data = InsertAddresses { addresses };
+    let instruction_data = InsertAddresses {
+        addresses,
+        charge_network_fee: true,
+    };
     let accounts = account_compression::accounts::InsertAddresses {
         fee_payer: context.get_payer().pubkey(),
         authority: context.get_payer().pubkey(),

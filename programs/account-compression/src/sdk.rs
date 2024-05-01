@@ -7,9 +7,10 @@ use solana_sdk::{
 };
 
 use crate::{
-    instruction::InitializeAddressMerkleTreeAndQueue,
-    instruction::InitializeStateMerkleTreeAndNullifierQueue, AddressMerkleTreeConfig,
-    AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    instruction::{
+        InitializeAddressMerkleTreeAndQueue, InitializeStateMerkleTreeAndNullifierQueue,
+    },
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig, ID,
 };
 
 pub fn create_initialize_merkle_tree_instruction(
@@ -20,6 +21,7 @@ pub fn create_initialize_merkle_tree_instruction(
     nullifier_queue_config: NullifierQueueConfig,
     delegate: Option<Pubkey>,
     index: u64,
+    additional_rent: u64,
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
         index,
@@ -27,6 +29,7 @@ pub fn create_initialize_merkle_tree_instruction(
         delegate,
         state_merkle_tree_config,
         nullifier_queue_config,
+        additional_rent,
     };
     Instruction {
         program_id: crate::ID,
@@ -95,6 +98,29 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
             AccountMeta::new(queue_pubkey, false),
             AccountMeta::new_readonly(system_program::ID, false),
         ],
+        data: instruction_data.data(),
+    }
+}
+
+pub fn create_claim_instruction(
+    authority: &Pubkey,
+    merkle_tree_pubkey: &Pubkey,
+    nullifier_queue_pubkey: &Pubkey,
+    recipient: &Pubkey,
+) -> Instruction {
+    let (cpi_signer, bump) = Pubkey::find_program_address(&[authority.to_bytes().as_slice()], &ID);
+    let instruction_data = crate::instruction::ClaimFromStateMerkleTreeAccountAccount { bump };
+    let accounts = crate::accounts::Claim {
+        authority: *authority,
+        merkle_tree: *merkle_tree_pubkey,
+        nullifier_queue: *nullifier_queue_pubkey,
+        recipient: *recipient,
+        system_program: system_program::ID,
+        cpi_signer,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: accounts.to_account_metas(Some(true)),
         data: instruction_data.data(),
     }
 }

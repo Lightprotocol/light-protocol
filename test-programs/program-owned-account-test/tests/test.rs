@@ -331,7 +331,7 @@ async fn perform_create_pda<R: RpcConnection>(
         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
         proof: &rpc_result.proof,
         new_address_params,
-        cpi_signature_account: &env.cpi_signature_account_pubkey,
+        cpi_signature_account: &env.cpi_context_account_pubkey,
         owner_program,
         signer_is_program,
     };

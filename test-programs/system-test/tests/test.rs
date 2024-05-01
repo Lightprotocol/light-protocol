@@ -665,6 +665,7 @@ async fn regenerate_accounts() {
             "address_merkle_tree_queue",
             env.address_merkle_tree_queue_pubkey,
         ),
+        ("cpi_context", env.cpi_context_account_pubkey),
     ];
 
     for (name, pubkey) in pubkeys {

@@ -44,6 +44,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
     addresses: &'a [[u8; 32]],
     new_address_params: &'a [NewAddressParamsPacked],
     invoking_program: &Option<Pubkey>,
+    charge_network_fee: bool,
 ) -> anchor_lang::Result<()> {
     let mut remaining_accounts = Vec::<AccountInfo>::with_capacity(addresses.len() * 2);
     new_address_params.iter().try_for_each(|params| {
@@ -68,6 +69,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
         &ctx.accounts.get_system_program().to_account_info(),
         remaining_accounts,
         addresses.to_vec(),
+        charge_network_fee,
     )
 }
 
@@ -81,6 +83,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
     system_program: &'b AccountInfo<'a>,
     remaining_accounts: Vec<AccountInfo<'a>>,
     addresses: Vec<[u8; 32]>,
+    charge_network_fee: bool,
 ) -> Result<()> {
     let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
@@ -97,5 +100,5 @@ pub fn insert_addresses_cpi<'a, 'b>(
         CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx.remaining_accounts.extend(remaining_accounts);
 
-    account_compression::cpi::insert_addresses(cpi_ctx, addresses)
+    account_compression::cpi::insert_addresses(cpi_ctx, addresses, charge_network_fee)
 }

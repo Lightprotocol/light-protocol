@@ -93,14 +93,15 @@ use account_compression::utils::constants::{
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
+
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::SliceRandom;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::rngs::{StdRng, ThreadRng};
+use rand::{Rng, RngCore, SeedableRng};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::{SeedDerivable, Signer};
@@ -180,7 +181,7 @@ where
             vec![StateMerkleTreeAccounts {
                 merkle_tree: env_accounts.merkle_tree_pubkey,
                 nullifier_queue: env_accounts.nullifier_queue_pubkey,
-                cpi_context: env_accounts.cpi_signature_account_pubkey,
+                cpi_context: env_accounts.cpi_context_account_pubkey,
             }],
             vec![AddressMerkleTreeAccounts {
                 merkle_tree: env_accounts.address_merkle_tree_pubkey,
@@ -193,8 +194,10 @@ where
         )
         .await;
 
-        // 43 is an arbitrary constant
-        let seed: u64 = seed.unwrap_or(43);
+        let mut thread_rng = ThreadRng::default();
+        let random_seed = thread_rng.next_u64();
+        let seed: u64 = seed.unwrap_or(random_seed);
+        println!("\n\ne2e test seed {}\n\n", seed);
         let mut rng = StdRng::seed_from_u64(seed);
         let user = Self::create_user(&mut rng, &mut rpc).await;
         let payer = rpc.get_payer().insecure_clone();
@@ -312,6 +315,7 @@ where
     async fn create_state_tree(&mut self) {
         let merkle_tree_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
+        let cpi_context_keypair = Keypair::new();
         create_state_merkle_tree_and_queue_account(
             &self.payer,
             &mut self.rpc,
@@ -325,6 +329,13 @@ where
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
+        init_cpi_context_account(
+            &mut self.context,
+            &merkle_tree_keypair.pubkey(),
+            &cpi_context_keypair,
+            &self.payer,
+        )
+        .await;
         self.indexer.state_merkle_trees.push(StateMerkleTreeBundle {
             accounts: StateMerkleTreeAccounts {
                 merkle_tree: merkle_tree_keypair.pubkey(),
@@ -476,10 +487,11 @@ where
         .await
         .unwrap();
         let new_cpi_signature_keypair = Keypair::new();
-        init_cpi_signature_account(
+        init_cpi_context_account(
             &mut self.rpc,
             &new_merkle_tree_keypair.pubkey(),
             &new_cpi_signature_keypair,
+            &self.payer,
         )
         .await;
 

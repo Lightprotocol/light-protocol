@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default)]
 pub struct RolloverMetadata {
     /// Unique index.
     pub index: u64,
@@ -30,7 +30,7 @@ impl RolloverMetadata {
         Self {
             index,
             rollover_fee,
-            rollover_threshold: rollover_threshold.unwrap_or(u64::MAX),
+            rollover_threshold: rollover_threshold.unwrap_or_default(),
             network_fee,
             rolledover_slot: u64::MAX,
             close_threshold: close_threshold.unwrap_or(u64::MAX),

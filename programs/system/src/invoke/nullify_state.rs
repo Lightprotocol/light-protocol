@@ -21,6 +21,7 @@ pub fn insert_nullifiers<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     nullifiers: &'a [[u8; 32]],
     invoking_program: &Option<Pubkey>,
+    charge_network_fee: bool,
 ) -> Result<()> {
     light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
     let mut account_infos = vec![
@@ -86,6 +87,7 @@ pub fn insert_nullifiers<
     use anchor_lang::InstructionData;
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: nullifiers.to_vec(),
+        charge_network_fee,
     };
 
     let data = instruction_data.data();
