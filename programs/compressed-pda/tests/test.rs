@@ -23,7 +23,10 @@ use light_circuitlib_rs::{
     non_inclusion::merkle_non_inclusion_proof_inputs::get_non_inclusion_proof_inputs,
 };
 use light_compressed_pda::{
-    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    compressed_account::{
+        derive_address, CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext,
+        PackedMerkleContext,
+    },
     event::PublicTransactionEvent,
     sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
     CompressedProof, ErrorCode, NewAddressParams,
@@ -103,8 +106,6 @@ async fn test_execute_compressed_transaction() {
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
@@ -146,9 +147,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &[0u16],
         &Vec::new(),
@@ -175,9 +178,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &[0u16],
         &Vec::new(),
@@ -201,7 +206,7 @@ async fn test_execute_compressed_transaction() {
                 .compressed_account
                 .hash(
                     &merkle_tree_pubkey,
-                    &compressed_account_with_context.leaf_index,
+                    &compressed_account_with_context.merkle_context.leaf_index,
                 )
                 .unwrap()]),
             None,
@@ -214,9 +219,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
@@ -258,9 +265,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
@@ -284,9 +293,11 @@ async fn test_execute_compressed_transaction() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[1u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 1,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
@@ -334,8 +345,6 @@ async fn test_with_address() {
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
-        &Vec::new(),
-        &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
         &Vec::new(),
@@ -391,7 +400,7 @@ async fn test_with_address() {
                 .compressed_account
                 .hash(
                     &merkle_tree_pubkey,
-                    &compressed_account_with_context.leaf_index,
+                    &compressed_account_with_context.merkle_context.leaf_index,
                 )
                 .unwrap()]),
             None,
@@ -411,9 +420,11 @@ async fn test_with_address() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
@@ -565,7 +576,7 @@ pub async fn create_addresses(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     address_seeds: &[[u8; 32]],
-    input_compressed_accounts: &[CompressedAccountWithMerkleContext],
+    input_compressed_accounts: &[PackedCompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
 ) -> Result<Option<PublicTransactionEvent>, BanksClientError> {
     let mut derived_addresses = Vec::new();
@@ -582,7 +593,10 @@ pub async fn create_addresses(
             compressed_account_hashes.push(
                 compressed_account
                     .compressed_account
-                    .hash(merkle_tree_pubkey, &compressed_account.leaf_index)
+                    .hash(
+                        merkle_tree_pubkey,
+                        &compressed_account.merkle_context.leaf_index,
+                    )
                     .unwrap(),
             );
         }
@@ -638,13 +652,15 @@ pub async fn create_addresses(
             .collect::<Vec<CompressedAccount>>()
             .as_slice(),
         &output_compressed_accounts,
-        &vec![*merkle_tree_pubkey; input_compressed_accounts.len()],
         input_compressed_accounts
             .iter()
-            .map(|x| x.leaf_index)
-            .collect::<Vec<u32>>()
+            .map(|x| MerkleContext {
+                merkle_tree_pubkey: *merkle_tree_pubkey,
+                leaf_index: x.merkle_context.leaf_index,
+                nullifier_queue_pubkey: *nullifier_queue_pubkey,
+            })
+            .collect::<Vec<MerkleContext>>()
             .as_slice(),
-        &vec![*nullifier_queue_pubkey; input_compressed_accounts.len()],
         &vec![*merkle_tree_pubkey; output_compressed_accounts.len()],
         &proof_rpc_res.root_indices,
         &address_params,
@@ -709,8 +725,6 @@ async fn test_with_compression() {
         &Vec::new(),
         &output_compressed_accounts,
         &Vec::new(),
-        &Vec::new(),
-        &Vec::new(),
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
@@ -739,8 +753,6 @@ async fn test_with_compression() {
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
-        &Vec::new(),
-        &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
         &Vec::new(),
@@ -771,8 +783,6 @@ async fn test_with_compression() {
         &payer_pubkey,
         &Vec::new(),
         &output_compressed_accounts,
-        &Vec::new(),
-        &Vec::new(),
         &Vec::new(),
         &[merkle_tree_pubkey],
         &Vec::new(),
@@ -852,7 +862,7 @@ async fn test_with_compression() {
                 .compressed_account
                 .hash(
                     &merkle_tree_pubkey,
-                    &compressed_account_with_context.leaf_index,
+                    &compressed_account_with_context.merkle_context.leaf_index,
                 )
                 .unwrap()]),
             None,
@@ -873,9 +883,11 @@ async fn test_with_compression() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
@@ -906,9 +918,11 @@ async fn test_with_compression() {
         &payer_pubkey,
         &input_compressed_accounts,
         &output_compressed_accounts,
-        &[merkle_tree_pubkey],
-        &[0u32],
-        &[nullifier_queue_pubkey],
+        &[MerkleContext {
+            merkle_tree_pubkey,
+            leaf_index: 0,
+            nullifier_queue_pubkey,
+        }],
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
@@ -1007,8 +1021,8 @@ pub struct MockIndexer {
     pub nullifier_queue_pubkey: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub payer: Keypair,
-    pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
-    pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+    pub compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext>,
+    pub nullified_compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext>,
     pub events: Vec<PublicTransactionEvent>,
     pub merkle_tree: light_merkle_tree_reference::MerkleTree<light_hasher::Poseidon>,
     pub address_merkle_tree:
@@ -1235,7 +1249,7 @@ impl MockIndexer {
                 .iter()
                 .position(|x| {
                     x.compressed_account
-                        .hash(&self.merkle_tree_pubkey, &x.leaf_index)
+                        .hash(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
                         .unwrap()
                         == *hash
                 })
@@ -1248,11 +1262,13 @@ impl MockIndexer {
         let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());
         for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
             self.compressed_accounts
-                .push(CompressedAccountWithMerkleContext {
+                .push(PackedCompressedAccountWithMerkleContext {
                     compressed_account: compressed_account.clone(),
-                    leaf_index: event.output_leaf_indices[i],
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
+                    merkle_context: PackedMerkleContext {
+                        leaf_index: event.output_leaf_indices[i],
+                        merkle_tree_pubkey_index: 0,
+                        nullifier_queue_pubkey_index: 0,
+                    },
                 });
             indices.push(self.compressed_accounts.len() - 1);
             self.merkle_tree

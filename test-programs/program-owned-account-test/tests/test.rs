@@ -1,7 +1,10 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::AnchorDeserialize;
-use light_compressed_pda::compressed_account::CompressedAccountWithMerkleContext;
+use light_compressed_pda::compressed_account::{
+    CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
+    PackedMerkleContext,
+};
 use light_hasher::{Hasher, Poseidon};
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, setup_test_programs_with_accounts, EnvAccounts,
@@ -442,7 +445,10 @@ pub async fn perform_invalidate_not_owned_compressed_account(
     let payer_pubkey = payer.pubkey();
     let hash = compressed_account
         .compressed_account
-        .hash(&env.merkle_tree_pubkey, &compressed_account.leaf_index)
+        .hash(
+            &env.merkle_tree_pubkey,
+            &compressed_account.merkle_context.leaf_index,
+        )
         .unwrap();
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(Some(&[hash]), None, context)
@@ -452,7 +458,14 @@ pub async fn perform_invalidate_not_owned_compressed_account(
         input_merkle_tree_pubkey: &env.merkle_tree_pubkey,
         root_indices: &rpc_result.root_indices,
         proof: &rpc_result.proof,
-        compressed_account,
+        compressed_account: &PackedCompressedAccountWithMerkleContext {
+            compressed_account: compressed_account.compressed_account.clone(),
+            merkle_context: PackedMerkleContext {
+                leaf_index: compressed_account.merkle_context.leaf_index,
+                merkle_tree_pubkey_index: 0,
+                nullifier_queue_pubkey_index: 1,
+            },
+        },
     };
     let instruction = create_invalidate_not_owned_account_instruction(create_ix_inputs.clone());
     let transaction = Transaction::new_signed_with_payer(

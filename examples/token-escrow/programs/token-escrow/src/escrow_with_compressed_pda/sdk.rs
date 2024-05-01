@@ -18,12 +18,10 @@ use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
     pub lock_up_time: u64,
     pub signer: &'a Pubkey,
-    pub input_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
-    pub nullifier_array_pubkeys: &'a [Pubkey],
+    pub input_merkle_context: &'a [MerkleContext],
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [u16],
-    pub leaf_indices: &'a [u32],
     pub proof: &'a CompressedProof,
     pub input_token_data: &'a [light_compressed_token::TokenData],
     pub mint: &'a Pubkey,
@@ -37,10 +35,8 @@ pub fn create_escrow_instruction(
 ) -> Instruction {
     let token_owner_pda = get_token_owner_pda(input_params.signer);
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
-        input_params.input_compressed_account_merkle_tree_pubkeys,
-        input_params.leaf_indices,
         input_params.input_token_data,
-        input_params.nullifier_array_pubkeys,
+        input_params.input_merkle_context,
         input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
@@ -126,19 +122,17 @@ pub fn get_token_owner_pda(signer: &Pubkey) -> (Pubkey, u8) {
 #[derive(Debug, Clone)]
 pub struct CreateCompressedPdaWithdrawalInstructionInputs<'a> {
     pub signer: &'a Pubkey,
-    pub input_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
-    pub nullifier_array_pubkeys: &'a [Pubkey],
+    pub input_token_escrow_merkle_context: MerkleContext,
+    pub input_cpda_merkle_context: MerkleContext,
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [u16],
-    pub leaf_indices: &'a [u32],
     pub proof: &'a CompressedProof,
     pub input_token_data: &'a [light_compressed_token::TokenData],
     pub mint: &'a Pubkey,
     pub old_lock_up_time: u64,
     pub new_lock_up_time: u64,
     pub address: [u8; 32],
-    pub merkle_context: MerkleContext,
     pub cpi_signature_account: &'a Pubkey,
 }
 
@@ -148,10 +142,8 @@ pub fn create_withdrawal_instruction(
 ) -> Instruction {
     let (token_owner_pda, bump) = get_token_owner_pda(input_params.signer);
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
-        input_params.input_compressed_account_merkle_tree_pubkeys,
-        &input_params.leaf_indices[1..],
         input_params.input_token_data,
-        input_params.nullifier_array_pubkeys,
+        &[input_params.input_token_escrow_merkle_context],
         input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
@@ -163,8 +155,13 @@ pub fn create_withdrawal_instruction(
         None,
     )
     .unwrap();
-    let merkle_context_packed =
-        pack_merkle_context(&[input_params.merkle_context], &mut remaining_accounts);
+    let merkle_context_packed = pack_merkle_context(
+        &[
+            input_params.input_cpda_merkle_context,
+            input_params.input_token_escrow_merkle_context,
+        ],
+        &mut remaining_accounts,
+    );
     let cpi_signature_account_index: u8 =
         match remaining_accounts.get(input_params.cpi_signature_account) {
             Some(entry) => (*entry).try_into().unwrap(),
@@ -186,7 +183,7 @@ pub fn create_withdrawal_instruction(
         old_lock_up_time: input_params.old_lock_up_time,
         new_lock_up_time: input_params.new_lock_up_time,
         address: input_params.address,
-        merkle_context: merkle_context_packed[0].clone(),
+        merkle_context: merkle_context_packed[0],
     };
     let instruction_data = crate::instruction::WithdrawCompressedTokensWithCompressedPda {
         proof: Some(input_params.proof.clone()),

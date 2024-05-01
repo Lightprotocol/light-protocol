@@ -5,22 +5,26 @@ use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedAccountWithMerkleContext {
+pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
-    pub merkle_tree_pubkey_index: u8,
-    pub nullifier_queue_pubkey_index: u8,
-    pub leaf_index: u32,
+    pub merkle_context: PackedMerkleContext,
 }
 
-// TODO: use in CompressedAccountWithMerkleContext and rename to CompressedAccountAndMerkleContext
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedAccountWithMerkleContext {
+    pub compressed_account: CompressedAccount,
+    pub merkle_context: MerkleContext,
+}
+
+// TODO: use in PackedCompressedAccountWithMerkleContext and rename to CompressedAccountAndMerkleContext
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,
     pub leaf_index: u32,
 }
 
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub nullifier_queue_pubkey_index: u8,

@@ -8,7 +8,7 @@ use light_verifier::{
 };
 
 use crate::{
-    compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
+    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     instructions::{InstructionDataTransfer, TransferInstruction},
     ErrorCode,
 };
@@ -26,8 +26,9 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
         .enumerate()
     {
         let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
-            &ctx.remaining_accounts
-                [input_compressed_account_with_context.merkle_tree_pubkey_index as usize],
+            &ctx.remaining_accounts[input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as usize],
         )
         .unwrap();
         let merkle_tree = merkle_tree.load()?;
@@ -90,10 +91,13 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         leaves[j] = input_compressed_account_with_context
             .compressed_account
             .hash(
-                &ctx.remaining_accounts
-                    [input_compressed_account_with_context.merkle_tree_pubkey_index as usize]
+                &ctx.remaining_accounts[input_compressed_account_with_context
+                    .merkle_context
+                    .merkle_tree_pubkey_index as usize]
                     .key(),
-                &input_compressed_account_with_context.leaf_index,
+                &input_compressed_account_with_context
+                    .merkle_context
+                    .leaf_index,
             )?;
     }
     Ok(())
@@ -102,7 +106,7 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
 #[inline(never)]
 #[heap_neutral]
 pub fn sum_check(
-    input_compressed_accounts_with_merkle_context: &[CompressedAccountWithMerkleContext],
+    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     output_compressed_account: &[CompressedAccount],
     relay_fee: &Option<u64>,
     compression_lamports: &Option<u64>,
@@ -217,7 +221,7 @@ pub fn input_compressed_accounts_signer_check(
     inputs
     .input_compressed_accounts_with_merkle_context
     .iter()
-        .try_for_each(|compressed_account_with_context: &CompressedAccountWithMerkleContext| {
+        .try_for_each(|compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
 
             if compressed_account_with_context.compressed_account.data.is_some()
             {
@@ -375,32 +379,40 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
 
 #[cfg(test)]
 mod test {
+    use crate::compressed_account::PackedMerkleContext;
+
     use super::*;
 
     #[test]
     fn test_sum_check_passes() {
-        let input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext> = vec![
-            CompressedAccountWithMerkleContext {
+        let input_compressed_accounts_with_merkle_context: Vec<
+            PackedCompressedAccountWithMerkleContext,
+        > = vec![
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 100,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 0,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 0,
+                },
             },
-            CompressedAccountWithMerkleContext {
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 50,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 1,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 1,
+                },
             },
         ];
 
@@ -425,28 +437,34 @@ mod test {
 
     #[test]
     fn test_sum_check_with_compress_passes() {
-        let input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext> = vec![
-            CompressedAccountWithMerkleContext {
+        let input_compressed_accounts_with_merkle_context: Vec<
+            PackedCompressedAccountWithMerkleContext,
+        > = vec![
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 50,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 0,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 0,
+                },
             },
-            CompressedAccountWithMerkleContext {
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 50,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 1,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 1,
+                },
             },
         ];
 
@@ -487,28 +505,34 @@ mod test {
     }
     #[test]
     fn test_sum_check_with_decompress_passes() {
-        let input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext> = vec![
-            CompressedAccountWithMerkleContext {
+        let input_compressed_accounts_with_merkle_context: Vec<
+            PackedCompressedAccountWithMerkleContext,
+        > = vec![
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 100,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 0,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 0,
+                },
             },
-            CompressedAccountWithMerkleContext {
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 50,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 1,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 1,
+                },
             },
         ];
 
@@ -550,28 +574,34 @@ mod test {
     // TODO: add test for relay fee
     #[test]
     fn test_sum_check_fails() {
-        let input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext> = vec![
-            CompressedAccountWithMerkleContext {
+        let input_compressed_accounts_with_merkle_context: Vec<
+            PackedCompressedAccountWithMerkleContext,
+        > = vec![
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 100,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 0,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 0,
+                },
             },
-            CompressedAccountWithMerkleContext {
+            PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
                     lamports: 50,
                     address: None,
                     data: None,
                 },
-                merkle_tree_pubkey_index: 0,
-                nullifier_queue_pubkey_index: 0,
-                leaf_index: 1,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 0,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: 1,
+                },
             },
         ];
 

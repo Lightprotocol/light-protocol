@@ -12,7 +12,9 @@ pub struct CompressedProof {
 }
 use crate::{
     append_state::insert_output_compressed_accounts_into_state_merkle_tree,
-    compressed_account::{derive_address, CompressedAccount, CompressedAccountWithMerkleContext},
+    compressed_account::{
+        derive_address, CompressedAccount, PackedCompressedAccountWithMerkleContext,
+    },
     compressed_cpi::{process_cpi_context, CompressedCpiContext, CpiSignatureAccount},
     compression_lamports,
     create_address::insert_addresses_into_address_merkle_tree_queue,
@@ -66,12 +68,6 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     // compression_lamports ---------------------------------------------------
     compression_lamports(&inputs, &ctx)?;
 
-    let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
-    fetch_roots(&inputs, &ctx, &mut roots)?;
-    let mut address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
-    // TODO: enable once address merkle tree init is debugged
-    fetch_roots_address_merkle_tree(&inputs, &ctx, &mut address_roots)?;
-
     let mut input_compressed_account_hashes =
         vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
     let mut input_compressed_account_addresses: Vec<Option<[u8; 32]>> =
@@ -80,43 +76,58 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     let mut output_leaf_indices = vec![0u32; inputs.output_compressed_accounts.len()];
     let mut output_compressed_account_hashes =
         vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
-    let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
-    // insert addresses into address merkle tree queue ---------------------------------------------------
-    if !new_addresses.is_empty() {
-        derive_new_addresses(
-            &inputs,
-            &ctx,
-            &mut input_compressed_account_addresses,
-            &mut new_addresses,
-        );
-        insert_addresses_into_address_merkle_tree_queue(&inputs, &ctx, &new_addresses)?;
-    }
-    // TODO: add heap neutral
-    hash_input_compressed_accounts(
-        &ctx,
-        &inputs,
-        &mut input_compressed_account_hashes,
-        &mut input_compressed_account_addresses,
-    )?;
 
     // verify state and or address proof ---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
-        || !new_addresses.is_empty()
+        || !inputs.new_address_params.is_empty()
     {
+        let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
+        fetch_roots(&inputs, &ctx, &mut roots)?;
+        hash_input_compressed_accounts(
+            &ctx,
+            &inputs,
+            &mut input_compressed_account_hashes,
+            &mut input_compressed_account_addresses,
+        )?;
+
+        let mut address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
+        fetch_roots_address_merkle_tree(&inputs, &ctx, &mut address_roots)?;
+
+        let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
+        // insert addresses into address merkle tree queue ---------------------------------------------------
+        if !new_addresses.is_empty() {
+            derive_new_addresses(
+                &inputs,
+                &ctx,
+                &mut input_compressed_account_addresses,
+                &mut new_addresses,
+            );
+            insert_addresses_into_address_merkle_tree_queue(&inputs, &ctx, &new_addresses)?;
+        }
+
         let compressed_verifier_proof = CompressedVerifierProof {
             a: inputs.proof.as_ref().unwrap().a,
             b: inputs.proof.as_ref().unwrap().b,
             c: inputs.proof.as_ref().unwrap().c,
         };
-        verify_state_proof(
+        match verify_state_proof(
             &roots,
             &input_compressed_account_hashes,
             &address_roots,
             new_addresses.as_slice(),
             &compressed_verifier_proof,
-        )?;
+        ) {
+            Ok(_) => {}
+            Err(e) => {
+                msg!(
+                    "input_compressed_accounts_with_merkle_context: {:?}",
+                    inputs.input_compressed_accounts_with_merkle_context
+                );
+                return Err(e);
+            }
+        }
     }
 
     // insert nullifies (input compressed account hashes)---------------------------------------------------
@@ -219,7 +230,8 @@ pub struct InstructionDataTransfer {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
     pub input_root_indices: Vec<u16>,
-    pub input_compressed_accounts_with_merkle_context: Vec<CompressedAccountWithMerkleContext>,
+    pub input_compressed_accounts_with_merkle_context:
+        Vec<PackedCompressedAccountWithMerkleContext>,
     pub output_compressed_accounts: Vec<CompressedAccount>,
     /// The indices of the accounts in the output state merkle tree.
     pub output_state_merkle_tree_account_indices: Vec<u8>,
@@ -381,7 +393,7 @@ fn test_combine_instruction_data_transfer() {
         new_address_params: vec![NewAddressParamsPacked::default()],
         input_root_indices: vec![1],
         input_compressed_accounts_with_merkle_context: vec![
-            CompressedAccountWithMerkleContext::default(),
+            PackedCompressedAccountWithMerkleContext::default(),
         ],
         output_compressed_accounts: vec![CompressedAccount::default()],
         output_state_merkle_tree_account_indices: vec![1],
@@ -400,7 +412,7 @@ fn test_combine_instruction_data_transfer() {
         new_address_params: vec![NewAddressParamsPacked::default()],
         input_root_indices: vec![1],
         input_compressed_accounts_with_merkle_context: vec![
-            CompressedAccountWithMerkleContext::default(),
+            PackedCompressedAccountWithMerkleContext::default(),
         ],
         output_compressed_accounts: vec![CompressedAccount::default()],
         output_state_merkle_tree_account_indices: vec![1],

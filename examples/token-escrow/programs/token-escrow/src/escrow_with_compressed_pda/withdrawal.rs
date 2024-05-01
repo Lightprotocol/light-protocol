@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_compressed_pda::{
     compressed_account::{
-        CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
+        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
     compressed_cpi::CompressedCpiContext,
     CompressedProof, InstructionDataTransfer,
@@ -72,7 +72,7 @@ pub fn process_withdraw_compressed_tokens_with_compressed_pda<'info>(
 
 fn create_compressed_pda_data_based_on_diff(
     input_compressed_pda: &PackedInputCompressedPda,
-) -> Result<(CompressedAccountWithMerkleContext, CompressedAccount)> {
+) -> Result<(PackedCompressedAccountWithMerkleContext, CompressedAccount)> {
     let current_slot = Clock::get()?.slot;
 
     let old_timelock_compressed_pda = EscrowTimeLock {
@@ -91,13 +91,9 @@ fn create_compressed_pda_data_based_on_diff(
         address: Some(input_compressed_pda.address),
         data: Some(old_compressed_account_data),
     };
-    let old_compressed_account_with_context = CompressedAccountWithMerkleContext {
+    let old_compressed_account_with_context = PackedCompressedAccountWithMerkleContext {
         compressed_account: old_compressed_account,
-        merkle_tree_pubkey_index: input_compressed_pda.merkle_context.merkle_tree_pubkey_index,
-        nullifier_queue_pubkey_index: input_compressed_pda
-            .merkle_context
-            .nullifier_queue_pubkey_index,
-        leaf_index: input_compressed_pda.merkle_context.leaf_index,
+        merkle_context: input_compressed_pda.merkle_context,
     };
     let new_timelock_compressed_pda = EscrowTimeLock {
         slot: current_slot
@@ -123,7 +119,7 @@ fn create_compressed_pda_data_based_on_diff(
 fn cpi_compressed_pda_withdrawal<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
     proof: Option<CompressedProof>,
-    old_state: CompressedAccountWithMerkleContext,
+    old_state: PackedCompressedAccountWithMerkleContext,
     compressed_pda: CompressedAccount,
     cpi_context: CompressedCpiContext,
     root_indices: Vec<u16>,

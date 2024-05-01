@@ -5,8 +5,9 @@ use std::collections::HashMap;
 use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
-    compressed_account::CompressedAccountWithMerkleContext, compressed_cpi::CompressedCpiContext,
-    pack_new_address_params, CompressedProof, NewAddressParams,
+    compressed_account::PackedCompressedAccountWithMerkleContext,
+    compressed_cpi::CompressedCpiContext, pack_new_address_params, CompressedProof,
+    NewAddressParams,
 };
 use light_compressed_token::transfer_sdk::to_account_metas;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -98,7 +99,7 @@ pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub root_indices: &'a [u16],
     pub proof: &'a CompressedProof,
     pub input_merkle_tree_pubkey: &'a Pubkey,
-    pub compressed_account: &'a CompressedAccountWithMerkleContext,
+    pub compressed_account: &'a PackedCompressedAccountWithMerkleContext,
 }
 pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
