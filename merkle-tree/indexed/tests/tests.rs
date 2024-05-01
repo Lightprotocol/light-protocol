@@ -83,7 +83,6 @@ where
         low_nullifier.clone(),
         low_nullifier_next_value.clone(),
         low_nullifier_proof,
-        // &mut CyclicBoundedVec::<RawIndexedElement<usize>>::with_capacity(1),
     )
 }
 
@@ -616,7 +615,6 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
                 old_low_address_1.clone(),
                 old_low_address_next_value_1,
                 &mut low_element_proof_1,
-                // &mut onchain_changelog_array,
             )
             .unwrap();
     }

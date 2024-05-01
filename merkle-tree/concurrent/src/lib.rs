@@ -15,20 +15,6 @@ use crate::{
     hash::{compute_parent_node, compute_root},
 };
 
-// #[repr(C)]
-// #[derive(Debug)]
-// pub struct ConcurrentMerkleTreeMetadata {
-//     pub height: usize,
-//     pub changelog_size: usize,
-//     pub current_changelog_index: usize,
-//     pub roots_size: usize,
-//     pub current_root_index: usize,
-//
-//     pub next_index: usize,
-//     pub sequence_number: usize,
-//     pub rightmost_leaf: [u8; 32],
-// }
-
 /// [Concurrent Merkle tree](https://drive.google.com/file/d/1BOpa5OFmara50fTvL0VIVYjtg-qzHCVc/view)
 /// which allows for multiple requests of updating leaves, without making any
 /// of the requests invalid, as long as they are not modyfing the same leaf.

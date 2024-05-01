@@ -88,9 +88,6 @@ where
         )?;
         Ok(Self {
             merkle_tree,
-            // current_changelog_index: 0,
-            // changelog_capacity: indexed_change_log_size,
-            // changelog_length: 0,
             changelog: CyclicBoundedVec::with_capacity(indexed_change_log_size),
             _index: PhantomData,
         })
@@ -181,13 +178,6 @@ where
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
         let patched_low_element = self.patch_low_element(&low_element)?;
-        // match patched_low_element {
-        //     Some((patched_low_element, patched_low_element_next_value)) => {
-        //         low_element = patched_low_element;
-        //         low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
-        //     }
-        //     None => {}
-        // }
         if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
             low_element = patched_low_element;
             low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
