@@ -15,7 +15,6 @@ import {
 } from 'superstruct';
 import type { Struct } from 'superstruct';
 import {
-    MerkleUpdateContext,
     BN254,
     createBN254,
     CompressedProof,
@@ -89,13 +88,6 @@ export interface ParsedTokenAccount {
     compressedAccount: CompressedAccountWithMerkleContext;
     parsed: TokenData;
 }
-
-export type WithMerkleUpdateContext<T> = {
-    /** merkle update context */
-    context: MerkleUpdateContext | null;
-    /** response value */
-    value: T;
-};
 
 export type WithContext<T> = {
     /** context */

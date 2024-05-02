@@ -1,7 +1,25 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Signer,
+  SystemProgram,
+} from "@solana/web3.js";
 import { getPayer, getSolanaRpcUrl } from "../../src";
-import { confirmTx, getTestRpc } from "@lightprotocol/stateless.js";
+import {
+  Rpc,
+  buildAndSignTx,
+  confirmTx,
+  dedupeSigner,
+  getTestRpc,
+  sendAndConfirmTx,
+} from "@lightprotocol/stateless.js";
 import { createMint, mintTo } from "@lightprotocol/compressed-token";
+import {
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+  createInitializeMint2Instruction,
+} from "@solana/spl-token";
 
 export async function requestAirdrop(address: PublicKey, amount = 3e9) {
   const rpc = await getTestRpc(getSolanaRpcUrl());
@@ -42,4 +60,40 @@ export async function testMintTo(
     mintAmount,
   );
   return txId;
+}
+
+export const TEST_TOKEN_DECIMALS = 2;
+
+export async function createTestSplMint(
+  rpc: Rpc,
+  payer: Signer,
+  mintKeypair: Signer,
+  mintAuthority: Keypair,
+) {
+  const rentExemptBalance =
+    await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
+
+  const createMintAccountInstruction = SystemProgram.createAccount({
+    fromPubkey: payer.publicKey,
+    lamports: rentExemptBalance,
+    newAccountPubkey: mintKeypair.publicKey,
+    programId: TOKEN_PROGRAM_ID,
+    space: MINT_SIZE,
+  });
+  const initializeMintInstruction = createInitializeMint2Instruction(
+    mintKeypair.publicKey,
+    TEST_TOKEN_DECIMALS,
+    mintAuthority.publicKey,
+    null,
+    TOKEN_PROGRAM_ID,
+  );
+  const { blockhash } = await rpc.getLatestBlockhash();
+
+  const tx = buildAndSignTx(
+    [createMintAccountInstruction, initializeMintInstruction],
+    payer,
+    blockhash,
+    dedupeSigner(payer, [mintKeypair]),
+  );
+  await sendAndConfirmTx(rpc, tx);
 }

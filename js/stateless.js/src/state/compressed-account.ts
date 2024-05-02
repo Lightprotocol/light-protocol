@@ -21,16 +21,6 @@ export type MerkleContext = {
     leafIndex: number;
 };
 
-export type MerkleUpdateContext = {
-    /** Context slot */
-    slot: number;
-    /// TODO: sync with photon
-    /** Slot that the compressed account was appended at */
-    slotCreated?: number;
-    /** Sequence */
-    seq?: number;
-};
-
 export type MerkleContextWithMerkleProof = MerkleContext & {
     /** Recent valid 'hash' proof path, expires after n slots */
     merkleProof: BN254[];

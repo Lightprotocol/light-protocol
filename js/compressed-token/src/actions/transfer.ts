@@ -1,4 +1,5 @@
 import {
+    ComputeBudgetProgram,
     ConfirmOptions,
     PublicKey,
     Signer,
@@ -63,7 +64,7 @@ export async function transfer(
         inputAccounts.map(account => bn(account.compressedAccount.hash)),
     );
 
-    const ixs = await CompressedTokenProgram.transfer({
+    const ix = await CompressedTokenProgram.transfer({
         payer: payer.publicKey,
         inputCompressedTokenAccounts: inputAccounts,
         toAddress,
@@ -75,7 +76,12 @@ export async function transfer(
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const additionalSigners = dedupeSigner(payer, [owner]);
-    const signedTx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+    const signedTx = buildAndSignTx(
+        [ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 }), ix],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
     const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
     return txId;
 }
