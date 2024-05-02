@@ -499,12 +499,9 @@ pub mod transfer_sdk {
         fee_payer: &Pubkey,
         authority: &Pubkey,
         input_merkle_context: &[MerkleContext],
-        // input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-        // nullifier_array_pubkeys: &[Pubkey],
         output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
-        // leaf_indices: &[u32],
         proof: &CompressedProof,
         input_token_data: &[crate::TokenData],
         mint: Pubkey,
@@ -566,10 +563,7 @@ pub mod transfer_sdk {
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts_checked(
-        // input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-        // leaf_indices: &[u32],
         input_token_data: &[crate::TokenData],
-        // nullifier_array_pubkeys: &[Pubkey],
         input_merkle_context: &[MerkleContext],
         output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         owner_if_delegate_is_signer: Option<Pubkey>,
@@ -599,10 +593,7 @@ pub mod transfer_sdk {
         }
         let (remaining_accounts, compressed_accounts_ix_data) =
             create_inputs_and_remaining_accounts(
-                // input_compressed_account_merkle_tree_pubkeys,
-                // leaf_indices,
                 input_token_data,
-                // nullifier_array_pubkeys,
                 input_merkle_context,
                 output_compressed_account_merkle_tree_pubkeys,
                 owner_if_delegate_is_signer,
@@ -612,19 +603,14 @@ pub mod transfer_sdk {
                 mint,
                 is_compress,
                 compression_amount,
-                // token_pool_pda,
-                // decompress_token_account,
             );
         Ok((remaining_accounts, compressed_accounts_ix_data))
     }
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts(
-        // input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-        // leaf_indices: &[u32],
         input_token_data: &[crate::TokenData],
         input_merkle_context: &[MerkleContext],
-        // nullifier_array_pubkeys: &[Pubkey],
         output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],

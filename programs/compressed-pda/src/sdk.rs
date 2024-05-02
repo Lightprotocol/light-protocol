@@ -28,9 +28,6 @@ pub fn create_execute_compressed_instruction(
     input_compressed_accounts: &[CompressedAccount],
     output_compressed_accounts: &[CompressedAccount],
     merkle_context: &[MerkleContext],
-    // input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-    // input_compressed_accounts_leaf_indices: &[u32],
-    // nullifier_queue_pubkeys: &[Pubkey],
     output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
     input_root_indices: &[u16],
     new_address_params: &[crate::NewAddressParams],
@@ -344,9 +341,7 @@ mod test {
                 leaf_index: 1,
             },
         ];
-        // let input_compressed_account_merkle_tree_pubkeys =
-        //     vec![merkle_tree_pubkey, merkle_tree_pubkey];
-        // let nullifier_queue_pubkeys = vec![nullifier_array_pubkey, nullifier_array_pubkey];
+
         let output_compressed_account_merkle_tree_pubkeys =
             vec![merkle_tree_pubkey, merkle_tree_pubkey];
         let input_root_indices = vec![0, 1];
@@ -355,7 +350,6 @@ mod test {
             b: [0u8; 64],
             c: [0u8; 32],
         };
-        // let input_compressed_account_leaf_indices = vec![0, 1];
         let instruction = create_execute_compressed_instruction(
             &payer,
             &payer,
