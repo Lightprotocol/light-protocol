@@ -108,9 +108,11 @@ export function packCompressedAccounts(
                 address: account.address,
                 data: account.data,
             },
-            merkleTreePubkeyIndex,
-            nullifierQueuePubkeyIndex,
-            leafIndex: account.leafIndex,
+            merkleContext: {
+                merkleTreePubkeyIndex,
+                nullifierQueuePubkeyIndex,
+                leafIndex: account.leafIndex,
+            },
         });
     });
 

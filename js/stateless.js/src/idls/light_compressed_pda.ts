@@ -150,6 +150,26 @@ export type LightCompressedPda = {
     ];
     types: [
         {
+            name: 'PackedCompressedAccountWithMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'PackedMerkleContext';
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'CompressedAccountWithMerkleContext';
             type: {
                 kind: 'struct';
@@ -161,16 +181,10 @@ export type LightCompressedPda = {
                         };
                     },
                     {
-                        name: 'merkleTreePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'MerkleContext';
+                        };
                     },
                 ];
             };
@@ -424,7 +438,7 @@ export type LightCompressedPda = {
                         name: 'inputCompressedAccountsWithMerkleContext';
                         type: {
                             vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
+                                defined: 'PackedCompressedAccountWithMerkleContext';
                             };
                         };
                     },
@@ -852,6 +866,26 @@ export const IDL: LightCompressedPda = {
     ],
     types: [
         {
+            name: 'PackedCompressedAccountWithMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'PackedMerkleContext',
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'CompressedAccountWithMerkleContext',
             type: {
                 kind: 'struct',
@@ -863,16 +897,10 @@ export const IDL: LightCompressedPda = {
                         },
                     },
                     {
-                        name: 'merkleTreePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'MerkleContext',
+                        },
                     },
                 ],
             },
@@ -1126,7 +1154,8 @@ export const IDL: LightCompressedPda = {
                         name: 'inputCompressedAccountsWithMerkleContext',
                         type: {
                             vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
+                                defined:
+                                    'PackedCompressedAccountWithMerkleContext',
                             },
                         },
                     },

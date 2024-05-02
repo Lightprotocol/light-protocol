@@ -23,9 +23,10 @@ use light_circuitlib_rs::{
         get_non_inclusion_proof_inputs, NonInclusionProofInputs,
     },
 };
-use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
-    compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
+    compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+    event::PublicTransactionEvent,
+    CompressedProof,
 };
 use light_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
@@ -373,7 +374,7 @@ impl TestIndexer {
                 .iter()
                 .position(|x| {
                     x.compressed_account
-                        .hash(&self.merkle_tree_pubkey, &x.leaf_index)
+                        .hash(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
                         .unwrap()
                         == *hash
                 })
@@ -394,14 +395,18 @@ impl TestIndexer {
                     .push(token_compressed_account_element);
             }
         }
+
         let mut indices = Vec::with_capacity(event.output_compressed_accounts.len());
         for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
             self.compressed_accounts
                 .push(CompressedAccountWithMerkleContext {
                     compressed_account: compressed_account.clone(),
-                    leaf_index: event.output_leaf_indices[i],
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
+                    merkle_context: MerkleContext {
+                        leaf_index: event.output_leaf_indices[i as usize],
+                        merkle_tree_pubkey: event.pubkey_array
+                            [event.output_state_merkle_tree_account_indices[i] as usize],
+                        nullifier_queue_pubkey: self.nullifier_queue_pubkey, // TODO: get dynamically from Merkle tree or emit index with Event
+                    },
                 });
             indices.push(self.compressed_accounts.len() - 1);
             self.merkle_tree

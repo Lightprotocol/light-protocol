@@ -239,6 +239,26 @@ export type LightCompressedToken = {
     ];
     types: [
         {
+            name: 'PackedCompressedAccountWithMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'PackedMerkleContext';
+                        };
+                    },
+                ];
+            };
+        },
+        {
             name: 'CompressedAccountWithMerkleContext';
             type: {
                 kind: 'struct';
@@ -250,16 +270,10 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'merkleTreePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'MerkleContext';
+                        };
                     },
                 ];
             };
@@ -513,7 +527,7 @@ export type LightCompressedToken = {
                         name: 'inputCompressedAccountsWithMerkleContext';
                         type: {
                             vec: {
-                                defined: 'CompressedAccountWithMerkleContext';
+                                defined: 'PackedCompressedAccountWithMerkleContext';
                             };
                         };
                     },
@@ -647,16 +661,10 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'merkleTreePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'PackedMerkleContext';
+                        };
                     },
                 ];
             };
@@ -1180,6 +1188,26 @@ export const IDL: LightCompressedToken = {
     ],
     types: [
         {
+            name: 'PackedCompressedAccountWithMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'PackedMerkleContext',
+                        },
+                    },
+                ],
+            },
+        },
+        {
             name: 'CompressedAccountWithMerkleContext',
             type: {
                 kind: 'struct',
@@ -1191,16 +1219,10 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'merkleTreePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'MerkleContext',
+                        },
                     },
                 ],
             },
@@ -1454,7 +1476,8 @@ export const IDL: LightCompressedToken = {
                         name: 'inputCompressedAccountsWithMerkleContext',
                         type: {
                             vec: {
-                                defined: 'CompressedAccountWithMerkleContext',
+                                defined:
+                                    'PackedCompressedAccountWithMerkleContext',
                             },
                         },
                     },
@@ -1588,16 +1611,10 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'merkleTreePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'PackedMerkleContext',
+                        },
                     },
                 ],
             },

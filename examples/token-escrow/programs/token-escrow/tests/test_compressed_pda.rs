@@ -231,7 +231,9 @@ async fn create_escrow_ix(
         .compressed_account
         .hash(
             &env.merkle_tree_pubkey,
-            &compressed_input_account_with_context.leaf_index,
+            &compressed_input_account_with_context
+                .merkle_context
+                .leaf_index,
         )
         .unwrap();
 
@@ -260,8 +262,13 @@ async fn create_escrow_ix(
         input_token_data: &vec![input_compressed_token_account_data.token_data],
         lock_up_time,
         signer: &payer_pubkey,
-        input_compressed_account_merkle_tree_pubkeys: &[env.merkle_tree_pubkey],
-        nullifier_array_pubkeys: &[env.nullifier_queue_pubkey],
+        input_merkle_context: &[MerkleContext {
+            leaf_index: compressed_input_account_with_context
+                .merkle_context
+                .leaf_index,
+            merkle_tree_pubkey: env.merkle_tree_pubkey,
+            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
             env.merkle_tree_pubkey,
@@ -269,7 +276,6 @@ async fn create_escrow_ix(
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
         proof: &rpc_result.proof,
-        leaf_indices: &[compressed_input_account_with_context.leaf_index],
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
         cpi_signature_account: &env.cpi_signature_account_pubkey,
@@ -434,7 +440,10 @@ pub async fn perform_withdrawal(
     let token_escrow_account = test_indexer.compressed_accounts[token_escrow.index].clone();
     let token_escrow_account_hash = token_escrow_account
         .compressed_account
-        .hash(&env.merkle_tree_pubkey, &token_escrow_account.leaf_index)
+        .hash(
+            &env.merkle_tree_pubkey,
+            &token_escrow_account.merkle_context.leaf_index,
+        )
         .unwrap();
     println!("token_data_escrow {:?}", token_escrow);
     println!(
@@ -443,9 +452,13 @@ pub async fn perform_withdrawal(
     );
     let compressed_pda_hash = compressed_escrow_pda
         .compressed_account
-        .hash(&env.merkle_tree_pubkey, &compressed_escrow_pda.leaf_index)
+        .hash(
+            &env.merkle_tree_pubkey,
+            &compressed_escrow_pda.merkle_context.leaf_index,
+        )
         .unwrap();
-
+    println!("compressed_pda_hash {:?}", compressed_pda_hash);
+    println!("token_escrow_account_hash {:?}", token_escrow_account_hash);
     // compressed pda will go first into the proof because in the program
     // the compressed pda program executes the transaction
     let rpc_result = test_indexer
@@ -459,8 +472,16 @@ pub async fn perform_withdrawal(
     let create_withdrawal_ix_inputs = CreateCompressedPdaWithdrawalInstructionInputs {
         input_token_data: &vec![token_escrow.token_data],
         signer: &payer_pubkey,
-        input_compressed_account_merkle_tree_pubkeys: &[env.merkle_tree_pubkey],
-        nullifier_array_pubkeys: &[env.nullifier_queue_pubkey],
+        input_token_escrow_merkle_context: MerkleContext {
+            leaf_index: token_escrow_account.merkle_context.leaf_index,
+            merkle_tree_pubkey: env.merkle_tree_pubkey,
+            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        },
+        input_cpda_merkle_context: MerkleContext {
+            leaf_index: compressed_escrow_pda.merkle_context.leaf_index,
+            merkle_tree_pubkey: env.merkle_tree_pubkey,
+            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        },
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
             env.merkle_tree_pubkey,
@@ -468,20 +489,11 @@ pub async fn perform_withdrawal(
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
         proof: &rpc_result.proof,
-        leaf_indices: &[
-            compressed_escrow_pda.leaf_index,
-            token_escrow_account.leaf_index,
-        ],
         mint: &token_escrow.token_data.mint,
         cpi_signature_account: &env.cpi_signature_account_pubkey,
         old_lock_up_time,
         new_lock_up_time,
         address: compressed_escrow_pda.compressed_account.address.unwrap(),
-        merkle_context: MerkleContext {
-            leaf_index: compressed_escrow_pda.leaf_index,
-            merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-        },
     };
     create_withdrawal_instruction(create_withdrawal_ix_inputs.clone(), escrow_amount)
 }

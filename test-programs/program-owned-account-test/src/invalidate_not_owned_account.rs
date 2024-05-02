@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_compressed_pda::{
-    compressed_account::CompressedAccountWithMerkleContext, compressed_cpi::CompressedCpiContext,
-    CompressedProof, InstructionDataTransfer,
+    compressed_account::PackedCompressedAccountWithMerkleContext,
+    compressed_cpi::CompressedCpiContext, CompressedProof, InstructionDataTransfer,
 };
 
 /// create compressed pda data
@@ -9,7 +9,7 @@ use light_compressed_pda::{
 /// execute complete transaction
 pub fn process_invalidate_not_owned_compressed_account<'info>(
     ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
-    compressed_account: CompressedAccountWithMerkleContext,
+    compressed_account: PackedCompressedAccountWithMerkleContext,
     proof: Option<CompressedProof>,
     root_indices: Vec<u16>,
     bump: u8,

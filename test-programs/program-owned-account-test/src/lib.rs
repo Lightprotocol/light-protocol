@@ -9,7 +9,7 @@ use light_compressed_pda::compressed_cpi::CompressedCpiContext;
 use light_compressed_pda::NewAddressParamsPacked;
 pub mod invalidate_not_owned_account;
 pub use invalidate_not_owned_account::*;
-use light_compressed_pda::compressed_account::CompressedAccountWithMerkleContext;
+use light_compressed_pda::compressed_account::PackedCompressedAccountWithMerkleContext;
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
@@ -44,7 +44,7 @@ pub mod program_owned_account_test {
 
     pub fn invalidate_not_owned_account<'info>(
         ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
-        compressed_account: CompressedAccountWithMerkleContext,
+        compressed_account: PackedCompressedAccountWithMerkleContext,
         proof: Option<CompressedProof>,
         root_indices: Vec<u16>,
         bump: u8,

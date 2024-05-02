@@ -2,13 +2,15 @@ import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
-/// TODO: Consider flattening and implementing an IR in Beet.
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;
+    merkleContext: PackedMerkleContext;
+}
+
+export interface PackedMerkleContext {
     merkleTreePubkeyIndex: number; // u8
     nullifierQueuePubkeyIndex: number; // u8
-    leafIndex: number; // u32 FIXME: switch on-chain to u64.
-    // Missing: hash
+    leafIndex: number; // u32
 }
 
 /**
@@ -105,9 +107,7 @@ export interface InputTokenDataWithContext {
     delegateIndex: number | null; // Option<u8>
     delegatedAmount: BN | null; // Option<u64>
     isNative: BN | null; // Option<u64>
-    merkleTreePubkeyIndex: number; // u8
-    nullifierQueuePubkeyIndex: number; // u8
-    leafIndex: number; // u32
+    merkleContext: PackedMerkleContext;
 }
 export type TokenData = {
     /// The mint associated with this account

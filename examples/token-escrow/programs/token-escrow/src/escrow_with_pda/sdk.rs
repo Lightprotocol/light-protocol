@@ -2,7 +2,7 @@
 
 use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_pda::CompressedProof;
+use light_compressed_pda::{compressed_account::MerkleContext, CompressedProof};
 use light_compressed_token::{
     transfer_sdk::{
         create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
@@ -18,12 +18,10 @@ use crate::escrow_with_compressed_pda::sdk::get_token_owner_pda;
 pub struct CreateEscrowInstructionInputs<'a> {
     pub lock_up_time: u64,
     pub signer: &'a Pubkey,
-    pub input_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
-    pub nullifier_array_pubkeys: &'a [Pubkey],
+    pub input_merkle_context: &'a [MerkleContext],
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [u16],
-    pub leaf_indices: &'a [u32],
     pub proof: &'a CompressedProof,
     pub input_token_data: &'a [light_compressed_token::TokenData],
     pub mint: &'a Pubkey,
@@ -40,10 +38,8 @@ pub fn create_escrow_instruction(
     let token_owner_pda = get_token_owner_pda(input_params.signer);
     let timelock_pda = get_timelock_pda(input_params.signer);
     let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
-        input_params.input_compressed_account_merkle_tree_pubkeys,
-        input_params.leaf_indices,
         input_params.input_token_data,
-        input_params.nullifier_array_pubkeys,
+        input_params.input_merkle_context,
         input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
@@ -108,10 +104,8 @@ pub fn create_withdrawal_escrow_instruction(
     // Thus, it's recommented to use create_inputs_and_remaining_accounts_checked, which returns a descriptive error in case of a wrong signer.
     // We use unchecked here to perform a failing test with an invalid signer.
     let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
-        input_params.input_compressed_account_merkle_tree_pubkeys,
-        input_params.leaf_indices,
         input_params.input_token_data,
-        input_params.nullifier_array_pubkeys,
+        input_params.input_merkle_context,
         input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,

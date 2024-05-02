@@ -20,17 +20,22 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         .iter()
         .map(|account| {
             check_program_owner_state_merkle_tree(
-                &ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize],
+                &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
                 &ctx.accounts.invoking_program,
             )?;
 
-            Ok(ctx.remaining_accounts[account.merkle_tree_pubkey_index as usize].clone())
+            Ok(
+                ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize]
+                    .clone(),
+            )
         })
         .collect();
     let mut nullifier_queue_account_infos = Vec::<AccountInfo>::new();
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
-        nullifier_queue_account_infos
-            .push(ctx.remaining_accounts[account.nullifier_queue_pubkey_index as usize].clone());
+        nullifier_queue_account_infos.push(
+            ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize]
+                .clone(),
+        );
     }
 
     insert_nullifiers_cpi(

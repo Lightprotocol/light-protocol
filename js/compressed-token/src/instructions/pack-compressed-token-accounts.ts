@@ -55,7 +55,6 @@ export function packCompressedTokenAccounts(
     /// TODO: move pubkeyArray to remainingAccounts
     /// Currently just packs 'delegate' to pubkeyArray
     const packedInputTokenData: InputTokenDataWithContext[] = [];
-
     /// pack inputs
     inputCompressedTokenAccounts.forEach((account: ParsedTokenAccount) => {
         const merkleTreePubkeyIndex = getIndexOrAdd(
@@ -75,9 +74,11 @@ export function packCompressedTokenAccounts(
                 ? null
                 : account.parsed.delegatedAmount,
             isNative: account.parsed.isNative,
-            merkleTreePubkeyIndex,
-            nullifierQueuePubkeyIndex,
-            leafIndex: account.compressedAccount.leafIndex,
+            merkleContext: {
+                merkleTreePubkeyIndex,
+                nullifierQueuePubkeyIndex,
+                leafIndex: account.compressedAccount.leafIndex,
+            },
         });
     });
 
@@ -92,7 +93,6 @@ export function packCompressedTokenAccounts(
         const indexMerkleTree = getIndexOrAdd(_remainingAccounts, account);
         outputStateMerkleTreeIndices.push(indexMerkleTree);
     });
-
     // to meta
     const remainingAccountMetas = _remainingAccounts.map(
         (account): AccountMeta => ({
