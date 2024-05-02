@@ -1,7 +1,10 @@
 use std::mem;
 
 use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, spl_compression::process_compression,
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    create_output_compressed_accounts,
+    spl_compression::process_compression,
+    token_data::{AccountState, TokenData},
     ErrorCode,
 };
 use anchor_lang::{prelude::*, AnchorDeserialize};
@@ -17,7 +20,7 @@ use light_compressed_pda::{
     },
     InstructionDataInvokeCpi,
 };
-use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_utils::hash_to_bn254_field_size_be;
 
@@ -65,10 +68,13 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     }
     bench_sbf_end!("t_process_compression");
     bench_sbf_start!("t_create_output_compressed_accounts");
+    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes())
+        .unwrap()
+        .0;
 
     let mut output_compressed_accounts =
         vec![CompressedAccount::default(); inputs.output_compressed_accounts.len()];
-    crate::create_output_compressed_accounts(
+    create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
         inputs
@@ -91,15 +97,19 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
                 .collect::<Vec<Option<u64>>>()
                 .as_slice(),
         ),
-    );
+        &hashed_mint,
+    )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
 
     bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
-    // TODO: add create delegate change compressed_accounts
-    add_token_data_to_input_compressed_accounts(
-        &mut compressed_input_accounts,
-        input_token_data.as_slice(),
-    )?;
+    if !compressed_input_accounts.is_empty() {
+        // TODO: add create delegate change compressed_accounts
+        add_token_data_to_input_compressed_accounts(
+            &mut compressed_input_accounts,
+            input_token_data.as_slice(),
+            &hashed_mint,
+        )?;
+    }
     bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
 
     cpi_execute_compressed_transaction_transfer(
@@ -120,17 +130,28 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 pub fn add_token_data_to_input_compressed_accounts(
     input_compressed_accounts_with_merkle_context: &mut [PackedCompressedAccountWithMerkleContext],
     input_token_data: &[TokenData],
+    hashed_mint: &[u8; 32],
 ) -> Result<()> {
+    let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[0].owner.to_bytes())
+        .unwrap()
+        .0;
     for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter_mut()
         .enumerate()
     {
         let mut data = Vec::with_capacity(mem::size_of::<TokenData>());
         input_token_data[i].serialize(&mut data)?;
+        let amount = input_token_data[i].amount.to_le_bytes();
         let data = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data,
-            data_hash: input_token_data[i].hash().unwrap(),
+            data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+                hashed_mint,
+                &hashed_owner,
+                &amount,
+                &input_token_data[i].is_native,
+            )
+            .map_err(ProgramError::from)?,
         };
         compressed_account_with_context.compressed_account.data = Some(data);
     }
@@ -374,110 +395,6 @@ pub struct TokenTransferOutputData {
     pub lamports: Option<u64>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-#[repr(u8)]
-pub enum AccountState {
-    Uninitialized,
-    Initialized,
-    Frozen,
-}
-
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct TokenData {
-    /// The mint associated with this account
-    pub mint: Pubkey,
-    /// The owner of this account.
-    pub owner: Pubkey,
-    /// The amount of tokens this account holds.
-    pub amount: u64,
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
-    pub delegate: Option<Pubkey>,
-    /// The account's state
-    pub state: AccountState,
-    /// If is_some, this is a native token, and the value logs the rent-exempt
-    /// reserve. An Account is required to be rent-exempt, so the value is
-    /// used by the Processor to ensure that wrapped SOL accounts do not
-    /// drop below this threshold.
-    pub is_native: Option<u64>,
-    /// The amount delegated
-    pub delegated_amount: u64, // TODO: make instruction data optional
-                               // TODO: validate that we don't need close authority
-                               // /// Optional authority to close the account.
-                               // pub close_authority: Option<Pubkey>,
-}
-// keeping this client struct for now because ts encoding is complaining about the enum, state is replaced with u8 in this struct
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct TokenDataClient {
-    /// The mint associated with this account
-    pub mint: Pubkey,
-    /// The owner of this account.
-    pub owner: Pubkey,
-    /// The amount of tokens this account holds.
-    pub amount: u64,
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
-    pub delegate: Option<Pubkey>,
-    /// The account's state
-    pub state: u8,
-    /// If is_some, this is a native token, and the value logs the rent-exempt
-    /// reserve. An Account is required to be rent-exempt, so the value is
-    /// used by the Processor to ensure that wrapped SOL accounts do not
-    /// drop below this threshold.
-    pub is_native: Option<u64>,
-    /// The amount delegated
-    pub delegated_amount: u64,
-    // TODO: validate that we don't need close authority
-    // /// Optional authority to close the account.
-    // pub close_authority: Option<Pubkey>,
-}
-
-impl DataHasher for TokenData {
-    fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
-        let delegate = match self.delegate {
-            Some(delegate) => {
-                hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-                    .unwrap()
-                    .0
-            }
-            None => [0u8; 32],
-        };
-        // let close_authority = match self.close_authority {
-        //     Some(close_authority) => {
-        //         hash_to_bn254_field_size_be(close_authority.to_bytes().as_slice())
-        //             .unwrap()
-        //             .0
-        //     }
-        //     None => [0u8; 32],
-        // };
-        // TODO: implement a trait hash_default value for Option<u64> and use it for other optional values
-        let option_value: u8 = match self.is_native {
-            Some(_) => 1,
-            None => 0,
-        };
-
-        // TODO: optimize hashing scheme, to not hash rarely used values
-        Poseidon::hashv(&[
-            &hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice())
-                .unwrap()
-                .0,
-            &hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice())
-                .unwrap()
-                .0,
-            &self.amount.to_le_bytes(),
-            &delegate,
-            &(self.state as u8).to_le_bytes(),
-            &[
-                &[option_value][..],
-                &self.is_native.unwrap_or_default().to_le_bytes(),
-            ]
-            .concat(),
-            &self.delegated_amount.to_le_bytes(),
-            // &close_authority,
-        ])
-    }
-}
-
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
     Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID)
 }
@@ -497,7 +414,9 @@ pub mod transfer_sdk {
         pubkey::Pubkey,
     };
 
-    use crate::{CompressedTokenInstructionDataTransfer, TokenTransferOutputData};
+    use crate::{
+        token_data::TokenData, CompressedTokenInstructionDataTransfer, TokenTransferOutputData,
+    };
     use anchor_lang::error_code;
 
     #[error_code]
@@ -516,8 +435,8 @@ pub mod transfer_sdk {
         output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
-        proof: &CompressedProof,
-        input_token_data: &[crate::TokenData],
+        proof: &Option<CompressedProof>,
+        input_token_data: &[TokenData],
         mint: Pubkey,
         owner_if_delegate_is_signer: Option<Pubkey>,
         is_compress: bool,
@@ -576,13 +495,13 @@ pub mod transfer_sdk {
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts_checked(
-        input_token_data: &[crate::TokenData],
+        input_token_data: &[TokenData],
         input_merkle_context: &[MerkleContext],
         output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
-        proof: &CompressedProof,
+        proof: &Option<CompressedProof>,
         mint: Pubkey,
         owner: &Pubkey,
         is_compress: bool,
@@ -622,13 +541,13 @@ pub mod transfer_sdk {
 
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts(
-        input_token_data: &[crate::TokenData],
+        input_token_data: &[TokenData],
         input_merkle_context: &[MerkleContext],
         output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
-        proof: &CompressedProof,
+        proof: &Option<CompressedProof>,
         mint: Pubkey,
         is_compress: bool,
         compression_amount: Option<u64>,
@@ -715,7 +634,7 @@ pub mod transfer_sdk {
         let inputs_struct = CompressedTokenInstructionDataTransfer {
             output_compressed_accounts: output_compressed_accounts.to_vec(),
             root_indices: root_indices.to_vec(),
-            proof: Some(proof.clone()),
+            proof: proof.clone(),
             input_token_data_with_context,
             // TODO: support multiple output state merkle trees
             output_state_merkle_tree_account_indices,

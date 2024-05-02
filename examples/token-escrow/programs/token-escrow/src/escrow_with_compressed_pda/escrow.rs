@@ -141,7 +141,9 @@ fn create_compressed_pda_data(
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: timelock_compressed_pda.hash().map_err(ProgramError::from)?,
+        data_hash: timelock_compressed_pda
+            .hash::<Poseidon>()
+            .map_err(ProgramError::from)?,
     };
     let derive_address = derive_address(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
@@ -158,8 +160,8 @@ fn create_compressed_pda_data(
 }
 
 impl light_hasher::DataHasher for EscrowTimeLock {
-    fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
-        Poseidon::hash(&self.slot.to_le_bytes())
+    fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
+        H::hash(&self.slot.to_le_bytes())
     }
 }
 

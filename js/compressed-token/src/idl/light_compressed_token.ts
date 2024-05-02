@@ -930,9 +930,6 @@ export type LightCompressedToken = {
                 kind: 'enum';
                 variants: [
                     {
-                        name: 'Uninitialized';
-                    },
-                    {
                         name: 'Initialized';
                     },
                     {
@@ -1941,9 +1938,6 @@ export const IDL: LightCompressedToken = {
             type: {
                 kind: 'enum',
                 variants: [
-                    {
-                        name: 'Uninitialized',
-                    },
                     {
                         name: 'Initialized',
                     },

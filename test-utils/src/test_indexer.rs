@@ -32,7 +32,7 @@ use light_compressed_pda::{
 use light_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
-    TokenData,
+    token_data::TokenData,
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexedArray;
@@ -375,7 +375,7 @@ impl TestIndexer {
                 .iter()
                 .position(|x| {
                     x.compressed_account
-                        .hash(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
                         .unwrap()
                         == *hash
                 })
@@ -413,7 +413,7 @@ impl TestIndexer {
             self.merkle_tree
                 .append(
                     &compressed_account
-                        .hash(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
                         .unwrap(),
                 )
                 .expect("insert failed");

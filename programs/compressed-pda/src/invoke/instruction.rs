@@ -99,6 +99,7 @@ pub struct InstructionDataInvoke {
     pub compression_lamports: Option<u64>,
     pub is_compress: bool,
 }
+
 #[derive(Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],

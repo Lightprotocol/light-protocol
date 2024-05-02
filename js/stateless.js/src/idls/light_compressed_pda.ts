@@ -37,11 +37,6 @@ export type LightCompressedPda = {
         },
         {
             name: 'invoke';
-            docs: [
-                'This function can be used to transfer sol and execute any other compressed transaction.',
-                'Instruction data is not optimized for space.',
-                'This method can be called by cpi so that instruction data can be compressed with a custom algorithm.',
-            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -831,6 +826,11 @@ export type LightCompressedPda = {
             name: 'InvalidMerkleTreeIndex';
             msg: 'InvalidMerkleTreeIndex';
         },
+        {
+            code: 6035;
+            name: 'ProofIsSome';
+            msg: 'ProofIsSome';
+        },
     ];
 };
 
@@ -873,11 +873,6 @@ export const IDL: LightCompressedPda = {
         },
         {
             name: 'invoke',
-            docs: [
-                'This function can be used to transfer sol and execute any other compressed transaction.',
-                'Instruction data is not optimized for space.',
-                'This method can be called by cpi so that instruction data can be compressed with a custom algorithm.',
-            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1668,6 +1663,11 @@ export const IDL: LightCompressedPda = {
             code: 6034,
             name: 'InvalidMerkleTreeIndex',
             msg: 'InvalidMerkleTreeIndex',
+        },
+        {
+            code: 6035,
+            name: 'ProofIsSome',
+            msg: 'ProofIsSome',
         },
     ],
 };

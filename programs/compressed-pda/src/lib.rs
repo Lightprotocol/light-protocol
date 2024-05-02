@@ -41,14 +41,10 @@ pub mod light_compressed_pda {
         Ok(())
     }
 
-    /// This function can be used to transfer sol and execute any other compressed transaction.
-    /// Instruction data is not optimized for space.
-    /// This method can be called by cpi so that instruction data can be compressed with a custom algorithm.
     pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InvokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        // TODO: remove manual deserialization
         let inputs: InstructionDataInvoke =
             InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
         inputs.check_input_lengths()?;
@@ -61,7 +57,6 @@ pub mod light_compressed_pda {
         inputs: Vec<u8>,
     ) -> Result<()> {
         bench_sbf_start!("cpda_deserialize");
-        // TODO: remove manual deserialization
         let inputs: InstructionDataInvokeCpi =
             InstructionDataInvokeCpi::deserialize(&mut inputs.as_slice())?;
         bench_sbf_end!("cpda_deserialize");

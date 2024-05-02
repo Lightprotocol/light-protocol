@@ -11,6 +11,7 @@
 // release compressed tokens
 
 use light_compressed_pda::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
+use light_hasher::Poseidon;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
 use light_test_utils::{
@@ -239,7 +240,7 @@ pub async fn perform_escrow(
     let input_compressed_account_hash = test_indexer.compressed_accounts
         [input_compressed_token_account_data.index]
         .compressed_account
-        .hash(
+        .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
             &compressed_input_account_with_context
                 .merkle_context
@@ -268,7 +269,7 @@ pub async fn perform_escrow(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &rpc_result.proof,
+        proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
     };
     create_escrow_instruction(create_ix_inputs.clone(), *escrow_amount)
@@ -401,7 +402,7 @@ pub async fn perform_withdrawal(
     let input_compressed_account_hash = test_indexer.compressed_accounts
         [escrow_token_data_with_context.index]
         .compressed_account
-        .hash(
+        .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
             &compressed_input_account_with_context
                 .merkle_context
@@ -430,7 +431,7 @@ pub async fn perform_withdrawal(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &rpc_result.proof,
+        proof: &Some(rpc_result.proof),
         mint: &escrow_token_data_with_context.token_data.mint,
     };
 

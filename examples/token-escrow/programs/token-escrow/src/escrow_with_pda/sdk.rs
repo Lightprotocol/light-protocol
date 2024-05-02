@@ -23,8 +23,8 @@ pub struct CreateEscrowInstructionInputs<'a> {
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [u16],
-    pub proof: &'a CompressedProof,
-    pub input_token_data: &'a [light_compressed_token::TokenData],
+    pub proof: &'a Option<CompressedProof>,
+    pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
     pub mint: &'a Pubkey,
 }
 
@@ -56,7 +56,7 @@ pub fn create_escrow_instruction(
     let instruction_data = crate::instruction::EscrowCompressedTokensWithPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
-        proof: input_params.proof.clone(),
+        proof: input_params.proof.clone().unwrap(),
         root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
@@ -120,7 +120,7 @@ pub fn create_withdrawal_escrow_instruction(
     let instruction_data = crate::instruction::WithdrawCompressedEscrowTokensWithPda {
         bump: token_owner_pda.1,
         withdrawal_amount,
-        proof: input_params.proof.clone(),
+        proof: input_params.proof.clone().unwrap(),
         root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,

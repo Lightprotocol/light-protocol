@@ -24,5 +24,5 @@ pub trait Hasher {
 }
 
 pub trait DataHasher {
-    fn hash(&self) -> Result<[u8; 32], HasherError>;
+    fn hash<H: crate::Hasher>(&self) -> Result<[u8; 32], HasherError>;
 }

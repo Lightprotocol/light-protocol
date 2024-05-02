@@ -1,7 +1,9 @@
 use anchor_lang::{prelude::*, Bumps};
 
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
+use light_hasher::Poseidon;
 use light_macros::heap_neutral;
+use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::{
     verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
     verify_merkle_proof_zkp, CompressedProof,
@@ -71,19 +73,25 @@ pub fn fetch_roots_address_merkle_tree<
 
 #[inline(never)]
 #[heap_neutral]
-pub fn hash_input_compressed_accounts<
-    'a,
-    'b,
-    'c: 'info,
-    'info,
-    A: InvokeAccounts<'info> + Bumps,
->(
-    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
+pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
+    remaining_accounts: &'a [AccountInfo<'info>],
     inputs: &'a InstructionDataInvoke,
     leaves: &'a mut [[u8; 32]],
     addresses: &'a mut [Option<[u8; 32]>],
+    hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
 ) -> Result<()> {
+    let mut owner_pubkey = inputs.input_compressed_accounts_with_merkle_context[0]
+        .compressed_account
+        .owner;
+    let mut hashed_owner = hash_to_bn254_field_size_be(&owner_pubkey.to_bytes())
+        .unwrap()
+        .0;
+    hashed_pubkeys.push((owner_pubkey, hashed_owner));
+    let mut current_hashed_mt = [0u8; 32];
+    // TODO: bench whether it cheaper to keep the counter or just use the hash table
     let mut none_counter = 0;
+    let mut current_mt_index: i16 = -1;
+    // let mut current_hashed_mt = [0u8; 32];
     for (j, input_compressed_account_with_context) in inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
@@ -103,14 +111,64 @@ pub fn hash_input_compressed_accounts<
                 // Vec::remove(addresses, j);
             }
         };
-
+        if current_mt_index
+            != input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as i16
+        {
+            current_mt_index = input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as i16;
+            let merkle_tree_pubkey = remaining_accounts[input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index
+                as usize]
+                .key();
+            current_hashed_mt = hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0;
+            hashed_pubkeys.push((merkle_tree_pubkey, current_hashed_mt));
+        } else if current_mt_index
+            < input_compressed_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey_index as i16
+        {
+            // TODO: add failing test
+            msg!("Invalid Merkle tree index: {} current index {} (Merkle tree indices need to be in ascendin order.", input_compressed_account_with_context
+            .merkle_context
+            .merkle_tree_pubkey_index as i16, current_mt_index);
+            return err!(CompressedPdaError::InvalidMerkleTreeIndex);
+        }
+        if owner_pubkey
+            != input_compressed_account_with_context
+                .compressed_account
+                .owner
+        {
+            owner_pubkey = input_compressed_account_with_context
+                .compressed_account
+                .owner;
+            hashed_owner = match hashed_pubkeys
+                .iter()
+                .find(|x| x.0 == inputs.output_compressed_accounts[j].owner)
+            {
+                Some(hashed_owner) => hashed_owner.1,
+                None => {
+                    let hashed_owner = hash_to_bn254_field_size_be(
+                        &inputs.output_compressed_accounts[j].owner.to_bytes(),
+                    )
+                    .unwrap()
+                    .0;
+                    hashed_pubkeys.push((inputs.output_compressed_accounts[j].owner, hashed_owner));
+                    hashed_owner
+                }
+            };
+        }
+        msg!("owner: {:?}", owner_pubkey);
         leaves[j] = input_compressed_account_with_context
             .compressed_account
-            .hash(
-                &ctx.remaining_accounts[input_compressed_account_with_context
-                    .merkle_context
-                    .merkle_tree_pubkey_index as usize]
-                    .key(),
+            .hash_with_hashed_values::<Poseidon>(
+                &hashed_owner,
+                &current_hashed_mt,
                 &input_compressed_account_with_context
                     .merkle_context
                     .leaf_index,
@@ -144,6 +202,7 @@ pub fn verify_state_proof(
     }
     Ok(())
 }
+
 #[inline(never)]
 #[heap_neutral]
 pub fn sum_check(

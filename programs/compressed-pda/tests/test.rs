@@ -36,6 +36,7 @@ use light_compressed_pda::{
     },
     NewAddressParams,
 };
+use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction,
@@ -209,7 +210,7 @@ async fn invoke_test() {
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
@@ -403,7 +404,7 @@ async fn test_with_address() {
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
@@ -598,7 +599,7 @@ pub async fn create_addresses(
             compressed_account_hashes.push(
                 compressed_account
                     .compressed_account
-                    .hash(
+                    .hash::<Poseidon>(
                         merkle_tree_pubkey,
                         &compressed_account.merkle_context.leaf_index,
                     )
@@ -867,7 +868,7 @@ async fn test_with_compression() {
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
@@ -1256,7 +1257,7 @@ impl MockIndexer {
                 .iter()
                 .position(|x| {
                     x.compressed_account
-                        .hash(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
                         .unwrap()
                         == *hash
                 })
@@ -1281,7 +1282,7 @@ impl MockIndexer {
             self.merkle_tree
                 .append(
                     &compressed_account
-                        .hash(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
                         .unwrap(),
                 )
                 .expect("insert failed");

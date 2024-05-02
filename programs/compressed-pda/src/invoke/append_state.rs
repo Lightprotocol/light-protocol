@@ -6,8 +6,12 @@ use crate::{
 };
 use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
+use light_hasher::Poseidon;
+use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
+use light_utils::hash_to_bn254_field_size_be;
 
+#[allow(clippy::too_many_arguments)]
 #[heap_neutral]
 pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     'a,
@@ -24,7 +28,9 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     addresses: &'a mut Vec<Option<[u8; 32]>>,
     global_iter: &'a mut usize,
     invoking_program: &Option<Pubkey>,
+    hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
 ) -> Result<()> {
+    bench_sbf_start!("cpda_append_data_init");
     let mut account_infos = vec![
         ctx.accounts.get_fee_payer().to_account_info(),
         ctx.accounts
@@ -74,6 +80,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 32 * num_leaves);
+    let mut hashed_merkle_tree = [0u8; 32];
     // anchor instruction signature
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
     // leaves vector length (for borsh compat)
@@ -86,6 +93,15 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             &ctx.remaining_accounts[current_index as usize],
             invoking_program,
         )?;
+        hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
+            Some(hashed_merkle_tree) => hashed_merkle_tree.1,
+            None => {
+                // we do not insert here because Merkle trees are ordered and will not repeat.
+                hash_to_bn254_field_size_be(&account_info.key().to_bytes())
+                    .unwrap()
+                    .0
+            }
+        };
         accounts.push(AccountMeta {
             pubkey: account_info.key(),
             is_signer: false,
@@ -93,6 +109,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         });
         account_infos.push(account_info);
     }
+    bench_sbf_end!("cpda_append_data_init");
+    bench_sbf_start!("cpda_append_rest");
 
     for mt_index in inputs.output_state_merkle_tree_account_indices[initial_index..end].iter() {
         let j = *global_iter;
@@ -116,6 +134,16 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
                 is_signer: false,
                 is_writable: true,
             });
+            hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
+                Some(hashed_merkle_tree) => hashed_merkle_tree.1,
+                None => {
+                    // TODO: make sure there is never more memory allocated than provided at first.
+                    // we do not insert here because Merkle trees are ordered and will not repeat.
+                    hash_to_bn254_field_size_be(&account_info.key().to_bytes())
+                        .unwrap()
+                        .0
+                }
+            };
             account_infos.push(account_info);
             num_leaves_in_tree = 0;
         } else {
@@ -141,11 +169,28 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 
         output_compressed_account_indices[j] = mt_next_index + num_leaves_in_tree;
         num_leaves_in_tree += 1;
+        let hashed_owner = match hashed_pubkeys
+            .iter()
+            .find(|x| x.0 == inputs.output_compressed_accounts[j].owner)
+        {
+            Some(hashed_owner) => hashed_owner.1,
+            None => {
+                let hashed_owner = hash_to_bn254_field_size_be(
+                    &inputs.output_compressed_accounts[j].owner.to_bytes(),
+                )
+                .unwrap()
+                .0;
+                hashed_pubkeys.push((inputs.output_compressed_accounts[j].owner, hashed_owner));
+                hashed_owner
+            }
+        };
         // Compute output compressed account hash.
-        output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j].hash(
-            &ctx.remaining_accounts[*mt_index as usize].key(),
-            &output_compressed_account_indices[j],
-        )?;
+        output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j]
+            .hash_with_hashed_values::<Poseidon>(
+                &hashed_owner,
+                &hashed_merkle_tree,
+                &output_compressed_account_indices[j],
+            )?;
         instruction_data.extend_from_slice(&[current_index]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
@@ -158,6 +203,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         data: instruction_data,
     };
     invoke_signed(&instruction, account_infos.as_slice(), seeds)?;
+    bench_sbf_end!("cpda_append_rest");
+
     Ok(())
 }
 
