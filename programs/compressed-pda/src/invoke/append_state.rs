@@ -5,11 +5,7 @@ use crate::{
     InstructionDataInvoke,
 };
 use anchor_lang::solana_program::program::invoke_signed;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{log::sol_log_compute_units, pubkey::Pubkey},
-    Bumps,
-};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
 use light_macros::heap_neutral;
 
 #[heap_neutral]
@@ -29,7 +25,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     global_iter: &'a mut usize,
     invoking_program: &Option<Pubkey>,
 ) -> Result<()> {
-    sol_log_compute_units();
     let mut account_infos = vec![
         ctx.accounts.get_fee_payer().to_account_info(),
         ctx.accounts

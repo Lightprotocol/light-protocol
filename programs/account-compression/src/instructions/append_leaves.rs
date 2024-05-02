@@ -57,7 +57,6 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     let mut fee_vec = Vec::<(u8, u64)>::with_capacity(leaves.len());
     for i in 0..(leaves.len().div_ceil(BATCH_SIZE)) {
-        msg!("append batch i {:?}", i);
         let leaves_start = i * BATCH_SIZE;
         let leaves_to_process = cmp::min(leaves.len().saturating_sub(i * BATCH_SIZE), BATCH_SIZE);
         let leaves_end = leaves_start + leaves_to_process;
@@ -65,7 +64,6 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     }
 
     for (index, lamports) in fee_vec {
-        msg!("rollover fee lamports: {:?}", lamports);
         transfer_lamports_cpi(
             &ctx.accounts.fee_payer,
             &ctx.remaining_accounts[index as usize].to_account_info(),

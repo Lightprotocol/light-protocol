@@ -5,19 +5,31 @@ use std::process::{Command, Stdio};
 use std::{fs::File, io::prelude::*};
 #[derive(Debug, Parser)]
 pub struct Options {
+    /// Select the test to run.
     #[clap(long, action = clap::ArgAction::Append)]
     t: Vec<String>,
+    /// Select to run compressed token program tests.
     #[clap(long, action = ArgAction::SetTrue)]
     compressed_token: bool,
+    /// Select to run compressed pda program tests.
     #[clap(long, action = ArgAction::SetTrue)]
     compressed_pda: bool,
+    /// Select to run account compression program tests.
     #[clap(long, action = ArgAction::SetTrue)]
     account_commpression: bool,
+    /// Builds all programs with the bench-sbf feature.
     #[clap(long, action = ArgAction::SetTrue)]
     build: bool,
+    /// Prints the test logs to the console.
+    #[clap(long, action = ArgAction::SetTrue)]
+    verbose: bool,
+    /// Skips all logs until the start_ix is found.
+    #[clap(long, action = clap::ArgAction::Append)]
+    start_ix: String,
 }
 use tabled::{Table, Tabled};
 
+/// cargo xtask bench --t test_8_transfer  --compressed-token --build --start-ix Transfer --verbose
 /// cargo xtask bench --t mint_to_10  --compressed-token --build
 pub fn bench(opts: Options) -> anyhow::Result<()> {
     let (program, program_id) = if opts.compressed_token {
@@ -70,7 +82,13 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
         let reader = BufReader::new(stdout);
         let output_lines = reader.lines().map(|line| line.unwrap()).collect();
         println!("Creating report for: {}", test_name);
-        create_bench_report(output_lines, test_name, program_id)?;
+        create_bench_report(
+            output_lines,
+            test_name,
+            program_id,
+            opts.verbose,
+            &opts.start_ix,
+        )?;
     }
     Ok(())
 }
@@ -80,15 +98,27 @@ pub fn create_bench_report(
     mut output_lines: Vec<String>,
     report_name: String,
     program_id: &str,
+    verbose: bool,
+    start_ix: &String,
 ) -> anyhow::Result<()> {
     // HashMap to store the start and end benchmark details
     let mut benchmarks = HashMap::<String, (u64, u64, u64, u64)>::new();
     let mut expect_sol_log = false;
     let mut start = false;
     let mut end = false;
+    let mut found_start = start_ix.is_empty();
     let mut current_name = String::new();
-    for line in output_lines.clone() {
-        // let line = line?;
+    for line in output_lines.iter() {
+        if verbose {
+            println!("{}", line);
+        }
+        if !found_start {
+            if line.contains(start_ix) {
+                found_start = true;
+            } else {
+                continue;
+            }
+        }
         let parts: Vec<&str> = line.split_whitespace().collect();
         if expect_sol_log {
             let mem_start_pos_minus_one = parts.iter().position(|&s| s == "remaining").unwrap();
@@ -149,7 +179,13 @@ pub fn create_bench_report(
         }
     }
     output_lines.reverse();
-    let total_cu = find_total_compute_units(program_id, output_lines).unwrap();
+    let total_cu = match find_total_compute_units(program_id, &output_lines) {
+        Some(val) => val,
+        None => {
+            println!("lines: {:?}", output_lines);
+            panic!("Error: Total compute units not found");
+        }
+    };
 
     let mut rows = Vec::new();
     rows.push(RowData {
@@ -194,10 +230,10 @@ pub fn create_bench_report(
         });
     }
     let path = DESTINATION.to_string() + report_name.as_str() + ".txt";
-    println!("Writing report to: {}", path);
-    let mut file = File::create(path)?;
+    let mut file = File::create(path.clone())?;
     let table = Table::new(rows);
     write!(file, "{}", table)?;
+    println!("Writing report to: {}", path);
     Ok(())
 }
 #[derive(Tabled)]
@@ -226,7 +262,7 @@ fn format_number_with_commas(num: u64) -> String {
     result
 }
 
-fn find_total_compute_units(program_id: &str, logs: Vec<String>) -> Option<u64> {
+fn find_total_compute_units(program_id: &str, logs: &Vec<String>) -> Option<u64> {
     // Iterate through each log entry
     for log in logs {
         if log.contains(program_id) && log.contains("consumed") {

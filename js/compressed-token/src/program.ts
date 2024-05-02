@@ -386,12 +386,11 @@ export class CompressedTokenProgram {
     static deriveMintAuthorityPda = (
         authority: PublicKey,
         mint: PublicKey,
-    ): PublicKey => {
-        const [pubkey] = PublicKey.findProgramAddressSync(
+    ): [PublicKey, number] => {
+        return PublicKey.findProgramAddressSync(
             [MINT_AUTHORITY_SEED, authority.toBuffer(), mint.toBuffer()],
             this.programId,
         );
-        return pubkey;
     };
 
     /** @internal */
@@ -430,7 +429,7 @@ export class CompressedTokenProgram {
             space: MINT_SIZE,
         });
 
-        const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+        const [mintAuthorityPda] = this.deriveMintAuthorityPda(authority, mint);
 
         const initializeMintInstruction = createInitializeMint2Instruction(
             mint,
@@ -482,7 +481,7 @@ export class CompressedTokenProgram {
     ): Promise<TransactionInstruction[]> {
         const { mint, authority, feePayer } = params;
 
-        const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+        const [mintAuthorityPda] = this.deriveMintAuthorityPda(authority, mint);
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
@@ -513,13 +512,16 @@ export class CompressedTokenProgram {
             params;
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
-        const mintAuthorityPda = this.deriveMintAuthorityPda(authority, mint);
+        const [mintAuthorityPda, bump] = this.deriveMintAuthorityPda(
+            authority,
+            mint,
+        );
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
         const toPubkeys = toArray(toPubkey);
         const instruction = await this.program.methods
-            .mintTo(toPubkeys, amounts)
+            .mintTo(toPubkeys, amounts, bump)
             .accounts({
                 feePayer,
                 authority,

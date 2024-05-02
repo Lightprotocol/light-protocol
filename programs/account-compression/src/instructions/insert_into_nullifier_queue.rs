@@ -39,7 +39,7 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         );
         return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
     }
-    light_heap::bench_sbf_start!("acp: create_queue_map");
+    light_heap::bench_sbf_start!("acp_create_queue_map");
 
     let mut queue_map = QueueMap::new();
     for i in 0..elements.len() {
@@ -62,13 +62,13 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             .elements
             .push(elements[i]);
     }
-    light_heap::bench_sbf_end!("acp: create_queue_map");
+    light_heap::bench_sbf_end!("acp_create_queue_map");
 
     for queue_bundle in queue_map.values() {
         let lamports: u64;
 
         let indexed_array = AccountLoader::<NullifierQueueAccount>::try_from(queue_bundle.queue)?;
-        light_heap::bench_sbf_start!("acp: prep insertion");
+        light_heap::bench_sbf_start!("acp_prep_insertion");
         {
             let indexed_array = indexed_array.load()?;
             check_registered_or_signer::<InsertIntoNullifierQueues, NullifierQueueAccount>(
@@ -93,8 +93,8 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             let mut indexed_array = indexed_array.try_borrow_mut_data()?;
             let mut indexed_array =
                 unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
-            light_heap::bench_sbf_end!("acp: prep insertion");
-            light_heap::bench_sbf_start!("acp: insert nf into queue");
+            light_heap::bench_sbf_end!("acp_prep_insertion");
+            light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
             for element in queue_bundle.elements.iter() {
                 let element = BigUint::from_bytes_be(element.as_slice());
                 msg!("Inserting element {:?} into nullifier queue", element);
@@ -102,7 +102,7 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
                     .insert(&element, sequence_number)
                     .map_err(ProgramError::from)?;
             }
-            light_heap::bench_sbf_end!("acp: insert nf into queue");
+            light_heap::bench_sbf_end!("acp_insert_nf_into_queue");
         }
 
         if lamports > 0 {

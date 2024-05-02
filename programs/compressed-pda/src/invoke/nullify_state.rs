@@ -22,7 +22,7 @@ pub fn insert_nullifiers<
     nullifiers: &'a [[u8; 32]],
     invoking_program: &Option<Pubkey>,
 ) -> Result<()> {
-    light_heap::bench_sbf_start!("cpda: insert_nullifiers_prep_accs");
+    light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
     let mut account_infos = vec![
         ctx.accounts.get_fee_payer().to_account_info(),
         ctx.accounts
@@ -80,13 +80,17 @@ pub fn insert_nullifiers<
             );
             Ok(())
         })?;
-    light_heap::bench_sbf_end!("cpda: insert_nullifiers_prep_accs");
+    light_heap::bench_sbf_end!("cpda_insert_nullifiers_prep_accs");
+    light_heap::bench_sbf_start!("cpda_instruction_data");
+
     use anchor_lang::InstructionData;
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: nullifiers.to_vec(),
     };
 
     let data = instruction_data.data();
+    light_heap::bench_sbf_end!("cpda_instruction_data");
+
     // [91, 101, 183, 28, 35, 25, 67, 221]
     let bump = &[254];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];

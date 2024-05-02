@@ -23,7 +23,7 @@ async function assertCreateMint(
     const mintAcc = await rpc.getAccountInfo(mint);
     const unpackedMint = unpackMint(mint, mintAcc);
 
-    const mintAuthority = CompressedTokenProgram.deriveMintAuthorityPda(
+    const [mintAuthority] = CompressedTokenProgram.deriveMintAuthorityPda(
         authority,
         mint,
     );
