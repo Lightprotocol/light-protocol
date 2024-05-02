@@ -18,6 +18,8 @@ custom-heap = ["light-heap"]
 mem-profiling = []
 default = ["custom-heap", "mem-profiling"]
 test-sbf = []
+bench-sbf = []
+
 
 [dependencies]
 aligned-sized = { version = "0.1.0", path = "../../macros/aligned-sized" }

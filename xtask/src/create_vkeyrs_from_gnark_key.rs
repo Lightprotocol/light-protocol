@@ -59,7 +59,7 @@ fn read_array_from_file<P: AsRef<Path>>(file_path: P) -> io::Result<Vec<u8>> {
         .trim_matches(|p| p == '[' || p == ']')
         .split(' ')
         .map(str::trim)
-        .filter_map(|s| s.parse().ok())
+        .filter_map(|s| s.parse::<u8>().ok())
         .collect::<Vec<u8>>();
 
     Ok(array)

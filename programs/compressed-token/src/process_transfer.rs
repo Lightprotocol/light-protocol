@@ -15,6 +15,7 @@ use light_compressed_pda::{
     InstructionDataInvokeCpi,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_utils::hash_to_bn254_field_size_be;
 
 /// Process a token transfer instruction
@@ -39,7 +40,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             &ctx.accounts.authority.key(),
             ctx.remaining_accounts,
         )?;
-
+    bench_sbf_start!("sum_check");
     sum_check(
         &input_token_data,
         &inputs
@@ -50,7 +51,11 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         inputs.compression_amount.as_ref(),
         inputs.is_compress,
     )?;
+    bench_sbf_end!("sum_check");
+    bench_sbf_start!("process_compression");
     process_compression(&inputs, &ctx)?;
+    bench_sbf_end!("process_compression");
+
     let mut output_compressed_accounts =
         vec![CompressedAccount::default(); inputs.output_compressed_accounts.len()];
     crate::create_output_compressed_accounts(
@@ -77,12 +82,13 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
                 .as_slice(),
         ),
     );
-
+    bench_sbf_start!("add_token_data_to_input_compressed_accounts");
     // TODO: add create delegate change compressed_accounts
     add_token_data_to_input_compressed_accounts(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
     )?;
+    bench_sbf_end!("add_token_data_to_input_compressed_accounts");
 
     cpi_execute_compressed_transaction_transfer(
         &ctx,
@@ -129,6 +135,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
+    bench_sbf_start!("cpi prep");
     let (_, bump) = get_cpi_authority_pda();
     let bump = &[bump];
     let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
@@ -173,6 +180,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+    bench_sbf_end!("cpi prep");
 
     light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
