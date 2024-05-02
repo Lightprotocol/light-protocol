@@ -154,7 +154,6 @@ pub fn create_invoke_instruction(
     let accounts = crate::accounts::InvokeInstruction {
         fee_payer: *fee_payer,
         authority: *payer,
-        // authority_pda: get_cpi_authority_pda(&crate::ID),
         registered_program_pda: get_registered_program_pda(&crate::ID),
         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
         account_compression_program: account_compression::ID,
