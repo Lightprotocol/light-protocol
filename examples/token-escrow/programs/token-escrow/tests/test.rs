@@ -10,8 +10,7 @@
 // - create escrow pda and just prove that utxo exists -> read utxo from compressed token account
 // release compressed tokens
 
-use light_compressed_pda::compressed_account::MerkleContext;
-use light_compressed_pda::event::PublicTransactionEvent;
+use light_compressed_pda::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
 use light_test_utils::{

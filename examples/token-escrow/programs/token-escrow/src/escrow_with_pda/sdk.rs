@@ -2,7 +2,9 @@
 
 use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_pda::{compressed_account::MerkleContext, CompressedProof};
+use light_compressed_pda::{
+    invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+};
 use light_compressed_token::{
     transfer_sdk::{
         create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
@@ -55,7 +57,7 @@ pub fn create_escrow_instruction(
     let instruction_data = crate::instruction::EscrowCompressedTokensWithPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
-        proof: Some(input_params.proof.clone()),
+        proof: input_params.proof.clone(),
         root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
@@ -119,7 +121,7 @@ pub fn create_withdrawal_escrow_instruction(
     let instruction_data = crate::instruction::WithdrawCompressedEscrowTokensWithPda {
         bump: token_owner_pda.1,
         withdrawal_amount,
-        proof: Some(input_params.proof.clone()),
+        proof: input_params.proof.clone(),
         root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,

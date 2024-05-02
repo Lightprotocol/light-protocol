@@ -13,10 +13,12 @@ use light_circuitlib_rs::{
     },
     inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
 };
-use light_compressed_pda::{compressed_account::MerkleContext, CompressedProof};
 use light_compressed_pda::{
-    compressed_account::{PackedCompressedAccountWithMerkleContext, PackedMerkleContext},
-    event::PublicTransactionEvent,
+    invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+};
+use light_compressed_pda::{
+    sdk::compressed_account::{PackedCompressedAccountWithMerkleContext, PackedMerkleContext},
+    sdk::event::PublicTransactionEvent,
 };
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
@@ -834,7 +836,7 @@ async fn test_invalid_inputs() {
     .unwrap();
     assert_custom_error_or_program_error(
         res,
-        light_compressed_pda::ErrorCode::ComputeOutputSumFailed.into(),
+        light_compressed_pda::errors::CompressedPdaError::ComputeOutputSumFailed.into(),
     )
     .unwrap();
 

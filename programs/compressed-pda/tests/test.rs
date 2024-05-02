@@ -23,13 +23,18 @@ use light_circuitlib_rs::{
     non_inclusion::merkle_non_inclusion_proof_inputs::get_non_inclusion_proof_inputs,
 };
 use light_compressed_pda::{
-    compressed_account::{
-        derive_address, CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext,
-        PackedMerkleContext,
+    errors::CompressedPdaError,
+    invoke::processor::CompressedProof,
+    sdk::{
+        address::derive_address,
+        compressed_account::{
+            CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext,
+            PackedMerkleContext,
+        },
+        event::PublicTransactionEvent,
+        invoke::{create_invoke_instruction, get_compressed_sol_pda},
     },
-    event::PublicTransactionEvent,
-    sdk::{create_execute_compressed_instruction, get_compressed_sol_pda},
-    CompressedProof, ErrorCode, NewAddressParams,
+    NewAddressParams,
 };
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
@@ -78,7 +83,7 @@ async fn init_mock_indexer(
 /// 3. should fail: in compressed account and invalid signer
 /// 4. should succeed: in compressed account inserted in (1.) and valid zkp
 #[tokio::test]
-async fn test_execute_compressed_transaction() {
+async fn invoke_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.payer.insecure_clone();
@@ -100,7 +105,7 @@ async fn test_execute_compressed_transaction() {
         c: [0u8; 32],
     };
 
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
@@ -142,7 +147,7 @@ async fn test_execute_compressed_transaction() {
     }];
     // TODO: assert all compressed account properties
     // check invalid proof
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
@@ -173,7 +178,7 @@ async fn test_execute_compressed_transaction() {
         address: None,
     }];
 
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &invalid_signer_compressed_accounts,
@@ -214,7 +219,7 @@ async fn test_execute_compressed_transaction() {
         )
         .await;
     let input_compressed_accounts = vec![compressed_account_with_context.compressed_account];
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
@@ -260,7 +265,7 @@ async fn test_execute_compressed_transaction() {
         address: None,
     }];
     // double spend
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
@@ -288,7 +293,7 @@ async fn test_execute_compressed_transaction() {
         address: None,
     }];
     // invalid compressed_account
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
@@ -340,7 +345,7 @@ async fn test_with_address() {
         .create_proof_for_compressed_accounts(None, Some(&[derived_address]), &mut context)
         .await;
 
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
@@ -367,7 +372,7 @@ async fn test_with_address() {
     )
     .await
     .unwrap();
-    assert_custom_error_or_program_error(res, ErrorCode::InvalidAddress.into()).unwrap();
+    assert_custom_error_or_program_error(res, CompressedPdaError::InvalidAddress.into()).unwrap();
 
     let event = create_addresses(
         &mut context,
@@ -415,7 +420,7 @@ async fn test_with_address() {
         data: None,
         address: Some(derived_address),
     }];
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
@@ -643,7 +648,7 @@ pub async fn create_addresses(
     }
 
     // create two new addresses with the same see should fail
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &context.payer.pubkey(),
         &context.payer.pubkey().clone(),
         input_compressed_accounts
@@ -719,7 +724,7 @@ async fn test_with_compression() {
         c: [0u8; 32],
     };
 
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
@@ -747,8 +752,9 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient input funds
-    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
-    let instruction = create_execute_compressed_instruction(
+    assert_custom_error_or_program_error(res, CompressedPdaError::ComputeOutputSumFailed.into())
+        .unwrap();
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
@@ -776,9 +782,10 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient decompress amount funds
-    assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
+    assert_custom_error_or_program_error(res, CompressedPdaError::ComputeOutputSumFailed.into())
+        .unwrap();
 
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &Vec::new(),
@@ -878,7 +885,7 @@ async fn test_with_compression() {
         address: None,
     }];
     let recipient = Pubkey::new_unique();
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,
@@ -911,9 +918,9 @@ async fn test_with_compression() {
     .await
     .unwrap();
     // should fail because of insufficient output funds
-    assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
+    assert_custom_error_or_program_error(res, CompressedPdaError::SumCheckFailed.into()).unwrap();
 
-    let instruction = create_execute_compressed_instruction(
+    let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
         &input_compressed_accounts,

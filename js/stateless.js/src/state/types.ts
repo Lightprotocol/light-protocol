@@ -50,7 +50,7 @@ export interface PublicTransactionEvent {
     message: Uint8Array | null; // Option<bytes>
 }
 
-export interface InstructionDataTransfer {
+export interface InstructionDataInvoke {
     proof: CompressedProof | null; // Option<CompressedProof>
     inputRootIndices: number[]; // Vec<u16>
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
@@ -60,8 +60,6 @@ export interface InstructionDataTransfer {
     compressionLamports: BN | null; // Option<u64>
     isCompress: boolean; // bool
     newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
-    signerSeeds: number[][] | null; // Vec<Vec<u8>>
-    cpiContext: null; // Option<CpiContext>
 }
 
 export interface NewAddressParamsPacked {
@@ -100,6 +98,7 @@ export type CompressedTokenInstructionDataTransfer = {
     outputStateMerkleTreeAccountIndices: Buffer;
     isCompress: boolean;
     compressionAmount: BN | null;
+    cpiContext: null;
 };
 
 export interface InputTokenDataWithContext {

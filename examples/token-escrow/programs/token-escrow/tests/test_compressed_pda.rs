@@ -14,8 +14,10 @@
 // release compressed tokens
 
 use anchor_lang::AnchorDeserialize;
-use light_compressed_pda::compressed_account::MerkleContext;
-use light_compressed_pda::event::PublicTransactionEvent;
+use light_compressed_pda::sdk::address::derive_address;
+use light_compressed_pda::sdk::compressed_account::MerkleContext;
+use light_compressed_pda::sdk::event::PublicTransactionEvent;
+use light_compressed_pda::NewAddressParams;
 use light_hasher::{Hasher, Poseidon};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
@@ -237,11 +239,7 @@ async fn create_escrow_ix(
         )
         .unwrap();
 
-    let address = light_compressed_pda::compressed_account::derive_address(
-        &env.address_merkle_tree_pubkey,
-        &seed,
-    )
-    .unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -251,13 +249,12 @@ async fn create_escrow_ix(
         )
         .await;
 
-    let new_address_params: light_compressed_pda::NewAddressParams =
-        light_compressed_pda::NewAddressParams {
-            seed,
-            address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
-            address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
-            address_merkle_tree_root_index: rpc_result.address_root_indices[0],
-        };
+    let new_address_params = NewAddressParams {
+        seed,
+        address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
+        address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
+        address_merkle_tree_root_index: rpc_result.address_root_indices[0],
+    };
     let create_ix_inputs = CreateCompressedPdaEscrowInstructionInputs {
         input_token_data: &vec![input_compressed_token_account_data.token_data],
         lock_up_time,
@@ -317,11 +314,7 @@ pub async fn assert_escrow(
         .find(|x| x.compressed_account.owner == token_escrow::ID)
         .unwrap()
         .clone();
-    let address = light_compressed_pda::compressed_account::derive_address(
-        &env.address_merkle_tree_pubkey,
-        &seed,
-    )
-    .unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
@@ -536,11 +529,7 @@ pub async fn assert_withdrawal(
         .unwrap()
         .clone();
 
-    let address = light_compressed_pda::compressed_account::derive_address(
-        &env.address_merkle_tree_pubkey,
-        &seed,
-    )
-    .unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address

@@ -124,17 +124,6 @@ impl CompressedAccount {
     }
 }
 
-pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
-    let hash = match hash_to_bn254_field_size_be(
-        [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
-    ) {
-        Some(hash) => Ok::<[u8; 32], Error>(hash.0),
-        None => return Err(crate::ErrorCode::DeriveAddressError.into()),
-    }?;
-
-    Ok(hash)
-}
-
 #[cfg(test)]
 mod tests {
     use anchor_lang::solana_program::pubkey::Pubkey;

@@ -10,7 +10,7 @@ export type LightCompressedPda = {
     ];
     instructions: [
         {
-            name: 'initCpiSignatureAccount';
+            name: 'initCpiContextAccount';
             accounts: [
                 {
                     name: 'feePayer';
@@ -18,7 +18,7 @@ export type LightCompressedPda = {
                     isSigner: true;
                 },
                 {
-                    name: 'cpiSignatureAccount';
+                    name: 'cpiContextAccount';
                     isMut: true;
                     isSigner: false;
                 },
@@ -36,7 +36,7 @@ export type LightCompressedPda = {
             args: [];
         },
         {
-            name: 'executeCompressedTransaction';
+            name: 'invoke';
             docs: [
                 'This function can be used to transfer sol and execute any other compressed transaction.',
                 'Instruction data is not optimized for space.',
@@ -74,18 +74,6 @@ export type LightCompressedPda = {
                     isSigner: false;
                 },
                 {
-                    name: 'cpiSignatureAccount';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'invokingProgram';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
                     name: 'compressedSolPda';
                     isMut: true;
                     isSigner: false;
@@ -110,10 +98,86 @@ export type LightCompressedPda = {
                 },
             ];
         },
+        {
+            name: 'invokeCpi';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'invokingProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'compressedSolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'compressionRecipient';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
     ];
     accounts: [
         {
-            name: 'cpiSignatureAccount';
+            name: 'compressedSolPda';
+            type: {
+                kind: 'struct';
+                fields: [];
+            };
+        },
+        {
+            name: 'cpiContextAccount';
             docs: [
                 'collects invocations without proofs',
                 'invocations are collected and processed when an invocation with a proof is received',
@@ -126,29 +190,248 @@ export type LightCompressedPda = {
                         type: 'publicKey';
                     },
                     {
-                        name: 'execute';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'signatures';
+                        name: 'context';
                         type: {
                             vec: {
-                                defined: 'InstructionDataTransfer';
+                                defined: 'InstructionDataInvokeCpi';
                             };
                         };
                     },
                 ];
             };
         },
-        {
-            name: 'compressedSolPda';
-            type: {
-                kind: 'struct';
-                fields: [];
-            };
-        },
     ];
     types: [
+        {
+            name: 'InstructionDataInvoke';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'inputRootIndices';
+                        type: {
+                            vec: 'u16';
+                        };
+                    },
+                    {
+                        name: 'inputCompressedAccountsWithMerkleContext';
+                        type: {
+                            vec: {
+                                defined: 'PackedCompressedAccountWithMerkleContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputCompressedAccounts';
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccount';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputStateMerkleTreeAccountIndices';
+                        docs: [
+                            'The indices of the accounts in the output state merkle tree.',
+                        ];
+                        type: 'bytes';
+                    },
+                    {
+                        name: 'relayFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'newAddressParams';
+                        type: {
+                            vec: {
+                                defined: 'NewAddressParamsPacked';
+                            };
+                        };
+                    },
+                    {
+                        name: 'compressionLamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'isCompress';
+                        type: 'bool';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NewAddressParamsPacked';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'seed';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'addressQueueAccountIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'addressMerkleTreeAccountIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NewAddressParams';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'seed';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'addressQueuePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'addressMerkleTreePubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedProof';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'a';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'b';
+                        type: {
+                            array: ['u8', 64];
+                        };
+                    },
+                    {
+                        name: 'c';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'InstructionDataInvokeCpi';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'newAddressParams';
+                        type: {
+                            vec: {
+                                defined: 'NewAddressParamsPacked';
+                            };
+                        };
+                    },
+                    {
+                        name: 'inputRootIndices';
+                        type: {
+                            vec: 'u16';
+                        };
+                    },
+                    {
+                        name: 'inputCompressedAccountsWithMerkleContext';
+                        type: {
+                            vec: {
+                                defined: 'PackedCompressedAccountWithMerkleContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputCompressedAccounts';
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccount';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputStateMerkleTreeAccountIndices';
+                        docs: [
+                            'The indices of the accounts in the output state merkle tree.',
+                        ];
+                        type: 'bytes';
+                    },
+                    {
+                        name: 'relayFee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'compressionLamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'isCompress';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'signerSeeds';
+                        type: {
+                            vec: 'bytes';
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
         {
             name: 'PackedCompressedAccountWithMerkleContext';
             type: {
@@ -286,32 +569,6 @@ export type LightCompressedPda = {
             };
         },
         {
-            name: 'CompressedCpiContext';
-            docs: ['To spend multiple compressed'];
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'cpiSignatureAccountIndex';
-                        docs: [
-                            'index of the output state Merkle tree that will be used to store cpi signatures',
-                            'The transaction will fail if this index is not consistent in your transaction.',
-                        ];
-                        type: 'u8';
-                    },
-                    {
-                        name: 'execute';
-                        docs: [
-                            'The final cpi of your program needs to set execute to true.',
-                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
-                            'If this is false the transaction will be stored in the cpi signature account.',
-                        ];
-                        type: 'bool';
-                    },
-                ];
-            };
-        },
-        {
             name: 'PublicTransactionEvent';
             type: {
                 kind: 'struct';
@@ -382,164 +639,17 @@ export type LightCompressedPda = {
             };
         },
         {
-            name: 'CompressedProof';
+            name: 'CompressedCpiContext';
             type: {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'a';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'b';
-                        type: {
-                            array: ['u8', 64];
-                        };
-                    },
-                    {
-                        name: 'c';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InstructionDataTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'newAddressParams';
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'PackedCompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccount';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ];
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'compressionLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
+                        name: 'setContext';
                         type: 'bool';
                     },
                     {
-                        name: 'signerSeeds';
-                        type: {
-                            option: {
-                                vec: 'bytes';
-                            };
-                        };
-                    },
-                    {
-                        name: 'cpiContext';
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NewAddressParamsPacked';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'addressQueueAccountIndex';
+                        name: 'cpiContextAccountIndex';
                         type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NewAddressParams';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'addressQueuePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'addressMerkleTreePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
                     },
                 ];
             };
@@ -673,8 +783,8 @@ export type LightCompressedPda = {
         },
         {
             code: 6025;
-            name: 'CpiSignatureAccountUndefined';
-            msg: 'CpiSignatureAccountUndefined';
+            name: 'CpiContextAccountUndefined';
+            msg: 'CpiContextAccountUndefined';
         },
         {
             code: 6026;
@@ -711,6 +821,11 @@ export type LightCompressedPda = {
             name: 'InvalidMerkleTreeOwner';
             msg: 'InvalidMerkleTreeOwner';
         },
+        {
+            code: 6033;
+            name: 'ProofIsNone';
+            msg: 'ProofIsNone';
+        },
     ];
 };
 
@@ -726,7 +841,7 @@ export const IDL: LightCompressedPda = {
     ],
     instructions: [
         {
-            name: 'initCpiSignatureAccount',
+            name: 'initCpiContextAccount',
             accounts: [
                 {
                     name: 'feePayer',
@@ -734,7 +849,7 @@ export const IDL: LightCompressedPda = {
                     isSigner: true,
                 },
                 {
-                    name: 'cpiSignatureAccount',
+                    name: 'cpiContextAccount',
                     isMut: true,
                     isSigner: false,
                 },
@@ -752,7 +867,7 @@ export const IDL: LightCompressedPda = {
             args: [],
         },
         {
-            name: 'executeCompressedTransaction',
+            name: 'invoke',
             docs: [
                 'This function can be used to transfer sol and execute any other compressed transaction.',
                 'Instruction data is not optimized for space.',
@@ -790,18 +905,6 @@ export const IDL: LightCompressedPda = {
                     isSigner: false,
                 },
                 {
-                    name: 'cpiSignatureAccount',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'invokingProgram',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
                     name: 'compressedSolPda',
                     isMut: true,
                     isSigner: false,
@@ -826,10 +929,86 @@ export const IDL: LightCompressedPda = {
                 },
             ],
         },
+        {
+            name: 'invokeCpi',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'invokingProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'compressedSolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'compressionRecipient',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
     ],
     accounts: [
         {
-            name: 'cpiSignatureAccount',
+            name: 'compressedSolPda',
+            type: {
+                kind: 'struct',
+                fields: [],
+            },
+        },
+        {
+            name: 'cpiContextAccount',
             docs: [
                 'collects invocations without proofs',
                 'invocations are collected and processed when an invocation with a proof is received',
@@ -842,29 +1021,250 @@ export const IDL: LightCompressedPda = {
                         type: 'publicKey',
                     },
                     {
-                        name: 'execute',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'signatures',
+                        name: 'context',
                         type: {
                             vec: {
-                                defined: 'InstructionDataTransfer',
+                                defined: 'InstructionDataInvokeCpi',
                             },
                         },
                     },
                 ],
             },
         },
-        {
-            name: 'compressedSolPda',
-            type: {
-                kind: 'struct',
-                fields: [],
-            },
-        },
     ],
     types: [
+        {
+            name: 'InstructionDataInvoke',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'inputRootIndices',
+                        type: {
+                            vec: 'u16',
+                        },
+                    },
+                    {
+                        name: 'inputCompressedAccountsWithMerkleContext',
+                        type: {
+                            vec: {
+                                defined:
+                                    'PackedCompressedAccountWithMerkleContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputCompressedAccounts',
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccount',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputStateMerkleTreeAccountIndices',
+                        docs: [
+                            'The indices of the accounts in the output state merkle tree.',
+                        ],
+                        type: 'bytes',
+                    },
+                    {
+                        name: 'relayFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'newAddressParams',
+                        type: {
+                            vec: {
+                                defined: 'NewAddressParamsPacked',
+                            },
+                        },
+                    },
+                    {
+                        name: 'compressionLamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'isCompress',
+                        type: 'bool',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NewAddressParamsPacked',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'seed',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'addressQueueAccountIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'addressMerkleTreeAccountIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NewAddressParams',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'seed',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'addressQueuePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'addressMerkleTreePubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedProof',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'a',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'b',
+                        type: {
+                            array: ['u8', 64],
+                        },
+                    },
+                    {
+                        name: 'c',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'InstructionDataInvokeCpi',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'newAddressParams',
+                        type: {
+                            vec: {
+                                defined: 'NewAddressParamsPacked',
+                            },
+                        },
+                    },
+                    {
+                        name: 'inputRootIndices',
+                        type: {
+                            vec: 'u16',
+                        },
+                    },
+                    {
+                        name: 'inputCompressedAccountsWithMerkleContext',
+                        type: {
+                            vec: {
+                                defined:
+                                    'PackedCompressedAccountWithMerkleContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputCompressedAccounts',
+                        type: {
+                            vec: {
+                                defined: 'CompressedAccount',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputStateMerkleTreeAccountIndices',
+                        docs: [
+                            'The indices of the accounts in the output state merkle tree.',
+                        ],
+                        type: 'bytes',
+                    },
+                    {
+                        name: 'relayFee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'compressionLamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'isCompress',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'signerSeeds',
+                        type: {
+                            vec: 'bytes',
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                ],
+            },
+        },
         {
             name: 'PackedCompressedAccountWithMerkleContext',
             type: {
@@ -1002,32 +1402,6 @@ export const IDL: LightCompressedPda = {
             },
         },
         {
-            name: 'CompressedCpiContext',
-            docs: ['To spend multiple compressed'],
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'cpiSignatureAccountIndex',
-                        docs: [
-                            'index of the output state Merkle tree that will be used to store cpi signatures',
-                            'The transaction will fail if this index is not consistent in your transaction.',
-                        ],
-                        type: 'u8',
-                    },
-                    {
-                        name: 'execute',
-                        docs: [
-                            'The final cpi of your program needs to set execute to true.',
-                            'Execute compressed transaction will verify the proof and execute the transaction if this is true.',
-                            'If this is false the transaction will be stored in the cpi signature account.',
-                        ],
-                        type: 'bool',
-                    },
-                ],
-            },
-        },
-        {
             name: 'PublicTransactionEvent',
             type: {
                 kind: 'struct',
@@ -1098,165 +1472,17 @@ export const IDL: LightCompressedPda = {
             },
         },
         {
-            name: 'CompressedProof',
+            name: 'CompressedCpiContext',
             type: {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'a',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'b',
-                        type: {
-                            array: ['u8', 64],
-                        },
-                    },
-                    {
-                        name: 'c',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InstructionDataTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'newAddressParams',
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined:
-                                    'PackedCompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'CompressedAccount',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ],
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'compressionLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
+                        name: 'setContext',
                         type: 'bool',
                     },
                     {
-                        name: 'signerSeeds',
-                        type: {
-                            option: {
-                                vec: 'bytes',
-                            },
-                        },
-                    },
-                    {
-                        name: 'cpiContext',
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'NewAddressParamsPacked',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'addressQueueAccountIndex',
+                        name: 'cpiContextAccountIndex',
                         type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'NewAddressParams',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'addressQueuePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'addressMerkleTreePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
                     },
                 ],
             },
@@ -1390,8 +1616,8 @@ export const IDL: LightCompressedPda = {
         },
         {
             code: 6025,
-            name: 'CpiSignatureAccountUndefined',
-            msg: 'CpiSignatureAccountUndefined',
+            name: 'CpiContextAccountUndefined',
+            msg: 'CpiContextAccountUndefined',
         },
         {
             code: 6026,
@@ -1427,6 +1653,11 @@ export const IDL: LightCompressedPda = {
             code: 6032,
             name: 'InvalidMerkleTreeOwner',
             msg: 'InvalidMerkleTreeOwner',
+        },
+        {
+            code: 6033,
+            name: 'ProofIsNone',
+            msg: 'ProofIsNone',
         },
     ],
 };

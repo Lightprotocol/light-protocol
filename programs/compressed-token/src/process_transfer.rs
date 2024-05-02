@@ -3,14 +3,16 @@ use std::mem;
 use crate::{spl_compression::process_compression, ErrorCode};
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
-use light_compressed_pda::compressed_account::PackedMerkleContext;
-use light_compressed_pda::CompressedProof;
 use light_compressed_pda::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+    invoke::processor::CompressedProof,
+    sdk::{
+        compressed_account::{
+            CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
+            PackedMerkleContext,
+        },
+        CompressedCpiContext,
     },
-    compressed_cpi::CompressedCpiContext,
-    InstructionDataTransfer as LightCompressedPdaInstructionDataTransfer,
+    InstructionDataInvokeCpi,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
@@ -28,7 +30,6 @@ use light_utils::hash_to_bn254_field_size_be;
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
-    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataTransfer =
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
@@ -90,7 +91,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         &output_compressed_accounts,
         inputs.output_state_merkle_tree_account_indices,
         inputs.proof,
-        cpi_context,
+        inputs.cpi_context,
     )?;
     Ok(())
 }
@@ -133,20 +134,10 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
 
     let signer_seeds = &[&seeds[..]];
-    let cpi_signature_account = match cpi_context.as_ref() {
-        Some(cpi_context) => {
-            let cpi_signature_account = ctx.remaining_accounts
-                [cpi_context.cpi_signature_account_index as usize]
-                .to_account_info();
-            Some(cpi_signature_account)
-        }
-        None => None,
-    };
-    let cpi_context: CompressedCpiContext = cpi_context.unwrap_or(CompressedCpiContext {
-        execute: true,
-        cpi_signature_account_index: 0,
+    let cpi_context_account = cpi_context.map(|cpi_context| {
+        ctx.remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });
-    let inputs_struct = LightCompressedPdaInstructionDataTransfer {
+    let inputs_struct = light_compressed_pda::invoke_cpi::instruction::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts: output_compressed_accounts.to_vec(),
@@ -156,24 +147,24 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         new_address_params: Vec::new(),
         compression_lamports: None,
         is_compress: false,
-        signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
-        cpi_context: Some(cpi_context),
+        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
+        cpi_context,
     };
     let mut inputs = Vec::new();
-    LightCompressedPdaInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.fee_payer.to_account_info(),
         authority: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: Some(ctx.accounts.self_program.to_account_info()),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
         compressed_sol_pda: None,
         compression_recipient: None,
-        system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_signature_account,
+        cpi_context_account,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -183,7 +174,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -288,6 +279,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub is_compress: bool,
     pub compression_amount: Option<u64>,
+    pub cpi_context: Option<CompressedCpiContext>,
 }
 
 impl CompressedTokenInstructionDataTransfer {
@@ -475,8 +467,8 @@ pub mod transfer_sdk {
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::token::Token;
     use light_compressed_pda::{
-        compressed_account::{MerkleContext, PackedMerkleContext},
-        CompressedProof,
+        invoke::processor::CompressedProof,
+        sdk::compressed_account::{MerkleContext, PackedMerkleContext},
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -528,10 +520,7 @@ pub mod transfer_sdk {
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
         let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
-        let instruction_data = crate::instruction::Transfer {
-            inputs,
-            cpi_context: None,
-        };
+        let instruction_data = crate::instruction::Transfer { inputs };
 
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,
@@ -710,6 +699,7 @@ pub mod transfer_sdk {
             mint,
             is_compress,
             compression_amount,
+            cpi_context: None,
         };
 
         (remaining_accounts, inputs_struct)
@@ -718,7 +708,16 @@ pub mod transfer_sdk {
     pub fn to_account_metas(remaining_accounts: HashMap<Pubkey, usize>) -> Vec<AccountMeta> {
         let mut remaining_accounts = remaining_accounts
             .iter()
-            .map(|(k, i)| (AccountMeta::new(*k, false), *i))
+            .map(|(k, i)| {
+                (
+                    AccountMeta {
+                        pubkey: *k,
+                        is_signer: false,
+                        is_writable: true,
+                    },
+                    *i,
+                )
+            })
             .collect::<Vec<(AccountMeta, usize)>>();
         // hash maps are not sorted so we need to sort manually and collect into a vector again
         remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));

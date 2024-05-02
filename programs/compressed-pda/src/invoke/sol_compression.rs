@@ -1,10 +1,14 @@
+use crate::{
+    errors::CompressedPdaError,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
+    InstructionDataInvoke,
+};
 use aligned_sized::*;
 use anchor_lang::{
     prelude::*,
     solana_program::{account_info::AccountInfo, pubkey::Pubkey},
+    Bumps,
 };
-
-use crate::{InstructionDataTransfer, TransferInstruction};
 
 #[account]
 #[aligned_sized(anchor)]
@@ -13,9 +17,15 @@ pub struct CompressedSolPda {}
 #[constant]
 pub const COMPRESSED_SOL_PDA_SEED: &[u8] = b"compressed_sol_pda";
 
-pub fn compression_lamports<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+pub fn compression_lamports<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+>(
+    inputs: &'a InstructionDataInvoke,
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     if inputs.is_compress {
         compress_lamports(inputs, ctx)
@@ -26,21 +36,27 @@ pub fn compression_lamports<'a, 'b, 'c: 'info, 'info>(
     }
 }
 
-pub fn decompress_lamports<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+pub fn decompress_lamports<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+>(
+    inputs: &'a InstructionDataInvoke,
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.compression_recipient.as_ref() {
+    let recipient = match ctx.accounts.get_compression_recipient().as_ref() {
         Some(compression_recipient) => compression_recipient.to_account_info(),
-        None => return err!(crate::ErrorCode::DecompressRecipientUndefinedForDecompressSol),
+        None => return err!(CompressedPdaError::DecompressRecipientUndefinedForDecompressSol),
     };
-    let compressed_sol_pda = match ctx.accounts.compressed_sol_pda.as_ref() {
+    let compressed_sol_pda = match ctx.accounts.get_compressed_sol_pda().as_ref() {
         Some(compressed_sol_pda) => compressed_sol_pda.to_account_info(),
-        None => return err!(crate::ErrorCode::CompressedSolPdaUndefinedForDecompressSol),
+        None => return err!(CompressedPdaError::CompressedSolPdaUndefinedForDecompressSol),
     };
     let lamports = match inputs.compression_lamports {
         Some(lamports) => lamports,
-        None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForDecompressSol),
+        None => return err!(CompressedPdaError::DeCompressLamportsUndefinedForDecompressSol),
     };
 
     transfer_lamports(&compressed_sol_pda, &recipient, lamports)?;
@@ -48,21 +64,27 @@ pub fn decompress_lamports<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn compress_lamports<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+pub fn compress_lamports<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+>(
+    inputs: &'a InstructionDataInvoke,
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.compressed_sol_pda.as_ref() {
+    let recipient = match ctx.accounts.get_compressed_sol_pda().as_ref() {
         Some(compressed_sol_pda) => compressed_sol_pda.to_account_info(),
-        None => return err!(crate::ErrorCode::CompressedSolPdaUndefinedForCompressSol),
+        None => return err!(CompressedPdaError::CompressedSolPdaUndefinedForCompressSol),
     };
     let lamports = match inputs.compression_lamports {
         Some(lamports) => lamports,
-        None => return err!(crate::ErrorCode::DeCompressLamportsUndefinedForCompressSol),
+        None => return err!(CompressedPdaError::DeCompressLamportsUndefinedForCompressSol),
     };
 
     transfer_lamports_compress(
-        &ctx.accounts.authority.to_account_info(),
+        &ctx.accounts.get_authority().to_account_info(),
         &recipient,
         lamports,
     )

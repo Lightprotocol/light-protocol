@@ -1,7 +1,7 @@
 use crate::{AccountState, TokenData};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_compressed_pda::compressed_account::{CompressedAccount, CompressedAccountData};
+use light_compressed_pda::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
 use light_hasher::DataHasher;
 use std::mem;
 pub const POOL_SEED: &[u8] = b"pool";
@@ -56,11 +56,11 @@ pub fn process_mint_to<'info>(
     {
         let inputs_len =
     // struct
-    mem::size_of::<light_compressed_pda::InstructionDataTransfer>()
+    mem::size_of::<light_compressed_pda::InstructionDataInvokeCpi>()
     // `output_compressed_accounts`
     + mem::size_of::<CompressedAccount>() * amounts.len()
     // `output_state_merkle_tree_account_indices`
-    + amounts.len()+ mem::size_of::<Option::<light_compressed_pda::CompressedCpiContext>>();
+    + amounts.len() + mem::size_of::<Option::<light_compressed_pda::sdk::CompressedCpiContext>>();
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // safety buffer prior to heap pos
         let buffer = vec![0u8; 8];
@@ -156,7 +156,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ];
 
     let len = output_compressed_accounts.len();
-    let inputs_struct = light_compressed_pda::InstructionDataTransfer {
+    let inputs_struct = light_compressed_pda::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
         output_compressed_accounts,
@@ -166,30 +166,27 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         new_address_params: Vec::with_capacity(0),
         compression_lamports: None,
         is_compress: false,
-        signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
-        cpi_context: Some(light_compressed_pda::CompressedCpiContext {
-            execute: true,
-            cpi_signature_account_index: 0,
-        }),
+        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
+        cpi_context: None,
     };
 
-    light_compressed_pda::InstructionDataTransfer::serialize(&inputs_struct, inputs)?;
+    light_compressed_pda::InstructionDataInvokeCpi::serialize(&inputs_struct, inputs)?;
 
     light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
 
     let signer_seeds = &[&seeds[..]];
-    let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.fee_payer.to_account_info(),
         authority: ctx.accounts.mint_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: Some(ctx.accounts.self_program.to_account_info()),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_signature_account: None,
+        cpi_context_account: None,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -198,7 +195,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     );
 
     cpi_ctx.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs.to_owned())?;
+    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs.to_owned())?;
     Ok(())
 }
 

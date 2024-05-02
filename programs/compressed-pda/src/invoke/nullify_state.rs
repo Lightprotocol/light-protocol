@@ -1,19 +1,26 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_macros::heap_neutral;
-
 use crate::{
-    instructions::{InstructionDataTransfer, TransferInstruction},
-    verify_state::check_program_owner_state_merkle_tree,
+    invoke::InstructionDataInvoke,
+    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
+use light_macros::heap_neutral;
 
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Checks that if nullifier queue has delegate it invoking_program is delegate.
 /// 3. Inserts nullifiers into the queue.
 #[heap_neutral]
-pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+pub fn insert_nullifiers<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
+>(
+    inputs: &'a InstructionDataInvoke,
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     nullifiers: &'a [[u8; 32]],
+    invoking_program: &Option<Pubkey>,
 ) -> Result<()> {
     let state_merkle_tree_account_infos: anchor_lang::Result<Vec<AccountInfo<'info>>> = inputs
         .input_compressed_accounts_with_merkle_context
@@ -21,7 +28,7 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
         .map(|account| {
             check_program_owner_state_merkle_tree(
                 &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
-                &ctx.accounts.invoking_program,
+                invoking_program,
             )?;
 
             Ok(
@@ -40,11 +47,11 @@ pub fn insert_nullifiers<'a, 'b, 'c: 'info, 'info>(
 
     insert_nullifiers_cpi(
         ctx.program_id,
-        &ctx.accounts.account_compression_program,
-        &ctx.accounts.fee_payer.to_account_info(),
-        &ctx.accounts.account_compression_authority,
-        &ctx.accounts.registered_program_pda.to_account_info(),
-        &ctx.accounts.system_program.to_account_info(),
+        ctx.accounts.get_account_compression_program(),
+        &ctx.accounts.get_fee_payer().to_account_info(),
+        ctx.accounts.get_account_compression_authority(),
+        &ctx.accounts.get_registered_program_pda().to_account_info(),
+        &ctx.accounts.get_system_program().to_account_info(),
         nullifier_queue_account_infos,
         state_merkle_tree_account_infos?,
         nullifiers.to_vec(),

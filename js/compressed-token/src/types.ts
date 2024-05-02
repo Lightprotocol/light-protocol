@@ -3,7 +3,7 @@ import { BN } from '@coral-xyz/anchor';
 import { CompressedProof } from '@lightprotocol/stateless.js';
 
 /// TODO: remove index_mt_account on-chain. passed as part of
-/// CompressedTokenInstructionDataTransfer
+/// CompressedTokenInstructionDataInvoke
 export type TokenTransferOutputData = {
     owner: PublicKey;
     amount: BN;
@@ -20,7 +20,7 @@ export type InputTokenDataWithContext = {
     leafIndex: number;
 };
 
-export type CompressedTokenInstructionDataTransfer = {
+export type CompressedTokenInstructionDataInvoke = {
     proof: CompressedProof | null;
     rootIndices: number[];
     mint: PublicKey;
