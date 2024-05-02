@@ -5,9 +5,8 @@ use std::collections::HashMap;
 use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
-    compressed_account::PackedCompressedAccountWithMerkleContext,
-    compressed_cpi::CompressedCpiContext, pack_new_address_params, CompressedProof,
-    NewAddressParams,
+    invoke::processor::CompressedProof, sdk::address::pack_new_address_params,
+    sdk::compressed_account::PackedCompressedAccountWithMerkleContext, NewAddressParams,
 };
 use light_compressed_token::transfer_sdk::to_account_metas;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -36,30 +35,15 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     );
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
-    let cpi_signature_account_index: u8 =
-        match remaining_accounts.get(input_params.cpi_signature_account) {
-            Some(entry) => (*entry).try_into().unwrap(),
-            None => {
-                remaining_accounts.insert(
-                    *input_params.cpi_signature_account,
-                    remaining_accounts.len(),
-                );
-                (remaining_accounts.len() - 1) as u8
-            }
-        };
 
-    let cpi_context = CompressedCpiContext {
-        execute: true,
-        cpi_signature_account_index,
-    };
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
         proof: Some(input_params.proof.clone()),
-        new_address_parameters: new_address_params[0].clone(),
+        new_address_parameters: new_address_params[0],
         owner_program: *input_params.owner_program,
-        cpi_context,
         bump,
         signer_is_program: input_params.signer_is_program,
+        cpi_context: None,
     };
 
     let registered_program_pda = Pubkey::find_program_address(

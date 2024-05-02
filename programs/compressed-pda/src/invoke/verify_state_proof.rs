@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, Bumps};
 
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use light_macros::heap_neutral;
@@ -8,16 +8,20 @@ use light_verifier::{
 };
 
 use crate::{
-    compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    instructions::{InstructionDataTransfer, TransferInstruction},
-    ErrorCode,
+    errors::CompressedPdaError,
+    invoke::InstructionDataInvoke,
+    sdk::{
+        accounts::InvokeAccounts,
+        compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    },
+    NewAddressParamsPacked,
 };
 
 #[inline(never)]
 #[heap_neutral]
-pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
+    inputs: &'a InstructionDataInvoke,
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
     for (j, input_compressed_account_with_context) in inputs
@@ -41,12 +45,18 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info>(
 
 // TODO: unify fetch roots and fetch_roots_address_merkle_tree
 #[inline(never)]
-pub fn fetch_roots_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+pub fn fetch_roots_address_merkle_tree<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + Bumps,
+>(
+    new_address_params: &'a [NewAddressParamsPacked],
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
-    for (j, index_mt_account) in inputs.new_address_params.iter().enumerate() {
+    for (j, index_mt_account) in new_address_params.iter().enumerate() {
         let merkle_tree = AccountLoader::<AddressMerkleTreeAccount>::try_from(
             &ctx.remaining_accounts[index_mt_account.address_merkle_tree_account_index as usize],
         )
@@ -61,9 +71,15 @@ pub fn fetch_roots_address_merkle_tree<'a, 'b, 'c: 'info, 'info>(
 
 #[inline(never)]
 #[heap_neutral]
-pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    inputs: &'a InstructionDataTransfer,
+pub fn hash_input_compressed_accounts<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    A: InvokeAccounts<'info> + Bumps,
+>(
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
+    inputs: &'a InstructionDataInvoke,
     leaves: &'a mut [[u8; 32]],
     addresses: &'a mut [Option<[u8; 32]>],
 ) -> Result<()> {
@@ -103,206 +119,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-#[inline(never)]
-#[heap_neutral]
-pub fn sum_check(
-    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    output_compressed_account: &[CompressedAccount],
-    relay_fee: &Option<u64>,
-    compression_lamports: &Option<u64>,
-    is_compress: &bool,
-) -> Result<()> {
-    let mut sum: u64 = 0;
-    for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
-        sum = sum
-            .checked_add(compressed_account_with_context.compressed_account.lamports)
-            .ok_or(ProgramError::ArithmeticOverflow)
-            .map_err(|_| ErrorCode::ComputeInputSumFailed)?;
-    }
-
-    match compression_lamports {
-        Some(lamports) => {
-            if *is_compress {
-                sum = sum
-                    .checked_add(*lamports)
-                    .ok_or(ProgramError::ArithmeticOverflow)
-                    .map_err(|_| ErrorCode::ComputeOutputSumFailed)?;
-            } else {
-                sum = sum
-                    .checked_sub(*lamports)
-                    .ok_or(ProgramError::ArithmeticOverflow)
-                    .map_err(|_| ErrorCode::ComputeOutputSumFailed)?;
-            }
-        }
-        None => (),
-    }
-
-    for compressed_account in output_compressed_account.iter() {
-        sum = sum
-            .checked_sub(compressed_account.lamports)
-            .ok_or(ProgramError::ArithmeticOverflow)
-            .map_err(|_| ErrorCode::ComputeOutputSumFailed)?;
-    }
-
-    if let Some(relay_fee) = relay_fee {
-        sum = sum
-            .checked_sub(*relay_fee)
-            .ok_or(ProgramError::ArithmeticOverflow)
-            .map_err(|_| ErrorCode::ComputeRpcSumFailed)?;
-    }
-
-    if sum == 0 {
-        Ok(())
-    } else {
-        Err(ErrorCode::SumCheckFailed.into())
-    }
-}
-
-/// If signer seeds are not provided, invoking program is required.
-/// If invoking program is provided signer seeds are required.
-/// If signer seeds are provided, the derived signer has to match the signer.
-#[inline(never)]
-#[heap_neutral]
-pub fn cpi_signer_check(
-    signer_seeds: &Option<Vec<Vec<u8>>>,
-    invoking_program: &Option<UncheckedAccount>,
-    signer: &Pubkey,
-) -> Result<()> {
-    if signer_seeds.is_none() && invoking_program.is_some() {
-        msg!("signer seeds not provided but trying to create compressed output account with data");
-        return err!(crate::ErrorCode::SignerSeedsNotProvided);
-    }
-    if signer_seeds.is_some() {
-        match invoking_program {
-            Some(invoking_program_id) => {
-                let seeds = match signer_seeds.as_ref() {
-                    Some(seeds) => seeds.iter().map(|x| x.as_slice()).collect::<Vec<&[u8]>>(),
-                    None => {
-                        msg!("signer seeds not provided but trying to create compressed output account with data");
-                        return err!(crate::ErrorCode::SignerSeedsNotProvided);
-                    }
-                };
-                let derived_signer =
-                    Pubkey::create_program_address(&seeds[..], &invoking_program_id.key())
-                        .map_err(ProgramError::from)?;
-                if derived_signer != *signer {
-                    msg!(
-                    "Signer/Program cannot write into an account it doesn't own. Write access check failed derived cpi signer {} !=  signer {}",
-                    signer,
-                    signer
-                );
-                    msg!("seeds: {:?}", seeds);
-                    return err!(crate::ErrorCode::SignerCheckFailed);
-                }
-
-                Ok(())
-            }
-            None => {
-                msg!("invoking program id not provided but trying to create compressed output account with data");
-                err!(crate::ErrorCode::InvokingProgramNotProvided)
-            }
-        }
-    } else {
-        Ok(())
-    }
-}
-
-/// Checks the signer for input compressed accounts.
-/// 1. If any compressed account has data the invoking program must be defined.
-/// 2. If any compressed account has data the owner has to be the invokinging program.
-/// 3. If no compressed account has data the owner has to be the signer.
-#[inline(never)]
-#[heap_neutral]
-pub fn input_compressed_accounts_signer_check(
-    inputs: &InstructionDataTransfer,
-    invoking_program_id: &Option<UncheckedAccount>,
-    signer: &Pubkey,
-) -> Result<()> {
-    inputs
-    .input_compressed_accounts_with_merkle_context
-    .iter()
-        .try_for_each(|compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-
-            if compressed_account_with_context.compressed_account.data.is_some()
-            {
-                // CHECK 1
-                let invoking_program_id = match invoking_program_id {
-                    Some(invoking_program_id) => Ok(invoking_program_id.key()),
-                    None => {
-                        msg!("invoking program id not provided but trying to create compressed output account with data");
-                        err!(crate::ErrorCode::InvokingProgramNotProvided)
-                    }
-                }?;
-                // CHECK 2
-                if invoking_program_id != compressed_account_with_context.compressed_account.owner {
-                msg!(
-                        "Signer/Program cannot read from an account it doesn't own. Read access check failed compressed account owner {} !=  invoking_program_id {}",
-                        compressed_account_with_context.compressed_account.owner,
-                    invoking_program_id
-                );
-                    err!(crate::ErrorCode::SignerCheckFailed)
-                } else {
-                    Ok(())
-                }
-            }
-            // CHECK 3
-            else if compressed_account_with_context.compressed_account.owner != *signer {
-            msg!(
-                "signer check failed compressed account owner {} !=  signer {}",
-                    compressed_account_with_context.compressed_account.owner,
-                    signer
-            );
-            err!(ErrorCode::SignerCheckFailed)
-            } else {
-                Ok(())
-        }
-    })?;
-    Ok(())
-}
-
-/// Checks the write access for output compressed accounts.
-/// Only program owned output accounts can hold data.
-/// Every output account that holds data has to be owned by the invoking_program.
-/// For every account that has data, the owner has to be the invoking_program.
-#[inline(never)]
-#[heap_neutral]
-pub fn output_compressed_accounts_write_access_check(
-    inputs: &InstructionDataTransfer,
-    invoking_program_id: &Option<UncheckedAccount>,
-) -> Result<()> {
-    // is triggered if one output account has data
-    let output_account_with_data = inputs
-        .output_compressed_accounts
-        .iter()
-        .filter(|compressed_account| compressed_account.data.is_some())
-        .collect::<Vec<&CompressedAccount>>();
-    if !output_account_with_data.is_empty() {
-        // If a compressed account has data invoking_program has to be provided.
-        let invoking_program_id = match invoking_program_id {
-            Some(invoking_program_id) => Ok(invoking_program_id.key()),
-            None => {
-                msg!("invoking program id not provided but trying to create compressed output account with data");
-                err!(crate::ErrorCode::InvokingProgramNotProvided)
-            }
-        }?;
-        output_account_with_data.iter().try_for_each(|compressed_account| {
-                    if compressed_account.owner == invoking_program_id.key() {
-                        Ok(())
-                    } else {
-                        msg!(
-                            "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
-                            compressed_account.owner,
-                            invoking_program_id.key()
-                        );
-
-                        msg!("compressed_account: {:?}", compressed_account);
-                        err!(crate::ErrorCode::WriteAccessCheckFailed)
-                    }
-                })?;
-    }
-    Ok(())
-}
-
 #[heap_neutral]
 pub fn verify_state_proof(
     roots: &[[u8; 32]],
@@ -328,58 +144,64 @@ pub fn verify_state_proof(
     }
     Ok(())
 }
-
-pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
-    merkle_tree_acc_info: &'b AccountInfo<'a>,
-    invoking_program: &Option<UncheckedAccount>,
+#[inline(never)]
+#[heap_neutral]
+pub fn sum_check(
+    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
+    output_compressed_account: &[CompressedAccount],
+    relay_fee: &Option<u64>,
+    compression_lamports: &Option<u64>,
+    is_compress: &bool,
 ) -> Result<()> {
-    let merkle_tree =
-        AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
-    let merkle_tree_unpacked = merkle_tree.load()?;
-    // TODO: rename delegate to program_owner
-    if merkle_tree_unpacked.delegate != Pubkey::default() {
-        if let Some(invoking_program) = invoking_program {
-            if invoking_program.key() == merkle_tree_unpacked.delegate {
-                msg!(
-                    "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
-                    invoking_program.key(),
-                    merkle_tree_unpacked.delegate
-                );
-                return Ok(());
+    let mut sum: u64 = 0;
+    for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
+        sum = sum
+            .checked_add(compressed_account_with_context.compressed_account.lamports)
+            .ok_or(ProgramError::ArithmeticOverflow)
+            .map_err(|_| CompressedPdaError::ComputeInputSumFailed)?;
+    }
+
+    match compression_lamports {
+        Some(lamports) => {
+            if *is_compress {
+                sum = sum
+                    .checked_add(*lamports)
+                    .ok_or(ProgramError::ArithmeticOverflow)
+                    .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
+            } else {
+                sum = sum
+                    .checked_sub(*lamports)
+                    .ok_or(ProgramError::ArithmeticOverflow)
+                    .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
             }
         }
-        return Err(crate::ErrorCode::InvalidMerkleTreeOwner.into());
+        None => (),
     }
-    Ok(())
-}
 
-pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
-    merkle_tree_acc_info: &'b AccountInfo<'a>,
-    invoking_program: &Option<UncheckedAccount>,
-) -> Result<()> {
-    let merkle_tree =
-        AccountLoader::<AddressMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
-    let merkle_tree_unpacked = merkle_tree.load()?;
-    // TODO: rename delegate to program_owner
-    if merkle_tree_unpacked.delegate != Pubkey::default() {
-        if let Some(invoking_program) = invoking_program {
-            if invoking_program.key() == merkle_tree_unpacked.delegate {
-                msg!(
-                    "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
-                    invoking_program.key(),
-                    merkle_tree_unpacked.delegate
-                );
-                return Ok(());
-            }
-        }
-        return Err(crate::ErrorCode::InvalidMerkleTreeOwner.into());
+    for compressed_account in output_compressed_account.iter() {
+        sum = sum
+            .checked_sub(compressed_account.lamports)
+            .ok_or(ProgramError::ArithmeticOverflow)
+            .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
     }
-    Ok(())
+
+    if let Some(relay_fee) = relay_fee {
+        sum = sum
+            .checked_sub(*relay_fee)
+            .ok_or(ProgramError::ArithmeticOverflow)
+            .map_err(|_| CompressedPdaError::ComputeRpcSumFailed)?;
+    }
+
+    if sum == 0 {
+        Ok(())
+    } else {
+        Err(CompressedPdaError::SumCheckFailed.into())
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::compressed_account::PackedMerkleContext;
+    use crate::sdk::compressed_account::PackedMerkleContext;
 
     use super::*;
 

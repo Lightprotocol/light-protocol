@@ -4,9 +4,13 @@ use crate::escrow_with_compressed_pda::escrow::PackedInputCompressedPda;
 use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
-    compressed_account::{pack_merkle_context, MerkleContext},
-    compressed_cpi::CompressedCpiContext,
-    pack_new_address_params, CompressedProof, NewAddressParams,
+    invoke::processor::CompressedProof,
+    sdk::{
+        address::pack_new_address_params,
+        compressed_account::{pack_merkle_context, MerkleContext},
+        CompressedCpiContext,
+    },
+    NewAddressParams,
 };
 use light_compressed_token::{
     transfer_sdk::{create_inputs_and_remaining_accounts_checked, to_account_metas},
@@ -50,7 +54,7 @@ pub fn create_escrow_instruction(
     .unwrap();
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
-    let cpi_signature_account_index: u8 =
+    let cpi_context_account_index: u8 =
         match remaining_accounts.get(input_params.cpi_signature_account) {
             Some(entry) => (*entry).try_into().unwrap(),
             None => {
@@ -61,22 +65,20 @@ pub fn create_escrow_instruction(
                 (remaining_accounts.len() - 1) as u8
             }
         };
-
-    let cpi_context = CompressedCpiContext {
-        execute: true,
-        cpi_signature_account_index,
-    };
     let instruction_data = crate::instruction::EscrowCompressedTokensWithCompressedPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
-        proof: Some(input_params.proof.clone()),
+        proof: input_params.proof.clone(),
         root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
         output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
-        new_address_params: new_address_params[0].clone(),
-        cpi_context,
+        new_address_params: new_address_params[0],
+        cpi_context: CompressedCpiContext {
+            set_context: false,
+            cpi_context_account_index,
+        },
         bump: token_owner_pda.1,
     };
 
@@ -101,6 +103,7 @@ pub fn create_escrow_instruction(
         self_program: crate::ID,
         token_owner_pda: token_owner_pda.0,
         system_program: solana_sdk::system_program::id(),
+        cpi_context_account: *input_params.cpi_signature_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -162,7 +165,7 @@ pub fn create_withdrawal_instruction(
         ],
         &mut remaining_accounts,
     );
-    let cpi_signature_account_index: u8 =
+    let cpi_context_account_index: u8 =
         match remaining_accounts.get(input_params.cpi_signature_account) {
             Some(entry) => (*entry).try_into().unwrap(),
             None => {
@@ -173,12 +176,10 @@ pub fn create_withdrawal_instruction(
                 (remaining_accounts.len() - 1) as u8
             }
         };
-
     let cpi_context = CompressedCpiContext {
-        execute: true,
-        cpi_signature_account_index,
+        set_context: false,
+        cpi_context_account_index,
     };
-
     let input_compressed_pda = PackedInputCompressedPda {
         old_lock_up_time: input_params.old_lock_up_time,
         new_lock_up_time: input_params.new_lock_up_time,
@@ -186,7 +187,7 @@ pub fn create_withdrawal_instruction(
         merkle_context: merkle_context_packed[0],
     };
     let instruction_data = crate::instruction::WithdrawCompressedTokensWithCompressedPda {
-        proof: Some(input_params.proof.clone()),
+        proof: input_params.proof.clone(),
         root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
@@ -219,6 +220,7 @@ pub fn create_withdrawal_instruction(
         self_program: crate::ID,
         token_owner_pda,
         system_program: solana_sdk::system_program::id(),
+        cpi_context_account: *input_params.cpi_signature_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

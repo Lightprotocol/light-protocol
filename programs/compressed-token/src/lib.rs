@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use light_compressed_pda::compressed_cpi::CompressedCpiContext;
 
 pub mod process_mint;
 pub mod process_transfer;
@@ -47,9 +46,8 @@ pub mod light_compressed_token {
     pub fn transfer<'info>(
         ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
         inputs: Vec<u8>,
-        cpi_context: Option<CompressedCpiContext>,
     ) -> Result<()> {
-        process_transfer::process_transfer(ctx, inputs, cpi_context)
+        process_transfer::process_transfer(ctx, inputs)
     }
 
     // TODO: implement update mint, freeze compressed_account, thaw compressed_account

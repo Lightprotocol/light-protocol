@@ -24,9 +24,10 @@ use light_circuitlib_rs::{
     },
 };
 use light_compressed_pda::{
-    compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-    event::PublicTransactionEvent,
-    CompressedProof,
+    invoke::processor::CompressedProof, sdk::compressed_account::CompressedAccountWithMerkleContext,
+};
+use light_compressed_pda::{
+    sdk::compressed_account::MerkleContext, sdk::event::PublicTransactionEvent,
 };
 use light_compressed_token::{
     get_token_authority_pda, get_token_pool_pda,

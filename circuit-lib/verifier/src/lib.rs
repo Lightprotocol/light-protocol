@@ -51,6 +51,16 @@ pub struct CompressedProof {
     pub c: [u8; 32],
 }
 
+impl Default for CompressedProof {
+    fn default() -> Self {
+        Self {
+            a: [0; 32],
+            b: [0; 64],
+            c: [0; 32],
+        }
+    }
+}
+
 pub fn verify_create_addresses_zkp(
     address_roots: &[[u8; 32]],
     addresses: &[[u8; 32]],

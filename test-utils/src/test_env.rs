@@ -394,10 +394,10 @@ pub async fn init_cpi_signature_account(
         &light_compressed_pda::ID,
         Some(cpi_account_keypair),
     );
-    let data = light_compressed_pda::instruction::InitCpiSignatureAccount {};
-    let accounts = light_compressed_pda::accounts::InitializeCpiSignatureAccount {
+    let data = light_compressed_pda::instruction::InitCpiContextAccount {};
+    let accounts = light_compressed_pda::accounts::InitializeCpiContextAccount {
         fee_payer: payer.insecure_clone().pubkey(),
-        cpi_signature_account: cpi_account_keypair.pubkey(),
+        cpi_context_account: cpi_account_keypair.pubkey(),
         system_program: system_program::ID,
         associated_merkle_tree: *merkle_tree_pubkey,
     };

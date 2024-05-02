@@ -14,7 +14,7 @@ import {
     CompressedAccount,
     CompressedAccountWithMerkleContext,
     CompressedProof,
-    InstructionDataTransfer,
+    InstructionDataInvoke,
     bn,
     createCompressedAccount,
 } from '../state';
@@ -287,35 +287,31 @@ export class LightSystemProgram {
         );
 
         /// Encode instruction data
-        const data = this.program.coder.types.encode(
-            'InstructionDataTransfer',
-            {
-                proof: recentValidityProof,
-                inputRootIndices: recentInputStateRootIndices,
-                /// TODO: here and on-chain: option<newAddressInputs> or similar.
-                newAddressParams: [],
-                inputCompressedAccountsWithMerkleContext:
-                    packedInputCompressedAccounts,
-                outputCompressedAccounts,
-                outputStateMerkleTreeAccountIndices: Buffer.from(
-                    outputStateMerkleTreeIndices,
-                ),
-                relayFee: null,
-                compressionLamports: null,
-                isCompress: false,
-                signerSeeds: null,
-                cpiContext: null,
-            },
-        );
+        const data = this.program.coder.types.encode('InstructionDataInvoke', {
+            proof: recentValidityProof,
+            inputRootIndices: recentInputStateRootIndices,
+            /// TODO: here and on-chain: option<newAddressInputs> or similar.
+            newAddressParams: [],
+            inputCompressedAccountsWithMerkleContext:
+                packedInputCompressedAccounts,
+            outputCompressedAccounts,
+            outputStateMerkleTreeAccountIndices: Buffer.from(
+                outputStateMerkleTreeIndices,
+            ),
+            relayFee: null,
+            compressionLamports: null,
+            isCompress: false,
+            signerSeeds: null,
+            cpiContext: null,
+        });
 
         /// Build anchor instruction
         const instruction = await this.program.methods
-            .executeCompressedTransaction(data)
+            .invoke(data)
             .accounts({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                invokingProgram: null,
                 compressedSolPda: null,
                 compressionRecipient: null,
                 systemProgram: SystemProgram.programId,
@@ -352,8 +348,8 @@ export class LightSystemProgram {
         } = packCompressedAccounts([], 1, outputStateTree);
 
         /// Encode instruction data
-        const rawInputs: InstructionDataTransfer = {
-            proof: placeholderValidityProof(),
+        const rawInputs: InstructionDataInvoke = {
+            proof: null,
             inputRootIndices: [],
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
@@ -366,23 +362,20 @@ export class LightSystemProgram {
             relayFee: null,
             compressionLamports: lamports,
             isCompress: true,
-            signerSeeds: null,
-            cpiContext: null,
         };
 
         const data = this.program.coder.types.encode(
-            'InstructionDataTransfer',
+            'InstructionDataInvoke',
             rawInputs,
         );
 
         /// Build anchor instruction
         const instruction = await this.program.methods
-            .executeCompressedTransaction(data)
+            .invoke(data)
             .accounts({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                invokingProgram: null,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: null,
                 systemProgram: SystemProgram.programId,
@@ -426,35 +419,31 @@ export class LightSystemProgram {
         );
 
         /// Encode instruction data
-        const data = this.program.coder.types.encode(
-            'InstructionDataTransfer',
-            {
-                proof: recentValidityProof,
-                inputRootIndices: recentInputStateRootIndices,
-                /// TODO: here and on-chain: option<newAddressInputs> or similar.
-                newAddressParams: [],
-                inputCompressedAccountsWithMerkleContext:
-                    packedInputCompressedAccounts,
-                outputCompressedAccounts: outputCompressedAccounts,
-                outputStateMerkleTreeAccountIndices: Buffer.from(
-                    new Uint8Array(outputStateMerkleTreeIndices),
-                ),
-                relayFee: null,
-                compressionLamports: lamports,
-                isCompress: false,
-                signerSeeds: null,
-                cpiContext: null,
-            },
-        );
+        const data = this.program.coder.types.encode('InstructionDataInvoke', {
+            proof: recentValidityProof,
+            inputRootIndices: recentInputStateRootIndices,
+            /// TODO: here and on-chain: option<newAddressInputs> or similar.
+            newAddressParams: [],
+            inputCompressedAccountsWithMerkleContext:
+                packedInputCompressedAccounts,
+            outputCompressedAccounts: outputCompressedAccounts,
+            outputStateMerkleTreeAccountIndices: Buffer.from(
+                new Uint8Array(outputStateMerkleTreeIndices),
+            ),
+            relayFee: null,
+            compressionLamports: lamports,
+            isCompress: false,
+            signerSeeds: null,
+            cpiContext: null,
+        });
 
         /// Build anchor instruction
         const instruction = await this.program.methods
-            .executeCompressedTransaction(data)
+            .invoke(data)
             .accounts({
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                invokingProgram: null,
                 compressedSolPda: this.deriveCompressedSolPda(),
                 compressionRecipient: toAddress,
                 systemProgram: SystemProgram.programId,

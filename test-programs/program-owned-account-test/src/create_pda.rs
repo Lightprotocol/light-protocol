@@ -1,8 +1,12 @@
 use anchor_lang::prelude::*;
 use light_compressed_pda::{
-    compressed_account::{derive_address, CompressedAccount, CompressedAccountData},
-    compressed_cpi::CompressedCpiContext,
-    CompressedProof, InstructionDataTransfer, NewAddressParamsPacked,
+    invoke::processor::CompressedProof,
+    sdk::{
+        address::derive_address,
+        compressed_account::{CompressedAccount, CompressedAccountData},
+        CompressedCpiContext,
+    },
+    InstructionDataInvokeCpi, NewAddressParamsPacked,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 
@@ -21,7 +25,7 @@ pub fn process_create_pda<'info>(
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
     owner_program: Pubkey,
-    cpi_context: CompressedCpiContext,
+    cpi_context: Option<CompressedCpiContext>,
     is_program_signer: CreatePdaMode,
     bump: u8,
 ) -> Result<()> {
@@ -69,10 +73,10 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: CompressedAccount,
-    cpi_context: CompressedCpiContext,
+    cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
     msg!("cpi_compressed_pda_transfer_as_non_program");
-    let inputs_struct = InstructionDataTransfer {
+    let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
@@ -82,25 +86,25 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
         new_address_params: vec![new_address_params],
         compression_lamports: None,
         is_compress: false,
-        signer_seeds: None,
-        cpi_context: Some(cpi_context),
+        signer_seeds: Vec::new(),
+        cpi_context,
     };
 
     let mut inputs = Vec::new();
-    InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: Some(ctx.accounts.self_program.to_account_info()),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_signature_account: None,
+        cpi_context_account: None,
     };
     let mut cpi_ctx = CpiContext::new(
         ctx.accounts.compressed_pda_program.to_account_info(),
@@ -109,7 +113,7 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -118,13 +122,13 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: CompressedAccount,
-    cpi_context: CompressedCpiContext,
+    cpi_context: Option<CompressedCpiContext>,
     bump: u8,
     signer_seed: &[u8],
 ) -> Result<()> {
     let local_bump = Pubkey::find_program_address(&[signer_seed], &crate::ID).1;
     let seeds: [&[u8]; 2] = [signer_seed, &[local_bump]];
-    let inputs_struct = InstructionDataTransfer {
+    let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
@@ -134,26 +138,26 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         new_address_params: vec![new_address_params],
         compression_lamports: None,
         is_compress: false,
-        signer_seeds: Some(seeds.iter().map(|seed| seed.to_vec()).collect()),
-        cpi_context: Some(cpi_context),
+        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
+        cpi_context,
     };
     // defining seeds again so that the cpi doesn't fail we want to test the check in the compressed pda program
     let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
     let mut inputs = Vec::new();
-    InstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = light_compressed_pda::cpi::accounts::TransferInstruction {
+    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.cpi_signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: Some(ctx.accounts.self_program.to_account_info()),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_signature_account: None,
+        cpi_context_account: None,
     };
 
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
@@ -166,7 +170,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::execute_compressed_transaction(cpi_ctx, inputs)?;
+    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }
 

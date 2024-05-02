@@ -10,12 +10,12 @@ import { BN, Program, AnchorProvider, setProvider } from '@coral-xyz/anchor';
 import { IDL, LightCompressedToken } from './idl/light_compressed_token';
 import {
     CompressedProof,
-    CompressedTokenInstructionDataTransfer,
     LightSystemProgram,
     ParsedTokenAccount,
     TokenTransferOutputData,
     bn,
     confirmConfig,
+    CompressedTokenInstructionDataTransfer,
     defaultStaticAccountsStruct,
     sumUpLamports,
     toArray,
@@ -485,6 +485,7 @@ export class CompressedTokenProgram {
             ),
             compressionAmount: null,
             isCompress: false,
+            cpiContext: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -500,7 +501,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
 
         const instruction = await this.program.methods
-            .transfer(encodedData, null)
+            .transfer(encodedData)
             .accounts({
                 feePayer: payer!,
                 authority: currentOwner!,
@@ -560,6 +561,7 @@ export class CompressedTokenProgram {
             ),
             compressionAmount: amount,
             isCompress: true,
+            cpiContext: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -584,7 +586,7 @@ export class CompressedTokenProgram {
         );
 
         const instruction = await this.program.methods
-            .transfer(encodedData, null)
+            .transfer(encodedData)
             .accounts({
                 feePayer: payer,
                 authority: owner,
@@ -651,6 +653,7 @@ export class CompressedTokenProgram {
             ),
             compressionAmount: amount,
             isCompress: false,
+            cpiContext: null,
         };
 
         const encodedData = this.program.coder.types.encode(
@@ -666,7 +669,7 @@ export class CompressedTokenProgram {
         } = defaultStaticAccountsStruct();
 
         const instruction = await this.program.methods
-            .transfer(encodedData, null)
+            .transfer(encodedData)
             .accounts({
                 feePayer: payer,
                 authority: currentOwner,

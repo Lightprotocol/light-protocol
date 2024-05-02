@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_pda::CompressedProof;
+use light_compressed_pda::invoke::processor::CompressedProof;
 use light_compressed_token::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
 };
@@ -10,7 +10,7 @@ pub fn process_escrow_compressed_tokens_with_pda<'info>(
     ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
     lock_up_time: u64,
     escrow_amount: u64,
-    proof: Option<CompressedProof>,
+    proof: CompressedProof,
     root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
@@ -51,7 +51,7 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
     ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
     bump: u8,
     withdrawal_amount: u64,
-    proof: Option<CompressedProof>,
+    proof: CompressedProof,
     root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
@@ -121,7 +121,7 @@ pub struct EscrowTimeLock {
 #[inline(never)]
 pub fn cpi_compressed_token_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
-    proof: Option<CompressedProof>,
+    proof: CompressedProof,
     root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
@@ -130,7 +130,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     output_state_merkle_tree_account_indices: Vec<u8>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
-        proof,
+        proof: Some(proof),
         root_indices,
         mint,
         signer_is_delegate,
@@ -139,6 +139,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         output_state_merkle_tree_account_indices,
         is_compress: false,
         compression_amount: None,
+        cpi_context: None,
     };
 
     let mut inputs = Vec::new();
@@ -169,7 +170,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    light_compressed_token::cpi::transfer(cpi_ctx, inputs, None)?;
+    light_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -177,7 +178,7 @@ pub fn cpi_compressed_token_transfer<'info>(
 pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
     bump: u8,
-    proof: Option<CompressedProof>,
+    proof: CompressedProof,
     root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
@@ -186,7 +187,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     output_state_merkle_tree_account_indices: Vec<u8>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
-        proof,
+        proof: Some(proof),
         root_indices,
         mint,
         signer_is_delegate,
@@ -195,6 +196,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         output_state_merkle_tree_account_indices,
         is_compress: false,
         compression_amount: None,
+        cpi_context: None,
     };
 
     let mut inputs = Vec::new();
@@ -231,6 +233,6 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    light_compressed_token::cpi::transfer(cpi_ctx, inputs, None)?;
+    light_compressed_token::cpi::transfer(cpi_ctx, inputs)?;
     Ok(())
 }

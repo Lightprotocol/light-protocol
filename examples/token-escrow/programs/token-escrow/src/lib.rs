@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_pda::CompressedProof;
+use light_compressed_pda::invoke::processor::CompressedProof;
 use light_compressed_token::InputTokenDataWithContext;
 use light_compressed_token::TokenTransferOutputData;
 pub mod escrow_with_compressed_pda;
@@ -9,13 +9,15 @@ pub mod escrow_with_pda;
 
 pub use escrow_with_compressed_pda::escrow::*;
 pub use escrow_with_pda::escrow::*;
-use light_compressed_pda::compressed_cpi::CompressedCpiContext;
+use light_compressed_pda::sdk::CompressedCpiContext;
 use light_compressed_pda::NewAddressParamsPacked;
 
 #[error_code]
 pub enum EscrowError {
     #[msg("Escrow is locked")]
     EscrowLocked,
+    #[msg("CpiContextAccountIndexNotFound")]
+    CpiContextAccountIndexNotFound,
 }
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
@@ -34,7 +36,7 @@ pub mod token_escrow {
         ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
         lock_up_time: u64,
         escrow_amount: u64,
-        proof: Option<CompressedProof>,
+        proof: CompressedProof,
         root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
@@ -60,7 +62,7 @@ pub mod token_escrow {
         ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
         bump: u8,
         withdrawal_amount: u64,
-        proof: Option<CompressedProof>,
+        proof: CompressedProof,
         root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
@@ -87,7 +89,7 @@ pub mod token_escrow {
         ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
         lock_up_time: u64,
         escrow_amount: u64,
-        proof: Option<CompressedProof>,
+        proof: CompressedProof,
         root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
@@ -119,7 +121,7 @@ pub mod token_escrow {
     pub fn withdraw_compressed_tokens_with_compressed_pda<'info>(
         ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
         withdrawal_amount: u64,
-        proof: Option<CompressedProof>,
+        proof: CompressedProof,
         root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,

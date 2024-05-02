@@ -2758,6 +2758,7 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
+ "borsh 0.10.3",
  "bytemuck",
  "groth16-solana 0.0.2 (git+https://github.com/Lightprotocol/groth16-solana.git?branch=master)",
  "lazy_static",

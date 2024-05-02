@@ -1,9 +1,7 @@
-use crate::{compressed_account::CompressedAccount, InstructionDataTransfer, TransferInstruction};
-use anchor_lang::{
-    prelude::*,
-    solana_program::{instruction::Instruction, program::invoke},
-};
-use std::{io::Write, mem, str::FromStr};
+use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
+use std::{io::Write, mem};
+
+use super::compressed_account::CompressedAccount;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
 pub struct PublicTransactionEvent {
@@ -111,48 +109,10 @@ impl PublicTransactionEvent {
     }
 }
 
-pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info>(
-    inputs: InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
-    input_compressed_account_hashes: Vec<[u8; 32]>,
-    output_compressed_account_hashes: Vec<[u8; 32]>,
-    output_leaf_indices: Vec<u32>,
-) -> Result<()> {
-    // TODO: add message and compression_lamports
-    let event = PublicTransactionEvent {
-        input_compressed_account_hashes,
-        output_compressed_account_hashes,
-        output_compressed_accounts: inputs.output_compressed_accounts,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
-        output_leaf_indices,
-        relay_fee: inputs.relay_fee,
-        pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
-        compression_lamports: None,
-        message: None,
-        is_compress: false,
-    };
-
-    if ctx.accounts.noop_program.key()
-        != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
-    {
-        return err!(crate::ErrorCode::InvalidNoopPubkey);
-    }
-    let mut data = Vec::with_capacity(event.event_size());
-    // TODO: add compression lamports
-    event.man_serialize(&mut data)?;
-    let instruction = Instruction {
-        program_id: ctx.accounts.noop_program.key(),
-        accounts: vec![],
-        data,
-    };
-    invoke(&instruction, &[ctx.accounts.noop_program.to_account_info()])?;
-    Ok(())
-}
-
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::compressed_account::CompressedAccountData;
+    use crate::sdk::compressed_account::CompressedAccountData;
     use rand::Rng;
 
     #[test]

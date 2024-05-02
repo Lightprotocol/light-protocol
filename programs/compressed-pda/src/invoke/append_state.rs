@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use crate::{
-    instructions::{InstructionDataTransfer, TransferInstruction},
-    verify_state::check_program_owner_state_merkle_tree,
+    errors::CompressedPdaError,
+    invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
+    InstructionDataInvoke,
 };
 use account_compression::StateMerkleTreeAccount;
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
 use light_macros::heap_neutral;
 
 #[heap_neutral]
@@ -15,13 +17,15 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     'c: 'info,
     'info,
     const ITER_SIZE: usize,
+    A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    inputs: &'a InstructionDataTransfer,
-    ctx: &'a Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    inputs: &'a InstructionDataInvoke,
+    ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
     global_iter: &'a mut usize,
+    invoking_program: &Option<Pubkey>,
 ) -> Result<()> {
     let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
     let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
@@ -40,7 +44,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         out_merkle_trees_account_infos.push(ctx.remaining_accounts[*mt_index as usize].clone());
         check_program_owner_state_merkle_tree(
             &ctx.remaining_accounts[*mt_index as usize],
-            &ctx.accounts.invoking_program,
+            invoking_program,
         )?;
         match index {
             Some(index) => {
@@ -71,7 +75,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             } else {
                 msg!("Address {:?}, has not been created and no compressed account with this address was provided as transaction input", address);
                 msg!("Remaining addresses: {:?}", addresses);
-                return Err(crate::ErrorCode::InvalidAddress.into());
+                return Err(CompressedPdaError::InvalidAddress.into());
             }
         }
         output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j].hash(
@@ -82,12 +86,12 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 
     append_leaves_cpi(
         ctx.program_id,
-        &ctx.accounts.account_compression_program,
-        &ctx.accounts.fee_payer,
-        &ctx.accounts.account_compression_authority,
-        &ctx.accounts.registered_program_pda.to_account_info(),
-        &ctx.accounts.noop_program,
-        &ctx.accounts.system_program,
+        ctx.accounts.get_account_compression_program(),
+        ctx.accounts.get_fee_payer(),
+        ctx.accounts.get_account_compression_authority(),
+        &ctx.accounts.get_registered_program_pda().to_account_info(),
+        ctx.accounts.get_noop_program(),
+        ctx.accounts.get_system_program(),
         out_merkle_trees_account_infos,
         output_compressed_account_hashes[initial_index..*global_iter].to_vec(),
     )?;
