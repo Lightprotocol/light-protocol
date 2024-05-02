@@ -226,10 +226,10 @@ async fn create_escrow_ix(
     let payer_pubkey = payer.pubkey();
     let input_compressed_token_account_data = test_indexer.token_compressed_accounts[0].clone();
 
-    let compressed_input_account_with_context =
-        test_indexer.compressed_accounts[input_compressed_token_account_data.index].clone();
-    let input_compressed_account_hash = test_indexer.compressed_accounts
-        [input_compressed_token_account_data.index]
+    let compressed_input_account_with_context = input_compressed_token_account_data
+        .compressed_account
+        .clone();
+    let input_compressed_account_hash = compressed_input_account_with_context
         .compressed_account
         .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
@@ -430,7 +430,7 @@ pub async fn perform_withdrawal(
         .find(|x| x.token_data.owner == token_owner_pda)
         .unwrap()
         .clone();
-    let token_escrow_account = test_indexer.compressed_accounts[token_escrow.index].clone();
+    let token_escrow_account = token_escrow.compressed_account.clone();
     let token_escrow_account_hash = token_escrow_account
         .compressed_account
         .hash::<Poseidon>(
@@ -439,10 +439,7 @@ pub async fn perform_withdrawal(
         )
         .unwrap();
     println!("token_data_escrow {:?}", token_escrow);
-    println!(
-        "token escrow_account {:?}",
-        test_indexer.compressed_accounts[token_escrow.index]
-    );
+    println!("token escrow_account {:?}", token_escrow_account);
     let compressed_pda_hash = compressed_escrow_pda
         .compressed_account
         .hash::<Poseidon>(

@@ -128,11 +128,8 @@ async fn only_test_create_pda() {
         vec![payer.pubkey()],
     )
     .await;
-    let compressed_token_account = test_indexer
-        .compressed_accounts
-        .iter()
-        .find(|x| x.compressed_account.owner == light_compressed_token::ID)
-        .unwrap()
+    let compressed_token_account = test_indexer.token_compressed_accounts[0]
+        .compressed_account
         .clone();
     let res = perform_invalidate_not_owned_compressed_account(
         &mut test_indexer,

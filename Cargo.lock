@@ -30,7 +30,6 @@ dependencies = [
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
- "light-test-utils",
  "light-utils",
  "light-verifier",
  "log",
@@ -41,6 +40,36 @@ dependencies = [
  "solana-sdk",
  "spl-account-compression",
  "spl-concurrent-merkle-tree",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "account-compression-test"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-bounded-vec",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest 0.11.26",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
  "thiserror",
  "tokio",
 ]
@@ -1268,6 +1297,57 @@ dependencies = [
  "either",
  "memchr",
  "unreachable",
+]
+
+[[package]]
+name = "compressed-pda-test"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest 0.11.26",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
+]
+
+[[package]]
+name = "compressed-token-test"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest 0.11.26",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
 ]
 
 [[package]]
@@ -2748,7 +2828,6 @@ dependencies = [
  "light-indexed-merkle-tree",
  "light-macros",
  "light-merkle-tree-reference",
- "light-test-utils",
  "light-utils",
  "light-verifier",
  "num-bigint 0.4.4",
@@ -2778,7 +2857,6 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-merkle-tree-reference",
- "light-test-utils",
  "light-utils",
  "light-verifier",
  "num-bigint 0.4.4",
@@ -2909,7 +2987,6 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-macros",
- "light-test-utils",
  "solana-program-test",
  "solana-sdk",
  "tokio",
@@ -4093,6 +4170,34 @@ name = "regex-syntax"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
+
+[[package]]
+name = "registry-test"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-circuitlib-rs",
+ "light-compressed-pda",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-registry",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest 0.11.26",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
+]
 
 [[package]]
 name = "reqwest"
