@@ -69,7 +69,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     // -> Merkle tree index can only be equal or higher than the previous one.
     // if the index is higher add the account info to out_merkle_trees_account_infos.
     let initial_index = *global_iter;
-    let mut current_index = 0;
+    let mut current_index: u8 = 0;
     let end = if *global_iter + ITER_SIZE > inputs.output_state_merkle_tree_account_indices.len() {
         inputs.output_state_merkle_tree_account_indices.len()
     } else {
@@ -85,10 +85,10 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
     if inputs.output_state_merkle_tree_account_indices[initial_index] == 0 {
         let account_info = ctx.remaining_accounts
-            [inputs.output_state_merkle_tree_account_indices[initial_index] as usize]
+            [inputs.output_state_merkle_tree_account_indices[current_index as usize] as usize]
             .to_account_info();
         mt_next_index = check_program_owner_state_merkle_tree(
-            &ctx.remaining_accounts[initial_index],
+            &ctx.remaining_accounts[current_index as usize],
             invoking_program,
         )?;
         accounts.push(AccountMeta {
