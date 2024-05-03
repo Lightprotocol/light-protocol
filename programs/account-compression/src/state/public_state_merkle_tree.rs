@@ -1,3 +1,5 @@
+use std::mem;
+
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_bounded_vec::CyclicBoundedVec;
@@ -41,6 +43,10 @@ pub struct StateMerkleTreeAccount {
 }
 
 impl StateMerkleTreeAccount {
+    pub fn size() -> usize {
+        8 + mem::size_of::<Self>()
+    }
+
     pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
         let tree = unsafe {
             ConcurrentMerkleTree26::copy_from_bytes(

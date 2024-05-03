@@ -2954,6 +2954,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-reference",
  "light-registry",
+ "light-utils",
  "light-verifier",
  "num-bigint 0.4.4",
  "num-traits",

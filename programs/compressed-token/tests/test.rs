@@ -30,7 +30,7 @@ use light_hasher::Poseidon;
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error, create_account_instruction,
     create_and_send_transaction, create_and_send_transaction_with_event, get_hash_set,
-    test_env::setup_test_programs_with_accounts, AccountZeroCopy, FeeConfig, TransactionParams,
+    test_env::setup_test_programs_with_accounts, AccountZeroCopy, TransactionParams,
 };
 use light_verifier::VerifierError;
 use num_bigint::{BigInt, BigUint};
@@ -212,7 +212,6 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
                 num_input_compressed_accounts: 0,
                 num_output_compressed_accounts: MINTS as u8,
                 compress: 0,
-                fee_config: FeeConfig::default(),
             }),
         )
         .await
@@ -339,7 +338,6 @@ async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
             num_input_compressed_accounts: 0,
             num_output_compressed_accounts: inputs as u8,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -441,7 +439,6 @@ async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
             num_input_compressed_accounts: input_compressed_account_hashes.len() as u8,
             num_output_compressed_accounts: output_compressed_accounts.len() as u8,
             compress: 5000, // for second signer
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -507,7 +504,6 @@ async fn test_decompression() {
             num_input_compressed_accounts: 0,
             num_output_compressed_accounts: 1,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -592,7 +588,6 @@ async fn test_decompression() {
             num_input_compressed_accounts: 1,
             num_output_compressed_accounts: 1,
             compress: 5000, // for second signer
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -644,7 +639,6 @@ async fn test_decompression() {
             num_input_compressed_accounts: 0,
             num_output_compressed_accounts: 1,
             compress: 5000, // for second signer
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -716,7 +710,6 @@ async fn test_invalid_inputs() {
             num_input_compressed_accounts: 0,
             num_output_compressed_accounts: 1,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await

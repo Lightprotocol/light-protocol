@@ -125,6 +125,10 @@ pub struct AddressMerkleTreeAccount {
 }
 
 impl AddressMerkleTreeAccount {
+    pub fn size() -> usize {
+        8 + mem::size_of::<Self>()
+    }
+
     pub fn copy_merkle_tree(&self) -> Result<IndexedMerkleTreeCopy26<Poseidon, usize>> {
         let tree = unsafe {
             IndexedMerkleTreeCopy26::copy_from_bytes(

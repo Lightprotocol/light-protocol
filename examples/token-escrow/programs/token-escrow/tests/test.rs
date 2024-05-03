@@ -14,8 +14,7 @@ use light_compressed_pda::sdk::{compressed_account::MerkleContext, event::Public
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
 use light_test_utils::{
-    airdrop_lamports, create_and_send_transaction_with_event, get_account, FeeConfig,
-    TransactionParams,
+    airdrop_lamports, create_and_send_transaction_with_event, get_account, TransactionParams,
 };
 
 use light_verifier::VerifierError;
@@ -303,7 +302,6 @@ pub async fn perform_escrow_with_event(
             num_output_compressed_accounts: 2,
             num_new_addresses: 0,
             compress: rent as i64,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await?

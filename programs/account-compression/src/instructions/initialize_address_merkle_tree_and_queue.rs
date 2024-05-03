@@ -7,7 +7,8 @@ use crate::{
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-        ADDRESS_MERKLE_TREE_ROOTS,
+        ADDRESS_MERKLE_TREE_ROOTS, ADDRESS_QUEUE_INDICES, ADDRESS_QUEUE_VALUES,
+        STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
     },
     AddressMerkleTreeAccount, NullifierQueueConfig,
 };
@@ -39,7 +40,25 @@ impl Default for AddressMerkleTreeConfig {
     }
 }
 
-pub type AddressQueueConfig = NullifierQueueConfig;
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
+pub struct AddressQueueConfig {
+    pub capacity_indices: u16,
+    pub capacity_values: u16,
+    pub sequence_threshold: u64,
+    pub tip: Option<u64>,
+}
+
+impl Default for AddressQueueConfig {
+    fn default() -> Self {
+        Self {
+            capacity_indices: ADDRESS_QUEUE_INDICES,
+            capacity_values: ADDRESS_QUEUE_VALUES,
+            sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+            tip: Some(1),
+        }
+    }
+}
+
 #[derive(Accounts)]
 pub struct InitializeAddressMerkleTreeAndQueue<'info> {
     #[account(mut)]

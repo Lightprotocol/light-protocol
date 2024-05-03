@@ -41,7 +41,7 @@ use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction,
     create_and_send_transaction_with_event, get_hash_set,
     test_env::{setup_test_programs_with_accounts, EnvAccounts},
-    AccountZeroCopy, FeeConfig, TransactionParams,
+    AccountZeroCopy, TransactionParams,
 };
 use num_bigint::{BigInt, BigUint, ToBigUint};
 use num_traits::{ops::bytes::FromBytes, Num};
@@ -130,7 +130,6 @@ async fn invoke_test() {
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -249,7 +248,6 @@ async fn invoke_test() {
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -449,7 +447,6 @@ async fn test_with_address() {
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -685,7 +682,6 @@ pub async fn create_addresses(
             num_output_compressed_accounts: output_compressed_accounts.len() as u8,
             num_new_addresses: address_params.len() as u8,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await;
@@ -816,7 +812,6 @@ async fn test_with_compression() {
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: compress_amount as i64,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
@@ -950,7 +945,6 @@ async fn test_with_compression() {
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0, // we are decompressing to a new account not the payer
-            fee_config: FeeConfig::default(),
         }),
     )
     .await

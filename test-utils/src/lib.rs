@@ -1,10 +1,12 @@
 use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
 use anchor_lang::{
+    prelude::Rent,
     solana_program::{pubkey::Pubkey, system_instruction},
     AnchorDeserialize,
 };
 use light_hash_set::HashSet;
+use light_utils::fee::compute_rollover_fee;
 use num_bigint::ToBigUint;
 use num_traits::{Bounded, CheckedAdd, CheckedSub, Unsigned};
 use solana_program_test::{BanksClientError, ProgramTestContext};
@@ -158,31 +160,11 @@ pub async fn create_and_send_transaction(
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct FeeConfig {
-    pub state_merkle_tree_rollover: u64,
-    pub nullifier_queue_rollover: u64,
-    pub address_queue_rollover: u64,
-    pub tip: u64,
-}
-
-impl Default for FeeConfig {
-    fn default() -> Self {
-        Self {
-            state_merkle_tree_rollover: 149,
-            nullifier_queue_rollover: 29,
-            address_queue_rollover: 181,
-            tip: 1,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct TransactionParams {
     pub num_input_compressed_accounts: u8,
     pub num_output_compressed_accounts: u8,
     pub num_new_addresses: u8,
     pub compress: i64,
-    pub fee_config: FeeConfig,
 }
 
 pub async fn create_and_send_transaction_with_event<T>(
@@ -247,6 +229,41 @@ where
             .unwrap()
             .lamports;
 
+        let rent = Rent::default();
+
+        let state_merkle_tree_config = StateMerkleTreeConfig::default();
+        let state_merkle_tree_rollover = compute_rollover_fee(
+            state_merkle_tree_config.rollover_threshold.unwrap(),
+            state_merkle_tree_config.height,
+            rent.minimum_balance(StateMerkleTreeAccount::size()),
+        );
+
+        let nullifier_queue_config = NullifierQueueConfig::default();
+        let nullifier_queue_rollover = compute_rollover_fee(
+            state_merkle_tree_config.rollover_threshold.unwrap(),
+            state_merkle_tree_config.height,
+            rent.minimum_balance(NullifierQueueAccount::size(
+                nullifier_queue_config.capacity_indices,
+                nullifier_queue_Config.capacity_values,
+            )),
+        );
+
+        let address_merkle_tree_config = AddressMerkleTreeConfig::default();
+        let address_queue_config = AddressQueueConfig::default();
+        let address_merkle_tree_rollover = compute_rollover_fee(
+            address_merkle_tree_config.rollover_threshold.unwrap(),
+            address_merkle_tree_config.height,
+            rent.minimum_balance(AddressMerkleTreeAccount::size()),
+        );
+        let address_queue_rollover = compute_rollover_fee(
+            address_merkle_tree_config.rollover_threshold.unwrap(),
+            address_merkle_tree_config.height,
+            rent.minimum_balance(AddressQueueAccount::size(
+                address_queue_config.capacity_indices,
+                address_queue_config.capacity_values,
+            )),
+        );
+
         let mut tip = 0;
         for rollover in &[
             transaction_params.num_new_addresses,
@@ -254,17 +271,17 @@ where
             transaction_params.num_output_compressed_accounts,
         ] {
             if *rollover != 0 {
-                tip += transaction_params.fee_config.tip as i64;
+                tip += state_merkle_tree_config.tip.unwrap_or(0) as i64;
             }
         }
 
         let expected_post_balance = pre_balance as i64
             - i64::from(transaction_params.num_new_addresses)
-                * transaction_params.fee_config.address_queue_rollover as i64
+                * (address_merkle_tree_rollover + address_queue_rollover) as i64
             - i64::from(transaction_params.num_input_compressed_accounts)
-                * transaction_params.fee_config.nullifier_queue_rollover as i64
+                * nullifier_queue_rollover as i64
             - i64::from(transaction_params.num_output_compressed_accounts)
-                * transaction_params.fee_config.state_merkle_tree_rollover as i64
+                * state_merkle_tree_rollover as i64
             - transaction_params.compress
             - 5000
             - tip * (i64::from(transaction_params.num_output_compressed_accounts) / 14 + 1);

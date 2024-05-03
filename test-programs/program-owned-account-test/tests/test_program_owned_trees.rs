@@ -6,7 +6,7 @@ use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction_with_event,
     test_env::{create_state_merkle_tree_and_queue_account, setup_test_programs_with_accounts},
     test_indexer::{create_mint_helper, TestIndexer},
-    AccountZeroCopy, FeeConfig, TransactionParams,
+    AccountZeroCopy, TransactionParams,
 };
 use solana_sdk::{signature::Keypair, signer::Signer, transaction::Transaction};
 
@@ -76,7 +76,6 @@ async fn test_program_owned_merkle_tree() {
             num_input_compressed_accounts: 0,
             num_output_compressed_accounts: 1,
             compress: 0,
-            fee_config: FeeConfig::default(),
         }),
     )
     .await
