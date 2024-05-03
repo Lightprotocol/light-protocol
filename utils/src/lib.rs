@@ -5,12 +5,15 @@ use std::{
     thread::spawn,
 };
 
+use ark_ff::PrimeField;
 use num_bigint::BigUint;
+
+use solana_program::keccak::hashv;
 use thiserror::Error;
 
 pub mod bigint;
-use ark_ff::PrimeField;
-use solana_program::keccak::hashv;
+pub mod fee;
+
 const CHUNK_SIZE: usize = 32;
 
 #[derive(Debug, Error)]
@@ -21,6 +24,8 @@ pub enum UtilsError {
     InvalidChunkSize,
     #[error("Invalid seeds")]
     InvalidSeeds,
+    #[error("Invalid rollover thresold")]
+    InvalidRolloverThreshold,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -31,6 +36,7 @@ impl From<UtilsError> for u32 {
             UtilsError::InputTooLarge(_) => 9001,
             UtilsError::InvalidChunkSize => 9002,
             UtilsError::InvalidSeeds => 9003,
+            UtilsError::InvalidRolloverThreshold => 9004,
         }
     }
 }
