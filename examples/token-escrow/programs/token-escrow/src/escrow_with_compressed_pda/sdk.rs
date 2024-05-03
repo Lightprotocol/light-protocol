@@ -1,7 +1,6 @@
 #![cfg(not(target_os = "solana"))]
 
 use crate::escrow_with_compressed_pda::escrow::PackedInputCompressedPda;
-use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
     invoke::processor::CompressedProof,
@@ -93,7 +92,7 @@ pub fn create_escrow_instruction(
 
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,
-        noop_program: NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_token_program: light_compressed_token::ID,
         compressed_pda_program: light_compressed_pda::ID,
         account_compression_program: account_compression::ID,
@@ -210,7 +209,7 @@ pub fn create_withdrawal_instruction(
 
     let accounts = crate::accounts::EscrowCompressedTokensWithCompressedPda {
         signer: *input_params.signer,
-        noop_program: NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_token_program: light_compressed_token::ID,
         compressed_pda_program: light_compressed_pda::ID,
         account_compression_program: account_compression::ID,

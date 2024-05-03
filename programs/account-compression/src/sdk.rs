@@ -41,7 +41,7 @@ pub fn create_initialize_merkle_tree_instruction(
 }
 
 pub fn create_insert_leaves_instruction(
-    leaves: Vec<[u8; 32]>,
+    leaves: Vec<(u8, [u8; 32])>,
     fee_payer: Pubkey,
     authority: Pubkey,
     merkle_tree_pubkeys: Vec<Pubkey>,
@@ -52,7 +52,7 @@ pub fn create_insert_leaves_instruction(
         fee_payer,
         authority,
         registered_program_pda: None,
-        log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,
+        log_wrapper: Pubkey::new_from_array(crate::utils::constants::NOOP_PUBKEY),
         system_program: system_program::ID,
     };
     let merkle_tree_account_metas = merkle_tree_pubkeys

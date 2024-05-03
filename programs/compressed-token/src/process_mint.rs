@@ -296,7 +296,6 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
 
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
-    use account_compression::NOOP_PROGRAM_ID;
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use anchor_spl;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -356,7 +355,9 @@ pub mod mint_sdk {
             registered_program_pda: light_compressed_pda::utils::get_registered_program_pda(
                 &light_compressed_pda::ID,
             ),
-            noop_program: NOOP_PROGRAM_ID,
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
             account_compression_authority: light_compressed_pda::utils::get_cpi_authority_pda(
                 &light_compressed_pda::ID,
             ),

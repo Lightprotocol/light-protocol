@@ -471,7 +471,6 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 pub mod transfer_sdk {
     use std::collections::HashMap;
 
-    use account_compression::NOOP_PROGRAM_ID;
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::token::Token;
     use light_compressed_pda::{
@@ -538,7 +537,9 @@ pub mod transfer_sdk {
             registered_program_pda: light_compressed_pda::utils::get_registered_program_pda(
                 &light_compressed_pda::ID,
             ),
-            noop_program: NOOP_PROGRAM_ID,
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
             account_compression_authority: light_compressed_pda::utils::get_cpi_authority_pda(
                 &light_compressed_pda::ID,
             ),

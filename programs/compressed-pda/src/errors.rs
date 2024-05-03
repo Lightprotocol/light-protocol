@@ -70,4 +70,6 @@ pub enum CompressedPdaError {
     InvalidMerkleTreeOwner,
     #[msg("ProofIsNone")]
     ProofIsNone,
+    #[msg("InvalidMerkleTreeIndex")]
+    InvalidMerkleTreeIndex,
 }

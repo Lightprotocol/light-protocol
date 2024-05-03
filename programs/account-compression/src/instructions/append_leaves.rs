@@ -1,4 +1,4 @@
-use std::{cmp, collections::BTreeMap};
+use std::cmp;
 
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_concurrent_merkle_tree::event::{ChangelogEvent, ChangelogEventV1, Changelogs, PathNode};
@@ -46,23 +46,6 @@ impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
     }
 }
 
-fn build_merkle_tree_map<'a, 'c: 'info, 'info>(
-    leaves: &'a [[u8; 32]],
-    remaining_accounts: &'c [AccountInfo<'info>],
-) -> BTreeMap<Pubkey, (&'c AccountInfo<'info>, Vec<&'a [u8; 32]>)> {
-    let mut merkle_tree_map = BTreeMap::new();
-
-    for (i, merkle_tree) in remaining_accounts.iter().enumerate() {
-        merkle_tree_map
-            .entry(merkle_tree.key())
-            .or_insert_with(|| (merkle_tree, Vec::new()))
-            .1
-            .push(&leaves[i]);
-    }
-
-    merkle_tree_map
-}
-
 /// for every leaf one Merkle tree account has to be passed as remaining account
 /// for every leaf could be inserted into a different Merkle tree account
 /// 1. deduplicate Merkle trees and identify into which tree to insert what leaf
@@ -70,19 +53,25 @@ fn build_merkle_tree_map<'a, 'c: 'info, 'info>(
 #[heap_neutral]
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-    leaves: &'a [[u8; 32]],
+    leaves: &'a [(u8, [u8; 32])],
 ) -> Result<()> {
-    if leaves.len() != ctx.remaining_accounts.len() {
-        return err!(crate::errors::AccountCompressionErrorCode::NumberOfLeavesMismatch);
+    let mut fee_vec = Vec::<(u8, u64)>::with_capacity(leaves.len());
+    for i in 0..(leaves.len().div_ceil(BATCH_SIZE)) {
+        msg!("append batch i {:?}", i);
+        let leaves_start = i * BATCH_SIZE;
+        let leaves_to_process = cmp::min(leaves.len().saturating_sub(i * BATCH_SIZE), BATCH_SIZE);
+        let leaves_end = leaves_start + leaves_to_process;
+        process_batch(&ctx, &leaves[i * BATCH_SIZE..leaves_end], &mut fee_vec)?;
     }
 
-    let mut merkle_tree_map = build_merkle_tree_map(leaves, ctx.remaining_accounts);
-
-    let mut leaves_start = 0;
-    while !merkle_tree_map.is_empty() {
-        process_batch(&ctx, &mut leaves_start, &mut merkle_tree_map)?;
+    for (index, lamports) in fee_vec {
+        msg!("rollover fee lamports: {:?}", lamports);
+        transfer_lamports_cpi(
+            &ctx.accounts.fee_payer,
+            &ctx.remaining_accounts[index as usize].to_account_info(),
+            lamports,
+        )?;
     }
-
     Ok(())
 }
 
@@ -90,80 +79,98 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 #[inline(never)]
 fn process_batch<'a, 'c: 'info, 'info>(
     ctx: &Context<'a, '_, 'c, 'info, AppendLeaves<'info>>,
-    leaves_start: &mut usize,
-    merkle_tree_map: &mut BTreeMap<Pubkey, (&'c AccountInfo<'info>, Vec<&'a [u8; 32]>)>,
+    leaves: &'a [(u8, [u8; 32])],
+    fee_vec: &mut Vec<(u8, u64)>,
 ) -> Result<()> {
     let mut leaves_in_batch = 0;
+    let mut batch = Vec::with_capacity(BATCH_SIZE);
     let mut changelog_events = Vec::with_capacity(BATCH_SIZE);
-    // A vector of trees which become fully processed and should be removed
-    // from the `merkle_tree_map`.
-    let mut processed_merkle_trees = Vec::new();
+
     {
-        let mut merkle_tree_map_iter = merkle_tree_map.values();
-        let mut merkle_tree_map_pair = merkle_tree_map_iter.next();
+        // init with first Merkle tree account
+        // iterate over all leaves
+        // if leaf belongs to current Merkle tree account insert into batch
+        // if leaf does not belong to current Merkle tree account
+        // append batch to Merkle tree
+        // insert rollover fee into vector
+        // reset batch
+        // get next Merkle tree account
+        // append leaf of different Merkle tree account to batch
+        let mut current_mt_index = leaves[0].0 as usize;
+        let mut merkle_tree_acc_info = &ctx.remaining_accounts[current_mt_index];
+        let merkle_tree_account =
+            AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
+        let mut merkle_tree_pubkey = merkle_tree_acc_info.key();
 
-        while let Some((merkle_tree_acc_info, leaves)) = merkle_tree_map_pair {
-            let leaves_to_process =
-                cmp::min(leaves.len() - *leaves_start, BATCH_SIZE - leaves_in_batch);
-            let leaves_end = *leaves_start + leaves_to_process;
+        for leaf in leaves.iter() {
+            if leaf.0 as usize == current_mt_index {
+                batch.push(&leaf.1);
+                leaves_in_batch += 1;
+            }
 
-            let rollover_fee;
-            let tip;
-            {
-                let merkle_tree =
-                    AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-                        .unwrap();
-                let merkle_tree_pubkey = merkle_tree.key();
-                let mut merkle_tree = merkle_tree.load_mut()?;
-                rollover_fee = merkle_tree.rollover_fee;
-                tip = merkle_tree.tip;
-                check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
-                    ctx,
-                    &merkle_tree,
-                )?;
-
+            if leaf.0 as usize != current_mt_index || leaves_in_batch == leaves.len() {
                 // Insert leaves to the Merkle tree.
-                let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
-                let (first_changelog_index, first_sequence_number) = merkle_tree
-                    .append_batch(&leaves[*leaves_start..leaves_end])
-                    .map_err(ProgramError::from)?;
-
-                let mut paths = Vec::with_capacity(leaves_to_process);
-
-                // NOTE: It's tricky to factor our this code to a separate function
-                // without increasing the heap usage.
-                // If you feel brave enough to refactor it, don't break the test
-                // which appends 60 leaves!
-                for changelog_index in
-                    first_changelog_index..first_changelog_index + leaves_to_process
                 {
-                    let changelog_index = changelog_index % merkle_tree.changelog_capacity;
-                    let mut path = Vec::with_capacity(merkle_tree.height);
+                    let mut merkle_tree_account = merkle_tree_account.load_mut()?;
+                    let index = fee_vec.iter().position(|x| x.0 == current_mt_index as u8);
+                    match index {
+                        Some(i) => {
+                            fee_vec[i].1 +=
+                                merkle_tree_account.rollover_fee * leaves_in_batch as u64;
+                        }
+                        None => {
+                            fee_vec.push((
+                                current_mt_index as u8,
+                                merkle_tree_account.rollover_fee * leaves_in_batch as u64
+                                    + merkle_tree_account.tip,
+                            ));
+                        }
+                    }
+                    check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
+                        ctx,
+                        &merkle_tree_account,
+                    )?;
+                    let merkle_tree = merkle_tree_account.load_merkle_tree_mut()?;
+                    let (first_changelog_index, first_sequence_number) = merkle_tree
+                        .append_batch(&batch)
+                        .map_err(ProgramError::from)?;
+                    let mut paths = Vec::with_capacity(leaves_in_batch);
 
-                    for (level, node) in merkle_tree.changelog[changelog_index]
-                        .path
-                        .iter()
-                        .enumerate()
+                    // NOTE: It's tricky to factor our this code to a separate function
+                    // without increasing the heap usage.
+                    // If you feel brave enough to refactor it, don't break the test
+                    // which appends 60 leaves!
+                    for changelog_index in
+                        first_changelog_index..first_changelog_index + leaves_in_batch
                     {
-                        let level = u32::try_from(level)
-                            .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
-                        let index = (1 << (merkle_tree.height as u32 - level))
-                            + (merkle_tree.changelog[changelog_index].index as u32 >> level);
-                        path.push(PathNode {
-                            node: node.to_owned(),
-                            index,
-                        });
+                        let changelog_index = changelog_index % merkle_tree.changelog_capacity;
+                        let mut path = Vec::with_capacity(merkle_tree.height);
+
+                        for (level, node) in merkle_tree.changelog[changelog_index]
+                            .path
+                            .iter()
+                            .enumerate()
+                        {
+                            let level = u32::try_from(level)
+                                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
+                            let index = (1 << (merkle_tree.height as u32 - level))
+                                + (merkle_tree.changelog[changelog_index].index as u32 >> level);
+                            path.push(PathNode {
+                                node: node.to_owned(),
+                                index,
+                            });
+                        }
+
+                        paths.push(path);
                     }
 
-                    paths.push(path);
-                }
-
-                changelog_events.push(ChangelogEvent::V1(ChangelogEventV1 {
-                    id: merkle_tree_pubkey.to_bytes(),
-                    paths,
-                    seq: first_sequence_number as u64,
-                    index: merkle_tree.changelog[first_changelog_index].index as u32,
-                }));
+                    changelog_events.push(ChangelogEvent::V1(ChangelogEventV1 {
+                        id: merkle_tree_pubkey.to_bytes(),
+                        paths,
+                        seq: first_sequence_number as u64,
+                        index: merkle_tree.changelog[first_changelog_index].index as u32,
+                    }));
+                };
                 // NOTE: Making this to work would be the part of the potential
                 // refactor mentioned above.
                 //
@@ -176,38 +183,21 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 //     )
                 //     .map_err(ProgramError::from)?;
                 // changelog_events.push(changelog_event);
-            }
-
-            let lamports = rollover_fee * leaves.len() as u64 + tip;
-            if lamports > 0 && leaves_end == leaves.len() {
-                msg!("transferring rollover fee: {}", lamports);
-                transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, lamports)?;
-            }
-
-            leaves_in_batch += leaves_to_process;
-            *leaves_start += leaves_to_process;
-
-            if *leaves_start == leaves.len() {
-                // We processed all the leaves from the current Merkle tree.
-                // Move to the next one.
-                *leaves_start = 0;
-                merkle_tree_map_pair = merkle_tree_map_iter.next();
-                processed_merkle_trees.push(merkle_tree_acc_info.key().to_owned());
-            }
-
-            if leaves_in_batch == BATCH_SIZE {
-                // We reached the batch limit.
-                break;
+                current_mt_index = leaf.0 as usize;
+                merkle_tree_acc_info = &ctx.remaining_accounts[current_mt_index];
+                merkle_tree_pubkey = merkle_tree_acc_info.key();
+                batch = Vec::with_capacity(BATCH_SIZE);
+                batch.push(&leaf.1);
+                leaves_in_batch += 1;
+                if leaves_in_batch == BATCH_SIZE {
+                    // We reached the batch limit.
+                    break;
+                }
             }
         }
+
+        emit_event(ctx, changelog_events)?;
     }
-
-    emit_event(ctx, changelog_events)?;
-
-    for processed_merkle_tree in processed_merkle_trees {
-        merkle_tree_map.remove(&processed_merkle_tree);
-    }
-
     Ok(())
 }
 

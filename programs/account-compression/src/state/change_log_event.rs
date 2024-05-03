@@ -2,11 +2,8 @@ use anchor_lang::{
     prelude::*,
     solana_program::{instruction::Instruction, program::invoke},
 };
-use light_macros::pubkey;
 
-use crate::errors::AccountCompressionErrorCode;
-
-pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
+use crate::{errors::AccountCompressionErrorCode, utils::constants::NOOP_PUBKEY};
 
 #[inline(never)]
 pub fn emit_indexer_event<'info>(
@@ -14,7 +11,7 @@ pub fn emit_indexer_event<'info>(
     noop_program: &AccountInfo<'info>,
     signer: &AccountInfo<'info>,
 ) -> Result<()> {
-    if noop_program.key() != NOOP_PROGRAM_ID {
+    if noop_program.key() != Pubkey::new_from_array(NOOP_PUBKEY) {
         return err!(AccountCompressionErrorCode::InvalidNoopPubkey);
     }
     let instruction = Instruction {

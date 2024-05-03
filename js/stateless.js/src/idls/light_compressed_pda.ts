@@ -826,6 +826,11 @@ export type LightCompressedPda = {
             name: 'ProofIsNone';
             msg: 'ProofIsNone';
         },
+        {
+            code: 6034;
+            name: 'InvalidMerkleTreeIndex';
+            msg: 'InvalidMerkleTreeIndex';
+        },
     ];
 };
 
@@ -1658,6 +1663,11 @@ export const IDL: LightCompressedPda = {
             code: 6033,
             name: 'ProofIsNone',
             msg: 'ProofIsNone',
+        },
+        {
+            code: 6034,
+            name: 'InvalidMerkleTreeIndex',
+            msg: 'InvalidMerkleTreeIndex',
         },
     ],
 };
