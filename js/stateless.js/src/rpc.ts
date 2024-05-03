@@ -20,7 +20,6 @@ import {
     MerkeProofResult,
     MultipleCompressedAccountsResult,
     NativeBalanceResult,
-    ParsedTokenAccount,
     SignatureListResult,
     SignatureListWithCursorResult,
     SignatureWithMetadata,
@@ -39,6 +38,7 @@ import {
     createCompressedAccountWithMerkleContext,
     createMerkleContext,
     TokenData,
+    ParsedTokenAccount,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import { defaultTestStateTreeAccounts } from './constants';

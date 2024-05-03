@@ -22,6 +22,7 @@ import {
     MerkleContextWithMerkleProof,
     bn,
     TokenData,
+    ParsedTokenAccount,
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
@@ -83,11 +84,6 @@ export type GetCompressedAccountsConfig = {
     encoding?: string;
     filters?: GetCompressedAccountsFilter[];
 };
-
-export interface ParsedTokenAccount {
-    compressedAccount: CompressedAccountWithMerkleContext;
-    parsed: TokenData;
-}
 
 export type WithContext<T> = {
     /** context */

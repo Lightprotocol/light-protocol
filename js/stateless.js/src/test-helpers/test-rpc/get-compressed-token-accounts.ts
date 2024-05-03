@@ -5,34 +5,21 @@ import { BN, BorshCoder } from '@coral-xyz/anchor';
 import { IDL } from '../../idls/light_compressed_token';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
-import { ParsedTokenAccount } from '../../rpc-interface';
 import {
     CompressedAccount,
     PublicTransactionEvent,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
     bn,
+    TokenData,
+    ParsedTokenAccount,
+    EventWithParsedTokenTlvData,
 } from '../../state';
 
 const tokenProgramId: PublicKey = new PublicKey(
     // TODO: can add check to ensure its consistent with the idl
     '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
 );
-
-type TokenData = {
-    mint: PublicKey;
-    owner: PublicKey;
-    amount: BN;
-    delegate: PublicKey | null;
-    state: number;
-    isNative: BN | null;
-    delegatedAmount: BN;
-};
-
-export type EventWithParsedTokenTlvData = {
-    inputCompressedAccountHashes: number[][];
-    outputCompressedAccounts: ParsedTokenAccount[];
-};
 
 /** @internal */
 function parseTokenLayoutWithIdl(

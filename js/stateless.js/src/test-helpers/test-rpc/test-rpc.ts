@@ -26,12 +26,12 @@ import {
     CompressedProofWithContext,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
-    ParsedTokenAccount,
 } from '../../rpc-interface';
 import {
     BN254,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
+    ParsedTokenAccount,
     PublicTransactionEvent,
     bn,
 } from '../../state';
