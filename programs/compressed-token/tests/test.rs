@@ -277,10 +277,9 @@ async fn test_transfers() {
         }
     }
 }
-
 #[tokio::test]
-async fn test_transfer_1_1() {
-    let possible_inputs = [1];
+async fn test_8_transfers() {
+    let possible_inputs = [2];
     for input_num in possible_inputs {
         for output_num in 1..2 {
             if input_num == 8 && output_num > 7 {
@@ -294,11 +293,6 @@ async fn test_transfer_1_1() {
             test_transfer(input_num, output_num, 10_000).await
         }
     }
-}
-
-#[tokio::test]
-async fn test_transfer_4_2() {
-    test_transfer(4, 2, 10_000).await
 }
 /// Creates inputs compressed accounts with amount tokens each
 /// Transfers all tokens from inputs compressed accounts evenly distributed to outputs compressed accounts
@@ -402,7 +396,6 @@ async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
         };
         output_compressed_accounts.push(transfer_recipient_out_compressed_account);
     }
-
     let (root_indices, proof) = mock_indexer
         .create_proof_for_compressed_accounts(&input_compressed_account_hashes, &mut context)
         .await;
@@ -1210,7 +1203,12 @@ async fn assert_transfer<'a>(
         merkle_tree.root().unwrap(),
         "merkle tree root update failed"
     );
-    for out_compressed_account in out_compressed_accounts {
+    assert_eq!(
+        merkle_tree.next_index(),
+        old_merkle_tree.next_index() + out_compressed_accounts.len()
+    );
+    let next_index_old_mt = old_merkle_tree.next_index();
+    for (i, out_compressed_account) in out_compressed_accounts.iter().enumerate() {
         let pos = mock_indexer
             .token_compressed_accounts
             .iter()
@@ -1282,6 +1280,12 @@ async fn assert_transfer<'a>(
                 .compressed_account
                 .owner,
             light_compressed_token::ID
+        );
+        assert_eq!(
+            transfer_recipient_compressed_account
+                .merkle_context
+                .leaf_index as usize,
+            next_index_old_mt + i
         );
     }
     let nullifier_queue = unsafe {

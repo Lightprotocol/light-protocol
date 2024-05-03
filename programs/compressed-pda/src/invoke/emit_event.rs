@@ -1,5 +1,4 @@
-use std::str::FromStr;
-
+use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::{
     prelude::*,
     solana_program::{instruction::Instruction, program::invoke},
@@ -35,9 +34,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         is_compress: false,
     };
 
-    if ctx.accounts.get_noop_program().key()
-        != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
-    {
+    if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY) {
         return err!(CompressedPdaError::InvalidNoopPubkey);
     }
     let mut data = Vec::with_capacity(event.event_size());

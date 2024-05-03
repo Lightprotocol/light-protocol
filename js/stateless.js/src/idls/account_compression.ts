@@ -83,6 +83,13 @@ export type AccountCompression = {
             value: '2400';
         },
         {
+            name: 'NOOP_PUBKEY';
+            type: {
+                array: ['u8', 32];
+            };
+            value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
+        },
+        {
             name: 'PROGRAM_ID';
             type: 'string';
             value: '"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN"';
@@ -462,7 +469,7 @@ export type AccountCompression = {
                     name: 'leaves';
                     type: {
                         vec: {
-                            array: ['u8', 32];
+                            defined: '(u8,[u8;32])';
                         };
                     };
                 },
@@ -1266,6 +1273,13 @@ export const IDL: AccountCompression = {
             value: '2400',
         },
         {
+            name: 'NOOP_PUBKEY',
+            type: {
+                array: ['u8', 32],
+            },
+            value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
+        },
+        {
             name: 'PROGRAM_ID',
             type: 'string',
             value: '"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN"',
@@ -1645,7 +1659,7 @@ export const IDL: AccountCompression = {
                     name: 'leaves',
                     type: {
                         vec: {
-                            array: ['u8', 32],
+                            defined: '(u8,[u8;32])',
                         },
                     },
                 },

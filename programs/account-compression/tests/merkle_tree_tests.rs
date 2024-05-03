@@ -44,7 +44,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
         "spl_noop",
-        account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         None,
     );
     let merkle_tree_keypair = Keypair::new();
@@ -582,7 +582,7 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
         "spl_noop",
-        account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         None,
     );
 
@@ -717,7 +717,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs(
         fee_payer: context.payer.pubkey(),
         authority: context.payer.pubkey(),
         registered_program_pda: None,
-        log_wrapper: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        log_wrapper: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         system_program: system_program::ID,
     };
 
@@ -826,7 +826,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority(
         fee_payer: context.payer.pubkey(),
         authority: invalid_autority.pubkey(),
         registered_program_pda: None,
-        log_wrapper: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        log_wrapper: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         system_program: system_program::ID,
     };
 
@@ -863,7 +863,7 @@ async fn test_nullify_leaves() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
         "spl_noop",
-        account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         None,
     );
     let merkle_tree_keypair = Keypair::new();
@@ -1101,7 +1101,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
         "spl_noop",
-        account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         None,
     );
     let merkle_tree_keypair = Keypair::new();

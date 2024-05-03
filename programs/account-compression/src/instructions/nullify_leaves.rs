@@ -172,6 +172,8 @@ pub mod sdk_nullify {
     use anchor_lang::{InstructionData, ToAccountMetas};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
+    use crate::utils::constants::NOOP_PUBKEY;
+
     pub fn create_nullify_instruction(
         change_log_indices: &[u64],
         leaves_queue_indices: &[u16],
@@ -191,7 +193,7 @@ pub mod sdk_nullify {
         let accounts = crate::accounts::NullifyLeaves {
             authority: *payer,
             registered_program_pda: None,
-            log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,
+            log_wrapper: Pubkey::new_from_array(NOOP_PUBKEY),
             merkle_tree: *merkle_tree_pubkey,
             nullifier_queue: *nullifier_queue_pubkey,
         };

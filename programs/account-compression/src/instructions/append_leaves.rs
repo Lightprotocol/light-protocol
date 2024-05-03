@@ -56,7 +56,8 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     leaves: &'a [(u8, [u8; 32])],
 ) -> Result<()> {
     let mut fee_vec = Vec::<(u8, u64)>::with_capacity(leaves.len());
-    for i in 0..((leaves.len() / BATCH_SIZE) + 1) {
+    for i in 0..(leaves.len().div_ceil(BATCH_SIZE)) {
+        msg!("append batch i {:?}", i);
         let leaves_start = i * BATCH_SIZE;
         let leaves_to_process = cmp::min(leaves.len().saturating_sub(i * BATCH_SIZE), BATCH_SIZE);
         let leaves_end = leaves_start + leaves_to_process;

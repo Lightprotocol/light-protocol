@@ -76,6 +76,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         *global_iter + ITER_SIZE
     };
     let num_leaves = end - initial_index;
+    let mut num_leaves_in_tree: u32 = 0;
+    let mut mt_next_index = 0;
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 32 * num_leaves);
     // anchor instruction signature
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
@@ -85,7 +87,10 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         let account_info = ctx.remaining_accounts
             [inputs.output_state_merkle_tree_account_indices[initial_index] as usize]
             .to_account_info();
-
+        mt_next_index = check_program_owner_state_merkle_tree(
+            &ctx.remaining_accounts[initial_index],
+            invoking_program,
+        )?;
         accounts.push(AccountMeta {
             pubkey: account_info.key(),
             is_signer: false,
@@ -106,7 +111,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             // do nothing, but is the most common case.
         } else if *mt_index > current_index {
             current_index = *mt_index;
-            check_program_owner_state_merkle_tree(
+            mt_next_index = check_program_owner_state_merkle_tree(
                 &ctx.remaining_accounts[*mt_index as usize],
                 invoking_program,
             )?;
@@ -117,7 +122,9 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
                 is_writable: true,
             });
             account_infos.push(account_info);
+            num_leaves_in_tree = 0;
         } else {
+            // TODO: add failing test
             msg!("Invalid Merkle tree index: {} current index {} (Merkle tree indices need to be in ascendin order.", *mt_index, current_index);
             return err!(CompressedPdaError::InvalidMerkleTreeIndex);
         }
@@ -137,6 +144,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             }
         }
 
+        output_compressed_account_indices[j] = mt_next_index + num_leaves_in_tree;
+        num_leaves_in_tree += 1;
         // Compute output compressed account hash.
         output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j].hash(
             &ctx.remaining_accounts[*mt_index as usize].key(),
@@ -153,9 +162,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         accounts,
         data: instruction_data,
     };
-    sol_log_compute_units();
     invoke_signed(&instruction, account_infos.as_slice(), seeds)?;
-    sol_log_compute_units();
     Ok(())
 }
 

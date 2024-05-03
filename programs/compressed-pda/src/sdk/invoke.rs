@@ -155,7 +155,7 @@ pub fn create_invoke_instruction(
         fee_payer: *fee_payer,
         authority: *payer,
         registered_program_pda: get_registered_program_pda(&crate::ID),
-        noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         account_compression_program: account_compression::ID,
         account_compression_authority: get_cpi_authority_pda(&crate::ID),
         compressed_sol_pda,
@@ -216,7 +216,7 @@ pub fn create_invoke_instruction(
 //     let accounts = crate::accounts::InvokeInstruction {
 //         signer: *payer,
 //         registered_program_pda: get_registered_program_pda(&crate::ID),
-//         noop_program: account_compression::state::change_log_event::NOOP_PROGRAM_ID,
+//         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
 //         account_compression_program: account_compression::ID,
 //         account_compression_authority: get_cpi_authority_pda(&crate::ID),
 //         cpi_context_account: None,

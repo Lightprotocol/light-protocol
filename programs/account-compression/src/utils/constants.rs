@@ -37,3 +37,9 @@ pub const ADDRESS_QUEUE_INDICES: u16 = 6857;
 pub const ADDRESS_QUEUE_VALUES: u16 = 4800;
 #[constant]
 pub const ADDRESS_QUEUE_SEQUENCE_THRESHOLD: u64 = 2400;
+// noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV
+#[constant]
+pub const NOOP_PUBKEY: [u8; 32] = [
+    11, 188, 15, 192, 187, 71, 202, 47, 116, 196, 17, 46, 148, 171, 19, 207, 163, 198, 52, 229,
+    220, 23, 234, 203, 3, 205, 26, 35, 205, 126, 120, 124,
+];

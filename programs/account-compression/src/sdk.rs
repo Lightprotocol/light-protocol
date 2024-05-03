@@ -52,7 +52,7 @@ pub fn create_insert_leaves_instruction(
         fee_payer,
         authority,
         registered_program_pda: None,
-        log_wrapper: crate::state::change_log_event::NOOP_PROGRAM_ID,
+        log_wrapper: Pubkey::new_from_array(crate::utils::constants::NOOP_PUBKEY),
         system_program: system_program::ID,
     };
     let merkle_tree_account_metas = merkle_tree_pubkeys

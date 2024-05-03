@@ -97,6 +97,7 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             light_heap::bench_sbf_start!("acp: insert nf into queue");
             for element in queue_bundle.elements.iter() {
                 let element = BigUint::from_bytes_be(element.as_slice());
+                msg!("Inserting element {:?} into nullifier queue", element);
                 indexed_array
                     .insert(&element, sequence_number)
                     .map_err(ProgramError::from)?;

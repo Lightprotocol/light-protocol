@@ -1,6 +1,5 @@
 #![cfg(not(target_os = "solana"))]
 
-use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
     invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
@@ -75,7 +74,7 @@ pub fn create_escrow_instruction(
         light_compressed_pda::utils::get_cpi_authority_pda(&light_compressed_pda::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
         signer: *input_params.signer,
-        noop_program: NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_token_program: light_compressed_token::ID,
         compressed_pda_program: light_compressed_pda::ID,
         account_compression_program: account_compression::ID,
@@ -140,7 +139,7 @@ pub fn create_withdrawal_escrow_instruction(
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
         signer: *input_params.signer,
         token_owner_pda: token_owner_pda.0,
-        noop_program: NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_token_program: light_compressed_token::ID,
         compressed_pda_program: light_compressed_pda::ID,
         account_compression_program: account_compression::ID,

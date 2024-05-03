@@ -23,81 +23,82 @@ pub fn insert_nullifiers<
     invoking_program: &Option<Pubkey>,
 ) -> Result<()> {
     light_heap::bench_sbf_start!("cpda: insert_nullifiers_prep_accs");
-
-    let state_merkle_tree_account_infos: anchor_lang::Result<Vec<AccountInfo<'info>>> = inputs
+    let mut account_infos = vec![
+        ctx.accounts.get_fee_payer().to_account_info(),
+        ctx.accounts
+            .get_account_compression_authority()
+            .to_account_info(),
+        ctx.accounts.get_registered_program_pda().to_account_info(),
+        ctx.accounts.get_system_program().to_account_info(),
+    ];
+    let mut accounts = vec![
+        AccountMeta {
+            pubkey: account_infos[0].key(),
+            is_signer: true,
+            is_writable: true,
+        },
+        AccountMeta {
+            pubkey: account_infos[1].key(),
+            is_signer: true,
+            is_writable: false,
+        },
+        AccountMeta {
+            pubkey: account_infos[2].key(),
+            is_signer: false,
+            is_writable: false,
+        },
+        AccountMeta::new_readonly(account_infos[3].key(), false),
+    ];
+    for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
+        let account_info =
+            &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
+        accounts.push(AccountMeta {
+            pubkey: account_info.key(),
+            is_signer: false,
+            is_writable: true,
+        });
+        account_infos.push(account_info.clone());
+    }
+    inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
-        .map(|account| {
+        .try_for_each(|account| -> Result<()> {
             check_program_owner_state_merkle_tree(
                 &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
                 invoking_program,
             )?;
-
-            Ok(
+            accounts.push(AccountMeta {
+                pubkey: ctx.remaining_accounts
+                    [account.merkle_context.merkle_tree_pubkey_index as usize]
+                    .key(),
+                is_signer: false,
+                is_writable: false,
+            });
+            account_infos.push(
                 ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize]
                     .clone(),
-            )
-        })
-        .collect();
-    let mut nullifier_queue_account_infos = Vec::<AccountInfo>::new();
-    for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
-        nullifier_queue_account_infos.push(
-            ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize]
-                .clone(),
-        );
-    }
+            );
+            Ok(())
+        })?;
     light_heap::bench_sbf_end!("cpda: insert_nullifiers_prep_accs");
-
-    insert_nullifiers_cpi(
-        ctx.program_id,
-        ctx.accounts.get_account_compression_program(),
-        &ctx.accounts.get_fee_payer().to_account_info(),
-        ctx.accounts.get_account_compression_authority(),
-        &ctx.accounts.get_registered_program_pda().to_account_info(),
-        &ctx.accounts.get_system_program().to_account_info(),
-        nullifier_queue_account_infos,
-        state_merkle_tree_account_infos?,
-        nullifiers.to_vec(),
-    )?;
-
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-#[allow(unused_variables)]
-#[inline(never)]
-pub fn insert_nullifiers_cpi<'a, 'b>(
-    program_id: &Pubkey,
-    account_compression_program_id: &'b AccountInfo<'a>,
-    fee_payer: &'b AccountInfo<'a>,
-    authority: &'b AccountInfo<'a>,
-    registered_program_pda: &'b AccountInfo<'a>,
-    system_program: &'b AccountInfo<'a>,
-    nullifier_queue_account_infos: Vec<AccountInfo<'a>>,
-    merkle_tree_account_infos: Vec<AccountInfo<'a>>,
-    nullifiers: Vec<[u8; 32]>,
-) -> Result<()> {
-    light_heap::bench_sbf_start!("cpda:insert_nullifiers_cpi_prep");
-
-    let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
-    let bump = &[bump];
-    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
-
-    let accounts = account_compression::cpi::accounts::InsertIntoNullifierQueues {
-        fee_payer: fee_payer.to_account_info(),
-        authority: authority.to_account_info(),
-        registered_program_pda: Some(registered_program_pda.to_account_info()),
-        system_program: system_program.to_account_info(),
+    use anchor_lang::InstructionData;
+    let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
+        elements: nullifiers.to_vec(),
     };
 
-    let mut cpi_ctx =
-        CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
-    cpi_ctx
-        .remaining_accounts
-        .extend(nullifier_queue_account_infos);
-    cpi_ctx.remaining_accounts.extend(merkle_tree_account_infos);
-    light_heap::bench_sbf_end!("cpda:insert_nullifiers_cpi_prep");
-
-    account_compression::cpi::insert_into_nullifier_queues(cpi_ctx, nullifiers)
+    let data = instruction_data.data();
+    // [91, 101, 183, 28, 35, 25, 67, 221]
+    let bump = &[254];
+    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
+    let instruction = anchor_lang::solana_program::instruction::Instruction {
+        program_id: account_compression::ID,
+        accounts,
+        data,
+    };
+    anchor_lang::solana_program::program::invoke_signed(
+        &instruction,
+        account_infos.as_slice(),
+        seeds,
+    )?;
+    Ok(())
 }

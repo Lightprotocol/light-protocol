@@ -135,10 +135,11 @@ pub fn output_compressed_accounts_write_access_check(
 pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
-) -> Result<()> {
+) -> Result<u32> {
     let merkle_tree =
         AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
+    let next_index = merkle_tree_unpacked.load_next_index()?.try_into().unwrap();
     // TODO: rename delegate to program_owner
     if merkle_tree_unpacked.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
@@ -148,12 +149,12 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
                     invoking_program,
                     merkle_tree_unpacked.delegate
                 );
-                return Ok(());
+                return Ok(next_index);
             }
         }
         return Err(CompressedPdaError::InvalidMerkleTreeOwner.into());
     }
-    Ok(())
+    Ok(next_index)
 }
 
 pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(

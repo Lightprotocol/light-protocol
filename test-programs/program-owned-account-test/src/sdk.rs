@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 
-use account_compression::NOOP_PROGRAM_ID;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_pda::{
     invoke::processor::CompressedProof, sdk::address::pack_new_address_params,
@@ -57,7 +56,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
 
     let accounts = crate::accounts::CreateCompressedPda {
         signer: *input_params.signer,
-        noop_program: NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_pda_program: light_compressed_pda::ID,
         account_compression_program: account_compression::ID,
         registered_program_pda,
@@ -111,7 +110,7 @@ pub fn create_invalidate_not_owned_account_instruction(
 
     let accounts = crate::accounts::InvalidateNotOwnedCompressedAccount {
         signer: *input_params.signer,
-        noop_program: NOOP_PROGRAM_ID,
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_pda_program: light_compressed_pda::ID,
         account_compression_program: account_compression::ID,
         registered_program_pda,
