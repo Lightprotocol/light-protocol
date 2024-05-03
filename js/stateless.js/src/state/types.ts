@@ -3,14 +3,32 @@ import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
 export interface PackedCompressedAccountWithMerkleContext {
+    /**
+     * The compressed account details
+     */
     compressedAccount: CompressedAccount;
+    /**
+     * The packed merkle context details
+     */
     merkleContext: PackedMerkleContext;
 }
 
+/**
+ * Packed merkle context details
+ */
 export interface PackedMerkleContext {
-    merkleTreePubkeyIndex: number; // u8
-    nullifierQueuePubkeyIndex: number; // u8
-    leafIndex: number; // u32
+    /**
+     * Index of the merkle tree pubkey in remaining accounts
+     */
+    merkleTreePubkeyIndex: number;
+    /**
+     * Index of the nullifier queue pubkey in remaining accounts
+     */
+    nullifierQueuePubkeyIndex: number;
+    /**
+     * Index of the leaf in the merkle tree
+     */
+    leafIndex: number;
 }
 
 /**
@@ -59,7 +77,7 @@ export interface InstructionDataInvoke {
     relayFee: BN | null; // Option<u64>
     compressionLamports: BN | null; // Option<u64>
     isCompress: boolean; // bool
-    newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
+    newAddressParams: NewAddressParamsPacked[];
 }
 
 export interface NewAddressParamsPacked {
