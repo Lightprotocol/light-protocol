@@ -608,12 +608,15 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
     // We should always support appending 60 leaves at once.
     let leaves = (0u8..=60)
         .map(|i| {
-            [
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, i,
-            ]
+            (
+                0,
+                [
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, i,
+                ],
+            )
         })
-        .collect::<Vec<[u8; 32]>>();
+        .collect::<Vec<(u8, [u8; 32])>>();
     functional_3_append_leaves_to_merkle_tree(&mut context, &merkle_tree_pubkey, &leaves).await;
 
     fail_4_append_leaves_with_invalid_authority(&mut context, &merkle_tree_pubkey).await;
@@ -707,7 +710,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs(
     merkle_tree_pubkey: &Pubkey,
 ) {
     let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees {
-        leaves: vec![[1u8; 32], [2u8; 32]],
+        leaves: vec![(0, [1u8; 32]), (1, [2u8; 32])],
     };
 
     let accounts = account_compression::accounts::AppendLeaves {
@@ -742,7 +745,7 @@ pub async fn fail_2_append_leaves_with_invalid_inputs(
 pub async fn functional_3_append_leaves_to_merkle_tree(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
-    leaves: &Vec<[u8; 32]>,
+    leaves: &Vec<(u8, [u8; 32])>,
 ) {
     let payer = context.payer.insecure_clone();
     let pre_account_mt = context
@@ -795,7 +798,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .unwrap();
     reference_merkle_tree.init().unwrap();
-    let leaves: Vec<&[u8; 32]> = leaves.iter().collect();
+    let leaves: Vec<&[u8; 32]> = leaves.iter().map(|leaf| &leaf.1).collect();
     reference_merkle_tree.append_batch(&leaves).unwrap();
     assert_eq!(
         merkle_tree.root().unwrap(),
@@ -816,7 +819,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority(
         .await
         .unwrap();
     let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees {
-        leaves: vec![[1u8; 32]],
+        leaves: vec![(0, [1u8; 32])],
     };
 
     let accounts = account_compression::accounts::AppendLeaves {
@@ -899,12 +902,12 @@ async fn test_nullify_leaves() {
     )
     .await;
 
-    let elements = vec![[1u8; 32], [2u8; 32]];
+    let elements = vec![(0, [1u8; 32]), (0, [2u8; 32])];
 
     functional_3_append_leaves_to_merkle_tree(&mut context, &merkle_tree_pubkey, &elements).await;
 
     insert_into_nullifier_queues(
-        &elements,
+        &elements.iter().map(|element| element.1).collect(),
         &payer,
         &payer,
         &nullifier_queue_pubkey,
@@ -918,16 +921,18 @@ async fn test_nullify_leaves() {
         account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
         account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
     );
-    reference_merkle_tree.append(&elements[0]).unwrap();
-    reference_merkle_tree.append(&elements[1]).unwrap();
+    reference_merkle_tree.append(&elements[0].1).unwrap();
+    reference_merkle_tree.append(&elements[1].1).unwrap();
 
-    let element_index = reference_merkle_tree.get_leaf_index(&elements[0]).unwrap() as u64;
+    let element_index = reference_merkle_tree
+        .get_leaf_index(&elements[0].1)
+        .unwrap() as u64;
     nullify(
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
-        &elements[0],
+        &elements[0].1,
         2,
         0,
         element_index,
@@ -944,7 +949,7 @@ async fn test_nullify_leaves() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
-        &elements[1],
+        &elements[1].1,
         valid_changelog_index,
         valid_leaf_queue_index,
         invalid_element_index,
@@ -958,7 +963,7 @@ async fn test_nullify_leaves() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
-        &elements[1],
+        &elements[1].1,
         valid_changelog_index,
         invalid_leaf_queue_index,
         valid_element_index,
@@ -971,7 +976,7 @@ async fn test_nullify_leaves() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
-        &elements[1],
+        &elements[1].1,
         invalid_change_log_index,
         valid_leaf_queue_index,
         valid_element_index,
@@ -983,7 +988,7 @@ async fn test_nullify_leaves() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &mut reference_merkle_tree,
-        &elements[1],
+        &elements[1].1,
         valid_changelog_index,
         valid_leaf_queue_index,
         valid_element_index,
@@ -996,7 +1001,7 @@ async fn test_nullify_leaves() {
         &merkle_tree_pubkey,
         &invalid_nullifier_queue_pubkey,
         &mut reference_merkle_tree,
-        &elements[0],
+        &elements[0].1,
         2,
         0,
         element_index,

@@ -41,7 +41,7 @@ pub fn create_initialize_merkle_tree_instruction(
 }
 
 pub fn create_insert_leaves_instruction(
-    leaves: Vec<[u8; 32]>,
+    leaves: Vec<(u8, [u8; 32])>,
     fee_payer: Pubkey,
     authority: Pubkey,
     merkle_tree_pubkeys: Vec<Pubkey>,
