@@ -48,3 +48,4 @@ num-bigint = "0.4.4"
 num-traits = "0.2.18"
 light-merkle-tree-reference = { version = "0.1.0", path = "../../merkle-tree/reference" }
 light-concurrent-merkle-tree = { version = "0.1.0", path = "../../merkle-tree/concurrent" }
+rand = "0.8.5"

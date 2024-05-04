@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::{fs::File, io::prelude::*};
+use tabled::{Table, Tabled};
+
 #[derive(Debug, Parser)]
 pub struct Options {
     /// Select the test to run.
@@ -27,7 +29,6 @@ pub struct Options {
     #[clap(long, action = clap::ArgAction::Append)]
     start_ix: String,
 }
-use tabled::{Table, Tabled};
 
 /// cargo xtask bench --t test_8_transfer  --compressed-token --build --start-ix Transfer --verbose
 /// cargo xtask bench --t mint_to_10  --compressed-token --build
