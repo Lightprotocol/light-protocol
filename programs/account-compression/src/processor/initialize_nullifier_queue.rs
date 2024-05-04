@@ -3,8 +3,8 @@ use std::{cell::RefMut, mem};
 use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
+use light_utils::fee::compute_rollover_fee;
 
-use crate::initialize_address_merkle_tree::compute_rollover_fee;
 use crate::InsertIntoNullifierQueues;
 use crate::{
     utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
@@ -34,9 +34,9 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
         nullifier_queue_account.rolledover_slot = u64::MAX;
         nullifier_queue_account.tip = tip;
         let queue_rent = nullifier_queue_account_info.lamports();
-        let total_number_of_leaves = 2u64.pow(height);
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
-            compute_rollover_fee(rollover_threshold, total_number_of_leaves, queue_rent)?
+            compute_rollover_fee(rollover_threshold, height, queue_rent)
+                .map_err(ProgramError::from)?
         } else {
             0
         };

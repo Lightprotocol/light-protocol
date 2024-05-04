@@ -1,9 +1,7 @@
 use anchor_lang::prelude::*;
+use light_utils::fee::compute_rollover_fee;
 
-use crate::{
-    errors::AccountCompressionErrorCode, initialize_address_merkle_tree::compute_rollover_fee,
-    state::StateMerkleTreeAccount,
-};
+use crate::{errors::AccountCompressionErrorCode, state::StateMerkleTreeAccount};
 
 #[derive(Accounts)]
 pub struct InitializeStateMerkleTree<'info> {
@@ -38,10 +36,9 @@ pub fn process_initialize_state_merkle_tree(
     merkle_tree.delegate = delegate.unwrap_or_default();
     merkle_tree.associated_queue = associated_queue;
     merkle_tree.tip = tip;
-    let total_number_of_leaves = 2u64.pow(*height);
     merkle_tree.rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => {
-            compute_rollover_fee(rollover_threshold, total_number_of_leaves, rent)?
+            compute_rollover_fee(rollover_threshold, *height, rent).map_err(ProgramError::from)?
         }
         None => 0,
     };

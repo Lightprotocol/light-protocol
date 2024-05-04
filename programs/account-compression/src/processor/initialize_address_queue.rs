@@ -1,9 +1,7 @@
 use anchor_lang::prelude::*;
+use light_utils::fee::compute_rollover_fee;
 
-use crate::{
-    address_queue_from_bytes_zero_copy_init, initialize_address_merkle_tree::compute_rollover_fee,
-    state::AddressQueueAccount,
-};
+use crate::{address_queue_from_bytes_zero_copy_init, state::AddressQueueAccount};
 
 #[derive(Accounts)]
 pub struct InitializeAddressQueue<'info> {
@@ -36,13 +34,14 @@ pub fn process_initialize_address_queue<'info>(
         address_queue_account.associated_merkle_tree = associated_merkle_tree;
         address_queue_account.tip = tip;
         // rollover only makes sense in combination with the associated merkle tree
-        let total_number_of_leaves = 2u64.pow(height);
         let queue_rent = queue_account_info.lamports();
         // Since user doesn't interact with the Merkle tree directly, we need
         // to charge a `rollover_fee` both for the queue and Merkle tree.
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
-            compute_rollover_fee(rollover_threshold, total_number_of_leaves, merkle_tree_rent)?
-                + compute_rollover_fee(rollover_threshold, total_number_of_leaves, queue_rent)?
+            compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
+                .map_err(ProgramError::from)?
+                + compute_rollover_fee(rollover_threshold, height, queue_rent)
+                    .map_err(ProgramError::from)?
         } else {
             0
         };

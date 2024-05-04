@@ -2,6 +2,7 @@ use clap::{Parser, ValueEnum};
 
 mod bench;
 mod create_vkeyrs_from_gnark_key;
+mod fee;
 mod type_sizes;
 mod zero_bytes;
 mod zero_indexed_leaf;
@@ -32,6 +33,8 @@ enum Command {
     GenerateVkeyRs(create_vkeyrs_from_gnark_key::Options),
     /// Generates cu and heap memory usage report from a log.txt file
     Bench(bench::Options),
+    /// Prints fees for different accounts.
+    Fee,
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -47,5 +50,6 @@ fn main() -> Result<(), anyhow::Error> {
             create_vkeyrs_from_gnark_key::create_vkeyrs_from_gnark_key(opts)
         }
         Command::Bench(opts) => bench::bench(opts),
+        Command::Fee => fee::fees(),
     }
 }
