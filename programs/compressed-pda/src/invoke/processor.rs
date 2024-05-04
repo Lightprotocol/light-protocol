@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, Bumps};
+use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_verifier::CompressedProof as CompressedVerifierProof;
 
 use crate::{
@@ -49,6 +50,7 @@ pub fn process<
 ) -> Result<()> {
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
+    bench_sbf_start!("cpda_sum_check");
     sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
@@ -56,9 +58,13 @@ pub fn process<
         &inputs.compression_lamports,
         &inputs.is_compress,
     )?;
-    msg!("sum check success");
+    bench_sbf_end!("cpda_sum_check");
     // compression lamports ---------------------------------------------------
-    compression_lamports(&inputs, &ctx)?;
+    bench_sbf_start!("cpda_process_compression");
+    if inputs.compression_lamports.is_some() {
+        compression_lamports(&inputs, &ctx)?;
+    }
+    bench_sbf_end!("cpda_process_compression");
 
     let mut input_compressed_account_hashes =
         vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
@@ -69,13 +75,16 @@ pub fn process<
     let mut output_compressed_account_hashes =
         vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
 
-    // TODO: add heap neutral
-    hash_input_compressed_accounts(
-        &ctx,
-        &inputs,
-        &mut input_compressed_account_hashes,
-        &mut input_compressed_account_addresses,
-    )?;
+    bench_sbf_start!("cpda_hash_input_compressed_accounts");
+    if !input_compressed_account_hashes.is_empty() {
+        hash_input_compressed_accounts(
+            &ctx,
+            &inputs,
+            &mut input_compressed_account_hashes,
+            &mut input_compressed_account_addresses,
+        )?;
+    }
+    bench_sbf_end!("cpda_hash_input_compressed_accounts");
     let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
     // insert addresses into address merkle tree queue ---------------------------------------------------
     if !new_addresses.is_empty() {
@@ -98,6 +107,7 @@ pub fn process<
         .is_empty()
         || !inputs.new_address_params.is_empty()
     {
+        bench_sbf_start!("cpda_verify_state_proof");
         let mut new_address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
         // TODO: enable once address merkle tree init is debugged
         fetch_roots_address_merkle_tree(&inputs.new_address_params, &ctx, &mut new_address_roots)?;
@@ -119,9 +129,11 @@ pub fn process<
             new_addresses.as_slice(),
             &compressed_verifier_proof,
         )?;
+        bench_sbf_end!("cpda_verify_state_proof");
     }
 
     // insert nullifies (input compressed account hashes)---------------------------------------------------
+    bench_sbf_start!("cpda_nullifiers");
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
@@ -133,12 +145,14 @@ pub fn process<
             &invoking_program,
         )?;
     }
+    bench_sbf_end!("cpda_nullifiers");
 
     const ITER_SIZE: usize = 14;
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         let mut i = 0;
         for _ in inputs.output_compressed_accounts.iter().step_by(ITER_SIZE) {
+            bench_sbf_start!("cpda_append");
             insert_output_compressed_accounts_into_state_merkle_tree::<ITER_SIZE, A>(
                 &inputs,
                 &ctx,
@@ -148,8 +162,10 @@ pub fn process<
                 &mut i,
                 &invoking_program,
             )?;
+            bench_sbf_end!("cpda_append");
         }
     }
+    bench_sbf_start!("emit_state_transition_event");
 
     // emit state transition event ---------------------------------------------------
     emit_state_transition_event(
@@ -159,6 +175,7 @@ pub fn process<
         output_compressed_account_hashes,
         output_leaf_indices,
     )?;
+    bench_sbf_end!("emit_state_transition_event");
 
     Ok(())
 }

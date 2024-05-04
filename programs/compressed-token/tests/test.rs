@@ -61,7 +61,7 @@ pub fn create_initialize_mint_instructions(
     );
 
     let mint_pubkey = mint_keypair.pubkey();
-    let mint_authority = get_token_authority_pda(authority, &mint_pubkey);
+    let mint_authority = get_token_authority_pda(authority, &mint_pubkey).0;
     let create_mint_instruction = initialize_mint(
         &anchor_spl::token::ID,
         &mint_keypair.pubkey(),
@@ -106,7 +106,7 @@ async fn assert_create_mint(
             .data,
     )
     .unwrap();
-    let mint_authority = get_token_authority_pda(authority, mint);
+    let mint_authority = get_token_authority_pda(authority, mint).0;
     assert_eq!(mint_account.supply, 0);
     assert_eq!(mint_account.decimals, 2);
     assert_eq!(mint_account.mint_authority.unwrap(), mint_authority);
@@ -218,6 +218,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
         .await
         .unwrap()
         .unwrap();
+
         if i == 0 {
             mock_indexer.add_compressed_accounts_with_token_data(event);
             assert_mint_to(
@@ -236,27 +237,27 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
 }
 
 #[tokio::test]
-async fn test_mint_to_1() {
-    test_mint_to::<1, 10>().await
+async fn test_1_mint_to() {
+    test_mint_to::<1, 1>().await
 }
 
 #[tokio::test]
-async fn test_mint_to_5() {
-    test_mint_to::<5, 10>().await
+async fn test_5_mint_to() {
+    test_mint_to::<5, 1>().await
 }
 
 #[tokio::test]
-async fn test_mint_to_10() {
-    test_mint_to::<10, 10>().await
+async fn test_10_mint_to() {
+    test_mint_to::<10, 1>().await
 }
 
 #[tokio::test]
-async fn test_mint_to_20() {
+async fn test_20_mint_to() {
     test_mint_to::<20, 1>().await
 }
 
 #[tokio::test]
-async fn test_mint_to_25() {
+async fn test_25_mint_to() {
     test_mint_to::<25, 10>().await
 }
 
@@ -278,10 +279,46 @@ async fn test_transfers() {
     }
 }
 #[tokio::test]
-async fn test_8_transfers() {
-    let possible_inputs = [2];
+async fn test_1_transfer() {
+    let possible_inputs = [1];
     for input_num in possible_inputs {
         for output_num in 1..2 {
+            if input_num == 8 && output_num > 7 {
+                // 8 inputs and 7 outputs is the max we can do
+                break;
+            }
+            println!(
+                "\n\ninput num: {}, output num: {}\n\n",
+                input_num, output_num
+            );
+            test_transfer(input_num, output_num, 10_000).await
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_2_transfer() {
+    let possible_inputs = [2];
+    for input_num in possible_inputs {
+        for output_num in 2..3 {
+            if input_num == 8 && output_num > 7 {
+                // 8 inputs and 7 outputs is the max we can do
+                break;
+            }
+            println!(
+                "\n\ninput num: {}, output num: {}\n\n",
+                input_num, output_num
+            );
+            test_transfer(input_num, output_num, 10_000).await
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_8_transfer() {
+    let possible_inputs = [8];
+    for input_num in possible_inputs {
+        for output_num in 2..3 {
             if input_num == 8 && output_num > 7 {
                 // 8 inputs and 7 outputs is the max we can do
                 break;

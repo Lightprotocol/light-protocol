@@ -147,6 +147,10 @@ export type LightCompressedToken = {
                         vec: 'u64';
                     };
                 },
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
             ];
         },
         {
@@ -1152,6 +1156,10 @@ export const IDL: LightCompressedToken = {
                     type: {
                         vec: 'u64',
                     },
+                },
+                {
+                    name: 'bump',
+                    type: 'u8',
                 },
             ],
         },

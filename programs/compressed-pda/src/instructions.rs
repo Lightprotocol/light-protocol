@@ -32,18 +32,25 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     mut inputs: InstructionDataTransfer,
     mut ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
+    light_heap::bench_sbf_start!("cpi_signer_check");
     // signer check ---------------------------------------------------
     cpi_signer_check(
         &inputs.signer_seeds,
         &ctx.accounts.invoking_program,
         &ctx.accounts.authority.key(),
     )?;
+    light_heap::bench_sbf_end!("cpi_signer_check");
+
+    light_heap::bench_sbf_start!("accounts_signer_check");
     input_compressed_accounts_signer_check(
         &inputs,
         &ctx.accounts.invoking_program,
         &ctx.accounts.authority.key(),
     )?;
+    light_heap::bench_sbf_end!("accounts_signer_check");
+    light_heap::bench_sbf_start!("write_access_check");
     output_compressed_accounts_write_access_check(&inputs, &ctx.accounts.invoking_program)?;
+    light_heap::bench_sbf_end!("write_access_check");
     let cpi_context = inputs.cpi_context.clone();
     if let Some(cpi_context) = cpi_context {
         if process_cpi_context(cpi_context, &mut ctx, &mut inputs)?.is_some() {
@@ -57,6 +64,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     }
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
+    light_heap::bench_sbf_start!("sum_check");
     sum_check(
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
@@ -64,9 +72,11 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         &inputs.compression_lamports,
         &inputs.is_compress,
     )?;
-    msg!("sum check success");
+    light_heap::bench_sbf_end!("sum_check");
     // compression_lamports ---------------------------------------------------
+    light_heap::bench_sbf_start!("compression_lamports");
     compression_lamports(&inputs, &ctx)?;
+    light_heap::bench_sbf_end!("compression_lamports");
 
     let mut input_compressed_account_hashes =
         vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
@@ -83,6 +93,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         .is_empty()
         || !inputs.new_address_params.is_empty()
     {
+        light_heap::bench_sbf_start!("proof_with_prep");
         let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
         fetch_roots(&inputs, &ctx, &mut roots)?;
         hash_input_compressed_accounts(
@@ -128,6 +139,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
                 return Err(e);
             }
         }
+        light_heap::bench_sbf_end!("proof_with_prep");
     }
 
     // insert nullifies (input compressed account hashes)---------------------------------------------------
@@ -143,6 +155,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
     if !inputs.output_compressed_accounts.is_empty() {
         let mut i = 0;
         for _ in inputs.output_compressed_accounts.iter().step_by(ITER_SIZE) {
+            light_heap::bench_sbf_start!("cpda_append");
             insert_output_compressed_accounts_into_state_merkle_tree::<ITER_SIZE>(
                 &inputs,
                 &ctx,
@@ -151,8 +164,10 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
                 &mut input_compressed_account_addresses,
                 &mut i,
             )?;
+            light_heap::bench_sbf_end!("cpda_append");
         }
     }
+    light_heap::bench_sbf_start!("emit_state_transition_event");
 
     // emit state transition event ---------------------------------------------------
     emit_state_transition_event(
@@ -162,6 +177,7 @@ pub fn process_execute_compressed_transaction<'a, 'b, 'c: 'info, 'info>(
         output_compressed_account_hashes,
         output_leaf_indices,
     )?;
+    light_heap::bench_sbf_end!("emit_state_transition_event");
 
     Ok(())
 }

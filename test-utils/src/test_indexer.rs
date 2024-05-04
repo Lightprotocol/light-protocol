@@ -555,7 +555,7 @@ pub fn create_initialize_mint_instructions(
     let create_mint_instruction = initialize_mint(
         &anchor_spl::token::ID,
         &mint_keypair.pubkey(),
-        &mint_authority,
+        &mint_authority.0,
         None,
         decimals,
     )

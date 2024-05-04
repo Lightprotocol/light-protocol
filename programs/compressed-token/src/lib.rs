@@ -1,9 +1,9 @@
 use anchor_lang::prelude::*;
 
+pub mod constants;
 pub mod process_mint;
 pub mod process_transfer;
 pub mod spl_compression;
-
 pub use process_mint::*;
 pub use process_transfer::*;
 
@@ -39,8 +39,9 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         public_keys: Vec<Pubkey>,
         amounts: Vec<u64>,
+        bump: u8,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts)
+        process_mint_to(ctx, public_keys, amounts, bump)
     }
 
     pub fn transfer<'info>(

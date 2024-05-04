@@ -1,10 +1,10 @@
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use anchor_lang::prelude::*;
+use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
 
 use crate::{
-    errors::CompressedPdaError,
-    sdk::compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+    errors::CompressedPdaError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
     InstructionDataInvokeCpi,
 };
 
@@ -14,9 +14,16 @@ pub fn cpi_signer_checks(
     authority: &Pubkey,
     inputs: &InstructionDataInvokeCpi,
 ) -> Result<()> {
+    bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_check(signer_seeds, invoking_programid, authority)?;
+    bench_sbf_end!("cpda_cpi_signer_checks");
+    bench_sbf_start!("cpd_input_checks");
     input_compressed_accounts_signer_check(inputs, invoking_programid, authority)?;
-    output_compressed_accounts_write_access_check(inputs, invoking_programid)
+    bench_sbf_end!("cpd_input_checks");
+    bench_sbf_start!("cpda_cpi_write_checks");
+    output_compressed_accounts_write_access_check(inputs, invoking_programid)?;
+    bench_sbf_end!("cpda_cpi_write_checks");
+    Ok(())
 }
 
 /// If signer seeds are not provided, invoking program is required.
@@ -35,8 +42,6 @@ pub fn cpi_signer_check(
         .collect::<Vec<&[u8]>>();
     let derived_signer =
         Pubkey::create_program_address(&seeds[..], invoking_program).map_err(ProgramError::from)?;
-    msg!("derived_signer: {:?}", derived_signer);
-    msg!("signer: {:?}", signer);
     if derived_signer != *signer {
         msg!(
                     "Signer/Program cannot write into an account it doesn't own. Write access check failed derived cpi signer {} !=  signer {}",
@@ -107,27 +112,18 @@ pub fn output_compressed_accounts_write_access_check(
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
     // is triggered if one output account has data
-    let output_account_with_data = inputs
-        .output_compressed_accounts
-        .iter()
-        .filter(|compressed_account| compressed_account.data.is_some())
-        .collect::<Vec<&CompressedAccount>>();
-    if !output_account_with_data.is_empty() {
-        // If a compressed account has data invoking_program has to be provided.
-        output_account_with_data.iter().try_for_each(|compressed_account| {
-                    if compressed_account.owner == invoking_program_id.key() {
-                        Ok(())
-                    } else {
-                        msg!(
-                            "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
-                            compressed_account.owner,
-                            invoking_program_id.key()
-                        );
-
-                        msg!("compressed_account: {:?}", compressed_account);
-                        err!(CompressedPdaError::WriteAccessCheckFailed)
-                    }
-                })?;
+    for compressed_account in inputs.output_compressed_accounts.iter() {
+        if compressed_account.data.is_some()
+            && compressed_account.owner != invoking_program_id.key()
+        {
+            msg!(
+                    "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
+                    compressed_account.owner,
+                    invoking_program_id.key()
+                );
+            msg!("compressed_account: {:?}", compressed_account);
+            return err!(CompressedPdaError::WriteAccessCheckFailed);
+        }
     }
     Ok(())
 }

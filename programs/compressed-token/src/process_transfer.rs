@@ -1,6 +1,9 @@
 use std::mem;
 
-use crate::{spl_compression::process_compression, ErrorCode};
+use crate::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, spl_compression::process_compression,
+    ErrorCode,
+};
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
 use light_compressed_pda::{
@@ -32,15 +35,19 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
+    bench_sbf_start!("t_deserialize");
     let inputs: CompressedTokenInstructionDataTransfer =
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
+    bench_sbf_end!("t_deserialize");
 
+    bench_sbf_start!("t_context_and_check_sig");
     let (mut compressed_input_accounts, input_token_data) = inputs
         .get_input_compressed_accounts_with_merkle_context_and_check_signer(
             &ctx.accounts.authority.key(),
             ctx.remaining_accounts,
         )?;
-    bench_sbf_start!("sum_check");
+    bench_sbf_end!("t_context_and_check_sig");
+    bench_sbf_start!("t_sum_check");
     sum_check(
         &input_token_data,
         &inputs
@@ -51,10 +58,13 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         inputs.compression_amount.as_ref(),
         inputs.is_compress,
     )?;
-    bench_sbf_end!("sum_check");
-    bench_sbf_start!("process_compression");
-    process_compression(&inputs, &ctx)?;
-    bench_sbf_end!("process_compression");
+    bench_sbf_end!("t_sum_check");
+    bench_sbf_start!("t_process_compression");
+    if inputs.compression_amount.is_some() {
+        process_compression(&inputs, &ctx)?;
+    }
+    bench_sbf_end!("t_process_compression");
+    bench_sbf_start!("t_create_output_compressed_accounts");
 
     let mut output_compressed_accounts =
         vec![CompressedAccount::default(); inputs.output_compressed_accounts.len()];
@@ -82,13 +92,15 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
                 .as_slice(),
         ),
     );
-    bench_sbf_start!("add_token_data_to_input_compressed_accounts");
+    bench_sbf_end!("t_create_output_compressed_accounts");
+
+    bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
     // TODO: add create delegate change compressed_accounts
     add_token_data_to_input_compressed_accounts(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
     )?;
-    bench_sbf_end!("add_token_data_to_input_compressed_accounts");
+    bench_sbf_end!("t_add_token_data_to_input_compressed_accounts");
 
     cpi_execute_compressed_transaction_transfer(
         &ctx,
@@ -116,7 +128,7 @@ pub fn add_token_data_to_input_compressed_accounts(
         let mut data = Vec::with_capacity(mem::size_of::<TokenData>());
         input_token_data[i].serialize(&mut data)?;
         let data = CompressedAccountData {
-            discriminator: 2u64.to_le_bytes(),
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data,
             data_hash: input_token_data[i].hash().unwrap(),
         };
@@ -135,9 +147,9 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
-    bench_sbf_start!("cpi prep");
-    let (_, bump) = get_cpi_authority_pda();
-    let bump = &[bump];
+    bench_sbf_start!("t_cpi_prep");
+
+    let bump = &[255];
     let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
 
     let signer_seeds = &[&seeds[..]];
@@ -180,9 +192,12 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
-    bench_sbf_end!("cpi prep");
+    bench_sbf_end!("t_cpi_prep");
 
+    bench_sbf_start!("t_invoke_cpi");
     light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    bench_sbf_end!("t_invoke_cpi");
+
     Ok(())
 }
 

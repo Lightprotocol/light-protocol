@@ -18,6 +18,8 @@ declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 #[program]
 pub mod light_compressed_pda {
 
+    use light_heap::{bench_sbf_end, bench_sbf_start};
+
     use self::{
         invoke::{processor::process, verify_signer::input_compressed_accounts_signer_check},
         invoke_cpi::processor::process_invoke_cpi,
@@ -58,9 +60,12 @@ pub mod light_compressed_pda {
         ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
+        bench_sbf_start!("cpda_deserialize");
         // TODO: remove manual deserialization
         let inputs: InstructionDataInvokeCpi =
             InstructionDataInvokeCpi::deserialize(&mut inputs.as_slice())?;
+        bench_sbf_end!("cpda_deserialize");
+
         process_invoke_cpi(ctx, inputs)
     }
 
