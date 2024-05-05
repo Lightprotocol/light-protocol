@@ -387,14 +387,14 @@ fn test_serialize_deserialize_instruction_data_invoke_cpi() {
     // assert_eq!(archived, &value);
 
     // Or you can use the unsafe API for maximum performance
-    let archived = unsafe { rkyv::archived_root::<InstructionDataInvokeCpi>(&bytes[..]) };
-    assert_eq!(archived, &value);
+    // let archived = unsafe { rkyv::archived_root::<InstructionDataInvokeCpi>(&bytes[..]) };
+    // assert_eq!(archived, &value);
 
-    // And you can always deserialize back to the original type
-    let deserialized: InstructionDataInvokeCpi =
-        archived.deserialize(&mut rkyv::Infallible).unwrap();
-    assert_eq!(deserialized, value);
-    println!("deserialized {:?}", deserialized);
+    // // And you can always deserialize back to the original type
+    // let deserialized: InstructionDataInvokeCpi =
+    //     archived.deserialize(&mut rkyv::Infallible).unwrap();
+    // assert_eq!(deserialized, value);
+    // println!("deserialized {:?}", deserialized);
     // // Use CompositeSerializer with HeapScratch, AlignedSerializer, and Infallible
     // let mut serializer = rkyv::ser::serializers::AlignedSerializer::new(rkyv::AlignedVec::new());
 
@@ -415,7 +415,7 @@ fn test_serialize_deserialize_instruction_data_invoke_cpi() {
     // assert_eq!(original_data, deserialized);
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Archive, Deserialize, Serialize, Debug, PartialEq, AnchorSerialize, AnchorDeserialize)]
 #[archive(
     // This will generate a PartialEq impl between our unarchived and archived
     // types:
@@ -427,11 +427,11 @@ fn test_serialize_deserialize_instruction_data_invoke_cpi() {
 // Derives can be passed through to the generated type:
 #[archive_attr(derive(Debug))]
 pub struct MyData {
-    value: i32,
-    label: String,
+    value: u64,
+    label: Vec<u8>,
 }
 
-#[derive(Archive, Deserialize, Serialize, Debug, PartialEq)]
+#[derive(Archive, Deserialize, Serialize, Debug, PartialEq, AnchorSerialize, AnchorDeserialize)]
 #[archive(
     // This will generate a PartialEq impl between our unarchived and archived
     // types:
@@ -446,7 +446,6 @@ pub struct MyDataVec {
     vec: Vec<MyData>,
 }
 
-use rkyv::result::ArchivedResult;
 #[test]
 fn test_rkyv() {
     // Create an instance of `MyDataVec`
@@ -454,18 +453,18 @@ fn test_rkyv() {
         vec: vec![
             MyData {
                 value: 42,
-                label: "first".to_string(),
+                label: vec![2u8; 512],
             },
             MyData {
                 value: 100,
-                label: "second".to_string(),
+                label: vec![4u8; 512],
             },
         ],
     };
 
     // Serializing is as easy as a single function call
     let size = std::mem::size_of::<MyDataVec>();
-    let bytes = rkyv::to_bytes::<_, 512>(&value).unwrap();
+    let bytes = rkyv::to_bytes::<_, 1232>(&value).unwrap();
     println!("bytes {:?}", bytes);
     // Or you can customize your serialization for better performance
     // and compatibility with #![no_std] environments

@@ -15,7 +15,9 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 test-sbf = []
 custom-heap = []
-default = ["custom-heap"]
+default = ["custom-heap", "bench-sbf"]
+bench-sbf = []
+
 
 [dependencies]
 anchor-lang ={ version="0.29.0" }
@@ -26,6 +28,7 @@ light-hasher = {path = "../../merkle-tree/hasher"}
 light-utils = {path = "../../utils"}
 rkyv = {version="0.7.44", features = ["bytecheck", "validation"]}
 rancor = "0.1.0-pre8"
+light-heap = { version = "0.1.0", path = "../../heap" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.18.11"

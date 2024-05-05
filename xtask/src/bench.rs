@@ -19,6 +19,9 @@ pub struct Options {
     /// Select to run account compression program tests.
     #[clap(long, action = ArgAction::SetTrue)]
     account_commpression: bool,
+    /// Select to run account compression program tests.
+    #[clap(long, action = ArgAction::SetTrue)]
+    rkyv: bool,
     /// Builds all programs with the bench-sbf feature.
     #[clap(long, action = ArgAction::SetTrue)]
     build: bool,
@@ -27,7 +30,7 @@ pub struct Options {
     verbose: bool,
     /// Skips all logs until the start_ix is found.
     #[clap(long, action = clap::ArgAction::Append)]
-    start_ix: String,
+    start_ix: Option<String>,
 }
 
 /// cargo xtask bench --t test_8_transfer  --compressed-token --build --start-ix Transfer --verbose
@@ -48,6 +51,8 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
             "account-compression",
             "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP",
         )
+    } else if opts.rkyv {
+        ("rkyv-test", "GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX")
     } else {
         Err(anyhow::anyhow!("No program selected"))?
     };
@@ -100,21 +105,24 @@ pub fn create_bench_report(
     report_name: String,
     program_id: &str,
     verbose: bool,
-    start_ix: &String,
+    start_ix: &Option<String>,
 ) -> anyhow::Result<()> {
     // HashMap to store the start and end benchmark details
     let mut benchmarks = HashMap::<String, (u64, u64, u64, u64)>::new();
     let mut expect_sol_log = false;
     let mut start = false;
     let mut end = false;
-    let mut found_start = start_ix.is_empty();
+    let mut found_start = match start_ix {
+        Some(_) => false,
+        None => true,
+    };
     let mut current_name = String::new();
     for line in output_lines.iter() {
         if verbose {
             println!("{}", line);
         }
-        if !found_start {
-            if line.contains(start_ix) {
+        if !found_start && start_ix.is_some() {
+            if line.contains(&*start_ix.as_ref().unwrap()) {
                 found_start = true;
             } else {
                 continue;
