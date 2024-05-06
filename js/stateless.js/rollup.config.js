@@ -59,6 +59,5 @@ export default [
     rolls('cjs', 'browser'),
     rolls('es', 'browser'),
     rolls('cjs', 'node'),
-    rolls('es', 'node'),
     typesConfig,
 ];
