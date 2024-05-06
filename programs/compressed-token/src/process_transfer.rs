@@ -103,7 +103,6 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 
     bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
     if !compressed_input_accounts.is_empty() {
-        // TODO: add create delegate change compressed_accounts
         add_token_data_to_input_compressed_accounts(
             &mut compressed_input_accounts,
             input_token_data.as_slice(),
@@ -142,18 +141,43 @@ pub fn add_token_data_to_input_compressed_accounts(
         let mut data = Vec::with_capacity(mem::size_of::<TokenData>());
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
-        let data = CompressedAccountData {
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-            data,
-            data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
-                hashed_mint,
-                &hashed_owner,
-                &amount,
-                &input_token_data[i].is_native,
-            )
-            .map_err(ProgramError::from)?,
-        };
-        compressed_account_with_context.compressed_account.data = Some(data);
+        if input_token_data[i].delegate.is_none() && input_token_data[i].delegated_amount == 0 {
+            let data = CompressedAccountData {
+                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                data,
+                data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+                    hashed_mint,
+                    &hashed_owner,
+                    &amount,
+                    &input_token_data[i].is_native,
+                )
+                .map_err(ProgramError::from)?,
+            };
+            compressed_account_with_context.compressed_account.data = Some(data);
+        } else {
+            if input_token_data[i].delegate.is_none() {
+                return err!(crate::ErrorCode::DelegateUndefined);
+            }
+            let hashed_delegate =
+                hash_to_bn254_field_size_be(&input_token_data[i].delegate.unwrap().to_bytes())
+                    .unwrap()
+                    .0;
+            let delegate_amount = input_token_data[i].delegated_amount.to_le_bytes();
+            let data = CompressedAccountData {
+                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                data,
+                data_hash: TokenData::hash_with_delegate_hashed_values::<Poseidon>(
+                    hashed_mint,
+                    &hashed_owner,
+                    &amount,
+                    input_token_data[i].is_native,
+                    &hashed_delegate,
+                    &delegate_amount,
+                )
+                .map_err(ProgramError::from)?,
+            };
+            compressed_account_with_context.compressed_account.data = Some(data);
+        }
     }
     Ok(())
 }
@@ -566,7 +590,8 @@ pub mod transfer_sdk {
             match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey, i);
+                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey, index);
+                    index += 1;
                 }
             };
             let delegate_index = match token_data.delegate {

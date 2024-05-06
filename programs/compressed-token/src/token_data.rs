@@ -90,13 +90,13 @@ impl TokenData {
         hash_inputs.push(mint.as_slice());
         hash_inputs.push(owner.as_slice());
         hash_inputs.push(amount_bytes.as_slice());
-        let mut native_amount_bytes: [u8; 6] = [2, 0, 0, 0, 0, 0];
+        let mut native_amount_bytes: [u8; 10] = [2, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         if native_amount.is_some() {
             native_amount_bytes[1] = match native_amount {
                 Some(_) => 1,
                 None => 0,
             };
-            native_amount_bytes[2..6]
+            native_amount_bytes[2..]
                 .copy_from_slice(&native_amount.unwrap_or_default().to_le_bytes());
             hash_inputs.push(native_amount_bytes.as_slice());
         }
@@ -107,9 +107,9 @@ impl TokenData {
         mint: &[u8; 32],
         owner: &[u8; 32],
         amount_bytes: &[u8; 8],
+        native_amount: Option<u64>,
         hashed_delegate: &[u8; 32],
         delegated_amount: &[u8; 8],
-        native_amount: Option<u64>,
     ) -> std::result::Result<[u8; 32], HasherError> {
         let mut hash_inputs = vec![
             mint.as_slice(),
@@ -218,9 +218,9 @@ pub mod test {
                 &hashed_mint,
                 &hashed_owner,
                 &token_data.amount.to_le_bytes(),
+                token_data.is_native,
                 &hashed_delegate,
                 &token_data.delegated_amount.to_le_bytes(),
-                token_data.is_native,
             )
             .unwrap();
         assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
@@ -280,9 +280,9 @@ pub mod test {
                     &hashed_mint,
                     &hashed_owner,
                     &token_data.amount.to_le_bytes(),
+                    token_data.is_native,
                     &hashed_delegate,
                     &token_data.delegated_amount.to_le_bytes(),
-                    token_data.is_native,
                 )
                 .unwrap();
             assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);

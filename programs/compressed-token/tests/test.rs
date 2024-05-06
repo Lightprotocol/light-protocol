@@ -940,7 +940,7 @@ async fn test_invalid_inputs() {
     .await
     .unwrap();
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
-
+    // invalid delegate and delegated amount
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
