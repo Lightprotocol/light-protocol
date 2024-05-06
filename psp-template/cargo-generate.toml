@@ -1,2 +1,0 @@
-[template]
-sub_templates=["psp-template", "psp-template/circuits/program_name/circuit", , "psp-template/programs_psp/program_name"]
