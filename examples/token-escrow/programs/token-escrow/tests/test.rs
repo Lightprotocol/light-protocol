@@ -235,10 +235,10 @@ pub async fn perform_escrow(
         .expect("no account with enough tokens")
         .clone();
     let payer_pubkey = payer.pubkey();
-    let compressed_input_account_with_context =
-        test_indexer.compressed_accounts[input_compressed_token_account_data.index].clone();
-    let input_compressed_account_hash = test_indexer.compressed_accounts
-        [input_compressed_token_account_data.index]
+    let compressed_input_account_with_context = input_compressed_token_account_data
+        .compressed_account
+        .clone();
+    let input_compressed_account_hash = compressed_input_account_with_context
         .compressed_account
         .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
@@ -398,9 +398,8 @@ pub async fn perform_withdrawal(
         .expect("no account with enough tokens")
         .clone();
     let compressed_input_account_with_context =
-        test_indexer.compressed_accounts[escrow_token_data_with_context.index].clone();
-    let input_compressed_account_hash = test_indexer.compressed_accounts
-        [escrow_token_data_with_context.index]
+        escrow_token_data_with_context.compressed_account.clone();
+    let input_compressed_account_hash = compressed_input_account_with_context
         .compressed_account
         .hash::<Poseidon>(
             &env.merkle_tree_pubkey,

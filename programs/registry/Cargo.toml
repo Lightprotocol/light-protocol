@@ -36,5 +36,4 @@ solana-sdk = "1.18.11"
 solana-program-test = "1.18.11"
 solana-sdk = "1.18.11"
 tokio = "1.36.0"
-light-test-utils = { version = "0.1.0", path = "../../test-utils", default-features = false }
 light-macros= { version = "0.3.1", path = "../../macros/light" }

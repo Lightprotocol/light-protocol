@@ -340,7 +340,7 @@ mod test {
         let input_root_indices = vec![0, 1];
         let proof = CompressedProof {
             a: [0u8; 32],
-            b: [0u8; 64],
+            b: [1u8; 64],
             c: [0u8; 32],
         };
         let instruction = create_invoke_instruction(

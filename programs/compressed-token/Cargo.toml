@@ -41,7 +41,6 @@ solana-sdk = "1.18.11"
 
 [dev-dependencies]
 solana-program-test = "1.18.11"
-light-test-utils = { version = "0.1.0", path = "../../test-utils"}
 reqwest = "0.11.26"
 tokio = "1.36.0"
 light-circuitlib-rs = { version = "0.1.0", path = "../../circuit-lib/circuitlib-rs" }
