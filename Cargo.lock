@@ -14,7 +14,7 @@ dependencies = [
 
 [[package]]
 name = "account-compression"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -137,7 +137,7 @@ checksum = "250f629c0161ad8107cf89319e990051fae62832fd343083bea452d93e2205fd"
 
 [[package]]
 name = "aligned-sized"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2686,7 +2686,7 @@ dependencies = [
 
 [[package]]
 name = "light-bounded-vec"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bytemuck",
  "solana-program",
@@ -2695,7 +2695,7 @@ dependencies = [
 
 [[package]]
 name = "light-circuitlib-rs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
@@ -2705,7 +2705,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.10.3",
+ "borsh 0.9.3",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -2731,7 +2731,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-pda"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -2765,7 +2765,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-token"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -2794,7 +2794,7 @@ dependencies = [
 
 [[package]]
 name = "light-concurrent-merkle-tree"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -2814,7 +2814,7 @@ dependencies = [
 
 [[package]]
 name = "light-hash-set"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -2830,7 +2830,7 @@ dependencies = [
 
 [[package]]
 name = "light-hasher"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bn254",
  "light-poseidon",
@@ -2842,14 +2842,14 @@ dependencies = [
 
 [[package]]
 name = "light-heap"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anchor-lang",
 ]
 
 [[package]]
 name = "light-indexed-merkle-tree"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -2867,7 +2867,7 @@ dependencies = [
 
 [[package]]
 name = "light-macros"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
@@ -2879,7 +2879,7 @@ dependencies = [
 
 [[package]]
 name = "light-merkle-tree-reference"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "light-bounded-vec",
  "light-hasher",
@@ -2900,7 +2900,7 @@ dependencies = [
 
 [[package]]
 name = "light-registry"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "account-compression",
  "aligned-sized",
@@ -2917,7 +2917,7 @@ dependencies = [
 
 [[package]]
 name = "light-test-utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -2947,7 +2947,7 @@ dependencies = [
 
 [[package]]
 name = "light-user-registry"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
@@ -2956,7 +2956,7 @@ dependencies = [
 
 [[package]]
 name = "light-utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "ark-bn254",
@@ -2969,7 +2969,7 @@ dependencies = [
 
 [[package]]
 name = "light-verifier"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "borsh 0.10.3",
  "groth16-solana",
@@ -2982,7 +2982,7 @@ dependencies = [
 
 [[package]]
 name = "light-wasm-hasher"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ark-bn254",
  "ark-ff",
@@ -3827,7 +3827,7 @@ dependencies = [
 
 [[package]]
 name = "program-owned-account-test"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -6718,7 +6718,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token-escrow"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -7544,7 +7544,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "account-compression",
  "anyhow",
