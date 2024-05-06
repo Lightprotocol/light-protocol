@@ -12,7 +12,7 @@ use light_compressed_pda::{
 use light_compressed_token::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
 };
-use light_hasher::DataHasher;
+use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithCompressedPda,
@@ -85,7 +85,7 @@ fn create_compressed_pda_data_based_on_diff(
         discriminator: 1u64.to_le_bytes(),
         data: old_timelock_compressed_pda.try_to_vec().unwrap(),
         data_hash: old_timelock_compressed_pda
-            .hash()
+            .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
     let old_compressed_account = CompressedAccount {
@@ -107,7 +107,7 @@ fn create_compressed_pda_data_based_on_diff(
         discriminator: 1u64.to_le_bytes(),
         data: new_timelock_compressed_pda.try_to_vec().unwrap(),
         data_hash: new_timelock_compressed_pda
-            .hash()
+            .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
     let new_state = CompressedAccount {

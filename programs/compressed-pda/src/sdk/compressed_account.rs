@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anchor_lang::prelude::*;
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::Hasher;
 use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -16,7 +16,6 @@ pub struct CompressedAccountWithMerkleContext {
     pub merkle_context: MerkleContext,
 }
 
-// TODO: use in PackedCompressedAccountWithMerkleContext and rename to CompressedAccountAndMerkleContext
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
@@ -81,52 +80,75 @@ pub struct CompressedAccount {
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
+    // TODO: switch with data_hash
     pub data: Vec<u8>,
     pub data_hash: [u8; 32],
 }
 
 impl CompressedAccount {
-    pub fn hash(&self, &merkle_tree_pubkey: &Pubkey, leaf_index: &u32) -> Result<[u8; 32]> {
-        let capacity = 4 + self.address.is_some() as usize + self.data.is_some() as usize * 2;
+    pub fn hash_with_hashed_values<H: Hasher>(
+        &self,
+        &owner_hashed: &[u8; 32],
+        &merkle_tree_hashed: &[u8; 32],
+        leaf_index: &u32,
+    ) -> Result<[u8; 32]> {
+        let capacity = 3
+            + std::cmp::min(self.lamports, 1) as usize
+            + self.address.is_some() as usize
+            + self.data.is_some() as usize * 2;
         let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
-        let truncated_owner = hash_to_bn254_field_size_be(&self.owner.to_bytes())
-            .unwrap()
-            .0;
-        vec.push(truncated_owner.as_slice());
+        vec.push(owner_hashed.as_slice());
 
         // leaf index and merkle tree pubkey are used to make every compressed account hash unique
         let leaf_index = leaf_index.to_le_bytes();
         vec.push(leaf_index.as_slice());
-        let truncated_merkle_tree_pubkey =
-            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
-                .unwrap()
-                .0;
-        vec.push(truncated_merkle_tree_pubkey.as_slice());
-        let lamports = self.lamports.to_le_bytes();
-        vec.push(lamports.as_slice());
+
+        vec.push(merkle_tree_hashed.as_slice());
+
+        // Lamports are only hashed if non-zero to safe CU
+        // For safety we prefix the lamports with 1 in 1 byte.
+        // Thus even if the discriminator has the same value as the lamports, the hash will be different.
+        let mut lamports_bytes = [1, 0, 0, 0, 0, 0, 0, 0, 0];
+        if self.lamports != 0 {
+            lamports_bytes[1..].copy_from_slice(&self.lamports.to_le_bytes());
+            vec.push(lamports_bytes.as_slice());
+        }
 
         if self.address.is_some() {
             vec.push(self.address.as_ref().unwrap().as_slice());
         }
 
+        let mut discriminator_bytes = [2, 0, 0, 0, 0, 0, 0, 0, 0];
         if let Some(data) = &self.data {
-            // TODO: double check that it is impossible to create a hash collisions for different sized poseidon hash inputs
-            // Otherwise we could use padding to prevent a theoretical attack producing a hash collision
-            // if self.address.is_none() {
-            //     vec.push(&[0u8; 32]);
-            // }
-            vec.push(&data.discriminator);
+            discriminator_bytes[1..].copy_from_slice(&data.discriminator);
+            vec.push(&discriminator_bytes);
             vec.push(&data.data_hash);
         }
-
-        let hash = Poseidon::hashv(&vec).map_err(ProgramError::from)?;
+        let hash = H::hashv(&vec).map_err(ProgramError::from)?;
         Ok(hash)
+    }
+
+    pub fn hash<H: Hasher>(
+        &self,
+        &merkle_tree_pubkey: &Pubkey,
+        leaf_index: &u32,
+    ) -> Result<[u8; 32]> {
+        self.hash_with_hashed_values::<H>(
+            &hash_to_bn254_field_size_be(&self.owner.to_bytes())
+                .unwrap()
+                .0,
+            &hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0,
+            leaf_index,
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use anchor_lang::solana_program::pubkey::Pubkey;
+    use light_hasher::Poseidon;
 
     use super::*;
 
@@ -149,7 +171,7 @@ mod tests {
         let merkle_tree_pubkey = Pubkey::new_unique();
         let leaf_index = 1;
         let hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index)
+            .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
@@ -161,9 +183,11 @@ mod tests {
                 .unwrap()
                 .0
                 .as_slice(),
-            lamports.to_le_bytes().as_slice(),
+            [&[1u8], lamports.to_le_bytes().as_slice()]
+                .concat()
+                .as_slice(),
             address.as_slice(),
-            &data.discriminator,
+            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
             &data.data_hash,
         ])
         .unwrap();
@@ -178,7 +202,7 @@ mod tests {
             data: None,
         };
         let no_data_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index)
+            .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
 
         let hash_manual = Poseidon::hashv(&[
@@ -191,7 +215,9 @@ mod tests {
                 .unwrap()
                 .0
                 .as_slice(),
-            lamports.to_le_bytes().as_slice(),
+            [&[1u8], lamports.to_le_bytes().as_slice()]
+                .concat()
+                .as_slice(),
             address.as_slice(),
         ])
         .unwrap();
@@ -206,7 +232,7 @@ mod tests {
             data: Some(data.clone()),
         };
         let no_address_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index)
+            .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
@@ -218,8 +244,10 @@ mod tests {
                 .unwrap()
                 .0
                 .as_slice(),
-            lamports.to_le_bytes().as_slice(),
-            &data.discriminator,
+            [&[1u8], lamports.to_le_bytes().as_slice()]
+                .concat()
+                .as_slice(),
+            [&[2u8], data.discriminator.as_slice()].concat().as_slice(),
             &data.data_hash,
         ])
         .unwrap();
@@ -235,7 +263,7 @@ mod tests {
             data: None,
         };
         let no_address_no_data_hash = compressed_account
-            .hash(&merkle_tree_pubkey, &leaf_index)
+            .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
             .unwrap();
         let hash_manual = Poseidon::hashv(&[
             hash_to_bn254_field_size_be(&owner.to_bytes())
@@ -247,12 +275,42 @@ mod tests {
                 .unwrap()
                 .0
                 .as_slice(),
-            lamports.to_le_bytes().as_slice(),
+            [&[1u8], lamports.to_le_bytes().as_slice()]
+                .concat()
+                .as_slice(),
         ])
         .unwrap();
         assert_eq!(no_address_no_data_hash, hash_manual);
         assert_ne!(hash, no_address_no_data_hash);
         assert_ne!(no_data_hash, no_address_no_data_hash);
         assert_ne!(no_address_hash, no_address_no_data_hash);
+
+        // no address, no data, no lamports
+        let compressed_account = CompressedAccount {
+            owner,
+            lamports: 0,
+            address: None,
+            data: None,
+        };
+        let no_address_no_data_no_lamports_hash = compressed_account
+            .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
+            .unwrap();
+        let hash_manual = Poseidon::hashv(&[
+            hash_to_bn254_field_size_be(&owner.to_bytes())
+                .unwrap()
+                .0
+                .as_slice(),
+            leaf_index.to_le_bytes().as_slice(),
+            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes())
+                .unwrap()
+                .0
+                .as_slice(),
+        ])
+        .unwrap();
+        assert_eq!(no_address_no_data_no_lamports_hash, hash_manual);
+        assert_ne!(no_address_no_data_hash, no_address_no_data_no_lamports_hash);
+        assert_ne!(hash, no_address_no_data_no_lamports_hash);
+        assert_ne!(no_data_hash, no_address_no_data_no_lamports_hash);
+        assert_ne!(no_address_hash, no_address_no_data_no_lamports_hash);
     }
 }

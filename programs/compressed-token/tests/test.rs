@@ -24,7 +24,8 @@ use light_compressed_pda::{
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
-    transfer_sdk, ErrorCode, TokenData, TokenTransferOutputData,
+    token_data::TokenData,
+    transfer_sdk, ErrorCode, TokenTransferOutputData,
 };
 use light_hasher::Poseidon;
 use light_test_utils::{
@@ -404,7 +405,7 @@ async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
             token_data
                 .compressed_account
                 .compressed_account
-                .hash(&merkle_tree_pubkey, &leaf_index)
+                .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
                 .unwrap(),
         );
         input_merkle_tree_context.push(MerkleContext {
@@ -444,7 +445,7 @@ async fn test_transfer(inputs: usize, outputs: usize, amount: u64) {
         &vec![merkle_tree_pubkey; outputs], // output_compressed_account_merkle_tree_pubkeys
         &output_compressed_accounts,        // output_compressed_accounts
         &root_indices,
-        &proof,
+        &Some(proof),
         input_compressed_account_token_data.as_slice(), // input_token_data
         mint,
         None,  // owner_if_delegate_is_signer
@@ -581,7 +582,7 @@ async fn test_decompression() {
         .create_proof_for_compressed_accounts(
             &[input_compressed_accounts[0]
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &input_compressed_accounts[0].merkle_context.leaf_index,
                 )
@@ -601,7 +602,7 @@ async fn test_decompression() {
         &[merkle_tree_pubkey],       // output_compressed_account_merkle_tree_pubkeys
         &[change_out_compressed_account], // output_compressed_accounts
         &root_indices,               // root_indices
-        &proof,
+        &Some(proof),
         [input_compressed_account_token_data].as_slice(), // input_token_data
         mint,                                             // mint
         None,                                             // owner_if_delegate_is_signer
@@ -653,7 +654,7 @@ async fn test_decompression() {
         &[merkle_tree_pubkey],              // output_compressed_account_merkle_tree_pubkeys
         &[compress_out_compressed_account], // output_compressed_accounts
         &Vec::new(),                        // root_indices
-        &proof,
+        &None,
         &Vec::new(),                                    // input_token_data
         mint,                                           // mint
         None,                                           // owner_if_delegate_is_signer
@@ -773,7 +774,7 @@ async fn test_invalid_inputs() {
         .create_proof_for_compressed_accounts(
             &[input_compressed_accounts[0]
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &input_compressed_accounts[0].merkle_context.leaf_index,
                 )
@@ -799,7 +800,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -819,7 +820,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -841,7 +842,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -862,7 +863,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -885,7 +886,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -932,14 +933,14 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
     .await
     .unwrap();
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
-
+    // invalid delegate and delegated amount
     let mut input_compressed_account_token_data =
         mock_indexer.token_compressed_accounts[0].token_data;
     input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
@@ -962,7 +963,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -980,7 +981,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &payer,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -1009,7 +1010,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -1040,7 +1041,7 @@ async fn test_invalid_inputs() {
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         &recipient_keypair,
-        &proof,
+        &Some(proof.clone()),
         &root_indices,
         &input_compressed_accounts,
     )
@@ -1058,7 +1059,7 @@ async fn create_transfer_out_utxo_test(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     payer: &Keypair,
-    proof: &CompressedProof,
+    proof: &Option<CompressedProof>,
     root_indices: &[u16],
     input_compressed_accounts: &[PackedCompressedAccountWithMerkleContext],
 ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
@@ -1086,7 +1087,7 @@ async fn create_transfer_out_utxo_test(
             transfer_recipient_token_transfer_output,
         ],
         root_indices,
-        proof,
+        &proof,
         input_compressed_account_token_data.as_slice(),
         input_compressed_account_token_data[0].mint,
         None,
@@ -1462,7 +1463,7 @@ impl MockIndexer {
         for hash in event.input_compressed_account_hashes.iter() {
             let index = self.compressed_accounts.iter().position(|x| {
                 x.compressed_account
-                    .hash(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
+                    .hash::<Poseidon>(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
                     .unwrap()
                     == *hash
             });
@@ -1477,7 +1478,7 @@ impl MockIndexer {
                     .position(|x| {
                         x.compressed_account
                             .compressed_account
-                            .hash(
+                            .hash::<Poseidon>(
                                 &self.merkle_tree_pubkey,
                                 &x.compressed_account.merkle_context.leaf_index,
                             )
@@ -1520,7 +1521,7 @@ impl MockIndexer {
             self.merkle_tree
                 .append(
                     &compressed_account
-                        .hash(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
                         .unwrap(),
                 )
                 .expect("insert failed");

@@ -1,10 +1,13 @@
-use crate::{constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, AccountState, TokenData};
+use crate::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    token_data::{AccountState, TokenData},
+};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_compressed_pda::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
-use light_hasher::DataHasher;
-#[cfg(target_os = "solana")]
+use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_utils::hash_to_bn254_field_size_be;
 
 use std::mem;
 pub const POOL_SEED: &[u8] = b"pool";
@@ -86,7 +89,10 @@ pub fn process_mint_to<'info>(
         // 7,912 CU
         mint_spl_to_pool_pda(&ctx, &amounts, signer_seeds)?;
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
-
+        let hashed_mint =
+            hash_to_bn254_field_size_be(ctx.accounts.mint.to_account_info().key().as_ref())
+                .unwrap()
+                .0;
         bench_sbf_start!("tm_output_compressed_accounts");
         let mut output_compressed_accounts =
             vec![CompressedAccount::default(); compression_public_keys.len()];
@@ -96,7 +102,8 @@ pub fn process_mint_to<'info>(
             compression_public_keys.as_slice(),
             &amounts,
             None,
-        );
+            &hashed_mint,
+        )?;
         bench_sbf_end!("tm_output_compressed_accounts");
 
         cpi_execute_compressed_transaction_mint_to(
@@ -116,10 +123,10 @@ pub fn create_output_compressed_accounts(
     pubkeys: &[Pubkey],
     amounts: &[u64],
     lamports: Option<&[Option<u64>]>,
-) {
+    hashed_mint: &[u8; 32],
+) -> Result<()> {
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
         // 1,147 CU
-
         let mut token_data_bytes = Vec::with_capacity(mem::size_of::<TokenData>());
         #[cfg(target_os = "solana")]
         let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
@@ -135,14 +142,22 @@ pub fn create_output_compressed_accounts(
             delegated_amount: 0,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
-
+        bench_sbf_start!("token_data_hash");
+        let pubkey_hashed = hash_to_bn254_field_size_be(pubkey.as_ref()).unwrap().0;
+        let amount_bytes = amount.to_le_bytes();
         // 7,200 CU
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
-            data_hash: token_data.hash().unwrap(),
+            data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+                hashed_mint,
+                &pubkey_hashed,
+                &amount_bytes,
+                &None,
+            )
+            .map_err(ProgramError::from)?,
         };
-
+        bench_sbf_end!("token_data_hash");
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
         // 1k CU
         output_compressed_accounts[i] = CompressedAccount {
@@ -155,6 +170,7 @@ pub fn create_output_compressed_accounts(
         #[cfg(target_os = "solana")]
         light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
     }
+    Ok(())
 }
 
 #[cfg(target_os = "solana")]
@@ -384,11 +400,10 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
 
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
+    use crate::{get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda};
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use anchor_spl;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
-
-    use crate::{get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda};
 
     pub fn create_initialize_mint_instruction(
         fee_payer: &Pubkey,
@@ -483,11 +498,12 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         };
 
         token_data.serialize(&mut token_data_bytes).unwrap();
+        use light_hasher::DataHasher;
 
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
-            data_hash: token_data.hash().unwrap(),
+            data_hash: token_data.hash::<Poseidon>().unwrap(),
         };
         let lamports = 0;
 

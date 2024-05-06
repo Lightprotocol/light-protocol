@@ -267,7 +267,7 @@ where
                 * transaction_params.fee_config.state_merkle_tree_rollover as i64
             - transaction_params.compress
             - 5000
-            - tip * (i64::from(transaction_params.num_output_compressed_accounts) / 14 + 1);
+            - tip * (i64::from(transaction_params.num_output_compressed_accounts) / 28 + 1);
 
         if post_balance as i64 != expected_post_balance {
             println!("transaction_params: {:?}", transaction_params);

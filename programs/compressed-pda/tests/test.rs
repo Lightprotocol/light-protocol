@@ -36,6 +36,7 @@ use light_compressed_pda::{
     },
     NewAddressParams,
 };
+use light_hasher::Poseidon;
 use light_indexed_merkle_tree::array::IndexedArray;
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction,
@@ -99,11 +100,6 @@ async fn invoke_test() {
         data: None,
         address: None,
     }];
-    let proof_mock = CompressedProof {
-        a: [0u8; 32],
-        b: [0u8; 64],
-        c: [0u8; 32],
-    };
 
     let instruction = create_invoke_instruction(
         &payer_pubkey,
@@ -114,7 +110,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
-        &proof_mock,
+        None,
         None,
         false,
         None,
@@ -160,7 +156,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &[0u16],
         &Vec::new(),
-        &proof_mock,
+        None,
         None,
         false,
         None,
@@ -191,7 +187,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &[0u16],
         &Vec::new(),
-        &proof_mock,
+        None,
         None,
         false,
         None,
@@ -209,7 +205,7 @@ async fn invoke_test() {
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
@@ -232,7 +228,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof.clone()),
         None,
         false,
         None,
@@ -278,7 +274,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof.clone()),
         None,
         false,
         None,
@@ -306,7 +302,7 @@ async fn invoke_test() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof.clone()),
         None,
         false,
         None,
@@ -354,7 +350,7 @@ async fn test_with_address() {
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
-        &proof_rpc_res.proof,
+        None,
         None,
         false,
         None,
@@ -403,7 +399,7 @@ async fn test_with_address() {
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
@@ -433,7 +429,7 @@ async fn test_with_address() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof),
         None,
         false,
         None,
@@ -598,7 +594,7 @@ pub async fn create_addresses(
             compressed_account_hashes.push(
                 compressed_account
                     .compressed_account
-                    .hash(
+                    .hash::<Poseidon>(
                         merkle_tree_pubkey,
                         &compressed_account.merkle_context.leaf_index,
                     )
@@ -669,7 +665,7 @@ pub async fn create_addresses(
         &vec![*merkle_tree_pubkey; output_compressed_accounts.len()],
         &proof_rpc_res.root_indices,
         &address_params,
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof),
         None,
         false,
         None,
@@ -718,12 +714,6 @@ async fn test_with_compression() {
         data: None,
         address: None, // this should not be sent, only derived on-chain
     }];
-    let proof_mock = CompressedProof {
-        a: [0u8; 32],
-        b: [0u8; 64],
-        c: [0u8; 32],
-    };
-
     let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,
@@ -733,7 +723,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
-        &proof_mock,
+        None,
         Some(compress_amount),
         false,
         None,
@@ -763,7 +753,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
-        &proof_mock,
+        None,
         None,
         true,
         None,
@@ -794,7 +784,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &Vec::new(),
         &Vec::new(),
-        &proof_mock,
+        None,
         Some(compress_amount),
         true,
         None,
@@ -867,7 +857,7 @@ async fn test_with_compression() {
         .create_proof_for_compressed_accounts(
             Some(&[compressed_account_with_context
                 .compressed_account
-                .hash(
+                .hash::<Poseidon>(
                     &merkle_tree_pubkey,
                     &compressed_account_with_context.merkle_context.leaf_index,
                 )
@@ -898,7 +888,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof.clone()),
         Some(compress_amount),
         true,
         Some(recipient),
@@ -933,7 +923,7 @@ async fn test_with_compression() {
         &[merkle_tree_pubkey],
         &proof_rpc_res.root_indices,
         &Vec::new(),
-        &proof_rpc_res.proof,
+        Some(proof_rpc_res.proof),
         Some(compress_amount),
         false,
         Some(recipient),
@@ -1256,7 +1246,7 @@ impl MockIndexer {
                 .iter()
                 .position(|x| {
                     x.compressed_account
-                        .hash(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &x.merkle_context.leaf_index)
                         .unwrap()
                         == *hash
                 })
@@ -1281,7 +1271,7 @@ impl MockIndexer {
             self.merkle_tree
                 .append(
                     &compressed_account
-                        .hash(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
+                        .hash::<Poseidon>(&self.merkle_tree_pubkey, &event.output_leaf_indices[i])
                         .unwrap(),
                 )
                 .expect("insert failed");

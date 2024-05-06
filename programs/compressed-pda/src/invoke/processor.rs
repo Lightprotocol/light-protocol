@@ -74,39 +74,48 @@ pub fn process<
     let mut output_leaf_indices = vec![0u32; inputs.output_compressed_accounts.len()];
     let mut output_compressed_account_hashes =
         vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
+    // Bench vs vector
+    let mut hashed_pubkeys =
+        Vec::<(Pubkey, [u8; 32])>::with_capacity(ctx.remaining_accounts.len() + 1);
 
-    bench_sbf_start!("cpda_hash_input_compressed_accounts");
-    if !input_compressed_account_hashes.is_empty() {
-        hash_input_compressed_accounts(
-            &ctx,
-            &inputs,
-            &mut input_compressed_account_hashes,
-            &mut input_compressed_account_addresses,
-        )?;
-    }
-    bench_sbf_end!("cpda_hash_input_compressed_accounts");
-    let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
-    // insert addresses into address merkle tree queue ---------------------------------------------------
-    if !new_addresses.is_empty() {
-        derive_new_addresses(
-            &inputs,
-            &ctx,
-            &mut input_compressed_account_addresses,
-            &mut new_addresses,
-        );
-        insert_addresses_into_address_merkle_tree_queue(
-            &ctx,
-            &new_addresses,
-            &inputs.new_address_params,
-            &invoking_program,
-        )?;
-    }
     // verify state and or address proof ---------------------------------------------------
     if !inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
         || !inputs.new_address_params.is_empty()
     {
+        // hash input compressed accounts ---------------------------------------------------
+        bench_sbf_start!("cpda_hash_input_compressed_accounts");
+        if !inputs
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            hash_input_compressed_accounts(
+                ctx.remaining_accounts,
+                &inputs,
+                &mut input_compressed_account_hashes,
+                &mut input_compressed_account_addresses,
+                &mut hashed_pubkeys,
+            )?;
+        }
+
+        bench_sbf_end!("cpda_hash_input_compressed_accounts");
+        let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
+        // insert addresses into address merkle tree queue ---------------------------------------------------
+        if !new_addresses.is_empty() {
+            derive_new_addresses(
+                &inputs,
+                &ctx,
+                &mut input_compressed_account_addresses,
+                &mut new_addresses,
+            );
+            insert_addresses_into_address_merkle_tree_queue(
+                &ctx,
+                &new_addresses,
+                &inputs.new_address_params,
+                &invoking_program,
+            )?;
+        }
         bench_sbf_start!("cpda_verify_state_proof");
         let mut new_address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
         // TODO: enable once address merkle tree init is debugged
@@ -122,32 +131,39 @@ pub fn process<
             b: proof.b,
             c: proof.c,
         };
-        verify_state_proof(
+        match verify_state_proof(
             &roots,
             &input_compressed_account_hashes,
             &new_address_roots,
             new_addresses.as_slice(),
             &compressed_verifier_proof,
-        )?;
+        ) {
+            Ok(_) => anchor_lang::Result::Ok(()),
+            Err(e) => {
+                msg!(
+                    "input_compressed_accounts_with_merkle_context: {:?}",
+                    inputs.input_compressed_accounts_with_merkle_context
+                );
+                Err(e)
+            }
+        }?;
         bench_sbf_end!("cpda_verify_state_proof");
-    }
-
-    // insert nullifies (input compressed account hashes)---------------------------------------------------
-    bench_sbf_start!("cpda_nullifiers");
-    if !inputs
-        .input_compressed_accounts_with_merkle_context
-        .is_empty()
-    {
+        // insert nullifies (input compressed account hashes)---------------------------------------------------
+        bench_sbf_start!("cpda_nullifiers");
         insert_nullifiers(
             &inputs,
             &ctx,
             &input_compressed_account_hashes,
             &invoking_program,
         )?;
+        bench_sbf_end!("cpda_nullifiers");
+    } else if inputs.proof.is_some() {
+        msg!("Proof is some but no input compressed accounts or new addresses provided.");
+        return err!(CompressedPdaError::ProofIsSome);
     }
     bench_sbf_end!("cpda_nullifiers");
 
-    const ITER_SIZE: usize = 14;
+    const ITER_SIZE: usize = 28;
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         let mut i = 0;
@@ -161,6 +177,7 @@ pub fn process<
                 &mut input_compressed_account_addresses,
                 &mut i,
                 &invoking_program,
+                &mut hashed_pubkeys,
             )?;
             bench_sbf_end!("cpda_append");
         }
@@ -168,6 +185,7 @@ pub fn process<
     bench_sbf_start!("emit_state_transition_event");
 
     // emit state transition event ---------------------------------------------------
+    bench_sbf_start!("emit_state_transition_event");
     emit_state_transition_event(
         inputs,
         &ctx,

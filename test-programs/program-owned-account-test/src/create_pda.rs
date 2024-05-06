@@ -8,7 +8,7 @@ use light_compressed_pda::{
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked,
 };
-use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_hasher::{errors::HasherError, DataHasher, Poseidon};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub enum CreatePdaMode {
@@ -187,7 +187,9 @@ fn create_compressed_pda_data(
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: timelock_compressed_pda.hash().map_err(ProgramError::from)?,
+        data_hash: timelock_compressed_pda
+            .hash::<Poseidon>()
+            .map_err(ProgramError::from)?,
     };
     let derive_address = derive_address(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
@@ -210,13 +212,13 @@ pub struct RegisteredUser {
 }
 
 impl light_hasher::DataHasher for RegisteredUser {
-    fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
+    fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
         let truncated_user_pubkey =
             light_utils::hash_to_bn254_field_size_be(&self.user_pubkey.to_bytes())
                 .unwrap()
                 .0;
 
-        Poseidon::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
+        H::hashv(&[truncated_user_pubkey.as_slice(), self.data.as_slice()])
     }
 }
 

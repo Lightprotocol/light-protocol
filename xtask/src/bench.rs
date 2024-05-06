@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::{fs::File, io::prelude::*};
+use tabled::{Table, Tabled};
+pub const DESTINATION: &str = "target/";
+
 #[derive(Debug, Parser)]
 pub struct Options {
     /// Select the test to run.
@@ -25,12 +28,11 @@ pub struct Options {
     verbose: bool,
     /// Skips all logs until the start_ix is found.
     #[clap(long, action = clap::ArgAction::Append)]
-    start_ix: String,
+    start_ix: Option<String>,
 }
-use tabled::{Table, Tabled};
 
 /// cargo xtask bench --t test_8_transfer  --compressed-token --build --start-ix Transfer --verbose
-/// cargo xtask bench --t mint_to_10  --compressed-token --build
+/// cargo xtask bench --t 1_mint_to  --compressed-token --build
 pub fn bench(opts: Options) -> anyhow::Result<()> {
     let (program, program_id) = if opts.compressed_token {
         (
@@ -73,7 +75,6 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
             ])
             // SVM logs are emitted via sdt err
             .stderr(Stdio::piped())
-            .stdout(Stdio::piped())
             .spawn()?;
         let stdout = command_output
             .stderr
@@ -81,6 +82,7 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
             .expect("Failed to capture stdout");
         let reader = BufReader::new(stdout);
         let output_lines = reader.lines().map(|line| line.unwrap()).collect();
+
         println!("Creating report for: {}", test_name);
         create_bench_report(
             output_lines,
@@ -92,28 +94,28 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
     }
     Ok(())
 }
-pub const DESTINATION: &str = "target/";
 
 pub fn create_bench_report(
     mut output_lines: Vec<String>,
     report_name: String,
     program_id: &str,
     verbose: bool,
-    start_ix: &String,
+    start_ix: &Option<String>,
 ) -> anyhow::Result<()> {
     // HashMap to store the start and end benchmark details
-    let mut benchmarks = HashMap::<String, (u64, u64, u64, u64)>::new();
+    let mut benchmarks = HashMap::<String, (u64, u64, u64, u64, u64)>::new();
     let mut expect_sol_log = false;
     let mut start = false;
     let mut end = false;
-    let mut found_start = start_ix.is_empty();
+    let mut found_start = start_ix.is_none();
     let mut current_name = String::new();
+    let mut counter = 0;
     for line in output_lines.iter() {
         if verbose {
             println!("{}", line);
         }
-        if !found_start {
-            if line.contains(start_ix) {
+        if start_ix.is_some() && !found_start {
+            if line.contains(start_ix.as_ref().unwrap()) {
                 found_start = true;
             } else {
                 continue;
@@ -155,7 +157,8 @@ pub fn create_bench_report(
             expect_sol_log = true;
             start = true;
             current_name = name.to_string();
-            benchmarks.insert(name.to_string(), (0, mem_start, 0, 0));
+            benchmarks.insert(name.to_string(), (0, mem_start, 0, 0, counter));
+            counter += 1;
         } else if line.contains("_end_bench_cu:") {
             let suffix = "_end_bench_cu:";
             let name = parts
@@ -209,7 +212,16 @@ pub fn create_bench_report(
         memory_start: "Memory Start".into(),
         memory_end: "Memory End".into(),
     });
-    for (name, (cu_pre, mem_start, cu_post, mem_end)) in benchmarks {
+
+    #[allow(clippy::type_complexity)]
+    let mut sorted_benchmarks: Vec<(String, (u64, u64, u64, u64, u64))> = benchmarks
+        .iter()
+        .map(|(name, values)| (name.clone(), *values))
+        .collect();
+
+    #[allow(clippy::clone_on_copy)]
+    sorted_benchmarks.sort_by_key(|(_, (_, _, _, _, position))| position.clone());
+    for (name, (cu_pre, mem_start, cu_post, mem_end, _)) in benchmarks {
         let cu_used = cu_pre - cu_post;
         let memory_used = match mem_end.checked_sub(mem_start) {
             Some(val) => val,

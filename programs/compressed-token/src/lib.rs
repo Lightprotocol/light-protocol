@@ -6,6 +6,7 @@ pub mod process_transfer;
 pub mod spl_compression;
 pub use process_mint::*;
 pub use process_transfer::*;
+pub mod token_data;
 
 declare_id!("9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE");
 

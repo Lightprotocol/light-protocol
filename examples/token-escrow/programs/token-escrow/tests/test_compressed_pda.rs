@@ -231,7 +231,7 @@ async fn create_escrow_ix(
     let input_compressed_account_hash = test_indexer.compressed_accounts
         [input_compressed_token_account_data.index]
         .compressed_account
-        .hash(
+        .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
             &compressed_input_account_with_context
                 .merkle_context
@@ -272,7 +272,7 @@ async fn create_escrow_ix(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &rpc_result.proof,
+        proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
         cpi_signature_account: &env.cpi_signature_account_pubkey,
@@ -433,7 +433,7 @@ pub async fn perform_withdrawal(
     let token_escrow_account = test_indexer.compressed_accounts[token_escrow.index].clone();
     let token_escrow_account_hash = token_escrow_account
         .compressed_account
-        .hash(
+        .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
             &token_escrow_account.merkle_context.leaf_index,
         )
@@ -445,7 +445,7 @@ pub async fn perform_withdrawal(
     );
     let compressed_pda_hash = compressed_escrow_pda
         .compressed_account
-        .hash(
+        .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
             &compressed_escrow_pda.merkle_context.leaf_index,
         )
@@ -481,7 +481,7 @@ pub async fn perform_withdrawal(
         ],
         output_compressed_accounts: &Vec::new(),
         root_indices: &rpc_result.root_indices,
-        proof: &rpc_result.proof,
+        proof: &Some(rpc_result.proof),
         mint: &token_escrow.token_data.mint,
         cpi_signature_account: &env.cpi_signature_account_pubkey,
         old_lock_up_time,

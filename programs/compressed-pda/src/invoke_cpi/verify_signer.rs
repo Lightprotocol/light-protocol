@@ -55,9 +55,9 @@ pub fn cpi_signer_check(
 }
 
 /// Checks the signer for input compressed accounts.
-/// 1. If any compressed account has data the invoking program must be defined.
-/// 2. If any compressed account has data the owner has to be the invokinging program.
-/// 3. If no compressed account has data the owner has to be the signer.
+/// 1. If any compressed account has data the owner has to be the invokinging program.
+/// 2. If no compressed account has data the owner has to be the signer.
+/// (Compressed accounts can be either owned by the program the signing pda if the compressed account has no data.)
 #[inline(never)]
 #[heap_neutral]
 pub fn input_compressed_accounts_signer_check(
@@ -74,7 +74,6 @@ pub fn input_compressed_accounts_signer_check(
             {
                 // CHECK 1
                 let invoking_program_id =invoking_program_id.key();
-                // CHECK 2
                 if invoking_program_id != compressed_account_with_context.compressed_account.owner {
                 msg!(
                         "Signer/Program cannot read from an account it doesn't own. Read access check failed compressed account owner {} !=  invoking_program_id {}",
@@ -86,7 +85,7 @@ pub fn input_compressed_accounts_signer_check(
                     Ok(())
                 }
             }
-            // CHECK 3
+            // CHECK 2
             else if compressed_account_with_context.compressed_account.owner != *signer {
             msg!(
                 "signer check failed compressed account owner {} !=  signer {}",

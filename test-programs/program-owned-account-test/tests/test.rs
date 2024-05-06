@@ -30,7 +30,7 @@ use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
-async fn test_create_pda() {
+async fn only_test_create_pda() {
     let (mut context, env) = setup_test_programs_with_accounts(Some(vec![(
         String::from("program_owned_account_test"),
         ID,
@@ -425,7 +425,7 @@ pub async fn perform_invalidate_not_owned_compressed_account(
     let payer_pubkey = payer.pubkey();
     let hash = compressed_account
         .compressed_account
-        .hash(
+        .hash::<Poseidon>(
             &env.merkle_tree_pubkey,
             &compressed_account.merkle_context.leaf_index,
         )
