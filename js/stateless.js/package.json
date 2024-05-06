@@ -3,9 +3,8 @@
     "version": "0.2.2",
     "description": "JavaScript API for Light and ZK Compression",
     "sideEffects": false,
-    "type": "module",
     "main": "dist/cjs/node/index.cjs",
-    "module": "dist/es/node/index.js",
+    "type": "module",
     "browser": {
         "./dist/cjs/node/index.cjs": "./dist/cjs/browser/index.cjs",
         "./dist/es/node/index.js": "./dist/es/browser/index.js"
@@ -13,7 +12,6 @@
     "types": "dist/types/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/es/node/index.js",
             "require": "./dist/cjs/node/index.cjs",
             "browser": {
                 "import": "./dist/es/browser/index.js",
