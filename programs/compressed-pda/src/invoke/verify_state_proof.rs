@@ -163,7 +163,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 }
             };
         }
-        msg!("owner: {:?}", owner_pubkey);
         leaves[j] = input_compressed_account_with_context
             .compressed_account
             .hash_with_hashed_values::<Poseidon>(
