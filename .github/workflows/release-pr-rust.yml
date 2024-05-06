@@ -7,6 +7,7 @@ on:
         required: true
         type: choice
         options:
+          - all
           - aligned-sized
           - light-bounded-vec
           - light-circuitlib-rs
@@ -17,9 +18,8 @@ on:
           - light-macros
           - light-merkle-tree-event
           - light-merkle-tree-reference
-          - light-protocol
+          - light-registry
           - light-test-utils
-          - light-user-registry
           - light-utils
           - light-wasm-hasher
           - account-compression
@@ -28,7 +28,15 @@ on:
       version:
         description: Version to release
         required: true
-        type: string
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - release
+          - rc
+          - beta
+          - alpha
 
 jobs:
   make-release-pr:
@@ -51,14 +59,45 @@ jobs:
           toolchain: stable
 
       - name: Install cargo-release
+        shell: bash
         run: |
           VERSION="$(curl --silent "https://api.github.com/repos/crate-ci/cargo-release/releases/latest" | jq -r .tag_name)"
+          pushd /tmp
           wget https://github.com/crate-ci/cargo-release/releases/download/"$VERSION"/cargo-release-"$VERSION"-x86_64-unknown-linux-gnu.tar.gz
           tar -xzvf cargo-release-"$VERSION"-x86_64-unknown-linux-gnu.tar.gz --wildcards '*cargo-release' --strip-components=1
           cp cargo-release "$HOME"/.cargo/bin
+          popd
 
-      - uses: cargo-bins/release-pr@v2
+      - name: Bump all crate versions
+        if: inputs.crate == 'all'
+        run: |
+          cargo release version --execute --no-confirm \
+            "${{ inputs.version }}"
+
+      - name: Bump crate version
+        if: inputs.crate != 'all'
+        run: |
+          cargo release version --execute --no-confirm \
+            -p "${{ inputs.crate }}" "${{ inputs.version }}"
+
+      - name: Create pull request for all crates
+        if: inputs.crate == 'all'
+        uses: peter-evans/create-pull-request@v6
+        env:
+          COMMIT_MESSAGE: "chore: Bump version of all Rust projects"
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ inputs.version }}
-          crate-name: ${{ inputs.crate }}
+          commit-message: ${{ env.COMMIT_MESSAGE }}
+          title: ${{ env.COMMIT_MESSAGE }}
+          branch: "bump-all-rust"
+          labels: "version bump"
+
+      - name: Create pull request for crate
+        if: inputs.crate != 'all'
+        uses: peter-evans/create-pull-request@v6
+        env:
+          COMMIT_MESSAGE: "chore: Bump version of Rust project ${{ inputs.crate }}"
+        with:
+          commit-message: ${{ env.COMMIT_MESSAGE }}
+          title: ${{ env.COMMIT_MESSAGE }}
+          branch: "bump-${{ inputs.crate }}"
+          labels: "version bump"

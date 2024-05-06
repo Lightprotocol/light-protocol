@@ -2,7 +2,8 @@
 name = "light-user-registry"
 version = "0.3.0"
 description = "Registry for Light Protocol users"
-license = "GPL-3.0"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

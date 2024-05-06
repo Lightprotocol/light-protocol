@@ -1,7 +1,11 @@
 [package]
 name = "light-circuitlib-rs"
 version = "0.1.0"
+description = "Crate for interacting with Light Protocol circuits"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 edition = "2021"
+
 [features]
 gnark = ["tokio", "reqwest"]
 default = ["gnark"]
@@ -9,10 +13,10 @@ default = ["gnark"]
 [dependencies]
 
 # light local deps
-light-merkle-tree-reference = { path = "../../merkle-tree/reference" }
-light-hasher = { path = "../../merkle-tree/hasher" }
-light-indexed-merkle-tree = { path = "../../merkle-tree/indexed" }
-light-utils = { path = "../../utils" }
+light-merkle-tree-reference = { path = "../../merkle-tree/reference", version = "0.1.0" }
+light-hasher = { path = "../../merkle-tree/hasher", version = "0.1.0" }
+light-indexed-merkle-tree = { path = "../../merkle-tree/indexed", version = "0.1.0" }
+light-utils = { path = "../../utils", version = "0.1.0" }
 # ark dependencies
 ark-serialize = "0.4.2"
 ark-ec = "0.4.2"
@@ -26,7 +30,7 @@ ark-crypto-primitives = { version = "0.4" }
 bytemuck = "1.14.3"
 
 # solana
-groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana.git" }
+groth16-solana = "0.0.3"
 solana-program = "1.18.11"
 num-bigint = { version = "0.4.4", features = ["serde"] }
 

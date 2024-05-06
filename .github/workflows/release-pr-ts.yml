@@ -1,0 +1,79 @@
+name: Open a TypeScript release PR
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to release
+        required: true
+        type: choice
+        options:
+          - all
+          - circuit-lib.js
+          - cli
+          - compressed-token
+          - hasher.rs
+          - prover.js
+          - stateless.js
+      version:
+        description: Version to release
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - premajor
+          - preminor
+          - prepatch
+          - prerelease
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.4.0
+        with:
+          version: 8
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Bump all package versions
+        if: inputs.package == 'all'
+        run: |
+          pnpm -r exec -- pnpm version "${{ inputs.version }}"
+
+      - name: Bump package version
+        if: inputs.package != 'all'
+        run: |
+          SUBDIR=$(grep "${{ inputs.package }}" pnpm-workspace.yaml | awk -F '"' '{gsub("/\\*\\*", "", $2); print $2}')
+          cd "$SUBDIR"
+          pnpm version ${{ inputs.version }}
+
+      - name: Create pull request for all packages
+        if: inputs.package == 'all'
+        uses: peter-evans/create-pull-request@v6
+        env:
+          COMMIT_MESSAGE: "chore: Bump version of all TypeScript projects"
+        with:
+          commit-message: ${{ env.COMMIT_MESSAGE }}
+          title: ${{ env.COMMIT_MESSAGE }}
+          branch: "bump-all-ts"
+          labels: "version bump"
+
+      - name: Create pull request for package
+        if: inputs.package != 'all'
+        uses: peter-evans/create-pull-request@v6
+        env:
+          COMMIT_MESSAGE: "chore: Bump version of TypeScript project ${{ inputs.package }}"
+        with:
+          commit-message: ${{ env.COMMIT_MESSAGE }}
+          title: ${{ env.COMMIT_MESSAGE }}
+          branch: "bump-${{ inputs.package }}"
+          labels: "version bump"
+

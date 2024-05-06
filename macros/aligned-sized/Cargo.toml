@@ -2,7 +2,8 @@
 name = "aligned-sized"
 version = "0.1.0"
 description = "A macro which ensures the alignment and calculates the size of a struct"
-license = "GPL-3.0"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

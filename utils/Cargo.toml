@@ -1,6 +1,9 @@
 [package]
 name = "light-utils"
 version = "0.1.0"
+description = "Common utility functions used in Light Protocol"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]

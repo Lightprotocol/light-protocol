@@ -1,12 +1,16 @@
 [package]
 name = "light-verifier"
 version = "0.1.0"
+description = "ZKP proof verifier used in Light Protocol"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
 edition = "2021"
+
 [features]
 solana = ["solana-program"]
 
 [dependencies]
-groth16-solana = { git = "https://github.com/Lightprotocol/groth16-solana.git", branch="master" }
+groth16-solana = "0.0.3"
 thiserror = "1.0"
 borsh = "0.10"
 solana-program = { version = "1.18.11", optional = true }
@@ -14,4 +18,4 @@ solana-program = { version = "1.18.11", optional = true }
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["rt", "macros"] }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"]  }
-light-circuitlib-rs = { path = "../circuitlib-rs" }
+light-circuitlib-rs = { path = "../circuitlib-rs", version = "0.1.0" }
