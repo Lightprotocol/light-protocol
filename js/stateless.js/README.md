@@ -11,7 +11,7 @@ Compression RPC API.
 npm install --save \
     @lightprotocol/stateless.js \
     @solana/web3.js \
-    @coral-xyz/anchor
+    @coral-xyz/anchor@0.29
 ```
 
 ### Documentation and examples

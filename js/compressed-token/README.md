@@ -12,7 +12,7 @@ npm install --save \
     @lightprotocol/compressed-token \
     @lightprotocol/stateless.js \
     @solana/web3.js \
-    @coral-xyz/anchor
+    @coral-xyz/anchor@0.29
 ```
 
 ### Documentation and examples
