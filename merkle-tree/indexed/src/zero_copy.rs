@@ -505,7 +505,7 @@ mod test {
         mt.merkle_tree.init().unwrap();
 
         assert_eq!(
-            mt.merkle_tree.merkle_tree.root().unwrap(),
+            mt.merkle_tree.merkle_tree.root(),
             [
                 31, 216, 114, 222, 104, 109, 25, 228, 3, 94, 104, 27, 124, 142, 79, 197, 7, 102,
                 233, 55, 135, 141, 70, 48, 130, 255, 202, 209, 122, 217, 210, 162

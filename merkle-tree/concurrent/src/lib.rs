@@ -93,6 +93,9 @@ where
         if changelog_size == 0 {
             return Err(ConcurrentMerkleTreeError::ChangelogZero);
         }
+        if roots_size == 0 {
+            return Err(ConcurrentMerkleTreeError::RootsZero);
+        }
         Ok(Self {
             height,
 
@@ -374,6 +377,9 @@ where
         if tree.changelog_capacity == 0 {
             return Err(ConcurrentMerkleTreeError::ChangelogZero);
         }
+        if tree.roots_capacity == 0 {
+            return Err(ConcurrentMerkleTreeError::RootsZero);
+        }
 
         // Restore the vectors correctly, by pointing them to the appropriate
         // byte slices as underlying data. The most unsafe part of this code.
@@ -562,6 +568,9 @@ where
         if changelog_size == 0 {
             return Err(ConcurrentMerkleTreeError::ChangelogZero);
         }
+        if roots_size == 0 {
+            return Err(ConcurrentMerkleTreeError::RootsZero);
+        }
 
         let tree = ConcurrentMerkleTree::struct_from_bytes_mut(bytes_struct)?;
 
@@ -720,11 +729,10 @@ where
     }
 
     /// Returns the current root.
-    pub fn root(&self) -> Result<[u8; 32], ConcurrentMerkleTreeError> {
-        self.roots
-            .get(self.root_index())
-            .ok_or(ConcurrentMerkleTreeError::RootHigherThanMax)
-            .copied()
+    pub fn root(&self) -> [u8; 32] {
+        // PANICS: This should never happen - there is always a root in the
+        // tree and `self.root_index()` should always point to an existing index.
+        self.roots[self.root_index()]
     }
 
     pub fn current_index(&self) -> usize {
@@ -783,10 +791,9 @@ where
         changelog_index: usize,
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
-        allow_updates_changelog: bool,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         for changelog_entry in self.changelog.iter_from(changelog_index) {
-            changelog_entry.update_proof(leaf_index, proof, allow_updates_changelog)?;
+            changelog_entry.update_proof(leaf_index, proof)?;
         }
 
         Ok(())
@@ -801,7 +808,7 @@ where
         leaf_index: usize,
         proof: &BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
-        let expected_root = self.root()?;
+        let expected_root = self.root();
         let computed_root = compute_root::<H>(leaf, leaf_index, proof)?;
         if computed_root == expected_root {
             Ok(())
@@ -854,7 +861,7 @@ where
 
         // Check if the leaf is the last leaf in the tree.
         if self.next_index() < (1 << self.height) {
-            changelog_entry.update_proof(self.next_index(), &mut self.filled_subtrees, false)?;
+            changelog_entry.update_proof(self.next_index(), &mut self.filled_subtrees)?;
             // Check if we updated the rightmost leaf.
             if leaf_index >= self.current_index() {
                 self.rightmost_leaf = *new_leaf;
@@ -876,7 +883,6 @@ where
         new_leaf: &[u8; 32],
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
-        allow_updates_changelog: bool,
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         let expected_proof_len = self.height - self.canopy_depth;
         if proof.len() != expected_proof_len {
@@ -893,12 +899,7 @@ where
             self.update_proof_from_canopy(leaf_index, proof)?;
         }
         if self.changelog_capacity > 0 && changelog_index != self.changelog_index() {
-            self.update_proof_from_changelog(
-                changelog_index,
-                leaf_index,
-                proof,
-                allow_updates_changelog,
-            )?;
+            self.update_proof_from_changelog(changelog_index, leaf_index, proof)?;
         }
         self.validate_proof(old_leaf, leaf_index, proof)?;
         self.update_leaf_in_tree(new_leaf, leaf_index, proof)
@@ -914,6 +915,9 @@ where
         &mut self,
         leaves: &[&[u8; 32]],
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
+        if leaves.is_empty() {
+            return Err(ConcurrentMerkleTreeError::EmptyLeaves);
+        }
         if (self.next_index + leaves.len() - 1) >= 1 << self.height {
             return Err(ConcurrentMerkleTreeError::TreeFull);
         }

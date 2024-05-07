@@ -61,21 +61,10 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         &self,
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
-        _allow_updates_in_changelog: bool,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if leaf_index != self.index() {
             let intersection_index = self.intersection_index(leaf_index);
             proof[intersection_index] = self.path[intersection_index];
-        } else {
-            // This case means that the leaf we are trying to update was
-            // already updated. Therefore, updating the proof is impossible.
-            // We need to return an error and request the caller
-            // to retry the update with a new proof.
-            //
-            // TODO(vadorovsky): Re-visit optional throwing of this error.
-            // if !allow_updates_in_changelog {
-            //     return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
-            // }
         }
 
         Ok(())
