@@ -19,8 +19,6 @@ pub enum HashSetError {
     ElementAlreadyExists,
     #[error("The provided element doesn't exist in the hash set")]
     ElementDoesNotExist,
-    #[error("The hash set is empty")]
-    Empty,
     #[error("Could not convert the index from/to usize")]
     UsizeConv,
     #[error("Integer overflow")]
@@ -38,10 +36,9 @@ impl From<HashSetError> for u32 {
             HashSetError::Full => 6001,
             HashSetError::ElementAlreadyExists => 6002,
             HashSetError::ElementDoesNotExist => 6003,
-            HashSetError::Empty => 6004,
-            HashSetError::UsizeConv => 6005,
-            HashSetError::IntegerOverflow => 6006,
-            HashSetError::BufferSize(_, _) => 6007,
+            HashSetError::UsizeConv => 6004,
+            HashSetError::IntegerOverflow => 6005,
+            HashSetError::BufferSize(_, _) => 6006,
             HashSetError::Utils(e) => e.into(),
         }
     }
@@ -960,6 +957,50 @@ mod test {
         // the same nullifiers.
         for (seq, nullifier) in nullifiers.iter().enumerate() {
             hs.insert(&nullifier, 2400 + seq as usize).unwrap();
+        }
+    }
+
+    #[test]
+    fn test_hash_set_full() {
+        let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
+
+        let mut rng = thread_rng();
+
+        // The moment of filling up the hash set is not deterministic - it
+        // depends on how well spread the random values are.
+        // What's important in this test is reaching the `Full` error (and not
+        // any other variant) at some point and correctness of all previous
+        // operations.
+        for _ in 0..5000 {
+            let value = BigUint::from(Fr::rand(&mut rng));
+            match hs.insert(&value, 0) {
+                Ok(_) => {
+                    assert!(hs.contains(&value, 0).unwrap());
+                }
+                Err(e) => {
+                    assert!(matches!(e, HashSetError::Full));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_hash_set_element_does_not_exist() {
+        let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
+
+        let mut rng = thread_rng();
+
+        for _ in 0..1000 {
+            let value = BigUint::from(Fr::rand(&mut rng));
+
+            // Assert `ElementDoesNotExist` error.
+            let res = hs.mark_with_sequence_number(&value, 0);
+            assert!(matches!(res, Err(HashSetError::ElementDoesNotExist)));
+
+            // After actually appending the value, the same operation should be
+            // possible
+            hs.insert(&value, 0).unwrap();
+            hs.mark_with_sequence_number(&value, 1).unwrap();
         }
     }
 }
