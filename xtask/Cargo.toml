@@ -1,19 +1,19 @@
 [package]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-account-compression = { path = "../programs/account-compression", version = "0.3.1" }
+account-compression = { path = "../programs/account-compression", version = "0.3.2" }
 anyhow = "1.0"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
-light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.1.0" }
-light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.0" }
-light-hasher = { path = "../merkle-tree/hasher", version = "0.1.0" }
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.0" }
-light-utils = { path = "../utils", version = "0.1.0" }
+light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.1.1" }
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.1" }
+light-hasher = { path = "../merkle-tree/hasher", version = "0.1.1" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.1" }
+light-utils = { path = "../utils", version = "0.1.1" }
 quote = "1.0"
 sha2 = "0.10"
 solana-program = "1.18.11"
