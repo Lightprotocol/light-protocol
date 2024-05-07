@@ -1,6 +1,6 @@
 use std::mem;
 
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec, Pod};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
 };
@@ -13,18 +13,10 @@ use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree, RawIndexedElement
 pub struct IndexedMerkleTreeZeroCopy<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    pub merkle_tree: &'a IndexedMerkleTree<'a, H, I, HEIGHT>,
+    pub merkle_tree: &'a IndexedMerkleTree<H, I, HEIGHT>,
 }
 
 pub type IndexedMerkleTreeZeroCopy22<'a, H, I> = IndexedMerkleTreeZeroCopy<'a, H, I, 22>;
@@ -35,15 +27,7 @@ pub type IndexedMerkleTreeZeroCopy40<'a, H, I> = IndexedMerkleTreeZeroCopy<'a, H
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
@@ -64,7 +48,7 @@ where
     pub unsafe fn struct_from_bytes_zero_copy(
         bytes_struct: &'a [u8],
     ) -> Result<Self, IndexedMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<IndexedMerkleTree<'a, H, I, HEIGHT>>();
+        let expected_bytes_struct_size = mem::size_of::<IndexedMerkleTree<H, I, HEIGHT>>();
         if bytes_struct.len() != expected_bytes_struct_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::StructBufferSize(
@@ -73,7 +57,7 @@ where
                 ),
             ));
         }
-        let tree: *const IndexedMerkleTree<'a, H, I, HEIGHT> = bytes_struct.as_ptr() as _;
+        let tree: *const IndexedMerkleTree<H, I, HEIGHT> = bytes_struct.as_ptr() as _;
 
         Ok(Self {
             merkle_tree: &*tree,
@@ -163,16 +147,15 @@ where
                 ),
             ));
         }
-        tree.merkle_tree.merkle_tree.roots =
-            ConcurrentMerkleTree::<'a, H, HEIGHT>::roots_from_bytes(
-                bytes_roots,
-                tree.merkle_tree.merkle_tree.roots.len(),
-                tree.merkle_tree.merkle_tree.roots.capacity(),
-                tree.merkle_tree.merkle_tree.roots.first_index(),
-                tree.merkle_tree.merkle_tree.roots.last_index(),
-            )?;
+        tree.merkle_tree.merkle_tree.roots = ConcurrentMerkleTree::<H, HEIGHT>::roots_from_bytes(
+            bytes_roots,
+            tree.merkle_tree.merkle_tree.roots.len(),
+            tree.merkle_tree.merkle_tree.roots.capacity(),
+            tree.merkle_tree.merkle_tree.roots.first_index(),
+            tree.merkle_tree.merkle_tree.roots.last_index(),
+        )?;
 
-        let canopy_size = ConcurrentMerkleTree::<'a, H, HEIGHT>::canopy_size(
+        let canopy_size = ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(
             tree.merkle_tree.merkle_tree.canopy_depth,
         );
         let expected_canopy_size = mem::size_of::<[u8; 32]>() * canopy_size;
@@ -213,18 +196,10 @@ where
 pub struct IndexedMerkleTreeZeroCopyMut<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    pub merkle_tree: &'a mut IndexedMerkleTree<'a, H, I, HEIGHT>,
+    pub merkle_tree: &'a mut IndexedMerkleTree<H, I, HEIGHT>,
 }
 
 pub type IndexedMerkleTreeZeroCopyMut22<'a, H, I> = IndexedMerkleTreeZeroCopyMut<'a, H, I, 22>;
@@ -235,15 +210,7 @@ pub type IndexedMerkleTreeZeroCopyMut40<'a, H, I> = IndexedMerkleTreeZeroCopyMut
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure mutable
@@ -264,7 +231,7 @@ where
     pub unsafe fn struct_from_bytes_zero_copy_mut(
         bytes_struct: &'a [u8],
     ) -> Result<Self, IndexedMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<IndexedMerkleTree<'a, H, I, HEIGHT>>();
+        let expected_bytes_struct_size = mem::size_of::<IndexedMerkleTree<H, I, HEIGHT>>();
         if bytes_struct.len() != expected_bytes_struct_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::StructBufferSize(
@@ -273,7 +240,7 @@ where
                 ),
             ));
         }
-        let tree: *mut IndexedMerkleTree<'a, H, I, HEIGHT> = bytes_struct.as_ptr() as _;
+        let tree: *mut IndexedMerkleTree<H, I, HEIGHT> = bytes_struct.as_ptr() as _;
 
         Ok(Self {
             merkle_tree: &mut *tree,
@@ -449,7 +416,7 @@ where
             tree.merkle_tree.merkle_tree.roots.capacity(),
             tree.merkle_tree.merkle_tree.roots.first_index(),
             tree.merkle_tree.merkle_tree.roots.last_index(),
-            ConcurrentMerkleTree::<'a, H, HEIGHT>::canopy_size(
+            ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(
                 tree.merkle_tree.merkle_tree.canopy_depth,
             ),
             bytes_indexed_changelog,
@@ -471,7 +438,7 @@ mod test {
 
     #[test]
     fn test_from_bytes_zero_copy_init() {
-        let mut bytes_struct = [0u8; 320];
+        let mut bytes_struct = [0u8; 280];
         let mut bytes_filled_subtrees = [0u8; 832];
         let mut bytes_changelog = [0u8; 1220800];
         let mut bytes_roots = [0u8; 76800];

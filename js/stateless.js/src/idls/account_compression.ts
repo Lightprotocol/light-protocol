@@ -785,7 +785,7 @@ export type AccountCompression = {
                     {
                         name: 'merkleTreeStruct';
                         type: {
-                            array: ['u8', 320];
+                            array: ['u8', 280];
                         };
                     },
                     {
@@ -893,7 +893,7 @@ export type AccountCompression = {
                         name: 'stateMerkleTreeStruct';
                         docs: ['Merkle tree for the transaction state.'];
                         type: {
-                            array: ['u8', 272];
+                            array: ['u8', 240];
                         };
                     },
                     {
@@ -1045,6 +1045,15 @@ export type AccountCompression = {
                 kind: 'alias';
                 value: {
                     defined: 'NullifierQueueConfig';
+                };
+            };
+        },
+        {
+            name: 'StateMerkleTree';
+            type: {
+                kind: 'alias';
+                value: {
+                    defined: 'ConcurrentMerkleTree26<Poseidon>';
                 };
             };
         },
@@ -1975,7 +1984,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'merkleTreeStruct',
                         type: {
-                            array: ['u8', 320],
+                            array: ['u8', 280],
                         },
                     },
                     {
@@ -2083,7 +2092,7 @@ export const IDL: AccountCompression = {
                         name: 'stateMerkleTreeStruct',
                         docs: ['Merkle tree for the transaction state.'],
                         type: {
-                            array: ['u8', 272],
+                            array: ['u8', 240],
                         },
                     },
                     {
@@ -2235,6 +2244,15 @@ export const IDL: AccountCompression = {
                 kind: 'alias',
                 value: {
                     defined: 'NullifierQueueConfig',
+                },
+            },
+        },
+        {
+            name: 'StateMerkleTree',
+            type: {
+                kind: 'alias',
+                value: {
+                    defined: 'ConcurrentMerkleTree26<Poseidon>',
                 },
             },
         },

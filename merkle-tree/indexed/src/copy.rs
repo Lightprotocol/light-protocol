@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, mem, slice};
 
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec, Pod};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
 };
@@ -10,39 +10,21 @@ use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree, RawIndexedElement};
 
 #[derive(Debug)]
-pub struct IndexedMerkleTreeCopy<'a, H, I, const HEIGHT: usize>(
-    pub IndexedMerkleTree<'a, H, I, HEIGHT>,
-)
+pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize>(pub IndexedMerkleTree<H, I, HEIGHT>)
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>;
 
-pub type IndexedMerkleTreeCopy22<'a, H, I> = IndexedMerkleTreeCopy<'a, H, I, 22>;
-pub type IndexedMerkleTreeCopy26<'a, H, I> = IndexedMerkleTreeCopy<'a, H, I, 26>;
-pub type IndexedMerkleTreeCopy32<'a, H, I> = IndexedMerkleTreeCopy<'a, H, I, 32>;
-pub type IndexedMerkleTreeCopy40<'a, H, I> = IndexedMerkleTreeCopy<'a, H, I, 40>;
+pub type IndexedMerkleTreeCopy22<H, I> = IndexedMerkleTreeCopy<H, I, 22>;
+pub type IndexedMerkleTreeCopy26<H, I> = IndexedMerkleTreeCopy<H, I, 26>;
+pub type IndexedMerkleTreeCopy32<H, I> = IndexedMerkleTreeCopy<H, I, 32>;
+pub type IndexedMerkleTreeCopy40<H, I> = IndexedMerkleTreeCopy<H, I, 40>;
 
-impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeCopy<'a, H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize> IndexedMerkleTreeCopy<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
@@ -66,9 +48,9 @@ where
         bytes_changelog: &[u8],
         bytes_roots: &[u8],
         bytes_canopy: &[u8],
-        bytes_indexed_changelog: &'a [u8],
+        bytes_indexed_changelog: &[u8],
     ) -> Result<Self, IndexedMerkleTreeError> {
-        let expected_bytes_struct_size = mem::size_of::<IndexedMerkleTree<'a, H, I, HEIGHT>>();
+        let expected_bytes_struct_size = mem::size_of::<IndexedMerkleTree<H, I, HEIGHT>>();
         if bytes_struct.len() != expected_bytes_struct_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::StructBufferSize(
@@ -77,7 +59,7 @@ where
                 ),
             ));
         }
-        let struct_ref: *mut IndexedMerkleTree<'a, H, I, HEIGHT> = bytes_struct.as_ptr() as _;
+        let struct_ref: *mut IndexedMerkleTree<H, I, HEIGHT> = bytes_struct.as_ptr() as _;
 
         let mut merkle_tree = unsafe {
             ConcurrentMerkleTree {

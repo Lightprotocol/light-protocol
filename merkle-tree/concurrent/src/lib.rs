@@ -32,7 +32,7 @@ use crate::{
 // const generic here is that removing it would require keeping a `BoundecVec`
 // inside `CyclicBoundedVec`. Casting byte slices to such nested vector is not
 // a trivial task, but we might eventually do it at some point.
-pub struct ConcurrentMerkleTree<'a, H, const HEIGHT: usize>
+pub struct ConcurrentMerkleTree<H, const HEIGHT: usize>
 where
     H: Hasher,
 {
@@ -53,23 +53,23 @@ where
     pub rightmost_leaf: [u8; 32],
 
     /// Hashes of subtrees.
-    pub filled_subtrees: BoundedVec<'a, [u8; 32]>,
+    pub filled_subtrees: BoundedVec<[u8; 32]>,
     /// History of Merkle proofs.
-    pub changelog: CyclicBoundedVec<'a, ChangelogEntry<HEIGHT>>,
+    pub changelog: CyclicBoundedVec<ChangelogEntry<HEIGHT>>,
     /// History of roots.
-    pub roots: CyclicBoundedVec<'a, [u8; 32]>,
+    pub roots: CyclicBoundedVec<[u8; 32]>,
     /// Cached upper nodes.
-    pub canopy: BoundedVec<'a, [u8; 32]>,
+    pub canopy: BoundedVec<[u8; 32]>,
 
     pub _hasher: PhantomData<H>,
 }
 
-pub type ConcurrentMerkleTree22<'a, H> = ConcurrentMerkleTree<'a, H, 22>;
-pub type ConcurrentMerkleTree26<'a, H> = ConcurrentMerkleTree<'a, H, 26>;
-pub type ConcurrentMerkleTree32<'a, H> = ConcurrentMerkleTree<'a, H, 32>;
-pub type ConcurrentMerkleTree40<'a, H> = ConcurrentMerkleTree<'a, H, 40>;
+pub type ConcurrentMerkleTree22<H> = ConcurrentMerkleTree<H, 22>;
+pub type ConcurrentMerkleTree26<H> = ConcurrentMerkleTree<H, 26>;
+pub type ConcurrentMerkleTree32<H> = ConcurrentMerkleTree<H, 32>;
+pub type ConcurrentMerkleTree40<H> = ConcurrentMerkleTree<H, 40>;
 
-impl<'a, H, const HEIGHT: usize> ConcurrentMerkleTree<'a, H, HEIGHT>
+impl<'a, H, const HEIGHT: usize> ConcurrentMerkleTree<H, HEIGHT>
 where
     H: Hasher,
 {
