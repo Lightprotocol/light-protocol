@@ -1,5 +1,5 @@
 export type LightUserRegistry = {
-    version: '0.3.0';
+    version: '0.3.1';
     name: 'light_user_registry';
     instructions: [
         {
@@ -68,7 +68,7 @@ export type LightUserRegistry = {
 };
 
 export const IDL: LightUserRegistry = {
-    version: '0.3.0',
+    version: '0.3.1',
     name: 'light_user_registry',
     instructions: [
         {

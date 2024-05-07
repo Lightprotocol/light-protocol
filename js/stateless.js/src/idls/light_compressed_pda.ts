@@ -1,5 +1,5 @@
 export type LightCompressedPda = {
-    version: '0.3.0';
+    version: '0.3.1';
     name: 'light_compressed_pda';
     constants: [
         {
@@ -835,7 +835,7 @@ export type LightCompressedPda = {
 };
 
 export const IDL: LightCompressedPda = {
-    version: '0.3.0',
+    version: '0.3.1',
     name: 'light_compressed_pda',
     constants: [
         {
