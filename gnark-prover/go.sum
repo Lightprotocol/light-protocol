@@ -445,6 +445,8 @@ golang.org/x/telemetry v0.0.0-20240405141642-5e7a33625e65 h1:2YD4MqNQYEQlI4t931P
 golang.org/x/telemetry v0.0.0-20240405141642-5e7a33625e65/go.mod h1:W6pterlIx28wS98MzYROSpZ8u12XJW5a0ZVeaJ6pfSo=
 golang.org/x/telemetry v0.0.0-20240505125901-fe7049821727 h1:pcYZXUGMO26lhetoNj7fRJY2iJTwQFLqlC8TNibBAzs=
 golang.org/x/telemetry v0.0.0-20240505125901-fe7049821727/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+golang.org/x/telemetry v0.0.0-20240507150523-279072785af5 h1:zFQWkRwC+EyXtRREL8K8h7raUgJeU9jiQmUt9tQVxm0=
+golang.org/x/telemetry v0.0.0-20240507150523-279072785af5/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
 golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=

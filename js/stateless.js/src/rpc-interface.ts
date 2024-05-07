@@ -200,7 +200,7 @@ export const CompressedAccountResult = pick({
     leafIndex: number(),
     tree: PublicKeyFromString,
     seq: nullable(BNFromInt),
-    slotUpdated: BNFromInt,
+    slotCreated: BNFromInt,
 });
 
 export const TokenDataResult = pick({
