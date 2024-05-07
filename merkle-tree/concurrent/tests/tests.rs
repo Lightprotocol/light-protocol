@@ -9,8 +9,11 @@ use light_concurrent_merkle_tree::{
 };
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use light_merkle_tree_reference::store::Store;
-use rand::thread_rng;
+use num_bigint::BigUint;
+use num_traits::FromBytes;
+use rand::{thread_rng, Rng};
 use solana_program::pubkey::Pubkey;
+use light_hash_set::HashSet;
 
 /// Tests whether append operations work as expected.
 fn append<H, const CANOPY: usize>()
@@ -1210,5 +1213,66 @@ fn test_changelog_event_v1() {
                 assert_eq!(index, changelog_event.index);
             }
         }
+    }
+}
+
+#[test]
+pub fn test_100_nullify_mt() {
+    for iterations in 1..100 {
+        println!("iteration: {:?}", iterations);
+        let mut crank_merkle_tree =
+            light_merkle_tree_reference::MerkleTree::<light_hasher::Poseidon>::new(26, 10);
+        let mut onchain_merkle_tree =
+            ConcurrentMerkleTree::<Poseidon, 26>::new(26, 10, 10, 10).unwrap();
+        onchain_merkle_tree.init().unwrap();
+        assert_eq!(
+            onchain_merkle_tree.root().unwrap(),
+            crank_merkle_tree.root()
+        );
+       
+        let mut queue = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
+        for i in 1..1 + iterations {
+            let mut leaf = [0; 32];
+            leaf[31] = i as u8;
+            // onchain this is equivalent to append state (compressed pda program)
+            onchain_merkle_tree.append(&leaf).unwrap();
+            crank_merkle_tree.append(&leaf).unwrap();
+            // onchain the equivalent is nullify state (compressed pda program)
+            queue.insert(&BigUint::from_be_bytes(&leaf), 1).unwrap();
+        }
+        assert_eq!(
+            onchain_merkle_tree.root().unwrap(),
+            crank_merkle_tree.root()
+        );
+
+        let mut rng = rand::thread_rng();
+        let change_log_index = onchain_merkle_tree.changelog_index();
+
+        let mut nullified_leaf_indices = vec![0];
+        for _ in 1..std::cmp::min(9, iterations) {
+            let mut leaf = [0u8; 32];
+            let mut leaf_index = 0;
+            while nullified_leaf_indices.contains(&leaf_index) {
+                let index = rng.gen_range(0..std::cmp::min(9, iterations));
+                leaf = queue.by_value_index(index, None).unwrap().value_bytes();
+                leaf_index = crank_merkle_tree.get_leaf_index(&leaf).unwrap().clone();
+            }
+
+            nullified_leaf_indices.push(leaf_index);
+            let mut proof0 = crank_merkle_tree
+                .get_proof_of_leaf(leaf_index, false)
+                .unwrap();
+            onchain_merkle_tree
+                .update(change_log_index, &leaf, &[0u8; 32], leaf_index, &mut proof0, false)
+                .unwrap();
+        }
+        nullified_leaf_indices.remove(0);
+        for leaf_index in nullified_leaf_indices {
+            crank_merkle_tree.update(&[0; 32], leaf_index).unwrap();
+        }
+        assert_eq!(
+            onchain_merkle_tree.root().unwrap(),
+            crank_merkle_tree.root()
+        );
     }
 }

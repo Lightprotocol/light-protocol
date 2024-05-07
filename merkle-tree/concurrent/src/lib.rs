@@ -769,13 +769,26 @@ where
     ) -> Result<(), ConcurrentMerkleTreeError> {
         if self.changelog_capacity > 1 {
             let mut i = changelog_index;
-
             let lower_range = i;
-            let upper_range = i + self.changelog_length + 1;
+
+            // To update a proof we need to ensure that we iterate over the range of
+            // all changelogs that were created since the provided changelog index.
+            // For the edge case that changelog index is less than provided index
+            // we need to add the changelog length to get the desired number of iterations.
+            // Example: changelog index = 2, provided index = 3, changelog length = 3
+            // should iterate over changelogs 0, 1, 2
+            // -> lower range = 3, upper range = 6
+
+            let upper_range = if self.changelog_index() + 1 < i {
+                self.changelog_length + self.changelog_index() + 1
+            } else {
+                self.changelog_index() + 1
+            };
+
             for _ in lower_range..upper_range {
                 self.changelog[i].update_proof(leaf_index, proof, allow_updates_changelog)?;
                 i = (i + 1) % self.changelog_length;
-            }
+            }            
         } else {
             self.changelog[0].update_proof(leaf_index, proof, allow_updates_changelog)?;
         }
@@ -883,7 +896,7 @@ where
         if self.canopy_depth > 0 {
             self.update_proof_from_canopy(leaf_index, proof)?;
         }
-        if self.changelog_capacity > 0 {
+        if self.changelog_capacity > 0 && changelog_index != self.changelog_index() {
             self.update_proof_from_changelog(
                 changelog_index,
                 leaf_index,
