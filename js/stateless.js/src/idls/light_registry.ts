@@ -1,5 +1,5 @@
 export type LightRegistry = {
-    version: '0.3.0';
+    version: '0.3.1';
     name: 'light_registry';
     constants: [
         {
@@ -191,7 +191,7 @@ export type LightRegistry = {
 };
 
 export const IDL: LightRegistry = {
-    version: '0.3.0',
+    version: '0.3.1',
     name: 'light_registry',
     constants: [
         {
