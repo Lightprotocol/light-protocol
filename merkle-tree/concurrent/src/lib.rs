@@ -987,7 +987,7 @@ where
                 .next_index
                 .checked_add(1)
                 .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
-            self.rightmost_leaf = leaf.to_owned().to_owned();
+            leaf.to_owned().clone_into(&mut self.rightmost_leaf);
         }
 
         if self.canopy_depth > 0 {
