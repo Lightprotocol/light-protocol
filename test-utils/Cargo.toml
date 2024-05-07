@@ -36,6 +36,7 @@ light-merkle-tree-reference = { version = "0.1.1", path = "../merkle-tree/refere
 anchor-spl = "0.29.0"
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.1.1" }
 light-verifier = { path = "../circuit-lib/verifier", version = "0.1.1" }
+light-concurrent-merkle-tree = { version = "0.1.1", path = "../merkle-tree/concurrent" }
 
 [dev-dependencies]
 rand = "0.8"

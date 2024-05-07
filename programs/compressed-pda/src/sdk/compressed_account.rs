@@ -42,7 +42,7 @@ pub fn pack_merkle_context(
             nullifier_queue_pubkey_index: 0, // will be assigned later
         })
         .collect::<Vec<PackedMerkleContext>>();
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&params.merkle_tree_pubkey) {
             Some(_) => {}
@@ -54,7 +54,7 @@ pub fn pack_merkle_context(
             *remaining_accounts.get(&params.merkle_tree_pubkey).unwrap() as u8;
     }
 
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&params.nullifier_queue_pubkey) {
             Some(_) => {}

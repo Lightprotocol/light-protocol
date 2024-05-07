@@ -468,7 +468,7 @@ pub mod transfer_sdk {
         token_pool_pda: Option<Pubkey>,
         decompress_token_account: Option<Pubkey>,
     ) -> Result<Instruction, TransferSdkError> {
-        let (remaining_accounts, inputs_struct) = create_inputs_and_remaining_accounts(
+        let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
             input_merkle_context,
             output_compressed_account_merkle_tree_pubkeys,
@@ -481,6 +481,16 @@ pub mod transfer_sdk {
             compression_amount,
         );
         let remaining_accounts = to_account_metas(remaining_accounts);
+        println!(
+            "output merkle tree pubkeys: {:?}",
+            output_compressed_account_merkle_tree_pubkeys
+        );
+        println!("remaining accounts: {:?}", remaining_accounts);
+        println!("input: {:?}", inputs_struct);
+        // TODO: this is necessary for automated tests, outputcompressed accounts need to be sorted as well
+        inputs_struct
+            .output_state_merkle_tree_account_indices
+            .sort();
         let mut inputs = Vec::new();
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
@@ -624,13 +634,14 @@ pub mod transfer_sdk {
             };
             input_token_data_with_context.push(token_data_with_context);
         }
-        let len: usize = remaining_accounts.len();
+
         for (i, _) in input_token_data.iter().enumerate() {
             match remaining_accounts.get(&input_merkle_context[i].nullifier_queue_pubkey) {
                 Some(_) => {}
                 None => {
                     remaining_accounts
-                        .insert(input_merkle_context[i].nullifier_queue_pubkey, i + len);
+                        .insert(input_merkle_context[i].nullifier_queue_pubkey, index);
+                    index += 1;
                 }
             };
             input_token_data_with_context[i]
@@ -639,9 +650,9 @@ pub mod transfer_sdk {
                 .get(&input_merkle_context[i].nullifier_queue_pubkey)
                 .unwrap() as u8;
         }
-        let len: usize = remaining_accounts.len();
+
         let mut output_state_merkle_tree_account_indices: Vec<u8> =
-            vec![0u8; output_compressed_account_merkle_tree_pubkeys.len()];
+            vec![0u8; output_compressed_accounts.len()];
         for (i, mt) in output_compressed_account_merkle_tree_pubkeys
             .iter()
             .enumerate()
@@ -649,7 +660,8 @@ pub mod transfer_sdk {
             match remaining_accounts.get(mt) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(*mt, i + len);
+                    remaining_accounts.insert(*mt, index);
+                    index += 1;
                 }
             };
             output_state_merkle_tree_account_indices[i] =

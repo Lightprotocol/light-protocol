@@ -119,13 +119,13 @@ pub async fn airdrop_lamports(
     // Create a transfer instruction
     let transfer_instruction =
         system_instruction::transfer(&banks_client.payer.pubkey(), destination_pubkey, lamports);
-
+    let block_hash = banks_client.get_new_latest_blockhash().await.unwrap();
     // Create and sign a transaction
     let transaction = Transaction::new_signed_with_payer(
         &[transfer_instruction],
         Some(&banks_client.payer.pubkey()),
         &vec![&banks_client.payer],
-        banks_client.last_blockhash,
+        block_hash,
     );
 
     // Send the transaction

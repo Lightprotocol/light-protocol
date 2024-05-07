@@ -191,7 +191,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
                 &hashed_merkle_tree,
                 &output_compressed_account_indices[j],
             )?;
-        instruction_data.extend_from_slice(&[current_index]);
+        // There are
+        instruction_data.extend_from_slice(&[(account_infos.len() - 6) as u8]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
 

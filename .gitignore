@@ -77,3 +77,4 @@ node_modules
 light-zk.js
 /cli/.crates2.json
 /cli/.crates.toml
+test-programs/rnd-inf-test/**/*.txt

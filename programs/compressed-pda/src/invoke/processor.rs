@@ -186,6 +186,11 @@ pub fn process<
 
     // emit state transition event ---------------------------------------------------
     bench_sbf_start!("emit_state_transition_event");
+    msg!(
+        "input_compressed_account_hashes {:?}",
+        input_compressed_account_hashes
+    );
+    msg!("output leaf indices {:?}", output_leaf_indices);
     emit_state_transition_event(
         inputs,
         &ctx,

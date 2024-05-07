@@ -11,6 +11,7 @@ use crate::{
     RegisteredProgram, StateMerkleTreeAccount,
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use light_heap::BumpAllocator;
 use num_bigint::BigUint;
 
 #[derive(Accounts)]
@@ -96,11 +97,15 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             light_heap::bench_sbf_end!("acp_prep_insertion");
             light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
             for element in queue_bundle.elements.iter() {
+                #[cfg(target_os = "solana")]
+                let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
                 let element = BigUint::from_bytes_be(element.as_slice());
                 msg!("Inserting element {:?} into nullifier queue", element);
                 indexed_array
                     .insert(&element, sequence_number)
                     .map_err(ProgramError::from)?;
+                #[cfg(target_os = "solana")]
+                light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
             }
             light_heap::bench_sbf_end!("acp_insert_nf_into_queue");
         }

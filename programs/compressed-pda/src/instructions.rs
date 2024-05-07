@@ -305,7 +305,7 @@ pub fn pack_new_address_params(
             address_queue_account_index: 0,       // will be assigned later
         })
         .collect::<Vec<NewAddressParamsPacked>>();
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
             Some(_) => {}
@@ -319,7 +319,7 @@ pub fn pack_new_address_params(
             as u8;
     }
 
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_queue_pubkey) {
             Some(_) => {}

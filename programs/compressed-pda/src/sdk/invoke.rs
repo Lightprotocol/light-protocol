@@ -65,7 +65,7 @@ pub fn create_invoke_instruction(
             },
         });
     }
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, context) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&context.nullifier_queue_pubkey) {
             Some(_) => {}
@@ -79,7 +79,7 @@ pub fn create_invoke_instruction(
             .get(&context.nullifier_queue_pubkey)
             .unwrap() as u8;
     }
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     let mut output_state_merkle_tree_account_indices: Vec<u8> = Vec::<u8>::new();
 
     for (i, mt) in output_compressed_account_merkle_tree_pubkeys
@@ -94,7 +94,7 @@ pub fn create_invoke_instruction(
         };
         output_state_merkle_tree_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
     }
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
             Some(_) => {}
@@ -108,7 +108,7 @@ pub fn create_invoke_instruction(
             as u8;
     }
 
-    let len: usize = remaining_accounts.len();
+    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_queue_pubkey) {
             Some(_) => {}
