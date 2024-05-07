@@ -84,7 +84,20 @@ where
         // Make sure that alignment of `indices` matches the alignment of `usize`.
         let indices_size = indices_size_unaligned + mem::align_of::<usize>()
             - (indices_size_unaligned % mem::align_of::<usize>());
+
+        let expected_size = HashSet::<I>::non_dyn_fields_size() + indices_size;
+        if bytes.len() < expected_size {
+            return Err(HashSetError::BufferSize(expected_size, bytes.len()));
+        }
+
         let indices = NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<I>).unwrap();
+
+        let values_size = mem::size_of::<Option<HashSetCell>>() * capacity_values;
+
+        let expected_size = HashSet::<I>::non_dyn_fields_size() + indices_size + values_size;
+        if bytes.len() < expected_size {
+            return Err(HashSetError::BufferSize(expected_size, bytes.len()));
+        }
 
         let offset = offset + indices_size;
         let values =
@@ -311,5 +324,24 @@ mod test {
                 assert_eq!(hs.contains(nullifier, 2400 + seq as usize).unwrap(), true);
             }
         }
+    }
+
+    #[test]
+    fn test_buffer_size_error() {
+        const INDICES: usize = 6857;
+        const VALUES: usize = 4800;
+        const SEQUENCE_THRESHOLD: usize = 2400;
+
+        let mut invalid_bytes = vec![0_u8; 256];
+
+        let res = unsafe {
+            HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
+                invalid_bytes.as_mut_slice(),
+                INDICES,
+                VALUES,
+                SEQUENCE_THRESHOLD,
+            )
+        };
+        assert!(matches!(res, Err(HashSetError::BufferSize(_, _))));
     }
 }
