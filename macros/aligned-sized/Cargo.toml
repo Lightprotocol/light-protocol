@@ -1,6 +1,6 @@
 [package]
 name = "aligned-sized"
-version = "0.1.0"
+version = "0.1.1"
 description = "A macro which ensures the alignment and calculates the size of a struct"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"

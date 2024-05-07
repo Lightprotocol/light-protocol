@@ -1,6 +1,6 @@
 [package]
 name = "light-hash-set"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hash set which can be stored on a Solana account"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -10,8 +10,8 @@ edition = "2021"
 solana = ["solana-program"]
 
 [dependencies]
-light-bounded-vec = { path = "../bounded-vec", version = "0.1.0" }
-light-utils = { path = "../../utils", version = "0.1.0" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.1.1" }
+light-utils = { path = "../../utils", version = "0.1.1" }
 memoffset = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"
