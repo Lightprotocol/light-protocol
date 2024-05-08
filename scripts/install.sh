@@ -117,6 +117,7 @@ JQ_VERSION="jq-1.7.1"
 CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
 LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
+PHOTON_VERSION="0.18.0"
 
 case "${OS}" in
     "Darwin")
@@ -205,8 +206,7 @@ rustup component add clippy
 rustup component add rustfmt
 
 cargo install cargo-expand wasm-pack
-cargo install photon-indexer --version 0.18.0
-
+cargo install photon-indexer --version ${PHOTON_VERSION}
 echo "📥 Downloading Node.js"
 download_and_extract \
     "node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \

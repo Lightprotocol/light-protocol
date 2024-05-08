@@ -22,7 +22,7 @@ describe('compress', () => {
     });
 
     it('should compress lamports and then decompress', async () => {
-        const compressLamportsAmount = 20;
+        const compressLamportsAmount = 1e7;
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(preCompressBalance, 1e9);
 
@@ -55,7 +55,7 @@ describe('compress', () => {
         );
 
         /// Decompress
-        const decompressLamportsAmount = 15;
+        const decompressLamportsAmount = 1e6;
         const decompressRecipient = payer.publicKey;
 
         await decompress(
