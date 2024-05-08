@@ -18,9 +18,6 @@ cp -r "${gnark_dir}/proving-keys" "$out_dir"
 
 cd "$gnark_dir"
 
-go get -u golang.org/x/tools/...
-go mod download
-
 # Windows
 build_prover windows amd64 "$out_dir"/prover-windows-x64.exe
 build_prover windows arm64 "$out_dir"/prover-windows-arm64.exe
