@@ -22,12 +22,12 @@ jobs:
           submodules: true
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@stable
         with:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install cross
         uses: supplypike/setup-bin@v3
@@ -69,12 +69,12 @@ jobs:
           submodules: true
 
       - name: Install Rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@stable
         with:
           toolchain: stable
           override: true
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
 
       - name: Install Rust aarch64-apple-darwin target
         run: |
