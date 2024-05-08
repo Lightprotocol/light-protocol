@@ -20,7 +20,7 @@ const execAsync = util.promisify(exec);
 
 const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 const BASE_PATH = "../../bin/";
-const PHOTON_VERSION = "0.15.0";
+const PHOTON_VERSION = "0.18.0";
 
 async function isExpectedPhotonVersion(
   requiredVersion: string,
