@@ -71,8 +71,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     // if the index is higher add the account info to out_merkle_trees_account_infos.
     let initial_index = *global_iter;
     let mut current_index: u8 = 0;
-    let end = if *global_iter + ITER_SIZE > inputs.output_state_merkle_tree_account_indices.len() {
-        inputs.output_state_merkle_tree_account_indices.len()
+    let end = if *global_iter + ITER_SIZE > inputs.output_compressed_accounts.len() {
+        inputs.output_compressed_accounts.len()
     } else {
         *global_iter + ITER_SIZE
     };

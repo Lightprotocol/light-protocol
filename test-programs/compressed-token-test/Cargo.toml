@@ -6,7 +6,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "comrpessed_token_test"
+name = "compressed_token_test"
 
 [features]
 no-entrypoint = []

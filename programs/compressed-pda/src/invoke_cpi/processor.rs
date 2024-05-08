@@ -40,6 +40,7 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         compression_lamports: inputs.compression_lamports,
         is_compress: inputs.is_compress,
     };
+    data.check_input_lengths()?;
     bench_sbf_end!("cpda_InstructionDataInvoke");
     process(data, Some(ctx.accounts.invoking_program.key()), ctx)
 }

@@ -38,6 +38,7 @@ pub fn create_escrow_instruction(
 ) -> Instruction {
     let token_owner_pda = get_token_owner_pda(input_params.signer);
     let timelock_pda = get_timelock_pda(input_params.signer);
+    // TODO: separate the creation of inputs and remaining accounts
     let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_merkle_context,
