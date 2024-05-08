@@ -9,7 +9,6 @@ FILES_TO_COPY=(
   "account_compression.ts"    
   "light_compressed_pda.ts"
   "light_registry.ts"
-  "light_user_registry.ts"
 )
 
 # copy each type file into the respective location

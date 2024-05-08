@@ -3023,15 +3023,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-user-registry"
-version = "0.3.1"
-dependencies = [
- "aligned-sized",
- "anchor-lang",
- "bytemuck",
-]
-
-[[package]]
 name = "light-utils"
 version = "0.1.1"
 dependencies = [

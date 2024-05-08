@@ -12,7 +12,6 @@ members = [
     "programs/compressed-pda",
     "programs/compressed-token",
     "programs/registry",
-    "programs/user-registry",
     "test-utils",
     "utils",
     "xtask",
