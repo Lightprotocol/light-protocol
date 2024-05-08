@@ -788,7 +788,7 @@ where
             for _ in lower_range..upper_range {
                 self.changelog[i].update_proof(leaf_index, proof, allow_updates_changelog)?;
                 i = (i + 1) % self.changelog_length;
-            }            
+            }
         } else {
             self.changelog[0].update_proof(leaf_index, proof, allow_updates_changelog)?;
         }

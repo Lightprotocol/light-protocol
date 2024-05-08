@@ -7,13 +7,13 @@ use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::ChangelogEvent,
     ConcurrentMerkleTree,
 };
+use light_hash_set::HashSet;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use light_merkle_tree_reference::store::Store;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use rand::{thread_rng, Rng};
 use solana_program::pubkey::Pubkey;
-use light_hash_set::HashSet;
 
 /// Tests whether append operations work as expected.
 fn append<H, const CANOPY: usize>()
@@ -1229,7 +1229,7 @@ pub fn test_100_nullify_mt() {
             onchain_merkle_tree.root().unwrap(),
             crank_merkle_tree.root()
         );
-       
+
         let mut queue = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
         for i in 1..1 + iterations {
             let mut leaf = [0; 32];
@@ -1263,7 +1263,14 @@ pub fn test_100_nullify_mt() {
                 .get_proof_of_leaf(leaf_index, false)
                 .unwrap();
             onchain_merkle_tree
-                .update(change_log_index, &leaf, &[0u8; 32], leaf_index, &mut proof0, false)
+                .update(
+                    change_log_index,
+                    &leaf,
+                    &[0u8; 32],
+                    leaf_index,
+                    &mut proof0,
+                    false,
+                )
                 .unwrap();
         }
         nullified_leaf_indices.remove(0);
