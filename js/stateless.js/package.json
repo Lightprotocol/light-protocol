@@ -34,7 +34,7 @@
         "test:e2e:test-rpc": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts",
         "test:e2e:rpc-interop": "pnpm test-validator && vitest run tests/e2e/rpc-interop.test.ts",
         "test:e2e:browser": "pnpm playwright test",
-        "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run test:e2e:rpc-interop",
+        "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/test-rpc.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/rpc-interop.test.ts",
         "test:index": "vitest run tests/e2e/program.test.ts",
         "test:e2e:serde": "vitest run tests/e2e/serde.test.ts",
         "test:verbose": "vitest run --reporter=verbose",
