@@ -3,11 +3,17 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
+    "build-test-account-compression": "cd ../test-programs/account-compression-test && cargo build-sbf",
+    "build-test-compressed-pda": "cd ../test-programs/compressed-pda-test && cargo build-sbf",
+    "build-test-compressed-token": "cd ../test-programs/compressed-token-test && cargo build-sbf",
+    "build-test-registry": "cd ../test-programs/registry-test && cargo build-sbf",
+    "build-program-owned-account-test": "cd ../test-programs/program-owned-account-test && cargo build-sbf",
+    "build-test-programs": "pnpm build-test-account-compression && pnpm build-test-compressed-pda && pnpm build-test-compressed-token && pnpm build-test-registry && pnpm build-program-owned-account-test",
     "build": "anchor build",
     "test": "pnpm test-account-compression && pnpm test-compressed-pda && pnpm test-compressed-token && pnpm test-registry",
-    "test-account-compression": "RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression -- --test-threads 1",
-    "test-compressed-pda": "RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-pda -- --test-threads 1",
-    "test-compressed-token": "RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-token -- --test-threads 1",
-    "test-registry": "cd registry && cargo test-sbf -- --test-threads 1"
+    "test-account-compression": "pnpm build-test-account-compression && RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression -- --test-threads 1",
+    "test-compressed-pda": "pnpm build-test-compressed-pda && RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-pda -- --test-threads 1",
+    "test-compressed-token": "pnpm build-test-compressed-token && RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-token -- --test-threads 1",
+    "test-registry": "pnpm build-test-registry && cd registry && cargo test-sbf -- --test-threads 1"
   }
 }
