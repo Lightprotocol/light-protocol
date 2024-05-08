@@ -5,9 +5,9 @@
   "scripts": {
     "build": "anchor build",
     "test": "pnpm test-account-compression && pnpm test-compressed-pda && pnpm test-compressed-token && pnpm test-registry",
-    "test-account-compression": "RUST_MIN_STACK=8388608 cargo test-sbf -p account-compression -- --test-threads 1",
-    "test-compressed-pda": "RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-pda -- --test-threads 1",
-    "test-compressed-token": "RUST_MIN_STACK=8388608 cargo test-sbf -p light-compressed-token -- --test-threads 1",
-    "test-registry": "cd registry && cargo test-sbf -- --test-threads 1"
+    "test-account-compression": "cargo test-sbf -p account-compression-test",
+    "test-compressed-pda": "cargo test-sbf -p compressed-pda-test -- --test-threads=1",
+    "test-compressed-token": "cargo test-sbf -p compressed-token-test -- --test-threads=1",
+    "test-registry": "cargo test-sbf -p registry-test"
   }
 }
