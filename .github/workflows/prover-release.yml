@@ -2,7 +2,7 @@ name: Release prover binaries
 on:
   push:
     tags:
-      - '*'
+      - 'light-prover*'
 
 jobs:
   create_release:
