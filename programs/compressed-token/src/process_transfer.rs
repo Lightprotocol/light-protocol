@@ -641,7 +641,7 @@ pub mod transfer_sdk {
         }
         let len: usize = remaining_accounts.len();
         let mut output_state_merkle_tree_account_indices: Vec<u8> =
-            vec![0u8; output_compressed_accounts.len()];
+            vec![0u8; output_compressed_account_merkle_tree_pubkeys.len()];
         for (i, mt) in output_compressed_account_merkle_tree_pubkeys
             .iter()
             .enumerate()
