@@ -116,7 +116,7 @@ pub struct AddressMerkleTreeAccount {
     pub owner: Pubkey,
     /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
     pub delegate: Pubkey,
-    pub merkle_tree_struct: [u8; 296],
+    pub merkle_tree_struct: [u8; 320],
     pub merkle_tree_filled_subtrees: [u8; 832],
     pub merkle_tree_changelog: [u8; 1220800],
     pub merkle_tree_roots: [u8; 76800],
@@ -205,9 +205,10 @@ impl AddressMerkleTreeAccount {
         let roots = unsafe {
             ConcurrentMerkleTree26::<Poseidon>::roots_from_bytes(
                 &self.merkle_tree_roots,
-                tree.merkle_tree.merkle_tree.current_root_index + 1,
-                tree.merkle_tree.merkle_tree.roots_length,
-                tree.merkle_tree.merkle_tree.roots_capacity,
+                tree.merkle_tree.merkle_tree.roots.len(),
+                tree.merkle_tree.merkle_tree.roots.capacity(),
+                tree.merkle_tree.merkle_tree.roots.first_index(),
+                tree.merkle_tree.merkle_tree.roots.last_index(),
             )
             .map_err(ProgramError::from)?
         };

@@ -215,7 +215,7 @@ where
             (*struct_ref).changelog_length,
         );
         for changelog_entry in changelog.iter() {
-            merkle_tree.changelog.push(changelog_entry.clone())?;
+            merkle_tree.changelog.push(changelog_entry.clone());
         }
 
         let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * (*struct_ref).roots_capacity;
@@ -228,7 +228,7 @@ where
         let roots: &[[u8; 32]] =
             slice::from_raw_parts(bytes_roots.as_ptr() as *const _, (*struct_ref).roots_length);
         for root in roots.iter() {
-            merkle_tree.roots.push(*root)?;
+            merkle_tree.roots.push(*root);
         }
 
         let canopy_size = Self::canopy_size((*struct_ref).canopy_depth);
@@ -307,9 +307,10 @@ where
     /// be moved in the memory) is certainly going to cause undefined behavior.
     pub unsafe fn roots_from_bytes(
         bytes_roots: &[u8],
-        next_index: usize,
         length: usize,
         capacity: usize,
+        first_index: usize,
+        last_index: usize,
     ) -> Result<CyclicBoundedVec<[u8; 32]>, ConcurrentMerkleTreeError> {
         let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * capacity;
         if bytes_roots.len() != expected_bytes_roots_size {
@@ -320,9 +321,10 @@ where
         }
         Ok(CyclicBoundedVec::from_raw_parts(
             bytes_roots.as_ptr() as _,
-            next_index,
             length,
             capacity,
+            first_index,
+            last_index,
         ))
     }
 
@@ -399,9 +401,10 @@ where
         }
         tree.changelog = CyclicBoundedVec::from_raw_parts(
             bytes_changelog.as_ptr() as _,
-            tree.current_changelog_index + 1,
-            tree.changelog_length,
-            tree.changelog_capacity,
+            tree.changelog.len(),
+            tree.changelog.capacity(),
+            tree.changelog.first_index(),
+            tree.changelog.last_index(),
         );
 
         let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * tree.roots_capacity;
@@ -413,9 +416,10 @@ where
         }
         tree.roots = Self::roots_from_bytes(
             bytes_roots,
-            tree.current_root_index + 1,
-            tree.roots_length,
-            tree.roots_capacity,
+            tree.roots.len(),
+            tree.roots.capacity(),
+            tree.roots.first_index(),
+            tree.roots.last_index(),
         )?;
 
         let canopy_size = Self::canopy_size(tree.canopy_depth);
@@ -446,10 +450,14 @@ where
         bytes_roots: &'b mut [u8],
         bytes_canopy: &'b mut [u8],
         subtrees_length: usize,
-        changelog_next_index: usize,
         changelog_length: usize,
-        roots_next_index: usize,
+        changelog_capacity: usize,
+        changelog_first_index: usize,
+        changelog_last_index: usize,
         roots_length: usize,
+        roots_capacity: usize,
+        roots_first_index: usize,
+        roots_last_index: usize,
         canopy_length: usize,
     ) -> Result<(), ConcurrentMerkleTreeError> {
         // Restore the vectors correctly, by pointing them to the appropriate
@@ -478,9 +486,10 @@ where
         }
         self.changelog = CyclicBoundedVec::from_raw_parts(
             bytes_changelog.as_mut_ptr() as _,
-            changelog_next_index,
             changelog_length,
-            self.changelog_capacity,
+            changelog_capacity,
+            changelog_first_index,
+            changelog_last_index,
         );
 
         let expected_bytes_roots_size = mem::size_of::<[u8; 32]>() * self.roots_capacity;
@@ -492,9 +501,10 @@ where
         }
         self.roots = CyclicBoundedVec::from_raw_parts(
             bytes_roots.as_mut_ptr() as _,
-            roots_next_index,
             roots_length,
-            self.roots_capacity,
+            roots_capacity,
+            roots_first_index,
+            roots_last_index,
         );
 
         let canopy_size = Self::canopy_size(self.canopy_depth);
@@ -574,7 +584,11 @@ where
             bytes_canopy,
             0,
             0,
+            changelog_size,
             0,
+            0,
+            0,
+            roots_size,
             0,
             0,
             0,
@@ -620,10 +634,14 @@ where
             bytes_roots,
             bytes_canopy,
             tree.height,
-            tree.current_changelog_index + 1,
-            tree.changelog_length,
-            tree.current_root_index + 1,
-            tree.roots_length,
+            tree.changelog.len(),
+            tree.changelog.capacity(),
+            tree.changelog.first_index(),
+            tree.changelog.last_index(),
+            tree.roots.len(),
+            tree.roots.capacity(),
+            tree.roots.first_index(),
+            tree.roots.last_index(),
             Self::canopy_size(tree.canopy_depth),
         )?;
         Ok(tree)
@@ -633,7 +651,7 @@ where
     pub fn init(&mut self) -> Result<(), ConcurrentMerkleTreeError> {
         // Initialize root.
         let root = H::zero_bytes()[self.height];
-        self.roots.push(root)?;
+        self.roots.push(root);
         self.roots_length += 1;
 
         // Initialize changelog.
@@ -644,7 +662,7 @@ where
                 path,
                 index: 0,
             };
-            self.changelog.push(changelog_entry)?;
+            self.changelog.push(changelog_entry);
             self.changelog_length += 1;
         }
 
@@ -767,30 +785,8 @@ where
         proof: &mut BoundedVec<[u8; 32]>,
         allow_updates_changelog: bool,
     ) -> Result<(), ConcurrentMerkleTreeError> {
-        if self.changelog_capacity > 1 {
-            let mut i = changelog_index;
-            let lower_range = i;
-
-            // To update a proof we need to ensure that we iterate over the range of
-            // all changelogs that were created since the provided changelog index.
-            // For the edge case that changelog index is less than provided index
-            // we need to add the changelog length to get the desired number of iterations.
-            // Example: changelog index = 2, provided index = 3, changelog length = 3
-            // should iterate over changelogs 0, 1, 2
-            // -> lower range = 3, upper range = 6
-
-            let upper_range = if self.changelog_index() + 1 < i {
-                self.changelog_length + self.changelog_index() + 1
-            } else {
-                self.changelog_index() + 1
-            };
-
-            for _ in lower_range..upper_range {
-                self.changelog[i].update_proof(leaf_index, proof, allow_updates_changelog)?;
-                i = (i + 1) % self.changelog_length;
-            }
-        } else {
-            self.changelog[0].update_proof(leaf_index, proof, allow_updates_changelog)?;
+        for changelog_entry in self.changelog.iter_from(changelog_index) {
+            changelog_entry.update_proof(leaf_index, proof, allow_updates_changelog)?;
         }
 
         Ok(())
@@ -854,10 +850,10 @@ where
         let changelog_entry = ChangelogEntry::new(node, changelog_path, leaf_index);
         self.inc_current_changelog_index()?;
         // TODO: remove clone
-        self.changelog.push(changelog_entry.clone())?;
+        self.changelog.push(changelog_entry.clone());
 
         self.inc_current_root_index()?;
-        self.roots.push(node)?;
+        self.roots.push(node);
 
         changelog_entry.update_subtrees(self.next_index - 1, &mut self.filled_subtrees);
 
@@ -937,7 +933,7 @@ where
             self.changelog
                 .push(ChangelogEntry::<HEIGHT>::default_with_index(
                     first_leaf_index + leaf_i,
-                ))?;
+                ));
 
             let mut current_index = self.next_index;
             let mut current_node = **leaf;
@@ -989,7 +985,7 @@ where
             self.changelog[self.current_changelog_index].root = current_node;
 
             self.inc_current_root_index()?;
-            self.roots.push(current_node)?;
+            self.roots.push(current_node);
 
             self.sequence_number = self
                 .sequence_number
