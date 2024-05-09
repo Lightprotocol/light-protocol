@@ -229,14 +229,12 @@ where
         let new_leaf = new_element.hash::<H>(&low_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
 
-        self.changelog
-            .push(RawIndexedElement {
-                value: bigint_to_be_bytes_array::<32>(&new_low_element.value).unwrap(),
-                next_index: new_low_element.next_index,
-                next_value: bigint_to_be_bytes_array::<32>(&new_element.value)?,
-                index: new_low_element.index,
-            })
-            .unwrap();
+        self.changelog.push(RawIndexedElement {
+            value: bigint_to_be_bytes_array::<32>(&new_low_element.value).unwrap(),
+            next_index: new_low_element.next_index,
+            next_value: bigint_to_be_bytes_array::<32>(&new_element.value)?,
+            index: new_low_element.index,
+        });
         Ok(())
     }
 

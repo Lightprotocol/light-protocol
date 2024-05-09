@@ -141,7 +141,7 @@ where
             (*struct_ref).merkle_tree.changelog_length,
         );
         for changelog_entry in changelog.iter() {
-            merkle_tree.changelog.push(changelog_entry.clone())?;
+            merkle_tree.changelog.push(changelog_entry.clone());
         }
 
         let expected_bytes_roots_size =
@@ -158,7 +158,7 @@ where
             (*struct_ref).merkle_tree.roots_length,
         );
         for root in roots.iter() {
-            merkle_tree.roots.push(*root)?;
+            merkle_tree.roots.push(*root);
         }
 
         let canopy_size =
@@ -198,7 +198,7 @@ where
             (*struct_ref).changelog.len(),
         );
         for changelog_entry in indexed_changelog.iter() {
-            indexed_merkle_tree.changelog.push(*changelog_entry)?;
+            indexed_merkle_tree.changelog.push(*changelog_entry);
         }
 
         Ok(IndexedMerkleTreeCopy(indexed_merkle_tree))

@@ -306,7 +306,8 @@ where
 {
     capacity: usize,
     length: usize,
-    next_index: usize,
+    first_index: usize,
+    last_index: usize,
     data: &'a mut [T],
 }
 
@@ -335,7 +336,8 @@ where
         Self {
             capacity,
             length: 0,
-            next_index: 0,
+            first_index: 0,
+            last_index: 0,
             data,
         }
     }
@@ -364,15 +366,17 @@ where
     #[inline]
     pub unsafe fn from_raw_parts(
         ptr: *mut T,
-        next_index: usize,
         length: usize,
         capacity: usize,
+        first_index: usize,
+        last_index: usize,
     ) -> Self {
         let data = slice::from_raw_parts_mut(ptr, capacity);
         Self {
             capacity,
             length,
-            next_index,
+            first_index,
+            last_index,
             data,
         }
     }
@@ -392,16 +396,7 @@ where
         self.capacity
     }
 
-    #[inline]
-    pub fn as_slice(&self) -> &[T] {
-        &self.data[..self.length]
-    }
-
     /// Appends an element to the back of a collection.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the new capacity exceeds `isize::MAX` bytes.
     ///
     /// # Examples
     ///
@@ -411,21 +406,18 @@ where
     /// assert_eq!(vec, [1, 2, 3]);
     /// ```
     #[inline]
-    pub fn push(&mut self, value: T) -> Result<(), BoundedVecError> {
-        if self.len() < self.capacity() {
+    pub fn push(&mut self, value: T) {
+        if self.is_empty() {
             self.length += 1;
-        } else if self.next_index == self.capacity() {
-            self.next_index = 0;
+        } else if self.len() < self.capacity() {
+            self.length += 1;
+            self.last_index += 1;
+        } else if !self.is_empty() {
+            self.last_index = (self.last_index + 1) % self.capacity();
+            self.first_index = (self.first_index + 1) % self.capacity();
         }
-        *self.get_mut(self.next_index).ok_or(BoundedVecError::Full)? = value;
-        self.next_index += 1;
-
-        Ok(())
-    }
-
-    #[inline]
-    pub fn next_index(&self) -> usize {
-        self.next_index
+        // PANICS: We made sure that `self.newest` doesn't exceed the capacity.
+        self.data[self.last_index] = value;
     }
 
     #[inline]
@@ -448,41 +440,51 @@ where
     }
 
     #[inline]
-    pub fn iter(&self) -> Iter<'_, T> {
-        self.data[..self.length].iter()
+    pub fn iter(&self) -> CyclicBoundedVecIterator<'_, T> {
+        CyclicBoundedVecIterator {
+            vec: self,
+            current: self.first_index,
+            is_finished: false,
+        }
     }
 
     #[inline]
-    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.data[..self.length].iter_mut()
+    pub fn iter_from(&self, start: usize) -> CyclicBoundedVecIterator<'_, T> {
+        CyclicBoundedVecIterator {
+            vec: self,
+            current: start,
+            is_finished: false,
+        }
+    }
+
+    #[inline]
+    pub fn first_index(&self) -> usize {
+        self.first_index
+    }
+
+    #[inline]
+    pub fn first(&self) -> Option<&T> {
+        self.data.get(self.first_index)
+    }
+
+    #[inline]
+    pub fn first_mut(&mut self) -> Option<&mut T> {
+        self.data.get_mut(self.first_index)
+    }
+
+    #[inline]
+    pub fn last_index(&self) -> usize {
+        self.last_index
     }
 
     #[inline]
     pub fn last(&self) -> Option<&T> {
-        if self.len() < self.capacity() {
-            if self.is_empty() {
-                return None;
-            }
-            self.get(self.length - 1)
-        } else if self.next_index == 0 {
-            self.get(self.capacity - 1)
-        } else {
-            self.get(self.next_index - 1)
-        }
+        self.data.get(self.last_index)
     }
 
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        if self.len() < self.capacity() {
-            if self.is_empty() {
-                return None;
-            }
-            self.get_mut(self.length - 1)
-        } else if self.next_index == 0 {
-            self.get_mut(self.capacity - 1)
-        } else {
-            self.get_mut(self.next_index - 1)
-        }
+        self.data.get_mut(self.last_index)
     }
 }
 
@@ -520,31 +522,331 @@ where
 
 impl<'a, T> Eq for CyclicBoundedVec<'a, T> where T: Clone + Eq + Pod {}
 
+pub struct CyclicBoundedVecIterator<'a, T>
+where
+    T: Clone + Pod,
+{
+    vec: &'a CyclicBoundedVec<'a, T>,
+    current: usize,
+    is_finished: bool,
+}
+
+impl<'a, T> Iterator for CyclicBoundedVecIterator<'a, T>
+where
+    T: Clone + Pod,
+{
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.is_finished {
+            None
+        } else {
+            if self.current == self.vec.last_index {
+                self.is_finished = true;
+            }
+            let new_current = (self.current + 1) % self.vec.capacity();
+            let element = self.vec.get(self.current);
+            self.current = new_current;
+            element
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
-    fn test_cyclic_bounded_vec_correct_values() {
+    fn test_cyclic_bounded_vec_manual() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
+
+        // Fill up the cyclic vector.
+        //
+        // ```
+        //        ^                    $
+        // index [0, 1, 2, 3, 4, 5, 6, 7]
+        // value [0, 1, 2, 3, 4, 5, 6, 7]
+        // ```
+        //
+        // * `^` - first element
+        // * `$` - last element
+        for i in 0..8 {
+            cyclic_bounded_vec.push(i);
+        }
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 7);
+        assert_eq!(
+            cyclic_bounded_vec.iter().collect::<Vec<_>>().as_slice(),
+            &[&0, &1, &2, &3, &4, &5, &6, &7]
+        );
+
+        // Overwrite half of values.
+        //
+        // ```
+        //                   $  ^
+        // index [0, 1,  2,  3, 4, 5, 6, 7]
+        // value [8, 9, 10, 11, 4, 5, 6, 7]
+        // ```
+        //
+        // * `^` - first element
+        // * `$` - last element
+        for i in 0..4 {
+            cyclic_bounded_vec.push(i + 8);
+        }
+        assert_eq!(cyclic_bounded_vec.first_index, 4);
+        assert_eq!(cyclic_bounded_vec.last_index, 3);
+        assert_eq!(
+            cyclic_bounded_vec.iter().collect::<Vec<_>>().as_slice(),
+            &[&4, &5, &6, &7, &8, &9, &10, &11]
+        );
+
+        // Overwrite even more.
+        //
+        // ```
+        //                           $  ^
+        // index [0, 1,  2,  3,  4,  5, 6, 7]
+        // value [8, 9, 10, 11, 12, 13, 6, 7]
+        // ```
+        //
+        // * `^` - first element
+        // * `$` - last element
+        for i in 0..2 {
+            cyclic_bounded_vec.push(i + 12);
+        }
+        assert_eq!(cyclic_bounded_vec.first_index, 6);
+        assert_eq!(cyclic_bounded_vec.last_index, 5);
+        assert_eq!(
+            cyclic_bounded_vec.iter().collect::<Vec<_>>().as_slice(),
+            &[&6, &7, &8, &9, &10, &11, &12, &13]
+        );
+
+        // Overwrite all values from the first loop.
+        //
+        // ```
+        //        ^                          $
+        // index [0, 1,  2,  3,  4,  5,  6,  7]
+        // value [8, 9, 10, 11, 12, 13, 14, 15]
+        // ```
+        //
+        // * `^` - first element
+        // * `$` - last element
+        for i in 0..2 {
+            cyclic_bounded_vec.push(i + 14);
+        }
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 7);
+        assert_eq!(
+            cyclic_bounded_vec.iter().collect::<Vec<_>>().as_slice(),
+            &[&8, &9, &10, &11, &12, &13, &14, &15]
+        );
+    }
+
+    /// Iteration on a vector with one element.
+    ///
+    /// ```
+    ///        ^$
+    /// index [0]
+    /// value [0]
+    /// ```
+    ///
+    /// * `^` - first element
+    /// * `$` - last element
+    /// * `#` - visited elements
+    ///
+    /// Length: 1
+    /// Capacity: 8
+    /// First index: 0
+    /// Last index: 0
+    ///
+    /// Start iteration from: 0
+    ///
+    /// Should iterate over one element.
+    #[test]
+    fn test_cyclic_bounded_vec_iter_one_element() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
+        cyclic_bounded_vec.push(0);
+
+        assert_eq!(cyclic_bounded_vec.len(), 1);
+        assert_eq!(cyclic_bounded_vec.capacity(), 8);
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 0);
+
+        let elements = cyclic_bounded_vec.iter().collect::<Vec<_>>();
+        assert_eq!(elements.len(), 1);
+        assert_eq!(elements.as_slice(), &[&0]);
+
+        let elements = cyclic_bounded_vec.iter_from(0).collect::<Vec<_>>();
+        assert_eq!(elements.len(), 1);
+        assert_eq!(elements.as_slice(), &[&0]);
+    }
+
+    /// Iteration without reset in a vector which is not full.
+    ///
+    /// ```
+    ///              #  #  #  #
+    ///        ^              $
+    /// index [0, 1, 2, 3, 4, 5]
+    /// value [0, 1, 2, 3, 4, 5]
+    /// ```
+    ///
+    /// * `^` - first element
+    /// * `$` - last element
+    /// * `#` - visited elements
+    ///
+    /// Length: 6
+    /// Capacity: 8
+    /// First index: 0
+    /// Last index: 5
+    ///
+    /// Start iteration from: 2
+    ///
+    /// Should iterate over elements from 2 to 5, with 4 iterations.
+    #[test]
+    fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_6_8_4() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
+
+        for i in 0..6 {
+            cyclic_bounded_vec.push(i);
+        }
+
+        assert_eq!(cyclic_bounded_vec.len(), 6);
+        assert_eq!(cyclic_bounded_vec.capacity(), 8);
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 5);
+
+        let elements = cyclic_bounded_vec.iter_from(2).collect::<Vec<_>>();
+        assert_eq!(elements.len(), 4);
+        assert_eq!(elements.as_slice(), &[&2, &3, &4, &5]);
+    }
+    /// Iteration without reset in a vector which is full.
+    ///
+    /// ```
+    ///              #  #  #
+    ///        ^           $
+    /// index [0, 1, 2, 3, 4]
+    /// value [0, 1, 2, 3, 4]
+    /// ```
+    ///
+    /// * `^` - first element
+    /// * `$` - last element
+    /// * `#` - visited elements
+    ///
+    /// Length: 5
+    /// Capacity: 5
+    /// First index: 0
+    /// Last index: 4
+    ///
+    /// Start iteration from: 2
+    ///
+    /// Should iterate over elements 2..4 - 3 iterations.
+    #[test]
+    fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_5_5_4() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(5);
+
+        for i in 0..5 {
+            cyclic_bounded_vec.push(i);
+        }
+
+        assert_eq!(cyclic_bounded_vec.len(), 5);
+        assert_eq!(cyclic_bounded_vec.capacity(), 5);
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 4);
+
+        let elements = cyclic_bounded_vec.iter_from(2).collect::<Vec<_>>();
+        assert_eq!(elements.len(), 3);
+        assert_eq!(elements.as_slice(), &[&2, &3, &4]);
+    }
+
+    /// Iteration without reset in a vector which is full.
+    ///
+    /// ```
+    ///              #  #  #  #  #  #
+    ///        ^                    $
+    /// index [0, 1, 2, 3, 4, 5, 6, 7]
+    /// value [0, 1, 2, 3, 4, 5, 6, 7]
+    /// ```
+    ///
+    /// * `^` - first element
+    /// * `$` - last element
+    /// * `#` - visited elements
+    ///
+    /// Length: 8
+    /// Capacity: 8
+    /// First index: 0
+    /// Last index: 7
+    ///
+    /// Start iteration from: 2
+    ///
+    /// Should iterate over elements 2..7 - 6 iterations.
+    #[test]
+    fn test_cyclic_bounded_vec_iter_from_without_reset_full_8_8_6() {
         let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
 
         for i in 0..8 {
-            cyclic_bounded_vec.push(i).unwrap();
+            cyclic_bounded_vec.push(i);
         }
-        assert_eq!(cyclic_bounded_vec.as_slice(), &[0, 1, 2, 3, 4, 5, 6, 7]);
 
-        for i in 0..4 {
-            cyclic_bounded_vec.push(i + 5).unwrap();
+        assert_eq!(cyclic_bounded_vec.len(), 8);
+        assert_eq!(cyclic_bounded_vec.capacity(), 8);
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 7);
+
+        let elements = cyclic_bounded_vec.iter_from(2).collect::<Vec<_>>();
+        assert_eq!(elements.len(), 6);
+        assert_eq!(elements.as_slice(), &[&2, &3, &4, &5, &6, &7]);
+    }
+
+    /// Iteration with reset.
+    ///
+    /// Insert elements over capacity, so the vector resets and starts
+    /// overwriting elements from the start - 12 elements into a vector with
+    /// capacity 8.
+    ///
+    /// The resulting data structure looks like:
+    ///
+    /// ```
+    ///        #  #   #   #        #  #
+    ///                   $  ^
+    /// index [0, 1,  2,  3, 4, 5, 6, 7]
+    /// value [8, 9, 10, 11, 4, 5, 6, 7]
+    /// ```
+    ///
+    /// * `^` - first element
+    /// * `$` - last element
+    /// * `#` - visited elements
+    ///
+    /// Length: 8
+    /// Capacity: 8
+    /// First: 4
+    /// Last: 3
+    ///
+    /// Start iteration from: 6
+    ///
+    /// Should iterate over elements 6..7 and 8..11 - 6 iterations.
+    #[test]
+    fn test_cyclic_bounded_vec_iter_reset() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
+
+        for i in 0..12 {
+            cyclic_bounded_vec.push(i);
         }
-        assert_eq!(cyclic_bounded_vec.as_slice(), &[5, 6, 7, 8, 4, 5, 6, 7]);
+
+        assert_eq!(cyclic_bounded_vec.len(), 8);
+        assert_eq!(cyclic_bounded_vec.capacity(), 8);
+        assert_eq!(cyclic_bounded_vec.first_index, 4);
+        assert_eq!(cyclic_bounded_vec.last_index, 3);
+
+        let elements = cyclic_bounded_vec.iter_from(6).collect::<Vec<_>>();
+        assert_eq!(elements.len(), 6);
+        assert_eq!(elements.as_slice(), &[&6, &7, &8, &9, &10, &11]);
     }
 
     #[test]
-    fn test_cyclic_bounded_vec_override() {
+    fn test_cyclic_bounded_vec_overwrite() {
         let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(64);
 
         for i in 0..256 {
-            cyclic_bounded_vec.push(i).unwrap();
+            cyclic_bounded_vec.push(i);
         }
 
         assert_eq!(cyclic_bounded_vec.len(), 64);

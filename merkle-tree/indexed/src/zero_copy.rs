@@ -147,9 +147,10 @@ where
         }
         tree.merkle_tree.merkle_tree.changelog = CyclicBoundedVec::from_raw_parts(
             bytes_changelog.as_ptr() as _,
-            tree.merkle_tree.merkle_tree.current_changelog_index + 1,
-            tree.merkle_tree.merkle_tree.changelog_length,
-            tree.merkle_tree.merkle_tree.changelog_capacity,
+            tree.merkle_tree.merkle_tree.changelog.len(),
+            tree.merkle_tree.merkle_tree.changelog.capacity(),
+            tree.merkle_tree.merkle_tree.changelog.first_index(),
+            tree.merkle_tree.merkle_tree.changelog.last_index(),
         );
 
         let expected_bytes_roots_size =
@@ -165,9 +166,10 @@ where
         tree.merkle_tree.merkle_tree.roots =
             ConcurrentMerkleTree::<'a, H, HEIGHT>::roots_from_bytes(
                 bytes_roots,
-                tree.merkle_tree.merkle_tree.current_root_index + 1,
-                tree.merkle_tree.merkle_tree.roots_length,
-                tree.merkle_tree.merkle_tree.roots_capacity,
+                tree.merkle_tree.merkle_tree.roots.len(),
+                tree.merkle_tree.merkle_tree.roots.capacity(),
+                tree.merkle_tree.merkle_tree.roots.first_index(),
+                tree.merkle_tree.merkle_tree.roots.last_index(),
             )?;
 
         let canopy_size = ConcurrentMerkleTree::<'a, H, HEIGHT>::canopy_size(
@@ -195,9 +197,10 @@ where
         }
         tree.merkle_tree.changelog = CyclicBoundedVec::from_raw_parts(
             bytes_indexed_changelog.as_ptr() as _,
-            tree.merkle_tree.changelog.next_index(),
             tree.merkle_tree.changelog.len(),
             tree.merkle_tree.changelog.capacity(),
+            tree.merkle_tree.changelog.first_index(),
+            tree.merkle_tree.changelog.last_index(),
         );
 
         Ok(IndexedMerkleTreeZeroCopy {
@@ -295,15 +298,20 @@ where
         bytes_roots: &'a mut [u8],
         bytes_canopy: &'a mut [u8],
         subtrees_length: usize,
-        changelog_next_index: usize,
         changelog_length: usize,
-        roots_next_index: usize,
+        changelog_capacity: usize,
+        changelog_first_index: usize,
+        changelog_last_index: usize,
         roots_length: usize,
+        roots_capacity: usize,
+        roots_first_index: usize,
+        roots_last_index: usize,
         canopy_length: usize,
         bytes_indexed_changelog: &'a mut [u8],
-        indexed_changelog_next_index: usize,
         indexed_changelog_length: usize,
         indexed_changelog_capacity: usize,
+        indexed_changelog_first_index: usize,
+        indexed_changelog_last_index: usize,
     ) -> Result<(), IndexedMerkleTreeError> {
         self.merkle_tree.merkle_tree.fill_vectors_mut(
             bytes_filled_subtrees,
@@ -311,10 +319,14 @@ where
             bytes_roots,
             bytes_canopy,
             subtrees_length,
-            changelog_next_index,
             changelog_length,
-            roots_next_index,
+            changelog_capacity,
+            changelog_first_index,
+            changelog_last_index,
             roots_length,
+            roots_capacity,
+            roots_first_index,
+            roots_last_index,
             canopy_length,
         )?;
 
@@ -338,9 +350,10 @@ where
         }
         self.merkle_tree.changelog = CyclicBoundedVec::from_raw_parts(
             bytes_indexed_changelog.as_mut_ptr() as _,
-            indexed_changelog_next_index,
             indexed_changelog_length,
             indexed_changelog_capacity,
+            indexed_changelog_first_index,
+            indexed_changelog_last_index,
         );
 
         Ok(())
@@ -388,14 +401,19 @@ where
             bytes_canopy,
             0,
             0,
+            changelog_size,
             0,
+            0,
+            0,
+            roots_size,
             0,
             0,
             0,
             bytes_indexed_changelog,
             0,
-            0,
             indexed_changelog_size,
+            0,
+            0,
         )?;
 
         Ok(tree)
@@ -423,17 +441,22 @@ where
             bytes_roots,
             bytes_canopy,
             tree.merkle_tree.merkle_tree.height,
-            tree.merkle_tree.merkle_tree.current_changelog_index + 1,
-            tree.merkle_tree.merkle_tree.changelog_length,
-            tree.merkle_tree.merkle_tree.current_root_index + 1,
-            tree.merkle_tree.merkle_tree.roots_length,
+            tree.merkle_tree.merkle_tree.changelog.len(),
+            tree.merkle_tree.merkle_tree.changelog.capacity(),
+            tree.merkle_tree.merkle_tree.changelog.first_index(),
+            tree.merkle_tree.merkle_tree.changelog.last_index(),
+            tree.merkle_tree.merkle_tree.roots.len(),
+            tree.merkle_tree.merkle_tree.roots.capacity(),
+            tree.merkle_tree.merkle_tree.roots.first_index(),
+            tree.merkle_tree.merkle_tree.roots.last_index(),
             ConcurrentMerkleTree::<'a, H, HEIGHT>::canopy_size(
                 tree.merkle_tree.merkle_tree.canopy_depth,
             ),
             bytes_indexed_changelog,
-            tree.merkle_tree.changelog.next_index(),
             tree.merkle_tree.changelog.len(),
             tree.merkle_tree.changelog.capacity(),
+            tree.merkle_tree.changelog.first_index(),
+            tree.merkle_tree.changelog.last_index(),
         )?;
 
         Ok(tree)
@@ -448,7 +471,7 @@ mod test {
 
     #[test]
     fn test_from_bytes_zero_copy_init() {
-        let mut bytes_struct = [0u8; 296];
+        let mut bytes_struct = [0u8; 320];
         let mut bytes_filled_subtrees = [0u8; 832];
         let mut bytes_changelog = [0u8; 1220800];
         let mut bytes_roots = [0u8; 76800];

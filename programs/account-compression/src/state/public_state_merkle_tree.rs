@@ -33,7 +33,7 @@ pub struct StateMerkleTreeAccount {
     pub associated_queue: Pubkey,
 
     /// Merkle tree for the transaction state.
-    pub state_merkle_tree_struct: [u8; 256],
+    pub state_merkle_tree_struct: [u8; 272],
     pub state_merkle_tree_filled_subtrees: [u8; 832],
     pub state_merkle_tree_changelog: [u8; 1220800],
     pub state_merkle_tree_roots: [u8; 76800],
@@ -124,9 +124,10 @@ impl StateMerkleTreeAccount {
         let roots = unsafe {
             ConcurrentMerkleTree26::<Poseidon>::roots_from_bytes(
                 &self.state_merkle_tree_roots,
-                tree.current_root_index + 1,
-                tree.roots_length,
-                tree.roots_capacity,
+                tree.roots.len(),
+                tree.roots.capacity(),
+                tree.roots.first_index(),
+                tree.roots.last_index(),
             )
             .map_err(ProgramError::from)?
         };
@@ -155,7 +156,7 @@ mod test {
             owner: Pubkey::new_from_array([2u8; 32]),
             delegate: Pubkey::new_from_array([3u8; 32]),
             associated_queue: Pubkey::new_from_array([4u8; 32]),
-            state_merkle_tree_struct: [0u8; 256],
+            state_merkle_tree_struct: [0u8; 272],
             state_merkle_tree_filled_subtrees: [0u8; 832],
             state_merkle_tree_changelog: [0u8; 1220800],
             state_merkle_tree_roots: [0u8; 76800],
