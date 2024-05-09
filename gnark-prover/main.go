@@ -287,8 +287,8 @@ func runCli() {
 				Name: "start",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "json-logging", Usage: "enable JSON logging", Required: false},
-					&cli.StringFlag{Name: "prover-address", Usage: "address for the prover server", Value: "localhost:3001", Required: false},
-					&cli.StringFlag{Name: "metrics-address", Usage: "address for the metrics server", Value: "localhost:9998", Required: false},
+					&cli.StringFlag{Name: "prover-address", Usage: "address for the prover server", Value: "0.0.0.0:3001", Required: false},
+					&cli.StringFlag{Name: "metrics-address", Usage: "address for the metrics server", Value: "0.0.0.0:9998", Required: false},
 					&cli.BoolFlag{Name: "inclusion", Usage: "Run inclusion circuit", Required: false, Value: false},
 					&cli.BoolFlag{Name: "non-inclusion", Usage: "Run non-inclusion circuit", Required: false},
 					&cli.StringFlag{Name: "keys-dir", Usage: "Directory where key files are stored", Value: "./proving-keys/", Required: false},
