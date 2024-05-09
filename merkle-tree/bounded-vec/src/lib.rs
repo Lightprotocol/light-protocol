@@ -702,7 +702,7 @@ mod test {
     ///
     /// Should iterate over elements from 2 to 5, with 4 iterations.
     #[test]
-    fn test_cyclic_bounded_vec_iter_from_without_reset_not_full() {
+    fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_6_8_4() {
         let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
 
         for i in 0..6 {
@@ -718,8 +718,46 @@ mod test {
         assert_eq!(elements.len(), 4);
         assert_eq!(elements.as_slice(), &[&2, &3, &4, &5]);
     }
+    /// Iteration without reset in a vector which is full.
+    ///
+    /// ```
+    ///              #  #  #
+    ///        ^           $
+    /// index [0, 1, 2, 3, 4]
+    /// value [0, 1, 2, 3, 4]
+    /// ```
+    ///
+    /// * `^` - first element
+    /// * `$` - last element
+    /// * `#` - visited elements
+    ///
+    /// Length: 5
+    /// Capacity: 5
+    /// First index: 0
+    /// Last index: 4
+    ///
+    /// Start iteration from: 2
+    ///
+    /// Should iterate over elements 2..4 - 3 iterations.
+    #[test]
+    fn test_cyclic_bounded_vec_iter_from_without_reset_not_full_5_5_4() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(5);
 
-    /// Iteration without reset in a vector which is not full.
+        for i in 0..5 {
+            cyclic_bounded_vec.push(i);
+        }
+
+        assert_eq!(cyclic_bounded_vec.len(), 5);
+        assert_eq!(cyclic_bounded_vec.capacity(), 5);
+        assert_eq!(cyclic_bounded_vec.first_index, 0);
+        assert_eq!(cyclic_bounded_vec.last_index, 4);
+
+        let elements = cyclic_bounded_vec.iter_from(2).collect::<Vec<_>>();
+        assert_eq!(elements.len(), 3);
+        assert_eq!(elements.as_slice(), &[&2, &3, &4]);
+    }
+
+    /// Iteration without reset in a vector which is full.
     ///
     /// ```
     ///              #  #  #  #  #  #
@@ -741,7 +779,7 @@ mod test {
     ///
     /// Should iterate over elements 2..7 - 6 iterations.
     #[test]
-    fn test_cyclic_bounded_vec_iter_from_without_reset_full() {
+    fn test_cyclic_bounded_vec_iter_from_without_reset_full_8_8_6() {
         let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
 
         for i in 0..8 {
