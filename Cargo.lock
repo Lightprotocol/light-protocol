@@ -2900,6 +2900,7 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "light-bounded-vec",
+ "light-heap",
  "light-utils",
  "memoffset 0.9.0",
  "num-bigint 0.4.4",

@@ -16,7 +16,7 @@ pub mod fee;
 
 const CHUNK_SIZE: usize = 32;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum UtilsError {
     #[error("Invalid input size, expected at most {0}")]
     InputTooLarge(usize),
