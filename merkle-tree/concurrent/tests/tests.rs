@@ -85,7 +85,7 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 0)
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 1);
+    assert_eq!(merkle_tree.root_index(), 1);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index, 1);
     assert_eq!(merkle_tree.rightmost_leaf, leaf1);
@@ -123,7 +123,7 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 1),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 2);
+    assert_eq!(merkle_tree.root_index(), 2);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index, 2);
     assert_eq!(merkle_tree.rightmost_leaf, leaf2);
@@ -161,7 +161,7 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 2),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 3);
+    assert_eq!(merkle_tree.root_index(), 3);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index, 3);
     assert_eq!(merkle_tree.rightmost_leaf, leaf3);
@@ -199,7 +199,7 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 3),
     );
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 4);
+    assert_eq!(merkle_tree.root_index(), 4);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
@@ -252,7 +252,7 @@ where
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 4);
+    assert_eq!(merkle_tree.root_index(), 4);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
     assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
@@ -295,7 +295,7 @@ where
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 5);
+    assert_eq!(merkle_tree.root_index(), 5);
     assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
@@ -338,7 +338,7 @@ where
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 6);
+    assert_eq!(merkle_tree.root_index(), 6);
     assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
@@ -380,7 +380,7 @@ where
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 7);
+    assert_eq!(merkle_tree.root_index(), 7);
     assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 
@@ -423,7 +423,7 @@ where
     );
 
     assert_eq!(merkle_tree.root().unwrap(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 8);
+    assert_eq!(merkle_tree.root_index(), 8);
     assert_eq!(merkle_tree.next_index, 4);
     assert_eq!(merkle_tree.rightmost_leaf, new_leaf4);
 }
@@ -485,8 +485,8 @@ where
         reference_tree.append(&leaf).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 4);
-    assert_eq!(merkle_tree.current_root_index, 4);
+    assert_eq!(merkle_tree.changelog_index(), 4);
+    assert_eq!(merkle_tree.root_index(), 4);
 
     // Update 2 leaves to fill up the changelog. Its counter should reach the
     // modulus and get reset.
@@ -507,8 +507,8 @@ where
         reference_tree.update(&new_leaf, i).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 0);
-    assert_eq!(merkle_tree.current_root_index, 6);
+    assert_eq!(merkle_tree.changelog_index(), 0);
+    assert_eq!(merkle_tree.root_index(), 6);
 
     // Update another 2 leaves to fill up the root. Its counter should reach
     // the modulus and get reset. The previously reset counter should get
@@ -530,8 +530,8 @@ where
         reference_tree.update(&new_leaf, i).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 2);
-    assert_eq!(merkle_tree.current_root_index, 0);
+    assert_eq!(merkle_tree.changelog_index(), 2);
+    assert_eq!(merkle_tree.root_index(), 0);
 
     // The latter updates should keep incrementing the counters.
     for i in 0..3 {
@@ -551,8 +551,8 @@ where
         reference_tree.update(&new_leaf, i).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 5);
-    assert_eq!(merkle_tree.current_root_index, 3);
+    assert_eq!(merkle_tree.changelog_index(), 5);
+    assert_eq!(merkle_tree.root_index(), 3);
 }
 
 /// Checks whether `append_batch` is compatible with equivalent multiple
@@ -941,7 +941,7 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_ROOTS: usize>(
 ) where
     H: Hasher,
 {
-    for i in 0..concurrent_mt.current_changelog_index as usize {
+    for i in 0..concurrent_mt.changelog_index() as usize {
         let changelog_entry = concurrent_mt.changelog[i].clone();
         let spl_changelog_entry = spl_concurrent_mt.change_logs[i];
         assert_eq!(changelog_entry.root, spl_changelog_entry.root);
@@ -949,18 +949,18 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_ROOTS: usize>(
         assert_eq!(changelog_entry.index, spl_changelog_entry.index as u64);
     }
     assert_eq!(
-        concurrent_mt.current_changelog_index,
+        concurrent_mt.changelog_index(),
         spl_concurrent_mt.active_index as usize
     );
     assert_eq!(concurrent_mt.root().unwrap(), spl_concurrent_mt.get_root());
-    for i in 0..concurrent_mt.current_root_index as usize {
+    for i in 0..concurrent_mt.root_index() as usize {
         assert_eq!(
             concurrent_mt.roots[i],
             spl_concurrent_mt.change_logs[i].root
         );
     }
     assert_eq!(
-        concurrent_mt.current_root_index,
+        concurrent_mt.root_index(),
         spl_concurrent_mt.active_index as usize
     );
     assert_eq!(

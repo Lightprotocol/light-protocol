@@ -138,21 +138,19 @@ fn process_batch<'a, 'c: 'info, 'info>(
                     // without increasing the heap usage.
                     // If you feel brave enough to refactor it, don't break the test
                     // which appends 60 leaves!
-                    for changelog_index in
-                        first_changelog_index..first_changelog_index + leaves_in_batch
+                    for changelog_entry in merkle_tree
+                        .changelog
+                        .iter_from(first_changelog_index)
+                        .take(leaves_in_batch)
                     {
-                        let changelog_index = changelog_index % merkle_tree.changelog_capacity;
+                        // let changelog_index = changelog_index % merkle_tree.changelog_capacity;
                         let mut path = Vec::with_capacity(merkle_tree.height);
 
-                        for (level, node) in merkle_tree.changelog[changelog_index]
-                            .path
-                            .iter()
-                            .enumerate()
-                        {
+                        for (level, node) in changelog_entry.path.iter().enumerate() {
                             let level = u32::try_from(level)
                                 .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?;
                             let index = (1 << (merkle_tree.height as u32 - level))
-                                + (merkle_tree.changelog[changelog_index].index as u32 >> level);
+                                + (changelog_entry.index as u32 >> level);
                             path.push(PathNode {
                                 node: node.to_owned(),
                                 index,

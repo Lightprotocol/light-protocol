@@ -110,7 +110,7 @@ where
                 ConcurrentMerkleTreeError::HeightZero,
             ));
         }
-        if tree.merkle_tree.merkle_tree.changelog_capacity == 0 {
+        if tree.merkle_tree.merkle_tree.changelog.capacity() == 0 {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::ChangelogZero,
             ));
@@ -136,7 +136,7 @@ where
         );
 
         let expected_bytes_changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>()
-            * tree.merkle_tree.merkle_tree.changelog_capacity;
+            * tree.merkle_tree.merkle_tree.changelog.capacity();
         if bytes_changelog.len() != expected_bytes_changelog_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::ChangelogBufferSize(
@@ -154,7 +154,7 @@ where
         );
 
         let expected_bytes_roots_size =
-            mem::size_of::<[u8; 32]>() * tree.merkle_tree.merkle_tree.roots_capacity;
+            mem::size_of::<[u8; 32]>() * tree.merkle_tree.merkle_tree.roots.capacity();
         if bytes_roots.len() != expected_bytes_roots_size {
             return Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
                 ConcurrentMerkleTreeError::RootBufferSize(
@@ -383,15 +383,6 @@ where
         let mut tree = Self::struct_from_bytes_zero_copy_mut(bytes_struct)?;
 
         tree.merkle_tree.merkle_tree.height = height;
-
-        tree.merkle_tree.merkle_tree.changelog_capacity = changelog_size;
-        tree.merkle_tree.merkle_tree.changelog_length = 0;
-        tree.merkle_tree.merkle_tree.current_changelog_index = 0;
-
-        tree.merkle_tree.merkle_tree.roots_capacity = roots_size;
-        tree.merkle_tree.merkle_tree.roots_length = 0;
-        tree.merkle_tree.merkle_tree.current_root_index = 0;
-
         tree.merkle_tree.merkle_tree.canopy_depth = canopy_depth;
 
         tree.fill_vectors_mut(
@@ -471,7 +462,7 @@ mod test {
 
     #[test]
     fn test_from_bytes_zero_copy_init() {
-        let mut bytes_struct = [0u8; 320];
+        let mut bytes_struct = [0u8; 272];
         let mut bytes_filled_subtrees = [0u8; 832];
         let mut bytes_changelog = [0u8; 1220800];
         let mut bytes_roots = [0u8; 76800];

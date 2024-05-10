@@ -785,7 +785,7 @@ export type AccountCompression = {
                     {
                         name: 'merkleTreeStruct';
                         type: {
-                            array: ['u8', 320];
+                            array: ['u8', 272];
                         };
                     },
                     {
@@ -893,7 +893,7 @@ export type AccountCompression = {
                         name: 'stateMerkleTreeStruct';
                         docs: ['Merkle tree for the transaction state.'];
                         type: {
-                            array: ['u8', 272];
+                            array: ['u8', 224];
                         };
                     },
                     {
@@ -1975,7 +1975,7 @@ export const IDL: AccountCompression = {
                     {
                         name: 'merkleTreeStruct',
                         type: {
-                            array: ['u8', 320],
+                            array: ['u8', 272],
                         },
                     },
                     {
@@ -2083,7 +2083,7 @@ export const IDL: AccountCompression = {
                         name: 'stateMerkleTreeStruct',
                         docs: ['Merkle tree for the transaction state.'],
                         type: {
-                            array: ['u8', 272],
+                            array: ['u8', 224],
                         },
                     },
                     {

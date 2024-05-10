@@ -82,15 +82,6 @@ where
         let mut merkle_tree = unsafe {
             ConcurrentMerkleTree {
                 height: (*struct_ref).merkle_tree.height,
-
-                changelog_capacity: (*struct_ref).merkle_tree.changelog_capacity,
-                changelog_length: (*struct_ref).merkle_tree.changelog_length,
-                current_changelog_index: (*struct_ref).merkle_tree.current_changelog_index,
-
-                roots_capacity: (*struct_ref).merkle_tree.roots_capacity,
-                roots_length: (*struct_ref).merkle_tree.roots_length,
-                current_root_index: (*struct_ref).merkle_tree.current_root_index,
-
                 canopy_depth: (*struct_ref).merkle_tree.canopy_depth,
 
                 next_index: (*struct_ref).merkle_tree.next_index,
@@ -99,9 +90,11 @@ where
 
                 filled_subtrees: BoundedVec::with_capacity((*struct_ref).merkle_tree.height),
                 changelog: CyclicBoundedVec::with_capacity(
-                    (*struct_ref).merkle_tree.changelog_capacity,
+                    (*struct_ref).merkle_tree.changelog.capacity(),
                 ),
-                roots: CyclicBoundedVec::with_capacity((*struct_ref).merkle_tree.roots_capacity),
+                roots: CyclicBoundedVec::with_capacity(
+                    (*struct_ref).merkle_tree.changelog.capacity(),
+                ),
                 canopy: BoundedVec::with_capacity(ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(
                     (*struct_ref).merkle_tree.canopy_depth,
                 )),
@@ -127,8 +120,8 @@ where
             merkle_tree.filled_subtrees.push(*subtree)?;
         }
 
-        let expected_bytes_changelog_size =
-            mem::size_of::<ChangelogEntry<HEIGHT>>() * (*struct_ref).merkle_tree.changelog_capacity;
+        let expected_bytes_changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>()
+            * (*struct_ref).merkle_tree.changelog.capacity();
         if bytes_changelog.len() != expected_bytes_changelog_size {
             return Err(ConcurrentMerkleTreeError::ChangelogBufferSize(
                 expected_bytes_changelog_size,
@@ -138,14 +131,14 @@ where
         }
         let changelog: &[ChangelogEntry<HEIGHT>] = slice::from_raw_parts(
             bytes_changelog.as_ptr() as *const _,
-            (*struct_ref).merkle_tree.changelog_length,
+            (*struct_ref).merkle_tree.changelog.len(),
         );
         for changelog_entry in changelog.iter() {
             merkle_tree.changelog.push(changelog_entry.clone());
         }
 
         let expected_bytes_roots_size =
-            mem::size_of::<[u8; 32]>() * (*struct_ref).merkle_tree.roots_capacity;
+            mem::size_of::<[u8; 32]>() * (*struct_ref).merkle_tree.roots.capacity();
         if bytes_roots.len() != expected_bytes_roots_size {
             return Err(ConcurrentMerkleTreeError::RootBufferSize(
                 expected_bytes_roots_size,
@@ -155,7 +148,7 @@ where
         }
         let roots: &[[u8; 32]] = slice::from_raw_parts(
             bytes_roots.as_ptr() as *const _,
-            (*struct_ref).merkle_tree.roots_length,
+            (*struct_ref).merkle_tree.roots.len(),
         );
         for root in roots.iter() {
             merkle_tree.roots.push(*root);

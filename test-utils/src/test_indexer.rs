@@ -332,7 +332,7 @@ impl TestIndexer {
             "Merkle tree root mismatch"
         );
 
-        let root_indices = vec![merkle_tree.current_root_index as u16; accounts.len()];
+        let root_indices = vec![merkle_tree.root_index() as u16; accounts.len()];
 
         (batch_inclusion_proof_inputs, root_indices)
     }
@@ -368,7 +368,7 @@ impl TestIndexer {
             .copy_merkle_tree()
             .unwrap();
         let address_root_indices =
-            vec![address_merkle_tree.0.merkle_tree.current_root_index as u16; addresses.len()];
+            vec![address_merkle_tree.0.merkle_tree.root_index() as u16; addresses.len()];
 
         (batch_non_inclusion_proof_inputs, address_root_indices)
     }
@@ -509,7 +509,7 @@ impl TestIndexer {
             .deserialized()
             .copy_merkle_tree()
             .unwrap();
-        let change_log_index = merkle_tree.current_changelog_index as u64;
+        let change_log_index = merkle_tree.changelog_index() as u64;
 
         let mut compressed_account_to_nullify = Vec::new();
 
