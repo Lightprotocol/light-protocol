@@ -19,8 +19,8 @@ pub enum BoundedVecError {
 impl From<BoundedVecError> for u32 {
     fn from(e: BoundedVecError) -> u32 {
         match e {
-            BoundedVecError::Full => 5001,
-            BoundedVecError::ArraySize(_, _) => 5002,
+            BoundedVecError::Full => 8001,
+            BoundedVecError::ArraySize(_, _) => 8002,
         }
     }
 }

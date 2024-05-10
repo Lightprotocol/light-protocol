@@ -33,10 +33,10 @@ pub enum UtilsError {
 impl From<UtilsError> for u32 {
     fn from(e: UtilsError) -> u32 {
         match e {
-            UtilsError::InputTooLarge(_) => 9001,
-            UtilsError::InvalidChunkSize => 9002,
-            UtilsError::InvalidSeeds => 9003,
-            UtilsError::InvalidRolloverThreshold => 9004,
+            UtilsError::InputTooLarge(_) => 12001,
+            UtilsError::InvalidChunkSize => 12002,
+            UtilsError::InvalidSeeds => 12003,
+            UtilsError::InvalidRolloverThreshold => 12004,
         }
     }
 }
