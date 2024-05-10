@@ -121,11 +121,11 @@ where
         self.roots.last().cloned().unwrap()
     }
 
-    pub fn get_proof_of_leaf(
+    pub fn get_proof_of_leaf<'a>(
         &self,
         mut index: usize,
         full: bool,
-    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
+    ) -> Result<BoundedVec<'a, [u8; 32]>, BoundedVecError> {
         let mut proof = BoundedVec::with_capacity(self.height);
         let limit = match full {
             true => self.height,
@@ -157,6 +157,10 @@ where
 
     pub fn get_leaf_index(&self, leaf: &[u8; 32]) -> Option<usize> {
         self.layers[0].iter().position(|node| node == leaf)
+    }
+
+    pub fn leaves(&self) -> &[[u8; 32]] {
+        self.layers[0].as_slice()
     }
 
     pub fn verify(

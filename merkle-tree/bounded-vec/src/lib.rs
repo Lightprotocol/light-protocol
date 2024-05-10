@@ -259,6 +259,40 @@ where
     }
 }
 
+impl<'a, T> Clone for BoundedVec<'a, T>
+where
+    T: Clone + Pod,
+{
+    fn clone(&self) -> Self {
+        // Create a new buffer with the same capacity as the original
+        let size = mem::size_of::<T>() * self.capacity;
+        let align = mem::align_of::<T>();
+        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
+
+        let ptr = unsafe { alloc::alloc(layout) };
+        if ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+
+        // Create a slice from the newly allocated buffer
+        let new_data = unsafe { slice::from_raw_parts_mut(ptr as *mut T, self.capacity) };
+
+        // Copy elements from the original data slice to the new slice
+        let new_vec = Self {
+            capacity: self.capacity,
+            length: self.length,
+            data: new_data,
+        };
+
+        // Clone each element into the new vector
+        for i in 0..self.length {
+            new_vec.data[i] = self.data[i].clone();
+        }
+
+        new_vec
+    }
+}
+
 impl<'a, T> fmt::Debug for BoundedVec<'a, T>
 where
     T: Clone + fmt::Debug + Pod,
