@@ -33,7 +33,7 @@ dependencies = [
  "light-utils",
  "light-verifier",
  "log",
- "memoffset 0.9.0",
+ "memoffset 0.9.1",
  "num-bigint 0.4.4",
  "num-traits",
  "solana-program-test",
@@ -56,12 +56,14 @@ dependencies = [
  "light-compressed-pda",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
+ "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
  "light-test-utils",
  "light-utils",
  "light-verifier",
+ "memoffset 0.9.1",
  "num-bigint 0.4.4",
  "num-traits",
  "reqwest 0.11.26",
@@ -1467,7 +1469,7 @@ dependencies = [
  "autocfg",
  "cfg-if",
  "crossbeam-utils",
- "memoffset 0.9.0",
+ "memoffset 0.9.1",
  "scopeguard",
 ]
 
@@ -2785,7 +2787,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.9.3",
+ "borsh 0.10.3",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -2902,7 +2904,7 @@ dependencies = [
  "light-bounded-vec",
  "light-heap",
  "light-utils",
- "memoffset 0.9.0",
+ "memoffset 0.9.1",
  "num-bigint 0.4.4",
  "num-traits",
  "rand 0.8.5",
@@ -3155,9 +3157,9 @@ dependencies = [
 
 [[package]]
 name = "memoffset"
-version = "0.9.0"
+version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
+checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
 ]
@@ -5390,7 +5392,7 @@ dependencies = [
  "libsecp256k1",
  "light-poseidon",
  "log",
- "memoffset 0.9.0",
+ "memoffset 0.9.1",
  "num-bigint 0.4.4",
  "num-derive 0.4.2",
  "num-traits",
