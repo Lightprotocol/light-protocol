@@ -448,7 +448,7 @@ async fn test_with_address() {
         event,
         Err(BanksClientError::TransactionError(
             // ElementAlreadyExists
-            TransactionError::InstructionError(0, InstructionError::Custom(6002))
+            TransactionError::InstructionError(0, InstructionError::Custom(9002))
         ))
     ));
 

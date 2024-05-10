@@ -33,12 +33,12 @@ pub enum HashSetError {
 impl From<HashSetError> for u32 {
     fn from(e: HashSetError) -> u32 {
         match e {
-            HashSetError::Full => 6001,
-            HashSetError::ElementAlreadyExists => 6002,
-            HashSetError::ElementDoesNotExist => 6003,
-            HashSetError::UsizeConv => 6004,
-            HashSetError::IntegerOverflow => 6005,
-            HashSetError::BufferSize(_, _) => 6006,
+            HashSetError::Full => 9001,
+            HashSetError::ElementAlreadyExists => 9002,
+            HashSetError::ElementDoesNotExist => 9003,
+            HashSetError::UsizeConv => 9004,
+            HashSetError::IntegerOverflow => 9005,
+            HashSetError::BufferSize(_, _) => 9006,
             HashSetError::Utils(e) => e.into(),
         }
     }

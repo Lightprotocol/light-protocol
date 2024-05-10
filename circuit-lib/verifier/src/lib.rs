@@ -26,12 +26,12 @@ pub enum VerifierError {
 impl From<VerifierError> for u32 {
     fn from(e: VerifierError) -> u32 {
         match e {
-            VerifierError::PublicInputsTryIntoFailed => 8001,
-            VerifierError::DecompressG1Failed => 8002,
-            VerifierError::DecompressG2Failed => 8003,
-            VerifierError::InvalidPublicInputsLength => 8004,
-            VerifierError::CreateGroth16VerifierFailed => 8005,
-            VerifierError::ProofVerificationFailed => 8006,
+            VerifierError::PublicInputsTryIntoFailed => 13001,
+            VerifierError::DecompressG1Failed => 13002,
+            VerifierError::DecompressG2Failed => 13003,
+            VerifierError::InvalidPublicInputsLength => 13004,
+            VerifierError::CreateGroth16VerifierFailed => 13005,
+            VerifierError::ProofVerificationFailed => 13006,
         }
     }
 }

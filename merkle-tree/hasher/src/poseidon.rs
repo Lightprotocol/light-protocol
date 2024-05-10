@@ -29,7 +29,9 @@ impl Hasher for Poseidon {
         // Call via a system call to perform the calculation.
         #[cfg(target_os = "solana")]
         {
-            use crate::{errors::PoseidonSyscallError, HASH_BYTES};
+            use solana_program::poseidon::PoseidonSyscallError;
+
+            use crate::HASH_BYTES;
 
             let mut hash_result = [0; HASH_BYTES];
             let result = unsafe {
