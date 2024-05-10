@@ -17,6 +17,8 @@ num-bigint = "0.4"
 num-traits = "0.2"
 solana-program = { version = "1.18.11", optional = true }
 thiserror = "1.0"
+[target.'cfg(target_os = "solana")'.dependencies]
+light-heap = { path = "../../heap", version = "0.1.1" }
 
 [dev-dependencies]
 ark-bn254 = "0.4"
