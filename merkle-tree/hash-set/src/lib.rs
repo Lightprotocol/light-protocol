@@ -470,13 +470,15 @@ where
                 });
                 // SAFETY: `next_value_index` is always initialized.
                 unsafe {
-                    *self.next_value_index = if *self.next_value_index < self.capacity_values - 1 {
+                    *self.next_value_index = if *self.next_value_index < self.capacity_values {
                         *self.next_value_index + 1
                     } else {
-                        0
+                        // TODO: Write a test to trigger this error.
+                        // (Blocked by investigation of filling the complete value array.)
+                        // This should never happen.
+                        return Err(HashSetError::Full);
                     };
                 }
-
                 return Ok(());
             }
         }
@@ -516,9 +518,11 @@ where
         Ok(None)
     }
 
-    /// iterate over a range of elements in the hash set
-    /// return the position of the first free value
-    /// We always have to iterate over the whole range to make sure that the value has not been inserted before
+    /// find_element_iter iterates over a fixed range of elements
+    /// in the hash set.
+    /// We always have to iterate over the whole range
+    /// to make sure that the value is not in the hash-set.
+    /// Returns the position of the first free value.
     pub fn find_element_iter(
         &self,
         value: &BigUint,
@@ -555,6 +559,9 @@ where
                 None => {
                     if first_free_element.is_none() {
                         first_free_element = Some((probe_index, true));
+                        // Since we encountered an empty element we know for sure
+                        // that the element is not in the hash set.
+                        break;
                     }
                 }
             }
@@ -999,34 +1006,6 @@ mod test {
                         nf_chunk[0]
                     );
                 }
-
-                // I am not sure why this fails now
-                // Once we hit the threshold, we are going to receive next elements as
-                // the first ones.
-                // for (_seq, nullifier) in nullifiers.iter().enumerate() {
-                //     assert_eq!(&hs.first(_seq).unwrap().unwrap().value_biguint(), nullifier);
-                // }
-
-                // As we reach the sequence threshold, we should be able to override
-                // the same nullifiers. Actually it shouldn't because we have a check
-                // that prevents inserting the same element twice.
-                // for (_seq, nullifier) in nf_chunk.iter().enumerate() {
-                //     println!(
-                //         "overwriting: {:?}",
-                //         bigint_to_be_bytes_array::<32>(&nullifier)
-                //     );
-                //     println!(
-                //         "find {:?}",
-                //         hs.find_element(&nullifier, Some(seq + 10000 + _seq))
-                //             .unwrap()
-                //     );
-                //     // assert_eq!(hs.contains(&nullifier, seq).unwrap(), true);
-
-                //     hs.insert(&nullifier, seq + _seq as usize * 2400).unwrap();
-                //     hs.mark_with_sequence_number(&nullifier, 1).unwrap();
-                //     println!("seq : {:?}", seq);
-                //     println!("next value index : {:?}", unsafe { *hs.next_value_index });
-                // }
             }
             seq += 2400;
         }
@@ -1058,13 +1037,11 @@ mod test {
             let mut hs = HashSet::<u16>::new(6857, 600, 2400).unwrap();
 
             let mut rng = StdRng::seed_from_u64(1);
-            let mut res = Ok(());
-            let mut value = BigUint::from(Fr::rand(&mut rng));
-            // Since capacity is 4800, it will always fail on insert 4801.
-            // It might fail earlier for the hashset is probabilistic.
+            // We only fill each hash set to 80% because with much more we get conflicts.
+            // TODO: investigate why even a 0.1 loadfactor does not enable a full value array.
             for i in 0..500 {
-                value = BigUint::from(Fr::rand(&mut rng));
-                res = hs.insert(&value, 0);
+                let value = BigUint::from(Fr::rand(&mut rng));
+                let res = hs.insert(&value, 0);
                 match res {
                     Ok(_) => {
                         assert_eq!(hs.contains(&value, 0).unwrap(), true);
@@ -1078,8 +1055,6 @@ mod test {
                     }
                 }
             }
-            // assert_eq!(res.unwrap_err(), HashSetError::Full);
-            // assert_eq!(hs.contains(&value, 0).unwrap(), false);
         }
     }
 
