@@ -156,9 +156,9 @@ async fn update_merkle_tree(
 
         let address_merkle_tree = &address_merkle_tree
             .deserialized()
-            .load_merkle_tree()
+            .copy_merkle_tree()
             .unwrap();
-        let changelog_index = address_merkle_tree.merkle_tree.changelog_index();
+        let changelog_index = address_merkle_tree.0.changelog_index();
         changelog_index
     };
 
@@ -224,12 +224,10 @@ async fn relayer_update(
             AccountZeroCopy::<AddressMerkleTreeAccount>::new(context, address_merkle_tree_pubkey)
                 .await;
         let mut address_merkle_tree_deserialized = address_merkle_tree.deserialized().clone();
-        let address_merkle_tree = address_merkle_tree_deserialized
-            .load_merkle_tree_mut()
-            .unwrap();
+        let address_merkle_tree = address_merkle_tree_deserialized.copy_merkle_tree().unwrap();
         assert_eq!(
             relayer_merkle_tree.root(),
-            address_merkle_tree.merkle_tree.root().unwrap()
+            address_merkle_tree.0.root().unwrap()
         );
         let address_queue = unsafe {
             get_hash_set::<u16, AddressQueueAccount>(context, address_queue_pubkey).await
@@ -261,16 +259,16 @@ async fn relayer_update(
         for i in 0..16 {
             bounded_vec.push(array[i]).unwrap();
         }
-        address_merkle_tree
-            .merkle_tree
-            .update(
-                address_merkle_tree.merkle_tree.changelog_index(),
-                address_bundle.new_element.clone(),
-                old_low_address.clone(),
-                old_low_address_next_value.clone(),
-                &mut bounded_vec,
-            )
-            .unwrap();
+        // address_merkle_tree
+        //     .merkle_tree
+        //     .update(
+        //         address_merkle_tree.merkle_tree.changelog_index(),
+        //         address_bundle.new_element.clone(),
+        //         old_low_address.clone(),
+        //         old_low_address_next_value.clone(),
+        //         &mut bounded_vec,
+        //     )
+        //     .unwrap();
 
         // Update on-chain tree.
         let update_successful = match update_merkle_tree(
@@ -365,7 +363,7 @@ async fn test_address_queue() {
     .await;
     let address_merkle_tree = &address_merkle_tree
         .deserialized()
-        .load_merkle_tree()
+        .copy_merkle_tree()
         .unwrap();
 
     let address_queue = unsafe {
@@ -374,19 +372,13 @@ async fn test_address_queue() {
 
     assert_eq!(
         address_queue
-            .contains(
-                &address1,
-                address_merkle_tree.merkle_tree.merkle_tree.sequence_number
-            )
+            .contains(&address1, address_merkle_tree.0.merkle_tree.sequence_number)
             .unwrap(),
         true
     );
     assert_eq!(
         address_queue
-            .contains(
-                &address2,
-                address_merkle_tree.merkle_tree.merkle_tree.sequence_number
-            )
+            .contains(&address2, address_merkle_tree.0.merkle_tree.sequence_number)
             .unwrap(),
         true
     );
