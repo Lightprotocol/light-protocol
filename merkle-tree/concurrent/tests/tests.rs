@@ -1914,27 +1914,43 @@ pub fn test_100_nullify_mt() {
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
 
         let mut rng = rand::thread_rng();
+
+        // Pick random queue indices to nullify.
+        let mut queue_indices = std::collections::HashSet::new();
+        while queue_indices.len() < cmp::min(9, iterations) {
+            let index = rng.gen_range(0..iterations);
+            queue_indices.insert(index);
+        }
+
         let change_log_index = onchain_merkle_tree.changelog_index();
 
-        let mut nullified_leaf_indices = vec![0];
-        for _ in 1..std::cmp::min(9, iterations) {
-            let mut leaf = [0u8; 32];
-            let mut leaf_index = 0;
-            while nullified_leaf_indices.contains(&leaf_index) {
-                let index = rng.gen_range(0..std::cmp::min(9, iterations));
-                leaf = queue.by_value_index(index, None).unwrap().value_bytes();
-                leaf_index = crank_merkle_tree.get_leaf_index(&leaf).unwrap().clone();
-            }
+        let mut nullified_leaf_indices = Vec::with_capacity(queue_indices.len());
 
-            nullified_leaf_indices.push(leaf_index);
-            let mut proof0 = crank_merkle_tree
+        // Nullify the leaves we picked.
+        for queue_index in queue_indices {
+            let leaf_cell = queue
+                .by_value_index(queue_index, Some(onchain_merkle_tree.sequence_number))
+                .unwrap();
+            let leaf_index = crank_merkle_tree
+                .get_leaf_index(&leaf_cell.value_bytes())
+                .unwrap()
+                .clone();
+
+            let mut proof = crank_merkle_tree
                 .get_proof_of_leaf(leaf_index, false)
                 .unwrap();
             onchain_merkle_tree
-                .update(change_log_index, &leaf, &[0u8; 32], leaf_index, &mut proof0)
+                .update(
+                    change_log_index,
+                    &leaf_cell.value_bytes(),
+                    &[0u8; 32],
+                    leaf_index,
+                    &mut proof,
+                )
                 .unwrap();
+
+            nullified_leaf_indices.push(leaf_index);
         }
-        nullified_leaf_indices.remove(0);
         for leaf_index in nullified_leaf_indices {
             crank_merkle_tree.update(&[0; 32], leaf_index).unwrap();
         }
@@ -2203,4 +2219,223 @@ fn test_subtree_updates() {
     assert_eq!(spl_concurrent_mt.get_root(), ref_mt.root());
     assert_eq!(spl_concurrent_mt.get_root(), con_mt.root());
     assert_eq!(ref_mt.root(), con_mt.root());
+}
+
+/// Tests an update of a leaf which was modified by another updates.
+fn update_already_modified_leaf<
+    H,
+    // Number of conflicting updates of the same leaf.
+    const CONFLICTS: usize,
+    // Number of appends of random leaves before submitting the conflicting
+    // updates.
+    const RANDOM_APPENDS_BEFORE_CONFLICTS: usize,
+    // Number of appends of random leaves after every single conflicting
+    // update.
+    const RANDOM_APPENDS_AFTER_EACH_CONFLICT: usize,
+>()
+where
+    H: Hasher,
+{
+    const HEIGHT: usize = 26;
+    const MAX_CHANGELOG: usize = 8;
+    const MAX_ROOTS: usize = 8;
+    const CANOPY: usize = 0;
+
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    // Create tree with a single leaf.
+    let first_leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    merkle_tree.append(&first_leaf).unwrap();
+    reference_tree.append(&first_leaf).unwrap();
+
+    // Save a proof of the first append.
+    let outdated_changelog_index = merkle_tree.changelog_index();
+    let mut outdated_proof = reference_tree.get_proof_of_leaf(0, false).unwrap().clone();
+
+    let mut old_leaf = first_leaf;
+    for _ in 0..CONFLICTS {
+        // Update leaf. Always use an up-to-date proof.
+        let mut up_to_date_proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+        let new_leaf = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        merkle_tree
+            .update(
+                merkle_tree.changelog_index(),
+                &old_leaf,
+                &new_leaf,
+                0,
+                &mut up_to_date_proof,
+            )
+            .unwrap();
+        reference_tree.update(&new_leaf, 0).unwrap();
+
+        old_leaf = new_leaf;
+
+        assert_eq!(merkle_tree.root(), reference_tree.root());
+    }
+
+    // Update leaf. This time, try using an outdated proof.
+    let new_leaf = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    let res = merkle_tree.update(
+        outdated_changelog_index,
+        &first_leaf,
+        &new_leaf,
+        0,
+        &mut outdated_proof,
+    );
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::CannotUpdateLeaf)
+    ));
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_1_0_0() {
+    update_already_modified_leaf::<Keccak, 1, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_1_0_0() {
+    update_already_modified_leaf::<Poseidon, 1, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_1_0_0() {
+    update_already_modified_leaf::<Sha256, 1, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_1_1_1() {
+    update_already_modified_leaf::<Keccak, 1, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_1_1_1() {
+    update_already_modified_leaf::<Poseidon, 1, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_1_1_1() {
+    update_already_modified_leaf::<Sha256, 1, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_1_2_2() {
+    update_already_modified_leaf::<Keccak, 1, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_1_2_2() {
+    update_already_modified_leaf::<Poseidon, 1, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_1_2_2() {
+    update_already_modified_leaf::<Sha256, 1, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_2_0_0() {
+    update_already_modified_leaf::<Keccak, 2, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_2_0_0() {
+    update_already_modified_leaf::<Poseidon, 2, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_2_0_0() {
+    update_already_modified_leaf::<Sha256, 2, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_2_1_1() {
+    update_already_modified_leaf::<Keccak, 2, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_2_1_1() {
+    update_already_modified_leaf::<Poseidon, 2, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_2_1_1() {
+    update_already_modified_leaf::<Sha256, 2, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_2_2_2() {
+    update_already_modified_leaf::<Keccak, 2, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_2_2_2() {
+    update_already_modified_leaf::<Poseidon, 2, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_2_2_2() {
+    update_already_modified_leaf::<Sha256, 2, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_4_0_0() {
+    update_already_modified_leaf::<Keccak, 4, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_4_0_0() {
+    update_already_modified_leaf::<Poseidon, 4, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_4_0_0() {
+    update_already_modified_leaf::<Sha256, 4, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_4_1_1() {
+    update_already_modified_leaf::<Keccak, 4, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_4_1_1() {
+    update_already_modified_leaf::<Poseidon, 4, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_4_1_1() {
+    update_already_modified_leaf::<Sha256, 4, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_4_4_4() {
+    update_already_modified_leaf::<Keccak, 4, 4, 4>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_4_4_4() {
+    update_already_modified_leaf::<Poseidon, 4, 4, 4>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_4_4_4() {
+    update_already_modified_leaf::<Sha256, 4, 4, 4>()
 }

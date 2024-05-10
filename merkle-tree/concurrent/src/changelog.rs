@@ -65,6 +65,12 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         if leaf_index != self.index() {
             let intersection_index = self.intersection_index(leaf_index);
             proof[intersection_index] = self.path[intersection_index];
+        } else {
+            // This case means that the leaf we are trying to update was
+            // already updated. Therefore, the right thing to do is to notify
+            // the caller to sync the local Merkle tree and update the leaf,
+            // if necessary.
+            return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
         }
 
         Ok(())

@@ -7,7 +7,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use num_traits::{Bounded, CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 pub mod array;
 pub mod copy;
@@ -62,7 +62,8 @@ pub type IndexedMerkleTree40<'a, H, I> = IndexedMerkleTree<'a, H, I, 40>;
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd
+    I: Bounded
+        + CheckedAdd
         + CheckedSub
         + Copy
         + Clone
@@ -133,39 +134,44 @@ where
     #[allow(clippy::type_complexity)]
     pub fn patch_low_element(
         &mut self,
-        low_element: &IndexedElement<I>,
-    ) -> Result<Option<(IndexedElement<I>, [u8; 32])>, IndexedMerkleTreeError> {
-        let changelog_element_index = self
+        low_element: &mut IndexedElement<I>,
+        low_element_next_value: &mut BigUint,
+    ) -> Result<(), IndexedMerkleTreeError> {
+        let changelog_indices: Vec<I> = self
             .changelog
             .iter()
-            .position(|element| element.index == low_element.index);
-        // key (index) value index in the changelog
-
-        match changelog_element_index {
-            Some(changelog_element_index) => {
-                let max_usize = usize::MAX;
-                // TODO: benchmark whether overwriting or the comparison is more expensive.
-                // Removed elements must not be used again.
-                if changelog_element_index == max_usize {
-                    return Err(IndexedMerkleTreeError::LowElementNotFound);
+            .filter_map(|element| {
+                if element.index == low_element.index {
+                    Some(element.index)
+                } else {
+                    None
                 }
-                let changelog_element = &mut self.changelog[changelog_element_index];
-                let patched_element = IndexedElement::<I> {
-                    value: BigUint::from_bytes_be(&changelog_element.value),
-                    index: changelog_element.index,
-                    next_index: changelog_element.next_index,
-                };
-                // Removing the value:
-                // Writing data costs CU thus we just overwrite the index
-                // with an impossible value so that it cannot be found.
-                changelog_element.index = max_usize
-                    .try_into()
-                    .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
-                // Only use changelog event values, since these originate from an account -> can be trusted
-                Ok(Some((patched_element, changelog_element.next_value)))
+            })
+            .collect();
+
+        for changelog_element_index in changelog_indices {
+            // TODO: benchmark whether overwriting or the comparison is more expensive.
+            // Removed elements must not be used again.
+            if changelog_element_index == I::max_value() {
+                return Err(IndexedMerkleTreeError::LowElementNotFound);
             }
-            None => Ok(None),
+            let changelog_element = &mut self.changelog[usize::from(changelog_element_index)];
+
+            // Only use changelog event values, since these originate from an account -> can be trusted
+            *low_element = IndexedElement::<I> {
+                value: BigUint::from_bytes_be(&changelog_element.value),
+                index: changelog_element.index,
+                next_index: changelog_element.next_index,
+            };
+            *low_element_next_value = BigUint::from_bytes_be(&changelog_element.next_value);
+
+            // Removing the value:
+            // Writing data costs CU thus we just overwrite the index
+            // with an impossible value so that it cannot be found.
+            changelog_element.index = I::max_value();
         }
+
+        Ok(())
     }
 
     pub fn update(
@@ -176,11 +182,8 @@ where
         mut low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
-        let patched_low_element = self.patch_low_element(&low_element)?;
-        if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
-            low_element = patched_low_element;
-            low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
-        };
+        self.patch_low_element(&mut low_element, &mut low_element_next_value)?;
+
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -215,8 +218,25 @@ where
         let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
 
+        for changelog_entry in self
+            .merkle_tree
+            .changelog
+            .iter_from(changelog_index)
+            .skip(1)
+        {
+            if let Err(e) = changelog_entry.update_proof(low_element.index.into(), low_leaf_proof) {
+                match e {
+                    // In this case, we are confident that our `new_low_leaf`
+                    // is correct even if there was any conflicting change
+                    // submitted to the Merkle tree.
+                    ConcurrentMerkleTreeError::CannotUpdateLeaf => {}
+                    _ => return Err(e.into()),
+                }
+            }
+        }
+
         self.merkle_tree.update(
-            changelog_index,
+            self.merkle_tree.changelog_index(),
             &old_low_leaf,
             &new_low_leaf,
             low_element.index.into(),
