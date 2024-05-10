@@ -792,7 +792,12 @@ where
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
-        for changelog_entry in self.changelog.iter_from(changelog_index) {
+        // Iterate over changelog entries starting from the requested
+        // `changelog_index`.
+        //
+        // Since we are interested only in subsequent, new changelog entries,
+        // skip the first result.
+        for changelog_entry in self.changelog.iter_from(changelog_index).skip(1) {
             changelog_entry.update_proof(leaf_index, proof)?;
         }
 
