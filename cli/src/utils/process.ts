@@ -119,7 +119,7 @@ export async function execute(command: string): Promise<string> {
 export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
- 
+
   const dir = path.join(__dirname, logDir);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
