@@ -4,9 +4,6 @@ import { INDEXER_PROCESS_NAME, PHOTON_VERSION } from "./constants";
 import { exec } from "node:child_process";
 import * as util from "node:util";
 
-//   const binDir = path.join(__dirname, "../..", "bin");
-//   command = path.join(binDir, binaryName);
-
 export async function startIndexer(checkPhotonVersion: boolean = true) {
   await killIndexer();
   const resolvedOrNull = which.sync("photon", { nothrow: true });
