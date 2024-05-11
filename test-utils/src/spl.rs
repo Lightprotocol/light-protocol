@@ -152,7 +152,7 @@ pub struct MerkleTreeTestSnapShot {
 pub async fn assert_merkle_tree_after_tx(
     context: &mut ProgramTestContext,
     snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &TestIndexer,
+    test_indexer: &mut TestIndexer,
 ) {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
@@ -176,20 +176,39 @@ pub async fn assert_merkle_tree_after_tx(
         );
         let test_indexer_merkle_tree = test_indexer
             .state_merkle_trees
-            .iter()
+            .iter_mut()
             .find(|x| x.0.merkle_tree == snapshot.accounts.merkle_tree)
             .expect("merkle tree not found in test indexer");
-        assert_eq!(
-            merkle_tree.root().unwrap(),
-            test_indexer_merkle_tree.1.root(),
-            "merkle tree root update failed"
-        );
+
+        if merkle_tree.root().unwrap() != test_indexer_merkle_tree.1.root() {
+            println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
+            for (i, leaf) in test_indexer_merkle_tree.1.layers[0].iter().enumerate() {
+                println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
+            }
+            let merkle_tree_roots = merkle_tree_account.deserialized().load_roots().unwrap();
+            for i in 0..16 {
+                println!("root {} {:?}", i, merkle_tree_roots.get(i));
+            }
+            for i in 0..5 {
+                test_indexer_merkle_tree
+                    .1
+                    .update(&[0u8; 32], 15 - i)
+                    .unwrap();
+                println!(
+                    "roll back root {} {:?}",
+                    15 - i,
+                    test_indexer_merkle_tree.1.root()
+                );
+            }
+
+            panic!("merkle tree root update failed");
+        }
     }
 }
 
 pub async fn assert_transfer(
     context: &mut ProgramTestContext,
-    test_indexer: &TestIndexer,
+    test_indexer: &mut TestIndexer,
     out_compressed_accounts: &[TokenTransferOutputData],
     input_compressed_account_hashes: &[[u8; 32]],
     output_merkle_tree_test_snapshots: &[MerkleTreeTestSnapShot],
@@ -365,7 +384,7 @@ pub async fn assert_nullifiers_exist_in_hash_sets(
 pub async fn assert_mint_to<'a>(
     num_mint_to: usize,
     context: &mut ProgramTestContext,
-    test_indexer: &'a TestIndexer,
+    test_indexer: &'a mut TestIndexer,
     recipient_keypair: &Keypair,
     mint: Pubkey,
     amount: u64,
@@ -596,7 +615,7 @@ pub async fn perform_compressed_transfer_test(
     println!("snapshots: {:?}", snapshots);
     assert_transfer(
         context,
-        &test_indexer,
+        test_indexer,
         &output_compressed_accounts,
         &input_compressed_account_hashes,
         &snapshots,

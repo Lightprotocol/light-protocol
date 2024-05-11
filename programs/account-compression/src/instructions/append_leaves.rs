@@ -57,6 +57,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     leaves: &'a [(u8, [u8; 32])],
 ) -> Result<()> {
     msg!("Processing {} leaves", leaves.len());
+    msg!("leaves {:?}", leaves);
     for i in 0..(leaves.len().div_ceil(BATCH_SIZE)) {
         let leaves_start = i * BATCH_SIZE;
         let leaves_to_process = cmp::min(leaves.len().saturating_sub(i * BATCH_SIZE), BATCH_SIZE);
@@ -102,6 +103,10 @@ fn process_batch<'a, 'c: 'info, 'info>(
     msg!("Processing batch with {:?} leaves", leaves);
     let len = ctx.remaining_accounts.len();
     for i in 0..len {
+        msg!(
+            "Processing Merkle tree account {:?}",
+            ctx.remaining_accounts[i].key()
+        );
         // if leaf.0 as usize == current_mt_index {
         //     batch.push(&leaf.1);
         //     leaves_in_batch += 1;

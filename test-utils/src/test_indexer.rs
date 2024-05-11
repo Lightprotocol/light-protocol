@@ -1,52 +1,51 @@
 #![cfg(feature = "test_indexer")]
-use std::{thread, time::Duration};
+use {
+    crate::{
+        create_account_instruction, create_and_send_transaction, get_hash_set,
+        test_env::EnvAccounts, AccountZeroCopy,
+    },
+    account_compression::{
+        utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+        AddressMerkleTreeAccount, StateMerkleTreeAccount,
+    },
+    anchor_lang::AnchorDeserialize,
+    light_circuitlib_rs::{
+        gnark::{
+            combined_json_formatter::CombinedJsonStruct,
+            constants::{PROVE_PATH, SERVER_ADDRESS},
+            helpers::{spawn_gnark_server, ProofType},
+            inclusion_json_formatter::BatchInclusionJsonStruct,
+            non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
+            proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+        },
+        inclusion::merkle_inclusion_proof_inputs::{
+            InclusionMerkleProofInputs, InclusionProofInputs,
+        },
+        non_inclusion::merkle_non_inclusion_proof_inputs::{
+            get_non_inclusion_proof_inputs, NonInclusionProofInputs,
+        },
+    },
+    light_compressed_pda::{
+        invoke::processor::CompressedProof,
+        sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+        sdk::event::PublicTransactionEvent,
+    },
+    light_compressed_token::{
+        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_authority_pda,
+        get_token_pool_pda, mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
+    },
+    light_hasher::Poseidon,
+    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
+    light_merkle_tree_reference::MerkleTree,
+    num_bigint::{BigInt, BigUint},
+    num_traits::{ops::bytes::FromBytes, Num},
+    reqwest::Client,
+    solana_program_test::ProgramTestContext,
+    solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer},
+    spl_token::instruction::initialize_mint,
+    std::{thread, time::Duration},
+};
 
-use crate::{
-    create_account_instruction, create_and_send_transaction, get_hash_set, test_env::EnvAccounts,
-    AccountZeroCopy,
-};
-use account_compression::{
-    initialize_nullifier_queue::NullifierQueueAccount,
-    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeAccount, StateMerkleTreeAccount,
-};
-use anchor_lang::AnchorDeserialize;
-use light_circuitlib_rs::gnark::helpers::spawn_gnark_server;
-use light_circuitlib_rs::gnark::inclusion_json_formatter::BatchInclusionJsonStruct;
-use light_circuitlib_rs::gnark::non_inclusion_json_formatter::BatchNonInclusionJsonStruct;
-use light_circuitlib_rs::{
-    gnark::{
-        combined_json_formatter::CombinedJsonStruct,
-        constants::{PROVE_PATH, SERVER_ADDRESS},
-        helpers::ProofType,
-        proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    },
-    inclusion::merkle_inclusion_proof_inputs::{InclusionMerkleProofInputs, InclusionProofInputs},
-    non_inclusion::merkle_non_inclusion_proof_inputs::{
-        get_non_inclusion_proof_inputs, NonInclusionProofInputs,
-    },
-};
-use light_compressed_pda::{
-    invoke::processor::CompressedProof, sdk::compressed_account::CompressedAccountWithMerkleContext,
-};
-use light_compressed_pda::{
-    sdk::compressed_account::MerkleContext, sdk::event::PublicTransactionEvent,
-};
-use light_compressed_token::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_authority_pda, get_token_pool_pda,
-    mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
-};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::array::IndexedArray;
-use light_indexed_merkle_tree::reference::IndexedMerkleTree;
-use light_merkle_tree_reference::MerkleTree;
-use num_bigint::{BigInt, BigUint};
-use num_traits::ops::bytes::FromBytes;
-use num_traits::Num;
-use reqwest::Client;
-use solana_program_test::ProgramTestContext;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
-use spl_token::instruction::initialize_mint;
 #[derive(Debug)]
 pub struct ProofRpcResult {
     pub proof: CompressedProof,
@@ -646,91 +645,6 @@ impl TestIndexer {
             .map(|x| x.token_data.amount)
             .sum()
     }
-
-    // /// Check compressed_accounts in the queue array which are not nullified yet
-    // /// Iterate over these compressed_accounts and nullify them
-    // pub async fn nullify_compressed_accounts(&mut self, context: &mut ProgramTestContext) {
-    //     let nullifier_queue = unsafe {
-    //         get_hash_set::<
-    //             u16,
-    //             account_compression::initialize_nullifier_queue::NullifierQueueAccount,
-    //         >(context, self.nullifier_queue_pubkey)
-    //         .await
-    //     };
-    //     let merkle_tree_account =
-    //         AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
-    //     let merkle_tree = merkle_tree_account
-    //         .deserialized()
-    //         .copy_merkle_tree()
-    //         .unwrap();
-    //     let change_log_index = merkle_tree.current_changelog_index as u64;
-
-    //     let mut compressed_account_to_nullify = Vec::new();
-
-    //     for (i, element) in nullifier_queue.iter() {
-    //         if element.sequence_number().is_none() {
-    //             compressed_account_to_nullify.push((i, element.value_bytes()));
-    //         }
-    //     }
-
-    //     for (index_in_nullifier_queue, compressed_account) in compressed_account_to_nullify.iter() {
-    //         let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
-    //         let proof: Vec<[u8; 32]> = self
-    //             .merkle_tree
-    //             .get_proof_of_leaf(leaf_index, false)
-    //             .unwrap()
-    //             .to_array::<16>()
-    //             .unwrap()
-    //             .to_vec();
-
-    //         let instructions = [
-    //             account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
-    //                 vec![change_log_index].as_slice(),
-    //                 vec![(*index_in_nullifier_queue) as u16].as_slice(),
-    //                 vec![0u64].as_slice(),
-    //                 vec![proof].as_slice(),
-    //                 &context.payer.pubkey(),
-    //                 &self.merkle_tree_pubkey,
-    //                 &self.nullifier_queue_pubkey,
-    //             ),
-    //         ];
-
-    //         create_and_send_transaction(
-    //             context,
-    //             &instructions,
-    //             &self.payer.pubkey(),
-    //             &[&self.payer],
-    //         )
-    //         .await
-    //         .unwrap();
-
-    //         let nullifier_queue = unsafe {
-    //             get_hash_set::<
-    //                 u16,
-    //                 account_compression::initialize_nullifier_queue::NullifierQueueAccount,
-    //             >(context, self.nullifier_queue_pubkey)
-    //             .await
-    //         };
-    //         let array_element = nullifier_queue
-    //             .by_value_index(*index_in_nullifier_queue, Some(merkle_tree.sequence_number))
-    //             .unwrap();
-    //         assert_eq!(&array_element.value_bytes(), compressed_account);
-    //         let merkle_tree_account =
-    //             AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey)
-    //                 .await;
-    //         assert_eq!(
-    //             array_element.sequence_number(),
-    //             Some(
-    //                 merkle_tree_account
-    //                     .deserialized()
-    //                     .load_merkle_tree()
-    //                     .unwrap()
-    //                     .sequence_number
-    //                     + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
-    //             )
-    //         );
-    //     }
-    // }
 }
 
 pub fn create_initialize_mint_instructions(

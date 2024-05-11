@@ -12,6 +12,7 @@ use crate::{
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_heap::BumpAllocator;
+use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 
 #[derive(Accounts)]
@@ -100,7 +101,10 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
                 #[cfg(target_os = "solana")]
                 let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
                 let element = BigUint::from_bytes_be(element.as_slice());
-                msg!("Inserting element {:?} into nullifier queue", element);
+                msg!(
+                    "Inserting element {:?} into nullifier queue",
+                    bigint_to_be_bytes_array::<32>(&element)
+                );
                 indexed_array
                     .insert(&element, sequence_number)
                     .map_err(ProgramError::from)?;
