@@ -40,6 +40,12 @@ class SetupCommand extends Command {
       default: false,
       exclusive: ["skip-indexer"],
     }),
+    "indexer-db-url": Flags.string({
+      description:
+        "Custom indexer database URL to store indexing data. By default we use an in-memory SQLite database.",
+      required: false,
+      exclusive: ["skip-indexer"],
+    }),
   };
 
   async run() {
@@ -54,6 +60,7 @@ class SetupCommand extends Command {
       proveCompressedAccounts: flags["prove-compressed-accounts"],
       proveNewAddresses: flags["prove-new-addresses"],
       checkPhotonVersion: !flags["relax-indexer-version-constraint"],
+      photonDatabaseUrl: flags["indexer-db-url"],
     });
 
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");

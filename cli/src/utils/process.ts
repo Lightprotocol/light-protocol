@@ -9,9 +9,12 @@ const waitOn = require("wait-on");
 
 export async function killProcess(processName: string) {
   const processList = await find("name", processName);
-  for (const proc of processList) {
+  const targetProcesses = processList.filter(
+    (proc) => proc.cmd.split(" ")[0] === processName,
+  );
+  targetProcesses.forEach((proc) => {
     process.kill(proc.pid);
-  }
+  });
 }
 
 export async function killProcessByPort(port: string) {
@@ -116,12 +119,19 @@ export async function execute(command: string): Promise<string> {
 export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
+
+  const dir = path.join(__dirname, logDir);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+
   const out = fs.openSync(`${logDir}/${binaryName}.log`, "a");
   const err = fs.openSync(`${logDir}/${binaryName}.log`, "a");
 
   const spawnedProcess = spawn(command, args, {
     stdio: ["ignore", out, err],
     shell: false,
+    detached: true,
   });
 
   spawnedProcess.on("close", (code) => {

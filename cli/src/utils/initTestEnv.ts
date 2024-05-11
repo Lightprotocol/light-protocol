@@ -25,6 +25,7 @@ export async function initTestEnv({
   proveCompressedAccounts = true,
   proveNewAddresses = false,
   checkPhotonVersion = true,
+  photonDatabaseUrl,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -33,6 +34,7 @@ export async function initTestEnv({
   proveCompressedAccounts?: boolean;
   proveNewAddresses?: boolean;
   checkPhotonVersion?: boolean;
+  photonDatabaseUrl?: string;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -52,7 +54,7 @@ export async function initTestEnv({
   await initAccounts();
 
   if (indexer) {
-    await startIndexer(checkPhotonVersion);
+    await startIndexer(checkPhotonVersion, photonDatabaseUrl);
   }
 
   if (prover) {
