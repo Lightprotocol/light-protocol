@@ -4,7 +4,10 @@ import { INDEXER_PROCESS_NAME, PHOTON_VERSION } from "./constants";
 import { exec } from "node:child_process";
 import * as util from "node:util";
 
-export async function startIndexer(checkPhotonVersion: boolean = true) {
+export async function startIndexer(
+  checkPhotonVersion: boolean = true,
+  photonDatabaseUrl?: string,
+) {
   await killIndexer();
   const resolvedOrNull = which.sync("photon", { nothrow: true });
   if (
@@ -16,7 +19,11 @@ export async function startIndexer(checkPhotonVersion: boolean = true) {
     throw new Error(message);
   } else {
     console.log("Starting indexer...");
-    spawnBinary(INDEXER_PROCESS_NAME);
+    let args: string[] = [];
+    if (photonDatabaseUrl) {
+      args = ["--db-url", photonDatabaseUrl];
+    }
+    spawnBinary(INDEXER_PROCESS_NAME, args);
     await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
     console.log("Indexer started successfully!");
   }
