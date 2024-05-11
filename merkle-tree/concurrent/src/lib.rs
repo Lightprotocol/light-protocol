@@ -834,12 +834,12 @@ where
         leaf_index: usize,
         proof: &BoundedVec<[u8; 32]>,
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
-        let mut node = *new_leaf;
+        // substrees need to be updated only if sibling (proof value) is right and zero bytes
+        let mut current_node = *new_leaf;
         let mut changelog_path = [[0u8; 32]; HEIGHT];
-
-        for (j, sibling) in proof.iter().enumerate() {
-            changelog_path[j] = node;
-            node = compute_parent_node::<H>(&node, sibling, leaf_index, j)?;
+        for (i, sibling) in proof.iter().enumerate() {
+            changelog_path[i] = current_node;
+            current_node = compute_parent_node::<H>(&current_node, sibling, leaf_index, i)?;
         }
 
         self.sequence_number = self
@@ -847,21 +847,19 @@ where
             .checked_add(1)
             .ok_or(ConcurrentMerkleTreeError::IntegerOverflow)?;
 
-        let changelog_entry = ChangelogEntry::new(node, changelog_path, leaf_index);
+        let changelog_entry = ChangelogEntry::new(current_node, changelog_path, leaf_index);
         self.inc_current_changelog_index()?;
-        // TODO: remove clone
-        self.changelog.push(changelog_entry.clone());
+        changelog_entry.update_proof(self.next_index(), &mut self.filled_subtrees, false)?;
+
+        self.changelog.push(changelog_entry);
 
         self.inc_current_root_index()?;
-        self.roots.push(node);
-
-        changelog_entry.update_subtrees(self.next_index - 1, &mut self.filled_subtrees);
+        self.roots.push(current_node);
 
         // Check if we updated the rightmost leaf.
         if self.next_index() < (1 << self.height) && leaf_index >= self.current_index() {
             self.rightmost_leaf = *new_leaf;
         }
-
         Ok((self.current_changelog_index, self.sequence_number))
     }
 
