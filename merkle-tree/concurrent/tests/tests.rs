@@ -1283,3 +1283,280 @@ pub fn test_100_nullify_mt() {
         );
     }
 }
+
+const LEAVES_WITH_NULLIFICATIONS: [([u8; 32], Option<usize>); 25] = [
+    (
+        [
+            9, 207, 75, 159, 247, 170, 46, 154, 178, 197, 60, 83, 191, 240, 137, 41, 36, 54, 242,
+            50, 43, 48, 56, 220, 154, 217, 138, 19, 152, 123, 86, 8,
+        ],
+        None,
+    ),
+    (
+        [
+            40, 10, 138, 159, 12, 188, 226, 84, 188, 92, 250, 11, 94, 240, 77, 158, 69, 219, 175,
+            48, 248, 181, 216, 200, 54, 38, 12, 224, 155, 40, 23, 32,
+        ],
+        None,
+    ),
+    (
+        [
+            11, 36, 94, 177, 195, 5, 4, 35, 75, 253, 31, 235, 68, 201, 79, 197, 199, 23, 214, 86,
+            196, 2, 41, 249, 246, 138, 184, 248, 245, 66, 184, 244,
+        ],
+        None,
+    ),
+    (
+        [
+            29, 3, 221, 195, 235, 46, 139, 171, 137, 7, 36, 118, 178, 198, 52, 20, 10, 131, 164, 5,
+            116, 187, 118, 186, 34, 193, 46, 6, 5, 144, 82, 4,
+        ],
+        None,
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(0),
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(1),
+    ),
+    (
+        [
+            6, 146, 149, 76, 49, 159, 84, 164, 203, 159, 181, 165, 21, 204, 111, 149, 87, 255, 46,
+            82, 162, 181, 99, 178, 247, 27, 166, 174, 212, 39, 163, 106,
+        ],
+        None,
+    ),
+    (
+        [
+            19, 135, 28, 172, 63, 129, 175, 101, 201, 97, 135, 147, 18, 78, 152, 243, 15, 154, 120,
+            153, 92, 46, 245, 82, 67, 32, 224, 141, 89, 149, 162, 228,
+        ],
+        None,
+    ),
+    (
+        [
+            4, 93, 251, 40, 246, 136, 132, 20, 175, 98, 3, 186, 159, 251, 128, 159, 219, 172, 67,
+            20, 69, 19, 66, 193, 232, 30, 121, 19, 193, 177, 143, 6,
+        ],
+        None,
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(3),
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(4),
+    ),
+    (
+        [
+            34, 229, 118, 4, 68, 219, 118, 228, 117, 70, 150, 93, 208, 215, 51, 243, 123, 48, 39,
+            228, 206, 194, 200, 232, 35, 133, 166, 222, 118, 217, 122, 228,
+        ],
+        None,
+    ),
+    (
+        [
+            24, 61, 159, 11, 70, 12, 177, 252, 244, 238, 130, 73, 202, 69, 102, 83, 33, 103, 82,
+            66, 83, 191, 149, 187, 141, 111, 253, 110, 49, 5, 47, 151,
+        ],
+        None,
+    ),
+    (
+        [
+            29, 239, 118, 17, 75, 98, 148, 167, 142, 190, 223, 175, 98, 255, 153, 111, 127, 169,
+            62, 234, 90, 89, 90, 70, 218, 161, 233, 150, 89, 173, 19, 1,
+        ],
+        None,
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(6),
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(5),
+    ),
+    (
+        [
+            45, 31, 195, 30, 201, 235, 73, 88, 57, 130, 35, 53, 202, 191, 20, 156, 125, 123, 37,
+            49, 154, 194, 124, 157, 198, 236, 233, 25, 195, 174, 157, 31,
+        ],
+        None,
+    ),
+    (
+        [
+            5, 59, 32, 123, 40, 100, 50, 132, 2, 194, 104, 95, 21, 23, 52, 56, 125, 198, 102, 210,
+            24, 44, 99, 255, 185, 255, 151, 249, 67, 167, 189, 85,
+        ],
+        None,
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(9),
+    ),
+    (
+        [
+            36, 131, 231, 53, 12, 14, 62, 144, 170, 248, 90, 226, 125, 178, 99, 87, 101, 226, 179,
+            43, 110, 130, 233, 194, 112, 209, 74, 219, 154, 48, 41, 148,
+        ],
+        None,
+    ),
+    (
+        [
+            12, 110, 79, 229, 117, 215, 178, 45, 227, 65, 183, 14, 91, 45, 170, 232, 126, 71, 37,
+            211, 160, 77, 148, 223, 50, 144, 134, 232, 83, 159, 131, 62,
+        ],
+        None,
+    ),
+    (
+        [
+            28, 57, 110, 171, 41, 144, 47, 162, 132, 221, 102, 100, 30, 69, 249, 176, 87, 134, 133,
+            207, 250, 166, 139, 16, 73, 39, 11, 139, 158, 182, 43, 68,
+        ],
+        None,
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(11),
+    ),
+    (
+        [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0,
+        ],
+        Some(10),
+    ),
+    (
+        [
+            25, 88, 170, 121, 91, 234, 185, 213, 24, 92, 209, 146, 109, 134, 118, 242, 74, 218, 69,
+            28, 87, 154, 207, 86, 218, 48, 182, 206, 8, 9, 35, 240,
+        ],
+        None,
+    ),
+];
+
+/// Test correctness of subtree updates during updates.
+/// The test data is a sequence of leaves with some nullifications
+/// and the result of a randomized tests which has triggered subtree inconsistencies.
+/// 1. Test subtree consistency with test data
+/// 2. Test subtree consistency of updating the right most leaf
+#[test]
+fn test_subtree_updates() {
+    const HEIGHT: usize = 26;
+    let mut ref_mt =
+        light_merkle_tree_reference::MerkleTree::<light_hasher::Keccak>::new(HEIGHT, 0);
+    let mut con_mt =
+        light_concurrent_merkle_tree::ConcurrentMerkleTree26::<light_hasher::Keccak>::new(
+            HEIGHT, 1400, 2400, 0,
+        )
+        .unwrap();
+    let mut spl_concurrent_mt =
+        spl_concurrent_merkle_tree::concurrent_merkle_tree::ConcurrentMerkleTree::<HEIGHT, 256>::new();
+    spl_concurrent_mt.initialize().unwrap();
+    con_mt.init().unwrap();
+    assert_eq!(ref_mt.root(), con_mt.root().unwrap());
+    for (_, leaf) in LEAVES_WITH_NULLIFICATIONS.iter().enumerate() {
+        match leaf.1 {
+            Some(index) => {
+                let change_log_index = con_mt.changelog_index();
+                let mut proof = ref_mt.get_proof_of_leaf(index, false).unwrap();
+                let old_leaf = ref_mt.leaf(index);
+                let current_root = con_mt.root().unwrap();
+                spl_concurrent_mt
+                    .set_leaf(
+                        current_root,
+                        old_leaf,
+                        [0u8; 32],
+                        proof.to_array::<HEIGHT>().unwrap().as_slice(),
+                        index.try_into().unwrap(),
+                    )
+                    .unwrap();
+                con_mt
+                    .update(
+                        change_log_index,
+                        &old_leaf,
+                        &[0u8; 32],
+                        index,
+                        &mut proof,
+                        true,
+                    )
+                    .unwrap();
+                ref_mt.update(&[0u8; 32], index).unwrap();
+            }
+            None => {
+                con_mt.append(&leaf.0).unwrap();
+                ref_mt.append(&leaf.0).unwrap();
+                spl_concurrent_mt.append(leaf.0).unwrap();
+            }
+        }
+        assert_eq!(spl_concurrent_mt.get_root(), ref_mt.root());
+        assert_eq!(spl_concurrent_mt.get_root(), con_mt.root().unwrap());
+        assert_eq!(ref_mt.root(), con_mt.root().unwrap());
+    }
+    let index = con_mt.next_index() - 1;
+    // test rightmost leaf edge case
+    let change_log_index = con_mt.changelog_index();
+    let mut proof = ref_mt.get_proof_of_leaf(index, false).unwrap();
+    let old_leaf = ref_mt.leaf(index);
+    let current_root = con_mt.root().unwrap();
+    spl_concurrent_mt
+        .set_leaf(
+            current_root,
+            old_leaf,
+            [0u8; 32],
+            proof.to_array::<HEIGHT>().unwrap().as_slice(),
+            index.try_into().unwrap(),
+        )
+        .unwrap();
+    con_mt
+        .update(
+            change_log_index,
+            &old_leaf,
+            &[0u8; 32],
+            index,
+            &mut proof,
+            true,
+        )
+        .unwrap();
+    ref_mt.update(&[0u8; 32], index).unwrap();
+
+    assert_eq!(spl_concurrent_mt.get_root(), ref_mt.root());
+    assert_eq!(spl_concurrent_mt.get_root(), con_mt.root().unwrap());
+    assert_eq!(ref_mt.root(), con_mt.root().unwrap());
+
+    let leaf = [3u8; 32];
+    con_mt.append(&leaf).unwrap();
+    ref_mt.append(&leaf).unwrap();
+    spl_concurrent_mt.append(leaf).unwrap();
+
+    assert_eq!(spl_concurrent_mt.get_root(), ref_mt.root());
+    assert_eq!(spl_concurrent_mt.get_root(), con_mt.root().unwrap());
+    assert_eq!(ref_mt.root(), con_mt.root().unwrap());
+}

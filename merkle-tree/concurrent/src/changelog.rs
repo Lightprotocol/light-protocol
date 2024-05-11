@@ -81,28 +81,6 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
 
         Ok(())
     }
-
-    pub fn update_subtrees(&self, rightmost_index: usize, subtrees: &mut BoundedVec<[u8; 32]>) {
-        let (mut current_index, start) = if rightmost_index != self.index() {
-            let intersection_index = self.intersection_index(rightmost_index);
-            let current_index = rightmost_index + intersection_index;
-
-            subtrees[intersection_index] = self.path[intersection_index];
-
-            (current_index, intersection_index)
-        } else {
-            (rightmost_index, 0)
-        };
-
-        for (i, subtree) in subtrees.iter_mut().enumerate().skip(start) {
-            let is_left = current_index % 2 == 0;
-            if is_left {
-                *subtree = self.path[i];
-            }
-
-            current_index /= 2;
-        }
-    }
 }
 
 #[cfg(test)]
