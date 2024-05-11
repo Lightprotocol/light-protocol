@@ -308,6 +308,21 @@ importers:
         specifier: 5.3.2
         version: 5.3.2
 
+  crank:
+    devDependencies:
+      '@lightprotocol/stateless.js':
+        specifier: workspace:^
+        version: link:../js/stateless.js
+      '@solana/web3.js':
+        specifier: ^1.91.7
+        version: 1.91.7
+      borsh:
+        specifier: ^2.0.0
+        version: 2.0.0
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.12.7)(typescript@5.3.2)
+
   examples/browser/nextjs:
     dependencies:
       '@coral-xyz/anchor':
@@ -7478,6 +7493,10 @@ packages:
       bn.js: 5.2.1
       bs58: 4.0.1
       text-encoding-utf-8: 1.0.2
+
+  /borsh@2.0.0:
+    resolution: {integrity: sha512-kc9+BgR3zz9+cjbwM8ODoUB4fs3X3I5A/HtX7LZKxCLaMrEeDFoBpnhZY//DTS1VZBSs6S5v46RZRbZjRFspEg==}
+    dev: true
 
   /bowser@2.11.0:
     resolution: {integrity: sha512-AlcaJBi/pqqJBIQ8U9Mcpc9i8Aqxn88Skv5d+xBX006BY5u8N3mGLHa5Lgppa7L/HfwgwLgZ6NYs+Ag6uUmJRA==}

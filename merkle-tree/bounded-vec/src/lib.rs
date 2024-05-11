@@ -504,12 +504,12 @@ where
     #[inline]
     pub fn first_index(&self) -> usize {
         self.first_index
-    }
+            }
 
     #[inline]
     pub fn first(&self) -> Option<&T> {
         self.data.get(self.first_index)
-    }
+        }
 
     #[inline]
     pub fn first_mut(&mut self) -> Option<&mut T> {
@@ -519,12 +519,12 @@ where
     #[inline]
     pub fn last_index(&self) -> usize {
         self.last_index
-    }
+            }
 
     #[inline]
     pub fn last(&self) -> Option<&T> {
         self.data.get(self.last_index)
-    }
+        }
 
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {

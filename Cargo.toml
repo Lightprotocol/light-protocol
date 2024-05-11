@@ -17,6 +17,8 @@ members = [
     "xtask",
     "examples/token-escrow/programs/*",
     "test-programs/*",
+    "crank",
+    "photon-api"
 ]
 
 [profile.release]

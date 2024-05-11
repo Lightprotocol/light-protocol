@@ -1,0 +1,26 @@
+{
+  "name": "@lightprotocol/crank",
+  "version": "0.3.0",
+  "license": "GPL-3.0",
+  "scripts": {
+    "build": "cargo build",
+    "test": "RUST_MIN_STACK=8388608 cargo test test_nullify_leaves -- --nocapture",
+    "tree-info": "RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
+    "queue-info": "RUST_MIN_STACK=8388608 cargo test queue_info_test -- --nocapture",
+    "subscribe": "RUST_MIN_STACK=8388608 cargo run --release -- subscribe",
+    "nullify": "RUST_MIN_STACK=8388608 cargo run --release -- nullify",
+    "reindex": "RUST_MIN_STACK=8388608 cargo run --release -- index",
+    "dump-accounts": "./scripts/dump.sh",
+    "start-validator": "../cli/test_bin/run test-validator",
+    "transfer": "ts-node ./scripts/generate.ts",
+    "transfer-sync": "ts-node ./scripts/generate_sync.ts",
+    "get-queue": "ts-node ./scripts/get_queue.ts",
+    "tnt": "pnpm start-validator && pnpm transfer-sync && pnpm queue-info && pnpm nullify && pnpm queue-info && pnpm transfer-sync"
+  },
+  "devDependencies": {
+    "@lightprotocol/stateless.js": "workspace:^",
+    "@solana/web3.js": "^1.91.7",
+    "borsh": "^2.0.0",
+    "ts-node": "^10.9.2"
+  }
+}
