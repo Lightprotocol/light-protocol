@@ -4,8 +4,10 @@ import fs from "fs";
 import find from "find-process";
 import { exec as execCb } from "node:child_process";
 import { promisify } from "util";
+import axios from "axios";
+const waitOn = require("wait-on");
 
-export async function killProcessByName(processName: string) {
+export async function killProcess(processName: string) {
   const processList = await find("name", processName);
   for (const proc of processList) {
     process.kill(proc.pid);
@@ -111,22 +113,15 @@ export async function execute(command: string): Promise<string> {
   }
 }
 
-export function spawnBinaryByName(binaryName: string, args: string[] = []) {
-  const binDir = path.join(__dirname, "../..", "bin");
-  const command = path.join(binDir, binaryName);
-
-  const logDir = path.join(__dirname, "test-ledger");
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir);
-  }
-
+export function spawnBinary(command: string, args: string[] = []) {
+  const logDir = "test-ledger";
+  const binaryName = path.basename(command);
   const out = fs.openSync(`${logDir}/${binaryName}.log`, "a");
   const err = fs.openSync(`${logDir}/${binaryName}.log`, "a");
 
   const spawnedProcess = spawn(command, args, {
     stdio: ["ignore", out, err],
     shell: false,
-    detached: true,
   });
 
   spawnedProcess.on("close", (code) => {
@@ -134,34 +129,51 @@ export function spawnBinaryByName(binaryName: string, args: string[] = []) {
   });
 }
 
-export function spawnBinary(
-  binaryName: string,
-  cli_bin: boolean,
-  args: string[] = [],
+export async function waitForServers(
+  servers: { port: number; path: string }[],
 ) {
-  let command = binaryName;
-  if (cli_bin) {
-    const binDir = path.join(__dirname, "../..", "bin");
-    command = path.join(binDir, binaryName);
+  const opts = {
+    resources: servers.map(
+      ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
+    ),
+    delay: 1000,
+    timeout: 15000,
+    interval: 300,
+    simultaneous: 2,
+    validateStatus: function (status: number) {
+      return (
+        (status >= 200 && status < 300) || status === 404 || status === 405
+      );
+    },
+  };
+
+  try {
+    await waitOn(opts);
+    servers.forEach((server) => {
+      console.log(`${server.port} is up!`);
+    });
+  } catch (err) {
+    console.error("Error waiting for server to start:", err);
+    throw err;
   }
+}
 
-  if (!fs.existsSync("test-ledger")) {
-    fs.mkdirSync("test-ledger");
+// Solana test validator can be unreliable when starting up.
+export async function confirmServerStability(
+  url: string,
+  attempts: number = 20,
+) {
+  try {
+    for (let i = 0; i < attempts; i++) {
+      const response = await axios.get(url);
+      if (response.status !== 200) {
+        throw new Error("Server failed stability check");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    console.log("Server has passed stability checks.");
+  } catch (error) {
+    console.error("Server stability check failed:", error);
+    throw error;
   }
-
-  const out = fs.openSync(`test-ledger/${binaryName}.log`, "a");
-  const err = fs.openSync(`test-ledger/${binaryName}.log`, "a");
-
-  const spawnedProcess = spawn(command, args, {
-    stdio: ["ignore", out, err],
-    shell: false,
-  });
-
-  spawnedProcess.on("error", (error) => {
-    console.error(`error: ${error.message}`);
-  });
-
-  spawnedProcess.on("close", (code) => {
-    console.log(`${binaryName} process exited with code ${code}`);
-  });
 }

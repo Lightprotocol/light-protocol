@@ -1,85 +1,21 @@
 import { airdropSol } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
 import {
+  BASE_PATH,
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
+  LIGHT_PROTOCOL_PROGRAMS_DIR_ENV,
   SPL_NOOP_PROGRAM_TAG,
 } from "./constants";
 import path from "path";
-import fs from "fs";
-import util from "util";
-import which from "which";
 import { downloadBinIfNotExists } from "../psp-utils";
-import { executeCommand } from "./process";
+import {
+  confirmServerStability,
+  executeCommand,
+  killProcess,
+  waitForServers,
+} from "./process";
 import { startProver } from "./processProverServer";
-import { spawn, exec } from "child_process";
-import axios from "axios";
-
-const find = require("find-process");
-const waitOn = require("wait-on");
-const execAsync = util.promisify(exec);
-
-const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
-const BASE_PATH = "../../bin/";
-export const PHOTON_VERSION = "0.18.0";
-
-async function isExpectedPhotonVersion(
-  requiredVersion: string,
-): Promise<boolean> {
-  try {
-    const { stdout } = await execAsync("photon --version");
-    const version = stdout.trim();
-    return version.includes(requiredVersion);
-  } catch (error) {
-    console.error("Error checking Photon version:", error);
-    return false;
-  }
-}
-
-// Solana test validator can be unreliable when starting up.
-async function confirmServerStability(url: string, attempts: number = 20) {
-  try {
-    for (let i = 0; i < attempts; i++) {
-      const response = await axios.get(url);
-      if (response.status !== 200) {
-        throw new Error("Server failed stability check");
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-    console.log("Server has passed stability checks.");
-  } catch (error) {
-    console.error("Server stability check failed:", error);
-    throw error;
-  }
-}
-
-export async function waitForServers(
-  servers: { port: number; path: string }[],
-) {
-  const opts = {
-    resources: servers.map(
-      ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
-    ),
-    delay: 1000,
-    timeout: 15000,
-    interval: 300,
-    simultaneous: 2,
-    validateStatus: function (status: number) {
-      return (
-        (status >= 200 && status < 300) || status === 404 || status === 405
-      );
-    },
-  };
-
-  try {
-    await waitOn(opts);
-    servers.forEach((server) => {
-      console.log(`${server.port} is up!`);
-    });
-  } catch (err) {
-    console.error("Error waiting for server to start:", err);
-    throw err;
-  }
-}
+import { startIndexer } from "./processPhotonIndexer";
 
 export async function initTestEnv({
   additionalPrograms,
@@ -116,48 +52,12 @@ export async function initTestEnv({
   await initAccounts();
 
   if (indexer) {
-    await killIndexer();
-    const resolvedOrNull = which.sync("photon", { nothrow: true });
-
-    if (
-      resolvedOrNull === null ||
-      (checkPhotonVersion && !(await isExpectedPhotonVersion(PHOTON_VERSION)))
-    ) {
-      const message = `Photon indexer not found. Please install it by running \`cargo install photon-indexer --version ${PHOTON_VERSION}\``;
-      console.log(message);
-      throw new Error(message);
-    } else {
-      spawnBinary("photon", false);
-      await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
-    }
+    await startIndexer(checkPhotonVersion);
   }
 
   if (prover) {
     await startProver(proveCompressedAccounts, proveNewAddresses);
   }
-}
-
-function spawnBinary(
-  binaryName: string,
-  cli_bin: boolean,
-  args: string[] = [],
-) {
-  let command = binaryName;
-  if (cli_bin) {
-    const binDir = path.join(__dirname, "../..", "bin");
-    command = path.join(binDir, binaryName);
-  }
-  const out = fs.openSync(`test-ledger/${binaryName}.log`, "a");
-  const err = fs.openSync(`test-ledger/${binaryName}.log`, "a");
-
-  const spawnedProcess = spawn(command, args, {
-    stdio: ["ignore", out, err],
-    shell: false,
-  });
-
-  spawnedProcess.on("close", (code) => {
-    console.log(`${binaryName} process exited with code ${code}`);
-  });
 }
 
 export async function initTestEnvIfNeeded({
@@ -329,15 +229,4 @@ export async function startTestValidator({
 
 export async function killTestValidator() {
   await killProcess("solana-test-validator");
-}
-
-export async function killIndexer() {
-  await killProcess("photon");
-}
-
-export async function killProcess(processName: string) {
-  const processList = await find("name", processName);
-  for (const proc of processList) {
-    process.kill(proc.pid);
-  }
 }
