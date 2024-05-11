@@ -848,16 +848,20 @@ where
 
         let changelog_entry = ChangelogEntry::new(current_node, changelog_path, leaf_index);
         self.inc_current_changelog_index()?;
-        changelog_entry.update_proof(self.next_index(), &mut self.filled_subtrees, false)?;
-        self.changelog.push(changelog_entry);
 
         self.inc_current_root_index()?;
         self.roots.push(current_node);
 
-        // Check if we updated the rightmost leaf.
-        if self.next_index() < (1 << self.height) && leaf_index >= self.current_index() {
-            self.rightmost_leaf = *new_leaf;
+        // Check if the leaf is the last leaf in the tree.
+        if self.next_index() < (1 << self.height) {
+            changelog_entry.update_proof(self.next_index(), &mut self.filled_subtrees, false)?;
+            // Check if we updated the rightmost leaf.
+            if leaf_index >= self.current_index() {
+                self.rightmost_leaf = *new_leaf;
+            }
         }
+        self.changelog.push(changelog_entry);
+
         Ok((self.current_changelog_index, self.sequence_number))
     }
 

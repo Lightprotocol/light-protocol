@@ -54,7 +54,6 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     fn intersection_index(&self, leaf_index: usize) -> usize {
         let padding = 64 - HEIGHT;
         let common_path_len = ((leaf_index ^ self.index()) << padding).leading_zeros() as usize;
-
         (HEIGHT - 1) - common_path_len
     }
 
