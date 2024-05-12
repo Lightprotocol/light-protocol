@@ -8,8 +8,13 @@ import {
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc } from '../../src/rpc';
-import { compress, decompress } from '../../src';
-import { getTestRpc } from '../../src/test-helpers/test-rpc';
+import {
+    LightSystemProgram,
+    compress,
+    createAccount,
+    decompress,
+} from '../../src';
+import { TestRpc, getTestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /// TODO: add test case for payer != address
@@ -22,6 +27,19 @@ describe('compress', () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
+    });
+
+    it.only('should create account with address', async () => {
+        const txId = await createAccount(
+            rpc as TestRpc,
+            payer,
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+            LightSystemProgram.programId,
+        );
+        console.log('created account', txId);
     });
 
     it('should compress lamports and then decompress', async () => {

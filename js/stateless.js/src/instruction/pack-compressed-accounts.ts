@@ -1,5 +1,9 @@
 import { AccountMeta, PublicKey } from '@solana/web3.js';
-import { PackedCompressedAccountWithMerkleContext } from '../state';
+import {
+    CompressedAccount,
+    OutputCompressedAccountWithPackedContext,
+    PackedCompressedAccountWithMerkleContext,
+} from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
 
@@ -58,36 +62,53 @@ export function padOutputStateMerkleTrees(
     }
 }
 
+export function toAccountMetas(remainingAccounts: PublicKey[]): AccountMeta[] {
+    return remainingAccounts.map(
+        (account): AccountMeta => ({
+            pubkey: account,
+            isWritable: true,
+            isSigner: false,
+        }),
+    );
+}
+
 // TODO: include owner and lamports in packing.
 /**
  * Packs Compressed Accounts.
  *
  * Replaces PublicKey with index pointer to remaining accounts.
  *
- * @param inputCompressedAccounts           ix input state to be consumed
- * @param numberOfOutputCompressedAccounts  ix ouput state to be created
- * @param outputStateMerkleTrees            State trees that the output should
- *                                          be inserted into. Defaults to the
- *                                          0th state tree of the input state.
- *                                          Gets padded to the length of
- *                                          outputCompressedAccounts.
+ * @param inputCompressedAccounts           Ix input state to be consumed
+ * @param inputStateRootIndices             The recent state root indices of the
+ *                                          input state. The expiry is tied to
+ *                                          the proof.
+ * @param outputCompressedAccounts          Ix output state to be created
+ * @param outputStateMerkleTrees            Optional output state trees to be
+ *                                          inserted into the output state.
+ *                                          Defaults to the 0th state tree of
+ *                                          the input state. Gets padded to the
+ *                                          length of outputCompressedAccounts.
+ *
  * @param remainingAccounts                 Optional existing array of accounts
  *                                          to append to.
  **/
 export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
-    rootIndices: number[],
-    numberOfOutputCompressedAccounts: number,
+    inputStateRootIndices: number[],
+    outputCompressedAccounts: CompressedAccount[],
     outputStateMerkleTrees?: PublicKey[] | PublicKey,
     remainingAccounts: PublicKey[] = [],
 ): {
     packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[];
-    outputStateMerkleTreeIndices: number[];
-    remainingAccountMetas: AccountMeta[];
+    packedOutputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
+    remainingAccounts: PublicKey[];
 } {
     const _remainingAccounts = remainingAccounts.slice();
 
     const packedInputCompressedAccounts: PackedCompressedAccountWithMerkleContext[] =
+        [];
+
+    const packedOutputCompressedAccounts: OutputCompressedAccountWithPackedContext[] =
         [];
 
     /// input
@@ -114,36 +135,37 @@ export function packCompressedAccounts(
                 nullifierQueuePubkeyIndex,
                 leafIndex: account.leafIndex,
             },
-            rootIndex: rootIndices[index],
+            rootIndex: inputStateRootIndices[index],
         });
     });
 
     /// output
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
         outputStateMerkleTrees,
-        numberOfOutputCompressedAccounts,
+        outputCompressedAccounts.length,
         inputCompressedAccounts,
     );
 
-    const outputStateMerkleTreeIndices: number[] = [];
-
-    paddedOutputStateMerkleTrees.forEach(account => {
-        const indexMerkleTree = getIndexOrAdd(_remainingAccounts, account);
-        outputStateMerkleTreeIndices.push(indexMerkleTree);
+    outputCompressedAccounts.forEach((account, index) => {
+        const merkleTreePubkeyIndex = getIndexOrAdd(
+            _remainingAccounts,
+            paddedOutputStateMerkleTrees[index],
+        );
+        packedOutputCompressedAccounts.push({
+            compressedAccount: {
+                owner: account.owner,
+                lamports: account.lamports,
+                address: account.address,
+                data: account.data,
+            },
+            merkleTreeIndex: merkleTreePubkeyIndex,
+        });
     });
 
-    /// to meta
-    const remainingAccountMetas = _remainingAccounts.map(
-        (account): AccountMeta => ({
-            pubkey: account,
-            isWritable: true,
-            isSigner: false,
-        }),
-    );
     return {
         packedInputCompressedAccounts,
-        outputStateMerkleTreeIndices,
-        remainingAccountMetas,
+        packedOutputCompressedAccounts,
+        remainingAccounts: _remainingAccounts,
     };
 }
 

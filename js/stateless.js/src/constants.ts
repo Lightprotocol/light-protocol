@@ -47,6 +47,8 @@ export const defaultTestStateTreeAccounts = () => {
         nullifierQueue: new PublicKey(nullifierQueuePubkey),
         merkleTree: new PublicKey(merkletreePubkey),
         merkleTreeHeight: DEFAULT_MERKLE_TREE_HEIGHT,
+        addressTree: new PublicKey(addressTree),
+        addressQueue: new PublicKey(addressQueue),
     };
 };
 
@@ -54,6 +56,8 @@ export const nullifierQueuePubkey =
     '44J4oDXpjPAbzHCSc24q7NEiPekss4sAbLd8ka4gd9CZ';
 
 export const merkletreePubkey = '5bdFnXU47QjzGpzHfXnxcEi5WXyxzEAZzd1vrE39bf1W';
+export const addressTree = 'C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn';
+export const addressQueue = 'HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFLHVaaRWz';
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',

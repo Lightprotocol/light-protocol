@@ -1,6 +1,7 @@
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
+import { NewAddressParamsPacked } from '../utils';
 
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;
@@ -37,19 +38,7 @@ export interface CompressedAccount {
  * compressed account.
  * */
 export interface OutputCompressedAccountWithPackedContext {
-    compressedAccount: {
-        /** Public key of program or user that owns the account */
-        owner: PublicKey;
-        /** Lamports attached to the account */
-        lamports: BN; // u64 // FIXME: optional
-        /**
-         * TODO: Implement address functionality. Optional unique account ID that is
-         * persistent across transactions.
-         */
-        address: PublicKey | null; // Option<PublicKey>
-        /** Optional data attached to the account */
-        data: CompressedAccountData | null; // Option<CompressedAccountData>
-    };
+    compressedAccount: CompressedAccount;
     merkleTreeIndex: number;
 }
 
@@ -79,13 +68,6 @@ export interface InstructionDataInvoke {
     compressionLamports: BN | null; // Option<u64>
     isCompress: boolean; // bool
     newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
-}
-
-export interface NewAddressParamsPacked {
-    seed: number[];
-    addressQueueAccountIndex: number; // u8
-    addressMerkleTreeAccountIndex: number; // u8
-    addressMerkleTreeRootIndex: number; // u16
 }
 
 export interface CompressedProof {
