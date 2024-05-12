@@ -45,12 +45,7 @@ const rolls = (fmt, env) => ({
         env === 'browser' ? nodePolyfills() : undefined,
     ].filter(Boolean),
     onwarn(warning, warn) {
-        // Check if the warning is about circular dependencies
-        if (warning.code === 'CIRCULAR_DEPENDENCY') {
-            // Optionally, you can also check the paths here if you want to ignore specific files
-            // console.log(`Ignoring circular dependency: ${warning.message}`);
-        } else {
-            // For all other warnings, call the default warning handler
+        if (warning.code !== 'CIRCULAR_DEPENDENCY') {
             warn(warning);
         }
     },
