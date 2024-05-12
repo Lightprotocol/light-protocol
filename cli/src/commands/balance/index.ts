@@ -2,6 +2,7 @@ import { Command, Flags } from "@oclif/core";
 import { CustomLoader, getSolanaRpcUrl } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 import { getTestRpc } from "@lightprotocol/stateless.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class BalanceCommand extends Command {
   static summary = "Get balance";
@@ -29,7 +30,8 @@ class BalanceCommand extends Command {
       const refMint = new PublicKey(flags["mint"]);
       const refOwner = new PublicKey(flags["owner"]);
 
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const lightWasm = await WasmFactory.getInstance();
+      const rpc = await getTestRpc(lightWasm);
       const tokenAccounts = await rpc.getCompressedTokenAccountsByOwner(
         refOwner,
         { mint: refMint },

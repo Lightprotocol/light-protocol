@@ -2,14 +2,14 @@ import { PublicKey } from '@solana/web3.js';
 
 import { BN } from '@coral-xyz/anchor';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
-import { Rpc } from '@lightprotocol/stateless.js';
+import { defaultTestStateTreeAccounts } from '../../constants';
+import { Rpc } from '../../rpc';
 import {
     CompressedAccountWithMerkleContext,
     bn,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
-} from '@lightprotocol/stateless.js';
+} from '../../state';
 
 export async function getCompressedAccountsByOwnerTest(
     rpc: Rpc,
@@ -39,7 +39,7 @@ export async function getMultipleCompressedAccountsByHashTest(
 }
 
 /// Returns all unspent compressed accounts
-export async function getCompressedAccountsForTest(rpc: Rpc) {
+async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];

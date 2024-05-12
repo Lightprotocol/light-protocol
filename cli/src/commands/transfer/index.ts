@@ -9,6 +9,7 @@ import { transfer } from "@lightprotocol/compressed-token";
 import { PublicKey } from "@solana/web3.js";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { getTestRpc } from "@lightprotocol/stateless.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class TransferCommand extends Command {
   static summary = "Transfer tokens from one account to another.";
@@ -58,7 +59,8 @@ class TransferCommand extends Command {
       if (flags["fee-payer"] !== undefined) {
         payer = await getKeypairFromFile(flags["fee-payer"]);
       }
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const lightWasm = await WasmFactory.getInstance();
+      const rpc = await getTestRpc(lightWasm);
 
       const txId = await transfer(
         rpc,

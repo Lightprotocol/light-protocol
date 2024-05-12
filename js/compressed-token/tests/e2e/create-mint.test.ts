@@ -3,8 +3,12 @@ import { CompressedTokenProgram } from '../../src/program';
 import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
-import { Rpc, newAccountWithLamports } from '@lightprotocol/stateless.js';
-import { getTestRpc } from '@lightprotocol/test-helpers';
+import {
+    Rpc,
+    newAccountWithLamports,
+    getTestRpc,
+} from '@lightprotocol/stateless.js';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Asserts that createMint() creates a new spl mint account + the respective
@@ -55,7 +59,8 @@ describe('createMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
     });
 

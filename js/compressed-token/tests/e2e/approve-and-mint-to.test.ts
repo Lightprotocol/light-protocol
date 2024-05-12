@@ -13,9 +13,9 @@ import {
     dedupeSigner,
     newAccountWithLamports,
     sendAndConfirmTx,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
-import { getTestRpc } from '@lightprotocol/test-helpers';
-
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { BN } from '@coral-xyz/anchor';
 
 async function createTestSplMint(
@@ -62,7 +62,8 @@ describe('approveAndMintTo', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate().publicKey;
         mintAuthority = Keypair.generate();

@@ -8,8 +8,9 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     Rpc,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
-import { getTestRpc } from '@lightprotocol/test-helpers';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the
@@ -48,7 +49,8 @@ describe('mintTo', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         bob = getTestKeypair();
         mintAuthority = Keypair.generate();

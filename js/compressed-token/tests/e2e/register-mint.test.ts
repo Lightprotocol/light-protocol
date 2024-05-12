@@ -15,8 +15,9 @@ import {
     dedupeSigner,
     newAccountWithLamports,
     sendAndConfirmTx,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
-import { getTestRpc } from '@lightprotocol/test-helpers';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Assert that registerMint() creates system-pool account for external mint,
@@ -95,7 +96,8 @@ describe('registerMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();

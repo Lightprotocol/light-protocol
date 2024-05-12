@@ -1,5 +1,4 @@
 import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
-import { LightWasm, WasmFactory } from '@lightprotocol/hasher.rs';
 import { BN } from '@coral-xyz/anchor';
 import {
     getCompressedAccountByHashTest,
@@ -14,31 +13,28 @@ import {
 
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
-import { toHex } from '@lightprotocol/stateless.js';
+import { defaultTestStateTreeAccounts } from '../../constants';
+import { toHex } from '../../utils/conversion';
 import {
     CompressedTransaction,
     HexInputsForProver,
     HexBatchInputsForProver,
     SignatureWithMetadata,
-} from '@lightprotocol/stateless.js';
+} from '../../rpc-interface';
 import {
     CompressedProofWithContext,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ParsedTokenAccount,
-} from '@lightprotocol/stateless.js';
+} from '../../rpc-interface';
 import {
     BN254,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     bn,
-} from '@lightprotocol/stateless.js';
-import {
-    proofFromJsonStruct,
-    negateAndCompressProof,
-} from '@lightprotocol/stateless.js';
+} from '../../state';
+import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
 
 export interface TestRpcConfig {
     /** Address of the state tree to index. Default: public default test state
@@ -52,14 +48,21 @@ export interface TestRpcConfig {
     log?: boolean;
 }
 
+export interface LightWasm {
+    blakeHash(input: string | Uint8Array, hashLength: number): Uint8Array;
+    poseidonHash(input: string[] | BN[]): Uint8Array;
+    poseidonHashString(input: string[] | BN[]): string;
+    poseidonHashBN(input: string[] | BN[]): BN;
+}
+
 /**
  * Returns a mock RPC instance for use in unit tests.
  *
+ * @param lightWasm               Wasm hasher instance.
  * @param endpoint                RPC endpoint URL. Defaults to
  *                                'http://127.0.0.1:8899'.
  * @param proverEndpoint          Prover server endpoint URL. Defaults to
  *                                'http://localhost:3001'.
- * @param lightWasm               Wasm hasher instance.
  * @param merkleTreeAddress       Address of the merkle tree to index. Defaults
  *                                to the public default test state tree.
  * @param nullifierQueueAddress   Optional address of the associated nullifier
@@ -68,17 +71,15 @@ export interface TestRpcConfig {
  * @param log                     Log proof generation time.
  */
 export async function getTestRpc(
+    lightWasm: LightWasm,
     endpoint: string = 'http://127.0.0.1:8899',
     compressionApiEndpoint: string = 'http://127.0.0.1:8784',
     proverEndpoint: string = 'http://127.0.0.1:3001',
-    lightWasm?: LightWasm,
     merkleTreeAddress?: PublicKey,
     nullifierQueueAddress?: PublicKey,
     depth?: number,
     log = false,
 ) {
-    lightWasm = lightWasm || (await WasmFactory.getInstance());
-
     const defaultAccounts = defaultTestStateTreeAccounts();
 
     return new TestRpc(

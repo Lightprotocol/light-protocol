@@ -1,17 +1,18 @@
 import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import { BN, BorshCoder } from '@coral-xyz/anchor';
-import { LightCompressedTokenIDL as IDL } from '@lightprotocol/stateless.js';
-import { defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
-import { Rpc } from '@lightprotocol/stateless.js';
-import { ParsedTokenAccount } from '@lightprotocol/stateless.js';
+
+import { IDL } from '../../idls/light_compressed_token';
+import { defaultTestStateTreeAccounts } from '../../constants';
+import { Rpc } from '../../rpc';
+import { ParsedTokenAccount } from '../../rpc-interface';
 import {
     CompressedAccount,
     PublicTransactionEvent,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
     bn,
-} from '@lightprotocol/stateless.js';
+} from '../../state';
 
 const tokenProgramId: PublicKey = new PublicKey(
     // TODO: can add check to ensure its consistent with the idl

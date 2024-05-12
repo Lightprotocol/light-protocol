@@ -3,10 +3,10 @@ import {
     ParsedTransactionWithMeta,
 } from '@solana/web3.js';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { defaultStaticAccountsStruct } from '@lightprotocol/stateless.js';
-import { LightSystemProgram } from '@lightprotocol/stateless.js';
-import { Rpc } from '@lightprotocol/stateless.js';
-import { PublicTransactionEvent } from '@lightprotocol/stateless.js';
+import { defaultStaticAccountsStruct } from '../../constants';
+import { LightSystemProgram } from '../../programs';
+import { Rpc } from '../../rpc';
+import { PublicTransactionEvent } from '../../state';
 
 type Deserializer<T> = (data: Buffer, tx: ParsedTransactionWithMeta) => T;
 

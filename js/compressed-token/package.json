@@ -73,7 +73,7 @@
     },
     "devDependencies": {
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-        "@lightprotocol/test-helpers": "workspace:*",
+        "@lightprotocol/hasher.rs": "workspace:*",
         "@rollup/plugin-alias": "^5.1.0",
         "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^25.0.7",

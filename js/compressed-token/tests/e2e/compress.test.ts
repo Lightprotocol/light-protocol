@@ -7,8 +7,9 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
-import { getTestRpc } from '@lightprotocol/test-helpers';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { compress, createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 
@@ -65,7 +66,8 @@ describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
