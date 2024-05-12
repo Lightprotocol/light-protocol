@@ -1,7 +1,7 @@
 {
   "name": "stateless.js-node-client",
   "type": "module",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Example node client for stateless.js",
   "main": "index.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.29.0",
+    "@coral-xyz/anchor": "0.30.0",
     "@solana/web3.js": "^1.91.8",
     "@lightprotocol/stateless.js": "workspace:*"
   }

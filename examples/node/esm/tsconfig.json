@@ -4,6 +4,7 @@
     "module": "ESNext",
     "outDir": "dist",
     "sourceMap": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true
   }
 }

@@ -5,22 +5,17 @@
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
     "type": "module",
-    "browser": {
-        "./dist/cjs/node/index.cjs": "./dist/cjs/browser/index.cjs",
-        "./dist/es/node/index.js": "./dist/es/browser/index.js"
-    },
-    "types": "dist/types/index.d.ts",
     "exports": {
         ".": {
             "require": "./dist/cjs/node/index.cjs",
-            "browser": {
-                "import": "./dist/es/browser/index.js",
-                "require": "./dist/cjs/browser/index.cjs"
-            },
-            "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/node/index.cjs"
+        },
+        "./browser": {
+            "import": "./dist/es/browser/index.js",
+            "require": "./dist/cjs/browser/index.cjs"
         }
     },
+    "types": "./dist/types/index.d.ts",
     "files": [
         "dist"
     ],
