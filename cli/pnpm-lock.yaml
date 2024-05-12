@@ -5,12 +5,6 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
-  '@coral-xyz/anchor':
-    specifier: 0.28.0
-    version: 0.28.0
-  '@lightprotocol/zk.js':
-    specifier: workspace:*
-    version: link:../zk.js
   '@oclif/core':
     specifier: ^2.15
     version: 2.15.0(@types/node@16.18.61)(typescript@4.9.5)
@@ -26,9 +20,6 @@ dependencies:
   '@oclif/plugin-plugins':
     specifier: ^3.8
     version: 3.9.4(@types/node@16.18.61)(typescript@4.9.5)
-  '@project-serum/anchor':
-    specifier: ^0.26.0
-    version: 0.26.0
   '@solana/spl-token':
     specifier: ^0.3.7
     version: 0.3.8(@solana/web3.js@1.87.6)

@@ -34,7 +34,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "0.28.0",
+    "@coral-xyz/anchor": "0.29.0",
     "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.62",
     "snarkjs": "^0.7.2"
