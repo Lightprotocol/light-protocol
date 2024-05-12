@@ -7,6 +7,5 @@ packages:
   - "cli/**"
   - "account-compression/programs/**"
   - "js/stateless.js/**"
-  - "js/test-helpers/**"
   - "js/compressed-token/**"
   - "examples/**"
