@@ -3,7 +3,6 @@ export * from './idls';
 export * from './instruction';
 export * from './programs';
 export * from './state';
-export * from './test-helpers';
 export * from './utils';
 export * from './wallet';
 export * from './constants';

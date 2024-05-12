@@ -13,10 +13,10 @@ import {
     Rpc,
     buildAndSignTx,
     dedupeSigner,
-    getTestRpc,
     newAccountWithLamports,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
+import { getTestRpc } from '@lightprotocol/test-helpers';
 
 /**
  * Assert that registerMint() creates system-pool account for external mint,

@@ -11,10 +11,11 @@ import {
     bn,
     buildAndSignTx,
     dedupeSigner,
-    getTestRpc,
     newAccountWithLamports,
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
+import { getTestRpc } from '@lightprotocol/test-helpers';
+
 import { BN } from '@coral-xyz/anchor';
 
 async function createTestSplMint(

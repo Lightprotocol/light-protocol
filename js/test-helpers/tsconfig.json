@@ -1,0 +1,18 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+        "importHelpers": true,
+        "outDir": "./dist",
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "declaration": false,
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Node",
+        "lib": ["ESNext", "DOM"],
+        "types": ["vitest/importMeta", "node"],
+        "skipLibCheck": true
+    },
+    "include": ["./src/**/*.ts", "rollup.config.js"]
+}

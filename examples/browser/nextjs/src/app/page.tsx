@@ -5,9 +5,10 @@ import {
     buildTx,
     confirmTx,
     defaultTestStateTreeAccounts,
-    getTestRpc,
     selectMinCompressedSolAccountsForTransfer,
+    createRpc,
 } from '@lightprotocol/stateless.js';
+
 import {
     ComputeBudgetProgram,
     Keypair,
@@ -61,7 +62,7 @@ const SendButton: FC = () => {
     const { publicKey, sendTransaction } = useWallet();
 
     const onClick = useCallback(async () => {
-        const connection = await getTestRpc();
+        const connection = await createRpc();
 
         if (!publicKey) throw new WalletNotConnectedError();
 

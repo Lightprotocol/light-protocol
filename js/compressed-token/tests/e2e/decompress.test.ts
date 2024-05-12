@@ -5,10 +5,11 @@ import {
     ParsedTokenAccount,
     Rpc,
     bn,
-    getTestRpc,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
 } from '@lightprotocol/stateless.js';
+import { getTestRpc } from '@lightprotocol/test-helpers';
+
 import { createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 

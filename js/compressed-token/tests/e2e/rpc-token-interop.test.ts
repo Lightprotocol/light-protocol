@@ -3,12 +3,11 @@ import { Keypair, PublicKey, Signer } from '@solana/web3.js';
 import {
     Rpc,
     newAccountWithLamports,
-    getTestRpc,
-    TestRpc,
     bn,
     defaultTestStateTreeAccounts,
     createRpc,
 } from '@lightprotocol/stateless.js';
+import { getTestRpc, TestRpc } from '@lightprotocol/test-helpers';
 import { createMint, mintTo, transfer } from '../../src/actions';
 
 const TEST_TOKEN_DECIMALS = 2;

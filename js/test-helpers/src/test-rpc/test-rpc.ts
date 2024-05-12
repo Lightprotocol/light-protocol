@@ -14,28 +14,31 @@ import {
 
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
-import { toHex } from '../../utils/conversion';
+import { defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
+import { toHex } from '@lightprotocol/stateless.js';
 import {
     CompressedTransaction,
     HexInputsForProver,
     HexBatchInputsForProver,
     SignatureWithMetadata,
-} from '../../rpc-interface';
+} from '@lightprotocol/stateless.js';
 import {
     CompressedProofWithContext,
     CompressionApiInterface,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ParsedTokenAccount,
-} from '../../rpc-interface';
+} from '@lightprotocol/stateless.js';
 import {
     BN254,
     CompressedAccountWithMerkleContext,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     bn,
-} from '../../state';
-import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
+} from '@lightprotocol/stateless.js';
+import {
+    proofFromJsonStruct,
+    negateAndCompressProof,
+} from '@lightprotocol/stateless.js';
 
 export interface TestRpcConfig {
     /** Address of the state tree to index. Default: public default test state

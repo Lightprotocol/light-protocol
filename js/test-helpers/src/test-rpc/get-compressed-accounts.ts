@@ -2,14 +2,14 @@ import { PublicKey } from '@solana/web3.js';
 
 import { BN } from '@coral-xyz/anchor';
 import { getParsedEvents } from './get-parsed-events';
-import { defaultTestStateTreeAccounts } from '../../constants';
-import { Rpc } from '../../rpc';
+import { defaultTestStateTreeAccounts } from '@lightprotocol/stateless.js';
+import { Rpc } from '@lightprotocol/stateless.js';
 import {
     CompressedAccountWithMerkleContext,
     bn,
     MerkleContext,
     createCompressedAccountWithMerkleContext,
-} from '../../state';
+} from '@lightprotocol/stateless.js';
 
 export async function getCompressedAccountsByOwnerTest(
     rpc: Rpc,

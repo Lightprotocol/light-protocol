@@ -3,11 +3,8 @@ import { CompressedTokenProgram } from '../../src/program';
 import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
-import {
-    Rpc,
-    getTestRpc,
-    newAccountWithLamports,
-} from '@lightprotocol/stateless.js';
+import { Rpc, newAccountWithLamports } from '@lightprotocol/stateless.js';
+import { getTestRpc } from '@lightprotocol/test-helpers';
 
 /**
  * Asserts that createMint() creates a new spl mint account + the respective

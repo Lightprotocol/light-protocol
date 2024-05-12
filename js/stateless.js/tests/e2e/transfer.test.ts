@@ -4,7 +4,7 @@ import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc } from '../../src/rpc';
 import { bn, compress } from '../../src';
 import { transfer } from '../../src/actions/transfer';
-import { getTestRpc } from '../../src/test-helpers';
+import { getTestRpc } from '@lightprotocol/test-helpers';
 
 describe('transfer', () => {
     let rpc: Rpc;

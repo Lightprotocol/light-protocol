@@ -7,8 +7,8 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    getTestRpc,
 } from '@lightprotocol/stateless.js';
+import { getTestRpc } from '@lightprotocol/test-helpers';
 import { compress, createMint, decompress, mintTo } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 

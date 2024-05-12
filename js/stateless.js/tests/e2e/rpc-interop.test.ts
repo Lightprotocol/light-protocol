@@ -2,7 +2,8 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
-import { TestRpc, bn, compress, getTestRpc } from '../../src';
+import { bn, compress } from '../../src';
+import { getTestRpc, TestRpc } from '@lightprotocol/test-helpers';
 import { transfer } from '../../src/actions/transfer';
 
 describe('rpc-interop', () => {

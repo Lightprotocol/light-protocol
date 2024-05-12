@@ -8,7 +8,7 @@ import {
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { compress, decompress } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
-import { TestRpc, getTestRpc } from '../../src/test-helpers';
+import { getTestRpc, TestRpc } from '@lightprotocol/test-helpers';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {

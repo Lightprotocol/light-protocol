@@ -50,22 +50,30 @@
     "keywords": [
         "zk",
         "compression",
-        "zk-compression",
+        "light",
         "stateless",
         "solana"
     ],
-    "author": "",
+    "maintainers": [
+        {
+            "name": "Light Protocol Maintainers",
+            "email": "friends@lightprotocol.com"
+        }
+    ],
     "license": "Apache-2.0",
+    "peerDependencies": {
+        "@solana/web3.js": "^1.91.8",
+        "@lightprotocol/stateless.js": "workspace:*"
+    },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.29.0",
+        "@coral-xyz/anchor": "0.29.0",
         "@solana/spl-token": "^0.3.7",
-        "@solana/web3.js": "^1.87.6",
         "buffer": "^6.0.3",
         "tweetnacl": "^1.0.3"
     },
     "devDependencies": {
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-        "@lightprotocol/stateless.js": "workspace:^",
+        "@lightprotocol/test-helpers": "workspace:*",
         "@rollup/plugin-alias": "^5.1.0",
         "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^25.0.7",

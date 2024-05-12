@@ -7,9 +7,9 @@ import {
     newAccountWithLamports,
     bn,
     defaultTestStateTreeAccounts,
-    getTestRpc,
     Rpc,
 } from '@lightprotocol/stateless.js';
+import { getTestRpc } from '@lightprotocol/test-helpers';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the

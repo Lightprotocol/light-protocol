@@ -51,8 +51,6 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 
-import { getParsedEvents } from './test-helpers/test-rpc/get-parsed-events';
-
 /** @internal */
 export function parseAccountData({
     discriminator,
@@ -246,29 +244,6 @@ export const rpcRequest = async (
 
 /// TODO: replace with dynamic nullifierQueue
 const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
-
-/**
- * @internal
- * This only works with uncranked state trees in local test environments.
- * TODO: implement as seq MOD rootHistoryArray.length, or move to indexer
- * TODO: remove
- */
-export const getRootSeq = async (rpc: Rpc): Promise<number> => {
-    const events = (await getParsedEvents(rpc)).reverse();
-    const leaves: number[][] = [];
-    for (const event of events) {
-        for (
-            let index = 0;
-            index < event.outputCompressedAccounts.length;
-            index++
-        ) {
-            const hash = event.outputCompressedAccountHashes[index];
-
-            leaves.push(hash);
-        }
-    }
-    return leaves.length;
-};
 
 /**
  *
