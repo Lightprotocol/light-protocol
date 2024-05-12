@@ -57,7 +57,18 @@ async fn tree_info_test() {
         StateMerkleTreeAccount::try_deserialize(&mut data_ref).unwrap();
     let merkle_tree = merkle_tree_account.copy_merkle_tree().unwrap();
 
-    println!("Merkle tree: {:?}", merkle_tree);
+    // println!("Merkle tree: {:?}", merkle_tree);
+
+    let root = merkle_tree.root().unwrap();
+    println!("Merkle tree root: {:?}", u8_arr_to_hex_string(&root));
+    println!("Merkle tree rightmost leaf: {:?}", u8_arr_to_hex_string(&merkle_tree.rightmost_leaf));
+}
+
+fn u8_arr_to_hex_string(arr: &[u8]) -> String {
+    arr.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<String>>()
+        .join("")
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

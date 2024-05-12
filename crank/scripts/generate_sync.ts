@@ -21,8 +21,8 @@ const bobKeypair = [
 
 const LAMPORTS = 1e11;
 const COMPRESS_AMOUNT = 1e9;
-const TOTAL_NUMBER_OF_TRANSFERS = 10;
-const NUMBER_OF_CONCURRENT_TRANSFERS = 2;
+const TOTAL_NUMBER_OF_TRANSFERS = 1;
+const NUMBER_OF_CONCURRENT_TRANSFERS = 1;
 const TRANSFER_AMOUNT = 10;
 
 async function transferAsync(i: number, rpc: Rpc, payer: Signer, bobPublicKey: PublicKey): Promise<void> {
@@ -47,7 +47,6 @@ async function prefillNullifierQueue() {
             (_, j) => transferAsync(i + j, rpc, payer, bob.publicKey)
         );
         await Promise.all(transferPromises);
-        // await new Promise(resolve => setTimeout(resolve, 50));
     }
 }
 

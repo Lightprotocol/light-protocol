@@ -3,6 +3,10 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
+    "restart-db": "docker-compose down -v && docker-compose up -d",
+    "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
+    "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
+    "restart-validator": "pnpm restart-db && sleep 1 && pnpm migrate-db && pnpm start-validator",
     "build": "cargo build",
     "test": "RUST_MIN_STACK=8388608 cargo test test_nullify_leaves -- --nocapture",
     "tree-info": "RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
@@ -11,7 +15,6 @@
     "nullify": "RUST_MIN_STACK=8388608 cargo run --release -- nullify",
     "reindex": "RUST_MIN_STACK=8388608 cargo run --release -- index",
     "dump-accounts": "./scripts/dump.sh",
-    "start-validator": "../cli/test_bin/run test-validator",
     "transfer": "ts-node ./scripts/generate.ts",
     "transfer-sync": "ts-node ./scripts/generate_sync.ts",
     "get-queue": "ts-node ./scripts/get_queue.ts",

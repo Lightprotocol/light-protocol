@@ -4,15 +4,9 @@ use light_concurrent_merkle_tree::event::{ChangelogEvent, Changelogs};
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 use light_macros::heap_neutral;
 
-use crate::{
-    emit_indexer_event,
-    errors::AccountCompressionErrorCode,
-    processor::initialize_nullifier_queue::{
-        nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
-    },
-    state::StateMerkleTreeAccount,
-    RegisteredProgram,
-};
+use crate::{emit_indexer_event, errors::AccountCompressionErrorCode, processor::initialize_nullifier_queue::{
+    nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
+}, state::StateMerkleTreeAccount, RegisteredProgram, NullifyEvent, NullifyEventV1, Nullifier};
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
@@ -113,8 +107,9 @@ fn insert_nullifier(
         );
         return Err(AccountCompressionErrorCode::InvalidMerkleProof.into());
     }
-
     let mut changelogs: Vec<ChangelogEvent> = Vec::with_capacity(leaves_queue_indices.len());
+    let mut nullifiers: Vec<NullifyEvent> = Vec::with_capacity(leaves_queue_indices.len());
+
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
         let leaf_cell = nullifier_queue
             .by_value_index(*leaf_queue_index as usize, None)
@@ -141,19 +136,33 @@ fn insert_nullifier(
             .map_err(ProgramError::from)?;
         changelogs.push(changelog_event);
 
+        let event = NullifyEvent::V1(NullifyEventV1{
+            id: ctx.accounts.merkle_tree.key().to_bytes(),
+            index: indices[i],
+        });
+        nullifiers.push(event);
+
         // TODO: replace with root history sequence number
         nullifier_queue
             .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
             .map_err(ProgramError::from)?;
     }
 
-    let changelog_event = Changelogs { changelogs };
+    msg!("Emitting nullify indexer event");
+    let nullify_event = Nullifier { nullifiers };
+    emit_indexer_event(
+        nullify_event.try_to_vec()?,
+        &ctx.accounts.log_wrapper,
+        &ctx.accounts.authority,
+    )?;
 
+    let changelog_event = Changelogs { changelogs };
     emit_indexer_event(
         changelog_event.try_to_vec()?,
         &ctx.accounts.log_wrapper,
         &ctx.accounts.authority,
     )?;
+
 
     Ok(())
 }
