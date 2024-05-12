@@ -401,7 +401,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             leafIndex: res.result.value.leafIndex,
             merkleProof: proofWithoutRoot,
             nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
-            rootIndex: res.result.value.rootSeq, // TODO: rootSeq % rootHistoryArray.length
+            rootIndex: res.result.value.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
             root, // TODO: validate correct root
         };
         return value;
@@ -495,7 +495,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 leafIndex: proof.leafIndex,
                 merkleProof: proofWithoutRoot,
                 nullifierQueue: mockNullifierQueue, // TODO: emit outputhash nullifierQueue in txevent
-                rootIndex: proof.rootSeq, // TODO: rootSeq % rootHistoryArray.length
+                rootIndex: proof.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
                 root: root, // TODO: validate correct root
             };
             merkleProofs.push(value);
