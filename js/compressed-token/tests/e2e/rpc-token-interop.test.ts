@@ -3,12 +3,13 @@ import { Keypair, PublicKey, Signer } from '@solana/web3.js';
 import {
     Rpc,
     newAccountWithLamports,
-    getTestRpc,
-    TestRpc,
     bn,
     defaultTestStateTreeAccounts,
     createRpc,
+    getTestRpc,
+    TestRpc,
 } from '@lightprotocol/stateless.js';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { createMint, mintTo, transfer } from '../../src/actions';
 
 const TEST_TOKEN_DECIMALS = 2;
@@ -24,8 +25,9 @@ describe('rpc-interop token', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
+        const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
-        testRpc = await getTestRpc();
+        testRpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9, 256);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();

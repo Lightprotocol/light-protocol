@@ -1,0 +1,24 @@
+{
+  "name": "stateless.js-node-client",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Example node client for stateless.js",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test-validator": "./../../../cli/test_bin/run test-validator",
+    "test": "pnpm test-validator && node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^20.12.8",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.30.0",
+    "@solana/web3.js": "^1.91.8",
+    "@lightprotocol/stateless.js": "workspace:*"
+  }
+}

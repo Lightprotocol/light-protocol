@@ -10,6 +10,7 @@ import {
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { getTestRpc } from "@lightprotocol/stateless.js";
 import { registerMint } from "@lightprotocol/compressed-token";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class RegisterMintCommand extends Command {
   static summary = "Register an existing mint with the CompressedToken program";
@@ -39,7 +40,8 @@ class RegisterMintCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
       const mintAddress = new PublicKey(flags.mint);
       const mintAuthority = await this.getMintAuthority(flags, payer);
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const lightWasm = await WasmFactory.getInstance();
+      const rpc = await getTestRpc(lightWasm);
       const txId = await registerMint(rpc, payer, mintAuthority, mintAddress);
       loader.stop(false);
       console.log("\x1b[1mMint public key:\x1b[0m ", mintAddress.toBase58());

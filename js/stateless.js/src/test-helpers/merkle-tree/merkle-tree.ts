@@ -1,4 +1,4 @@
-import { LightWasm } from '@lightprotocol/hasher.rs';
+import { LightWasm } from '../test-rpc/test-rpc';
 
 export const DEFAULT_ZERO = '0';
 

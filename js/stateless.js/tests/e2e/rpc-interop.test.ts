@@ -2,8 +2,10 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
-import { TestRpc, bn, compress, getTestRpc } from '../../src';
+import { bn, compress } from '../../src';
+import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 describe('rpc-interop', () => {
     let payer: Signer;
@@ -12,8 +14,9 @@ describe('rpc-interop', () => {
     let testRpc: TestRpc;
     let executedTxs = 0;
     beforeAll(async () => {
+        const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
-        testRpc = await getTestRpc();
+        testRpc = await getTestRpc(lightWasm);
 
         /// These are constant test accounts in between test runs
         payer = await newAccountWithLamports(rpc, 10e9, 256);

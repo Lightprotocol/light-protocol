@@ -8,7 +8,8 @@ import {
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { compress, decompress } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
-import { TestRpc, getTestRpc } from '../../src/test-helpers';
+import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
@@ -24,7 +25,9 @@ describe('test-rpc', () => {
     const refCompressLamports = 1e7;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
+
         refPayer = await newAccountWithLamports(rpc, 1e9, 200);
         payer = await newAccountWithLamports(rpc, 1e9, 148);
 

@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
-
 import { getParsedEvents } from './get-parsed-events';
 import { BN, BorshCoder } from '@coral-xyz/anchor';
+
 import { IDL } from '../../idls/light_compressed_token';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';

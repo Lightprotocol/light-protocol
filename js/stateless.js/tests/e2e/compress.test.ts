@@ -7,9 +7,11 @@ import {
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { Rpc, createRpc } from '../../src/rpc';
+import { Rpc } from '../../src/rpc';
 import { compress, decompress } from '../../src';
-import { getTestRpc } from '../../src/test-helpers';
+import { getTestRpc } from '../../src/test-helpers/test-rpc';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
+
 /// TODO: add test case for payer != address
 describe('compress', () => {
     const { merkleTree } = defaultTestStateTreeAccounts();
@@ -17,7 +19,8 @@ describe('compress', () => {
     let payer: Signer;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
     });
 

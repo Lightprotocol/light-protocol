@@ -20,16 +20,19 @@ import {
   TOKEN_PROGRAM_ID,
   createInitializeMint2Instruction,
 } from "@solana/spl-token";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 export async function requestAirdrop(address: PublicKey, amount = 3e9) {
-  const rpc = await getTestRpc(getSolanaRpcUrl());
+  const lightWasm = await WasmFactory.getInstance();
+  const rpc = await getTestRpc(lightWasm);
   const connection = new Connection(getSolanaRpcUrl(), "finalized");
   let sig = await connection.requestAirdrop(address, amount);
   await confirmTx(rpc, sig);
 }
 
 export async function createTestMint(mintKeypair: Keypair) {
-  const rpc = await getTestRpc(getSolanaRpcUrl());
+  const lightWasm = await WasmFactory.getInstance();
+  const rpc = await getTestRpc(lightWasm);
 
   const { mint, transactionSignature } = await createMint(
     rpc,
@@ -49,7 +52,8 @@ export async function testMintTo(
   mintAuthority: Keypair,
   mintAmount: number,
 ) {
-  const rpc = await getTestRpc(getSolanaRpcUrl());
+  const lightWasm = await WasmFactory.getInstance();
+  const rpc = await getTestRpc(lightWasm);
 
   const txId = await mintTo(
     rpc,

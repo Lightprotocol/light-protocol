@@ -5,9 +5,10 @@ import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
 import {
     Rpc,
-    getTestRpc,
     newAccountWithLamports,
+    getTestRpc,
 } from '@lightprotocol/stateless.js';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
  * Asserts that createMint() creates a new spl mint account + the respective
@@ -58,7 +59,8 @@ describe('createMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
     });
 

@@ -9,6 +9,12 @@ import {
     IDL as LightCompressedPdaIDL,
     LightCompressedPda,
 } from './light_compressed_pda';
+
+import {
+    IDL as LightCompressedTokenIDL,
+    LightCompressedToken,
+} from './light_compressed_token';
+
 export {
     AccountCompressionIDL,
     AccountCompression,
@@ -16,4 +22,6 @@ export {
     LightRegistry,
     LightCompressedPdaIDL,
     LightCompressedPda,
+    LightCompressedTokenIDL,
+    LightCompressedToken,
 };

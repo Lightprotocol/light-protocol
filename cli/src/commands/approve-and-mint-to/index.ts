@@ -9,6 +9,7 @@ import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { approveAndMintTo } from "@lightprotocol/compressed-token";
 import { getTestRpc } from "@lightprotocol/stateless.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class ApproveAndMintToCommand extends Command {
   static summary =
@@ -61,8 +62,8 @@ class ApproveAndMintToCommand extends Command {
       if (flags["mint-authority"] !== undefined) {
         mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
       }
-
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const lightWasm = await WasmFactory.getInstance();
+      const rpc = await getTestRpc(lightWasm);
       const txId = await approveAndMintTo(
         rpc,
         payer,

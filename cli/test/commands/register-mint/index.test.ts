@@ -4,6 +4,7 @@ import { defaultSolanaWalletKeypair } from "../../../src";
 import { createTestSplMint, requestAirdrop } from "../../helpers/helpers";
 import { Keypair } from "@solana/web3.js";
 import { getTestRpc } from "@lightprotocol/stateless.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 describe("create-mint", () => {
   let mintAuthority: Keypair = defaultSolanaWalletKeypair();
@@ -11,7 +12,8 @@ describe("create-mint", () => {
   before(async () => {
     await initTestEnvIfNeeded({ indexer: true, prover: true });
     await requestAirdrop(mintAuthority.publicKey);
-    const rpc = await getTestRpc();
+    const lightWasm = await WasmFactory.getInstance();
+    const rpc = await getTestRpc(lightWasm);
 
     await createTestSplMint(
       rpc,

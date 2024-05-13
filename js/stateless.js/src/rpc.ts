@@ -51,8 +51,6 @@ import {
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
 
-import { getParsedEvents } from './test-helpers/test-rpc/get-parsed-events';
-
 /** @internal */
 export function parseAccountData({
     discriminator,
@@ -248,29 +246,6 @@ export const rpcRequest = async (
 const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
 
 /**
- * @internal
- * This only works with uncranked state trees in local test environments.
- * TODO: implement as seq MOD rootHistoryArray.length, or move to indexer
- * TODO: remove
- */
-export const getRootSeq = async (rpc: Rpc): Promise<number> => {
-    const events = (await getParsedEvents(rpc)).reverse();
-    const leaves: number[][] = [];
-    for (const event of events) {
-        for (
-            let index = 0;
-            index < event.outputCompressedAccounts.length;
-            index++
-        ) {
-            const hash = event.outputCompressedAccountHashes[index];
-
-            leaves.push(hash);
-        }
-    }
-    return leaves.length;
-};
-
-/**
  *
  */
 export class Rpc extends Connection implements CompressionApiInterface {
@@ -426,7 +401,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             leafIndex: res.result.value.leafIndex,
             merkleProof: proofWithoutRoot,
             nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
-            rootIndex: res.result.value.rootSeq, // TODO: rootSeq % rootHistoryArray.length
+            rootIndex: res.result.value.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
             root, // TODO: validate correct root
         };
         return value;
@@ -520,7 +495,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 leafIndex: proof.leafIndex,
                 merkleProof: proofWithoutRoot,
                 nullifierQueue: mockNullifierQueue, // TODO: emit outputhash nullifierQueue in txevent
-                rootIndex: proof.rootSeq, // TODO: rootSeq % rootHistoryArray.length
+                rootIndex: proof.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
                 root: root, // TODO: validate correct root
             };
             merkleProofs.push(value);

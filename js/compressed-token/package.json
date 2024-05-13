@@ -50,23 +50,31 @@
     "keywords": [
         "zk",
         "compression",
-        "zk-compression",
+        "light",
         "stateless",
         "solana"
     ],
-    "author": "",
+    "maintainers": [
+        {
+            "name": "Light Protocol Maintainers",
+            "email": "friends@lightprotocol.com"
+        }
+    ],
     "license": "Apache-2.0",
+    "peerDependencies": {
+        "@solana/web3.js": "^1.91.8",
+        "@lightprotocol/stateless.js": "workspace:*"
+    },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.29.0",
-        "@solana/web3.js": "^1.87.6",
-        "@lightprotocol/stateless.js": "workspace:*",
+        "@coral-xyz/anchor": "0.29.0",
         "@solana/spl-token": "^0.3.7",
         "buffer": "^6.0.3",
         "tweetnacl": "^1.0.3"
     },
     "devDependencies": {
-        "@types/node": "^20.10.2",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+        "@lightprotocol/hasher.rs": "workspace:*",
+        "@rollup/plugin-alias": "^5.1.0",
         "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^25.0.7",
         "@rollup/plugin-json": "^6.1.0",
@@ -74,19 +82,24 @@
         "@rollup/plugin-replace": "^5.0.5",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.5",
+        "@types/node": "^20.10.4",
         "@typescript-eslint/eslint-plugin": "^6.7.3",
+        "add": "^2.0.6",
+        "crypto-browserify": "^3.12.0",
         "eslint": "^8.50.0",
         "eslint-config-standard-with-typescript": "^39.1.0",
         "eslint-plugin-import": "^2.25.2",
         "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
         "eslint-plugin-promise": "^6.0.0",
         "eslint-plugin-vitest": "^0.3.26",
+        "pnpm": "^9.1.0",
         "prettier": "^3.0.3",
         "rimraf": "^5.0.5",
         "rollup": "^4.6.1",
         "rollup-plugin-copy": "^3.5.0",
         "rollup-plugin-dts": "^6.1.0",
         "rollup-plugin-polyfill-node": "^0.13.0",
+        "rollup-plugin-visualizer": "^5.12.0",
         "ts-node": "^10.9.1",
         "tslib": "^2.6.2",
         "typescript": "5.3.2",

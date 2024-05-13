@@ -7,6 +7,7 @@ import {
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
 import { decompress, getTestRpc } from "@lightprotocol/stateless.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class DecompressSolCommand extends Command {
   static summary = "Decompress SOL.";
@@ -41,7 +42,8 @@ class DecompressSolCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const lightWasm = await WasmFactory.getInstance();
+      const rpc = await getTestRpc(lightWasm);
       const txId = await decompress(rpc, payer, amount, toPublicKey);
       loader.stop(false);
       console.log(

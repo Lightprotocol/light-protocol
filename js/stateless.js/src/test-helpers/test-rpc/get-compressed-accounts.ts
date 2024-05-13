@@ -39,7 +39,7 @@ export async function getMultipleCompressedAccountsByHashTest(
 }
 
 /// Returns all unspent compressed accounts
-export async function getCompressedAccountsForTest(rpc: Rpc) {
+async function getCompressedAccountsForTest(rpc: Rpc) {
     const events = (await getParsedEvents(rpc)).reverse();
     const allOutputAccounts: CompressedAccountWithMerkleContext[] = [];
     const allInputAccountHashes: BN[] = [];

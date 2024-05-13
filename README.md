@@ -20,17 +20,17 @@ Developers can use Light to...
 Note: All these tools and the protocol are in active development and unaudited.
 To work with this Monorepo, read below:
 
-The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs. 
+The documentation is available here: https://github.com/Lightprotocol/developer-content/tree/main/docs.
 
 ## Development environment
 
 There are three ways of setting up the development environment:
 
-* [devenv.sh script](#devenv.sh) - the most recommended one, both for Linux and
+- [devenv.sh script](#devenv.sh) - the most recommended one, both for Linux and
   macOS. Works with Bash and zsh.
-* [Development Containers](#development-containers) - recommended on Linux,
+- [Development Containers](#development-containers) - recommended on Linux,
   unfortunately has performance problems on macOS.
-* [Manual setup](#manual-setup) - not recommended, but may be useful if the
+- [Manual setup](#manual-setup) - not recommended, but may be useful if the
   methods above don't work for you.
 
 ### devenv.sh
@@ -69,17 +69,17 @@ that comes pre-configured with all necessary dependencies for building and testi
 Support for Development Containers (either native or through a plugin) is
 provided by the following IDEs and editors:
 
-* [Visual Studio Code](https://code.visualstudio.com/docs/devcontainers/containers)
-* [Neovim](https://github.com/esensar/nvim-dev-container)
-* [Emacs](https://github.com/emacs-lsp/lsp-docker)
+- [Visual Studio Code](https://code.visualstudio.com/docs/devcontainers/containers)
+- [Neovim](https://github.com/esensar/nvim-dev-container)
+- [Emacs](https://github.com/emacs-lsp/lsp-docker)
 
 ### Manual setup
 
 If you still want to setup dependencies manually, these are the requirements:
 
-* [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
-* [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
-* [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
+- [Rust installed with Rustup](https://rustup.rs/), stable and nightly toolchains
+- [NodeJS](https://nodejs.org/) [(16.16 LTS)](https://nodejs.org/en/blog/release/v16.16.0)
+- [Anchor](https://www.anchor-lang.com/) [(0.26.0)](https://crates.io/crates/anchor-cli/0.26.0)
 
 ## Building
 
@@ -116,7 +116,7 @@ RUST_MIN_STACK=8388608 cargo test
 ### SDK tests
 
 ```bash
-cd zk.js/
+cd js/stateless.js
 pnpm test
 ```
 
@@ -137,17 +137,14 @@ Merkle tree and an spl token, conducting two compressions and decompressions.
 Tests can be executed in bulk or one by one.
 
 ```bash
-cd zk.js/
-pnpm test
-pnpm test-verifiers
-pnpm test-merkle-tree
+anchor test
 ```
 
 ## Common errors
 
 If you're seeing this error:
 
-- ``` error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev ```
+- ``error: package `solana-program v1.16.4` cannot be built because it requires rustc 1.68.0 or newer, while the currently active rustc version is 1.65.0-dev``
 
 update your solana-cli version to >=1.16.4.
 

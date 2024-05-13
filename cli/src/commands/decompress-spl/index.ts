@@ -9,6 +9,7 @@ import { PublicKey } from "@solana/web3.js";
 import { getTestRpc } from "@lightprotocol/stateless.js";
 import { decompress } from "@lightprotocol/compressed-token";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 /// TODO: add ability to decompress from non-fee payer
 class DecompressSplCommand extends Command {
@@ -53,7 +54,8 @@ class DecompressSplCommand extends Command {
       const mintPublicKey = new PublicKey(mint);
       const payer = defaultSolanaWalletKeypair();
 
-      const rpc = await getTestRpc(getSolanaRpcUrl());
+      const lightWasm = await WasmFactory.getInstance();
+      const rpc = await getTestRpc(lightWasm);
 
       const recipientAta = await getOrCreateAssociatedTokenAccount(
         rpc,

@@ -4,7 +4,8 @@ import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc } from '../../src/rpc';
 import { bn, compress } from '../../src';
 import { transfer } from '../../src/actions/transfer';
-import { getTestRpc } from '../../src/test-helpers';
+import { getTestRpc } from '../../src/test-helpers/test-rpc';
+import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 describe('transfer', () => {
     let rpc: Rpc;
@@ -12,7 +13,8 @@ describe('transfer', () => {
     let bob: Signer;
 
     beforeAll(async () => {
-        rpc = await getTestRpc();
+        const lightWasm = await WasmFactory.getInstance();
+        rpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 2e9, 256);
         bob = await newAccountWithLamports(rpc, 2e9, 256);
 
