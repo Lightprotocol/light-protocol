@@ -133,7 +133,7 @@ async fn test_program_owned_merkle_tree() {
 
     assert_custom_error_or_program_error(
         res,
-        light_compressed_pda::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
+        light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
     )
     .unwrap();
 }

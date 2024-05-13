@@ -1,15 +1,15 @@
 #![cfg(not(target_os = "solana"))]
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_pda::{
-    invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
-};
 use light_compressed_token::{
     transfer_sdk::{
         create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
         to_account_metas,
     },
     TokenTransferOutputData,
+};
+use light_system_program::{
+    invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -66,18 +66,18 @@ pub fn create_escrow_instruction(
     };
 
     let registered_program_pda = Pubkey::find_program_address(
-        &[light_compressed_pda::ID.to_bytes().as_slice()],
+        &[light_system_program::ID.to_bytes().as_slice()],
         &account_compression::ID,
     )
     .0;
     let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
     let account_compression_authority =
-        light_compressed_pda::utils::get_cpi_authority_pda(&light_compressed_pda::ID);
+        light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
         signer: *input_params.signer,
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_token_program: light_compressed_token::ID,
-        compressed_pda_program: light_compressed_pda::ID,
+        light_system_program: light_system_program::ID,
         account_compression_program: account_compression::ID,
         registered_program_pda,
         compressed_token_cpi_authority_pda,
@@ -130,19 +130,19 @@ pub fn create_withdrawal_escrow_instruction(
     };
 
     let registered_program_pda = Pubkey::find_program_address(
-        &[light_compressed_pda::ID.to_bytes().as_slice()],
+        &[light_system_program::ID.to_bytes().as_slice()],
         &account_compression::ID,
     )
     .0;
     let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
     let account_compression_authority =
-        light_compressed_pda::utils::get_cpi_authority_pda(&light_compressed_pda::ID);
+        light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
         signer: *input_params.signer,
         token_owner_pda: token_owner_pda.0,
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         compressed_token_program: light_compressed_token::ID,
-        compressed_pda_program: light_compressed_pda::ID,
+        light_system_program: light_system_program::ID,
         account_compression_program: account_compression::ID,
         registered_program_pda,
         compressed_token_cpi_authority_pda,

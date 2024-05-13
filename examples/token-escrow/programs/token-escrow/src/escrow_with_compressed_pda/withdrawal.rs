@@ -1,5 +1,9 @@
 use anchor_lang::prelude::*;
-use light_compressed_pda::{
+use light_compressed_token::{
+    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
+};
+use light_hasher::{DataHasher, Poseidon};
+use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         compressed_account::{
@@ -9,10 +13,6 @@ use light_compressed_pda::{
     },
     InstructionDataInvokeCpi,
 };
-use light_compressed_token::{
-    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
-};
-use light_hasher::{DataHasher, Poseidon};
 
 use crate::{
     create_change_output_compressed_token_account, EscrowCompressedTokensWithCompressedPda,
@@ -158,7 +158,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
         None => return err!(EscrowError::CpiContextAccountIndexNotFound),
     };
 
-    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.token_owner_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
@@ -173,13 +173,13 @@ fn cpi_compressed_pda_withdrawal<'info>(
     };
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.compressed_pda_program.to_account_info(),
+        ctx.accounts.light_system_program.to_account_info(),
         cpi_accounts,
         &signer_seeds,
     );
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -229,7 +229,7 @@ pub fn cpi_compressed_token_withdrawal<'info>(
             .accounts
             .compressed_token_cpi_authority_pda
             .to_account_info(),
-        compressed_pda_program: ctx.accounts.compressed_pda_program.to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,

@@ -23,7 +23,7 @@ on:
           - light-utils
           - light-wasm-hasher
           - account-compression
-          - light-compressed-pda
+          - light-system-program
           - light-compressed-token
       version:
         description: Version to release

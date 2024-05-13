@@ -1,5 +1,6 @@
 #![cfg(feature = "test-sbf")]
-use light_compressed_pda::{
+use light_hasher::Poseidon;
+use light_system_program::{
     errors::CompressedPdaError,
     sdk::{
         address::derive_address,
@@ -7,7 +8,6 @@ use light_compressed_pda::{
         invoke::create_invoke_instruction,
     },
 };
-use light_hasher::Poseidon;
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction,
     create_and_send_transaction_with_event,

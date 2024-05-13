@@ -16,7 +16,7 @@ declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
 // pub use account_compression::GLOBAL_ALLOCATOR;
 
 #[program]
-pub mod light_compressed_pda {
+pub mod light_system_program {
 
     use light_heap::{bench_sbf_end, bench_sbf_start};
 

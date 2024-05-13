@@ -1,5 +1,5 @@
 [package]
-name = "light-compressed-pda"
+name = "light-system-program"
 version = "0.3.1"
 description = "Generalized PDA compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "light_compressed_pda"
+name = "light_system_program"
 
 [features]
 no-entrypoint = []

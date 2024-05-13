@@ -94,7 +94,7 @@ export type LightCompressedToken = {
                     isSigner: false;
                 },
                 {
-                    name: 'compressedPdaProgram';
+                    name: 'lightSystemProgram';
                     isMut: false;
                     isSigner: false;
                 },
@@ -172,7 +172,7 @@ export type LightCompressedToken = {
                     isSigner: false;
                 },
                 {
-                    name: 'compressedPdaProgram';
+                    name: 'lightSystemProgram';
                     isMut: false;
                     isSigner: false;
                 },
@@ -1101,7 +1101,7 @@ export const IDL: LightCompressedToken = {
                     isSigner: false,
                 },
                 {
-                    name: 'compressedPdaProgram',
+                    name: 'lightSystemProgram',
                     isMut: false,
                     isSigner: false,
                 },
@@ -1179,7 +1179,7 @@ export const IDL: LightCompressedToken = {
                     isSigner: false,
                 },
                 {
-                    name: 'compressedPdaProgram',
+                    name: 'lightSystemProgram',
                     isMut: false,
                     isSigner: false,
                 },

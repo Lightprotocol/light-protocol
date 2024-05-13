@@ -1,14 +1,16 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::AnchorDeserialize;
-use light_compressed_pda::sdk::address::derive_address;
-use light_compressed_pda::sdk::compressed_account::{
+use light_hasher::{Hasher, Poseidon};
+use light_system_program::sdk::address::derive_address;
+use light_system_program::sdk::compressed_account::{
     CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
     PackedMerkleContext,
 };
-use light_compressed_pda::NewAddressParams;
+
 use light_hasher::{Hasher, Poseidon};
 use light_test_utils::spl::mint_tokens_helper;
+use light_system_program::NewAddressParams;
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, setup_test_programs_with_accounts, EnvAccounts,
 };
@@ -84,7 +86,7 @@ async fn only_test_create_pda() {
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
-                light_compressed_pda::errors::CompressedPdaError::WriteAccessCheckFailed.into()
+                light_system_program::errors::CompressedPdaError::WriteAccessCheckFailed.into()
             )
         ))
     );
@@ -105,7 +107,7 @@ async fn only_test_create_pda() {
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
-                light_compressed_pda::errors::CompressedPdaError::SignerCheckFailed.into()
+                light_system_program::errors::CompressedPdaError::SignerCheckFailed.into()
             )
         ))
     );
@@ -138,7 +140,7 @@ async fn only_test_create_pda() {
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
-                light_compressed_pda::errors::CompressedPdaError::SignerCheckFailed.into()
+                light_system_program::errors::CompressedPdaError::SignerCheckFailed.into()
             )
         ))
     );
@@ -249,7 +251,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
         .unwrap();
     assert_custom_error_or_program_error(
         res,
-        light_compressed_pda::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
+        light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
     )
     .unwrap();
 }
@@ -333,7 +335,7 @@ async fn perform_create_pda(
     signer_is_program: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
     let address =
-        light_compressed_pda::sdk::address::derive_address(&env.address_merkle_tree_pubkey, &seed)
+        light_system_program::sdk::address::derive_address(&env.address_merkle_tree_pubkey, &seed)
             .unwrap();
 
     let rpc_result = test_indexer

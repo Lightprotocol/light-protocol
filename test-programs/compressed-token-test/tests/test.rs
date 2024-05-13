@@ -2,10 +2,6 @@
 use anchor_lang::AnchorDeserialize;
 use anchor_lang::AnchorSerialize;
 use light_circuitlib_rs::gnark::helpers::kill_gnark_server;
-use light_compressed_pda::{
-    invoke::processor::CompressedProof,
-    sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-};
 use light_compressed_token::{
     token_data::TokenData, transfer_sdk, ErrorCode, TokenTransferOutputData,
 };
@@ -13,6 +9,9 @@ use light_hasher::Poseidon;
 use light_test_utils::spl::{
     compress_test, compressed_transfer_test, create_mint_helper, create_token_account,
     decompress_test, mint_tokens_helper,
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
 use light_test_utils::{
     airdrop_lamports, assert_custom_error_or_program_error,
@@ -446,7 +445,7 @@ async fn test_invalid_inputs() {
     .unwrap();
     assert_custom_error_or_program_error(
         res,
-        light_compressed_pda::errors::CompressedPdaError::ComputeOutputSumFailed.into(),
+        light_system_program::errors::CompressedPdaError::ComputeOutputSumFailed.into(),
     )
     .unwrap();
 

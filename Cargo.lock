@@ -53,13 +53,13 @@ dependencies = [
  "anchor-spl",
  "light-bounded-vec",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-reference",
+ "light-system-program",
  "light-test-utils",
  "light-utils",
  "light-verifier",
@@ -1302,33 +1302,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "compressed-pda-test"
-version = "0.1.1"
-dependencies = [
- "account-compression",
- "anchor-lang",
- "anchor-spl",
- "light-circuitlib-rs",
- "light-compressed-pda",
- "light-compressed-token",
- "light-concurrent-merkle-tree",
- "light-hasher",
- "light-indexed-merkle-tree",
- "light-test-utils",
- "light-utils",
- "light-verifier",
- "num-bigint 0.4.4",
- "num-traits",
- "reqwest 0.11.26",
- "serde_json",
- "solana-cli-output",
- "solana-program-test",
- "solana-sdk",
- "spl-token 3.5.0",
- "tokio",
-]
-
-[[package]]
 name = "compressed-token-test"
 version = "0.1.1"
 dependencies = [
@@ -1336,10 +1309,10 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hasher",
+ "light-system-program",
  "light-test-utils",
  "light-utils",
  "light-verifier",
@@ -2812,39 +2785,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-compressed-pda"
-version = "0.3.1"
-dependencies = [
- "account-compression",
- "aligned-sized",
- "anchor-lang",
- "borsh 0.10.3",
- "bytemuck",
- "groth16-solana",
- "lazy_static",
- "light-circuitlib-rs",
- "light-concurrent-merkle-tree",
- "light-hash-set",
- "light-hasher",
- "light-heap",
- "light-indexed-merkle-tree",
- "light-macros",
- "light-merkle-tree-reference",
- "light-utils",
- "light-verifier",
- "num-bigint 0.4.4",
- "num-traits",
- "rand 0.8.5",
- "reqwest 0.12.4",
- "serde_json",
- "solana-banks-interface",
- "solana-cli-output",
- "solana-program-test",
- "solana-sdk",
- "tokio",
-]
-
-[[package]]
 name = "light-compressed-token"
 version = "0.3.1"
 dependencies = [
@@ -2854,11 +2794,11 @@ dependencies = [
  "anchor-spl",
  "bytemuck",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-heap",
  "light-merkle-tree-reference",
+ "light-system-program",
  "light-utils",
  "light-verifier",
  "num-bigint 0.4.4",
@@ -2999,6 +2939,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-system-program"
+version = "0.3.1"
+dependencies = [
+ "account-compression",
+ "aligned-sized",
+ "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
+ "groth16-solana",
+ "lazy_static",
+ "light-circuitlib-rs",
+ "light-concurrent-merkle-tree",
+ "light-hash-set",
+ "light-hasher",
+ "light-heap",
+ "light-indexed-merkle-tree",
+ "light-macros",
+ "light-merkle-tree-reference",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "rand 0.8.5",
+ "reqwest 0.12.4",
+ "serde_json",
+ "solana-banks-interface",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "light-test-utils"
 version = "0.1.1"
 dependencies = [
@@ -3008,7 +2981,6 @@ dependencies = [
  "anyhow",
  "ark-ff",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-compressed-token",
  "light-hash-set",
  "light-hasher",
@@ -3016,6 +2988,7 @@ dependencies = [
  "light-macros",
  "light-merkle-tree-reference",
  "light-registry",
+ "light-system-program",
  "light-verifier",
  "num-bigint 0.4.4",
  "num-traits",
@@ -3907,9 +3880,9 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-compressed-token",
  "light-hasher",
+ "light-system-program",
  "light-test-utils",
  "light-utils",
  "num-bigint 0.4.4",
@@ -4176,12 +4149,12 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-compressed-token",
  "light-concurrent-merkle-tree",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-registry",
+ "light-system-program",
  "light-test-utils",
  "light-utils",
  "light-verifier",
@@ -6582,6 +6555,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "system-test"
+version = "0.1.1"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-circuitlib-rs",
+ "light-compressed-token",
+ "light-concurrent-merkle-tree",
+ "light-hasher",
+ "light-indexed-merkle-tree",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest 0.11.26",
+ "serde_json",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
+]
+
+[[package]]
 name = "tabled"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6826,9 +6826,9 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "light-circuitlib-rs",
- "light-compressed-pda",
  "light-compressed-token",
  "light-hasher",
+ "light-system-program",
  "light-test-utils",
  "light-verifier",
  "num-bigint 0.4.4",

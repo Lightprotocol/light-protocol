@@ -1,15 +1,15 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_pda::invoke::processor::CompressedProof;
+use light_system_program::invoke::processor::CompressedProof;
 pub mod create_pda;
 pub use create_pda::*;
 pub mod sdk;
-use light_compressed_pda::NewAddressParamsPacked;
+use light_system_program::NewAddressParamsPacked;
 pub mod invalidate_not_owned_account;
 pub use invalidate_not_owned_account::*;
-use light_compressed_pda::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
-use light_compressed_pda::sdk::CompressedCpiContext;
+use light_system_program::sdk::compressed_account::PackedCompressedAccountWithMerkleContext;
+use light_system_program::sdk::CompressedCpiContext;
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 

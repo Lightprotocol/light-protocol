@@ -1,6 +1,10 @@
 use crate::{create_change_output_compressed_token_account, EscrowError, EscrowTimeLock};
 use anchor_lang::prelude::*;
-use light_compressed_pda::{
+use light_compressed_token::{
+    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
+};
+use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         address::derive_address,
@@ -9,10 +13,6 @@ use light_compressed_pda::{
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked,
 };
-use light_compressed_token::{
-    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
-};
-use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 
 /// create compressed pda data
 /// transfer tokens
@@ -103,7 +103,7 @@ fn cpi_compressed_pda_transfer<'info>(
         ),
         None => return err!(EscrowError::CpiContextAccountIndexNotFound),
     };
-    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.token_owner_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
@@ -118,14 +118,14 @@ fn cpi_compressed_pda_transfer<'info>(
     };
     let seeds = [seeds.as_slice()];
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.compressed_pda_program.to_account_info(),
+        ctx.accounts.light_system_program.to_account_info(),
         cpi_accounts,
         &seeds,
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -174,7 +174,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     pub token_owner_pda: AccountInfo<'info>,
     pub compressed_token_program:
         Program<'info, light_compressed_token::program::LightCompressedToken>,
-    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
     /// CHECK:
@@ -241,7 +241,7 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
             .accounts
             .compressed_token_cpi_authority_pda
             .to_account_info(),
-        compressed_pda_program: ctx.accounts.compressed_pda_program.to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,

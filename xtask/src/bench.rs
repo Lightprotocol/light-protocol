@@ -41,7 +41,7 @@ pub fn bench(opts: Options) -> anyhow::Result<()> {
         )
     } else if opts.compressed_pda {
         (
-            "light-compressed-pda",
+            "light-system-program",
             "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
         )
     } else if opts.account_commpression {

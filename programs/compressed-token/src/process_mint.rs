@@ -4,9 +4,9 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_compressed_pda::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_system_program::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
 use light_utils::hash_to_bn254_field_size_be;
 
 use std::mem;
@@ -63,11 +63,11 @@ pub fn process_mint_to<'info>(
     {
         let inputs_len =
     // struct
-    mem::size_of::<light_compressed_pda::InstructionDataInvokeCpi>()
+    mem::size_of::<light_system_program::InstructionDataInvokeCpi>()
     // `output_compressed_accounts`
     + mem::size_of::<CompressedAccount>() * amounts.len()
     // `output_state_merkle_tree_account_indices`
-    + amounts.len() + mem::size_of::<Option::<light_compressed_pda::sdk::CompressedCpiContext>>()+ 8;
+    + amounts.len() + mem::size_of::<Option::<light_system_program::sdk::CompressedCpiContext>>()+ 8;
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // safety buffer prior to heap pos
         let buffer = vec![0u8; 8];
@@ -194,7 +194,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     use anchor_lang::InstructionData;
 
     // 826 CU
-    let instructiondata = light_compressed_pda::instruction::InvokeCpi {
+    let instructiondata = light_system_program::instruction::InvokeCpi {
         inputs: inputs.to_owned(),
     };
 
@@ -207,10 +207,10 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         ctx.accounts.account_compression_authority.to_account_info(),
         ctx.accounts.account_compression_program.to_account_info(),
         ctx.accounts.self_program.to_account_info(),
-        ctx.accounts.compressed_pda_program.to_account_info(), // none compressed_sol_pda
-        ctx.accounts.compressed_pda_program.to_account_info(), // none compression_recipient
+        ctx.accounts.light_system_program.to_account_info(), // none compressed_sol_pda
+        ctx.accounts.light_system_program.to_account_info(), // none compression_recipient
         ctx.accounts.system_program.to_account_info(),
-        ctx.accounts.compressed_pda_program.to_account_info(), // none cpi_context_account
+        ctx.accounts.light_system_program.to_account_info(), // none cpi_context_account
         ctx.accounts.merkle_tree.to_account_info(),
     ];
 
@@ -275,7 +275,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ];
 
     let instruction = anchor_lang::solana_program::instruction::Instruction {
-        program_id: light_compressed_pda::ID,
+        program_id: light_system_program::ID,
         accounts,
         // data: inputs.to_owned(),
         data: instructiondata.data(),
@@ -362,14 +362,14 @@ pub struct MintToInstruction<'info> {
     #[account(mut)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     /// CHECK: this account
     #[account(mut)]
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(mut, seeds = [b"cpi_authority"], bump, seeds::program = light_compressed_pda::ID,)]
+    #[account(mut, seeds = [b"cpi_authority"], bump, seeds::program = light_system_program::ID,)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
@@ -455,15 +455,15 @@ pub mod mint_sdk {
             mint: *mint,
             token_pool_pda,
             token_program: anchor_spl::token::ID,
-            compressed_pda_program: light_compressed_pda::ID,
-            registered_program_pda: light_compressed_pda::utils::get_registered_program_pda(
-                &light_compressed_pda::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
             ),
             noop_program: Pubkey::new_from_array(
                 account_compression::utils::constants::NOOP_PUBKEY,
             ),
-            account_compression_authority: light_compressed_pda::utils::get_cpi_authority_pda(
-                &light_compressed_pda::ID,
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
             ),
             account_compression_program: account_compression::ID,
             merkle_tree: *merkle_tree,
@@ -524,7 +524,7 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         bump,
     ];
     let len = output_compressed_accounts.len();
-    let inputs_struct = light_compressed_pda::InstructionDataInvokeCpi {
+    let inputs_struct = light_system_program::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
         output_compressed_accounts: output_compressed_accounts.clone(),
