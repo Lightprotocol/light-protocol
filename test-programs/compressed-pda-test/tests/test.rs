@@ -15,8 +15,9 @@ use light_compressed_pda::{
 use light_hasher::Poseidon;
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction,
-    create_and_send_transaction_with_event, test_env::setup_test_programs_with_accounts,
-    test_indexer::TestIndexer, FeeConfig, TransactionParams,
+    create_and_send_transaction_with_event, system_program::create_addresses,
+    test_env::setup_test_programs_with_accounts, test_indexer::TestIndexer, FeeConfig,
+    TransactionParams,
 };
 use solana_cli_output::CliAccount;
 use solana_program_test::{BanksClientError, ProgramTestContext};
@@ -529,127 +530,6 @@ async fn test_with_address() {
         }
         // TODO: assert that output compressed accounts with addresses of input accounts are created once enabled
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub async fn create_addresses(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
-    address_merkle_tree_pubkey: &Pubkey,
-    address_merkle_tree_queue_pubkey: &Pubkey,
-    merkle_tree_pubkey: &Pubkey,
-    nullifier_queue_pubkey: &Pubkey,
-    address_seeds: &[[u8; 32]],
-    input_compressed_accounts: &[CompressedAccountWithMerkleContext],
-    create_out_compressed_accounts_for_input_compressed_accounts: bool,
-) -> Result<Option<PublicTransactionEvent>, BanksClientError> {
-    let mut derived_addresses = Vec::new();
-    for address_seed in address_seeds.iter() {
-        let derived_address = derive_address(address_merkle_tree_pubkey, address_seed).unwrap();
-        derived_addresses.push(derived_address);
-    }
-    let mut compressed_account_hashes = Vec::new();
-
-    let compressed_account_input_hashes = if input_compressed_accounts.is_empty() {
-        None
-    } else {
-        for compressed_account in input_compressed_accounts.iter() {
-            compressed_account_hashes.push(
-                compressed_account
-                    .compressed_account
-                    .hash::<Poseidon>(
-                        merkle_tree_pubkey,
-                        &compressed_account.merkle_context.leaf_index,
-                    )
-                    .unwrap(),
-            );
-        }
-        Some(compressed_account_hashes.as_slice())
-    };
-    let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
-            compressed_account_input_hashes,
-            Some(derived_addresses.as_slice()),
-            context,
-        )
-        .await;
-    let mut address_params = Vec::new();
-
-    for (i, seed) in address_seeds.iter().enumerate() {
-        let new_address_params = NewAddressParams {
-            address_queue_pubkey: *address_merkle_tree_queue_pubkey,
-            address_merkle_tree_pubkey: *address_merkle_tree_pubkey,
-            seed: *seed,
-            address_merkle_tree_root_index: proof_rpc_res.address_root_indices[i],
-        };
-        address_params.push(new_address_params);
-    }
-
-    let mut output_compressed_accounts = Vec::new();
-    for address_param in address_params.iter() {
-        output_compressed_accounts.push(CompressedAccount {
-            lamports: 0,
-            owner: context.payer.pubkey(),
-            data: None,
-            address: Some(derive_address(address_merkle_tree_pubkey, &address_param.seed).unwrap()),
-        });
-    }
-
-    if create_out_compressed_accounts_for_input_compressed_accounts {
-        for compressed_account in input_compressed_accounts.iter() {
-            output_compressed_accounts.push(CompressedAccount {
-                lamports: 0,
-                owner: context.payer.pubkey(),
-                data: None,
-                address: compressed_account.compressed_account.address,
-            });
-        }
-    }
-
-    // create two new addresses with the same see should fail
-    let instruction = create_invoke_instruction(
-        &context.payer.pubkey(),
-        &context.payer.pubkey().clone(),
-        input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.clone())
-            .collect::<Vec<CompressedAccount>>()
-            .as_slice(),
-        &output_compressed_accounts,
-        input_compressed_accounts
-            .iter()
-            .map(|x| MerkleContext {
-                merkle_tree_pubkey: *merkle_tree_pubkey,
-                leaf_index: x.merkle_context.leaf_index,
-                nullifier_queue_pubkey: *nullifier_queue_pubkey,
-            })
-            .collect::<Vec<MerkleContext>>()
-            .as_slice(),
-        &vec![*merkle_tree_pubkey; output_compressed_accounts.len()],
-        &proof_rpc_res.root_indices,
-        &address_params,
-        Some(proof_rpc_res.proof.clone()),
-        None,
-        false,
-        None,
-    );
-
-    let event = create_and_send_transaction_with_event::<PublicTransactionEvent>(
-        context,
-        &[instruction],
-        &context.payer.pubkey(),
-        &[&context.payer.insecure_clone()],
-        Some(TransactionParams {
-            num_input_compressed_accounts: input_compressed_accounts.len() as u8,
-            num_output_compressed_accounts: output_compressed_accounts.len() as u8,
-            num_new_addresses: address_params.len() as u8,
-            compress: 0,
-            fee_config: FeeConfig::default(),
-        }),
-    )
-    .await;
-
-    event
 }
 
 #[tokio::test]

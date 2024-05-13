@@ -38,6 +38,7 @@ pub fn create_invoke_instruction(
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext> =
         Vec::<PackedCompressedAccountWithMerkleContext>::new();
+    let mut index = 0;
     let mut new_address_params_packed = new_address_params
         .iter()
         .map(|x| NewAddressParamsPacked {
@@ -51,7 +52,8 @@ pub fn create_invoke_instruction(
         match remaining_accounts.get(&context.merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.merkle_tree_pubkey, i);
+                remaining_accounts.insert(context.merkle_tree_pubkey, index);
+                index += 1;
             }
         };
         _input_compressed_accounts.push(PackedCompressedAccountWithMerkleContext {
@@ -65,12 +67,13 @@ pub fn create_invoke_instruction(
             },
         });
     }
-    let len: usize = remaining_accounts.len() - 1;
+
     for (i, context) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&context.nullifier_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.nullifier_queue_pubkey, i + len);
+                remaining_accounts.insert(context.nullifier_queue_pubkey, index);
+                index += 1;
             }
         };
         _input_compressed_accounts[i]
@@ -79,7 +82,6 @@ pub fn create_invoke_instruction(
             .get(&context.nullifier_queue_pubkey)
             .unwrap() as u8;
     }
-    let len: usize = remaining_accounts.len() - 1;
     let mut output_state_merkle_tree_account_indices: Vec<u8> = Vec::<u8>::new();
 
     for (i, mt) in output_compressed_account_merkle_tree_pubkeys
@@ -89,17 +91,18 @@ pub fn create_invoke_instruction(
         match remaining_accounts.get(mt) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(*mt, i + len);
+                remaining_accounts.insert(*mt, index);
+                index += 1;
             }
         };
         output_state_merkle_tree_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
     }
-    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_merkle_tree_pubkey, i + len);
+                remaining_accounts.insert(params.address_merkle_tree_pubkey, index);
+                index += 1;
             }
         };
         new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
@@ -108,12 +111,12 @@ pub fn create_invoke_instruction(
             as u8;
     }
 
-    let len: usize = remaining_accounts.len() - 1;
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_queue_pubkey, i + len);
+                remaining_accounts.insert(params.address_queue_pubkey, index);
+                index += 1;
             }
         };
         new_address_params_packed[i].address_queue_account_index = *remaining_accounts
@@ -131,10 +134,27 @@ pub fn create_invoke_instruction(
         .map(|(k, _)| k.clone())
         .collect::<Vec<AccountMeta>>();
 
+    // TODO: add flag to skip sorting
+    let mut combined: Vec<_> = output_compressed_accounts
+        .into_iter()
+        .zip(output_state_merkle_tree_account_indices.into_iter())
+        .collect();
+
+    combined.sort_by_key(|&(_, index)| index);
+
+    let (output_compressed_accounts_sorted, output_state_merkle_tree_account_indices): (
+        Vec<_>,
+        Vec<_>,
+    ) = combined.into_iter().unzip();
+    let output_compressed_accounts_sorted: Vec<CompressedAccount> =
+        output_compressed_accounts_sorted
+            .into_iter()
+            .map(|item| item.clone())
+            .collect();
     let inputs_struct = InstructionDataInvoke {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: _input_compressed_accounts,
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
+        output_compressed_accounts: output_compressed_accounts_sorted.to_vec(),
         output_state_merkle_tree_account_indices,
         input_root_indices: input_root_indices.to_vec(),
         proof,

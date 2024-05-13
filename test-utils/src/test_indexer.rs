@@ -9,6 +9,7 @@ use {
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
     },
     anchor_lang::AnchorDeserialize,
+    anchor_spl::token::Token,
     light_circuitlib_rs::{
         gnark::{
             combined_json_formatter::CombinedJsonStruct,
@@ -27,8 +28,10 @@ use {
     },
     light_compressed_pda::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-        sdk::event::PublicTransactionEvent,
+        sdk::{
+            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+            event::PublicTransactionEvent,
+        },
     },
     light_compressed_token::{
         constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_authority_pda,
@@ -246,9 +249,9 @@ impl TestIndexer {
     pub async fn create_proof_for_compressed_accounts(
         &mut self,
         compressed_accounts: Option<&[[u8; 32]]>,
-        state_merkle_tree_pubkeys: &[Pubkey],
+        state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
-        address_merkle_tree_pubkeys: &[Pubkey],
+        address_merkle_tree_pubkeys: Option<&[Pubkey]>,
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
@@ -266,14 +269,18 @@ impl TestIndexer {
             match (compressed_accounts, new_addresses) {
                 (Some(accounts), None) => {
                     let (payload, indices) = self
-                        .process_inclusion_proofs(state_merkle_tree_pubkeys, accounts, context)
+                        .process_inclusion_proofs(
+                            state_merkle_tree_pubkeys.unwrap(),
+                            accounts,
+                            context,
+                        )
                         .await;
                     (indices, Vec::new(), payload.to_string())
                 }
                 (None, Some(addresses)) => {
                     let (payload, indices) = self
                         .process_non_inclusion_proofs(
-                            address_merkle_tree_pubkeys,
+                            address_merkle_tree_pubkeys.unwrap(),
                             addresses,
                             context,
                         )
@@ -282,11 +289,15 @@ impl TestIndexer {
                 }
                 (Some(accounts), Some(addresses)) => {
                     let (inclusion_payload, inclusion_indices) = self
-                        .process_inclusion_proofs(state_merkle_tree_pubkeys, accounts, context)
+                        .process_inclusion_proofs(
+                            state_merkle_tree_pubkeys.unwrap(),
+                            accounts,
+                            context,
+                        )
                         .await;
                     let (non_inclusion_payload, non_inclusion_indices) = self
                         .process_non_inclusion_proofs(
-                            address_merkle_tree_pubkeys,
+                            address_merkle_tree_pubkeys.unwrap(),
                             addresses,
                             context,
                         )
@@ -457,7 +468,13 @@ impl TestIndexer {
         self.add_event_and_compressed_accounts(event);
     }
 
-    pub fn add_event_and_compressed_accounts(&mut self, event: PublicTransactionEvent) {
+    pub fn add_event_and_compressed_accounts(
+        &mut self,
+        event: PublicTransactionEvent,
+    ) -> (
+        Vec<CompressedAccountWithMerkleContext>,
+        Vec<TokenDataWithContext>,
+    ) {
         for hash in event.input_compressed_account_hashes.iter() {
             let index = self.compressed_accounts.iter().position(|x| {
                 x.compressed_account
@@ -495,6 +512,9 @@ impl TestIndexer {
             }
         }
         println!("add_event_and_compressed_accounts: event {:?}", event);
+
+        let mut compressed_accounts = Vec::new();
+        let mut token_compressed_accounts = Vec::new();
         for (i, compressed_account) in event.output_compressed_accounts.iter().enumerate() {
             let nullifier_queue_pubkey = self
                 .state_merkle_trees
@@ -517,44 +537,40 @@ impl TestIndexer {
                     {
                         match TokenData::deserialize(&mut data.data.as_slice()) {
                             Ok(token_data) => {
-                                self.token_compressed_accounts.insert(
-                                    0,
-                                    TokenDataWithContext {
-                                        token_data,
-                                        compressed_account: CompressedAccountWithMerkleContext {
-                                            compressed_account: compressed_account.clone(),
-                                            merkle_context: MerkleContext {
-                                                leaf_index: event.output_leaf_indices[i],
-                                                merkle_tree_pubkey: event.pubkey_array[event
-                                                    .output_state_merkle_tree_account_indices[i]
-                                                    as usize],
-                                                nullifier_queue_pubkey,
-                                            },
+                                let token_account = TokenDataWithContext {
+                                    token_data,
+                                    compressed_account: CompressedAccountWithMerkleContext {
+                                        compressed_account: compressed_account.clone(),
+                                        merkle_context: MerkleContext {
+                                            leaf_index: event.output_leaf_indices[i],
+                                            merkle_tree_pubkey: event.pubkey_array[event
+                                                .output_state_merkle_tree_account_indices[i]
+                                                as usize],
+                                            nullifier_queue_pubkey,
                                         },
                                     },
-                                );
+                                };
+                                token_compressed_accounts.push(token_account.clone());
+                                self.token_compressed_accounts.insert(0, token_account);
                             }
                             Err(_) => {}
                         }
                     } else {
-                        self.compressed_accounts.insert(
-                            0,
-                            CompressedAccountWithMerkleContext {
-                                compressed_account: compressed_account.clone(),
-                                merkle_context: MerkleContext {
-                                    leaf_index: event.output_leaf_indices[i],
-                                    merkle_tree_pubkey: event.pubkey_array[event
-                                        .output_state_merkle_tree_account_indices[i]
-                                        as usize],
-                                    nullifier_queue_pubkey,
-                                },
+                        let compressed_account = CompressedAccountWithMerkleContext {
+                            compressed_account: compressed_account.clone(),
+                            merkle_context: MerkleContext {
+                                leaf_index: event.output_leaf_indices[i],
+                                merkle_tree_pubkey: event.pubkey_array
+                                    [event.output_state_merkle_tree_account_indices[i] as usize],
+                                nullifier_queue_pubkey,
                             },
-                        );
+                        };
+                        compressed_accounts.push(compressed_account.clone());
+                        self.compressed_accounts.insert(0, compressed_account);
                     }
                 }
-                None => self.compressed_accounts.insert(
-                    0,
-                    CompressedAccountWithMerkleContext {
+                None => {
+                    let compressed_account = CompressedAccountWithMerkleContext {
                         compressed_account: compressed_account.clone(),
                         merkle_context: MerkleContext {
                             leaf_index: event.output_leaf_indices[i],
@@ -562,8 +578,10 @@ impl TestIndexer {
                                 [event.output_state_merkle_tree_account_indices[i] as usize],
                             nullifier_queue_pubkey,
                         },
-                    },
-                ),
+                    };
+                    compressed_accounts.push(compressed_account.clone());
+                    self.compressed_accounts.insert(0, compressed_account);
+                }
             };
             let merkle_tree = &mut self
                 .state_merkle_trees
@@ -589,6 +607,7 @@ impl TestIndexer {
         }
 
         self.events.push(event);
+        (compressed_accounts, token_compressed_accounts)
     }
 
     /// deserializes an event

@@ -24,6 +24,7 @@ light-compressed-pda = { path = "../../programs/compressed-pda"  , features = ["
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}
+light-indexed-merkle-tree = {path = "../../merkle-tree/indexed"}
 light-merkle-tree-reference = {path = "../../merkle-tree/reference"}
 light-utils = {path = "../../utils"}
 light-verifier = {path = "../../circuit-lib/verifier"}

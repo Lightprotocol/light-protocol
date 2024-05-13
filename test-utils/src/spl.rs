@@ -20,7 +20,7 @@ use num_traits::FromBytes;
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     program_pack::Pack,
-    pubkey::{Pubkey, PubkeyError},
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
 use spl_token::state::Mint;
@@ -564,9 +564,9 @@ pub async fn perform_compressed_transfer_test(
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&input_compressed_account_hashes),
-            &input_merkle_tree_pubkeys,
+            Some(&input_merkle_tree_pubkeys),
             None,
-            &[],
+            None,
             context,
         )
         .await;
@@ -663,9 +663,9 @@ pub async fn decompress_test(
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&input_compressed_account_hashes),
-            &input_merkle_tree_pubkeys,
+            Some(&input_merkle_tree_pubkeys),
             None,
-            &[],
+            None,
             context,
         )
         .await;
@@ -746,5 +746,101 @@ pub async fn decompress_test(
     assert_eq!(
         recipient_token_account_data.amount,
         recipient_token_account_data_pre.amount + amount
+    );
+}
+
+pub async fn compress_test(
+    payer: &Keypair,
+    context: &mut ProgramTestContext,
+    test_indexer: &mut TestIndexer,
+    amount: u64,
+    mint: &Pubkey,
+    output_merkle_tree_pubkey: &Pubkey,
+    sender_token_account: &Pubkey,
+    transaction_params: Option<TransactionParams>,
+) {
+    let output_compressed_account = TokenTransferOutputData {
+        amount,
+        owner: payer.pubkey(),
+        lamports: None,
+    };
+    let approve_instruction = spl_token::instruction::approve(
+        &anchor_spl::token::ID,
+        sender_token_account,
+        &get_cpi_authority_pda().0,
+        &payer.pubkey(),
+        &[&payer.pubkey()],
+        amount,
+    )
+    .unwrap();
+
+    let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
+    let instruction = create_transfer_instruction(
+        &context.payer.pubkey(),
+        &payer.pubkey(),              // authority
+        &Vec::new(),                  // input_compressed_account_merkle_tree_pubkeys
+        &output_merkle_tree_pubkeys,  // output_cmerkle_contextmerkle_tree_pubkeys
+        &[output_compressed_account], // output_compressed_accounts
+        &Vec::new(),                  // root_indices
+        &None,
+        &Vec::new(),                     // input_token_data
+        *mint,                           // mint
+        None,                            // owner_if_delegate_is_signer
+        true,                            // is_compress
+        Some(amount),                    // compression_amount
+        Some(get_token_pool_pda(&mint)), // token_pool_pda
+        Some(*sender_token_account),     // decompress_token_account
+    )
+    .unwrap();
+    let output_merkle_tree_test_snapshots =
+        get_merkle_tree_snapshots(context, test_indexer, &output_merkle_tree_pubkeys).await;
+    let input_merkle_tree_test_snapshots = Vec::new();
+    let recipient_token_account_data_pre = spl_token::state::Account::unpack(
+        &context
+            .banks_client
+            .get_account(*sender_token_account)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+    )
+    .unwrap();
+    let context_payer = context.payer.insecure_clone();
+    let event = create_and_send_transaction_with_event(
+        context,
+        &[approve_instruction, instruction],
+        &payer.pubkey(),
+        &[&context_payer, &payer],
+        transaction_params,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    test_indexer.add_compressed_accounts_with_token_data(event);
+
+    assert_transfer(
+        context,
+        test_indexer,
+        &[output_compressed_account],
+        Vec::new().as_slice(),
+        &output_merkle_tree_test_snapshots,
+        &input_merkle_tree_test_snapshots,
+    )
+    .await;
+
+    let recipient_token_account_data = spl_token::state::Account::unpack(
+        &context
+            .banks_client
+            .get_account(*sender_token_account)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+    )
+    .unwrap();
+    assert_eq!(
+        recipient_token_account_data.amount,
+        recipient_token_account_data_pre.amount - amount
     );
 }

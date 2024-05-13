@@ -211,6 +211,7 @@ pub fn sum_check(
     compression_lamports: &Option<u64>,
     is_compress: &bool,
 ) -> Result<()> {
+    msg!("compression_lamports: {:?}", compression_lamports);
     let mut sum: u64 = 0;
     for compressed_account_with_context in input_compressed_accounts_with_merkle_context.iter() {
         sum = sum
@@ -218,7 +219,7 @@ pub fn sum_check(
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| CompressedPdaError::ComputeInputSumFailed)?;
     }
-
+    msg!("after inputs: sum: {:?}", sum);
     match compression_lamports {
         Some(lamports) => {
             if *is_compress {
@@ -235,6 +236,7 @@ pub fn sum_check(
         }
         None => (),
     }
+    msg!("after compression_lamports: sum: {:?}", sum);
 
     for compressed_account in output_compressed_account.iter() {
         sum = sum
@@ -242,6 +244,7 @@ pub fn sum_check(
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
     }
+    msg!("after output_compressed_account: sum: {:?}", sum);
 
     if let Some(relay_fee) = relay_fee {
         sum = sum
@@ -249,6 +252,7 @@ pub fn sum_check(
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| CompressedPdaError::ComputeRpcSumFailed)?;
     }
+    msg!("after relay_fee: sum: {:?}", sum);
 
     if sum == 0 {
         Ok(())

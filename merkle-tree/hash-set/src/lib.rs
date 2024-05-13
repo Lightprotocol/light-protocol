@@ -334,11 +334,6 @@ where
         }
         unsafe {
             *next_value_index = usize::from_ne_bytes(bytes[24..32].try_into().unwrap());
-
-            #[cfg(target_os = "solana")]
-            solana_program::msg!("next_value_index: {}", *next_value_index);
-            #[cfg(not(target_os = "solana"))]
-            println!("next_value_index: {}", *next_value_index);
         }
 
         let indices_layout = Layout::array::<Option<I>>(capacity_indices).unwrap();
