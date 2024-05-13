@@ -4,11 +4,11 @@ use account_compression::StateMerkleTreeAccount;
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction_with_event,
-    test_env::{create_state_merkle_tree_and_queue_account, setup_test_programs_with_accounts},
+    test_env::setup_test_programs_with_accounts,
     test_indexer::{create_mint_helper, TestIndexer},
     AccountZeroCopy, FeeConfig, TransactionParams,
 };
-use solana_sdk::{signature::Keypair, signer::Signer, transaction::Transaction};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
@@ -19,33 +19,30 @@ async fn test_program_owned_merkle_tree() {
     .await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
-    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
 
     let program_owned_merkle_tree_keypair = Keypair::new();
     let program_owned_merkle_tree_pubkey = program_owned_merkle_tree_keypair.pubkey();
     let program_owned_nullifier_queue_keypair = Keypair::new();
-    let program_owned_nullifier_queue_pubkey = program_owned_nullifier_queue_keypair.pubkey();
-    create_state_merkle_tree_and_queue_account(
-        &payer,
-        &mut context,
-        &program_owned_merkle_tree_keypair,
-        &program_owned_nullifier_queue_keypair,
-        Some(light_compressed_token::ID),
-        1,
-    )
-    .await;
+    let cpi_signature_keypair = Keypair::new();
 
-    let test_indexer = TestIndexer::new(
-        program_owned_merkle_tree_pubkey,
-        program_owned_nullifier_queue_pubkey,
-        address_merkle_tree_pubkey,
-        payer.insecure_clone(),
+    let mut test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
         true,
         true,
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    );
+    )
+    .await;
+    test_indexer
+        .add_state_merkle_tree(
+            &mut context,
+            &program_owned_merkle_tree_keypair,
+            &program_owned_nullifier_queue_keypair,
+            &cpi_signature_keypair,
+            Some(light_compressed_token::ID),
+        )
+        .await;
 
-    let mut test_indexer = test_indexer.await;
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut context, &payer).await;
     let amount = 10000u64;
@@ -98,22 +95,23 @@ async fn test_program_owned_merkle_tree() {
     );
     assert_eq!(
         post_merkle_tree.root().unwrap(),
-        test_indexer.merkle_tree.root()
+        test_indexer.state_merkle_trees[1].merkle_tree.root()
     );
 
     let invalid_program_owned_merkle_tree_keypair = Keypair::new();
     let invalid_program_owned_merkle_tree_pubkey =
         invalid_program_owned_merkle_tree_keypair.pubkey();
     let invalid_program_owned_nullifier_queue_keypair = Keypair::new();
-    create_state_merkle_tree_and_queue_account(
-        &payer,
-        &mut context,
-        &invalid_program_owned_merkle_tree_keypair,
-        &invalid_program_owned_nullifier_queue_keypair,
-        Some(program_owned_account_test::ID),
-        2,
-    )
-    .await;
+    let cpi_signature_keypair = Keypair::new();
+    test_indexer
+        .add_state_merkle_tree(
+            &mut context,
+            &invalid_program_owned_merkle_tree_keypair,
+            &invalid_program_owned_nullifier_queue_keypair,
+            &cpi_signature_keypair,
+            Some(Pubkey::new_unique()),
+        )
+        .await;
     let recipient_keypair = Keypair::new();
     let instruction = create_mint_to_instruction(
         &payer_pubkey,

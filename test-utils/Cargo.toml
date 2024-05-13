@@ -7,10 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-light_program = ["light-registry", "account-compression"]
-account_compression = ["account-compression"]
-test_indexer = ["account-compression", "light_program", "light-registry", "light-compressed-pda", "light-compressed-token"]
-default = ["light_program", "account_compression"]
+default = []
 
 [dependencies]
 anchor-lang = "0.29.0"
@@ -23,10 +20,10 @@ solana-program-test = "1.18.11"
 solana-sdk = "1.18.11"
 thiserror = "1.0"
 light-macros = { path = "../macros/light", version = "0.3.2" }
-account-compression = { path = "../programs/account-compression", version = "0.3.2", features = ["cpi"], optional = true }
-light-compressed-token = { path = "../programs/compressed-token", version = "0.3.1", features = ["cpi"],  optional= true }
-light-compressed-pda = { path = "../programs/compressed-pda", version = "0.3.1", features = ["cpi"],  optional= true}
-light-registry = { path = "../programs/registry", version = "0.3.1", features = ["cpi"],  optional= true }
+account-compression = { path = "../programs/account-compression", version = "0.3.2", features = ["cpi"] }
+light-compressed-token = { path = "../programs/compressed-token", version = "0.3.1", features = ["cpi"] }
+light-compressed-pda = { path = "../programs/compressed-pda", version = "0.3.1", features = ["cpi"]}
+light-registry = { path = "../programs/registry", version = "0.3.1", features = ["cpi"] }
 spl-token = { version="3.5.0", features = ["no-entrypoint"] }
 tokio = "1.36"
 light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.1" }

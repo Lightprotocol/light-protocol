@@ -1,15 +1,14 @@
-#[cfg(feature = "light_program")]
 use crate::{create_and_send_transaction, get_account};
-#[cfg(feature = "light_program")]
+
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
-#[cfg(feature = "test_indexer")]
+
 use anchor_lang::ToAccountMetas;
-#[cfg(feature = "test_indexer")]
+
 use anchor_lang::{system_program, InstructionData};
 use light_macros::pubkey;
-#[cfg(feature = "light_program")]
+
 use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
     create_initialize_group_authority_instruction, create_register_program_instruction,
@@ -17,10 +16,10 @@ use light_registry::sdk::{
 };
 
 use solana_program_test::{ProgramTest, ProgramTestContext};
-#[cfg(feature = "light_program")]
+
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
-#[cfg(feature = "light_program")]
+
 use solana_sdk::{signature::Signer, system_instruction};
 
 pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
@@ -122,7 +121,7 @@ pub const SIGNATURE_CPI_TEST_KEYPAIR: [u8; 64] = [
 /// 6. creates and initializes group authority
 /// 7. registers the light_compressed_pda program with the group authority
 /// 8. initializes Merkle tree owned by
-#[cfg(feature = "light_program")]
+
 pub async fn setup_test_programs_with_accounts(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> (ProgramTestContext, EnvAccounts) {
@@ -214,7 +213,7 @@ pub async fn setup_test_programs_with_accounts(
     )
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
-    #[cfg(feature = "test_indexer")]
+
     init_cpi_signature_account(&mut context, &merkle_tree_pubkey, &cpi_signature_keypair).await;
     (
         context,
@@ -232,7 +231,6 @@ pub async fn setup_test_programs_with_accounts(
     )
 }
 
-#[cfg(feature = "light_program")]
 pub async fn create_state_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
@@ -292,7 +290,7 @@ pub async fn create_state_merkle_tree_and_queue_account(
         ],
         Some(&payer.pubkey()),
         &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
-        context.last_blockhash,
+        context.get_new_latest_blockhash().await.unwrap(),
     );
     context
         .banks_client
@@ -301,7 +299,6 @@ pub async fn create_state_merkle_tree_and_queue_account(
         .unwrap();
 }
 
-#[cfg(feature = "light_program")]
 pub async fn create_address_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,
@@ -370,7 +367,6 @@ pub async fn create_address_merkle_tree_and_queue_account(
         .unwrap();
 }
 
-#[cfg(feature = "test_indexer")]
 pub async fn init_cpi_signature_account(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
@@ -410,7 +406,7 @@ pub async fn init_cpi_signature_account(
         context,
         &[account_create_ix, instruction],
         &payer.pubkey(),
-        &[&payer, &cpi_account_keypair],
+        &[&payer, cpi_account_keypair],
     )
     .await
     .unwrap();
