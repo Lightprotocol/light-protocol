@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "restart-db": "docker-compose down -v && docker-compose up -d",
+    "restart-db": "docker compose down -v && docker compose up -d",
     "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
     "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
     "restart-validator": "pnpm restart-db && sleep 1 && pnpm migrate-db && pnpm start-validator",
