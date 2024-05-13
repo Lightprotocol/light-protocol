@@ -1,5 +1,3 @@
-use std::{fmt, marker::PhantomData, mem, pin::Pin};
-
 use anchor_lang::{
     solana_program::{pubkey::Pubkey, system_instruction},
     AnchorDeserialize,
@@ -15,10 +13,10 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
+use std::{fmt, marker::PhantomData, mem, pin::Pin};
 pub mod spl;
 pub mod system_program;
 pub mod test_env;
-#[cfg(feature = "test_indexer")]
 pub mod test_indexer;
 
 #[derive(Debug, Clone)]
@@ -119,13 +117,13 @@ pub async fn airdrop_lamports(
     // Create a transfer instruction
     let transfer_instruction =
         system_instruction::transfer(&banks_client.payer.pubkey(), destination_pubkey, lamports);
-
+    let latest_blockhash = banks_client.get_new_latest_blockhash().await.unwrap();
     // Create and sign a transaction
     let transaction = Transaction::new_signed_with_payer(
         &[transfer_instruction],
         Some(&banks_client.payer.pubkey()),
         &vec![&banks_client.payer],
-        banks_client.last_blockhash,
+        latest_blockhash,
     );
 
     // Send the transaction

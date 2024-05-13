@@ -66,10 +66,6 @@ pub async fn create_addresses_test(
     } else {
         Some(state_input_merkle_trees.as_slice())
     };
-    println!(
-        "address merkle tree pubkeys: {:?}",
-        address_merkle_tree_pubkeys
-    );
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
             compressed_account_input_hashes,
@@ -92,7 +88,7 @@ pub async fn create_addresses_test(
     }
 
     let mut output_compressed_accounts = Vec::new();
-    for (_, address) in derived_addresses.iter().enumerate() {
+    for address in derived_addresses.iter() {
         output_compressed_accounts.push(CompressedAccount {
             lamports: 0,
             owner: context.payer.pubkey(),
@@ -109,8 +105,7 @@ pub async fn create_addresses_test(
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
-            output_merkle_tree_pubkeys
-                .push(compressed_account.merkle_context.merkle_tree_pubkey.clone());
+            output_merkle_tree_pubkeys.push(compressed_account.merkle_context.merkle_tree_pubkey);
         }
     }
 
@@ -125,7 +120,7 @@ pub async fn create_addresses_test(
         &output_compressed_accounts,
         input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.clone())
+            .map(|x| x.merkle_context)
             .collect::<Vec<MerkleContext>>()
             .as_slice(),
         &output_merkle_tree_pubkeys,
@@ -149,7 +144,7 @@ pub async fn create_addresses_test(
     let (created_out_compressed_accounts, _) =
         test_indexer.add_event_and_compressed_accounts(event?.unwrap());
     assert_created_compressed_accounts(
-        &output_compressed_accounts.as_slice(),
+        output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
         created_out_compressed_accounts.as_slice(),
         false,
@@ -235,11 +230,9 @@ pub async fn compress_sol_test(
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
-            output_merkle_tree_pubkeys
-                .push(compressed_account.merkle_context.merkle_tree_pubkey.clone());
+            output_merkle_tree_pubkeys.push(compressed_account.merkle_context.merkle_tree_pubkey);
         }
     }
-    println!("input_compressed_accounts: {:?}", input_compressed_accounts);
 
     let instruction = create_invoke_instruction(
         &authority.pubkey(),
@@ -252,7 +245,7 @@ pub async fn compress_sol_test(
         &output_compressed_accounts,
         input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.clone())
+            .map(|x| x.merkle_context)
             .collect::<Vec<MerkleContext>>()
             .as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -285,7 +278,7 @@ pub async fn compress_sol_test(
         context,
         &[instruction],
         &authority.pubkey(),
-        &[&authority],
+        &[authority],
         transaction_params,
     )
     .await;
@@ -306,7 +299,7 @@ pub async fn compress_sol_test(
         "balance of compressed sol pda insufficient, compress sol failed"
     );
     assert_created_compressed_accounts(
-        &output_compressed_accounts.as_slice(),
+        output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
         created_compressed_accounts.as_slice(),
         false,
@@ -373,13 +366,12 @@ pub async fn decompress_sol_test(
         .map(|x| x.compressed_account.lamports)
         .sum::<u64>();
 
-    let mut output_compressed_accounts = Vec::new();
-    output_compressed_accounts.push(CompressedAccount {
+    let output_compressed_accounts = vec![CompressedAccount {
         lamports: input_lamports - decompress_amount,
         owner: context.payer.pubkey(),
         data: None,
         address: None,
-    });
+    }];
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
 
     let instruction = create_invoke_instruction(
@@ -393,7 +385,7 @@ pub async fn decompress_sol_test(
         &output_compressed_accounts,
         input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.clone())
+            .map(|x| x.merkle_context)
             .collect::<Vec<MerkleContext>>()
             .as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -405,13 +397,10 @@ pub async fn decompress_sol_test(
         Some(*recipient),
     );
     // TODO: assert sender balance after fee refactor
-    let recipient_balance_pre = context
-        .banks_client
-        .get_account(*recipient)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
+    let recipient_balance_pre = match context.banks_client.get_account(*recipient).await.unwrap() {
+        Some(account) => account.lamports,
+        None => 0,
+    };
     let compressed_sol_pda_balance_pre = match context
         .banks_client
         .get_account(get_compressed_sol_pda())
@@ -433,13 +422,15 @@ pub async fn decompress_sol_test(
 
     let (created_compressed_accounts, _) =
         test_indexer.add_event_and_compressed_accounts(event?.unwrap());
-    let compressed_sol_pda_balance = context
+    let compressed_sol_pda_balance = match context
         .banks_client
         .get_account(get_compressed_sol_pda())
         .await
         .unwrap()
-        .unwrap()
-        .lamports;
+    {
+        Some(account) => account.lamports,
+        None => 0,
+    };
 
     assert_eq!(
         compressed_sol_pda_balance,
@@ -462,7 +453,7 @@ pub async fn decompress_sol_test(
     );
 
     assert_created_compressed_accounts(
-        &output_compressed_accounts.as_slice(),
+        output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
         created_compressed_accounts.as_slice(),
         false,
@@ -548,11 +539,6 @@ pub async fn transfer_compressed_sol_test(
             address,
         });
     }
-    println!("input_compressed_accounts: {:?}", input_compressed_accounts);
-    println!(
-        "output_compressed_accounts: {:?}",
-        output_compressed_accounts
-    );
     let instruction = create_invoke_instruction(
         &context.payer.pubkey(),
         &authority.pubkey().clone(),
@@ -564,7 +550,7 @@ pub async fn transfer_compressed_sol_test(
         &output_compressed_accounts,
         input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.clone())
+            .map(|x| x.merkle_context)
             .collect::<Vec<MerkleContext>>()
             .as_slice(),
         &output_merkle_tree_pubkeys,
@@ -589,7 +575,7 @@ pub async fn transfer_compressed_sol_test(
         test_indexer.add_event_and_compressed_accounts(event?.unwrap());
 
     assert_created_compressed_accounts(
-        &output_compressed_accounts.as_slice(),
+        output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
         created_out_compressed_accounts.as_slice(),
         true,
@@ -627,7 +613,7 @@ pub fn assert_created_compressed_accounts(
             );
         }
     } else {
-        for (_, output_account) in created_out_compressed_accounts.iter().enumerate() {
+        for output_account in created_out_compressed_accounts.iter() {
             assert!(output_compressed_accounts
                 .iter()
                 .any(|x| x.lamports == output_account.compressed_account.lamports),);

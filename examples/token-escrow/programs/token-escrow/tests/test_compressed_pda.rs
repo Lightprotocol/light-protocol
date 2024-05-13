@@ -19,8 +19,9 @@ use light_compressed_pda::sdk::compressed_account::MerkleContext;
 use light_compressed_pda::sdk::event::PublicTransactionEvent;
 use light_compressed_pda::NewAddressParams;
 use light_hasher::{Hasher, Poseidon};
+use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
-use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
+use light_test_utils::test_indexer::{create_mint_helper, TestIndexer};
 use light_test_utils::{create_and_send_transaction_with_event, FeeConfig, TransactionParams};
 use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
@@ -43,12 +44,9 @@ async fn test_escrow_with_compressed_pda() {
     .await;
     let payer = context.payer.insecure_clone();
 
-    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
-    let test_indexer = TestIndexer::new(
-        env.merkle_tree_pubkey,
-        env.nullifier_queue_pubkey,
-        address_merkle_tree_pubkey,
-        payer.insecure_clone(),
+    let test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
         true,
         true,
         "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
@@ -244,7 +242,11 @@ async fn create_escrow_ix(
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&[input_compressed_account_hash]),
+            Some(&[compressed_input_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey]),
             Some(&[address]),
+            Some(&[env.address_merkle_tree_pubkey]),
             context,
         )
         .await;
@@ -454,6 +456,11 @@ pub async fn perform_withdrawal(
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&[compressed_pda_hash, token_escrow_account_hash]),
+            Some(&[
+                compressed_escrow_pda.merkle_context.merkle_tree_pubkey,
+                token_escrow_account.merkle_context.merkle_tree_pubkey,
+            ]),
+            None,
             None,
             context,
         )

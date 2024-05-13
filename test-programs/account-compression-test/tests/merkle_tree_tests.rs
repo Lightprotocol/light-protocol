@@ -183,7 +183,6 @@ async fn test_nullifier_queue_security() {
         replacement_start_value,
         nullifier_queue.hash_set.capacity_values as usize,
     );
-    println!("replacement_value {}", replacement_value);
     // CHECK: 5
     let element: [u8; 32] =
         bigint_to_be_bytes_array(&replacement_value.to_biguint().unwrap()).unwrap();
@@ -311,7 +310,6 @@ pub async fn set_state_merkle_tree_sequence(
     sequence_number: u64,
     lamports: u64,
 ) {
-    println!("advance to sequence number {}", sequence_number);
     // is in range 9 - 10 in concurrent mt
     // offset for sequence number
     // let offset_start = 6 * 8 + 8 + 4 * 32 + 8 * 9;

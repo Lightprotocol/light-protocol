@@ -12,8 +12,9 @@
 
 use light_compressed_pda::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_hasher::Poseidon;
+use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
-use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
+use light_test_utils::test_indexer::{create_mint_helper, TestIndexer};
 use light_test_utils::{
     airdrop_lamports, create_and_send_transaction_with_event, get_account, FeeConfig,
     TransactionParams,
@@ -53,13 +54,9 @@ async fn test_escrow_pda() {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
-    let test_indexer = TestIndexer::new(
-        merkle_tree_pubkey,
-        nullifier_queue_pubkey,
-        address_merkle_tree_pubkey,
-        payer.insecure_clone(),
+    let test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
         true,
         false,
         "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
@@ -249,7 +246,15 @@ pub async fn perform_escrow(
         .unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(Some(&[input_compressed_account_hash]), None, context)
+        .create_proof_for_compressed_accounts(
+            Some(&[input_compressed_account_hash]),
+            Some(&[compressed_input_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey]),
+            None,
+            None,
+            context,
+        )
         .await;
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
@@ -361,10 +366,8 @@ pub async fn assert_escrow(
     assert_eq!(token_data_escrow.amount, escrow_amount);
     assert_eq!(token_data_escrow.owner, token_owner_pda);
 
-    let token_data_change_compressed_token_account = test_indexer.token_compressed_accounts
-        [test_indexer.token_compressed_accounts.len() - 1]
-        .token_data
-        .clone();
+    let token_data_change_compressed_token_account =
+        test_indexer.token_compressed_accounts[0].token_data.clone();
     assert_eq!(
         token_data_change_compressed_token_account.amount,
         amount - escrow_amount
@@ -410,7 +413,15 @@ pub async fn perform_withdrawal(
         .unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(Some(&[input_compressed_account_hash]), None, context)
+        .create_proof_for_compressed_accounts(
+            Some(&[input_compressed_account_hash]),
+            Some(&[compressed_input_account_with_context
+                .merkle_context
+                .merkle_tree_pubkey]),
+            None,
+            None,
+            context,
+        )
         .await;
 
     let create_ix_inputs = CreateEscrowInstructionInputs {
@@ -522,31 +533,3 @@ pub fn assert_withdrawal(
         escrow_amount - withdrawal_amount
     );
 }
-
-// TODO: complete once #604 is merged
-// init program owned merkle tree
-// 1. should fail: try to mint to program owned merkle tree
-// - mint to user owned merkle tree
-// 2. should succeed: escrow to program owned merkle tree (change token utxo is now in program owned merkle tree)
-// - Should users be able to spend from program owned merkle tree? (probably not, but we don't want tokens to get stuck)
-// - we should make this configurablelkiuj
-// #[tokio::test]
-// async fn test_program_owned_merkle_tree() {
-//     let env: light_test_utils::test_env::EnvWithAccounts = setup_test_programs_with_accounts(Some(
-//         vec![(String::from("token_escrow"), token_escrow::ID)],
-//     ))
-//     .await;
-//     let mut context = env.context;
-//     let payer = context.payer.insecure_clone();
-
-//     let program_owned_merkle_tree = Keypair::new();
-//     let program_owned_queue = Keypair::new();
-//     create_state_merkle_tree_and_queue_account(
-//         &payer,
-//         &mut context,
-//         &program_owned_merkle_tree,
-//         &program_owned_queue,
-//         Some(token_escrow::ID),
-//     )
-//     .await;
-// }

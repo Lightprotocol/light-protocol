@@ -8,10 +8,11 @@ use light_compressed_pda::sdk::compressed_account::{
 };
 use light_compressed_pda::NewAddressParams;
 use light_hasher::{Hasher, Poseidon};
+use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, setup_test_programs_with_accounts, EnvAccounts,
 };
-use light_test_utils::test_indexer::{create_mint_helper, mint_tokens_helper, TestIndexer};
+use light_test_utils::test_indexer::{create_mint_helper, TestIndexer};
 use light_test_utils::{
     assert_custom_error_or_program_error, create_and_send_transaction_with_event,
 };
@@ -37,21 +38,14 @@ async fn only_test_create_pda() {
     )]))
     .await;
     let payer = context.payer.insecure_clone();
-    let payer_pubkey = payer.pubkey();
-    println!("payer_pubkey {:?}", payer_pubkey);
-
-    let address_merkle_tree_pubkey = env.address_merkle_tree_pubkey;
-    let test_indexer = TestIndexer::new(
-        env.merkle_tree_pubkey,
-        env.nullifier_queue_pubkey,
-        address_merkle_tree_pubkey,
-        payer.insecure_clone(),
+    let mut test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
         true,
         true,
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    );
-
-    let mut test_indexer = test_indexer.await;
+    )
+    .await;
 
     let seed = [1u8; 32];
     let data = [2u8; 31];
@@ -173,17 +167,14 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
     )
     .await;
 
-    let test_indexer = TestIndexer::new(
-        env.merkle_tree_pubkey,
-        env.nullifier_queue_pubkey,
-        env.address_merkle_tree_pubkey,
-        payer.insecure_clone(),
+    let mut test_indexer = TestIndexer::init_from_env(
+        &payer,
+        &env,
         true,
         true,
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    );
-
-    let mut test_indexer = test_indexer.await;
+    )
+    .await;
 
     let seed = [1u8; 32];
     let data = [2u8; 31];
@@ -227,7 +218,8 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
     )
     .await;
 
-    test_indexer.address_merkle_tree_pubkey = program_owned_address_merkle_tree_keypair.pubkey();
+    test_indexer.address_merkle_trees[0].accounts.merkle_tree =
+        program_owned_address_merkle_tree_keypair.pubkey();
 
     let seed = [3u8; 32];
     let data = [4u8; 31];
@@ -345,7 +337,13 @@ async fn perform_create_pda(
             .unwrap();
 
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(None, Some(&[address]), context)
+        .create_proof_for_compressed_accounts(
+            None,
+            None,
+            Some(&[address]),
+            Some(&[env.address_merkle_tree_pubkey]),
+            context,
+        )
         .await;
 
     let new_address_params = NewAddressParams {
@@ -428,7 +426,13 @@ pub async fn perform_invalidate_not_owned_compressed_account(
         )
         .unwrap();
     let rpc_result = test_indexer
-        .create_proof_for_compressed_accounts(Some(&[hash]), None, context)
+        .create_proof_for_compressed_accounts(
+            Some(&[hash]),
+            Some(&[env.merkle_tree_pubkey]),
+            None,
+            None,
+            context,
+        )
         .await;
     let create_ix_inputs = InvalidateNotOwnedCompressedAccountInstructionInputs {
         signer: &payer_pubkey,

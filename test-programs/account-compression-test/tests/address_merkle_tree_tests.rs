@@ -390,7 +390,6 @@ async fn test_address_queue() {
             .unwrap(),
         true
     );
-    println!("Address queue insert successful");
     relayer_update(
         &mut context,
         address_queue_keypair.pubkey(),

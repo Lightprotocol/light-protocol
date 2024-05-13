@@ -88,7 +88,6 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     if nullifier_queue_config != NullifierQueueConfig::default() {
         unimplemented!("Only default nullifier queue config supported.");
     }
-    msg!("state Merkle tree init delegate {:?}", delegate);
 
     process_initialize_state_merkle_tree(
         &ctx.accounts.merkle_tree,
