@@ -106,7 +106,7 @@ impl TestIndexer {
                 cpi_context: env.cpi_signature_account_pubkey,
             }],
             vec![AddressMerkleTreeAccounts {
-                merkle_tree: env.merkle_tree_pubkey,
+                merkle_tree: env.address_merkle_tree_pubkey,
                 queue: env.address_merkle_tree_queue_pubkey,
             }],
             payer.insecure_clone(),
@@ -431,7 +431,10 @@ impl TestIndexer {
             let (_, address_merkle_tree, indexing_array) = &self
                 .address_merkle_trees
                 .iter()
-                .find(|x| x.0.merkle_tree == address_merkle_tree_pubkeys[0])
+                .find(|x| {
+                    println!("x.0.merkle_tree {:?}", x.0.merkle_tree);
+                    return x.0.merkle_tree == address_merkle_tree_pubkeys[0];
+                })
                 .unwrap();
             let proof_inputs =
                 get_non_inclusion_proof_inputs(address, address_merkle_tree, indexing_array);

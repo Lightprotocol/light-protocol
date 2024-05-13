@@ -24,12 +24,15 @@ pub async fn create_addresses_test(
     test_indexer: &mut TestIndexer,
     address_merkle_tree_pubkeys: &[Pubkey],
     address_merkle_tree_queue_pubkeys: &[Pubkey],
-    output_merkle_tree_pubkeys: &[Pubkey],
+    mut output_merkle_tree_pubkeys: Vec<Pubkey>,
     address_seeds: &[[u8; 32]],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
     transaction_params: Option<TransactionParams>,
 ) -> Result<(), BanksClientError> {
+    if address_merkle_tree_pubkeys.len() != address_seeds.len() {
+        panic!("address_merkle_tree_pubkeys and address_seeds length mismatch for create_addresses_test");
+    }
     let mut derived_addresses = Vec::new();
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
@@ -63,6 +66,10 @@ pub async fn create_addresses_test(
     } else {
         Some(state_input_merkle_trees.as_slice())
     };
+    println!(
+        "address merkle tree pubkeys: {:?}",
+        address_merkle_tree_pubkeys
+    );
     let proof_rpc_res = test_indexer
         .create_proof_for_compressed_accounts(
             compressed_account_input_hashes,
@@ -85,14 +92,12 @@ pub async fn create_addresses_test(
     }
 
     let mut output_compressed_accounts = Vec::new();
-    for (i, address_param) in address_params.iter().enumerate() {
+    for (_, address) in derived_addresses.iter().enumerate() {
         output_compressed_accounts.push(CompressedAccount {
             lamports: 0,
             owner: context.payer.pubkey(),
             data: None,
-            address: Some(
-                derive_address(&address_merkle_tree_pubkeys[i], &address_param.seed).unwrap(),
-            ),
+            address: Some(*address),
         });
     }
 
@@ -104,6 +109,8 @@ pub async fn create_addresses_test(
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
+            output_merkle_tree_pubkeys
+                .push(compressed_account.merkle_context.merkle_tree_pubkey.clone());
         }
     }
 
@@ -143,7 +150,7 @@ pub async fn create_addresses_test(
         test_indexer.add_event_and_compressed_accounts(event?.unwrap());
     assert_created_compressed_accounts(
         &output_compressed_accounts.as_slice(),
-        output_merkle_tree_pubkeys,
+        output_merkle_tree_pubkeys.as_slice(),
         created_out_compressed_accounts.as_slice(),
         false,
     );
@@ -469,9 +476,13 @@ pub async fn transfer_compressed_sol_test(
     test_indexer: &mut TestIndexer,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
+    recipients: &[Pubkey],
     output_merkle_tree_pubkeys: &[Pubkey],
     transaction_params: Option<TransactionParams>,
 ) -> Result<(), BanksClientError> {
+    if recipients.len() != output_merkle_tree_pubkeys.len() {
+        panic!("recipients and output_merkle_tree_pubkeys length mismatch for transfer_compressed_sol_test");
+    }
     let mut compressed_account_hashes = Vec::new();
 
     let compressed_account_input_hashes = if input_compressed_accounts.is_empty() {
@@ -532,7 +543,7 @@ pub async fn transfer_compressed_sol_test(
 
         output_compressed_accounts.push(CompressedAccount {
             lamports,
-            owner: authority.pubkey(),
+            owner: recipients[i],
             data: None,
             address,
         });
