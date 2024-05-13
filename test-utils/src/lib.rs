@@ -15,8 +15,8 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
-
 pub mod spl;
+pub mod system_program;
 pub mod test_env;
 #[cfg(feature = "test_indexer")]
 pub mod test_indexer;
