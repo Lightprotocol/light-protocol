@@ -4,8 +4,10 @@ services:
   db:
     image: postgres:16-alpine
     restart: always
-    env_file:
-      - database.env
+    environment:
+      - POSTGRES_USER=photon
+      - POSTGRES_DB=photon
+      - POSTGRES_PASSWORD=photon
     ports:
       - 5432:5432
     volumes:
@@ -20,8 +22,9 @@ services:
     restart: always
     ports:
       - "8888:80"
-    env_file:
-      - database.env
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=photon@lightprotocol.com
+      - PGADMIN_DEFAULT_PASSWORD=photon
     volumes:
       - pgadmin-data:/var/lib/pgadmin
 
