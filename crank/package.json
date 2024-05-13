@@ -3,6 +3,8 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
+    "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
+    "test-all": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify",
     "restart-db": "docker compose down -v && docker compose up -d",
     "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
     "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",

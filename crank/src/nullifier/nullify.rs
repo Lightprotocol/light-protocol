@@ -12,7 +12,7 @@ use std::mem;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-const CONCURRENCY_LIMIT: usize = 1;
+const CONCURRENCY_LIMIT: usize = 10;
 pub async fn nullify(
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,

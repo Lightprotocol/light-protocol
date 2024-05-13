@@ -1,10 +1,10 @@
 import {PublicKey, Signer, Keypair} from '@solana/web3.js';
-import {airdropSol, createRpc, compress, transfer, Rpc} from '@lightprotocol/stateless.js';
+import {airdropSol, createRpc, compress, transfer, Rpc, sleep} from '@lightprotocol/stateless.js';
 
 const LAMPORTS = 1e13;
 const COMPRESS_AMOUNT = 1e9;
-const TOTAL_NUMBER_OF_TRANSFERS = 1e7;
-const NUMBER_OF_CONCURRENT_TRANSFERS = 42;
+const TOTAL_NUMBER_OF_TRANSFERS = 1e3;
+const NUMBER_OF_CONCURRENT_TRANSFERS = 10;
 const TRANSFER_AMOUNT = 10;
 
 const payerKeypairs = generateKeypairs(NUMBER_OF_CONCURRENT_TRANSFERS);
@@ -19,9 +19,16 @@ async function prefillNullifierQueue() {
     const rpc = createRpc();
 
     await Promise.all([
-        ...payerKeypairs.map(payer => airdropSol({ connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey })),
-        ...receiverKeypairs.map(receiver => airdropSol({ connection: rpc, lamports: LAMPORTS, recipientPublicKey: receiver.publicKey }))
+        ...payerKeypairs.map(async payer => await airdropSol({ connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey })),
+        ...receiverKeypairs.map(async receiver => await airdropSol({ connection: rpc, lamports: LAMPORTS, recipientPublicKey: receiver.publicKey }))
     ]);
+
+    await Promise.all(
+        payerKeypairs.map(async (payer) => {
+            const balance = await rpc.getBalance(payer.publicKey);
+            console.log(`Payer ${payer.publicKey.toBase58()} balance:`, balance);
+        })
+    );
 
     await Promise.all(
         payerKeypairs.map(async (payer) => {
