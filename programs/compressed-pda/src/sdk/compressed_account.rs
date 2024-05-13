@@ -42,24 +42,25 @@ pub fn pack_merkle_context(
             nullifier_queue_pubkey_index: 0, // will be assigned later
         })
         .collect::<Vec<PackedMerkleContext>>();
-    let len: usize = remaining_accounts.len();
+    let mut index: usize = remaining_accounts.len();
     for (i, params) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&params.merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.merkle_tree_pubkey, i + len);
+                remaining_accounts.insert(params.merkle_tree_pubkey, index);
+                index += 1;
             }
         };
         merkle_context_packed[i].merkle_tree_pubkey_index =
             *remaining_accounts.get(&params.merkle_tree_pubkey).unwrap() as u8;
     }
 
-    let len: usize = remaining_accounts.len();
     for (i, params) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&params.nullifier_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.nullifier_queue_pubkey, i + len);
+                remaining_accounts.insert(params.nullifier_queue_pubkey, index);
+                index += 1;
             }
         };
         merkle_context_packed[i].nullifier_queue_pubkey_index = *remaining_accounts
