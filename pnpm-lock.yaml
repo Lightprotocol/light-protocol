@@ -621,9 +621,6 @@ importers:
       '@solana/web3.js':
         specifier: ^1.91.8
         version: 1.91.8
-      bn.js:
-        specifier: ^5.2.1
-        version: 5.2.1
       buffer:
         specifier: ^6.0.3
         version: 6.0.3

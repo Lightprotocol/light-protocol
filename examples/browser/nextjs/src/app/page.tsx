@@ -1,13 +1,5 @@
 'use client';
-import {
-    LightSystemProgram,
-    bn,
-    buildTx,
-    confirmTx,
-    defaultTestStateTreeAccounts,
-    selectMinCompressedSolAccountsForTransfer,
-    createRpc,
-} from '@lightprotocol/stateless.js';
+import React, { FC, useCallback, useMemo } from 'react';
 
 import {
     ComputeBudgetProgram,
@@ -15,7 +7,6 @@ import {
     TransactionMessage,
     VersionedTransaction,
 } from '@solana/web3.js';
-import React, { FC, useCallback, useMemo } from 'react';
 import {
     ConnectionProvider,
     WalletProvider,
@@ -28,35 +19,18 @@ import {
     WalletDisconnectButton,
     WalletMultiButton,
 } from '@solana/wallet-adapter-react-ui';
+import {
+    LightSystemProgram,
+    bn,
+    buildTx,
+    confirmTx,
+    defaultTestStateTreeAccounts,
+    selectMinCompressedSolAccountsForTransfer,
+    createRpc,
+} from '@lightprotocol/stateless.js';
 
 // Default styles that can be overridden by your app
 require('@solana/wallet-adapter-react-ui/styles.css');
-
-export default function Home() {
-    const endpoint = useMemo(() => 'http://127.0.0.1:8899', []);
-    const wallets = useMemo(() => [new UnsafeBurnerWalletAdapter()], []);
-
-    return (
-        <ConnectionProvider endpoint={endpoint}>
-            <WalletProvider wallets={wallets} autoConnect>
-                <WalletModalProvider>
-                    <WalletMultiButton />
-                    <WalletDisconnectButton />
-                    <div>
-                        <label style={{ fontSize: '1.5rem' }}>
-                            Welcome to this very simple example using
-                            Compression in a browser :)
-                        </label>
-                    </div>
-                    <div>
-                        <label>Check the terminal for tx signatures!</label>
-                    </div>
-                    <SendButton />
-                </WalletModalProvider>
-            </WalletProvider>
-        </ConnectionProvider>
-    );
-}
 
 const SendButton: FC = () => {
     const { publicKey, sendTransaction } = useWallet();
@@ -194,3 +168,29 @@ const SendButton: FC = () => {
         </button>
     );
 };
+
+export default function Home() {
+    const endpoint = useMemo(() => 'http://127.0.0.1:8899', []);
+    const wallets = useMemo(() => [new UnsafeBurnerWalletAdapter()], []);
+
+    return (
+        <ConnectionProvider endpoint={endpoint}>
+            <WalletProvider wallets={wallets} autoConnect>
+                <WalletModalProvider>
+                    <WalletMultiButton />
+                    <WalletDisconnectButton />
+                    <div>
+                        <label style={{ fontSize: '1.5rem' }}>
+                            Welcome to this very simple example using
+                            Compression in a browser :)
+                        </label>
+                    </div>
+                    <div>
+                        <label>Check the terminal for tx signatures!</label>
+                    </div>
+                    <SendButton />
+                </WalletModalProvider>
+            </WalletProvider>
+        </ConnectionProvider>
+    );
+}
