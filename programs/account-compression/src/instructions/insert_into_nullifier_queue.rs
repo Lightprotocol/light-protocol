@@ -22,7 +22,7 @@ pub struct InsertIntoNullifierQueues<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
     pub system_program: Program<'info, System>,
 }
-
+// TODO: add test that the first two elements of the queue cannot be inserted into the tree and removed from the queue
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
@@ -97,7 +97,6 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
             for element in queue_bundle.elements.iter() {
                 let element = BigUint::from_bytes_be(element.as_slice());
-                msg!("Inserting element {:?} into nullifier queue", element);
                 indexed_array
                     .insert(&element, sequence_number)
                     .map_err(ProgramError::from)?;

@@ -3,7 +3,7 @@ use account_compression::{
     self,
     errors::AccountCompressionErrorCode,
     initialize_address_merkle_tree::AccountLoader,
-    initialize_nullifier_queue::NullifierQueueAccount,
+    initialize_nullifier_queue::{nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount},
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     utils::constants::{
         STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
@@ -13,12 +13,15 @@ use account_compression::{
 };
 use anchor_lang::{system_program, InstructionData, Key, Lamports, ToAccountMetas};
 use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
+use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
+use light_merkle_tree_reference::MerkleTree;
 use light_test_utils::{
     airdrop_lamports, create_account_instruction, create_and_send_transaction, get_hash_set,
     AccountZeroCopy,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
+use memoffset::offset_of;
 use num_bigint::ToBigUint;
 use solana_program_test::{
     BanksClientError, BanksTransactionResultWithMetadata, ProgramTest, ProgramTestContext,
@@ -31,6 +34,315 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
+
+/// Tests:
+/// Show that we cannot insert into a full queue.
+/// 1. try to insert into queue to generate the full error
+/// 2. nullify one
+/// 3. try to insert again it should still generate the full error
+/// 4. advance Merkle tree seq until one before it would work check that it still fails
+/// 5. advance Merkle tree seq by one and check that inserting works now
+/// 6.try inserting again it should fail with full error
+#[tokio::test]
+async fn test_nullifier_queue_security() {
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("account_compression", ID, None);
+    program_test.add_program(
+        "spl_noop",
+        Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        None,
+    );
+    let merkle_tree_keypair = Keypair::new();
+    let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::new();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
+    program_test.set_compute_max_units(1_400_000u64);
+    let mut context = program_test.start_with_context().await;
+    let payer_pubkey = context.payer.pubkey();
+    let tip = 123;
+    let rollover_threshold = Some(95);
+    let close_threshold = Some(100);
+    functional_1_initialize_state_merkle_tree_and_nullifier_queue(
+        &mut context,
+        &payer_pubkey,
+        &merkle_tree_keypair,
+        &nullifier_queue_keypair,
+        tip,
+        rollover_threshold.clone(),
+        close_threshold,
+    )
+    .await;
+    let leaf: [u8; 32] = bigint_to_be_bytes_array(&1.to_biguint().unwrap()).unwrap();
+
+    functional_3_append_leaves_to_merkle_tree(
+        &mut context,
+        &merkle_tree_pubkey,
+        &vec![(0u8, leaf)],
+    )
+    .await;
+    let lamports_queue_accounts = context
+        .banks_client
+        .get_account(nullifier_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports
+        + context
+            .banks_client
+            .get_account(merkle_tree_pubkey)
+            .await
+            .unwrap()
+            .unwrap()
+            .lamports
+            * 2;
+    set_nullifier_queue_to_full(
+        &mut context,
+        &nullifier_queue_pubkey,
+        0,
+        lamports_queue_accounts,
+    )
+    .await;
+
+    let initial_value = 6005;
+    let element: [u8; 32] = bigint_to_be_bytes_array(&initial_value.to_biguint().unwrap()).unwrap();
+    // CHECK 1
+    fail_insert_into_full_queue(
+        &mut context,
+        &nullifier_queue_pubkey,
+        &merkle_tree_pubkey,
+        vec![element],
+    )
+    .await;
+    let mut reference_merkle_tree = MerkleTree::<Poseidon>::new(26, 10);
+    reference_merkle_tree.append(&leaf).unwrap();
+    let onchain_merkle_tree =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, merkle_tree_pubkey).await;
+    let deserialized = onchain_merkle_tree.deserialized();
+    let merkle_tree = deserialized.copy_merkle_tree().unwrap();
+    assert_eq!(merkle_tree.root().unwrap(), reference_merkle_tree.root());
+    let leaf_index = reference_merkle_tree.get_leaf_index(&leaf).unwrap() as u64;
+    // CHECK 2
+    nullify(
+        &mut context,
+        &merkle_tree_pubkey,
+        &nullifier_queue_pubkey,
+        &mut reference_merkle_tree,
+        &leaf,
+        merkle_tree.changelog_index() as u64,
+        1,
+        leaf_index,
+    )
+    .await
+    .unwrap();
+    // CHECK 3
+    fail_insert_into_full_queue(
+        &mut context,
+        &nullifier_queue_pubkey,
+        &merkle_tree_pubkey,
+        vec![element],
+    )
+    .await;
+    // advance to sequence number minus one
+    set_state_merkle_tree_sequence(
+        &mut context,
+        &merkle_tree_pubkey,
+        2402,
+        lamports_queue_accounts,
+    )
+    .await;
+    // CHECK 4
+    fail_insert_into_full_queue(
+        &mut context,
+        &nullifier_queue_pubkey,
+        &merkle_tree_pubkey,
+        vec![element],
+    )
+    .await;
+    // TODO: add e2e test in compressed pda program for this
+    set_state_merkle_tree_sequence(
+        &mut context,
+        &merkle_tree_pubkey,
+        2403,
+        lamports_queue_accounts,
+    )
+    .await;
+    let payer = context.payer.insecure_clone();
+    let account = context
+        .banks_client
+        .get_account(nullifier_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let mut data = account.data.clone();
+    let nullifier_queue =
+        &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+    let replacement_start_value = 606;
+    let replacement_value = find_overlapping_probe_index(
+        1,
+        replacement_start_value,
+        nullifier_queue.hash_set.capacity_values as usize,
+    );
+    println!("replacement_value {}", replacement_value);
+    // CHECK: 5
+    let element: [u8; 32] =
+        bigint_to_be_bytes_array(&replacement_value.to_biguint().unwrap()).unwrap();
+    insert_into_nullifier_queues(
+        &vec![element],
+        &payer,
+        &payer,
+        &nullifier_queue_pubkey,
+        &merkle_tree_pubkey,
+        &mut context,
+    )
+    .await
+    .unwrap();
+    // CHECK: 6
+    let element: [u8; 32] = bigint_to_be_bytes_array(&12000.to_biguint().unwrap()).unwrap();
+    fail_insert_into_full_queue(
+        &mut context,
+        &nullifier_queue_pubkey,
+        &merkle_tree_pubkey,
+        vec![element],
+    )
+    .await;
+}
+
+pub async fn set_nullifier_queue_to_full(
+    context: &mut ProgramTestContext,
+    nullifier_queue_pubkey: &Pubkey,
+    left_over_indices: usize,
+    lamports: u64,
+) {
+    let mut account = context
+        .banks_client
+        .get_account(*nullifier_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut data = account.data.clone();
+    let current_index;
+    let capacity;
+    {
+        let hash_set = &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+        current_index = unsafe { *hash_set.hash_set.next_value_index };
+
+        capacity = hash_set.hash_set.capacity_values as usize - left_over_indices;
+        for i in current_index..(capacity) {
+            hash_set
+                .insert(&(i).to_biguint().unwrap(), (2400) as usize)
+                .unwrap();
+        }
+    }
+    assert_ne!(account.data, data);
+    account.data = data;
+    let mut account_share_data = AccountSharedData::from(account);
+    account_share_data.set_lamports(lamports);
+    context.set_account(nullifier_queue_pubkey, &account_share_data);
+    let account = context
+        .banks_client
+        .get_account(*nullifier_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut data = account.data.clone();
+    let nullifier_queue =
+        &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+    for i in current_index..(capacity) {
+        let array_element = nullifier_queue.by_value_index(i, None).unwrap();
+        assert_eq!(array_element.value_biguint(), (i).to_biguint().unwrap());
+    }
+}
+
+fn find_overlapping_probe_index(
+    initial_value: usize,
+    start_replacement_value: usize,
+    capacity_values: usize,
+) -> usize {
+    for salt in 0..10000 {
+        let replacement_value = start_replacement_value + salt;
+
+        for i in 0..20 {
+            let probe_index = (initial_value.clone()
+                + i.to_biguint().unwrap() * i.to_biguint().unwrap())
+                % capacity_values.to_biguint().unwrap();
+            let replacement_probe_index = (replacement_value.clone()
+                + i.to_biguint().unwrap() * i.to_biguint().unwrap())
+                % capacity_values.to_biguint().unwrap();
+            if probe_index == replacement_probe_index {
+                return replacement_value;
+            }
+        }
+    }
+    panic!("No value with overlapping probe index found!");
+}
+async fn fail_insert_into_full_queue(
+    context: &mut ProgramTestContext,
+    nullifier_queue_pubkey: &Pubkey,
+    merkle_tree_pubkey: &Pubkey,
+    elements: Vec<[u8; 32]>,
+) {
+    let payer = context.payer.insecure_clone();
+
+    let err = insert_into_nullifier_queues(
+        &elements,
+        &payer,
+        &payer,
+        nullifier_queue_pubkey,
+        merkle_tree_pubkey,
+        context,
+    )
+    .await;
+    assert_eq!(
+        err.map_err(|e| e.to_string()),
+        Err(BanksClientError::TransactionError(
+            solana_sdk::transaction::TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(HashSetError::Full.into())
+            )
+        ))
+        .map_err(|e| e.to_string()),
+    );
+}
+
+pub async fn set_state_merkle_tree_sequence(
+    context: &mut ProgramTestContext,
+    merkle_tree_pubkey: &Pubkey,
+    sequence_number: u64,
+    lamports: u64,
+) {
+    println!("advance to sequence number {}", sequence_number);
+    // is in range 9 - 10 in concurrent mt
+    // offset for sequence number
+    // let offset_start = 6 * 8 + 8 + 4 * 32 + 8 * 9;
+    // let offset_end = offset_start + 8;
+    let offset_start = 8
+        + offset_of!(StateMerkleTreeAccount, state_merkle_tree_struct)
+        + offset_of!(ConcurrentMerkleTree26<Poseidon>, sequence_number);
+    let offset_end = offset_start + 8;
+    let mut merkle_tree = context
+        .banks_client
+        .get_account(*merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    merkle_tree.data[offset_start..offset_end].copy_from_slice(&sequence_number.to_le_bytes());
+    let mut account_share_data = AccountSharedData::from(merkle_tree);
+    account_share_data.set_lamports(lamports);
+    context.set_account(merkle_tree_pubkey, &account_share_data);
+    let merkle_tree = context
+        .banks_client
+        .get_account(*merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let data_in_offset = u64::from_le_bytes(
+        merkle_tree.data[offset_start..offset_end]
+            .try_into()
+            .unwrap(),
+    );
+    assert_eq!(data_in_offset, sequence_number);
+}
 
 /// Tests:
 /// 1. Should fail: not ready for rollover
@@ -93,7 +405,10 @@ async fn test_init_and_rollover_state_merkle_tree() {
     ) {
         // is in range 8 -9 in concurrent mt
         // offset for next index
-        let offset_start = 6 * 8 + 8 + 4 * 32 + 8 * 8;
+
+        let offset_start = 8
+            + offset_of!(StateMerkleTreeAccount, state_merkle_tree_struct)
+            + offset_of!(ConcurrentMerkleTree26<Poseidon>, next_index);
         let offset_end = offset_start + 8;
         let mut merkle_tree = context
             .banks_client
@@ -1046,9 +1361,17 @@ pub async fn nullify(
         reference_merkle_tree.root()
     );
 
-    let nullifier_queue = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount>(context, *nullifier_queue_pubkey).await
-    };
+    let account = context
+        .banks_client
+        .get_account(*nullifier_queue_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut data = account.data.clone();
+
+    let nullifier_queue =
+        &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+
     let array_element = nullifier_queue
         .by_value_index(
             leaf_queue_index.into(),
