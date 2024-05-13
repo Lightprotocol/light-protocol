@@ -38,6 +38,7 @@ pub fn create_invoke_instruction(
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext> =
         Vec::<PackedCompressedAccountWithMerkleContext>::new();
+    let mut index = 0;
     let mut new_address_params_packed = new_address_params
         .iter()
         .map(|x| NewAddressParamsPacked {
@@ -51,7 +52,8 @@ pub fn create_invoke_instruction(
         match remaining_accounts.get(&context.merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.merkle_tree_pubkey, i);
+                remaining_accounts.insert(context.merkle_tree_pubkey, index);
+                index += 1;
             }
         };
         _input_compressed_accounts.push(PackedCompressedAccountWithMerkleContext {
@@ -65,12 +67,13 @@ pub fn create_invoke_instruction(
             },
         });
     }
-    let len: usize = remaining_accounts.len();
+
     for (i, context) in merkle_context.iter().enumerate() {
         match remaining_accounts.get(&context.nullifier_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(context.nullifier_queue_pubkey, i + len);
+                remaining_accounts.insert(context.nullifier_queue_pubkey, index);
+                index += 1;
             }
         };
         _input_compressed_accounts[i]
@@ -79,27 +82,26 @@ pub fn create_invoke_instruction(
             .get(&context.nullifier_queue_pubkey)
             .unwrap() as u8;
     }
-    let len: usize = remaining_accounts.len();
+
     let mut output_state_merkle_tree_account_indices: Vec<u8> = Vec::<u8>::new();
 
-    for (i, mt) in output_compressed_account_merkle_tree_pubkeys
-        .iter()
-        .enumerate()
-    {
+    for mt in output_compressed_account_merkle_tree_pubkeys.iter() {
         match remaining_accounts.get(mt) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(*mt, i + len);
+                remaining_accounts.insert(*mt, index);
+                index += 1;
             }
         };
         output_state_merkle_tree_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
     }
-    let len: usize = remaining_accounts.len();
+
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_merkle_tree_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_merkle_tree_pubkey, i + len);
+                remaining_accounts.insert(params.address_merkle_tree_pubkey, index);
+                index += 1;
             }
         };
         new_address_params_packed[i].address_merkle_tree_account_index = *remaining_accounts
@@ -108,12 +110,12 @@ pub fn create_invoke_instruction(
             as u8;
     }
 
-    let len: usize = remaining_accounts.len();
     for (i, params) in new_address_params.iter().enumerate() {
         match remaining_accounts.get(&params.address_queue_pubkey) {
             Some(_) => {}
             None => {
-                remaining_accounts.insert(params.address_queue_pubkey, i + len);
+                remaining_accounts.insert(params.address_queue_pubkey, index);
+                index += 1;
             }
         };
         new_address_params_packed[i].address_queue_account_index = *remaining_accounts
@@ -168,119 +170,6 @@ pub fn create_invoke_instruction(
         data: instruction_data.data(),
     }
 }
-
-// // TODO: make more efficient
-// #[allow(clippy::too_many_arguments)]
-// pub fn create_execute_compressed_opt_instruction(
-//     payer: &Pubkey,
-//     input_compressed_accounts: &[CompressedAccount],
-//     output_compressed_accounts: &[OutUtxo],
-//     input_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-//     nullifier_queue_pubkeys: &[Pubkey],
-//     output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
-//     leaf_indices: &[u32],
-//     input_root_indices: &[u16],
-//     proof: &CompressedProof,
-// ) -> Instruction {
-//     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
-//     for (i, mt) in input_compressed_account_merkle_tree_pubkeys.iter().enumerate() {
-//         match remaining_accounts.get(mt) {
-//             Some(_) => {}
-//             None => {
-//                 remaining_accounts.insert(*mt, i);
-//             }
-//         };
-//     }
-//     let len: usize = remaining_accounts.len();
-//     // Note: this depends on nulifier never matching any of the statetrees.
-//     for (i, mt) in nullifier_queue_pubkeys.iter().enumerate() {
-//         match remaining_accounts.get(mt) {
-//             Some(_) => {}
-//             None => {
-//                 remaining_accounts.insert(*mt, i + len);
-//             }
-//         };
-//     }
-//     let len: usize = remaining_accounts.len();
-//     for (i, mt) in output_compressed_account_merkle_tree_pubkeys.iter().enumerate() {
-//         match remaining_accounts.get(mt) {
-//             Some(_) => {}
-//             None => {
-//                 remaining_accounts.insert(*mt, i + len);
-//             }
-//         };
-//     }
-
-//     let mut inputs = Vec::new();
-
-//     let accounts = crate::accounts::InvokeInstruction {
-//         signer: *payer,
-//         registered_program_pda: get_registered_program_pda(&crate::ID),
-//         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-//         account_compression_program: account_compression::ID,
-//         account_compression_authority: get_cpi_authority_pda(&crate::ID),
-//         cpi_context_account: None,
-//         invoking_program: None,
-//     };
-//     let mut utxos = SerializedUtxos {
-//         pubkey_array: vec![],
-//         u64_array: vec![],
-//         input_compressed_accounts: vec![],
-//         output_compressed_accounts: vec![],
-//     };
-//     let mut remaining_accounts = remaining_accounts
-//         .iter()
-//         .map(|(k, i)| (AccountMeta::new(*k, false), *i))
-//         .collect::<Vec<(AccountMeta, usize)>>();
-//     // hash maps are not sorted so we need to sort manually and collect into a vector again
-//     remaining_accounts.sort_by(|a, b| a.1.cmp(&b.1));
-//     let remaining_accounts = remaining_accounts
-//         .iter()
-//         .map(|(k, _)| k.clone())
-//         .collect::<Vec<AccountMeta>>();
-//     let remaining_accounts_pubkeys = remaining_accounts
-//         .iter()
-//         .map(|k| k.pubkey)
-//         .collect::<Vec<Pubkey>>();
-//     let account_vec = accounts
-//         .to_account_metas(None)
-//         .iter()
-//         .map(|k| k.pubkey)
-//         .collect::<Vec<Pubkey>>();
-//     let all_accounts = [account_vec, remaining_accounts_pubkeys.clone()].concat();
-//     utxos
-//         .add_input_compressed_accounts(
-//             input_compressed_accounts,
-//             all_accounts.as_slice(),
-//             leaf_indices,
-//             input_compressed_account_merkle_tree_pubkeys,
-//             nullifier_queue_pubkeys,
-//         )
-//         .unwrap();
-//     utxos
-//         .add_output_compressed_accounts(
-//             output_compressed_accounts,
-//             all_accounts.as_slice(),
-//             remaining_accounts_pubkeys.as_slice(),
-//             output_compressed_account_merkle_tree_pubkeys,
-//         )
-//         .unwrap();
-
-//     let inputs_struct = InstructionDataInvoke2 {
-//         low_element_indices: vec![0u16; input_compressed_accounts.len()],
-//         relay_fee: None,
-//         input_root_indices: input_root_indices.to_vec(),
-//         utxos,
-//         proof: Some(proof.clone()),
-//     };
-//     InstructionDataInvoke2::serialize(&inputs_struct, &mut inputs).unwrap();
-//     let instruction_data = crate::instruction::ExecuteCompressedTransaction2 { inputs };
-//     Instruction {
-//         program_id: crate::ID,
-//         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-//         data: instruction_data.data(),
-//     }
-// }
 
 #[cfg(test)]
 mod test {
