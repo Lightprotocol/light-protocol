@@ -27,9 +27,10 @@ pub mod light_compressed_token {
 
     use super::*;
 
-    /// This instruction expects a mint account to be created in a separate token program instruction
-    /// with token authority as mint authority.
-    /// This instruction creates a token pool account for that mint owned by token authority.
+    /// This instruction expects a mint account to be created in a separate
+    /// token program instruction with token authority as mint authority. This
+    /// instruction creates a token pool account for that mint owned by token
+    /// authority.
     pub fn create_mint<'info>(
         _ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
@@ -192,8 +193,6 @@ pub mod light_compressed_token {
     // }
 }
 
-// verifier sdk improvements
-// - bundle into verify, get public inputs, compression
 #[error_code]
 pub enum ErrorCode {
     #[msg("public keys and amounts must be of same length")]

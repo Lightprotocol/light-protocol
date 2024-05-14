@@ -32,9 +32,6 @@ pub fn decompress_spl_tokens<'info>(
         Some(amount) => amount,
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForDecompress),
     };
-    msg!("transfer_amount {}", amount);
-    msg!("token_pool_pda {:?}", ctx.accounts.token_pool_pda);
-    msg!("recipient {:?}", ctx.accounts.decompress_token_account);
     transfer(
         &token_pool_pda,
         &recipient,

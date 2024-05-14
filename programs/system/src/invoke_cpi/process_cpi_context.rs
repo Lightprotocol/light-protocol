@@ -37,8 +37,9 @@ pub fn set_cpi_context(
     // Check conditions and modify the signatures
     if cpi_context_account.context.is_empty() {
         msg!("cpi signatures are empty");
-        // cpi signature account should only be used with mutiple compressed accounts owned by different programs
-        // thus the first invocation execute is assumed to be false
+        // cpi signature account should only be used with mutiple compressed
+        // accounts owned by different programs thus the first invocation
+        // execute is assumed to be false
         cpi_context_account.context.push(inputs);
     } else if cpi_context_account.context[0].proof == inputs.proof {
         cpi_context_account.context.push(inputs);

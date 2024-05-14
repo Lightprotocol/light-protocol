@@ -95,8 +95,9 @@ pub mod light_registry {
 
     // TODO: add register relayer
     // signer is light governance authority
-    // creates a registered relayer pda which is derived from the relayer pubkey,
-    // with fields: signer_pubkey, points_counter, rewards: Vec<u64>, last_rewards_sync
+    // creates a registered relayer pda which is derived from the relayer
+    // pubkey, with fields: signer_pubkey, points_counter, rewards: Vec<u64>,
+    // last_rewards_sync
 
     // TODO: deregister relayer
     // signer is light governance authority

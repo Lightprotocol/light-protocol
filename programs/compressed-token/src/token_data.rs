@@ -32,54 +32,25 @@ pub struct TokenData {
     /// drop below this threshold.
     pub is_native: Option<u64>,
     /// The amount delegated
-    pub delegated_amount: u64, // TODO: make instruction data optional
-                               // TODO: validate that we don't need close authority
-                               // /// Optional authority to close the account.
-                               // pub close_authority: Option<Pubkey>,
-}
-
-// keeping this client struct for now because ts encoding is complaining about the enum, state is replaced with u8 in this struct
-#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, Copy)]
-pub struct TokenDataClient {
-    /// The mint associated with this account
-    pub mint: Pubkey,
-    /// The owner of this account.
-    pub owner: Pubkey,
-    /// The amount of tokens this account holds.
-    pub amount: u64,
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
-    pub delegate: Option<Pubkey>,
-    /// The account's state
-    pub state: u8,
-    /// If is_some, this is a native token, and the value logs the rent-exempt
-    /// reserve. An Account is required to be rent-exempt, so the value is
-    /// used by the Processor to ensure that wrapped SOL accounts do not
-    /// drop below this threshold.
-    pub is_native: Option<u64>,
-    /// The amount delegated
     pub delegated_amount: u64,
-    // TODO: validate that we don't need close authority
-    // /// Optional authority to close the account.
-    // pub close_authority: Option<Pubkey>,
 }
 
-/// Hashing schema:
-/// H(mint, owner, amount, delegate, delegated_amount, is_native, state)
-/// delegate, delegated_amount, is_native and state have dynamic positions.
-/// Always hash mint, owner and amount
-/// If delegate hash delegate and delegated_amount together.
-/// If is native hash is_native.
-/// If frozen hash is frozen.
+/// Hashing schema: H(mint, owner, amount, delegate, delegated_amount,
+/// is_native, state)
 ///
-/// Security:
-/// to prevent the possibility that different fields with the same value result in the same hash
-/// we add a prefix to the delegated amount, is native and state fields.
-/// This way we can have a dynamic hashing schema and hash only used values.
+/// delegate, delegated_amount, is_native and state have dynamic positions.
+/// Always hash mint, owner and amount If delegate hash delegate and
+/// delegated_amount together. If is native hash is_native. If frozen hash is
+/// frozen.
+///
+/// Security: to prevent the possibility that different fields with the same
+/// value result in the same hash we add a prefix to the delegated amount, is
+/// native and state fields. This way we can have a dynamic hashing schema and
+/// hash only used values.
 impl TokenData {
-    /// We should not hash pubkeys multiple times.
-    /// For all we can assume mints are equal.
-    /// For all input compressed accounts we can assume owners are equal.
+    /// We should not hash pubkeys multiple times. For all we can assume mints
+    /// are equal. For all input compressed accounts we can assume owners are
+    /// equal.
     pub fn hash_with_hashed_values<H: light_hasher::Hasher>(
         mint: &[u8; 32],
         owner: &[u8; 32],
@@ -172,15 +143,13 @@ impl DataHasher for TokenData {
         if self.state != AccountState::Initialized {
             hash_inputs.push(&state_bytes[..]);
         }
+        // TODO: Implement close_authority
         // let close_authority = match self.close_authority {
-        //     Some(close_authority) => {
-        //         hash_to_bn254_field_size_be(close_authority.to_bytes().as_slice())
-        //             .unwrap()
-        //             .0
-        //     }
-        //     None => [0u8; 32],
-        // };
-        // TODO: implement a trait hash_default value for Option<u64> and use it for other optional values
+        // Some(close_authority) => {
+        //     hash_to_bn254_field_size_be(close_authority.to_bytes().as_slice())
+        //         .unwrap() .0 } None => [0u8; 32], }; TODO: implement a trait
+        //             hash_default value for Option<u64> and use it for other
+        //             optional values
         H::hashv(hash_inputs.as_slice())
     }
 }

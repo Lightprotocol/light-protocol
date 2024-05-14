@@ -14,7 +14,7 @@ pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u
     Ok(hash)
 }
 
-// helper function to pack new address params for instruction data in rust clients
+// Helper function to pack new address params for instruction data in rust clients
 pub fn pack_new_address_params(
     new_address_params: &[NewAddressParams],
     remaining_accounts: &mut HashMap<Pubkey, usize>,
