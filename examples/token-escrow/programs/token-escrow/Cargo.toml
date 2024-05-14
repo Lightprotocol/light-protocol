@@ -23,7 +23,7 @@ test-sbf = []
 anchor-lang = { version="0.29.0", features = ["init-if-needed"] }
 light-compressed-token = { path = "../../../../programs/compressed-token", version = "0.3.1", features = ["cpi"]}
 light-system-program = { path = "../../../../programs/system", version = "0.3.1", features = ["cpi"]}
-account-compression = { path = "../../../../programs/account-compression", version = "0.3.2",  features = ["cpi"] }
+account-compression = { path = "../../../../programs/account-compression", version = "0.4.0",  features = ["cpi"] }
 light-hasher = { path = "../../../../merkle-tree/hasher", version = "0.1.1" }
 light-verifier = { path = "../../../../circuit-lib/verifier", version = "0.1.1" }
 

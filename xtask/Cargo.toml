@@ -4,7 +4,7 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-account-compression = { path = "../programs/account-compression", version = "0.3.2" }
+account-compression = { path = "../programs/account-compression", version = "0.4.0" }
 anyhow = "1.0"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
