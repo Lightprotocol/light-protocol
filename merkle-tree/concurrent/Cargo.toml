@@ -28,6 +28,7 @@ ark-bn254 = "0.4"
 ark-ff = "0.4"
 light-merkle-tree-reference = { path = "../reference", version = "0.1.4" }
 light-hash-set = { version = "0.1.4", path = "../hash-set", features = ["solana"] }
+light-utils = { version = "0.1.4", path = "../../utils" }
 rand = "0.8"
 solana-program = { version = "1.18.11" }
 spl-account-compression = "0.3.0"

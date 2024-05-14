@@ -13,6 +13,7 @@ use thiserror::Error;
 
 pub mod bigint;
 pub mod fee;
+pub mod rand;
 
 const CHUNK_SIZE: usize = 32;
 
