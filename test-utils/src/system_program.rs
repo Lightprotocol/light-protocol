@@ -1,4 +1,5 @@
-use light_compressed_pda::{
+use light_hasher::Poseidon;
+use light_system_program::{
     sdk::{
         address::derive_address,
         compressed_account::{
@@ -9,7 +10,6 @@ use light_compressed_pda::{
     },
     NewAddressParams,
 };
-use light_hasher::Poseidon;
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     pubkey::Pubkey,

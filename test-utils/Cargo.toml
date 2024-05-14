@@ -20,10 +20,10 @@ solana-program-test = "1.18.11"
 solana-sdk = "1.18.11"
 thiserror = "1.0"
 light-macros = { path = "../macros/light", version = "0.3.2" }
-account-compression = { path = "../programs/account-compression", version = "0.3.2", features = ["cpi"], optional = true }
-light-compressed-token = { path = "../programs/compressed-token", version = "0.3.1", features = ["cpi"],  optional= true }
-light-system-program = { path = "../programs/system", version = "0.3.1", features = ["cpi"],  optional= true}
-light-registry = { path = "../programs/registry", version = "0.3.1", features = ["cpi"],  optional= true }
+account-compression = { path = "../programs/account-compression", version = "0.3.2", features = ["cpi"] }
+light-compressed-token = { path = "../programs/compressed-token", version = "0.3.1", features = ["cpi"] }
+light-system-program = { path = "../programs/system", version = "0.3.1", features = ["cpi"] }
+light-registry = { path = "../programs/registry", version = "0.3.1", features = ["cpi"] }
 spl-token = { version="3.5.0", features = ["no-entrypoint"] }
 tokio = "1.36"
 light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.1" }

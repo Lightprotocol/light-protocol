@@ -8,7 +8,6 @@ use crate::{
 use account_compression::{
     initialize_nullifier_queue::NullifierQueueAccount, StateMerkleTreeAccount,
 };
-use light_compressed_pda::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
@@ -16,6 +15,7 @@ use light_compressed_token::{
     TokenTransferOutputData,
 };
 use light_hasher::Poseidon;
+use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use num_bigint::BigUint;
 use num_traits::FromBytes;
 use solana_program_test::{BanksClientError, ProgramTestContext};

@@ -9,8 +9,8 @@ use light_system_program::sdk::compressed_account::{
 };
 
 use light_hasher::{Hasher, Poseidon};
-use light_test_utils::spl::mint_tokens_helper;
 use light_system_program::NewAddressParams;
+use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, setup_test_programs_with_accounts, EnvAccounts,
 };
