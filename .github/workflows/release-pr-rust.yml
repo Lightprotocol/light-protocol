@@ -72,7 +72,7 @@ jobs:
         if: inputs.crate == 'all'
         run: |
           for PACKAGE in $(cargo ws list); do
-            cargo release --package $PACKAGE --execute --no-confirm "${{ inputs.version }}"
+            cargo release --package "$PACKAGE" --execute --no-confirm "${{ inputs.version }}"
             echo "Waiting for 60 seconds to avoid rate limiting..."
             sleep 60  # Wait for 60 seconds before processing the next crate
           done
