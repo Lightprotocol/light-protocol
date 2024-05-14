@@ -1,5 +1,5 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
-import { Signer } from '@solana/web3.js';
+import { PublicKey, Signer } from '@solana/web3.js';
 import {
     STATE_MERKLE_TREE_ROLLOVER_FEE,
     STATE_MERKLE_TREE_TIP,
@@ -10,6 +10,7 @@ import { compress, decompress } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { BN } from '@coral-xyz/anchor';
 
 /// TODO: add test case for payer != address
 describe('test-rpc', () => {
@@ -153,4 +154,54 @@ describe('test-rpc', () => {
         const compressedBalance = await rpc.getCompressedBalance(bn(refHash));
         expect(compressedBalance?.eq(bn(refCompressLamports))).toBeTruthy();
     });
+
+    it.only('get Address root history array:', async () => {
+        const addressMerkleTreeAccountPubkey = new PublicKey(
+            'C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn',
+        );
+        // const initedRoot = [10, 113, 73, 3, 27, 17, 230, 97, 211, 162, 174, 125, 89, 187, 79, 251, 5, 31, 40, 247, 86, 112, 152, 171, 244, 186, 109, 14, 14, 163, 48, 149];
+        const initedRoot = [
+            14, 189, 9, 35, 134, 65, 9, 119, 107, 233, 168, 103, 222, 227, 207,
+            119, 88, 137, 200, 189, 52, 117, 226, 207, 91, 63, 70, 253, 103, 91,
+            73, 117,
+        ];
+        let data = (await rpc.getAccountInfo(addressMerkleTreeAccountPubkey))!
+            .data;
+        let roots = parseAddressMerkleTreeAccounRootHistory(data);
+        assert.equal(roots[3].toString(), initedRoot.toString());
+        const indexOfRoot = await fetchAndSearchAddressMerkleTreeRootHistoryArray(
+            rpc,
+            addressMerkleTreeAccountPubkey,
+            initedRoot,
+        );
+        assert.equal(indexOfRoot, 3);
+    });
 });
+
+function parseAddressMerkleTreeAccounRootHistory(data: Buffer): number[][] {
+    let startOffset = 1222136;
+    let endOffset = startOffset + 76800;
+    let rootData = data.subarray(startOffset, endOffset);
+
+    let rootAccount: number[][] = [];
+    let chunkSize = 32;
+    for (let i = 0; i < rootData.length; i += chunkSize) {
+        const root = Array.from(rootData.subarray(i, i + chunkSize));
+        rootAccount.push(root);
+    }
+    return rootAccount;
+}
+
+async function fetchAndSearchAddressMerkleTreeRootHistoryArray(
+    rpc: TestRpc,
+    addressMerkleTreeAccountPubkey: PublicKey,
+    root: number[] | BN,
+): Promise<number> {
+    let accountInfo = await rpc.getAccountInfo(addressMerkleTreeAccountPubkey);
+    if (!accountInfo) {
+        throw new Error("Address Merkle Tree Account does not exist.");
+    }
+    let roots = parseAddressMerkleTreeAccounRootHistory(accountInfo.data);
+    const indexOfRoot = roots.findIndex((r) => r.toString() === root.toString());
+    return indexOfRoot;
+}
