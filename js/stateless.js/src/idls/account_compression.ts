@@ -1040,6 +1040,22 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'NullifyEvent';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'V1';
+                        fields: [
+                            {
+                                defined: 'NullifyEventV1';
+                            },
+                        ];
+                    },
+                ];
+            };
+        },
+        {
             name: 'AddressQueueConfig';
             type: {
                 kind: 'alias';
@@ -2225,6 +2241,22 @@ export const IDL: AccountCompression = {
                         type: {
                             option: 'u64',
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NullifyEvent',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'V1',
+                        fields: [
+                            {
+                                defined: 'NullifyEventV1',
+                            },
+                        ],
                     },
                 ],
             },
