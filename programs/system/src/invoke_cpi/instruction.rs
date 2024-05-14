@@ -15,9 +15,10 @@ use crate::{
 };
 
 use super::account::CpiContextAccount;
-/// These are the base accounts additionally Merkle tree and queue accounts are required.
-/// These additional accounts are passed as remaining accounts.
-/// 1 Merkle tree for each input compressed account one queue and Merkle tree account each for each output compressed account.
+/// These are the base accounts additionally Merkle tree and queue accounts are
+/// required. These additional accounts are passed as remaining accounts. One
+/// Merkle tree for each input compressed account, one queue and Merkle tree
+/// account each for each output compressed account.
 #[derive(Accounts)]
 pub struct InvokeCpiInstruction<'info> {
     #[account(mut)]

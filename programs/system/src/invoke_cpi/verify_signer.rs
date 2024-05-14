@@ -26,9 +26,9 @@ pub fn cpi_signer_checks(
     Ok(())
 }
 
-/// If signer seeds are not provided, invoking program is required.
-/// If invoking program is provided signer seeds are required.
-/// If signer seeds are provided, the derived signer has to match the signer.
+/// - If signer seeds are not provided, invoking program is required.
+/// - If invoking program is provided signer seeds are required.
+/// - If signer seeds are provided, the derived signer has to match the signer.
 #[inline(never)]
 #[heap_neutral]
 pub fn cpi_signer_check(
@@ -100,10 +100,10 @@ pub fn input_compressed_accounts_signer_check(
     Ok(())
 }
 
-/// Checks the write access for output compressed accounts.
-/// Only program owned output accounts can hold data.
-/// Every output account that holds data has to be owned by the invoking_program.
-/// For every account that has data, the owner has to be the invoking_program.
+/// Checks the write access for output compressed accounts. Only program owned
+/// output accounts can hold data. Every output account that holds data has to
+/// be owned by the invoking_program. For every account that has data, the owner
+/// has to be the invoking_program.
 #[inline(never)]
 #[heap_neutral]
 pub fn output_compressed_accounts_write_access_check(
@@ -160,7 +160,6 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         AccountLoader::<AddressMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
     // TODO: rename delegate to program_owner
-
     if merkle_tree_unpacked.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == merkle_tree_unpacked.delegate {

@@ -46,10 +46,11 @@ pub fn process_initialize_state_merkle_tree(
     merkle_tree.rollover_threshold = rollover_threshold.unwrap_or(u64::MAX);
     merkle_tree.close_threshold = close_threshold.unwrap_or(u64::MAX);
 
-    // TODO: think about whether and if how to use the Merkle tree index in the future
-    // we could create a group which has ownership over a set of Merkle trees same registration process as for pool program
-    // this needs to be the delegate and or owner
-    // if part of a group we can apply the same registration model as for the pool program
+    // TODO: think about whether and if yes how to use the Merkle tree index in
+    // the future. We could create a group which has ownership over a set of
+    // Merkle trees; same registration process as for pool program this needs to
+    // be the delegate and or owner. If part of a group we can apply the same
+    // registration model as for the pool program.
     merkle_tree
         .load_merkle_tree_init(
             (*height)

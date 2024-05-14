@@ -26,14 +26,18 @@ use light_utils::hash_to_bn254_field_size_be;
 
 /// Process a token transfer instruction
 ///
-/// 1. unpack compressed input accounts and input token data, this uses standardized signer / delegate and will fail in proof verification in case either is invalid
-/// 2. TODO: if is delegate check delegated amount and decrease it, there needs to be an output compressed account with the same compressed account data as the input compressed account
-/// 3. check in compressed_accounts are of same mint
-/// 4. check sum of input compressed account is equal to sum of output compressed accounts
-/// 5.1 create_output_compressed_accounts
-/// 5.2 create delegate change compressed_accounts
-/// 6. serialize and add token_data data to in compressed_accounts
-/// 7. invoke light_system_program::execute_compressed_transaction
+/// 1.  Unpack compressed input accounts and input token data, this uses
+///     standardized signer / delegate and will fail in proof verification in
+///     case either is invalid.
+/// 2.  TODO: if is delegate check delegated amount and decrease it, there needs
+///     to be an output compressed account with the same compressed account data
+///     as the input compressed account.
+/// 3.  Check that compressed accounts are of same mint.
+/// 4.  Check that sum of input compressed accounts is equal to sum of output
+///     compressed accounts 5.1 create_output_compressed_accounts 5.2 create
+///     delegate change compressed_accounts.
+/// 6.  Serialize and add token_data data to in compressed_accounts.
+/// 7.  Invoke light_system_program::execute_compressed_transaction.
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
@@ -327,15 +331,17 @@ pub struct InputTokenDataWithContext {
 }
 
 /*
-* assume:
+* Assume:
 * - all input compressed accounts have the same owner (the token program) no need to send
 * - all input compressed token data has the same owner, get the owner from signer pubkey
-* instruction data:
-* mint
-* signer_is_delegate: bool
-* owner: is either signer or first place in pubkey array if signer_is_delegate
+* Instruction data:
+* - mint
+* - signer_is_delegate: bool
+* - owner: is either signer or first place in pubkey array if signer_is_delegate
 */
-// TODO: enable delegation fully by preserving delegation for every input utxo with a delegate create one output utxo with that delegate, take funds from utxos in reverse input order
+// TODO: enable delegation fully by preserving delegation for every input utxo
+// with a delegate create one output utxo with that delegate, take funds from
+// utxos in reverse input order
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
     pub proof: Option<CompressedProof>,

@@ -33,10 +33,10 @@ pub fn process_initialize_address_queue<'info>(
         address_queue_account.delegate = delegate.unwrap_or_default();
         address_queue_account.associated_merkle_tree = associated_merkle_tree;
         address_queue_account.tip = tip;
-        // rollover only makes sense in combination with the associated merkle tree
+        // Rollover only makes sense in combination with the associated merkle tree
         let queue_rent = queue_account_info.lamports();
-        // Since user doesn't interact with the Merkle tree directly, we need
-        // to charge a `rollover_fee` both for the queue and Merkle tree.
+        // Since user doesn't interact with the Merkle tree directly, we need to
+        // charge a `rollover_fee` both for the queue and Merkle tree.
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
             compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
                 .map_err(ProgramError::from)?

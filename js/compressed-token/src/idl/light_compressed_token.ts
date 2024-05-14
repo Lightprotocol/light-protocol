@@ -12,9 +12,10 @@ export type LightCompressedToken = {
         {
             name: 'createMint';
             docs: [
-                'This instruction expects a mint account to be created in a separate token program instruction',
-                'with token authority as mint authority.',
-                'This instruction creates a token pool account for that mint owned by token authority.',
+                'This instruction expects a mint account to be created in a separate',
+                'token program instruction with token authority as mint authority. This',
+                'instruction creates a token pool account for that mint owned by token',
+                'authority.',
             ];
             accounts: [
                 {
@@ -870,61 +871,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'TokenDataClient';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'mint';
-                        docs: ['The mint associated with this account'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'owner';
-                        docs: ['The owner of this account.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'amount';
-                        docs: ['The amount of tokens this account holds.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'delegate';
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ];
-                        type: {
-                            option: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'state';
-                        docs: ["The account's state"];
-                        type: 'u8';
-                    },
-                    {
-                        name: 'isNative';
-                        docs: [
-                            'If is_some, this is a native token, and the value logs the rent-exempt',
-                            'reserve. An Account is required to be rent-exempt, so the value is',
-                            'used by the Processor to ensure that wrapped SOL accounts do not',
-                            'drop below this threshold.',
-                        ];
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'delegatedAmount';
-                        docs: ['The amount delegated'];
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
             name: 'AccountState';
             type: {
                 kind: 'enum';
@@ -1019,9 +965,10 @@ export const IDL: LightCompressedToken = {
         {
             name: 'createMint',
             docs: [
-                'This instruction expects a mint account to be created in a separate token program instruction',
-                'with token authority as mint authority.',
-                'This instruction creates a token pool account for that mint owned by token authority.',
+                'This instruction expects a mint account to be created in a separate',
+                'token program instruction with token authority as mint authority. This',
+                'instruction creates a token pool account for that mint owned by token',
+                'authority.',
             ],
             accounts: [
                 {
@@ -1857,61 +1804,6 @@ export const IDL: LightCompressedToken = {
                         type: {
                             defined: 'AccountState',
                         },
-                    },
-                    {
-                        name: 'isNative',
-                        docs: [
-                            'If is_some, this is a native token, and the value logs the rent-exempt',
-                            'reserve. An Account is required to be rent-exempt, so the value is',
-                            'used by the Processor to ensure that wrapped SOL accounts do not',
-                            'drop below this threshold.',
-                        ],
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'delegatedAmount',
-                        docs: ['The amount delegated'],
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'TokenDataClient',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'mint',
-                        docs: ['The mint associated with this account'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'owner',
-                        docs: ['The owner of this account.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
-                        docs: ['The amount of tokens this account holds.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegate',
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ],
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'state',
-                        docs: ["The account's state"],
-                        type: 'u8',
                     },
                     {
                         name: 'isNative',
