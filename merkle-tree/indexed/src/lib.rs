@@ -113,9 +113,8 @@ where
         self.merkle_tree.root_index()
     }
 
-    pub fn root(&self) -> Result<[u8; 32], IndexedMerkleTreeError> {
-        let root = self.merkle_tree.root()?;
-        Ok(root)
+    pub fn root(&self) -> [u8; 32] {
+        self.merkle_tree.root()
     }
 
     /// Checks whether the given Merkle `proof` for the given `node` (with index
@@ -222,7 +221,6 @@ where
             &new_low_leaf,
             low_element.index.into(),
             low_leaf_proof,
-            true,
         )?;
 
         // Append new element.
@@ -262,7 +260,6 @@ where
             &new_low_leaf,
             0,
             &mut zero_bytes_array,
-            true,
         )?;
         let new_leaf = nullifier_bundle
             .new_element

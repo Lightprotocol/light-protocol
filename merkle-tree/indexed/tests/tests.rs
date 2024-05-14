@@ -590,7 +590,7 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
     relayer_merkle_tree.init().unwrap();
     assert_eq!(
         relayer_merkle_tree.root(),
-        onchain_indexed_merkle_tree.root().unwrap(),
+        onchain_indexed_merkle_tree.root(),
         "environment setup failed relayer and onchain indexed Merkle tree roots are inconsistent"
     );
     let actor_1_indexed_array_state = relayer_indexing_array.clone();

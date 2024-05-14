@@ -89,12 +89,9 @@ async fn test_program_owned_merkle_tree() {
         .copy_merkle_tree()
         .unwrap();
     test_indexer.add_compressed_accounts_with_token_data(event);
-    assert_ne!(
-        post_merkle_tree.root().unwrap(),
-        pre_merkle_tree.root().unwrap()
-    );
+    assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
-        post_merkle_tree.root().unwrap(),
+        post_merkle_tree.root(),
         test_indexer.state_merkle_trees[1].merkle_tree.root()
     );
 

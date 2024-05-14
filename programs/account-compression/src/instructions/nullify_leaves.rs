@@ -129,7 +129,6 @@ fn insert_nullifier(
                 &ZERO_BYTES[i],
                 indices[i] as usize,
                 &mut proof,
-                false,
             )
             .map_err(ProgramError::from)?;
         let changelog_event = merkle_tree

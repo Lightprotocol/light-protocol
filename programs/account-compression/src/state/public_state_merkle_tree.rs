@@ -174,9 +174,9 @@ mod test {
         for _ in 0..(1 << 8) {
             merkle_tree.append(&[4u8; 32]).unwrap();
         }
-        let root = merkle_tree.root().unwrap();
+        let root = merkle_tree.root();
 
         let merkle_tree_2 = account.load_merkle_tree().unwrap();
-        assert_eq!(root, merkle_tree_2.root().unwrap())
+        assert_eq!(root, merkle_tree_2.root());
     }
 }

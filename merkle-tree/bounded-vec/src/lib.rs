@@ -108,6 +108,16 @@ where
         vec
     }
 
+    pub fn from_slice(slice: &[T]) -> Self {
+        let mut vec = Self::with_capacity(slice.len());
+        for element in slice {
+            // SAFETY: We are sure that the array and the vector have equal
+            // sizes, there is no chance for the error to occur.
+            vec.push(element.clone()).unwrap();
+        }
+        vec
+    }
+
     /// Creates a `BoundedVec<T>` directly from a pointer, a capacity, and a length.
     ///
     /// # Safety

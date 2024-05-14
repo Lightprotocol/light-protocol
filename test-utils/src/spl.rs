@@ -270,7 +270,7 @@ pub async fn assert_merkle_tree_after_tx(
             .deserialized()
             .copy_merkle_tree()
             .unwrap();
-        if merkle_tree.root().unwrap() == snapshot.root {
+        if merkle_tree.root() == snapshot.root {
             println!("deduped_snapshots: {:?}", deduped_snapshots);
             println!("i: {:?}", i);
             panic!("merkle tree root update failed");
@@ -285,7 +285,7 @@ pub async fn assert_merkle_tree_after_tx(
             .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
             .expect("merkle tree not found in test indexer");
 
-        if merkle_tree.root().unwrap() != test_indexer_merkle_tree.merkle_tree.root() {
+        if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
             println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
             for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
                 .iter()
@@ -559,7 +559,7 @@ pub async fn get_merkle_tree_snapshots(
             .expect("merkle tree not found in test indexer");
         snapshots.push(MerkleTreeTestSnapShot {
             accounts: accounts.accounts,
-            root: merkle_tree.root().unwrap(),
+            root: merkle_tree.root(),
             next_index: merkle_tree.next_index(),
             num_added_accounts: pubkeys.iter().filter(|x| **x == *pubkey).count(),
         });

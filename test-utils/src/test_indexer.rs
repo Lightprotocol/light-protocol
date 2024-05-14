@@ -439,7 +439,7 @@ impl TestIndexer {
             let fetched_merkle_tree = fetched_merkle_tree_account.copy_merkle_tree().unwrap();
             assert_eq!(
                 merkle_tree.root(),
-                fetched_merkle_tree.root().unwrap(),
+                fetched_merkle_tree.root(),
                 "Merkle tree root mismatch"
             );
             root_indices.push(fetched_merkle_tree.current_root_index as u16);

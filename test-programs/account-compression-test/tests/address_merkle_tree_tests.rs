@@ -229,7 +229,7 @@ async fn relayer_update(
             .unwrap();
         assert_eq!(
             relayer_merkle_tree.root(),
-            address_merkle_tree.merkle_tree.root().unwrap()
+            address_merkle_tree.merkle_tree.root(),
         );
         let address_queue = unsafe {
             get_hash_set::<u16, AddressQueueAccount>(context, address_queue_pubkey).await
@@ -365,7 +365,7 @@ async fn test_address_queue() {
     .await;
     let address_merkle_tree = &address_merkle_tree
         .deserialized()
-        .load_merkle_tree()
+        .copy_merkle_tree()
         .unwrap();
 
     let address_queue = unsafe {
@@ -374,19 +374,13 @@ async fn test_address_queue() {
 
     assert_eq!(
         address_queue
-            .contains(
-                &address1,
-                address_merkle_tree.merkle_tree.merkle_tree.sequence_number
-            )
+            .contains(&address1, address_merkle_tree.0.merkle_tree.sequence_number)
             .unwrap(),
         true
     );
     assert_eq!(
         address_queue
-            .contains(
-                &address2,
-                address_merkle_tree.merkle_tree.merkle_tree.sequence_number
-            )
+            .contains(&address2, address_merkle_tree.0.merkle_tree.sequence_number)
             .unwrap(),
         true
     );

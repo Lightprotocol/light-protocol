@@ -119,7 +119,7 @@ async fn test_nullifier_queue_security() {
         AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut context, merkle_tree_pubkey).await;
     let deserialized = onchain_merkle_tree.deserialized();
     let merkle_tree = deserialized.copy_merkle_tree().unwrap();
-    assert_eq!(merkle_tree.root().unwrap(), reference_merkle_tree.root());
+    assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
     let leaf_index = reference_merkle_tree.get_leaf_index(&leaf).unwrap() as u64;
     // CHECK 2
     nullify(
@@ -1113,10 +1113,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     reference_merkle_tree.init().unwrap();
     let leaves: Vec<&[u8; 32]> = leaves.iter().map(|leaf| &leaf.1).collect();
     reference_merkle_tree.append_batch(&leaves).unwrap();
-    assert_eq!(
-        merkle_tree.root().unwrap(),
-        reference_merkle_tree.root().unwrap()
-    );
+    assert_eq!(merkle_tree.root(), reference_merkle_tree.root());
     assert_eq!(
         pre_account_mt.lamports + roll_over_fee,
         post_account_mt.lamports
@@ -1354,8 +1351,7 @@ pub async fn nullify(
             .deserialized()
             .copy_merkle_tree()
             .unwrap()
-            .root()
-            .unwrap(),
+            .root(),
         reference_merkle_tree.root()
     );
 
