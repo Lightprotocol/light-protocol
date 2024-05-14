@@ -8,7 +8,6 @@ use light_system_program::sdk::compressed_account::{
     PackedMerkleContext,
 };
 
-use light_hasher::{Hasher, Poseidon};
 use light_system_program::NewAddressParams;
 use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{
