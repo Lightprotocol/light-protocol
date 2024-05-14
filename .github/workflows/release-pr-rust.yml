@@ -71,8 +71,11 @@ jobs:
       - name: Bump all crate versions
         if: inputs.crate == 'all'
         run: |
-          cargo release version --execute --no-confirm \
-            "${{ inputs.version }}"
+          for PACKAGE in $(cargo ws list); do
+            cargo release --package "$PACKAGE" --execute --no-confirm "${{ inputs.version }}"
+            echo "Waiting for 60 seconds to avoid rate limiting..."
+            sleep 60  # Wait for 60 seconds before processing the next crate
+          done
 
       - name: Bump crate version
         if: inputs.crate != 'all'
