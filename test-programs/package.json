@@ -1,0 +1,14 @@
+{
+  "name": "@lightprotocol/test-programs",
+  "version": "0.3.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "anchor build",
+    "test": "pnpm test-account-compression && pnpm test-compressed-pda && pnpm test-compressed-token && pnpm test-program-owned-account && pnpm test-registry",
+    "test-account-compression": "cargo test-sbf -p account-compression-test",
+    "test-compressed-pda": "cargo test-sbf -p compressed-pda-test -- --test-threads=1",
+    "test-compressed-token": "cargo test-sbf -p compressed-token-test -- --test-threads=1",
+    "test-program-owned-account": "cargo test-sbf -p program-owned-account-test",
+    "test-registry": "cargo test-sbf -p registry-test"
+  }
+}

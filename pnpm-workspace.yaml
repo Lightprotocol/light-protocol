@@ -1,6 +1,7 @@
 packages:
   - "tsconfig/**"
   - "programs/**"
+  - "test-programs/**"
   - "prover.js/**"
   - "circuit-lib/**"
   - "hasher.rs/**"
