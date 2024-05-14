@@ -11,7 +11,7 @@ declare -A package_dirs
 package_dirs["@lightprotocol/hasher.rs"]="hasher.rs"
 package_dirs["@lightprotocol/stateless.js"]="js/stateless.js"
 package_dirs["@lightprotocol/compressed-token"]="js/compressed-token"
-package_dirs["@lightprotocol/cli"]="cli"
+package_dirs["@lightprotocol/zk-compression-cli"]="cli"
 
 # Bump version and publish
 publish_package() {

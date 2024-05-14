@@ -41,9 +41,9 @@ jobs:
             sub-tests: '[
               "cargo-test-sbf -p account-compression-test -- --test-threads=1"
             ]'
-          - program: light-compressed-pda
+          - program: light-system-program
             sub-tests: '[
-              "cargo-test-sbf -p compressed-pda-test -- --test-threads=1"
+              "cargo-test-sbf -p system-test -- --test-threads=1"
             ]'
           - program: light-registry
             sub-tests: '[

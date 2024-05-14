@@ -27,13 +27,6 @@ use {
             get_non_inclusion_proof_inputs, NonInclusionProofInputs,
         },
     },
-    light_compressed_pda::{
-        invoke::processor::CompressedProof,
-        sdk::{
-            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
-            event::PublicTransactionEvent,
-        },
-    },
     light_compressed_token::{
         constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_authority_pda,
         get_token_pool_pda, mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
@@ -41,6 +34,13 @@ use {
     light_hasher::Poseidon,
     light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
     light_merkle_tree_reference::MerkleTree,
+    light_system_program::{
+        invoke::processor::CompressedProof,
+        sdk::{
+            compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
+            event::PublicTransactionEvent,
+        },
+    },
     num_bigint::{BigInt, BigUint},
     num_traits::{ops::bytes::FromBytes, Num},
     reqwest::Client,

@@ -9,7 +9,9 @@ use crate::{
 };
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
-use light_compressed_pda::{
+use light_hasher::Poseidon;
+use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         compressed_account::{
@@ -20,8 +22,6 @@ use light_compressed_pda::{
     },
     InstructionDataInvokeCpi,
 };
-use light_hasher::Poseidon;
-use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_utils::hash_to_bn254_field_size_be;
 
 /// Process a token transfer instruction
@@ -33,7 +33,7 @@ use light_utils::hash_to_bn254_field_size_be;
 /// 5.1 create_output_compressed_accounts
 /// 5.2 create delegate change compressed_accounts
 /// 6. serialize and add token_data data to in compressed_accounts
-/// 7. invoke light_compressed_pda::execute_compressed_transaction
+/// 7. invoke light_system_program::execute_compressed_transaction
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
@@ -201,7 +201,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let cpi_context_account = cpi_context.map(|cpi_context| {
         ctx.remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });
-    let inputs_struct = light_compressed_pda::invoke_cpi::instruction::InstructionDataInvokeCpi {
+    let inputs_struct = light_system_program::invoke_cpi::instruction::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts: output_compressed_accounts.to_vec(),
@@ -217,7 +217,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let mut inputs = Vec::new();
     InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.fee_payer.to_account_info(),
         authority: ctx.accounts.cpi_authority_pda.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
@@ -231,7 +231,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         cpi_context_account,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.compressed_pda_program.to_account_info(),
+        ctx.accounts.light_system_program.to_account_info(),
         cpi_accounts,
         signer_seeds,
     );
@@ -240,7 +240,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     bench_sbf_end!("t_cpi_prep");
 
     bench_sbf_start!("t_invoke_cpi");
-    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
     bench_sbf_end!("t_invoke_cpi");
 
     Ok(())
@@ -297,13 +297,13 @@ pub struct TransferInstruction<'info> {
     /// CHECK: that mint authority is derived from signer
     #[account(seeds = [b"cpi_authority"], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     /// CHECK: this account
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority"], bump, seeds::program = light_compressed_pda::ID,)]
+    #[account(seeds = [b"cpi_authority"], bump, seeds::program = light_system_program::ID,)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
@@ -429,7 +429,7 @@ pub mod transfer_sdk {
 
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
     use anchor_spl::token::Token;
-    use light_compressed_pda::{
+    use light_system_program::{
         invoke::processor::CompressedProof,
         sdk::compressed_account::{MerkleContext, PackedMerkleContext},
     };
@@ -491,15 +491,15 @@ pub mod transfer_sdk {
             fee_payer: *fee_payer,
             authority: *authority,
             cpi_authority_pda,
-            compressed_pda_program: light_compressed_pda::ID,
-            registered_program_pda: light_compressed_pda::utils::get_registered_program_pda(
-                &light_compressed_pda::ID,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
             ),
             noop_program: Pubkey::new_from_array(
                 account_compression::utils::constants::NOOP_PUBKEY,
             ),
-            account_compression_authority: light_compressed_pda::utils::get_cpi_authority_pda(
-                &light_compressed_pda::ID,
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
             ),
             account_compression_program: account_compression::ID,
             self_program: crate::ID,

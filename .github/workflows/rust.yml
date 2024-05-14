@@ -54,7 +54,7 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Test workspace
         run:  |

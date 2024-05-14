@@ -33,7 +33,7 @@ anchor-spl = "0.29.0"
 anchor-lang ={ version="0.29.0" }
 light-registry = { path = "../../programs/registry"  , features = ["cpi"]}
 light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
-light-compressed-pda = { path = "../../programs/compressed-pda"  , features = ["cpi"]}
+light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-concurrent-merkle-tree = {path = "../../merkle-tree/concurrent"}

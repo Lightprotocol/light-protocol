@@ -2,7 +2,7 @@
 
 cd "$(git rev-parse --show-toplevel)"
 
-PDA_FILE="target/idl/light_compressed_pda.json"
+PDA_FILE="target/idl/light_system_program.json"
 TOKEN_FILE="target/idl/light_compressed_token.json"
 DEST_DIR="js/compressed-token/src/idl"
 TS_FILE="$DEST_DIR/light_compressed_token.ts" # ts output file path

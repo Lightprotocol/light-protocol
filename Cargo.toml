@@ -9,7 +9,7 @@ members = [
     "macros/light",
     "merkle-tree/*",
     "programs/account-compression",
-    "programs/compressed-pda",
+    "programs/system",
     "programs/compressed-token",
     "programs/registry",
     "test-utils",

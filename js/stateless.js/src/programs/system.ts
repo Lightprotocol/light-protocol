@@ -8,7 +8,10 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
-import { IDL, LightCompressedPda } from '../idls/light_compressed_pda';
+import {
+    IDL,
+    LightSystemProgram as LightSystemProgramIDL,
+} from '../idls/light_system_program';
 import { useWallet } from '../wallet';
 import {
     CompressedAccount,
@@ -157,9 +160,9 @@ export class LightSystemProgram {
         '6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ',
     );
 
-    private static _program: Program<LightCompressedPda> | null = null;
+    private static _program: Program<LightSystemProgramIDL> | null = null;
 
-    static get program(): Program<LightCompressedPda> {
+    static get program(): Program<LightSystemProgramIDL> {
         if (!this._program) {
             this.initializeProgram();
         }

@@ -29,7 +29,7 @@ jobs:
             sub-tests: '[
                 "@lightprotocol/circuit-lib.js:test",
                 "@lightprotocol/prover.js:test",
-                "@lightprotocol/cli:test",
+                "@lightprotocol/zk-compression-cli:test",
             ]'
     steps:
       - name: Log in to Docker Hub

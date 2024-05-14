@@ -1,6 +1,6 @@
-export type LightCompressedPda = {
+export type LightSystemProgram = {
     version: '0.3.1';
-    name: 'light_compressed_pda';
+    name: 'light_system_program';
     constants: [
         {
             name: 'COMPRESSED_SOL_PDA_SEED';
@@ -834,9 +834,9 @@ export type LightCompressedPda = {
     ];
 };
 
-export const IDL: LightCompressedPda = {
+export const IDL: LightSystemProgram = {
     version: '0.3.1',
-    name: 'light_compressed_pda',
+    name: 'light_system_program',
     constants: [
         {
             name: 'COMPRESSED_SOL_PDA_SEED',

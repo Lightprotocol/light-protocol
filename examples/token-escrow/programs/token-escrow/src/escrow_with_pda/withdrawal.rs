@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
-use light_compressed_pda::invoke::processor::CompressedProof;
 use light_compressed_token::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
 };
+use light_system_program::invoke::processor::CompressedProof;
 
 use crate::{create_change_output_compressed_token_account, EscrowError};
 
@@ -97,7 +97,7 @@ pub struct EscrowCompressedTokensWithPda<'info> {
     pub token_owner_pda: AccountInfo<'info>,
     pub compressed_token_program:
         Program<'info, light_compressed_token::program::LightCompressedToken>,
-    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
     /// CHECK:
@@ -157,7 +157,7 @@ pub fn cpi_compressed_token_transfer<'info>(
             .accounts
             .compressed_token_cpi_authority_pda
             .to_account_info(),
-        compressed_pda_program: ctx.accounts.compressed_pda_program.to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,
@@ -219,7 +219,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
             .accounts
             .compressed_token_cpi_authority_pda
             .to_account_info(),
-        compressed_pda_program: ctx.accounts.compressed_pda_program.to_account_info(),
+        light_system_program: ctx.accounts.light_system_program.to_account_info(),
         token_pool_pda: None,
         decompress_token_account: None,
         token_program: None,

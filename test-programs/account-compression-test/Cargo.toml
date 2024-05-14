@@ -32,7 +32,7 @@ spl-token = "3.5.0"
 anchor-spl = "0.29.0"
 anchor-lang ={ version="0.29.0" }
 light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
-light-compressed-pda = { path = "../../programs/compressed-pda"  , features = ["cpi"]}
+light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
 light-hasher = {path = "../../merkle-tree/hasher"}
 light-hash-set = {path = "../../merkle-tree/hash-set"}

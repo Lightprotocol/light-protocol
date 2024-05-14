@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_pda::{
+use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::PackedCompressedAccountWithMerkleContext, InstructionDataInvokeCpi,
 };
@@ -32,7 +32,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     let mut inputs = Vec::new();
     InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
 
-    let cpi_accounts = light_compressed_pda::cpi::accounts::InvokeCpiInstruction {
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.cpi_signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
@@ -48,14 +48,14 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.compressed_pda_program.to_account_info(),
+        ctx.accounts.light_system_program.to_account_info(),
         cpi_accounts,
         &signer_seeds,
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
 
-    light_compressed_pda::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
     Ok(())
 }
 
@@ -63,7 +63,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
 pub struct InvalidateNotOwnedCompressedAccount<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    pub compressed_pda_program: Program<'info, light_compressed_pda::program::LightCompressedPda>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
     /// CHECK:

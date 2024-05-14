@@ -1,4 +1,3 @@
-// TODO: rename programs
 import {
     IDL as AccountCompressionIDL,
     AccountCompression,
@@ -6,9 +5,9 @@ import {
 
 import { IDL as LightRegistryIDL, LightRegistry } from './light_registry';
 import {
-    IDL as LightCompressedPdaIDL,
-    LightCompressedPda,
-} from './light_compressed_pda';
+    IDL as LightSystemIDL,
+    LightSystemProgram as LightSystem,
+} from './light_system_program';
 
 import {
     IDL as LightCompressedTokenIDL,
@@ -20,8 +19,8 @@ export {
     AccountCompression,
     LightRegistryIDL,
     LightRegistry,
-    LightCompressedPdaIDL,
-    LightCompressedPda,
+    LightSystemIDL,
+    LightSystem,
     LightCompressedTokenIDL,
     LightCompressedToken,
 };

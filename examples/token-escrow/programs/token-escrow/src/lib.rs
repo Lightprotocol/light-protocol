@@ -1,16 +1,16 @@
 #![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_pda::invoke::processor::CompressedProof;
 use light_compressed_token::InputTokenDataWithContext;
 use light_compressed_token::TokenTransferOutputData;
+use light_system_program::invoke::processor::CompressedProof;
 pub mod escrow_with_compressed_pda;
 pub mod escrow_with_pda;
 
 pub use escrow_with_compressed_pda::escrow::*;
 pub use escrow_with_pda::escrow::*;
-use light_compressed_pda::sdk::CompressedCpiContext;
-use light_compressed_pda::NewAddressParamsPacked;
+use light_system_program::sdk::CompressedCpiContext;
+use light_system_program::NewAddressParamsPacked;
 
 #[error_code]
 pub enum EscrowError {

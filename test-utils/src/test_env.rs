@@ -33,7 +33,7 @@ pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiF
 /// 1. light_registry program
 /// 2. account_compression program
 /// 3. light_compressed_token program
-/// 4. light_compressed_pda program
+/// 4. light_system_program program
 pub async fn setup_test_programs(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> ProgramTestContext {
@@ -45,7 +45,7 @@ pub async fn setup_test_programs(
         COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
         None,
     );
-    program_test.add_program("light_compressed_pda", PDA_PROGRAM_ID, None);
+    program_test.add_program("light_system_program", PDA_PROGRAM_ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
@@ -114,12 +114,12 @@ pub const SIGNATURE_CPI_TEST_KEYPAIR: [u8; 64] = [
 /// 1. light program
 /// 2. account_compression program
 /// 3. light_compressed_token program
-/// 4. light_compressed_pda program
+/// 4. light_system_program program
 ///
 /// Sets up the following accounts:
 /// 5. creates and initializes governance authority
 /// 6. creates and initializes group authority
-/// 7. registers the light_compressed_pda program with the group authority
+/// 7. registers the light_system_program program with the group authority
 /// 8. initializes Merkle tree owned by
 
 pub async fn setup_test_programs_with_accounts(
@@ -387,18 +387,18 @@ pub async fn init_cpi_signature_account(
             .await
             .unwrap()
             .minimum_balance(account_size),
-        &light_compressed_pda::ID,
+        &light_system_program::ID,
         Some(cpi_account_keypair),
     );
-    let data = light_compressed_pda::instruction::InitCpiContextAccount {};
-    let accounts = light_compressed_pda::accounts::InitializeCpiContextAccount {
+    let data = light_system_program::instruction::InitCpiContextAccount {};
+    let accounts = light_system_program::accounts::InitializeCpiContextAccount {
         fee_payer: payer.insecure_clone().pubkey(),
         cpi_context_account: cpi_account_keypair.pubkey(),
         system_program: system_program::ID,
         associated_merkle_tree: *merkle_tree_pubkey,
     };
     let instruction = Instruction {
-        program_id: light_compressed_pda::ID,
+        program_id: light_system_program::ID,
         accounts: accounts.to_account_metas(Some(true)),
         data: data.data(),
     };

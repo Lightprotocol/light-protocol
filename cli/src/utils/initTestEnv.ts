@@ -146,7 +146,7 @@ export async function getSolanaArgs({
     },
     {
       id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
-      name: "light_compressed_pda.so",
+      name: "light_system_program.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {

@@ -1,6 +1,6 @@
 # ZK Compression CLI
 
-CLI to interact with Light Protocol and ZK compression.
+CLI to interact with ZK compression.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ CLI to interact with Light Protocol and ZK compression.
 ### Using npm
 
 ```bash
-npm install -g @lightprotocol/cli
+npm install -g @lightprotocol/zk-compression-cli
 ```
 
 ### Building from source
