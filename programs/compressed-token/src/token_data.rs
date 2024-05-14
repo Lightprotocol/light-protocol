@@ -147,9 +147,9 @@ impl DataHasher for TokenData {
         // let close_authority = match self.close_authority {
         // Some(close_authority) => {
         //     hash_to_bn254_field_size_be(close_authority.to_bytes().as_slice())
-        //         .unwrap() .0 } None => [0u8; 32], }; TODO: implement a trait
-        //             hash_default value for Option<u64> and use it for other
-        //             optional values
+        //         .unwrap() .0 } None => [0u8; 32], }; 
+        // TODO: implement a trait hash_default value for Option<u64> and use it
+        // for other optional values
         H::hashv(hash_inputs.as_slice())
     }
 }
