@@ -1189,7 +1189,7 @@ export type AccountCompression = {
 };
 
 export const IDL: AccountCompression = {
-    version: '0.3.3',
+    version: '0.3.2',
     name: 'account_compression',
     constants: [
         {

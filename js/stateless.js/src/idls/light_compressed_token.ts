@@ -952,7 +952,7 @@ export type LightCompressedToken = {
     ];
 };
 export const IDL: LightCompressedToken = {
-    version: '0.3.2',
+    version: '0.3.1',
     name: 'light_compressed_token',
     constants: [
         {
