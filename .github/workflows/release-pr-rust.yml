@@ -69,17 +69,17 @@ jobs:
           cp cargo-release "$HOME"/.cargo/bin
           popd
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2.4.0
+        with:
+          version: 8
+          run_install: false
+
       - name: Bump all crate versions
         if: inputs.crate == 'all'
         run: |
           cargo release version --execute --no-confirm \
             "${{ inputs.version }}"
-
-      - name: Bump crate version
-        if: inputs.crate != 'all'
-        run: |
-          cargo release version --execute --no-confirm \
-            -p "${{ inputs.crate }}" "${{ inputs.version }}"
 
       - name: Create pull request for all crates
         if: inputs.crate == 'all'
@@ -92,13 +92,38 @@ jobs:
           branch: "bump-all-rust"
           labels: "version bump"
 
-      - name: Checkout the PR branch
+      - name: Checkout the PR branch all
         if: inputs.crate == 'all'
         uses: actions/checkout@v4
         with:
           ref: "bump-all-rust"
+          fetch-depth: 0
 
-      - name: Create pull request for crate
+      - name: Pull latest changes all
+        if: inputs.crate == 'all'
+        run: git pull
+
+      - name: Show current branch and commit all
+        if: inputs.crate == 'all'
+        run: |
+          echo "Current branch:"
+          git branch --show-current
+          echo "Latest commit:"
+          git log -1
+
+      - name: Setup and build nocheck all
+        if: inputs.crate == 'all'
+        uses: ./.github/actions/setup-and-build-nocheck
+        with:
+          branch: "bump-all-rust"
+
+      - name: Bump crate version for single crate
+        if: inputs.crate != 'all'
+        run: |
+          cargo release version --execute --no-confirm \
+            -p "${{ inputs.crate }}" "${{ inputs.version }}"
+
+      - name: Create pull request for single crate
         if: inputs.crate != 'all'
         uses: peter-evans/create-pull-request@v6
         env:
@@ -109,20 +134,22 @@ jobs:
           branch: "bump-${{ inputs.crate }}"
           labels: "version bump"
 
-      - name: Checkout the PR branch for specific crate
+      - name: Checkout the PR branch for single crate
         if: inputs.crate != 'all'
         uses: actions/checkout@v4
         with:
           ref: "bump-${{ inputs.crate }}"
+          fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2.4.0
-        with:
-          version: 8
-          run_install: false
+      - name: Pull latest changes for single crate
+        if: inputs.crate != 'all'
+        run: git pull
 
-      - name: Setup and build nocheck
-        uses: ./.github/actions/setup-and-build-nocheck
+      - name: Show Git Status and Diff for single crate
+        if: inputs.crate != 'all'
+        run: |
+          git status
+          git diff
 
       - name: Commit IDL and other changes
         run: |
