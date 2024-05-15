@@ -128,7 +128,7 @@ pub async fn nullify_compressed_account(
     // root_seq: 797, sequence_number: 945, diff: -148, change_log_index: 945
     println!("root_seq: {}, sequence_number: {}, diff: {}, change_log_index: {}", root_seq, sequence_number, diff, change_log_index);
 
-    let change_log_index = change_log_index - diff as usize;
+    let change_log_index = change_log_index + diff as usize;
     // let change_log_index = change_log_index.checked_sub(diff as usize)
     //     .ok_or_else(|| CrankError::Custom("Underflow when updating change_log_index".to_string()))?;
 
