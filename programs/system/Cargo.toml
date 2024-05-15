@@ -26,7 +26,7 @@ aligned-sized = { version = "0.1.1", path = "../../macros/aligned-sized" }
 anchor-lang = "0.29.0"
 bytemuck = "1.14"
 light-hasher = { version = "0.1.1", path = "../../merkle-tree/hasher" }
-light-heap = { version = "0.1.1", path = "../../heap", optional = true }
+light-heap = { version = "0.1.2", path = "../../heap", optional = true }
 light-macros = { path = "../../macros/light", version = "0.3.2" }
 account-compression = { version = "0.3.2", path = "../account-compression", features = ["cpi"] }
 light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent", version = "0.1.1" }
