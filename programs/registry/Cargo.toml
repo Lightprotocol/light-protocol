@@ -1,6 +1,6 @@
 [package]
 name = "light-registry"
-version = "0.3.2"
+version = "0.3.3"
 description = "Light core protocol logic"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,12 +22,12 @@ test-sbf = []
 bench-sbf = []
 
 [dependencies]
-aligned-sized = { version = "0.1.2", path = "../../macros/aligned-sized" }
+aligned-sized = { version = "0.1.3", path = "../../macros/aligned-sized" }
 anchor-lang = "0.29.0"
 bytemuck = "1.14"
-light-hasher = { version = "0.1.2", path = "../../merkle-tree/hasher" }
-light-heap = { version = "0.1.3", path = "../../heap", optional = true }
-account-compression = { version = "0.3.3", path = "../account-compression", features = ["cpi"]  }
+light-hasher = { version = "0.1.3", path = "../../merkle-tree/hasher" }
+light-heap = { version = "0.1.4", path = "../../heap", optional = true }
+account-compression = { version = "0.3.4", path = "../account-compression", features = ["cpi"]  }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.18.11"
@@ -36,4 +36,4 @@ solana-sdk = "1.18.11"
 solana-program-test = "1.18.11"
 solana-sdk = "1.18.11"
 tokio = "1.36.0"
-light-macros= { version = "0.3.3", path = "../../macros/light" }
+light-macros= { version = "0.3.4", path = "../../macros/light" }
