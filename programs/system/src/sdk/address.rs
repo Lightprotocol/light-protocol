@@ -14,6 +14,24 @@ pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u
     Ok(hash)
 }
 
+pub fn add_and_get_remaining_account_indices(
+    pubkeys: &[Pubkey],
+    remaining_accounts: &mut HashMap<Pubkey, usize>,
+) -> Vec<u8> {
+    let mut vec = Vec::new();
+    let mut next_index: usize = remaining_accounts.len();
+    for pubkey in pubkeys.iter() {
+        match remaining_accounts.get(pubkey) {
+            Some(_) => {}
+            None => {
+                remaining_accounts.insert(*pubkey, next_index);
+                next_index += 1;
+            }
+        };
+        vec.push(*remaining_accounts.get(pubkey).unwrap() as u8);
+    }
+    vec
+}
 // Helper function to pack new address params for instruction data in rust clients
 pub fn pack_new_address_params(
     new_address_params: &[NewAddressParams],

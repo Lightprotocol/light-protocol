@@ -77,9 +77,9 @@ jobs:
 
       - name: ${{ matrix.program }}
         run: |
-          source ./scripts/devenv.sh   
+          source ./scripts/devenv.sh
           mkdir -p ./target/deploy
-          cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so   
+          cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
 
           anchor build
 

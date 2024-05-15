@@ -36,6 +36,7 @@ import {
 } from './constants';
 import { Buffer } from 'buffer';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
+import { PackedTokenTransferOutputData } from './types';
 
 type CompressParams = {
     /**
@@ -603,21 +604,21 @@ export class CompressedTokenProgram {
             toAddress,
         } = params;
 
-        const outputCompressedAccounts: TokenTransferOutputData[] =
+        const tokenTransferOutputs: TokenTransferOutputData[] =
             createTransferOutputState(
                 inputCompressedTokenAccounts,
                 toAddress,
                 amount,
             );
-
         const {
             inputTokenDataWithContext,
-            outputStateMerkleTreeIndices,
+            packedOutputTokenData,
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputCompressedAccountsLength: outputCompressedAccounts.length,
             outputStateTrees,
+            rootIndices: recentInputStateRootIndices,
+            tokenTransferOutputs,
         });
 
         const { mint, currentOwner } = parseTokenData(
@@ -626,14 +627,10 @@ export class CompressedTokenProgram {
 
         const data: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
-            rootIndices: recentInputStateRootIndices,
             mint,
             signerIsDelegate: false, // TODO: implement
             inputTokenDataWithContext,
-            outputCompressedAccounts,
-            outputStateMerkleTreeAccountIndices: Buffer.from(
-                outputStateMerkleTreeIndices,
-            ),
+            outputCompressedAccounts: packedOutputTokenData,
             compressionAmount: null,
             isCompress: false,
             cpiContext: null,
@@ -684,34 +681,30 @@ export class CompressedTokenProgram {
             params;
         const amount = bn(params.amount);
 
-        const outputCompressedAccounts: TokenTransferOutputData[] = [
+        const tokenTransferOutputs: TokenTransferOutputData[] = [
             {
                 owner: toAddress,
                 amount,
                 lamports: bn(0),
             },
         ];
-
         const {
             inputTokenDataWithContext,
-            outputStateMerkleTreeIndices,
+            packedOutputTokenData,
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts: [],
-            outputCompressedAccountsLength: outputCompressedAccounts.length,
             outputStateTrees: [outputStateTree],
+            rootIndices: [],
+            tokenTransferOutputs,
         });
 
         const data: CompressedTokenInstructionDataTransfer = {
             proof: null,
-            rootIndices: [],
             mint,
             signerIsDelegate: false, // TODO: implement
             inputTokenDataWithContext,
-            outputCompressedAccounts,
-            outputStateMerkleTreeAccountIndices: Buffer.from(
-                outputStateMerkleTreeIndices,
-            ),
+            outputCompressedAccounts: packedOutputTokenData,
             compressionAmount: amount,
             isCompress: true,
             cpiContext: null,
@@ -782,27 +775,25 @@ export class CompressedTokenProgram {
         /// Pack
         const {
             inputTokenDataWithContext,
-            outputStateMerkleTreeIndices,
+            packedOutputTokenData,
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputCompressedAccountsLength: tokenTransferOutputs.length,
             outputStateTrees: [outputStateTree],
+            rootIndices: recentInputStateRootIndices,
+            tokenTransferOutputs: tokenTransferOutputs,
         });
+
         const { mint, currentOwner } = parseTokenData(
             inputCompressedTokenAccounts,
         );
 
         const data: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
-            rootIndices: recentInputStateRootIndices,
             mint,
             signerIsDelegate: false, // TODO: implement
             inputTokenDataWithContext,
-            outputCompressedAccounts: tokenTransferOutputs,
-            outputStateMerkleTreeAccountIndices: Buffer.from(
-                outputStateMerkleTreeIndices,
-            ),
+            outputCompressedAccounts: packedOutputTokenData,
             compressionAmount: amount,
             isCompress: false,
             cpiContext: null,

@@ -112,12 +112,12 @@ pub fn output_compressed_accounts_write_access_check(
 ) -> Result<()> {
     // is triggered if one output account has data
     for compressed_account in inputs.output_compressed_accounts.iter() {
-        if compressed_account.data.is_some()
-            && compressed_account.owner != invoking_program_id.key()
+        if compressed_account.compressed_account.data.is_some()
+            && compressed_account.compressed_account.owner != invoking_program_id.key()
         {
             msg!(
                     "Signer/Program cannot write into an account it doesn't own. Write access check failed compressed account owner {} !=  invoking_program_id {}",
-                    compressed_account.owner,
+                    compressed_account.compressed_account.owner,
                     invoking_program_id.key()
                 );
             msg!("compressed_account: {:?}", compressed_account);

@@ -25,7 +25,6 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         input_compressed_account_hashes,
         output_compressed_account_hashes,
         output_compressed_accounts: inputs.output_compressed_accounts,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
         output_leaf_indices,
         relay_fee: inputs.relay_fee,
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),

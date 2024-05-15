@@ -85,9 +85,9 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
     // leaves vector length (for borsh compat)
     instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
-    if inputs.output_state_merkle_tree_account_indices[initial_index] == 0 {
+    if inputs.output_compressed_accounts[initial_index].merkle_tree_index == 0 {
         let account_info = ctx.remaining_accounts
-            [inputs.output_state_merkle_tree_account_indices[current_index as usize] as usize]
+            [inputs.output_compressed_accounts[current_index as usize].merkle_tree_index as usize]
             .to_account_info();
         mt_next_index = check_program_owner_state_merkle_tree(
             &ctx.remaining_accounts[current_index as usize],
@@ -112,7 +112,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     bench_sbf_end!("cpda_append_data_init");
     bench_sbf_start!("cpda_append_rest");
 
-    for mt_index in inputs.output_state_merkle_tree_account_indices[initial_index..end].iter() {
+    for account in inputs.output_compressed_accounts[initial_index..end].iter() {
         let j = *global_iter;
         *global_iter += 1;
 
@@ -120,15 +120,16 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         // if mt index > current index, Merkle tree account info is new, add it.
         // else Merkle tree index is out of order throw error.
         #[allow(clippy::comparison_chain)]
-        if *mt_index == current_index {
+        if account.merkle_tree_index == current_index {
             // do nothing, but is the most common case.
-        } else if *mt_index > current_index {
-            current_index = *mt_index;
+        } else if account.merkle_tree_index != current_index {
+            current_index = account.merkle_tree_index;
             mt_next_index = check_program_owner_state_merkle_tree(
-                &ctx.remaining_accounts[*mt_index as usize],
+                &ctx.remaining_accounts[account.merkle_tree_index as usize],
                 invoking_program,
             )?;
-            let account_info = ctx.remaining_accounts[*mt_index as usize].to_account_info();
+            let account_info =
+                ctx.remaining_accounts[account.merkle_tree_index as usize].to_account_info();
             accounts.push(AccountMeta {
                 pubkey: account_info.key(),
                 is_signer: false,
@@ -146,14 +147,13 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             };
             account_infos.push(account_info);
             num_leaves_in_tree = 0;
-        } else {
-            // TODO: add failing test
-            msg!("Invalid Merkle tree index: {} current index {} (Merkle tree indices need to be in ascendin order.", *mt_index, current_index);
-            return err!(CompressedPdaError::InvalidMerkleTreeIndex);
         }
 
         // Address has to be created or a compressed account with this address has to be provided as transaction input.
-        if let Some(address) = inputs.output_compressed_accounts[j].address {
+        if let Some(address) = inputs.output_compressed_accounts[j]
+            .compressed_account
+            .address
+        {
             if let Some(position) = addresses
                 .iter()
                 .filter(|x| x.is_some())
@@ -169,29 +169,39 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 
         output_compressed_account_indices[j] = mt_next_index + num_leaves_in_tree;
         num_leaves_in_tree += 1;
-        let hashed_owner = match hashed_pubkeys
-            .iter()
-            .find(|x| x.0 == inputs.output_compressed_accounts[j].owner)
-        {
+        let hashed_owner = match hashed_pubkeys.iter().find(|x| {
+            x.0 == inputs.output_compressed_accounts[j]
+                .compressed_account
+                .owner
+        }) {
             Some(hashed_owner) => hashed_owner.1,
             None => {
                 let hashed_owner = hash_to_bn254_field_size_be(
-                    &inputs.output_compressed_accounts[j].owner.to_bytes(),
+                    &inputs.output_compressed_accounts[j]
+                        .compressed_account
+                        .owner
+                        .to_bytes(),
                 )
                 .unwrap()
                 .0;
-                hashed_pubkeys.push((inputs.output_compressed_accounts[j].owner, hashed_owner));
+                hashed_pubkeys.push((
+                    inputs.output_compressed_accounts[j]
+                        .compressed_account
+                        .owner,
+                    hashed_owner,
+                ));
                 hashed_owner
             }
         };
         // Compute output compressed account hash.
         output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j]
+            .compressed_account
             .hash_with_hashed_values::<Poseidon>(
                 &hashed_owner,
                 &hashed_merkle_tree,
                 &output_compressed_account_indices[j],
             )?;
-        instruction_data.extend_from_slice(&[current_index]);
+        instruction_data.extend_from_slice(&[(account_infos.len() - 6) as u8]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
 

@@ -7,7 +7,7 @@ use light_system_program::{
         compressed_account::{CompressedAccount, CompressedAccountData},
         CompressedCpiContext,
     },
-    InstructionDataInvokeCpi, NewAddressParamsPacked,
+    InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
@@ -72,16 +72,13 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
     ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
-    compressed_pda: CompressedAccount,
+    compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
-    msg!("cpi_compressed_pda_transfer_as_non_program");
     let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
-        input_root_indices: Vec::new(),
-        output_state_merkle_tree_account_indices: vec![0],
         proof,
         new_address_params: vec![new_address_params],
         compression_lamports: None,
@@ -121,7 +118,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
     proof: Option<CompressedProof>,
     new_address_params: NewAddressParamsPacked,
-    compressed_pda: CompressedAccount,
+    compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: Option<CompressedCpiContext>,
     bump: u8,
     signer_seed: &[u8],
@@ -132,8 +129,6 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
-        input_root_indices: Vec::new(),
-        output_state_merkle_tree_account_indices: vec![0],
         proof,
         new_address_params: vec![new_address_params],
         compression_lamports: None,
@@ -179,7 +174,7 @@ fn create_compressed_pda_data(
     ctx: &Context<'_, '_, '_, '_, CreateCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
     owner_program: &Pubkey,
-) -> Result<CompressedAccount> {
+) -> Result<OutputCompressedAccountWithPackedContext> {
     let timelock_compressed_pda = RegisteredUser {
         user_pubkey: *ctx.accounts.signer.key,
         data,
@@ -197,11 +192,14 @@ fn create_compressed_pda_data(
         &new_address_params.seed,
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
-    Ok(CompressedAccount {
-        owner: *owner_program, // should be crate::ID, test provides an invalid owner
-        lamports: 0,
-        address: Some(derive_address),
-        data: Some(compressed_account_data),
+    Ok(OutputCompressedAccountWithPackedContext {
+        compressed_account: CompressedAccount {
+            owner: *owner_program, // should be crate::ID, test provides an invalid owner
+            lamports: 0,
+            address: Some(derive_address),
+            data: Some(compressed_account_data),
+        },
+        merkle_tree_index: 0,
     })
 }
 

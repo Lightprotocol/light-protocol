@@ -5,6 +5,7 @@ import { Buffer } from 'buffer';
 export interface PackedCompressedAccountWithMerkleContext {
     compressedAccount: CompressedAccount;
     merkleContext: PackedMerkleContext;
+    rootIndex: number; // u16
 }
 
 export interface PackedMerkleContext {
@@ -31,6 +32,27 @@ export interface CompressedAccount {
     data: CompressedAccountData | null; // Option<CompressedAccountData>
 }
 
+/**
+ * Describe the generic compressed account details applicable to every
+ * compressed account.
+ * */
+export interface OutputCompressedAccountWithPackedContext {
+    compressedAccount: {
+        /** Public key of program or user that owns the account */
+        owner: PublicKey;
+        /** Lamports attached to the account */
+        lamports: BN; // u64 // FIXME: optional
+        /**
+         * TODO: Implement address functionality. Optional unique account ID that is
+         * persistent across transactions.
+         */
+        address: PublicKey | null; // Option<PublicKey>
+        /** Optional data attached to the account */
+        data: CompressedAccountData | null; // Option<CompressedAccountData>
+    };
+    merkleTreeIndex: number;
+}
+
 export interface CompressedAccountData {
     discriminator: number[]; // [u8; 8] // TODO: test with uint8Array instead
     data: Buffer; // bytes
@@ -40,8 +62,7 @@ export interface CompressedAccountData {
 export interface PublicTransactionEvent {
     inputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
     outputCompressedAccountHashes: number[][]; // Vec<[u8; 32]>
-    outputCompressedAccounts: CompressedAccount[];
-    outputStateMerkleTreeAccountIndices: Uint8Array; // bytes
+    outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     outputLeafIndices: number[]; // Vec<u32>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
@@ -52,10 +73,8 @@ export interface PublicTransactionEvent {
 
 export interface InstructionDataInvoke {
     proof: CompressedProof | null; // Option<CompressedProof>
-    inputRootIndices: number[]; // Vec<u16>
     inputCompressedAccountsWithMerkleContext: PackedCompressedAccountWithMerkleContext[];
-    outputCompressedAccounts: CompressedAccount[];
-    outputStateMerkleTreeAccountIndices: Buffer; // bytes // FIXME: into Vec<u8> on-chain
+    outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     relayFee: BN | null; // Option<u64>
     compressionLamports: BN | null; // Option<u64>
     isCompress: boolean; // bool
@@ -90,12 +109,10 @@ export type TokenTransferOutputData = {
 
 export type CompressedTokenInstructionDataTransfer = {
     proof: CompressedProof | null;
-    rootIndices: number[];
     mint: PublicKey;
     signerIsDelegate: boolean;
     inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
-    outputStateMerkleTreeAccountIndices: Buffer;
     isCompress: boolean;
     compressionAmount: BN | null;
     cpiContext: null;
@@ -107,6 +124,7 @@ export interface InputTokenDataWithContext {
     delegatedAmount: BN | null; // Option<u64>
     isNative: BN | null; // Option<u64>
     merkleContext: PackedMerkleContext;
+    rootIndex: number; // u16
 }
 export type TokenData = {
     /// The mint associated with this account

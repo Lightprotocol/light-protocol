@@ -725,7 +725,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
         leaves.clone(),
         context.payer.pubkey(),
         context.payer.pubkey(),
-        vec![*merkle_tree_pubkey; leaves.len()],
+        vec![*merkle_tree_pubkey],
     )];
 
     create_and_send_transaction(context, &instruction, &payer.pubkey(), &[&payer, &payer])

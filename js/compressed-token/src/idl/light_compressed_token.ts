@@ -249,12 +249,6 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext';
                         type: {
                             vec: {
@@ -266,16 +260,9 @@ export type LightCompressedToken = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'CompressedAccount';
+                                defined: 'OutputCompressedAccountWithPackedContext';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ];
-                        type: 'bytes';
                     },
                     {
                         name: 'relayFee';
@@ -300,6 +287,42 @@ export type LightCompressedToken = {
                     {
                         name: 'isCompress';
                         type: 'bool';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'OutputCompressedAccountWithContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleTree';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleTreeIndex';
+                        type: 'u8';
                     },
                 ];
             };
@@ -404,12 +427,6 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext';
                         type: {
                             vec: {
@@ -421,16 +438,9 @@ export type LightCompressedToken = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'CompressedAccount';
+                                defined: 'OutputCompressedAccountWithPackedContext';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ];
-                        type: 'bytes';
                     },
                     {
                         name: 'relayFee';
@@ -481,6 +491,13 @@ export type LightCompressedToken = {
                         type: {
                             defined: 'PackedMerkleContext';
                         };
+                    },
+                    {
+                        name: 'rootIndex';
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ];
+                        type: 'u16';
                     },
                 ];
             };
@@ -626,13 +643,9 @@ export type LightCompressedToken = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'CompressedAccount';
+                                defined: 'OutputCompressedAccountWithPackedContext';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        type: 'bytes';
                     },
                     {
                         name: 'outputLeafIndices';
@@ -720,6 +733,10 @@ export type LightCompressedToken = {
                             defined: 'PackedMerkleContext';
                         };
                     },
+                    {
+                        name: 'rootIndex';
+                        type: 'u16';
+                    },
                 ];
             };
         },
@@ -734,12 +751,6 @@ export type LightCompressedToken = {
                             option: {
                                 defined: 'CompressedProof';
                             };
-                        };
-                    },
-                    {
-                        name: 'rootIndices';
-                        type: {
-                            vec: 'u16';
                         };
                     },
                     {
@@ -762,13 +773,9 @@ export type LightCompressedToken = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'TokenTransferOutputData';
+                                defined: 'PackedTokenTransferOutputData';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        type: 'bytes';
                     },
                     {
                         name: 'isCompress';
@@ -792,6 +799,32 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'PackedTokenTransferOutputData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'amount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'merkleTreeIndex';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
             name: 'TokenTransferOutputData';
             type: {
                 kind: 'struct';
@@ -809,6 +842,10 @@ export type LightCompressedToken = {
                         type: {
                             option: 'u64';
                         };
+                    },
+                    {
+                        name: 'merkleTree';
+                        type: 'publicKey';
                     },
                 ];
             };
@@ -1202,12 +1239,6 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext',
                         type: {
                             vec: {
@@ -1220,16 +1251,10 @@ export const IDL: LightCompressedToken = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'CompressedAccount',
+                                defined:
+                                    'OutputCompressedAccountWithPackedContext',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ],
-                        type: 'bytes',
                     },
                     {
                         name: 'relayFee',
@@ -1254,6 +1279,42 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'isCompress',
                         type: 'bool',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'OutputCompressedAccountWithContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleTree',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleTreeIndex',
+                        type: 'u8',
                     },
                 ],
             },
@@ -1358,12 +1419,6 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext',
                         type: {
                             vec: {
@@ -1376,16 +1431,10 @@ export const IDL: LightCompressedToken = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'CompressedAccount',
+                                defined:
+                                    'OutputCompressedAccountWithPackedContext',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ],
-                        type: 'bytes',
                     },
                     {
                         name: 'relayFee',
@@ -1436,6 +1485,13 @@ export const IDL: LightCompressedToken = {
                         type: {
                             defined: 'PackedMerkleContext',
                         },
+                    },
+                    {
+                        name: 'rootIndex',
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ],
+                        type: 'u16',
                     },
                 ],
             },
@@ -1581,13 +1637,10 @@ export const IDL: LightCompressedToken = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'CompressedAccount',
+                                defined:
+                                    'OutputCompressedAccountWithPackedContext',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        type: 'bytes',
                     },
                     {
                         name: 'outputLeafIndices',
@@ -1675,6 +1728,10 @@ export const IDL: LightCompressedToken = {
                             defined: 'PackedMerkleContext',
                         },
                     },
+                    {
+                        name: 'rootIndex',
+                        type: 'u16',
+                    },
                 ],
             },
         },
@@ -1689,12 +1746,6 @@ export const IDL: LightCompressedToken = {
                             option: {
                                 defined: 'CompressedProof',
                             },
-                        },
-                    },
-                    {
-                        name: 'rootIndices',
-                        type: {
-                            vec: 'u16',
                         },
                     },
                     {
@@ -1717,13 +1768,9 @@ export const IDL: LightCompressedToken = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'TokenTransferOutputData',
+                                defined: 'PackedTokenTransferOutputData',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        type: 'bytes',
                     },
                     {
                         name: 'isCompress',
@@ -1747,6 +1794,32 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
+            name: 'PackedTokenTransferOutputData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'amount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'lamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'merkleTreeIndex',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
             name: 'TokenTransferOutputData',
             type: {
                 kind: 'struct',
@@ -1764,6 +1837,10 @@ export const IDL: LightCompressedToken = {
                         type: {
                             option: 'u64',
                         },
+                    },
+                    {
+                        name: 'merkleTree',
+                        type: 'publicKey',
                     },
                 ],
             },

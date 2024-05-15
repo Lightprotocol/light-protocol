@@ -14,12 +14,12 @@ import {
 } from '../idls/light_system_program';
 import { useWallet } from '../wallet';
 import {
-    CompressedAccount,
     CompressedAccountWithMerkleContext,
     CompressedProof,
     InstructionDataInvoke,
+    OutputCompressedAccountWithPackedContext,
     bn,
-    createCompressedAccount,
+    createOutputCompressedAccount,
 } from '../state';
 import { packCompressedAccounts } from '../instruction';
 import { defaultStaticAccountsStruct } from '../constants';
@@ -27,7 +27,6 @@ import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
-import { placeholderValidityProof } from '../utils';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -182,6 +181,7 @@ export class LightSystemProgram {
         );
         return address;
     }
+
     /**
      * Initializes the program statically if not already initialized.
      */
@@ -209,7 +209,8 @@ export class LightSystemProgram {
         inputCompressedAccounts: CompressedAccountWithMerkleContext[],
         toAddress: PublicKey,
         lamports: number | BN,
-    ): CompressedAccount[] {
+        outputStateMerkleTreeIndices: number[],
+    ): OutputCompressedAccountWithPackedContext[] {
         lamports = bn(lamports);
         const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
@@ -217,25 +218,38 @@ export class LightSystemProgram {
         validateSufficientBalance(changeLamports);
 
         if (changeLamports.eq(bn(0))) {
-            return [createCompressedAccount(toAddress, lamports)];
+            return [
+                createOutputCompressedAccount(
+                    toAddress,
+                    outputStateMerkleTreeIndices[0],
+                    lamports,
+                ),
+            ];
         }
 
         validateSameOwner(inputCompressedAccounts);
 
-        const outputCompressedAccounts: CompressedAccount[] = [
-            createCompressedAccount(
-                inputCompressedAccounts[0].owner,
-                changeLamports,
-            ),
-            createCompressedAccount(toAddress, lamports),
-        ];
+        const outputCompressedAccounts: OutputCompressedAccountWithPackedContext[] =
+            [
+                createOutputCompressedAccount(
+                    inputCompressedAccounts[0].owner,
+                    outputStateMerkleTreeIndices[1],
+                    changeLamports,
+                ),
+                createOutputCompressedAccount(
+                    toAddress,
+                    outputStateMerkleTreeIndices[2],
+                    lamports,
+                ),
+            ];
         return outputCompressedAccounts;
     }
 
     static createDecompressOutputState(
         inputCompressedAccounts: CompressedAccountWithMerkleContext[],
         lamports: number | BN,
-    ): CompressedAccount[] {
+        outputMerkleTreeIndices: number[],
+    ): OutputCompressedAccountWithPackedContext[] {
         lamports = bn(lamports);
         const inputLamports = sumUpLamports(inputCompressedAccounts);
         const changeLamports = inputLamports.sub(lamports);
@@ -249,12 +263,14 @@ export class LightSystemProgram {
 
         validateSameOwner(inputCompressedAccounts);
 
-        const outputCompressedAccounts: CompressedAccount[] = [
-            createCompressedAccount(
-                inputCompressedAccounts[0].owner,
-                changeLamports,
-            ),
-        ];
+        const outputCompressedAccounts: OutputCompressedAccountWithPackedContext[] =
+            [
+                createOutputCompressedAccount(
+                    inputCompressedAccounts[0].owner,
+                    outputMerkleTreeIndices[0],
+                    changeLamports,
+                ),
+            ];
         return outputCompressedAccounts;
     }
 
@@ -271,13 +287,6 @@ export class LightSystemProgram {
         recentValidityProof,
         outputStateTrees,
     }: TransferParams): Promise<TransactionInstruction> {
-        /// Create output state
-        const outputCompressedAccounts = this.createTransferOutputState(
-            inputCompressedAccounts,
-            toAddress,
-            lamports,
-        );
-
         /// Pack accounts
         const {
             packedInputCompressedAccounts,
@@ -285,22 +294,25 @@ export class LightSystemProgram {
             remainingAccountMetas,
         } = packCompressedAccounts(
             inputCompressedAccounts,
-            outputCompressedAccounts.length,
+            recentInputStateRootIndices,
+            1,
             outputStateTrees,
         );
-
+        /// Create output state
+        const outputCompressedAccounts = this.createTransferOutputState(
+            inputCompressedAccounts,
+            toAddress,
+            lamports,
+            outputStateMerkleTreeIndices,
+        );
         /// Encode instruction data
         const data = this.program.coder.types.encode('InstructionDataInvoke', {
             proof: recentValidityProof,
-            inputRootIndices: recentInputStateRootIndices,
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
             inputCompressedAccountsWithMerkleContext:
                 packedInputCompressedAccounts,
             outputCompressedAccounts,
-            outputStateMerkleTreeAccountIndices: Buffer.from(
-                outputStateMerkleTreeIndices,
-            ),
             relayFee: null,
             compressionLamports: null,
             isCompress: false,
@@ -338,30 +350,26 @@ export class LightSystemProgram {
     }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
-        const outputCompressedAccount = createCompressedAccount(
-            toAddress,
-            lamports,
-        );
 
         /// Pack accounts
         const {
             packedInputCompressedAccounts,
             outputStateMerkleTreeIndices,
             remainingAccountMetas,
-        } = packCompressedAccounts([], 1, outputStateTree);
-
+        } = packCompressedAccounts([], [], 1, outputStateTree);
+        const outputCompressedAccount = createOutputCompressedAccount(
+            toAddress,
+            outputStateMerkleTreeIndices[0],
+            lamports,
+        );
         /// Encode instruction data
         const rawInputs: InstructionDataInvoke = {
             proof: null,
-            inputRootIndices: [],
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
             inputCompressedAccountsWithMerkleContext:
                 packedInputCompressedAccounts,
             outputCompressedAccounts: [outputCompressedAccount],
-            outputStateMerkleTreeAccountIndices: Buffer.from(
-                new Uint8Array(outputStateMerkleTreeIndices),
-            ),
             relayFee: null,
             compressionLamports: lamports,
             isCompress: true,
@@ -405,10 +413,6 @@ export class LightSystemProgram {
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
-        const outputCompressedAccounts = this.createDecompressOutputState(
-            inputCompressedAccounts,
-            lamports,
-        );
 
         /// Pack accounts
         const {
@@ -417,22 +421,23 @@ export class LightSystemProgram {
             remainingAccountMetas,
         } = packCompressedAccounts(
             inputCompressedAccounts,
-            outputCompressedAccounts.length,
+            recentInputStateRootIndices,
+            1,
             outputStateTree,
         );
-
+        const outputCompressedAccounts = this.createDecompressOutputState(
+            inputCompressedAccounts,
+            lamports,
+            outputStateMerkleTreeIndices,
+        );
         /// Encode instruction data
         const data = this.program.coder.types.encode('InstructionDataInvoke', {
             proof: recentValidityProof,
-            inputRootIndices: recentInputStateRootIndices,
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
             inputCompressedAccountsWithMerkleContext:
                 packedInputCompressedAccounts,
             outputCompressedAccounts: outputCompressedAccounts,
-            outputStateMerkleTreeAccountIndices: Buffer.from(
-                new Uint8Array(outputStateMerkleTreeIndices),
-            ),
             relayFee: null,
             compressionLamports: lamports,
             isCompress: false,

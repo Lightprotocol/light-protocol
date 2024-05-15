@@ -14,6 +14,7 @@ use crate::{
     invoke::{processor::CompressedProof, sol_compression::COMPRESSED_SOL_PDA_SEED},
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
+    OutputCompressedAccountWithPackedContext,
 };
 
 pub fn get_compressed_sol_pda() -> Pubkey {
@@ -65,6 +66,7 @@ pub fn create_invoke_instruction(
                 nullifier_queue_pubkey_index: 0,
                 leaf_index: context.leaf_index,
             },
+            root_index: input_root_indices[i],
         });
     }
 
@@ -83,9 +85,13 @@ pub fn create_invoke_instruction(
             .unwrap() as u8;
     }
 
-    let mut output_state_merkle_tree_account_indices: Vec<u8> = Vec::<u8>::new();
+    let mut output_compressed_accounts_with_context: Vec<OutputCompressedAccountWithPackedContext> =
+        Vec::<OutputCompressedAccountWithPackedContext>::new();
 
-    for mt in output_compressed_account_merkle_tree_pubkeys.iter() {
+    for (i, mt) in output_compressed_account_merkle_tree_pubkeys
+        .iter()
+        .enumerate()
+    {
         match remaining_accounts.get(mt) {
             Some(_) => {}
             None => {
@@ -93,7 +99,11 @@ pub fn create_invoke_instruction(
                 index += 1;
             }
         };
-        output_state_merkle_tree_account_indices.push(*remaining_accounts.get(mt).unwrap() as u8);
+
+        output_compressed_accounts_with_context.push(OutputCompressedAccountWithPackedContext {
+            compressed_account: output_compressed_accounts[i].clone(),
+            merkle_tree_index: *remaining_accounts.get(mt).unwrap() as u8,
+        });
     }
 
     for (i, params) in new_address_params.iter().enumerate() {
@@ -136,9 +146,7 @@ pub fn create_invoke_instruction(
     let inputs_struct = InstructionDataInvoke {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: _input_compressed_accounts,
-        output_compressed_accounts: output_compressed_accounts.to_vec(),
-        output_state_merkle_tree_account_indices,
-        input_root_indices: input_root_indices.to_vec(),
+        output_compressed_accounts: output_compressed_accounts_with_context,
         proof,
         new_address_params: new_address_params_packed,
         compression_lamports,
@@ -209,7 +217,10 @@ mod test {
                 data: None,
             },
         ];
+        let merkle_tree_indices = vec![0, 2];
         let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+
         let nullifier_array_pubkey = Pubkey::new_unique();
         let input_merkle_context = vec![
             MerkleContext {
@@ -225,7 +236,7 @@ mod test {
         ];
 
         let output_compressed_account_merkle_tree_pubkeys =
-            vec![merkle_tree_pubkey, merkle_tree_pubkey];
+            vec![merkle_tree_pubkey, merkle_tree_pubkey_1];
         let input_root_indices = vec![0, 1];
         let proof = CompressedProof {
             a: [0u8; 32],
@@ -265,7 +276,13 @@ mod test {
             .iter()
             .enumerate()
             .for_each(|(i, compressed_account)| {
-                assert_eq!(output_compressed_accounts[i], *compressed_account);
+                assert_eq!(
+                    OutputCompressedAccountWithPackedContext {
+                        compressed_account: output_compressed_accounts[i].clone(),
+                        merkle_tree_index: merkle_tree_indices[i] as u8
+                    },
+                    *compressed_account
+                );
             });
         assert_eq!(
             deserialized_instruction_data
@@ -278,10 +295,6 @@ mod test {
                 .output_compressed_accounts
                 .len(),
             2
-        );
-        assert_eq!(
-            deserialized_instruction_data.input_root_indices,
-            input_root_indices
         );
         assert_eq!(
             deserialized_instruction_data.proof.clone().unwrap().a,
@@ -343,16 +356,14 @@ mod test {
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data
-                .output_state_merkle_tree_account_indices[0]
-                as usize],
+            instruction.accounts[9 + deserialized_instruction_data.output_compressed_accounts[0]
+                .merkle_tree_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data
-                .output_state_merkle_tree_account_indices[1]
-                as usize],
-            AccountMeta::new(merkle_tree_pubkey, false)
+            instruction.accounts[9 + deserialized_instruction_data.output_compressed_accounts[1]
+                .merkle_tree_index as usize],
+            AccountMeta::new(merkle_tree_pubkey_1, false)
         );
     }
 }

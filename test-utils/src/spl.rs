@@ -287,12 +287,18 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
             leaf_index,
         });
     }
+
     let mut output_compressed_accounts = Vec::new();
-    for (recipient, amount) in recipients.iter().zip(amounts) {
+    for ((recipient, amount), merkle_tree_pubkey) in recipients
+        .iter()
+        .zip(amounts)
+        .zip(output_merkle_tree_pubkeys)
+    {
         let account = TokenTransferOutputData {
             amount: *amount,
             owner: *recipient,
             lamports: None,
+            merkle_tree: *merkle_tree_pubkey,
         };
         sum_input_amounts -= amount;
         output_compressed_accounts.push(account);
@@ -303,6 +309,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
             amount: sum_input_amounts,
             owner: from.pubkey(),
             lamports: None,
+            merkle_tree: *output_merkle_tree_pubkeys.last().unwrap(),
         };
         output_compressed_accounts.push(account);
     }
@@ -325,7 +332,6 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
         &payer.pubkey(),
         &from.pubkey(), // authority
         &input_merkle_tree_context,
-        output_merkle_tree_pubkeys, // output_compressed_account_merkle_tree_pubkeys
         &output_compressed_accounts, // output_compressed_accounts
         &proof_rpc_result.root_indices,
         &Some(proof_rpc_result.proof),
@@ -407,6 +413,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         amount: max_amount - amount,
         owner: payer.pubkey(),
         lamports: None,
+        merkle_tree: *output_merkle_tree_pubkey,
     };
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
@@ -435,7 +442,6 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
-    let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     let instruction = create_transfer_instruction(
         &context.payer.pubkey(),
         &payer.pubkey(), // authority
@@ -443,7 +449,6 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
             .iter()
             .map(|x| x.compressed_account.merkle_context)
             .collect::<Vec<_>>(), // input_compressed_account_merkle_tree_pubkeys
-        &output_merkle_tree_pubkeys, // output_cmerkle_contextmerkle_tree_pubkeys
         &[change_out_compressed_account], // output_compressed_accounts
         &proof_rpc_result.root_indices, // root_indices
         &Some(proof_rpc_result.proof),
@@ -460,6 +465,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         Some(*recipient_token_account),  // decompress_token_account
     )
     .unwrap();
+    let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
     let input_merkle_tree_accounts =
@@ -545,6 +551,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
         amount,
         owner: payer.pubkey(),
         lamports: None,
+        merkle_tree: *output_merkle_tree_pubkey,
     };
     let approve_instruction = spl_token::instruction::approve(
         &anchor_spl::token::ID,
@@ -556,12 +563,10 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
     )
     .unwrap();
 
-    let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     let instruction = create_transfer_instruction(
         &context.payer.pubkey(),
         &payer.pubkey(),              // authority
         &Vec::new(),                  // input_compressed_account_merkle_tree_pubkeys
-        &output_merkle_tree_pubkeys,  // output_cmerkle_contextmerkle_tree_pubkeys
         &[output_compressed_account], // output_compressed_accounts
         &Vec::new(),                  // root_indices
         &None,
@@ -574,6 +579,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
         Some(*sender_token_account),    // decompress_token_account
     )
     .unwrap();
+    let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
     let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(

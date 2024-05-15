@@ -947,7 +947,6 @@ impl KeypairActionConfig {
 }
 
 // Configures probabilities for general actions
-// Default is all enabled, with 0.3, 0.1, 0.1 probabilities
 pub struct GeneralActionConfig {
     pub add_keypair: Option<f64>,
     pub create_state_mt: Option<f64>,
@@ -959,8 +958,8 @@ impl Default for GeneralActionConfig {
     fn default() -> Self {
         Self {
             add_keypair: Some(0.3),
-            create_state_mt: Some(0.0), // multiple state trees are not supported yet will be fixed in next pr
-            create_address_mt: Some(0.0), // multiple state trees are not supported yet will be fixed in next pr
+            create_state_mt: Some(1.0),
+            create_address_mt: Some(1.0),
             nullify_compressed_accounts: Some(0.1),
             empty_address_queue: Some(1.0),
         }

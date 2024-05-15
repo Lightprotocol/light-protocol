@@ -47,7 +47,7 @@ pub mod light_system_program {
     ) -> Result<()> {
         let inputs: InstructionDataInvoke =
             InstructionDataInvoke::deserialize(&mut inputs.as_slice())?;
-        inputs.check_input_lengths()?;
+
         input_compressed_accounts_signer_check(&inputs, &ctx.accounts.authority.key())?;
         process(inputs, None, ctx)
     }

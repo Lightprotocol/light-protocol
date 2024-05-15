@@ -20,7 +20,7 @@ use light_system_program::{
         },
         CompressedCpiContext,
     },
-    InstructionDataInvokeCpi,
+    InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
 
@@ -76,8 +76,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         .unwrap()
         .0;
 
-    let mut output_compressed_accounts =
-        vec![CompressedAccount::default(); inputs.output_compressed_accounts.len()];
+    let mut output_compressed_accounts = vec![
+        OutputCompressedAccountWithPackedContext::default();
+        inputs.output_compressed_accounts.len()
+    ];
     create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
@@ -90,18 +92,23 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         inputs
             .output_compressed_accounts
             .iter()
-            .map(|data: &TokenTransferOutputData| data.amount)
+            .map(|data: &PackedTokenTransferOutputData| data.amount)
             .collect::<Vec<u64>>()
             .as_slice(),
         Some(
             inputs
                 .output_compressed_accounts
                 .iter()
-                .map(|data: &TokenTransferOutputData| data.lamports)
+                .map(|data: &PackedTokenTransferOutputData| data.lamports)
                 .collect::<Vec<Option<u64>>>()
                 .as_slice(),
         ),
         &hashed_mint,
+        &inputs
+            .output_compressed_accounts
+            .iter()
+            .map(|data| data.merkle_tree_index)
+            .collect::<Vec<u8>>(),
     )?;
     bench_sbf_end!("t_create_output_compressed_accounts");
 
@@ -118,9 +125,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     cpi_execute_compressed_transaction_transfer(
         &ctx,
         compressed_input_accounts,
-        inputs.root_indices,
         &output_compressed_accounts,
-        inputs.output_state_merkle_tree_account_indices,
         inputs.proof,
         inputs.cpi_context,
     )?;
@@ -190,9 +195,7 @@ pub fn add_token_data_to_input_compressed_accounts(
 pub fn cpi_execute_compressed_transaction_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
     input_compressed_accounts_with_merkle_context: Vec<PackedCompressedAccountWithMerkleContext>,
-    input_root_indices: Vec<u16>,
-    output_compressed_accounts: &[CompressedAccount],
-    output_state_merkle_tree_account_indices: Vec<u8>,
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     proof: Option<CompressedProof>,
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
@@ -209,8 +212,6 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
         output_compressed_accounts: output_compressed_accounts.to_vec(),
-        input_root_indices,
-        output_state_merkle_tree_account_indices,
         proof,
         new_address_params: Vec::new(),
         compression_lamports: None,
@@ -328,6 +329,7 @@ pub struct InputTokenDataWithContext {
     pub delegated_amount: Option<u64>,
     pub is_native: Option<u64>,
     pub merkle_context: PackedMerkleContext,
+    pub root_index: u16,
 }
 
 /*
@@ -345,12 +347,14 @@ pub struct InputTokenDataWithContext {
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
     pub proof: Option<CompressedProof>,
-    pub root_indices: Vec<u16>,
+    // TODO: add root index to InputTokenDataWithContext
+    // pub root_indices: Vec<u16>,
     pub mint: Pubkey, // TODO: truncate mint pubkey offchain
     pub signer_is_delegate: bool,
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
-    pub output_compressed_accounts: Vec<TokenTransferOutputData>,
-    pub output_state_merkle_tree_account_indices: Vec<u8>,
+    pub output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
+    // TODO: add output state merkle tree account indices to output compressed accounts
+    // pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub is_compress: bool,
     pub compression_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
@@ -408,6 +412,7 @@ impl CompressedTokenInstructionDataTransfer {
                 PackedCompressedAccountWithMerkleContext {
                     compressed_account,
                     merkle_context: input_token_data.merkle_context,
+                    root_index: input_token_data.root_index,
                 },
             );
         }
@@ -419,10 +424,19 @@ impl CompressedTokenInstructionDataTransfer {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
+pub struct PackedTokenTransferOutputData {
+    pub owner: Pubkey,
+    pub amount: u64,
+    pub lamports: Option<u64>,
+    pub merkle_tree_index: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub struct TokenTransferOutputData {
     pub owner: Pubkey,
     pub amount: u64,
     pub lamports: Option<u64>,
+    pub merkle_tree: Pubkey,
 }
 
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
@@ -445,7 +459,8 @@ pub mod transfer_sdk {
     };
 
     use crate::{
-        token_data::TokenData, CompressedTokenInstructionDataTransfer, TokenTransferOutputData,
+        token_data::TokenData, CompressedTokenInstructionDataTransfer,
+        PackedTokenTransferOutputData, TokenTransferOutputData,
     };
     use anchor_lang::error_code;
 
@@ -462,7 +477,6 @@ pub mod transfer_sdk {
         fee_payer: &Pubkey,
         authority: &Pubkey,
         input_merkle_context: &[MerkleContext],
-        output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
         proof: &Option<CompressedProof>,
@@ -477,7 +491,6 @@ pub mod transfer_sdk {
         let (remaining_accounts, inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
             input_merkle_context,
-            output_compressed_account_merkle_tree_pubkeys,
             owner_if_delegate_is_signer,
             output_compressed_accounts,
             root_indices,
@@ -527,7 +540,6 @@ pub mod transfer_sdk {
     pub fn create_inputs_and_remaining_accounts_checked(
         input_token_data: &[TokenData],
         input_merkle_context: &[MerkleContext],
-        output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
@@ -557,7 +569,6 @@ pub mod transfer_sdk {
             create_inputs_and_remaining_accounts(
                 input_token_data,
                 input_merkle_context,
-                output_compressed_account_merkle_tree_pubkeys,
                 owner_if_delegate_is_signer,
                 output_compressed_accounts,
                 root_indices,
@@ -573,7 +584,6 @@ pub mod transfer_sdk {
     pub fn create_inputs_and_remaining_accounts(
         input_token_data: &[TokenData],
         input_merkle_context: &[MerkleContext],
-        output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
@@ -627,16 +637,17 @@ pub mod transfer_sdk {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: input_merkle_context[i].leaf_index,
                 },
+                root_index: root_indices[i],
             };
             input_token_data_with_context.push(token_data_with_context);
         }
-        let len: usize = remaining_accounts.len();
         for (i, _) in input_token_data.iter().enumerate() {
             match remaining_accounts.get(&input_merkle_context[i].nullifier_queue_pubkey) {
                 Some(_) => {}
                 None => {
                     remaining_accounts
-                        .insert(input_merkle_context[i].nullifier_queue_pubkey, i + len);
+                        .insert(input_merkle_context[i].nullifier_queue_pubkey, index);
+                    index += 1;
                 }
             };
             input_token_data_with_context[i]
@@ -645,30 +656,29 @@ pub mod transfer_sdk {
                 .get(&input_merkle_context[i].nullifier_queue_pubkey)
                 .unwrap() as u8;
         }
-        let len: usize = remaining_accounts.len();
-        let mut output_state_merkle_tree_account_indices: Vec<u8> =
-            vec![0u8; output_compressed_account_merkle_tree_pubkeys.len()];
-        for (i, mt) in output_compressed_account_merkle_tree_pubkeys
-            .iter()
-            .enumerate()
-        {
-            match remaining_accounts.get(mt) {
+        let mut _output_compressed_accounts: Vec<PackedTokenTransferOutputData> =
+            Vec::with_capacity(output_compressed_accounts.len());
+        for (i, mt) in output_compressed_accounts.iter().enumerate() {
+            match remaining_accounts.get(&mt.merkle_tree) {
                 Some(_) => {}
                 None => {
-                    remaining_accounts.insert(*mt, i + len);
+                    remaining_accounts.insert(mt.merkle_tree, index);
+                    index += 1;
                 }
             };
-            output_state_merkle_tree_account_indices[i] =
-                *remaining_accounts.get(mt).unwrap() as u8;
+            _output_compressed_accounts.push(PackedTokenTransferOutputData {
+                owner: output_compressed_accounts[i].owner,
+                amount: output_compressed_accounts[i].amount,
+                lamports: output_compressed_accounts[i].lamports,
+                merkle_tree_index: *remaining_accounts.get(&mt.merkle_tree).unwrap() as u8,
+            });
         }
 
         let inputs_struct = CompressedTokenInstructionDataTransfer {
-            output_compressed_accounts: output_compressed_accounts.to_vec(),
-            root_indices: root_indices.to_vec(),
+            output_compressed_accounts: _output_compressed_accounts.to_vec(),
             proof: proof.clone(),
             input_token_data_with_context,
             // TODO: support multiple output state merkle trees
-            output_state_merkle_tree_account_indices,
             signer_is_delegate: owner_if_delegate_is_signer.is_some(),
             mint,
             is_compress,

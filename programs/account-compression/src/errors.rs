@@ -58,4 +58,6 @@ pub enum AccountCompressionErrorCode {
     NotReadyForRollover,
     #[msg("RolloverNotConfigured")]
     RolloverNotConfigured,
+    #[msg("NotAllLeavesProcessed")]
+    NotAllLeavesProcessed,
 }

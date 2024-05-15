@@ -12,11 +12,8 @@ use light_verifier::{
 use crate::{
     errors::CompressedPdaError,
     invoke::InstructionDataInvoke,
-    sdk::{
-        accounts::InvokeAccounts,
-        compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    },
-    NewAddressParamsPacked,
+    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
 #[inline(never)]
@@ -40,7 +37,8 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
         let merkle_tree = merkle_tree.load()?;
         let fetched_roots = merkle_tree.load_roots()?;
 
-        roots[j] = fetched_roots[inputs.input_root_indices[j] as usize];
+        roots[j] = fetched_roots
+            [inputs.input_compressed_accounts_with_merkle_context[j].root_index as usize];
     }
     Ok(())
 }
@@ -147,18 +145,27 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             owner_pubkey = input_compressed_account_with_context
                 .compressed_account
                 .owner;
-            hashed_owner = match hashed_pubkeys
-                .iter()
-                .find(|x| x.0 == inputs.output_compressed_accounts[j].owner)
-            {
+            hashed_owner = match hashed_pubkeys.iter().find(|x| {
+                x.0 == inputs.output_compressed_accounts[j]
+                    .compressed_account
+                    .owner
+            }) {
                 Some(hashed_owner) => hashed_owner.1,
                 None => {
                     let hashed_owner = hash_to_bn254_field_size_be(
-                        &inputs.output_compressed_accounts[j].owner.to_bytes(),
+                        &inputs.output_compressed_accounts[j]
+                            .compressed_account
+                            .owner
+                            .to_bytes(),
                     )
                     .unwrap()
                     .0;
-                    hashed_pubkeys.push((inputs.output_compressed_accounts[j].owner, hashed_owner));
+                    hashed_pubkeys.push((
+                        inputs.output_compressed_accounts[j]
+                            .compressed_account
+                            .owner,
+                        hashed_owner,
+                    ));
                     hashed_owner
                 }
             };
@@ -206,7 +213,7 @@ pub fn verify_state_proof(
 #[heap_neutral]
 pub fn sum_check(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    output_compressed_account: &[CompressedAccount],
+    output_compressed_account: &[OutputCompressedAccountWithPackedContext],
     relay_fee: &Option<u64>,
     compression_lamports: &Option<u64>,
     is_compress: &bool,
@@ -238,7 +245,7 @@ pub fn sum_check(
 
     for compressed_account in output_compressed_account.iter() {
         sum = sum
-            .checked_sub(compressed_account.lamports)
+            .checked_sub(compressed_account.compressed_account.lamports)
             .ok_or(ProgramError::ArithmeticOverflow)
             .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
     }
@@ -259,7 +266,7 @@ pub fn sum_check(
 
 #[cfg(test)]
 mod test {
-    use crate::sdk::compressed_account::PackedMerkleContext;
+    use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
 
     use super::*;
 
@@ -280,6 +287,7 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
                 },
+                root_index: 1,
             },
             PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
@@ -293,15 +301,20 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 1,
                 },
+                root_index: 1,
             },
         ];
 
-        let output_compressed_account: Vec<CompressedAccount> = vec![CompressedAccount {
-            owner: Pubkey::new_unique(),
-            lamports: 150,
-            address: None,
-            data: None,
-        }];
+        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
+            vec![OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: Pubkey::new_unique(),
+                    lamports: 150,
+                    address: None,
+                    data: None,
+                },
+                merkle_tree_index: 0,
+            }];
 
         let relay_fee = None; // No RPC fee
 
@@ -332,6 +345,7 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
                 },
+                root_index: 1,
             },
             PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
@@ -345,15 +359,20 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 1,
                 },
+                root_index: 1,
             },
         ];
 
-        let output_compressed_account: Vec<CompressedAccount> = vec![CompressedAccount {
-            owner: Pubkey::new_unique(),
-            lamports: 150,
-            address: None,
-            data: None,
-        }];
+        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
+            vec![OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: Pubkey::new_unique(),
+                    lamports: 150,
+                    address: None,
+                    data: None,
+                },
+                merkle_tree_index: 0,
+            }];
 
         let relay_fee = None; // No RPC fee
 
@@ -400,6 +419,7 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
                 },
+                root_index: 1,
             },
             PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
@@ -413,15 +433,20 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 1,
                 },
+                root_index: 1,
             },
         ];
 
-        let output_compressed_account: Vec<CompressedAccount> = vec![CompressedAccount {
-            owner: Pubkey::new_unique(),
-            lamports: 100,
-            address: None,
-            data: None,
-        }];
+        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
+            vec![OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: Pubkey::new_unique(),
+                    lamports: 100,
+                    address: None,
+                    data: None,
+                },
+                merkle_tree_index: 0,
+            }];
 
         let relay_fee = None; // No RPC fee
 
@@ -469,6 +494,7 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 0,
                 },
+                root_index: 1,
             },
             PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
@@ -482,15 +508,20 @@ mod test {
                     nullifier_queue_pubkey_index: 0,
                     leaf_index: 1,
                 },
+                root_index: 1,
             },
         ];
 
-        let output_compressed_account: Vec<CompressedAccount> = vec![CompressedAccount {
-            owner: Pubkey::new_unique(),
-            lamports: 25,
-            address: None,
-            data: None,
-        }];
+        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
+            vec![OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: Pubkey::new_unique(),
+                    lamports: 25,
+                    address: None,
+                    data: None,
+                },
+                merkle_tree_index: 0,
+            }];
 
         let relay_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
 

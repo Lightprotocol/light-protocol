@@ -6,7 +6,10 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_system_program::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
+use light_system_program::{
+    sdk::compressed_account::{CompressedAccount, CompressedAccountData},
+    OutputCompressedAccountWithPackedContext,
+};
 use light_utils::hash_to_bn254_field_size_be;
 
 use std::mem;
@@ -94,8 +97,11 @@ pub fn process_mint_to<'info>(
                 .unwrap()
                 .0;
         bench_sbf_start!("tm_output_compressed_accounts");
-        let mut output_compressed_accounts =
-            vec![CompressedAccount::default(); compression_public_keys.len()];
+        let mut output_compressed_accounts = vec![
+            OutputCompressedAccountWithPackedContext::default(
+            );
+            compression_public_keys.len()
+        ];
         create_output_compressed_accounts(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
@@ -103,6 +109,7 @@ pub fn process_mint_to<'info>(
             &amounts,
             None,
             &hashed_mint,
+            &vec![0u8; amounts.len()],
         )?;
         bench_sbf_end!("tm_output_compressed_accounts");
 
@@ -118,12 +125,13 @@ pub fn process_mint_to<'info>(
 }
 
 pub fn create_output_compressed_accounts(
-    output_compressed_accounts: &mut [CompressedAccount],
+    output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
     mint_pubkey: Pubkey,
     pubkeys: &[Pubkey],
     amounts: &[u64],
     lamports: Option<&[Option<u64>]>,
     hashed_mint: &[u8; 32],
+    merkle_tree_indices: &[u8],
 ) -> Result<()> {
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
         // 1,147 CU
@@ -160,11 +168,14 @@ pub fn create_output_compressed_accounts(
         bench_sbf_end!("token_data_hash");
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
         // 1k CU
-        output_compressed_accounts[i] = CompressedAccount {
-            owner: crate::ID,
-            lamports,
-            data: Some(data),
-            address: None,
+        output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
+            compressed_account: CompressedAccount {
+                owner: crate::ID,
+                lamports,
+                data: Some(data),
+                address: None,
+            },
+            merkle_tree_index: merkle_tree_indices[i],
         };
 
         #[cfg(target_os = "solana")]
@@ -177,7 +188,7 @@ pub fn create_output_compressed_accounts(
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
-    output_compressed_accounts: Vec<CompressedAccount>,
+    output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
     signer_seeds: &[&[&[u8]]],
@@ -295,21 +306,19 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 #[inline(never)]
 pub fn serialize_mint_to_cpi_instruction_data(
     inputs: &mut Vec<u8>,
-    output_compressed_accounts: Vec<CompressedAccount>,
+    output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     seeds: &[&[&[u8]]],
 ) {
     let len = output_compressed_accounts.len();
     // proof (option None)
     inputs.extend_from_slice(&[0u8]);
-    // empty vecs: address_params, input_root_indices, input_compressed_accounts_with_merkle_context
-    inputs.extend_from_slice(&[0u8; 12]);
+    // empty vecs: address_params, (no) input_root_indices, input_compressed_accounts_with_merkle_context
+    inputs.extend_from_slice(&[0u8; 8]);
     inputs.extend_from_slice(&[(len as u8), 0, 0, 0]);
     // output_compressed_accounts
     for compressed_account in output_compressed_accounts.iter() {
         compressed_account.serialize(inputs).unwrap();
     }
-    inputs.extend_from_slice(&[(len as u8), 0, 0, 0]);
-    inputs.extend_from_slice(&vec![0u8; len]);
     // relay_fee and compression lamports, is compress bool
     inputs.extend_from_slice(&[0u8; 3]);
     // seeds
@@ -484,7 +493,8 @@ fn test_manual_ix_data_serialization_borsh_compat() {
     let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
     let amounts = vec![1, 2];
     let mint_pubkey = Pubkey::new_unique();
-    let mut output_compressed_accounts = vec![CompressedAccount::default(); pubkeys.len()];
+    let mut output_compressed_accounts =
+        vec![OutputCompressedAccountWithPackedContext::default(); pubkeys.len()];
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
         let mut token_data_bytes = Vec::with_capacity(mem::size_of::<TokenData>());
         let token_data = TokenData {
@@ -507,11 +517,14 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         };
         let lamports = 0;
 
-        output_compressed_accounts[i] = CompressedAccount {
-            owner: crate::ID,
-            lamports,
-            data: Some(data),
-            address: None,
+        output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
+            compressed_account: CompressedAccount {
+                owner: crate::ID,
+                lamports,
+                data: Some(data),
+                address: None,
+            },
+            merkle_tree_index: 0,
         };
     }
     let authority_bytes = Pubkey::new_unique().to_bytes();
@@ -523,13 +536,10 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         mint_bytes.as_slice(),
         bump,
     ];
-    let len = output_compressed_accounts.len();
     let inputs_struct = light_system_program::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
         output_compressed_accounts: output_compressed_accounts.clone(),
-        output_state_merkle_tree_account_indices: vec![0u8; len],
-        input_root_indices: Vec::with_capacity(0),
         proof: None,
         new_address_params: Vec::with_capacity(0),
         compression_lamports: None,

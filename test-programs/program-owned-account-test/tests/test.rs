@@ -438,7 +438,6 @@ pub async fn perform_invalidate_not_owned_compressed_account(
     let create_ix_inputs = InvalidateNotOwnedCompressedAccountInstructionInputs {
         signer: &payer_pubkey,
         input_merkle_tree_pubkey: &env.merkle_tree_pubkey,
-        root_indices: &rpc_result.root_indices,
         proof: &rpc_result.proof,
         compressed_account: &PackedCompressedAccountWithMerkleContext {
             compressed_account: compressed_account.compressed_account.clone(),
@@ -447,6 +446,7 @@ pub async fn perform_invalidate_not_owned_compressed_account(
                 merkle_tree_pubkey_index: 0,
                 nullifier_queue_pubkey_index: 1,
             },
+            root_index: rpc_result.root_indices[0],
         },
     };
     let instruction = create_invalidate_not_owned_account_instruction(create_ix_inputs.clone());

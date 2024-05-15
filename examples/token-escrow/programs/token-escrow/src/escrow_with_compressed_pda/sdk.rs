@@ -9,7 +9,7 @@ use light_compressed_token::{
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
-        address::pack_new_address_params,
+        address::{add_and_get_remaining_account_indices, pack_new_address_params},
         compressed_account::{pack_merkle_context, MerkleContext},
         CompressedCpiContext,
     },
@@ -40,7 +40,6 @@ pub fn create_escrow_instruction(
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_merkle_context,
-        input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
@@ -51,6 +50,12 @@ pub fn create_escrow_instruction(
         None,
     )
     .unwrap();
+
+    let merkle_tree_indices = add_and_get_remaining_account_indices(
+        input_params.output_compressed_account_merkle_tree_pubkeys,
+        &mut remaining_accounts,
+    );
+
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
     let cpi_context_account_index: u8 =
@@ -68,11 +73,10 @@ pub fn create_escrow_instruction(
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
         proof: input_params.proof.clone().unwrap(),
-        root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
+        output_state_merkle_tree_account_indices: merkle_tree_indices,
         new_address_params: new_address_params[0],
         cpi_context: CompressedCpiContext {
             set_context: false,
@@ -146,7 +150,6 @@ pub fn create_withdrawal_instruction(
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         &[input_params.input_token_escrow_merkle_context],
-        input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
@@ -157,6 +160,12 @@ pub fn create_withdrawal_instruction(
         None,
     )
     .unwrap();
+
+    let merkle_tree_indices = add_and_get_remaining_account_indices(
+        input_params.output_compressed_account_merkle_tree_pubkeys,
+        &mut remaining_accounts,
+    );
+
     let merkle_context_packed = pack_merkle_context(
         &[
             input_params.input_cpda_merkle_context,
@@ -184,14 +193,14 @@ pub fn create_withdrawal_instruction(
         new_lock_up_time: input_params.new_lock_up_time,
         address: input_params.address,
         merkle_context: merkle_context_packed[0],
+        root_index: input_params.root_indices[0],
     };
     let instruction_data = crate::instruction::WithdrawCompressedTokensWithCompressedPda {
         proof: input_params.proof.clone().unwrap(),
-        root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
+        output_state_merkle_tree_account_indices: merkle_tree_indices,
         cpi_context,
         input_compressed_pda,
         withdrawal_amount,

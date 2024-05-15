@@ -482,13 +482,14 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             let address_tree = &self
                 .address_merkle_trees
                 .iter()
-                .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[0])
+                .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[i])
                 .unwrap();
             let proof_inputs = get_non_inclusion_proof_inputs(
                 address,
                 &address_tree.merkle_tree,
                 &address_tree.indexed_array,
             );
+            println!("proof_inputs {:?}", proof_inputs);
             non_inclusion_proofs.push(proof_inputs);
             let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
                 context,
@@ -574,7 +575,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                 .find(|x| {
                     x.accounts.merkle_tree
                         == event.pubkey_array
-                            [event.output_state_merkle_tree_account_indices[i] as usize]
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
                 })
                 .unwrap()
                 .accounts
@@ -582,20 +583,23 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             // if data is some, try to deserialize token data, if it fails, add to compressed_accounts
             // if data is none add to compressed_accounts
             // new accounts are inserted in front so that the newest accounts are found first
-            match compressed_account.data.as_ref() {
+            match compressed_account.compressed_account.data.as_ref() {
                 Some(data) => {
-                    if compressed_account.owner == light_compressed_token::ID
+                    if compressed_account.compressed_account.owner == light_compressed_token::ID
                         && data.discriminator == TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
                             let token_account = TokenDataWithContext {
                                 token_data,
                                 compressed_account: CompressedAccountWithMerkleContext {
-                                    compressed_account: compressed_account.clone(),
+                                    compressed_account: compressed_account
+                                        .compressed_account
+                                        .clone(),
                                     merkle_context: MerkleContext {
                                         leaf_index: event.output_leaf_indices[i],
                                         merkle_tree_pubkey: event.pubkey_array[event
-                                            .output_state_merkle_tree_account_indices[i]
+                                            .output_compressed_accounts[i]
+                                            .merkle_tree_index
                                             as usize],
                                         nullifier_queue_pubkey,
                                     },
@@ -606,11 +610,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                         }
                     } else {
                         let compressed_account = CompressedAccountWithMerkleContext {
-                            compressed_account: compressed_account.clone(),
+                            compressed_account: compressed_account.compressed_account.clone(),
                             merkle_context: MerkleContext {
                                 leaf_index: event.output_leaf_indices[i],
-                                merkle_tree_pubkey: event.pubkey_array
-                                    [event.output_state_merkle_tree_account_indices[i] as usize],
+                                merkle_tree_pubkey: event.pubkey_array[event
+                                    .output_compressed_accounts[i]
+                                    .merkle_tree_index
+                                    as usize],
                                 nullifier_queue_pubkey,
                             },
                         };
@@ -620,11 +626,11 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                 }
                 None => {
                     let compressed_account = CompressedAccountWithMerkleContext {
-                        compressed_account: compressed_account.clone(),
+                        compressed_account: compressed_account.compressed_account.clone(),
                         merkle_context: MerkleContext {
                             leaf_index: event.output_leaf_indices[i],
                             merkle_tree_pubkey: event.pubkey_array
-                                [event.output_state_merkle_tree_account_indices[i] as usize],
+                                [event.output_compressed_accounts[i].merkle_tree_index as usize],
                             nullifier_queue_pubkey,
                         },
                     };
@@ -638,16 +644,17 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                 .find(|x| {
                     x.accounts.merkle_tree
                         == event.pubkey_array
-                            [event.output_state_merkle_tree_account_indices[i] as usize]
+                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
                 })
                 .unwrap()
                 .merkle_tree;
             merkle_tree
                 .append(
                     &compressed_account
+                        .compressed_account
                         .hash::<Poseidon>(
                             &event.pubkey_array
-                                [event.output_state_merkle_tree_account_indices[i] as usize],
+                                [event.output_compressed_accounts[i].merkle_tree_index as usize],
                             &event.output_leaf_indices[i],
                         )
                         .unwrap(),

@@ -76,6 +76,7 @@ export function padOutputStateMerkleTrees(
  **/
 export function packCompressedAccounts(
     inputCompressedAccounts: CompressedAccountWithMerkleContext[],
+    rootIndices: number[],
     numberOfOutputCompressedAccounts: number,
     outputStateMerkleTrees?: PublicKey[] | PublicKey,
     remainingAccounts: PublicKey[] = [],
@@ -90,7 +91,7 @@ export function packCompressedAccounts(
         [];
 
     /// input
-    inputCompressedAccounts.forEach(account => {
+    inputCompressedAccounts.forEach((account, index) => {
         const merkleTreePubkeyIndex = getIndexOrAdd(
             _remainingAccounts,
             account.merkleTree,
@@ -113,6 +114,7 @@ export function packCompressedAccounts(
                 nullifierQueuePubkeyIndex,
                 leafIndex: account.leafIndex,
             },
+            rootIndex: rootIndices[index],
         });
     });
 

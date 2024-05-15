@@ -9,7 +9,8 @@ use light_compressed_token::{
     TokenTransferOutputData,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+    invoke::processor::CompressedProof,
+    sdk::{address::add_and_get_remaining_account_indices, compressed_account::MerkleContext},
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -39,10 +40,9 @@ pub fn create_escrow_instruction(
     let token_owner_pda = get_token_owner_pda(input_params.signer);
     let timelock_pda = get_timelock_pda(input_params.signer);
     // TODO: separate the creation of inputs and remaining accounts
-    let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
+    let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_merkle_context,
-        input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
@@ -54,15 +54,19 @@ pub fn create_escrow_instruction(
     )
     .unwrap();
 
+    let merkle_tree_indices = add_and_get_remaining_account_indices(
+        input_params.output_compressed_account_merkle_tree_pubkeys,
+        &mut remaining_accounts,
+    );
+
     let instruction_data = crate::instruction::EscrowCompressedTokensWithPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
         proof: input_params.proof.clone().unwrap(),
-        root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
+        output_state_merkle_tree_account_indices: merkle_tree_indices,
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -105,10 +109,9 @@ pub fn create_withdrawal_escrow_instruction(
     // Token transactions with an invalid signer will just fail with invalid proof verification.
     // Thus, it's recommented to use create_inputs_and_remaining_accounts_checked, which returns a descriptive error in case of a wrong signer.
     // We use unchecked here to perform a failing test with an invalid signer.
-    let (remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
+    let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
         input_params.input_token_data,
         input_params.input_merkle_context,
-        input_params.output_compressed_account_merkle_tree_pubkeys,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
@@ -118,15 +121,19 @@ pub fn create_withdrawal_escrow_instruction(
         None,
     );
 
+    let merkle_tree_indices = add_and_get_remaining_account_indices(
+        input_params.output_compressed_account_merkle_tree_pubkeys,
+        &mut remaining_accounts,
+    );
+
     let instruction_data = crate::instruction::WithdrawCompressedEscrowTokensWithPda {
         bump: token_owner_pda.1,
         withdrawal_amount,
         proof: input_params.proof.clone().unwrap(),
-        root_indices: input_params.root_indices.to_vec(),
         mint: *input_params.mint,
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
+        output_state_merkle_tree_account_indices: merkle_tree_indices,
     };
 
     let registered_program_pda = Pubkey::find_program_address(
