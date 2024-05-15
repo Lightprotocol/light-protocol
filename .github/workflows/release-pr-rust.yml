@@ -92,6 +92,12 @@ jobs:
           branch: "bump-all-rust"
           labels: "version bump"
 
+      - name: Checkout the PR branch
+        if: inputs.crate == 'all'
+        uses: actions/checkout@v4
+        with:
+          ref: "bump-all-rust"
+
       - name: Create pull request for crate
         if: inputs.crate != 'all'
         uses: peter-evans/create-pull-request@v6
@@ -102,6 +108,12 @@ jobs:
           title: ${{ env.COMMIT_MESSAGE }}
           branch: "bump-${{ inputs.crate }}"
           labels: "version bump"
+
+      - name: Checkout the PR branch for specific crate
+        if: inputs.crate != 'all'
+        uses: actions/checkout@v4
+        with:
+          ref: "bump-${{ inputs.crate }}"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2.4.0
