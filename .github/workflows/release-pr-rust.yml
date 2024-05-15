@@ -112,7 +112,7 @@ jobs:
       - name: Setup and build nocheck
         uses: ./.github/actions/setup-and-build-nocheck
 
-      - name: Commit any IDL changes
+      - name: Commit IDL and other changes
         run: |
           git config user.name "GitHub Actions"
           git config user.email "github-actions@github.com"
@@ -122,5 +122,5 @@ jobs:
           else
             git commit -m "Include IDL and other changes post build"
             BRANCH_NAME="${{ github.event.inputs.crate == 'all' ? 'bump-all-rust' : 'bump-${{ github.event.inputs.crate }}' }}"
-            git push origin $BRANCH_NAME
+            git push origin "$BRANCH_NAME"
           fi
