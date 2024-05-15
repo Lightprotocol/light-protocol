@@ -1,6 +1,6 @@
 [package]
 name = "light-test-utils"
-version = "0.1.2"
+version = "0.1.3"
 description = "Utilities used in Light Protocol program tests"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -13,26 +13,26 @@ default = []
 anchor-lang = "0.29.0"
 anyhow = "1.0"
 ark-ff = "0.4"
-light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.2" }
+light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.3" }
 num-bigint = "0.4"
 num-traits = "0.2"
 solana-program-test = "1.18.11"
 solana-sdk = "1.18.11"
 thiserror = "1.0"
-light-macros = { path = "../macros/light", version = "0.3.3" }
-account-compression = { path = "../programs/account-compression", version = "0.3.3", features = ["cpi"] }
-light-compressed-token = { path = "../programs/compressed-token", version = "0.3.2", features = ["cpi"] }
-light-system-program = { path = "../programs/system", version = "0.3.2", features = ["cpi"] }
-light-registry = { path = "../programs/registry", version = "0.3.2", features = ["cpi"] }
+light-macros = { path = "../macros/light", version = "0.3.4" }
+account-compression = { path = "../programs/account-compression", version = "0.3.4", features = ["cpi"] }
+light-compressed-token = { path = "../programs/compressed-token", version = "0.3.3", features = ["cpi"] }
+light-system-program = { path = "../programs/system", version = "0.3.3", features = ["cpi"] }
+light-registry = { path = "../programs/registry", version = "0.3.3", features = ["cpi"] }
 spl-token = { version="3.5.0", features = ["no-entrypoint"] }
 tokio = "1.36"
-light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.2" }
+light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.3" }
 reqwest = "0.11.26"
-light-hasher = { version = "0.1.2", path = "../merkle-tree/hasher" }
-light-merkle-tree-reference = { version = "0.1.2", path = "../merkle-tree/reference" }
+light-hasher = { version = "0.1.3", path = "../merkle-tree/hasher" }
+light-merkle-tree-reference = { version = "0.1.3", path = "../merkle-tree/reference" }
 anchor-spl = "0.29.0"
-light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.1.2" }
-light-verifier = { path = "../circuit-lib/verifier", version = "0.1.2" }
+light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.1.3" }
+light-verifier = { path = "../circuit-lib/verifier", version = "0.1.3" }
 
 [dev-dependencies]
 rand = "0.8"
