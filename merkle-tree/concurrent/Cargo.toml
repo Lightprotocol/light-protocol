@@ -17,7 +17,7 @@ solana = [
 [dependencies]
 borsh = "0.10"
 bytemuck = "1.14"
-light-bounded-vec = { path = "../bounded-vec", version = "0.1.1" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.1.2" }
 light-hasher = { path = "../hasher", version = "0.1.1" }
 memoffset = "0.8"
 solana-program = { version = "1.18.11", optional = true }

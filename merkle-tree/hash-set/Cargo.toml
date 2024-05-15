@@ -10,7 +10,7 @@ edition = "2021"
 solana = ["solana-program"]
 
 [dependencies]
-light-bounded-vec = { path = "../bounded-vec", version = "0.1.1" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.1.2" }
 light-utils = { path = "../../utils", version = "0.1.1" }
 memoffset = "0.9"
 num-bigint = "0.4"
