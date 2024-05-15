@@ -9,22 +9,23 @@ on:
         options:
           - all
           - aligned-sized
-          - light-bounded-vec
-          - light-circuitlib-rs
-          - light-concurrent-merkle-tree
-          - light-hash-set
-          - light-hasher
-          - light-indexed-merkle-tree
-          - light-macros
-          - light-merkle-tree-event
-          - light-merkle-tree-reference
-          - light-registry
-          - light-test-utils
+          - light-heap
           - light-utils
-          - light-wasm-hasher
+          - light-bounded-vec
+          - light-hasher
+          - light-macros
+          - light-hash-set
+          - light-merkle-tree-reference
+          - light-concurrent-merkle-tree
+          - light-indexed-merkle-tree
+          - light-circuitlib-rs
+          - light-verifier
           - account-compression
+          - light-registry
           - light-system-program
           - light-compressed-token
+          - light-test-utils
+          - light-wasm-hasher
       version:
         description: Version to release
         required: true
@@ -71,11 +72,8 @@ jobs:
       - name: Bump all crate versions
         if: inputs.crate == 'all'
         run: |
-          for PACKAGE in $(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] .name'); do
-            cargo release --package "$PACKAGE" --execute --no-confirm "${{ inputs.version }}"
-            echo "Waiting for 60 seconds to avoid rate limiting..."
-            sleep 60  # Wait for 60 seconds before processing the next crate
-          done
+          cargo release version --execute --no-confirm \
+            "${{ inputs.version }}"
 
       - name: Bump crate version
         if: inputs.crate != 'all'
