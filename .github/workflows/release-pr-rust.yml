@@ -68,9 +68,6 @@ jobs:
           cp cargo-release "$HOME"/.cargo/bin
           popd
 
-      - name: Install jq
-        run: apt-get update && apt-get install -y jq
-
       - name: Bump all crate versions
         if: inputs.crate == 'all'
         run: |
