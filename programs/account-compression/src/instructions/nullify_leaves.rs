@@ -11,7 +11,7 @@ use crate::{
         nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
     },
     state::StateMerkleTreeAccount,
-    Nullifier, NullifyEvent, NullifyEventV1, RegisteredProgram,
+    NullifyEvent, NullifyEventV1, NullifyEvents, RegisteredProgram,
 };
 
 #[derive(Accounts)]
@@ -42,7 +42,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         let array_account = ctx.accounts.nullifier_queue.load()?;
         if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
             msg!(
-            "Nullifier queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
+            "NullifyEvents queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
             array_account.associated_merkle_tree,
             ctx.accounts.merkle_tree.key(),
         );
@@ -155,7 +155,7 @@ fn insert_nullifier(
             .map_err(ProgramError::from)?;
     }
 
-    let nullify_event = Nullifier { nullifiers };
+    let nullify_event = NullifyEvents { nullifiers };
     emit_indexer_event(
         nullify_event.try_to_vec()?,
         &ctx.accounts.log_wrapper,
