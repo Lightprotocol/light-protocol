@@ -121,6 +121,10 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Include IDL and other changes post build"
-            BRANCH_NAME="${{ github.event.inputs.crate == 'all' ? 'bump-all-rust' : 'bump-${{ github.event.inputs.crate }}' }}"
+            if [ "${{ github.event.inputs.crate }}" == "all" ]; then
+              BRANCH_NAME="bump-all-rust"
+            else
+              BRANCH_NAME="bump-${{ github.event.inputs.crate }}"
+            fi
             git push origin "$BRANCH_NAME"
           fi
