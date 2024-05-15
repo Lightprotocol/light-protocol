@@ -4,7 +4,9 @@
   "license": "GPL-3.0",
   "scripts": {
     "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
-    "test-all": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify",
+    "test-10-10-10-sync": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify && pnpm transfer-sync && pnpm nullify && pnpm transfer-sync && pnpm nullify",
+    "test-10-10-10-async": "pnpm restart-validator && pnpm transfer-10 && pnpm nullify && pnpm transfer-10 && pnpm nullify && pnpm transfer-10 && pnpm nullify",
+    "test-1000-1000-async": "pnpm restart-validator && pnpm transfer && sleep 120 && pnpm nullify && sleep 120 && pnpm transfer && sleep 120 && pnpm nullify",
     "restart-db": "docker compose down -v && docker compose up -d",
     "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
     "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
@@ -18,6 +20,7 @@
     "reindex": "RUST_MIN_STACK=8388608 cargo run --release -- index",
     "dump-accounts": "./scripts/dump.sh",
     "transfer": "ts-node ./scripts/generate.ts",
+    "transfer-10": "ts-node ./scripts/generate_10.ts",
     "transfer-sync": "ts-node ./scripts/generate_sync.ts",
     "get-queue": "ts-node ./scripts/get_queue.ts",
     "tnt": "pnpm start-validator && pnpm transfer-sync && pnpm queue-info && pnpm nullify && pnpm queue-info && pnpm transfer-sync"

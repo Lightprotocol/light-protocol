@@ -46,6 +46,7 @@ export async function transfer(
     const compressedAccounts = await rpc.getCompressedAccountsByOwner(
         owner.publicKey,
     );
+    console.log('compressedAccounts', compressedAccounts);
 
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
         compressedAccounts,
@@ -62,6 +63,7 @@ export async function transfer(
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
     );
+    console.log('proof', proof);
 
     const ix = await LightSystemProgram.transfer({
         payer: payer.publicKey,
