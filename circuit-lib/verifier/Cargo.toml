@@ -1,6 +1,6 @@
 [package]
 name = "light-verifier"
-version = "0.1.3"
+version = "0.1.4"
 description = "ZKP proof verifier used in Light Protocol"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -18,4 +18,4 @@ solana-program = { version = "1.18.11", optional = true }
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["rt", "macros"] }
 reqwest = {  version = "0.11.24", features = ["json", "rustls-tls"]  }
-light-circuitlib-rs = { path = "../circuitlib-rs", version = "0.1.3" }
+light-circuitlib-rs = { path = "../circuitlib-rs", version = "0.1.4" }
