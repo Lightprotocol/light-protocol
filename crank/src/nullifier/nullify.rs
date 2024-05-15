@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 use crate::errors::CrankError;
-use crate::indexer::get_compressed_account_proof;
+use crate::indexer::{get_compressed_account_proof, get_multiple_compressed_account_proofs};
 use account_compression::processor::initialize_nullifier_queue::NullifierQueueAccount;
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::AccountDeserialize;
@@ -10,9 +11,11 @@ use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use std::mem;
 use std::sync::Arc;
-use tokio::sync::Semaphore;
+use tokio::signal;
+use tokio::sync::{Mutex, Semaphore};
+use crate::indexer::client::decode_hash;
 
-const CONCURRENCY_LIMIT: usize = 10;
+const CONCURRENCY_LIMIT: usize = 50;
 pub async fn nullify(
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
@@ -20,14 +23,19 @@ pub async fn nullify(
     server_url: String,
 ) -> Result<(), CrankError> {
     let semaphore = Arc::new(Semaphore::new(CONCURRENCY_LIMIT));
+    let successful_nullifications = Arc::new(Mutex::new(0));
 
-    // This provides the starting point for the onchain merkle tree to start looking at changelogs
-    // to patch the proof. If the changelog index is greater than the indexers Merkle tree state
-    // some changelogs that might be required to fix the proof will not be used and the proof might
-    // not be patched and verification fail.
-    // The changelog index needs to be in sync with the indexer Merkle tree.
-    // indexer Merkle tree next index with onchain Merkle tree next index -> diff
-    // change_log_index - diff
+    // Handle termination signal
+    let _terminate_handle = {
+        let successful_nullifications = Arc::clone(&successful_nullifications);
+        tokio::spawn(async move {
+            while let _ = signal::unix::signal(signal::unix::SignalKind::interrupt()).unwrap().recv().await {
+                // Print the number of successful nullifications when we receive a SIGINT (ctrl-c)
+                let successful_nullifications = successful_nullifications.lock().await;
+                println!("Successful nullifications: {}", *successful_nullifications);
+            }
+        })
+    };
     let (change_log_index, sequence_number) = {
         let temporary_client = RpcClient::new(&server_url);
         get_changelog_index(merkle_tree_pubkey, &temporary_client)?
@@ -37,56 +45,85 @@ pub async fn nullify(
         get_nullifier_queue(nullifier_queue_pubkey, &temporary_client)?
     };
 
+    let mut compressed_account_list = Vec::new();
+    for (_index_in_nullifier_queue, compressed_account) in &compressed_accounts_to_nullify {
+        compressed_account_list.push(bs58::encode(compressed_account).into_string());
+    }
+
+    let mut compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, i64)> = HashMap::new();
+    match get_multiple_compressed_account_proofs(compressed_account_list).await {
+        Ok(response) => {
+            match response.result {
+                None => {
+                    println!("No proofs found");
+                }
+                Some(result) => {
+                    for item in result.value { // Iterate over the value field
+                        let mut proof_result_value = item.proof.clone();
+                        proof_result_value.truncate(proof_result_value.len() - 1); // Remove root
+                        proof_result_value.truncate(proof_result_value.len() - 10); // Remove canopy
+                        let proof: Vec<[u8; 32]> = proof_result_value.iter().map(|x| decode_hash(x)).collect();
+                        compressed_account_proofs.insert(item.hash.clone(), (proof, item.leaf_index as u64, item.root_seq));
+                    }
+                }
+            }
+
+        }
+        Err(e) => {
+            println!("Cannot get multiple proofs: {:#?}", e);
+            return Err(CrankError::Custom("Cannot get multiple proofs".to_string()));
+        }
+    }
+
     let mut tasks = vec![];
 
     while !compressed_accounts_to_nullify.is_empty() {
         let permit = Arc::clone(&semaphore).acquire_owned().await;
+        let successful_nullifications = Arc::clone(&successful_nullifications);
+
         let (index_in_nullifier_queue, compressed_account) = compressed_accounts_to_nullify.remove(0);
         let c_payer_keypair = payer_keypair.clone();
-        let clone_nullifier_queue_pubkey = *nullifier_queue_pubkey; // Cloning
-        let clone_merkle_tree_pubkey = *merkle_tree_pubkey; // Cloning
-        let clone_server_url = server_url.clone(); // Cloning
-        // nullify_compressed_account being spawned in a separate task concurrently
-        let task = tokio::spawn(async move {
-            let _permit = permit;
-            let client = RpcClient::new(&clone_server_url);
-            let mut retries = 5;
-            while retries > 0 {
-                match nullify_compressed_account(
-                    index_in_nullifier_queue,
-                    &compressed_account,
-                    change_log_index,
-                    sequence_number as i64,
-                    &clone_nullifier_queue_pubkey,
-                    &clone_merkle_tree_pubkey,
-                    c_payer_keypair.clone(),
-                    &client,
-                )
-                    .await
-                {
-                    Ok(_) => {
-                        break;
-                    }
-                    Err(e) => {
-                        retries -= 1;
-                        println!("Error: {}", e);
-                        println!("Retrying nullify compressed account, retries left: {}", retries);
-                    }
-                }
-            }
-        });
-        tasks.push(task);
-    }
+        let clone_nullifier_queue_pubkey = *nullifier_queue_pubkey;
+        let clone_merkle_tree_pubkey = *merkle_tree_pubkey;
+        let clone_server_url = server_url.clone();
 
-    // Wait for all tasks to complete
-    for task in tasks {
-        match task.await {
-            Ok(_) => {}
-            Err(e) => {
-                println!("Task ended with error {}", e);
-            }
+        let account_key = bs58::encode(compressed_account).into_string();
+        if let Some((proof, leaf_index, root_seq)) = compressed_account_proofs.remove(&account_key) {
+                let proof_clone = proof.clone();
+                let client = RpcClient::new(&clone_server_url);
+                let task = tokio::spawn(async move {
+                    let _permit = permit;
+                    if nullify_compressed_account(
+                        index_in_nullifier_queue,
+                        &compressed_account,
+                        change_log_index,
+                        sequence_number as i64,
+                        proof_clone, // Use the cloned proof
+                        leaf_index,
+                        root_seq,
+                        &clone_nullifier_queue_pubkey,
+                        &clone_merkle_tree_pubkey,
+                        c_payer_keypair.clone(),
+                        &client,
+                    ).await.is_ok() {
+                        let mut successful_nullifications = successful_nullifications.lock().await;
+                        *successful_nullifications += 1;
+                    }
+                });
+                tasks.push(task);
+        }  else {
+            return Err(CrankError::Custom("No proof found for provided hash".to_string()));
         }
     }
+
+    for task in tasks {
+        if let Err(e) = task.await {
+            println!("Task ended with error {}", e);
+        }
+    }
+
+    let successful_nullifications = successful_nullifications.lock().await;
+    println!("Successful nullifications: {}", *successful_nullifications);
 
     Ok(())
 }
@@ -96,6 +133,9 @@ pub async fn nullify_compressed_account(
     compressed_account: &[u8],
     change_log_index: usize,
     sequence_number: i64,
+    proof: Vec<[u8; 32]>,
+    leaf_index: u64,
+    root_seq: i64,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     payer_keypair: Arc<Keypair>,
@@ -115,7 +155,7 @@ pub async fn nullify_compressed_account(
         account
     );
 
-    let (proof, leaf_index, root_seq) = get_compressed_account_proof(&account).await?;
+    // let (proof, leaf_index, root_seq) = get_compressed_account_proof(&account).await?;
 
     // root sequence is current the same as sequence number
     let diff = root_seq - sequence_number;
