@@ -9,13 +9,10 @@ command -v git >/dev/null 2>&1 || { echo >&2 "Git is not installed. Aborting."; 
 command -v gh >/dev/null 2>&1 || { echo >&2 "GitHub CLI is not installed. Aborting."; exit 1; }
 echo "Tagging and releasing all Rust projects..."
 
-# Log in to crates.io
 echo "Logging in to crates.io..."
 cargo login "${CRATES_IO_TOKEN}"
-# Combined tag and release process
-# PACKAGES=(""aligned-sized" "light-heap" "light-utils" light-bounded-vec" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-circuitlib-rs" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")
-# PACKAGES=("light-bounded-vec" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-circuitlib-rs" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")
-PACKAGES=("light-compressed-token" "light-test-utils")
+# TODO: allow dynamic releases, and add gh release workflow
+PACKAGES=(""aligned-sized" "light-heap" "light-utils" light-bounded-vec" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-circuitlib-rs" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")
 for PACKAGE in "${PACKAGES[@]}"; do
     PKG_VERSION=$(cargo pkgid -p "$PACKAGE" | cut -d "#" -f2)
     VERSION=${PKG_VERSION#*@}
@@ -30,14 +27,3 @@ for PACKAGE in "${PACKAGES[@]}"; do
     echo "Sleeping for 60 seconds to handle rate limits..."
     sleep 60
 done
-
-# # Create a GitHub release
-# echo "Creating GitHub release..."
-# TAG_NAME="release-$(date +%Y-%m-%d)"  # Customize your tag name
-# RELEASE_TITLE="Release on $(date +%Y-%m-%d)"
-# RELEASE_NOTES="Released all Rust packages"
-
-# # Using GitHub CLI to create a release
-# gh release create "$TAG_NAME" --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES"
-
-# echo "Release process completed."
