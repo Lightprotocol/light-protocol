@@ -16,7 +16,7 @@ default = ["gnark"]
 light-merkle-tree-reference = { path = "../../merkle-tree/reference", version = "0.1.1" }
 light-hasher = { path = "../../merkle-tree/hasher", version = "0.1.1" }
 light-indexed-merkle-tree = { path = "../../merkle-tree/indexed", version = "0.1.1" }
-light-utils = { path = "../../utils", version = "0.1.1" }
+light-utils = { path = "../../utils", version = "0.2.0" }
 # ark dependencies
 ark-serialize = "0.4.2"
 ark-ec = "0.4.2"
