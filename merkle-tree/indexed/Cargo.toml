@@ -15,7 +15,7 @@ solana = [
 [dependencies]
 ark-ff = "0.4"
 borsh = { version = "0.10" }
-light-bounded-vec = { path = "../bounded-vec", version = "0.1.1" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.2.0" }
 light-hasher = { path = "../hasher", version = "0.1.1" }
 light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.1" }
 light-merkle-tree-reference = { path = "../reference", version = "0.1.1" }
