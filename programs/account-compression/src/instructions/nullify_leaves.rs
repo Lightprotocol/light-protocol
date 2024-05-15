@@ -11,7 +11,7 @@ use crate::{
         nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
     },
     state::StateMerkleTreeAccount,
-    RegisteredProgram,
+    NullifyEvent, NullifyEventV1, NullifyEvents, RegisteredProgram,
 };
 
 #[derive(Accounts)]
@@ -42,7 +42,7 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
         let array_account = ctx.accounts.nullifier_queue.load()?;
         if array_account.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
             msg!(
-            "Nullifier queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
+            "NullifyEvents queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
             array_account.associated_merkle_tree,
             ctx.accounts.merkle_tree.key(),
         );
@@ -115,6 +115,8 @@ fn insert_nullifier(
     }
 
     let mut changelogs: Vec<ChangelogEvent> = Vec::with_capacity(leaves_queue_indices.len());
+    let mut nullifiers: Vec<NullifyEvent> = Vec::with_capacity(leaves_queue_indices.len());
+
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
         let leaf_cell = nullifier_queue
             .by_value_index(*leaf_queue_index as usize, None)
@@ -141,14 +143,26 @@ fn insert_nullifier(
             .map_err(ProgramError::from)?;
         changelogs.push(changelog_event);
 
+        let event = NullifyEvent::V1(NullifyEventV1 {
+            id: ctx.accounts.merkle_tree.key().to_bytes(),
+            index: indices[i],
+        });
+        nullifiers.push(event);
+
         // TODO: replace with root history sequence number
         nullifier_queue
             .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
             .map_err(ProgramError::from)?;
     }
 
-    let changelog_event = Changelogs { changelogs };
+    let nullify_event = NullifyEvents { nullifiers };
+    emit_indexer_event(
+        nullify_event.try_to_vec()?,
+        &ctx.accounts.log_wrapper,
+        &ctx.accounts.authority,
+    )?;
 
+    let changelog_event = Changelogs { changelogs };
     emit_indexer_event(
         changelog_event.try_to_vec()?,
         &ctx.accounts.log_wrapper,

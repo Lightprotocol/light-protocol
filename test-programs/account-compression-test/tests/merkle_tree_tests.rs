@@ -9,7 +9,8 @@ use account_compression::{
         STATE_MERKLE_TREE_HEIGHT, STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
         STATE_NULLIFIER_QUEUE_VALUES,
     },
-    NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
+    NullifierQueueConfig, NullifyEvent, NullifyEvents, StateMerkleTreeAccount,
+    StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{system_program, InstructionData, Key, Lamports, ToAccountMetas};
 use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
@@ -17,8 +18,8 @@ use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_test_utils::{
-    airdrop_lamports, create_account_instruction, create_and_send_transaction, get_hash_set,
-    AccountZeroCopy,
+    airdrop_lamports, create_account_instruction, create_and_send_transaction,
+    create_and_send_transaction_with_event, get_hash_set, AccountZeroCopy,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use memoffset::offset_of;
@@ -1336,7 +1337,15 @@ pub async fn nullify(
             nullifier_queue_pubkey,
         ),
     ];
-    create_and_send_transaction(context, &instructions, &payer.pubkey(), &[&payer]).await?;
+
+    let event = create_and_send_transaction_with_event::<NullifyEvents>(
+        context,
+        &instructions,
+        &payer.pubkey(),
+        &[&payer],
+        None,
+    )
+    .await?;
 
     let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
         context,
@@ -1390,6 +1399,13 @@ pub async fn nullify(
                 + STATE_MERKLE_TREE_ROOTS as usize
         )
     );
+    let event = event.as_ref().unwrap().nullifiers[0].clone();
+    match event {
+        NullifyEvent::V1(event_v1) => {
+            assert_eq!(event_v1.id, merkle_tree_pubkey.to_bytes());
+            assert_eq!(event_v1.index, element_index);
+        }
+    }
     Ok(())
 }
 
