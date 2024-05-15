@@ -95,7 +95,11 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "github-actions@github.com"
           git add -A
-          git commit -m "Include IDL and other changes post build"
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Include IDL and other changes post build"
+          fi
 
       - name: Create pull request for all crates
         if: inputs.crate == 'all'
