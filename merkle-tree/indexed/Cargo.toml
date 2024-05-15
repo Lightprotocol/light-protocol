@@ -1,6 +1,6 @@
 [package]
 name = "light-indexed-merkle-tree"
-version = "0.1.1"
+version = "0.1.2"
 description = "Implementation of indexed (and concurrent) Merkle tree in Rust"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -15,11 +15,11 @@ solana = [
 [dependencies]
 ark-ff = "0.4"
 borsh = { version = "0.10" }
-light-bounded-vec = { path = "../bounded-vec", version = "0.1.1" }
-light-hasher = { path = "../hasher", version = "0.1.1" }
-light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.1" }
-light-merkle-tree-reference = { path = "../reference", version = "0.1.1" }
-light-utils = { path = "../../utils", version = "0.1.1" }
+light-bounded-vec = { path = "../bounded-vec", version = "0.1.2" }
+light-hasher = { path = "../hasher", version = "0.1.2" }
+light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.2" }
+light-merkle-tree-reference = { path = "../reference", version = "0.1.2" }
+light-utils = { path = "../../utils", version = "0.1.2" }
 num-bigint = "0.4"
 num-traits = "0.2"
 
