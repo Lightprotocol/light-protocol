@@ -7,14 +7,6 @@ runs:
     - name: Checkout sources
       uses: actions/checkout@v4
 
-    - name: Cache Rust dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo
-          **/target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
     - name: Cache .local directory
       uses: actions/cache@v3
       with:
@@ -37,14 +29,6 @@ runs:
       shell: bash
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-    - uses: actions/cache@v3
-      name: Setup pnpm cache
-      with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
 
     - name: Install pnpm dependencies
       shell: bash
