@@ -1,0 +1,62 @@
+name: Setup and build nocheck
+description: Checkout sources, install dependencies, build and prepare for tests
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout sources
+      uses: actions/checkout@v4
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo
+          **/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Cache .local directory
+      uses: actions/cache@v3
+      with:
+        path: .local
+        key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        ./scripts/install.sh
+        source ./scripts/devenv.sh
+
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2.4.0
+      with:
+        version: 8
+        run_install: false
+
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+    - uses: actions/cache@v3
+      name: Setup pnpm cache
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    - name: Install pnpm dependencies
+      shell: bash
+      run: pnpm install
+
+    - name: Build and prepare for tests
+      shell: bash
+      run: |
+        source ./scripts/devenv.sh
+        mkdir -p /home/runner/.config/solana/
+        solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+        npx nx build @lightprotocol/hasher.rs
+        npx nx build @lightprotocol/programs
+        npx nx build @lightprotocol/zk-compression-cli
+        echo "Skip check for git changes"
