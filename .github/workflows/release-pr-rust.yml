@@ -97,6 +97,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: "bump-all-rust"
+          fetch-depth: 0
 
       - name: Create pull request for crate
         if: inputs.crate != 'all'
@@ -114,6 +115,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: "bump-${{ inputs.crate }}"
+          fetch-depth: 0
+
+      - name: Pull latest changes
+        run: git pull
+
+      - name: Show current branch and commit
+        run: |
+          echo "Current branch:"
+          git branch --show-current
+          echo "Latest commit:"
+          git log -1
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v2.4.0
@@ -123,6 +135,13 @@ jobs:
 
       - name: Setup and build nocheck
         uses: ./.github/actions/setup-and-build-nocheck
+        with:
+          branch: ${{ inputs.crate == 'all' ? 'bump-all-rust' : format('bump-{0}', inputs.crate) }}
+
+      - name: Show Git Status and Diff
+        run: |
+          git status
+          git diff
 
       - name: Commit IDL and other changes
         run: |

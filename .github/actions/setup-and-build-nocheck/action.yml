@@ -1,11 +1,17 @@
 name: Setup and build nocheck
 description: Checkout sources, install dependencies, build and prepare for tests
+inputs:
+  branch:
+    description: "Branch to checkout"
+    required: true
 
 runs:
   using: "composite"
   steps:
     - name: Checkout sources
       uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.branch }}
 
     - name: Cache .local directory
       uses: actions/cache@v3
