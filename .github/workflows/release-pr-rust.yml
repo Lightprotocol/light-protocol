@@ -68,10 +68,13 @@ jobs:
           cp cargo-release "$HOME"/.cargo/bin
           popd
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Bump all crate versions
         if: inputs.crate == 'all'
         run: |
-          for PACKAGE in $(cargo ws list); do
+          for PACKAGE in $(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] .name'); do
             cargo release --package "$PACKAGE" --execute --no-confirm "${{ inputs.version }}"
             echo "Waiting for 60 seconds to avoid rate limiting..."
             sleep 60  # Wait for 60 seconds before processing the next crate
