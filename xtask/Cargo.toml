@@ -11,7 +11,7 @@ clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
 light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.1.1" }
 light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.1" }
-light-hasher = { path = "../merkle-tree/hasher", version = "0.1.1" }
+light-hasher = { path = "../merkle-tree/hasher", version = "0.1.2" }
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.1" }
 light-utils = { path = "../utils", version = "0.1.1" }
 quote = "1.0"

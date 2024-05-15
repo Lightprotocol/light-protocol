@@ -8,5 +8,5 @@ edition = "2021"
 
 [dependencies]
 light-bounded-vec = { path = "../bounded-vec", version = "0.1.1" }
-light-hasher = { path = "../hasher", version = "0.1.1" }
+light-hasher = { path = "../hasher", version = "0.1.2" }
 thiserror = "1.0"
