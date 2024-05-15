@@ -110,6 +110,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             .map(|data| data.merkle_tree_index)
             .collect::<Vec<u8>>(),
     )?;
+    msg!(
+        "output_compressed_accounts: {:?}",
+        output_compressed_accounts
+    );
     bench_sbf_end!("t_create_output_compressed_accounts");
 
     bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
