@@ -647,8 +647,12 @@ where
     }
 
     /// Checks if the hash set contains a value.
-    pub fn contains(&self, value: &BigUint, sequence_number: usize) -> Result<bool, HashSetError> {
-        let element = self.find_element(value, Some(sequence_number))?;
+    pub fn contains(
+        &self,
+        value: &BigUint,
+        sequence_number: Option<usize>,
+    ) -> Result<bool, HashSetError> {
+        let element = self.find_element(value, sequence_number)?;
         Ok(element.is_some())
     }
 
@@ -812,7 +816,7 @@ mod test {
         hs.mark_with_sequence_number(&element_1_1, 1).unwrap();
 
         // Check if element exists in the set.
-        assert_eq!(hs.contains(&element_1_1, 1).unwrap(), true);
+        assert_eq!(hs.contains(&element_1_1, Some(1)).unwrap(), true);
         // Try inserting the same element, even though we didn't reach the
         // threshold.
         assert!(matches!(
@@ -831,10 +835,10 @@ mod test {
         hs.insert(&element_2_6, 1).unwrap();
         hs.insert(&element_2_8, 1).unwrap();
         hs.insert(&element_2_9, 1).unwrap();
-        assert_eq!(hs.contains(&element_2_3, 2).unwrap(), true);
-        assert_eq!(hs.contains(&element_2_6, 2).unwrap(), true);
-        assert_eq!(hs.contains(&element_2_8, 2).unwrap(), true);
-        assert_eq!(hs.contains(&element_2_9, 2).unwrap(), true);
+        assert_eq!(hs.contains(&element_2_3, Some(2)).unwrap(), true);
+        assert_eq!(hs.contains(&element_2_6, Some(2)).unwrap(), true);
+        assert_eq!(hs.contains(&element_2_8, Some(2)).unwrap(), true);
+        assert_eq!(hs.contains(&element_2_9, Some(2)).unwrap(), true);
         hs.mark_with_sequence_number(&element_2_3, 2).unwrap();
         hs.mark_with_sequence_number(&element_2_6, 2).unwrap();
         hs.mark_with_sequence_number(&element_2_8, 2).unwrap();
@@ -864,10 +868,10 @@ mod test {
         hs.insert(&element_3_13, 2).unwrap();
         hs.insert(&element_3_21, 2).unwrap();
         hs.insert(&element_3_29, 2).unwrap();
-        assert_eq!(hs.contains(&element_3_11, 3).unwrap(), true);
-        assert_eq!(hs.contains(&element_3_13, 3).unwrap(), true);
-        assert_eq!(hs.contains(&element_3_21, 3).unwrap(), true);
-        assert_eq!(hs.contains(&element_3_29, 3).unwrap(), true);
+        assert_eq!(hs.contains(&element_3_11, Some(3)).unwrap(), true);
+        assert_eq!(hs.contains(&element_3_13, Some(3)).unwrap(), true);
+        assert_eq!(hs.contains(&element_3_21, Some(3)).unwrap(), true);
+        assert_eq!(hs.contains(&element_3_29, Some(3)).unwrap(), true);
         hs.mark_with_sequence_number(&element_3_11, 3).unwrap();
         hs.mark_with_sequence_number(&element_3_13, 3).unwrap();
         hs.mark_with_sequence_number(&element_3_21, 3).unwrap();
@@ -897,10 +901,10 @@ mod test {
         hs.insert(&element_4_65, 3).unwrap();
         hs.insert(&element_4_72, 3).unwrap();
         hs.insert(&element_4_15, 3).unwrap();
-        assert_eq!(hs.contains(&element_4_93, 4).unwrap(), true);
-        assert_eq!(hs.contains(&element_4_65, 4).unwrap(), true);
-        assert_eq!(hs.contains(&element_4_72, 4).unwrap(), true);
-        assert_eq!(hs.contains(&element_4_15, 4).unwrap(), true);
+        assert_eq!(hs.contains(&element_4_93, Some(4)).unwrap(), true);
+        assert_eq!(hs.contains(&element_4_65, Some(4)).unwrap(), true);
+        assert_eq!(hs.contains(&element_4_72, Some(4)).unwrap(), true);
+        assert_eq!(hs.contains(&element_4_15, Some(4)).unwrap(), true);
         hs.mark_with_sequence_number(&element_4_93, 4).unwrap();
         hs.mark_with_sequence_number(&element_4_65, 4).unwrap();
         hs.mark_with_sequence_number(&element_4_72, 4).unwrap();
@@ -953,10 +957,10 @@ mod test {
             std::array::from_fn(|_| BigUint::from(Fr::rand(&mut rng)));
         for (j, nf_chunk) in nullifiers.chunks(2400).enumerate() {
             for nullifier in nf_chunk.iter() {
-                assert_eq!(hs.contains(&nullifier, seq).unwrap(), false);
+                assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
                 hs.insert(&nullifier, seq as usize).unwrap();
 
-                assert_eq!(hs.contains(&nullifier, seq).unwrap(), true);
+                assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), true);
                 assert_eq!(
                     hs.find_element(&nullifier, Some(seq))
                         .unwrap()
@@ -1027,7 +1031,7 @@ mod test {
             }
             // The prior assert made the test always succeed
             assert_eq!(res.unwrap_err(), HashSetError::Full);
-            assert_eq!(hs.contains(&value, 0).unwrap(), false);
+            assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
         }
     }
 
@@ -1044,10 +1048,10 @@ mod test {
                 let res = hs.insert(&value, 0);
                 match res {
                     Ok(_) => {
-                        assert_eq!(hs.contains(&value, 0).unwrap(), true);
+                        assert_eq!(hs.contains(&value, Some(0)).unwrap(), true);
                     }
                     Err(HashSetError::Full) => {
-                        assert_eq!(hs.contains(&value, 0).unwrap(), false);
+                        assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
                         panic!("unexpected error {}", i);
                     }
                     _ => {

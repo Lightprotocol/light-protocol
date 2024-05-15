@@ -25,7 +25,7 @@ async fn test_program_owned_merkle_tree() {
     let program_owned_nullifier_queue_keypair = Keypair::new();
     let cpi_signature_keypair = Keypair::new();
 
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
@@ -88,7 +88,7 @@ async fn test_program_owned_merkle_tree() {
         .deserialized()
         .copy_merkle_tree()
         .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(event);
+    test_indexer.add_compressed_accounts_with_token_data(&event);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),

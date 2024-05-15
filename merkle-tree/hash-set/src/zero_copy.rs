@@ -195,7 +195,7 @@ where
 
     /// Check if the hash set contains a value.
     pub fn contains(&self, value: &BigUint, sequence_number: usize) -> Result<bool, HashSetError> {
-        self.hash_set.contains(value, sequence_number)
+        self.hash_set.contains(value, Some(sequence_number))
     }
 
     /// Marks the given element with a given sequence number.
@@ -321,7 +321,10 @@ mod test {
             let hs = unsafe { HashSet::<u16>::from_bytes_copy(bytes.as_mut_slice()).unwrap() };
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                assert_eq!(hs.contains(nullifier, 2400 + seq as usize).unwrap(), true);
+                assert_eq!(
+                    hs.contains(nullifier, Some(2400 + seq as usize)).unwrap(),
+                    true
+                );
             }
         }
     }

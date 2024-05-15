@@ -1,13 +1,13 @@
 use crate::{
+    assert_compressed_tx::get_merkle_tree_snapshots,
+    assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
     create_account_instruction, create_and_send_transaction,
-    create_and_send_transaction_with_event, get_hash_set,
+    create_and_send_transaction_with_event,
     test_env::COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
-    test_indexer::{StateMerkleTreeAccounts, TestIndexer, TokenDataWithContext},
-    AccountZeroCopy, TransactionParams,
+    test_indexer::{TestIndexer, TokenDataWithContext},
+    TransactionParams,
 };
-use account_compression::{
-    initialize_nullifier_queue::NullifierQueueAccount, StateMerkleTreeAccount,
-};
+
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
@@ -16,8 +16,6 @@ use light_compressed_token::{
 };
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
-use num_bigint::BigUint;
-use num_traits::FromBytes;
 use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     instruction::Instruction,
@@ -27,12 +25,10 @@ use solana_sdk::{
 };
 use spl_token::instruction::initialize_mint;
 use spl_token::state::Mint;
-// TODO: replace with borsh serialize
-use anchor_lang::AnchorSerialize;
 
-pub async fn mint_tokens_helper(
+pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize>(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
     merkle_tree_pubkey: &Pubkey,
     mint_authority: &Keypair,
     mint: &Pubkey,
@@ -48,12 +44,13 @@ pub async fn mint_tokens_helper(
         amounts.clone(),
         recipients.clone(),
     );
-    let snapshots = get_merkle_tree_snapshots(
-        context,
-        test_indexer,
-        &vec![*merkle_tree_pubkey; amounts.len()],
-    )
-    .await;
+
+    let output_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(&vec![*merkle_tree_pubkey; amounts.len()]);
+
+    let snapshots =
+        get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(context, &output_merkle_tree_accounts)
+            .await;
     let previous_mint_supply = spl_token::state::Mint::unpack(
         &context
             .banks_client
@@ -88,7 +85,7 @@ pub async fn mint_tokens_helper(
     .await
     .unwrap()
     .unwrap();
-    let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(event);
+    let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
 
     assert_mint_to(
         context,
@@ -147,6 +144,7 @@ pub async fn create_mint(
     .unwrap();
     mint_pubkey
 }
+
 pub async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = context
@@ -207,299 +205,6 @@ pub fn create_initialize_mint_instructions(
     )
 }
 
-pub async fn assert_create_mint(
-    context: &mut ProgramTestContext,
-    authority: &Pubkey,
-    mint: &Pubkey,
-    pool: &Pubkey,
-) {
-    let mint_account: spl_token::state::Mint = spl_token::state::Mint::unpack(
-        &context
-            .banks_client
-            .get_account(*mint)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
-    let mint_authority = get_token_authority_pda(authority, mint).0;
-    assert_eq!(mint_account.supply, 0);
-    assert_eq!(mint_account.decimals, 2);
-    assert_eq!(mint_account.mint_authority.unwrap(), mint_authority);
-    assert_eq!(mint_account.freeze_authority, None.into());
-    assert!(mint_account.is_initialized);
-    let mint_account: spl_token::state::Account = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(*pool)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
-
-    assert_eq!(mint_account.amount, 0);
-    assert_eq!(mint_account.delegate, None.into());
-    assert_eq!(mint_account.mint, *mint);
-    assert_eq!(mint_account.owner, get_cpi_authority_pda().0);
-}
-
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct MerkleTreeTestSnapShot {
-    pub accounts: StateMerkleTreeAccounts,
-    pub root: [u8; 32],
-    pub next_index: usize,
-    pub num_added_accounts: usize,
-}
-
-pub async fn assert_merkle_tree_after_tx(
-    context: &mut ProgramTestContext,
-    snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &mut TestIndexer,
-) {
-    let mut deduped_snapshots = snapshots.to_vec();
-    deduped_snapshots.sort();
-    deduped_snapshots.dedup();
-    for (i, snapshot) in deduped_snapshots.iter().enumerate() {
-        let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, snapshot.accounts.merkle_tree)
-                .await;
-        let merkle_tree = merkle_tree_account
-            .deserialized()
-            .copy_merkle_tree()
-            .unwrap();
-        if merkle_tree.root() == snapshot.root {
-            println!("deduped_snapshots: {:?}", deduped_snapshots);
-            println!("i: {:?}", i);
-            panic!("merkle tree root update failed");
-        }
-        assert_eq!(
-            merkle_tree.next_index(),
-            snapshot.next_index + snapshot.num_added_accounts
-        );
-        let test_indexer_merkle_tree = test_indexer
-            .state_merkle_trees
-            .iter_mut()
-            .find(|x| x.accounts.merkle_tree == snapshot.accounts.merkle_tree)
-            .expect("merkle tree not found in test indexer");
-
-        if merkle_tree.root() != test_indexer_merkle_tree.merkle_tree.root() {
-            println!("Merkle tree pubkey {:?}", snapshot.accounts.merkle_tree);
-            for (i, leaf) in test_indexer_merkle_tree.merkle_tree.layers[0]
-                .iter()
-                .enumerate()
-            {
-                println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
-            }
-            let merkle_tree_roots = merkle_tree_account.deserialized().load_roots().unwrap();
-            for i in 0..16 {
-                println!("root {} {:?}", i, merkle_tree_roots.get(i));
-            }
-            for i in 0..5 {
-                test_indexer_merkle_tree
-                    .merkle_tree
-                    .update(&[0u8; 32], 15 - i)
-                    .unwrap();
-                println!(
-                    "roll back root {} {:?}",
-                    15 - i,
-                    test_indexer_merkle_tree.merkle_tree.root()
-                );
-            }
-
-            panic!("merkle tree root update failed");
-        }
-    }
-}
-
-pub async fn assert_transfer(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
-    out_compressed_accounts: &[TokenTransferOutputData],
-    input_compressed_account_hashes: &[[u8; 32]],
-    output_merkle_tree_test_snapshots: &[MerkleTreeTestSnapShot],
-    input_merkle_tree_test_snapshots: &[MerkleTreeTestSnapShot],
-) {
-    assert_merkle_tree_after_tx(context, output_merkle_tree_test_snapshots, test_indexer).await;
-    let mut tree = Pubkey::default();
-    let mut index = 0;
-    for (i, out_compressed_account) in out_compressed_accounts.iter().enumerate() {
-        if output_merkle_tree_test_snapshots[i].accounts.merkle_tree != tree {
-            tree = output_merkle_tree_test_snapshots[i].accounts.merkle_tree;
-            index = 0;
-        } else {
-            index += 1;
-        }
-        let pos = test_indexer
-            .token_compressed_accounts
-            .iter()
-            .position(|x| {
-                x.token_data.owner == out_compressed_account.owner
-                    && x.token_data.amount == out_compressed_account.amount
-            })
-            .expect("transfer recipient compressed account not found in mock indexer");
-        let transfer_recipient_token_compressed_account =
-            test_indexer.token_compressed_accounts[pos].clone();
-        assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .amount,
-            out_compressed_account.amount
-        );
-        assert_eq!(
-            transfer_recipient_token_compressed_account.token_data.owner,
-            out_compressed_account.owner
-        );
-        assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .delegate,
-            None
-        );
-        assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .is_native,
-            None
-        );
-        assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .delegated_amount,
-            0
-        );
-
-        let transfer_recipient_compressed_account = transfer_recipient_token_compressed_account
-            .compressed_account
-            .clone();
-        assert_eq!(
-            transfer_recipient_compressed_account
-                .compressed_account
-                .lamports,
-            0
-        );
-        assert!(transfer_recipient_compressed_account
-            .compressed_account
-            .data
-            .is_some());
-        let mut data = Vec::new();
-        transfer_recipient_token_compressed_account
-            .token_data
-            .serialize(&mut data)
-            .unwrap();
-        assert_eq!(
-            transfer_recipient_compressed_account
-                .compressed_account
-                .data
-                .as_ref()
-                .unwrap()
-                .data,
-            data
-        );
-        assert_eq!(
-            transfer_recipient_compressed_account
-                .compressed_account
-                .owner,
-            light_compressed_token::ID
-        );
-
-        if !test_indexer.token_compressed_accounts.iter().any(|x| {
-            x.compressed_account.merkle_context.leaf_index as usize
-                == output_merkle_tree_test_snapshots[i].next_index + index
-        }) {
-            println!(
-                "token_compressed_accounts {:?}",
-                test_indexer.token_compressed_accounts
-            );
-            println!("snapshot {:?}", output_merkle_tree_test_snapshots[i]);
-            println!("index {:?}", index);
-            panic!("transfer recipient compressed account not found in mock indexer");
-        };
-    }
-    assert_nullifiers_exist_in_hash_sets(
-        context,
-        input_merkle_tree_test_snapshots,
-        input_compressed_account_hashes,
-    )
-    .await;
-}
-
-pub async fn assert_nullifiers_exist_in_hash_sets(
-    context: &mut ProgramTestContext,
-    snapshots: &[MerkleTreeTestSnapShot],
-    input_compressed_account_hashes: &[[u8; 32]],
-) {
-    for (i, hash) in input_compressed_account_hashes.iter().enumerate() {
-        let nullifier_queue = unsafe {
-            get_hash_set::<u16, NullifierQueueAccount>(
-                context,
-                snapshots[i].accounts.nullifier_queue,
-            )
-            .await
-        };
-        assert!(nullifier_queue
-            .contains(&BigUint::from_be_bytes(hash.as_slice()), 0)
-            .unwrap());
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a>(
-    context: &mut ProgramTestContext,
-    test_indexer: &'a mut TestIndexer,
-    recipients: &[Pubkey],
-    mint: Pubkey,
-    amounts: &[u64],
-    snapshots: &[MerkleTreeTestSnapShot],
-    created_token_accounts: &[TokenDataWithContext],
-    previous_mint_supply: u64,
-    previous_sol_pool_amount: u64,
-) {
-    let mut created_token_accounts = created_token_accounts.to_vec();
-    for (recipient, amount) in recipients.iter().zip(amounts) {
-        let pos = created_token_accounts
-            .iter()
-            .position(|x| {
-                x.token_data.owner == *recipient
-                    && x.token_data.amount == *amount
-                    && x.token_data.mint == mint
-                    && x.token_data.delegate.is_none()
-                    && x.token_data.is_native.is_none()
-                    && x.token_data.delegated_amount == 0
-            })
-            .expect("Mint to failed to create expected compressed token account.");
-        created_token_accounts.remove(pos);
-    }
-    assert_merkle_tree_after_tx(context, snapshots, test_indexer).await;
-    let mint_account: spl_token::state::Mint = spl_token::state::Mint::unpack(
-        &context
-            .banks_client
-            .get_account(mint)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
-    let sum_amounts = amounts.iter().sum::<u64>();
-    assert_eq!(mint_account.supply, previous_mint_supply + sum_amounts);
-
-    let pool = get_token_pool_pda(&mint);
-    let pool_account = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(pool)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
-    assert_eq!(pool_account.amount, previous_sol_pool_amount + sum_amounts);
-}
-
 /// Creates an spl token account and initializes it with the given mint and owner.
 /// This function is useful to create token accounts for spl compression and decompression tests.
 pub async fn create_token_account(
@@ -539,39 +244,11 @@ pub async fn create_token_account(
     Ok(())
 }
 
-pub async fn get_merkle_tree_snapshots(
-    context: &mut ProgramTestContext,
-    test_indexer: &TestIndexer,
-    pubkeys: &[Pubkey],
-) -> Vec<MerkleTreeTestSnapShot> {
-    let mut snapshots = Vec::new();
-    for pubkey in pubkeys.iter() {
-        let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *pubkey).await;
-        let merkle_tree = merkle_tree_account
-            .deserialized()
-            .copy_merkle_tree()
-            .unwrap();
-        let accounts = test_indexer
-            .state_merkle_trees
-            .iter()
-            .find(|x| x.accounts.merkle_tree == *pubkey)
-            .expect("merkle tree not found in test indexer");
-        snapshots.push(MerkleTreeTestSnapShot {
-            accounts: accounts.accounts,
-            root: merkle_tree.root(),
-            next_index: merkle_tree.next_index(),
-            num_added_accounts: pubkeys.iter().filter(|x| **x == *pubkey).count(),
-        });
-    }
-    snapshots
-}
-
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_test(
+pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
     payer: &Keypair,
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
     mint: &Pubkey,
     from: &Keypair,
     recipients: &[Pubkey],
@@ -661,12 +338,21 @@ pub async fn compressed_transfer_test(
         None,  // decompress_token_account
     )
     .unwrap();
-
-    let snapshots =
-        get_merkle_tree_snapshots(context, test_indexer, output_merkle_tree_pubkeys).await;
-    let input_snapshots =
-        get_merkle_tree_snapshots(context, test_indexer, &input_merkle_tree_pubkeys).await;
-    let event = create_and_send_transaction_with_event(
+    let output_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(output_merkle_tree_pubkeys);
+    let input_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
+    let snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
+        context,
+        output_merkle_tree_accounts.as_slice(),
+    )
+    .await;
+    let input_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
+        context,
+        input_merkle_tree_accounts.as_slice(),
+    )
+    .await;
+    let event: PublicTransactionEvent = create_and_send_transaction_with_event(
         context,
         &[instruction],
         &payer.pubkey(),
@@ -684,23 +370,29 @@ pub async fn compressed_transfer_test(
     .unwrap()
     .unwrap();
 
-    test_indexer.add_compressed_accounts_with_token_data(event);
+    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
     assert_transfer(
         context,
         test_indexer,
         &output_compressed_accounts,
+        created_output_accounts
+            .iter()
+            .map(|x| x.compressed_account.clone())
+            .collect::<Vec<_>>()
+            .as_slice(),
         &input_compressed_account_hashes,
         &snapshots,
         &input_snapshots,
+        &event,
     )
     .await;
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test(
+pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
     payer: &Keypair,
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
@@ -768,10 +460,20 @@ pub async fn decompress_test(
         Some(*recipient_token_account),  // decompress_token_account
     )
     .unwrap();
-    let output_merkle_tree_test_snapshots =
-        get_merkle_tree_snapshots(context, test_indexer, &output_merkle_tree_pubkeys).await;
-    let input_merkle_tree_test_snapshots =
-        get_merkle_tree_snapshots(context, test_indexer, &input_merkle_tree_pubkeys).await;
+    let output_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
+    let input_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
+    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
+        context,
+        output_merkle_tree_accounts.as_slice(),
+    )
+    .await;
+    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
+        context,
+        input_merkle_tree_accounts.as_slice(),
+    )
+    .await;
     let recipient_token_account_data_pre = spl_token::state::Account::unpack(
         &context
             .banks_client
@@ -794,15 +496,21 @@ pub async fn decompress_test(
     .unwrap()
     .unwrap();
 
-    test_indexer.add_compressed_accounts_with_token_data(event);
-
+    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
+    println!("created_output_accounts: {:?}", created_output_accounts);
     assert_transfer(
         context,
         test_indexer,
         &[change_out_compressed_account],
+        created_output_accounts
+            .iter()
+            .map(|x| x.compressed_account.clone())
+            .collect::<Vec<_>>()
+            .as_slice(),
         input_compressed_account_hashes.as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
+        &event,
     )
     .await;
 
@@ -823,10 +531,10 @@ pub async fn decompress_test(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_test(
+pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
     payer: &Keypair,
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
     amount: u64,
     mint: &Pubkey,
     output_merkle_tree_pubkey: &Pubkey,
@@ -866,8 +574,13 @@ pub async fn compress_test(
         Some(*sender_token_account),    // decompress_token_account
     )
     .unwrap();
-    let output_merkle_tree_test_snapshots =
-        get_merkle_tree_snapshots(context, test_indexer, &output_merkle_tree_pubkeys).await;
+    let output_merkle_tree_accounts =
+        test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
+    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
+        context,
+        output_merkle_tree_accounts.as_slice(),
+    )
+    .await;
     let input_merkle_tree_test_snapshots = Vec::new();
     let recipient_token_account_data_pre = spl_token::state::Account::unpack(
         &context
@@ -891,15 +604,21 @@ pub async fn compress_test(
     .unwrap()
     .unwrap();
 
-    test_indexer.add_compressed_accounts_with_token_data(event);
+    let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
 
     assert_transfer(
         context,
         test_indexer,
         &[output_compressed_account],
+        created_output_accounts
+            .iter()
+            .map(|x| x.compressed_account.clone())
+            .collect::<Vec<_>>()
+            .as_slice(),
         Vec::new().as_slice(),
         &output_merkle_tree_test_snapshots,
         &input_merkle_tree_test_snapshots,
+        &event,
     )
     .await;
 

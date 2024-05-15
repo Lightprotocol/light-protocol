@@ -30,9 +30,12 @@ light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.4"
 reqwest = "0.11.26"
 light-hasher = { version = "0.1.4", path = "../merkle-tree/hasher" }
 light-merkle-tree-reference = { version = "0.1.4", path = "../merkle-tree/reference" }
+light-concurrent-merkle-tree = { version = "0.1.4", path = "../merkle-tree/concurrent" }
 anchor-spl = "0.29.0"
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.1.4" }
 light-verifier = { path = "../circuit-lib/verifier", version = "0.1.4" }
-
+light-utils = { path = "../utils", version = "0.1.4" }
+memoffset = "0.9.1"
+rand = "0.8"
 [dev-dependencies]
 rand = "0.8"

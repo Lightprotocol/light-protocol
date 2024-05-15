@@ -29,9 +29,9 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         output_leaf_indices,
         relay_fee: inputs.relay_fee,
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
-        compression_lamports: None,
+        compression_lamports: inputs.compression_lamports,
         message: None,
-        is_compress: false,
+        is_compress: inputs.is_compress,
     };
 
     if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY) {

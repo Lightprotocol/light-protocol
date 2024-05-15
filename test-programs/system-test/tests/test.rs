@@ -9,11 +9,11 @@ use light_system_program::{
     },
 };
 use light_test_utils::{
+    assert_compressed_tx::assert_created_compressed_accounts,
     assert_custom_error_or_program_error, create_and_send_transaction,
     create_and_send_transaction_with_event,
     system_program::{
-        assert_created_compressed_accounts, compress_sol_test, create_addresses_test,
-        decompress_sol_test, transfer_compressed_sol_test,
+        compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
     test_env::setup_test_programs_with_accounts,
     test_indexer::TestIndexer,
@@ -39,7 +39,7 @@ async fn invoke_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.payer.insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
@@ -90,7 +90,7 @@ async fn invoke_test() {
     .await
     .unwrap()
     .unwrap();
-    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(event);
+    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event);
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -218,7 +218,7 @@ async fn invoke_test() {
     .await
     .unwrap()
     .unwrap();
-    test_indexer.add_event_and_compressed_accounts(event);
+    test_indexer.add_event_and_compressed_accounts(&event);
 
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
@@ -290,7 +290,7 @@ async fn invoke_test() {
 async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
@@ -485,7 +485,7 @@ async fn test_with_compression() {
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,

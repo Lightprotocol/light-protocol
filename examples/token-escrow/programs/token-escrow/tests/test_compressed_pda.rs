@@ -144,7 +144,7 @@ async fn test_escrow_with_compressed_pda() {
 }
 
 pub async fn perform_escrow_failing(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     context: &mut ProgramTestContext,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -176,7 +176,7 @@ pub async fn perform_escrow_failing(
 }
 
 pub async fn perform_escrow_with_event(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     context: &mut ProgramTestContext,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -208,13 +208,13 @@ pub async fn perform_escrow_with_event(
         }),
     )
     .await?;
-    test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
     Ok(())
 }
 
 async fn create_escrow_ix(
     payer: &Keypair,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     seed: [u8; 32],
     context: &mut ProgramTestContext,
@@ -246,7 +246,7 @@ async fn create_escrow_ix(
                 .merkle_context
                 .merkle_tree_pubkey]),
             Some(&[address]),
-            Some(&[env.address_merkle_tree_pubkey]),
+            Some(vec![env.address_merkle_tree_pubkey]),
             context,
         )
         .await;
@@ -284,7 +284,7 @@ async fn create_escrow_ix(
 }
 
 pub async fn assert_escrow(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -349,7 +349,7 @@ pub async fn assert_escrow(
 }
 pub async fn perform_withdrawal_with_event(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -374,13 +374,13 @@ pub async fn perform_withdrawal_with_event(
         None,
     )
     .await?;
-    test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
     Ok(())
 }
 
 pub async fn perform_withdrawal_failing(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -410,7 +410,7 @@ pub async fn perform_withdrawal_failing(
 }
 pub async fn perform_withdrawal(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     old_lock_up_time: u64,
@@ -500,7 +500,7 @@ pub async fn perform_withdrawal(
 /// 3. Compressed pda with update lock up time exists
 pub async fn assert_withdrawal(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
