@@ -34,7 +34,7 @@ light-hasher = { version = "0.1.1", path = "../../merkle-tree/hasher", features 
 light-heap = { version = "0.1.1", path = "../../heap", optional = true }
 light-concurrent-merkle-tree = { version = "0.1.1", path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "0.1.1", path = "../../merkle-tree/indexed", features = ["solana"] }
-light-utils = { version = "0.1.1", path = "../../utils" }
+light-utils = { version = "0.1.2", path = "../../utils" }
 light-macros = { version = "0.3.2", path = "../../macros/light/" }
 num-bigint = "0.4"
 light-verifier = { path = "../../circuit-lib/verifier", version = "0.1.1", features = ["solana"] }
