@@ -30,7 +30,7 @@ light-system-program = { version = "0.3.1", path = "../system", features = ["cpi
 bytemuck = "1.14"
 solana-security-txt = "1.1.0"
 light-hasher = { version = "0.1.1", path = "../../merkle-tree/hasher" }
-light-heap = { version = "0.1.1", path = "../../heap", optional = true }
+light-heap = { version = "0.2.0", path = "../../heap", optional = true }
 light-utils = { version = "0.1.1", path = "../../utils" }
 light-verifier = { version = "0.1.1", path = "../../circuit-lib/verifier" }
 
