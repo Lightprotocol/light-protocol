@@ -32,23 +32,27 @@ jobs:
         id: extract-project
         shell: bash
         run: |
-          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed 's/([^()]*)//g' | head -n 1)
           PACKAGE=""
           LANGUAGE=""
+          echo "Commit message: $COMMIT_MESSAGE"
 
-          if [[ "$COMMIT_MESSAGE" == *"Bump version of all Rust"* ]]; then
+          if [[ "$COMMIT_MESSAGE" == "chore: Bump version of all Rust projects" ]]; then
             PACKAGE="all"
             LANGUAGE="rust"
           elif [[ "$COMMIT_MESSAGE" == *"Bump version of all TypeScript"* ]]; then
             PACKAGE="all"
             LANGUAGE="ts"
-          elif [[ "$COMMIT_MESSAGE" == *"Bump version of Rust project"* ]]; then
-            PACKAGE=$(echo "$COMMIT_MESSAGE" | grep -o "version of Rust project [^ ]*" | cut -d " " -f5)
+          elif [[ "$COMMIT_MESSAGE" == "chore: Bump version of Rust project "* ]]; then
+            PACKAGE=$(echo "$COMMIT_MESSAGE" | sed -n 's/chore: Bump version of Rust project \(.*\)/\1/p')
             LANGUAGE="rust"
           elif [[ "$COMMIT_MESSAGE" == *"Bump version of TypeScript project"* ]]; then
             PACKAGE=$(echo "$COMMIT_MESSAGE" | grep -o "version of TypeScript project [^ ]*" | cut -d " " -f5)
             LANGUAGE="rust"
           fi
+          # Hardcode for now:
+          PACKAGE="all"
+          LANGUAGE="rust"
 
           # Needed for Anchor.
           PACKAGE_SNAKE_CASE=$(echo "$PACKAGE" | tr '-' '_')
