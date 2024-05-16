@@ -2808,3 +2808,110 @@ fn test_changelog_interation_without_skipping_sha256_26_16_16_0() {
     const CANOPY: usize = 0;
     changelog_iteration_without_skipping::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
+
+/// Tests an update with an old `changelog_index` and proof, which refers to the
+/// state before the changelog wrap-around (enough new operations to overwrite
+/// the whole changelog). Such an update should fail,
+fn update_changelog_wrap_around<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
+where
+    H: Hasher,
+{
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    // The leaf which we will want to update with an expired changelog.
+    let leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    let (changelog_index, _) = merkle_tree.append(&leaf).unwrap();
+    reference_tree.append(&leaf).unwrap();
+    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+
+    // Perform enough appends and updates to overfill the changelog
+    for i in 0..CHANGELOG {
+        if i % 2 == 0 {
+            // Append random leaf.
+            let leaf: [u8; 32] = Fr::rand(&mut rng)
+                .into_bigint()
+                .to_bytes_be()
+                .try_into()
+                .unwrap();
+            merkle_tree.append(&leaf).unwrap();
+            reference_tree.append(&leaf).unwrap();
+        } else {
+            // Update random leaf.
+            let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
+            let old_leaf = reference_tree.leaf(leaf_index);
+            let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+                .into_bigint()
+                .to_bytes_be()
+                .try_into()
+                .unwrap();
+            let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+            merkle_tree
+                .update(
+                    merkle_tree.changelog_index(),
+                    &old_leaf,
+                    &new_leaf,
+                    leaf_index,
+                    &mut proof,
+                )
+                .unwrap();
+            reference_tree.update(&new_leaf, leaf_index).unwrap();
+        }
+    }
+
+    // Try to update the original `leaf` with an outdated proof and changelog
+    // index. Expect an error.
+    let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+
+    let res = merkle_tree.update(changelog_index, &leaf, &new_leaf, 0, &mut proof);
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::InvalidProof(_, _))
+    ));
+}
+
+#[test]
+fn test_update_changelog_wrap_around_keccak_26_256_512_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    update_changelog_wrap_around::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_update_changelog_wrap_around_poseidon_26_256_512_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    update_changelog_wrap_around::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_update_changelog_wrap_around_sha256_26_256_512_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    update_changelog_wrap_around::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
