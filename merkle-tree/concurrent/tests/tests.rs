@@ -2716,3 +2716,95 @@ fn test_changelog_entries_random_sha256_26_256_256_0() {
     const CANOPY: usize = 0;
     changelog_entries_random::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
+
+/// When reading the tests above (`changelog_entries`, `changelog_entries_random`)
+/// you might be still wondering why is skipping the **current** changelog element
+/// necessary.
+///
+/// The explanation is that not skipping the current element might produce leaf
+/// conflicts. Imagine that we insert a leaf and then we try to immediately update
+/// it. Starting the iteration
+///
+/// This test reproduces that case and serves as a proof that skipping is the
+/// right action.
+fn changelog_iteration_without_skipping<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
+where
+    H: Hasher,
+{
+    /// A broken re-implementation of `ConcurrentMerkleTree::update_proof_from_changelog`
+    /// which reproduces the described issue.
+    fn update_proof_from_changelog<H, const HEIGHT: usize>(
+        merkle_tree: &ConcurrentMerkleTree<H, HEIGHT>,
+        changelog_index: usize,
+        leaf_index: usize,
+        proof: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<(), ConcurrentMerkleTreeError>
+    where
+        H: Hasher,
+    {
+        for changelog_entry in merkle_tree.changelog.iter_from(changelog_index) {
+            changelog_entry.update_proof(leaf_index, proof)?;
+        }
+
+        Ok(())
+    }
+
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    let leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+
+    merkle_tree.append(&leaf).unwrap();
+    reference_tree.append(&leaf).unwrap();
+
+    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+
+    let res =
+        update_proof_from_changelog(&merkle_tree, merkle_tree.changelog_index(), 0, &mut proof);
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::CannotUpdateLeaf)
+    ));
+}
+
+#[test]
+fn test_changelog_interation_without_skipping_keccak_26_16_16_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 16;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+    changelog_iteration_without_skipping::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_interation_without_skipping_poseidon_26_16_16_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 16;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+    changelog_iteration_without_skipping::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_interation_without_skipping_sha256_26_16_16_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 16;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+    changelog_iteration_without_skipping::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
