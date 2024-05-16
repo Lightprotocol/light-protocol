@@ -2,7 +2,7 @@ use std::{cmp, mem};
 
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use light_bounded_vec::BoundedVec;
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::ChangelogEvent,
     ConcurrentMerkleTree,
@@ -2438,4 +2438,281 @@ fn test_update_already_modified_leaf_poseidon_4_4_4() {
 #[test]
 fn test_update_already_modified_leaf_sha256_4_4_4() {
     update_already_modified_leaf::<Sha256, 4, 4, 4>()
+}
+
+/// Checks whether the [`changelog_entries`](ConcurrentMerkleTree::changelog_entries)
+/// method returns an iterator with expected entries.
+///
+/// We expect the `changelog_entries` method to return an iterator with entries
+/// newer than the requested index.
+///
+/// # Examples
+///
+/// (In the tree) `current_index`: 1
+/// (Requested) `changelog_index`: 1
+/// Expected iterator: `[]` (empty)
+///
+/// (In the tree) `current_index`: 3
+/// (Requested) `changelog_index`: 1
+/// Expected iterator: `[2, 3]` (1 is skipped)
+///
+/// Changelog capacity: 12
+/// (In the tree) `current_index`: 9
+/// (Requested) `changelog_index`: 3 (lowed than `current_index`, because the
+/// changelog is full and started overwriting values from the head)
+/// Expected iterator: `[10, 11, 12, 13, 14, 15]` (9 is skipped)
+fn changelog_entries<H>()
+where
+    H: Hasher,
+{
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 12;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    merkle_tree
+        .append(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 1,
+        ])
+        .unwrap();
+
+    let changelog_entries = merkle_tree.changelog_entries(1).collect::<Vec<_>>();
+    assert!(changelog_entries.is_empty());
+
+    merkle_tree
+        .append(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 2,
+        ])
+        .unwrap();
+    merkle_tree
+        .append(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 3,
+        ])
+        .unwrap();
+
+    let changelog_leaves = merkle_tree
+        .changelog_entries(1)
+        .map(|changelog_entry| changelog_entry.path[0])
+        .collect::<Vec<_>>();
+    assert_eq!(
+        changelog_leaves.as_slice(),
+        &[
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 2
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 3
+            ]
+        ]
+    );
+
+    for i in 4_u8..16_u8 {
+        merkle_tree
+            .append(&[
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, i,
+            ])
+            .unwrap();
+    }
+
+    let changelog_leaves = merkle_tree
+        .changelog_entries(9)
+        .map(|changelog_entry| changelog_entry.path[0])
+        .collect::<Vec<_>>();
+    assert_eq!(
+        changelog_leaves.as_slice(),
+        &[
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 10
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 11
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 12
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 13
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 14
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 15
+            ]
+        ]
+    );
+}
+
+#[test]
+fn changelog_entries_keccak() {
+    changelog_entries::<Keccak>()
+}
+
+#[test]
+fn changelog_entries_poseidon() {
+    changelog_entries::<Poseidon>()
+}
+
+#[test]
+fn changelog_entries_sha256() {
+    changelog_entries::<Sha256>()
+}
+
+/// Checks whether the [`changelog_entries`](ConcurrentMerkleTree::changelog_entries)
+/// method returns an iterator with expected entries.
+///
+/// It tests random insertions and updates and checks the consistency of leaves
+/// (`path[0]`) in changelogs.
+fn changelog_entries_random<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
+where
+    H: Hasher,
+{
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    let changelog_entries = merkle_tree.changelog_entries(0).collect::<Vec<_>>();
+    assert!(changelog_entries.is_empty());
+
+    // Requesting changelog entries starting from the current `changelog_index()`
+    // should always return an empty iterator.
+    let changelog_entries = merkle_tree
+        .changelog_entries(merkle_tree.changelog_index())
+        .collect::<Vec<_>>();
+    assert!(changelog_entries.is_empty());
+
+    // Vector of leaves we append and update.
+    let mut leaves = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Changelog is always initialized with a changelog path consisting of zero
+    // bytes. For consistency, we need to assert the 1st zero byte as the first
+    // expected leaf in the changelog.
+    leaves.push(H::zero_bytes()[0]);
+
+    for _ in 0..1000 {
+        // Append random leaf.
+        let leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        merkle_tree.append(&leaf).unwrap();
+        reference_tree.append(&leaf).unwrap();
+        leaves.push(leaf);
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), leaves.len() - 1);
+
+        for (leaf, changelog_entry) in leaves.iter().skip(1).zip(changelog_entries) {
+            assert_eq!(&changelog_entry.path[0], leaf);
+        }
+
+        // Requesting changelog entries starting from the current `changelog_index()`
+        // should always return an empty iterator.
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog_index())
+            .collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+
+        // Update random leaf.
+        let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
+        let old_leaf = reference_tree.leaf(leaf_index);
+        let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        merkle_tree
+            .update(
+                merkle_tree.changelog_index(),
+                &old_leaf,
+                &new_leaf,
+                leaf_index,
+                &mut proof,
+            )
+            .unwrap();
+        reference_tree.update(&new_leaf, leaf_index).unwrap();
+        leaves.push(new_leaf);
+        println!("Updated leaf {leaf_index} {old_leaf:?} to {new_leaf:?}");
+
+        println!("\n\n\nLEAVES:");
+        for (i, leaf) in leaves.iter().enumerate() {
+            println!("{i}: {leaf:?}");
+        }
+        println!("\n\n\nCHANGELOG:");
+        for (i, changelog_entry) in merkle_tree.changelog.iter().enumerate() {
+            println!("{i}: {:?}", changelog_entry.path[0]);
+        }
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), leaves.len() - 1);
+
+        for (leaf, changelog_entry) in leaves.iter().skip(1).zip(changelog_entries) {
+            assert_eq!(&changelog_entry.path[0], leaf);
+        }
+
+        // Requesting changelog entries starting from the current `changelog_index()`
+        // should always return an empty iterator.
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog_index())
+            .collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+    }
+}
+
+#[test]
+fn test_changelog_entries_random_keccak_26_256_256_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    changelog_entries_random::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_poseidon_26_256_256_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    changelog_entries_random::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_sha256_26_256_256_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    changelog_entries_random::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }

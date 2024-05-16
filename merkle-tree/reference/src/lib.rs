@@ -159,6 +159,10 @@ where
         self.layers[0].iter().position(|node| node == leaf)
     }
 
+    pub fn leaves(&self) -> &[[u8; 32]] {
+        self.layers[0].as_slice()
+    }
+
     pub fn verify(
         &self,
         leaf: &[u8; 32],

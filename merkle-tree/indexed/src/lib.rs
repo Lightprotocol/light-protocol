@@ -174,6 +174,28 @@ where
         Ok(())
     }
 
+    //
+    pub fn update_proof_from_changelog(
+        &self,
+        changelog_index: usize,
+        low_element_index: usize,
+        low_leaf_proof: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<(), IndexedMerkleTreeError> {
+        for changelog_entry in self.merkle_tree.changelog_entries(changelog_index) {
+            if let Err(e) = changelog_entry.update_proof(low_element_index, low_leaf_proof) {
+                match e {
+                    // In this case, we are confident that our `new_low_leaf`
+                    // is correct even if there was any conflicting change
+                    // submitted to the Merkle tree.
+                    ConcurrentMerkleTreeError::CannotUpdateLeaf => {}
+                    _ => return Err(e.into()),
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn update(
         &mut self,
         changelog_index: usize,
@@ -219,22 +241,7 @@ where
         let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
 
-        for changelog_entry in self
-            .merkle_tree
-            .changelog
-            .iter_from(changelog_index)
-            .skip(1)
-        {
-            if let Err(e) = changelog_entry.update_proof(low_element.index.into(), low_leaf_proof) {
-                match e {
-                    // In this case, we are confident that our `new_low_leaf`
-                    // is correct even if there was any conflicting change
-                    // submitted to the Merkle tree.
-                    ConcurrentMerkleTreeError::CannotUpdateLeaf => {}
-                    _ => return Err(e.into()),
-                }
-            }
-        }
+        self.update_proof_from_changelog(changelog_index, low_element.index(), low_leaf_proof)?;
 
         self.merkle_tree.update(
             self.merkle_tree.changelog_index(),
