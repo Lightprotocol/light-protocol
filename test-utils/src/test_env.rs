@@ -299,6 +299,7 @@ pub async fn create_state_merkle_tree_and_queue_account(
         .unwrap();
 }
 
+#[inline(never)]
 pub async fn create_address_merkle_tree_and_queue_account(
     payer: &Keypair,
     context: &mut ProgramTestContext,

@@ -41,8 +41,8 @@ use {
             event::PublicTransactionEvent,
         },
     },
-    num_bigint::{BigInt, BigUint},
-    num_traits::{ops::bytes::FromBytes, Num},
+    num_bigint::BigInt,
+    num_traits::ops::bytes::FromBytes,
     reqwest::Client,
     solana_program_test::ProgramTestContext,
     solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer},
@@ -71,22 +71,23 @@ pub struct AddressMerkleTreeAccounts {
 }
 
 #[derive(Debug)]
-pub struct StateMerkleTree {
-    pub merkle_tree: MerkleTree<Poseidon>,
+pub struct StateMerkleTreeBundle {
+    pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
 }
 
 #[derive(Debug)]
-pub struct AddressMerkleTree {
-    pub merkle_tree: IndexedMerkleTree<Poseidon, usize>,
-    pub indexed_array: IndexedArray<Poseidon, usize, 1000>,
+pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
+    pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
+    pub indexed_array: Box<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>,
     pub accounts: AddressMerkleTreeAccounts,
 }
 
+// TODO: find a different way to init Indexed array on the heap so that it doesn't break the stack
 #[derive(Debug)]
-pub struct TestIndexer {
-    pub state_merkle_trees: Vec<StateMerkleTree>,
-    pub address_merkle_trees: Vec<AddressMerkleTree>,
+pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize> {
+    pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
+    pub address_merkle_trees: Vec<AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>>,
     pub payer: Keypair,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
@@ -102,7 +103,22 @@ pub struct TokenDataWithContext {
     pub token_data: TokenData,
     pub compressed_account: CompressedAccountWithMerkleContext,
 }
-impl TestIndexer {
+impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
+    pub fn get_state_merkle_tree_accounts(
+        &self,
+        pubkeys: &[Pubkey],
+    ) -> Vec<StateMerkleTreeAccounts> {
+        pubkeys
+            .iter()
+            .map(|x| {
+                self.state_merkle_trees
+                    .iter()
+                    .find(|y| y.accounts.merkle_tree == *x)
+                    .unwrap()
+                    .accounts
+            })
+            .collect::<Vec<_>>()
+    }
     pub async fn init_from_env(
         payer: &Keypair,
         env: &EnvAccounts,
@@ -151,11 +167,11 @@ impl TestIndexer {
         spawn_gnark_server(gnark_bin_path, true, vec_proof_types.as_slice()).await;
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
-            let merkle_tree = MerkleTree::<Poseidon>::new(
+            let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
                 STATE_MERKLE_TREE_HEIGHT as usize,
                 STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-            );
-            state_merkle_trees.push(StateMerkleTree {
+            ));
+            state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
                 merkle_tree,
             });
@@ -181,21 +197,18 @@ impl TestIndexer {
 
     pub fn add_address_merkle_tree(
         address_merkle_tree_accounts: AddressMerkleTreeAccounts,
-    ) -> AddressMerkleTree {
-        let init_value = BigUint::from_str_radix(
-            "21888242871839275222246405745257275088548364400416034343698204186575808495616",
-            10,
-        )
-        .unwrap();
-        let mut merkle_tree = IndexedMerkleTree::<Poseidon, usize>::new(
-            STATE_MERKLE_TREE_HEIGHT as usize,
-            STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-        )
-        .unwrap();
-        let mut indexed_array = IndexedArray::<Poseidon, usize, 1000>::default();
-
-        merkle_tree.append(&init_value, &mut indexed_array).unwrap();
-        AddressMerkleTree {
+    ) -> AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE> {
+        let mut merkle_tree = Box::new(
+            IndexedMerkleTree::<Poseidon, usize>::new(
+                STATE_MERKLE_TREE_HEIGHT as usize,
+                STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+            )
+            .unwrap(),
+        );
+        merkle_tree.init().unwrap();
+        let mut indexed_array = Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>::default();
+        indexed_array.init().unwrap();
+        AddressMerkleTreeBundle {
             merkle_tree,
             indexed_array,
             accounts: address_merkle_tree_accounts,
@@ -231,12 +244,12 @@ impl TestIndexer {
             nullifier_queue: nullifier_queue_keypair.pubkey(),
             cpi_context: Pubkey::default(),
         };
-        let merkle_tree = MerkleTree::<Poseidon>::new(
+        let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-        );
+        ));
 
-        self.state_merkle_trees.push(StateMerkleTree {
+        self.state_merkle_trees.push(StateMerkleTreeBundle {
             merkle_tree,
             accounts: state_merkle_tree_account,
         });
@@ -311,7 +324,7 @@ impl TestIndexer {
         compressed_accounts: Option<&[[u8; 32]]>,
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
-        address_merkle_tree_pubkeys: Option<&[Pubkey]>,
+        address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
         context: &mut ProgramTestContext,
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
@@ -339,7 +352,7 @@ impl TestIndexer {
                 (None, Some(addresses)) => {
                     let (payload, indices) = self
                         .process_non_inclusion_proofs(
-                            address_merkle_tree_pubkeys.unwrap(),
+                            address_merkle_tree_pubkeys.unwrap().as_slice(),
                             addresses,
                             context,
                         )
@@ -356,7 +369,7 @@ impl TestIndexer {
                         .await;
                     let (non_inclusion_payload, non_inclusion_indices) = self
                         .process_non_inclusion_proofs(
-                            address_merkle_tree_pubkeys.unwrap(),
+                            address_merkle_tree_pubkeys.unwrap().as_slice(),
                             addresses,
                             context,
                         )
@@ -505,12 +518,12 @@ impl TestIndexer {
     pub fn add_lamport_compressed_accounts(&mut self, event_bytes: Vec<u8>) {
         let event_bytes = event_bytes.clone();
         let event = PublicTransactionEvent::deserialize(&mut event_bytes.as_slice()).unwrap();
-        self.add_event_and_compressed_accounts(event);
+        self.add_event_and_compressed_accounts(&event);
     }
 
     pub fn add_event_and_compressed_accounts(
         &mut self,
-        event: PublicTransactionEvent,
+        event: &PublicTransactionEvent,
     ) -> (
         Vec<CompressedAccountWithMerkleContext>,
         Vec<TokenDataWithContext>,
@@ -642,7 +655,7 @@ impl TestIndexer {
                 .expect("insert failed");
         }
 
-        self.events.push(event);
+        self.events.push(event.clone());
         (compressed_accounts, token_compressed_accounts)
     }
 
@@ -652,7 +665,7 @@ impl TestIndexer {
     /// adds the input_compressed_accounts to the nullified_compressed_accounts
     /// deserialiazes token data from the output_compressed_accounts
     /// adds the token_compressed_accounts to the token_compressed_accounts
-    pub fn add_compressed_accounts_with_token_data(&mut self, event: PublicTransactionEvent) {
+    pub fn add_compressed_accounts_with_token_data(&mut self, event: &PublicTransactionEvent) {
         self.add_event_and_compressed_accounts(event);
     }
 

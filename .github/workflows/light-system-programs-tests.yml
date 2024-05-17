@@ -61,6 +61,10 @@ jobs:
             sub-tests: '[
               "cargo-test-sbf -p program-owned-account-test -- --test-threads=1"
             ]'
+          - program: random-e2e-test
+            sub-tests: '[
+              "cargo-test-sbf -p e2e-test -- --nocapture"
+            ]'
 
     steps:
       - name: Checkout sources

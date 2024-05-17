@@ -172,15 +172,16 @@ where
         &mut self,
         changelog_index: usize,
         new_element: IndexedElement<I>,
-        mut low_element: IndexedElement<I>,
-        mut low_element_next_value: BigUint,
+        low_element: IndexedElement<I>,
+        low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
-        let patched_low_element = self.patch_low_element(&low_element)?;
-        if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
-            low_element = patched_low_element;
-            low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
-        };
+        // TODO: fix concurrency (broken right now)
+        // let patched_low_element = self.patch_low_element(&low_element)?;
+        // if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
+        //     low_element = patched_low_element;
+        //     low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
+        // };
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {

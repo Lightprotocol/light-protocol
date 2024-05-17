@@ -4,8 +4,6 @@ use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hasher::Poseidon;
 
-pub type StateMerkleTree<'a> = ConcurrentMerkleTree26<'a, Poseidon>;
-
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[account(zero_copy)]
 #[aligned_sized(anchor)]

@@ -76,4 +76,5 @@ node_modules
 
 /cli/.crates2.json
 /cli/.crates.toml
-test-programs/rnd-inf-test/**/*.txt
+test-programs/e2e-test/**/*.txt
+output.txt

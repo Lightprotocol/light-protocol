@@ -214,7 +214,7 @@ async fn test_escrow_pda() {
 
 pub async fn perform_escrow(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -282,7 +282,7 @@ pub async fn perform_escrow(
 
 pub async fn perform_escrow_with_event(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -314,13 +314,13 @@ pub async fn perform_escrow_with_event(
     )
     .await?
     .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(event);
+    test_indexer.add_compressed_accounts_with_token_data(&event);
     Ok(())
 }
 
 pub async fn perform_escrow_failing(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     escrow_amount: &u64,
@@ -349,7 +349,7 @@ pub async fn perform_escrow_failing(
 
 pub async fn assert_escrow(
     context: &mut ProgramTestContext,
-    test_indexer: &TestIndexer,
+    test_indexer: &TestIndexer<200>,
     payer_pubkey: &Pubkey,
     amount: u64,
     escrow_amount: u64,
@@ -384,7 +384,7 @@ pub async fn assert_escrow(
 
 pub async fn perform_withdrawal(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -450,7 +450,7 @@ pub async fn perform_withdrawal(
 
 pub async fn perform_withdrawal_with_event(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -474,13 +474,13 @@ pub async fn perform_withdrawal_with_event(
     )
     .await?
     .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(event);
+    test_indexer.add_compressed_accounts_with_token_data(&event);
     Ok(())
 }
 
 pub async fn perform_withdrawal_failing(
     context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     withdrawal_amount: &u64,
@@ -507,7 +507,7 @@ pub async fn perform_withdrawal_failing(
         .await
 }
 pub fn assert_withdrawal(
-    test_indexer: &TestIndexer,
+    test_indexer: &TestIndexer<200>,
     payer_pubkey: &Pubkey,
     withdrawal_amount: u64,
     escrow_amount: u64,

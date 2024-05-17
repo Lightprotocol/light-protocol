@@ -201,7 +201,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
     )
     .await
     .unwrap();
-    test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
 
     assert_created_pda(&mut test_indexer, &env, &payer, &seed, &data).await;
 
@@ -256,7 +256,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
 }
 
 pub async fn perform_create_pda_failing(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     context: &mut ProgramTestContext,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -290,7 +290,7 @@ pub async fn perform_create_pda_failing(
     .await
 }
 pub async fn perform_create_pda_with_event(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     context: &mut ProgramTestContext,
     env: &EnvAccounts,
     payer: &Keypair,
@@ -319,14 +319,14 @@ pub async fn perform_create_pda_with_event(
         None,
     )
     .await?;
-    test_indexer.add_compressed_accounts_with_token_data(event.unwrap());
+    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
     Ok(())
 }
 
 async fn perform_create_pda(
     env: &EnvAccounts,
     seed: [u8; 32],
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     context: &mut ProgramTestContext,
     data: &[u8; 31],
     payer_pubkey: Pubkey,
@@ -342,7 +342,7 @@ async fn perform_create_pda(
             None,
             None,
             Some(&[address]),
-            Some(&[env.address_merkle_tree_pubkey]),
+            Some(vec![env.address_merkle_tree_pubkey]),
             context,
         )
         .await;
@@ -368,7 +368,7 @@ async fn perform_create_pda(
 }
 
 pub async fn assert_created_pda(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     env: &EnvAccounts,
     payer: &Keypair,
     seed: &[u8; 32],
@@ -412,7 +412,7 @@ pub async fn assert_created_pda(
 }
 
 pub async fn perform_invalidate_not_owned_compressed_account(
-    test_indexer: &mut TestIndexer,
+    test_indexer: &mut TestIndexer<200>,
     context: &mut ProgramTestContext,
     env: &EnvAccounts,
     payer: &Keypair,

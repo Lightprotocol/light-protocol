@@ -35,7 +35,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
@@ -164,7 +164,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
@@ -214,7 +214,7 @@ async fn test_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.payer.insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
@@ -288,7 +288,7 @@ async fn test_invalid_inputs() {
     let payer = context.payer.insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::init_from_env(
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
         &payer,
         &env,
         true,
