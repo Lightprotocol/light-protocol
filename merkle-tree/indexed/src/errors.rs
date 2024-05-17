@@ -17,6 +17,10 @@ pub enum IndexedMerkleTreeError {
     LowElementGreaterOrEqualToNewElement,
     #[error("The provided new element is greater or equal to the next element.")]
     NewElementGreaterOrEqualToNextElement,
+    #[error("The element already exists, but was expected to be absent.")]
+    ElementAlreadyExists,
+    #[error("The element does not exist, but was expected to be present.")]
+    ElementDoesNotExist,
     #[error("Invalid changelog buffer size, expected {0}, got {1}")]
     ChangelogBufferSize(usize, usize),
     #[error("Hasher error: {0}")]
@@ -40,7 +44,9 @@ impl From<IndexedMerkleTreeError> for u32 {
             IndexedMerkleTreeError::LowElementNotFound => 11003,
             IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement => 11004,
             IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement => 11005,
-            IndexedMerkleTreeError::ChangelogBufferSize(_, _) => 11006,
+            IndexedMerkleTreeError::ElementAlreadyExists => 11006,
+            IndexedMerkleTreeError::ElementDoesNotExist => 11007,
+            IndexedMerkleTreeError::ChangelogBufferSize(_, _) => 11008,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
             IndexedMerkleTreeError::Utils(e) => e.into(),

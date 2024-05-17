@@ -114,7 +114,7 @@ where
 
         // Create new element from the dequeued value.
         let (old_low_nullifier, old_low_nullifier_next_value) = relayer_indexing_array
-            .find_low_element(&lowest_from_queue.value)
+            .find_low_element_for_nonexistent(&lowest_from_queue.value)
             .unwrap();
         let nullifier_bundle = relayer_indexing_array
             .new_element_with_low_element_index(old_low_nullifier.index, &lowest_from_queue.value)
@@ -289,9 +289,10 @@ where
     program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]).unwrap();
 
     // Try inserting the same pair into the queue. It should fail with an error.
+    let res = program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]);
     assert!(matches!(
-        program_insert::<H>(onchain_queue.borrow_mut(), [nullifier1, nullifier2]),
-        Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement),
+        res,
+        Err(IndexedMerkleTreeError::ElementAlreadyExists),
     ));
 
     // Update the on-chain tree (so it contains the nullifiers we inserted).
@@ -628,7 +629,6 @@ pub fn functional_non_inclusion_test() {
 //     let address_bundle = relayer_indexing_array
 //         .new_element_with_low_element_index(old_low_address.index, &address_2)
 //         .unwrap();
-
 //     let mut low_element_proof = relayer_merkle_tree
 //         .get_proof_of_leaf(old_low_address.index, false)
 //         .unwrap();

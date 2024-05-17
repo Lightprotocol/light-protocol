@@ -167,17 +167,23 @@ where
         self.append(&init_value)
     }
 
-    /// Returns the index of the low element for the given `value`, which
-    /// **should not** be the part of the array.
+    /// Returns the index of the low element for the given `value`, which is
+    /// not yet the part of the array.
     ///
     /// Low element is the greatest element which still has lower value than
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index(&self, value: &BigUint) -> Result<I, IndexedMerkleTreeError> {
+    pub fn find_low_element_index_for_nonexistent(
+        &self,
+        value: &BigUint,
+    ) -> Result<I, IndexedMerkleTreeError> {
         // Try to find element whose next element is higher than the provided
         // value.
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
+            if node.value == *value {
+                return Err(IndexedMerkleTreeError::ElementAlreadyExists);
+            }
             if self.elements[node.next_index()].value > *value && node.value < *value {
                 return i
                     .try_into()
@@ -195,15 +201,17 @@ where
     /// * Low element for the given value.
     /// * Next value for that low element.
     ///
+    /// For the given `value`, which is not yet the part of the array.
+    ///
     /// Low element is the greatest element which still has lower value than
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element(
+    pub fn find_low_element_for_nonexistent(
         &self,
         value: &BigUint,
     ) -> Result<(IndexedElement<I>, BigUint), IndexedMerkleTreeError> {
-        let low_element_index = self.find_low_element_index(value)?;
+        let low_element_index = self.find_low_element_index_for_nonexistent(value)?;
         let low_element = self.elements[usize::from(low_element_index)].clone();
         Ok((
             low_element.clone(),
@@ -211,26 +219,42 @@ where
         ))
     }
 
-    /// Returns the index of the low element for the given `value`, which
-    /// **should** be the part of the array.
+    /// Returns the index of the low element for the given `value`, which is
+    /// already the part of the array.
     ///
     /// Low element is the greatest element which still has lower value than
     /// the provided one.
     ///
     /// Low elements are used in non-membership proofs.
-    pub fn find_low_element_index_for_existing_element(
+    pub fn find_low_element_index_for_existent(
         &self,
         value: &BigUint,
-    ) -> Result<Option<I>, IndexedMerkleTreeError> {
+    ) -> Result<I, IndexedMerkleTreeError> {
         for (i, node) in self.elements[..self.len() + 1].iter().enumerate() {
             if self.elements[usize::from(node.next_index)].value == *value {
                 let i = i
                     .try_into()
                     .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
-                return Ok(Some(i));
+                return Ok(i);
             }
         }
-        Ok(None)
+        Err(IndexedMerkleTreeError::ElementDoesNotExist)
+    }
+
+    /// Returns the low element for the given `value`, which is already the
+    /// part of the array.
+    ///
+    /// Low element is the greatest element which still has lower value than
+    /// the provided one.
+    ///
+    /// Low elements are used in non-membership proofs.
+    pub fn find_low_element_for_existent(
+        &self,
+        value: &BigUint,
+    ) -> Result<IndexedElement<I>, IndexedMerkleTreeError> {
+        let low_element_index = self.find_low_element_index_for_existent(value)?;
+        let low_element = self.elements[usize::from(low_element_index)].clone();
+        Ok(low_element)
     }
 
     /// Returns the hash of the given element. That hash consists of:
@@ -291,7 +315,7 @@ where
         &self,
         value: &BigUint,
     ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
-        let low_element_index = self.find_low_element_index(value)?;
+        let low_element_index = self.find_low_element_index_for_nonexistent(value)?;
         let element = self.new_element_with_low_element_index(low_element_index, value)?;
 
         Ok(element)
@@ -356,7 +380,7 @@ where
         &mut self,
         value: &BigUint,
     ) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
-        let low_element_index = self.find_low_element_index(value)?;
+        let low_element_index = self.find_low_element_index_for_nonexistent(value)?;
         self.append_with_low_element_index(low_element_index, value)
     }
 
@@ -448,9 +472,7 @@ where
     ) -> Result<Option<IndexedElement<I>>, IndexedMerkleTreeError> {
         match self.elements.get(usize::from(index)) {
             Some(node) => {
-                let low_element_index = self
-                    .find_low_element_index_for_existing_element(&node.value)?
-                    .ok_or(IndexedMerkleTreeError::LowElementNotFound)?;
+                let low_element_index = self.find_low_element_index_for_existent(&node.value)?;
                 self.dequeue_at_with_low_element_index(low_element_index, index)
             }
             None => Ok(None),
@@ -1001,6 +1023,87 @@ mod test {
         assert!(matches!(
             indexing_array.append_with_low_element_index(low_element_index, &nullifier3),
             Err(IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement)
+        ));
+    }
+
+    /// Tests whether `find_*_for_existent` elements return `None` when a
+    /// nonexistent is provided.
+    #[test]
+    fn test_find_low_element_for_existent_element() {
+        let mut indexed_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
+
+        // Append nullifiers 40 and 20.
+        let low_element_index = 0;
+        let nullifier_1 = 40_u32.to_biguint().unwrap();
+        indexed_array
+            .append_with_low_element_index(low_element_index, &nullifier_1)
+            .unwrap();
+        let low_element_index = 0;
+        let nullifier_2 = 20_u32.to_biguint().unwrap();
+        indexed_array
+            .append_with_low_element_index(low_element_index, &nullifier_2)
+            .unwrap();
+
+        // Try finding a low element for nonexistent nullifier 30.
+        let nonexistent_nullifier = 30_u32.to_biguint().unwrap();
+        // `*_existent` methods should fail.
+        let res = indexed_array.find_low_element_index_for_existent(&nonexistent_nullifier);
+        assert!(matches!(
+            res,
+            Err(IndexedMerkleTreeError::ElementDoesNotExist)
+        ));
+        let res = indexed_array.find_low_element_for_existent(&nonexistent_nullifier);
+        assert!(matches!(
+            res,
+            Err(IndexedMerkleTreeError::ElementDoesNotExist)
+        ));
+        // `*_nonexistent` methods should succeed.
+        let low_element_index = indexed_array
+            .find_low_element_index_for_nonexistent(&nonexistent_nullifier)
+            .unwrap();
+        assert_eq!(low_element_index, 2);
+        let low_element = indexed_array
+            .find_low_element_for_nonexistent(&nonexistent_nullifier)
+            .unwrap();
+        assert_eq!(
+            low_element,
+            (
+                IndexedElement::<usize> {
+                    index: 2,
+                    value: 20_u32.to_biguint().unwrap(),
+                    next_index: 1,
+                },
+                40_u32.to_biguint().unwrap(),
+            )
+        );
+
+        // Try finding a low element of existent nullifier 40.
+        // `_existent` methods should succeed.
+        let low_element_index = indexed_array
+            .find_low_element_index_for_existent(&nullifier_1)
+            .unwrap();
+        assert_eq!(low_element_index, 2);
+        let low_element = indexed_array
+            .find_low_element_for_existent(&nullifier_1)
+            .unwrap();
+        assert_eq!(
+            low_element,
+            IndexedElement::<usize> {
+                index: 2,
+                value: 20_u32.to_biguint().unwrap(),
+                next_index: 1,
+            },
+        );
+        // `*_nonexistent` methods should fail.
+        let res = indexed_array.find_low_element_index_for_nonexistent(&nullifier_1);
+        assert!(matches!(
+            res,
+            Err(IndexedMerkleTreeError::ElementAlreadyExists)
+        ));
+        let res = indexed_array.find_low_element_for_nonexistent(&nullifier_1);
+        assert!(matches!(
+            res,
+            Err(IndexedMerkleTreeError::ElementAlreadyExists)
         ));
     }
 }
