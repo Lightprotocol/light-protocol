@@ -148,11 +148,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             account_infos.push(account_info);
             num_leaves_in_tree = 0;
         }
-        // else {
-        //     // TODO: add failing test
-        //     msg!("Invalid Merkle tree index: {} current index {} (Merkle tree indices need to be in ascendin order.", account.merkle_tree_index, current_index);
-        //     return err!(CompressedPdaError::InvalidMerkleTreeIndex);
-        // }
 
         // Address has to be created or a compressed account with this address has to be provided as transaction input.
         if let Some(address) = inputs.output_compressed_accounts[j]
