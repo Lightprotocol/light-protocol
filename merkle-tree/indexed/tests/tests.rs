@@ -138,7 +138,27 @@ where
             &old_low_nullifier_next_value,
             &mut low_nullifier_proof,
         ) {
-            Ok(_) => true,
+            Ok((new_low_leaf, new_leaf)) => {
+                assert_eq!(
+                    new_low_leaf.leaf_index,
+                    nullifier_bundle.new_low_element.index as u64
+                );
+                let leaf_hash = nullifier_bundle
+                    .new_low_element
+                    .hash::<H>(&nullifier_bundle.new_element.value)
+                    .unwrap();
+                assert_eq!(new_low_leaf.leaf, leaf_hash);
+                let leaf_hash = nullifier_bundle
+                    .new_element
+                    .hash::<H>(&nullifier_bundle.new_element_next_value)
+                    .unwrap();
+                assert_eq!(new_leaf.leaf, leaf_hash);
+                assert_eq!(
+                    new_leaf.leaf_index,
+                    nullifier_bundle.new_element.index as u64
+                );
+                true
+            }
             Err(e) => {
                 update_errors.push(e);
                 false

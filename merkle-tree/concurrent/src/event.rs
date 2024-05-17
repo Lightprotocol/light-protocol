@@ -51,6 +51,5 @@ pub struct ChangelogEventV2 {
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub struct UpdatedLeaf {
     pub leaf: [u8; 32],
-    /// Leaf index.
     pub leaf_index: u64,
 }

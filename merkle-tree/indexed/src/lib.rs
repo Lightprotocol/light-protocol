@@ -237,11 +237,11 @@ where
         });
         let new_low_element = UpdatedLeaf {
             leaf: new_low_leaf,
-            leaf_index: usize::try_from(new_low_element.index).unwrap() as u64,
+            leaf_index: usize::from(new_low_element.index) as u64,
         };
         let new_leaf = UpdatedLeaf {
             leaf: new_leaf,
-            leaf_index: usize::try_from(new_element.index).unwrap() as u64,
+            leaf_index: usize::from(new_element.index) as u64,
         };
 
         Ok((new_low_element, new_leaf))
