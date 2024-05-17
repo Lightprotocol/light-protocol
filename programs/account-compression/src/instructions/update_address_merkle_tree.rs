@@ -1,10 +1,11 @@
 use anchor_lang::prelude::*;
 use light_bounded_vec::BoundedVec;
+use light_concurrent_merkle_tree::event::{ChangelogEvent, ChangelogEventV2};
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 
 use crate::{
-    address_queue_from_bytes_zero_copy_mut,
+    address_queue_from_bytes_zero_copy_mut, emit_indexer_event,
     state::address::{AddressMerkleTreeAccount, AddressQueueAccount},
 };
 
@@ -16,6 +17,8 @@ pub struct UpdateMerkleTree<'info> {
     pub queue: AccountLoader<'info, AddressQueueAccount>,
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
+    /// CHECK: in event emitting
+    pub log_wrapper: UncheckedAccount<'info>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -74,7 +77,7 @@ pub fn process_update_address_merkle_tree<'info>(
     // - changelog index gets values from account
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof
-    merkle_tree
+    let (new_low_leaf, new_leaf) = merkle_tree
         .merkle_tree
         .update(
             usize::from(changelog_index),
@@ -86,10 +89,20 @@ pub fn process_update_address_merkle_tree<'info>(
         .map_err(ProgramError::from)?;
 
     // Mark the address with the current sequence number.
-    // TODO: replace with root history sequence number
     address_queue
         .mark_with_sequence_number(&value, sequence_number)
         .map_err(ProgramError::from)?;
 
+    let address_event = ChangelogEvent::V2(ChangelogEventV2 {
+        id: ctx.accounts.merkle_tree.key().to_bytes(),
+        leaves: vec![new_low_leaf, new_leaf],
+        // Address Merkle tree update does one update and one append,
+        // thus the first seq number is final seq - 1.
+        seq: merkle_tree.merkle_tree.merkle_tree.sequence_number as u64 - 1,
+    });
+    emit_indexer_event(
+        address_event.try_to_vec()?,
+        &ctx.accounts.log_wrapper.to_account_info(),
+    )?;
     Ok(())
 }

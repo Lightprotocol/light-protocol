@@ -1,7 +1,10 @@
 use std::cell::{RefCell, RefMut};
 
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::light_hasher::{Hasher, Poseidon};
+use light_concurrent_merkle_tree::{
+    event::UpdatedLeaf,
+    light_hasher::{Hasher, Poseidon},
+};
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
@@ -61,7 +64,7 @@ fn program_update<H>(
     low_nullifier: IndexedElement<usize>,
     low_nullifier_next_value: &BigUint,
     low_nullifier_proof: &mut BoundedVec<[u8; 32]>,
-) -> Result<(), IndexedMerkleTreeError>
+) -> Result<(UpdatedLeaf, UpdatedLeaf), IndexedMerkleTreeError>
 where
     H: Hasher,
 {
