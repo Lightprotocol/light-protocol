@@ -353,15 +353,17 @@ async fn perform_create_pda(
         address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
         address_merkle_tree_root_index: rpc_result.address_root_indices[0],
     };
+
     let create_ix_inputs = CreateCompressedPdaInstructionInputs {
         data: *data,
         signer: &payer_pubkey,
         output_compressed_account_merkle_tree_pubkey: &env.merkle_tree_pubkey,
         proof: &rpc_result.proof,
         new_address_params,
-        cpi_signature_account: &env.cpi_signature_account_pubkey,
+        cpi_signature_account: &env.cpi_context_account_pubkey,
         owner_program,
         signer_is_program,
+        cpi_context: &env.cpi_context_account_pubkey,
     };
     let instruction = create_pda_instruction(create_ix_inputs.clone());
     instruction
@@ -448,6 +450,7 @@ pub async fn perform_invalidate_not_owned_compressed_account(
             },
             root_index: rpc_result.root_indices[0],
         },
+        cpi_context_account: &env.cpi_context_account_pubkey,
     };
     let instruction = create_invalidate_not_owned_account_instruction(create_ix_inputs.clone());
     let transaction = Transaction::new_signed_with_payer(

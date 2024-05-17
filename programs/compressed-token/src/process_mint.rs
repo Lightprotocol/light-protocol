@@ -221,7 +221,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         ctx.accounts.light_system_program.to_account_info(), // none compressed_sol_pda
         ctx.accounts.light_system_program.to_account_info(), // none compression_recipient
         ctx.accounts.system_program.to_account_info(),
-        ctx.accounts.light_system_program.to_account_info(), // none cpi_context_account
+        ctx.accounts.cpi_context_account.to_account_info(),
         ctx.accounts.merkle_tree.to_account_info(),
     ];
 
@@ -276,7 +276,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
         AccountMeta {
             pubkey: account_infos[10].key(),
             is_signer: false,
-            is_writable: false,
+            is_writable: true,
         },
         AccountMeta {
             pubkey: account_infos[11].key(),
@@ -388,6 +388,9 @@ pub struct MintToInstruction<'info> {
     pub merkle_tree: UncheckedAccount<'info>,
     pub self_program: Program<'info, crate::program::LightCompressedToken>,
     pub system_program: Program<'info, System>,
+    /// CHECK: in system program
+    #[account(mut)]
+    pub cpi_context_account: AccountInfo<'info>,
 }
 
 pub fn get_token_authority_pda(signer: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
@@ -446,6 +449,7 @@ pub mod mint_sdk {
         authority: &Pubkey,
         mint: &Pubkey,
         merkle_tree: &Pubkey,
+        cpi_context_account: &Pubkey,
         amounts: Vec<u64>,
         public_keys: Vec<Pubkey>,
     ) -> Instruction {
@@ -478,6 +482,7 @@ pub mod mint_sdk {
             merkle_tree: *merkle_tree,
             self_program: crate::ID,
             system_program: system_program::ID,
+            cpi_context_account: *cpi_context_account,
         };
 
         Instruction {

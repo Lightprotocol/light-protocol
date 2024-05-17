@@ -40,7 +40,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_context_account: None,
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
@@ -75,4 +75,7 @@ pub struct InvalidateNotOwnedCompressedAccount<'info> {
     /// CHECK:
     pub cpi_signer: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
+    #[account(mut)]
+    pub cpi_context_account:
+        Account<'info, light_system_program::invoke_cpi::account::CpiContextAccount>,
 }

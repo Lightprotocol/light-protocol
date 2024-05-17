@@ -35,12 +35,14 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize>(
     amounts: Vec<u64>,
     recipients: Vec<Pubkey>,
 ) {
+    let cpi_context_account = get_cpi_context_from_test_indexer(test_indexer, merkle_tree_pubkey);
     let payer_pubkey = mint_authority.pubkey();
     let instruction = create_mint_to_instruction(
         &payer_pubkey,
         &payer_pubkey,
         mint,
         merkle_tree_pubkey,
+        &cpi_context_account,
         amounts.clone(),
         recipients.clone(),
     );
@@ -80,7 +82,13 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize>(
         &[instruction],
         &payer_pubkey,
         &[mint_authority],
-        None,
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: amounts.len() as u8,
+            compress: 0,
+            fee_config: crate::FeeConfig::default(),
+        }),
     )
     .await
     .unwrap()
@@ -327,7 +335,17 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
             context,
         )
         .await;
-
+    let cpi_context = if !input_compressed_accounts.is_empty() {
+        get_cpi_context_from_test_indexer(
+            test_indexer,
+            &input_compressed_accounts[0]
+                .compressed_account
+                .merkle_context
+                .merkle_tree_pubkey,
+        )
+    } else {
+        get_cpi_context_from_test_indexer(test_indexer, &output_merkle_tree_pubkeys[0])
+    };
     let instruction = light_compressed_token::transfer_sdk::create_transfer_instruction(
         &payer.pubkey(),
         &from.pubkey(), // authority
@@ -342,6 +360,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
         None,  // compression_amount
         None,  // token_pool_pda
         None,  // decompress_token_account
+        &cpi_context,
     )
     .unwrap();
     let output_merkle_tree_accounts =
@@ -364,13 +383,6 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
         &payer.pubkey(),
         &[payer, from],
         transaction_params,
-        // Some(TransactionParams {
-        //     num_new_addresses: 0,
-        //     num_input_compressed_accounts: input_compressed_account_hashes.len() as u8,
-        //     num_output_compressed_accounts: output_compressed_accounts.len() as u8,
-        //     compress: 5000, // for second signer
-        //     fee_config: crate::FeeConfig::default(),
-        // }),
     )
     .await
     .unwrap()
@@ -394,9 +406,17 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
     .await;
 }
 
+pub fn get_cpi_context_from_test_indexer<const INDEXED_ARRAY_SIZE: usize>(
+    test_indexer: &TestIndexer<INDEXED_ARRAY_SIZE>,
+    merkle_tree_pubkey: &Pubkey,
+) -> Pubkey {
+    let accounts = test_indexer.get_state_merkle_tree_accounts(&[*merkle_tree_pubkey]);
+    accounts[0].cpi_context
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
-    payer: &Keypair,
+    authority: &Keypair,
     context: &mut ProgramTestContext,
     test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
     input_compressed_accounts: Vec<TokenDataWithContext>,
@@ -411,7 +431,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         .sum();
     let change_out_compressed_account = TokenTransferOutputData {
         amount: max_amount - amount,
-        owner: payer.pubkey(),
+        owner: authority.pubkey(),
         lamports: None,
         merkle_tree: *output_merkle_tree_pubkey,
     };
@@ -442,9 +462,21 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
+    let cpi_context = if !input_compressed_accounts.is_empty() {
+        get_cpi_context_from_test_indexer(
+            test_indexer,
+            &input_compressed_accounts[0]
+                .compressed_account
+                .merkle_context
+                .merkle_tree_pubkey,
+        )
+    } else {
+        get_cpi_context_from_test_indexer(test_indexer, output_merkle_tree_pubkey)
+    };
+    let context_payer = context.payer.insecure_clone();
     let instruction = create_transfer_instruction(
-        &context.payer.pubkey(),
-        &payer.pubkey(), // authority
+        &context_payer.pubkey(),
+        &authority.pubkey(), // authority
         &input_compressed_accounts
             .iter()
             .map(|x| x.compressed_account.merkle_context)
@@ -463,6 +495,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         Some(amount),                    // compression_amount
         Some(get_token_pool_pda(&mint)), // token_pool_pda
         Some(*recipient_token_account),  // decompress_token_account
+        &cpi_context,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -490,12 +523,11 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
             .data,
     )
     .unwrap();
-    let context_payer = context.payer.insecure_clone();
     let event = create_and_send_transaction_with_event(
         context,
         &[instruction],
-        &payer.pubkey(),
-        &[&context_payer, payer],
+        &context_payer.pubkey(),
+        &[&context_payer, authority],
         transaction_params,
     )
     .await
@@ -503,7 +535,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
     .unwrap();
 
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
-    println!("created_output_accounts: {:?}", created_output_accounts);
+
     assert_transfer(
         context,
         test_indexer,
@@ -538,7 +570,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
 
 #[allow(clippy::too_many_arguments)]
 pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
-    payer: &Keypair,
+    authority: &Keypair,
     context: &mut ProgramTestContext,
     test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
     amount: u64,
@@ -549,7 +581,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
 ) {
     let output_compressed_account = TokenTransferOutputData {
         amount,
-        owner: payer.pubkey(),
+        owner: authority.pubkey(),
         lamports: None,
         merkle_tree: *output_merkle_tree_pubkey,
     };
@@ -557,15 +589,15 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
         &anchor_spl::token::ID,
         sender_token_account,
         &get_cpi_authority_pda().0,
-        &payer.pubkey(),
-        &[&payer.pubkey()],
+        &authority.pubkey(),
+        &[&authority.pubkey()],
         amount,
     )
     .unwrap();
-
+    let cpi_context = get_cpi_context_from_test_indexer(test_indexer, output_merkle_tree_pubkey);
     let instruction = create_transfer_instruction(
         &context.payer.pubkey(),
-        &payer.pubkey(),              // authority
+        &authority.pubkey(),          // authority
         &Vec::new(),                  // input_compressed_account_merkle_tree_pubkeys
         &[output_compressed_account], // output_compressed_accounts
         &Vec::new(),                  // root_indices
@@ -577,6 +609,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
         Some(amount),                   // compression_amount
         Some(get_token_pool_pda(mint)), // token_pool_pda
         Some(*sender_token_account),    // decompress_token_account
+        &cpi_context,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -602,8 +635,8 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
     let event = create_and_send_transaction_with_event(
         context,
         &[approve_instruction, instruction],
-        &payer.pubkey(),
-        &[&context_payer, payer],
+        &context_payer.pubkey(),
+        &[&context_payer, authority],
         transaction_params,
     )
     .await

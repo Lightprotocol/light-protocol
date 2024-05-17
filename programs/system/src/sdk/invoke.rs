@@ -35,6 +35,7 @@ pub fn create_invoke_instruction(
     compression_lamports: Option<u64>,
     is_compress: bool,
     compression_recipient: Option<Pubkey>,
+    cpi_context_account: &Pubkey,
 ) -> Instruction {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext> =
@@ -171,6 +172,7 @@ pub fn create_invoke_instruction(
         compressed_sol_pda,
         compression_recipient,
         system_program: solana_sdk::system_program::ID,
+        cpi_context_account: *cpi_context_account,
     };
     Instruction {
         program_id: crate::ID,
@@ -256,6 +258,7 @@ mod test {
             Some(100),
             true,
             None,
+            &Pubkey::new_unique(),
         );
         assert_eq!(instruction.program_id, crate::ID);
 

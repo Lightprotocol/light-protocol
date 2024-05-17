@@ -2,7 +2,7 @@ import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import {
     STATE_MERKLE_TREE_ROLLOVER_FEE,
-    STATE_MERKLE_TREE_TIP,
+    NETWORK_FEE,
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
@@ -77,7 +77,7 @@ describe('test-rpc', () => {
                 compressLamportsAmount -
                 5000 -
                 STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
-                STATE_MERKLE_TREE_TIP.toNumber(),
+                NETWORK_FEE.toNumber(),
         );
     });
 

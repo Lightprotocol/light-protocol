@@ -106,8 +106,7 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
 
             let mut merkle_tree_account = merkle_tree_account.load_mut()?;
-            let mut lamports = merkle_tree_account.rollover_fee * (end - start) as u64;
-            lamports += merkle_tree_account.tip;
+            let lamports = merkle_tree_account.rollover_fee * (end - start) as u64;
 
             check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
                 ctx,

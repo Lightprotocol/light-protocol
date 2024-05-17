@@ -33,7 +33,12 @@ export type LightSystemProgram = {
                     isSigner: false;
                 },
             ];
-            args: [];
+            args: [
+                {
+                    name: 'fee';
+                    type: 'u64';
+                },
+            ];
         },
         {
             name: 'invoke';
@@ -83,6 +88,11 @@ export type LightSystemProgram = {
                 {
                     name: 'systemProgram';
                     isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
                     isSigner: false;
                 },
             ];
@@ -152,7 +162,6 @@ export type LightSystemProgram = {
                     name: 'cpiContextAccount';
                     isMut: true;
                     isSigner: false;
-                    isOptional: true;
                 },
             ];
             args: [
@@ -191,6 +200,10 @@ export type LightSystemProgram = {
                                 defined: 'InstructionDataInvokeCpi';
                             };
                         };
+                    },
+                    {
+                        name: 'networkFee';
+                        type: 'u64';
                     },
                 ];
             };
@@ -655,10 +668,6 @@ export type LightSystemProgram = {
                         name: 'setContext';
                         type: 'bool';
                     },
-                    {
-                        name: 'cpiContextAccountIndex';
-                        type: 'u8';
-                    },
                 ];
             };
         },
@@ -844,6 +853,11 @@ export type LightSystemProgram = {
             name: 'ProofIsSome';
             msg: 'ProofIsSome';
         },
+        {
+            code: 6036;
+            name: 'CpiContextNotAssociated';
+            msg: 'CpiContextNotAssociated with first Merkle\n    tree expected to be the first Merkle tree account';
+        },
     ];
 };
 
@@ -882,7 +896,12 @@ export const IDL: LightSystemProgram = {
                     isSigner: false,
                 },
             ],
-            args: [],
+            args: [
+                {
+                    name: 'fee',
+                    type: 'u64',
+                },
+            ],
         },
         {
             name: 'invoke',
@@ -932,6 +951,11 @@ export const IDL: LightSystemProgram = {
                 {
                     name: 'systemProgram',
                     isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
                     isSigner: false,
                 },
             ],
@@ -1001,7 +1025,6 @@ export const IDL: LightSystemProgram = {
                     name: 'cpiContextAccount',
                     isMut: true,
                     isSigner: false,
-                    isOptional: true,
                 },
             ],
             args: [
@@ -1040,6 +1063,10 @@ export const IDL: LightSystemProgram = {
                                 defined: 'InstructionDataInvokeCpi',
                             },
                         },
+                    },
+                    {
+                        name: 'networkFee',
+                        type: 'u64',
                     },
                 ],
             },
@@ -1509,10 +1536,6 @@ export const IDL: LightSystemProgram = {
                         name: 'setContext',
                         type: 'bool',
                     },
-                    {
-                        name: 'cpiContextAccountIndex',
-                        type: 'u8',
-                    },
                 ],
             },
         },
@@ -1697,6 +1720,11 @@ export const IDL: LightSystemProgram = {
             code: 6035,
             name: 'ProofIsSome',
             msg: 'ProofIsSome',
+        },
+        {
+            code: 6036,
+            name: 'CpiContextNotAssociated',
+            msg: 'CpiContextNotAssociated with first Merkle\n    tree expected to be the first Merkle tree account',
         },
     ],
 };

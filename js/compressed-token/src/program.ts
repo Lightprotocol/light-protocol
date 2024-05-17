@@ -538,6 +538,7 @@ export class CompressedTokenProgram {
                 accountCompressionProgram: systemKeys.accountCompressionProgram,
                 merkleTree,
                 selfProgram: this.programId,
+                cpiContextAccount: systemKeys.cpiContextAccount,
             })
             .instruction();
         return instruction;
@@ -663,6 +664,8 @@ export class CompressedTokenProgram {
                 tokenPoolPda: null,
                 decompressTokenAccount: null,
                 tokenProgram: null,
+                cpiContextAccount:
+                    defaultStaticAccountsStruct().cpiContextAccount,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -744,6 +747,8 @@ export class CompressedTokenProgram {
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
                 decompressTokenAccount: source, // token
                 tokenProgram: TOKEN_PROGRAM_ID,
+                cpiContextAccount:
+                    defaultStaticAccountsStruct().cpiContextAccount,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();
@@ -826,6 +831,8 @@ export class CompressedTokenProgram {
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
                 decompressTokenAccount: toAddress,
                 tokenProgram: TOKEN_PROGRAM_ID,
+                cpiContextAccount:
+                    defaultStaticAccountsStruct().cpiContextAccount,
             })
             .remainingAccounts(remainingAccountMetas)
             .instruction();

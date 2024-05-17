@@ -26,14 +26,21 @@ pub mod light_system_program {
     };
 
     use super::*;
-
-    pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
+    // TODO: add claim fees method
+    // TODO: test init from registry program method
+    pub fn init_cpi_context_account(
+        ctx: Context<InitializeCpiContextAccount>,
+        fee: u64,
+    ) -> Result<()> {
         // check that merkle tree is initialized
         let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;
         merkle_tree_account.load_merkle_tree()?;
+        if merkle_tree_account.owner != ctx.accounts.fee_payer.key() {
+            return Err(crate::errors::CompressedPdaError::InvalidMerkleTreeOwner.into());
+        }
         ctx.accounts
             .cpi_context_account
-            .init(ctx.accounts.associated_merkle_tree.key());
+            .init(ctx.accounts.associated_merkle_tree.key(), fee);
         msg!(
             "initialized cpi signature account pubkey {:?}",
             ctx.accounts.cpi_context_account.key()

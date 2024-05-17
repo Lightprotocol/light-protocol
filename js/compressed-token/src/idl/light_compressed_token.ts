@@ -134,6 +134,11 @@ export type LightCompressedToken = {
                     isMut: false;
                     isSigner: false;
                 },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
+                    isSigner: false;
+                },
             ];
             args: [
                 {
@@ -223,6 +228,11 @@ export type LightCompressedToken = {
                 {
                     name: 'systemProgram';
                     isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
                     isSigner: false;
                 },
             ];
@@ -693,10 +703,6 @@ export type LightCompressedToken = {
                         name: 'setContext';
                         type: 'bool';
                     },
-                    {
-                        name: 'cpiContextAccountIndex';
-                        type: 'u8';
-                    },
                 ];
             };
         },
@@ -1124,6 +1130,11 @@ export const IDL: LightCompressedToken = {
                     isMut: false,
                     isSigner: false,
                 },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
+                    isSigner: false,
+                },
             ],
             args: [
                 {
@@ -1213,6 +1224,11 @@ export const IDL: LightCompressedToken = {
                 {
                     name: 'systemProgram',
                     isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
                     isSigner: false,
                 },
             ],
@@ -1687,10 +1703,6 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'setContext',
                         type: 'bool',
-                    },
-                    {
-                        name: 'cpiContextAccountIndex',
-                        type: 'u8',
                     },
                 ],
             },

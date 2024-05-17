@@ -74,4 +74,9 @@ pub enum CompressedPdaError {
     InvalidMerkleTreeIndex,
     #[msg("ProofIsSome")]
     ProofIsSome,
+    #[msg(
+        "CpiContextNotAssociated with first Merkle
+    tree expected to be the first Merkle tree account"
+    )]
+    CpiContextNotAssociated,
 }

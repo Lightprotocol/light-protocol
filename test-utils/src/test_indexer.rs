@@ -130,7 +130,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             vec![StateMerkleTreeAccounts {
                 merkle_tree: env.merkle_tree_pubkey,
                 nullifier_queue: env.nullifier_queue_pubkey,
-                cpi_context: env.cpi_signature_account_pubkey,
+                cpi_context: env.cpi_context_account_pubkey,
             }],
             vec![AddressMerkleTreeAccounts {
                 merkle_tree: env.address_merkle_tree_pubkey,
@@ -236,13 +236,14 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             context,
             &merkle_tree_keypair.pubkey(),
             cpi_signature_keypair,
+            &self.payer,
         )
         .await;
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             nullifier_queue: nullifier_queue_keypair.pubkey(),
-            cpi_context: Pubkey::default(),
+            cpi_context: cpi_signature_keypair.pubkey(),
         };
         let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
@@ -489,7 +490,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                 &address_tree.merkle_tree,
                 &address_tree.indexed_array,
             );
-            println!("proof_inputs {:?}", proof_inputs);
+
             non_inclusion_proofs.push(proof_inputs);
             let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
                 context,

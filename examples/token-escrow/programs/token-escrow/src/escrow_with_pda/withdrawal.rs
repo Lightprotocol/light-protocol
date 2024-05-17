@@ -110,6 +110,9 @@ pub struct EscrowCompressedTokensWithPda<'info> {
     #[account(init_if_needed, seeds = [b"timelock".as_slice(), signer.key.to_bytes().as_slice()],bump, payer = signer, space = 8 + 8)]
     pub timelock_pda: Account<'info, EscrowTimeLock>,
     pub system_program: Program<'info, System>,
+    #[account(mut)]
+    pub cpi_context_account:
+        Account<'info, light_system_program::invoke_cpi::account::CpiContextAccount>,
 }
 
 #[account]
@@ -157,6 +160,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         decompress_token_account: None,
         token_program: None,
         system_program: ctx.accounts.system_program.to_account_info(),
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new(
@@ -215,6 +219,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         decompress_token_account: None,
         token_program: None,
         system_program: ctx.accounts.system_program.to_account_info(),
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new_with_signer(

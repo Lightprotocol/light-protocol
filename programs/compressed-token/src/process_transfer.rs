@@ -205,9 +205,9 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
 
     let signer_seeds = &[&seeds[..]];
-    let cpi_context_account = cpi_context.map(|cpi_context| {
-        ctx.remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
-    });
+    // let cpi_context_account = cpi_context.map(|cpi_context| {
+    //     ctx.remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
+    // });
     let inputs_struct = light_system_program::invoke_cpi::instruction::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
@@ -233,7 +233,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         system_program: ctx.accounts.system_program.to_account_info(),
         compressed_sol_pda: None,
         compression_recipient: None,
-        cpi_context_account,
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.light_system_program.to_account_info(),
@@ -320,6 +320,9 @@ pub struct TransferInstruction<'info> {
     pub decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
     pub system_program: Program<'info, System>,
+    /// CHECK: in system program
+    #[account(mut)]
+    pub cpi_context_account: AccountInfo<'info>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -487,6 +490,7 @@ pub mod transfer_sdk {
         compression_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
         decompress_token_account: Option<Pubkey>,
+        cpi_context_account: &Pubkey,
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
@@ -526,6 +530,7 @@ pub mod transfer_sdk {
             decompress_token_account,
             token_program: token_pool_pda.map(|_| Token::id()),
             system_program: solana_sdk::system_program::ID,
+            cpi_context_account: *cpi_context_account,
         };
 
         Ok(Instruction {

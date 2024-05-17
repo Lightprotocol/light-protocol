@@ -43,7 +43,6 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
             derive_address(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
-        println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
     let mut address_params = Vec::new();
@@ -329,6 +328,9 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
     let mut proof = None;
     let mut input_merkle_tree_snapshots = Vec::new();
     let mut address_params = Vec::new();
+    let input_merkle_tree_accounts = inputs
+        .test_indexer
+        .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
     if !inputs.input_compressed_accounts.is_empty() || !inputs.new_address_params.is_empty() {
         let address_merkle_tree_pubkeys = if inputs.new_address_params.is_empty() {
             None
@@ -353,9 +355,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
             .await;
         root_indices = proof_rpc_res.root_indices;
         proof = Some(proof_rpc_res.proof);
-        let input_merkle_tree_accounts = inputs
-            .test_indexer
-            .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
+
         input_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
             inputs.context,
             input_merkle_tree_accounts.as_slice(),
@@ -379,6 +379,12 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
         output_merkle_tree_accounts.as_slice(),
     )
     .await;
+    let cpi_context = if input_merkle_tree_accounts.is_empty() {
+        output_merkle_tree_accounts[0].cpi_context
+    } else {
+        input_merkle_tree_accounts[0].cpi_context
+    };
+
     let instruction = create_invoke_instruction(
         &inputs.fee_payer.pubkey(),
         &inputs.authority.pubkey().clone(),
@@ -402,6 +408,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
         inputs.compression_lamports,
         inputs.is_compress,
         inputs.recipient,
+        &cpi_context,
     );
     let mut recipient_balance_pre = 0;
     let mut compressed_sol_pda_balance_pre = 0;

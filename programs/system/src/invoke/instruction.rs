@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 
 use crate::{
     invoke::sol_compression::COMPRESSED_SOL_PDA_SEED,
+    invoke_cpi::account::CpiContextAccount,
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
@@ -40,6 +41,8 @@ pub struct InvokeInstruction<'info> {
     #[account(mut)]
     pub compression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
+    #[account(mut)]
+    pub cpi_context_account: Account<'info, CpiContextAccount>,
 }
 
 impl<'info> SignerAccounts<'info> for InvokeInstruction<'info> {
@@ -80,6 +83,9 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     }
     fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
         self.compression_recipient.as_ref()
+    }
+    fn get_cpi_context_account(&mut self) -> &mut Account<'info, CpiContextAccount> {
+        &mut self.cpi_context_account
     }
 }
 

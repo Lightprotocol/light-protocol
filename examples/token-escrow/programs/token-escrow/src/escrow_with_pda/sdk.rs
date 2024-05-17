@@ -27,6 +27,7 @@ pub struct CreateEscrowInstructionInputs<'a> {
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
     pub mint: &'a Pubkey,
+    pub cpi_context_account: &'a Pubkey,
 }
 
 pub fn get_timelock_pda(signer: &Pubkey) -> Pubkey {
@@ -89,6 +90,7 @@ pub fn create_escrow_instruction(
         timelock_pda,
         system_program: solana_sdk::system_program::ID,
         token_owner_pda: token_owner_pda.0,
+        cpi_context_account: *input_params.cpi_context_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -156,13 +158,13 @@ pub fn create_withdrawal_escrow_instruction(
         account_compression_authority,
         timelock_pda,
         system_program: solana_sdk::system_program::ID,
+        cpi_context_account: *input_params.cpi_context_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
     Instruction {
         program_id: crate::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-
         data: instruction_data.data(),
     }
 }

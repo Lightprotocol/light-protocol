@@ -1,8 +1,8 @@
 import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import {
+    NETWORK_FEE,
     STATE_MERKLE_TREE_ROLLOVER_FEE,
-    STATE_MERKLE_TREE_TIP,
     STATE_NULLIFIER_QUEUE_ROLLOVER_FEE,
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
@@ -54,7 +54,7 @@ describe('compress', () => {
                 compressLamportsAmount -
                 5000 -
                 STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
-                STATE_MERKLE_TREE_TIP.toNumber(),
+                NETWORK_FEE.toNumber(),
         );
 
         /// Decompress
@@ -85,7 +85,7 @@ describe('compress', () => {
                 5000 -
                 STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
                 STATE_NULLIFIER_QUEUE_ROLLOVER_FEE.toNumber() -
-                STATE_MERKLE_TREE_TIP.toNumber() * 2, // Merkle tree and nullifier queue tip
+                NETWORK_FEE.toNumber(),
         );
     });
 });

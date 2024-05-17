@@ -23,6 +23,8 @@ export const getAccountCompressionAuthority = () =>
             '6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ',
         ),
     )[0];
+export const getCpiContextAccount = () =>
+    new PublicKey('Bvux5m7rMGXJfjNCKUXHaRMcVJCiDe6iWu8ANj8kpwu5');
 
 export const defaultStaticAccounts = () => [
     new PublicKey(getRegisteredProgramPda()),
@@ -38,7 +40,7 @@ export const defaultStaticAccountsStruct = () => {
         accountCompressionAuthority: new PublicKey(
             getAccountCompressionAuthority(),
         ),
-        cpiSignatureAccount: null,
+        cpiContextAccount: getCpiContextAccount(),
     };
 };
 
@@ -75,11 +77,11 @@ export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
 );
 
 /**
- * Tip to reward the forester that empties the queues and nullifies leaves.
+ * Network fee to reward the forester that empties the queues and nullifies leaves.
  *
- * Is charged per output compressed account.
+ * Is charged per compressed transaction.
  */
-export const STATE_MERKLE_TREE_TIP = new BN(1);
+export const NETWORK_FEE = new BN(5000);
 
 /**
  * Fee to provide continous funding for the state Merkle tree.

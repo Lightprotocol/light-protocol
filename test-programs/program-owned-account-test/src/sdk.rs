@@ -22,6 +22,7 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
     pub cpi_signature_account: &'a Pubkey,
     pub owner_program: &'a Pubkey,
     pub signer_is_program: CreatePdaMode,
+    pub cpi_context: &'a Pubkey,
 }
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
@@ -65,6 +66,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         self_program: crate::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
+        cpi_context_account: *input_params.cpi_context,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -82,6 +84,7 @@ pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub proof: &'a CompressedProof,
     pub input_merkle_tree_pubkey: &'a Pubkey,
     pub compressed_account: &'a PackedCompressedAccountWithMerkleContext,
+    pub cpi_context_account: &'a Pubkey,
 }
 pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
@@ -117,6 +120,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         self_program: crate::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
+        cpi_context_account: *input_params.cpi_context_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

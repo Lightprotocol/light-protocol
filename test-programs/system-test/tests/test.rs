@@ -72,6 +72,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
 
     let event = create_and_send_transaction_with_event(
@@ -123,6 +124,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
 
     let res =
@@ -154,6 +156,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
 
     let res =
@@ -199,6 +202,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
     println!("Transaction with zkp -------------------------");
 
@@ -245,6 +249,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
     let res =
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
@@ -273,6 +278,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
     let res =
         create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
@@ -324,6 +330,7 @@ async fn test_with_address() {
         None,
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -367,7 +374,13 @@ async fn test_with_address() {
         &[compressed_account_with_context
             .merkle_context
             .merkle_tree_pubkey],
-        None,
+        Some(TransactionParams {
+            num_new_addresses: 2 as u8,
+            num_input_compressed_accounts: 1u8,
+            num_output_compressed_accounts: 2u8,
+            compress: 0, // sol amount this is an spl compress test
+            fee_config: crate::FeeConfig::default(),
+        }),
     )
     .await
     .unwrap();
@@ -401,7 +414,13 @@ async fn test_with_address() {
         &[address_seed_2, address_seed_2],
         &Vec::new(),
         false,
-        None,
+        Some(TransactionParams {
+            num_new_addresses: 2 as u8,
+            num_input_compressed_accounts: 0u8,
+            num_output_compressed_accounts: 2 as u8,
+            compress: 0, // sol amount this is an spl compress test
+            fee_config: crate::FeeConfig::default(),
+        }),
     )
     .await;
     // Should fail to insert the same address twice in the same tx
@@ -431,7 +450,13 @@ async fn test_with_address() {
         &[address_seed_2, address_seed_3],
         &Vec::new(),
         false,
-        None,
+        Some(TransactionParams {
+            num_new_addresses: 2 as u8,
+            num_input_compressed_accounts: 0u8,
+            num_output_compressed_accounts: 2 as u8,
+            compress: 0, // sol amount this is an spl compress test
+            fee_config: crate::FeeConfig::default(),
+        }),
     )
     .await
     .unwrap();
@@ -469,7 +494,14 @@ async fn test_with_address() {
             &address_vec,
             &compressed_input_accounts,
             true,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: n_new_addresses as u8,
+                num_input_compressed_accounts: compressed_input_accounts.len() as u8,
+                num_output_compressed_accounts: (compressed_input_accounts.len() + n_new_addresses)
+                    as u8,
+                compress: 0, // sol amount this is an spl compress test
+                fee_config: crate::FeeConfig::default(),
+            }),
         )
         .await
         .unwrap();
@@ -513,6 +545,7 @@ async fn test_with_compression() {
         Some(compress_amount),
         false,
         None,
+        &env.cpi_context_account_pubkey,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -549,6 +582,7 @@ async fn test_with_compression() {
         None,
         true,
         None,
+        &env.cpi_context_account_pubkey,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -575,7 +609,13 @@ async fn test_with_compression() {
         false,
         compress_amount,
         &env.merkle_tree_pubkey,
-        None,
+        Some(TransactionParams {
+            num_new_addresses: 0u8,
+            num_input_compressed_accounts: 0u8,
+            num_output_compressed_accounts: 1u8,
+            compress: compress_amount as i64,
+            fee_config: crate::FeeConfig::default(),
+        }),
     )
     .await
     .unwrap();
@@ -625,6 +665,7 @@ async fn test_with_compression() {
         Some(compress_amount),
         true,
         Some(recipient),
+        &env.cpi_context_account_pubkey,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -653,7 +694,13 @@ async fn test_with_compression() {
         &recipient_pubkey,
         compress_amount,
         &env.merkle_tree_pubkey,
-        None,
+        Some(TransactionParams {
+            num_new_addresses: 0u8,
+            num_input_compressed_accounts: 1u8,
+            num_output_compressed_accounts: 1u8,
+            compress: 0, // because decompress amount goes to a different recipient than payer
+            fee_config: crate::FeeConfig::default(),
+        }),
     )
     .await
     .unwrap();
@@ -676,6 +723,7 @@ async fn regenerate_accounts() {
             "address_merkle_tree_queue",
             env.address_merkle_tree_queue_pubkey,
         ),
+        ("cpi_context", env.cpi_context_account_pubkey),
     ];
 
     for (name, pubkey) in pubkeys {

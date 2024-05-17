@@ -101,7 +101,7 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_context_account: None,
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
     let mut cpi_ctx = CpiContext::new(
         ctx.accounts.light_system_program.to_account_info(),
@@ -152,7 +152,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_context_account: None,
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
 
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
@@ -239,4 +239,7 @@ pub struct CreateCompressedPda<'info> {
     /// CHECK:
     pub cpi_signer: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
+    /// CHECK:
+    #[account(mut)]
+    pub cpi_context_account: AccountInfo<'info>,
 }

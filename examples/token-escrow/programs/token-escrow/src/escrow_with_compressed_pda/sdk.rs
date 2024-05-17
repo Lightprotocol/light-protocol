@@ -58,17 +58,7 @@ pub fn create_escrow_instruction(
 
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
-    let cpi_context_account_index: u8 =
-        match remaining_accounts.get(input_params.cpi_signature_account) {
-            Some(entry) => (*entry).try_into().unwrap(),
-            None => {
-                remaining_accounts.insert(
-                    *input_params.cpi_signature_account,
-                    remaining_accounts.len(),
-                );
-                (remaining_accounts.len() - 1) as u8
-            }
-        };
+
     let instruction_data = crate::instruction::EscrowCompressedTokensWithCompressedPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
@@ -78,10 +68,7 @@ pub fn create_escrow_instruction(
         input_token_data_with_context: inputs.input_token_data_with_context,
         output_state_merkle_tree_account_indices: merkle_tree_indices,
         new_address_params: new_address_params[0],
-        cpi_context: CompressedCpiContext {
-            set_context: false,
-            cpi_context_account_index,
-        },
+        cpi_context: CompressedCpiContext { set_context: false },
         bump: token_owner_pda.1,
     };
 
@@ -173,21 +160,7 @@ pub fn create_withdrawal_instruction(
         ],
         &mut remaining_accounts,
     );
-    let cpi_context_account_index: u8 =
-        match remaining_accounts.get(input_params.cpi_signature_account) {
-            Some(entry) => (*entry).try_into().unwrap(),
-            None => {
-                remaining_accounts.insert(
-                    *input_params.cpi_signature_account,
-                    remaining_accounts.len(),
-                );
-                (remaining_accounts.len() - 1) as u8
-            }
-        };
-    let cpi_context = CompressedCpiContext {
-        set_context: false,
-        cpi_context_account_index,
-    };
+    let cpi_context = CompressedCpiContext { set_context: false };
     let input_compressed_pda = PackedInputCompressedPda {
         old_lock_up_time: input_params.old_lock_up_time,
         new_lock_up_time: input_params.new_lock_up_time,

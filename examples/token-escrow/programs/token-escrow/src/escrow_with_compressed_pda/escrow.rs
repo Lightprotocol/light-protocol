@@ -1,4 +1,4 @@
-use crate::{create_change_output_compressed_token_account, EscrowError, EscrowTimeLock};
+use crate::{create_change_output_compressed_token_account, EscrowTimeLock};
 use anchor_lang::prelude::*;
 use light_compressed_token::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
@@ -92,15 +92,6 @@ fn cpi_compressed_pda_transfer<'info>(
 
     let mut inputs = Vec::new();
     InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
-    let cpi_context_account = match Some(cpi_context) {
-        Some(cpi_context) => Some(
-            ctx.remaining_accounts
-                .get(cpi_context.cpi_context_account_index as usize)
-                .unwrap()
-                .to_account_info(),
-        ),
-        None => return err!(EscrowError::CpiContextAccountIndexNotFound),
-    };
     let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.token_owner_pda.to_account_info(),
@@ -112,7 +103,7 @@ fn cpi_compressed_pda_transfer<'info>(
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_context_account,
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
     let seeds = [seeds.as_slice()];
     let mut cpi_ctx = CpiContext::new_with_signer(
@@ -244,6 +235,7 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
         decompress_token_account: None,
         token_program: None,
         system_program: ctx.accounts.system_program.to_account_info(),
+        cpi_context_account: ctx.accounts.cpi_context_account.to_account_info(),
     };
 
     let mut cpi_ctx = CpiContext::new(

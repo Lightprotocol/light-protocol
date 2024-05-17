@@ -13,6 +13,7 @@ pub trait InvokeAccounts<'info> {
     fn get_system_program(&self) -> &Program<'info, System>;
     fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>>;
     fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>>;
+    fn get_cpi_context_account(&mut self) -> &mut Account<'info, CpiContextAccount>;
 }
 
 pub trait SignerAccounts<'info> {
@@ -22,5 +23,4 @@ pub trait SignerAccounts<'info> {
 
 pub trait InvokeCpiAccounts<'info> {
     fn get_invoking_program(&self) -> &UncheckedAccount<'info>;
-    fn get_cpi_context_account(&mut self) -> &mut Option<Account<'info, CpiContextAccount>>;
 }

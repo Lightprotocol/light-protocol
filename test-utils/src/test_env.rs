@@ -65,7 +65,7 @@ pub struct EnvAccounts {
     pub registered_program_pda: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_queue_pubkey: Pubkey,
-    pub cpi_signature_account_pubkey: Pubkey,
+    pub cpi_context_account_pubkey: Pubkey,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -214,7 +214,13 @@ pub async fn setup_test_programs_with_accounts(
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
 
-    init_cpi_signature_account(&mut context, &merkle_tree_pubkey, &cpi_signature_keypair).await;
+    init_cpi_signature_account(
+        &mut context,
+        &merkle_tree_pubkey,
+        &cpi_signature_keypair,
+        &payer,
+    )
+    .await;
     (
         context,
         EnvAccounts {
@@ -226,7 +232,7 @@ pub async fn setup_test_programs_with_accounts(
             registered_program_pda,
             address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
             address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
-            cpi_signature_account_pubkey: cpi_signature_keypair.pubkey(),
+            cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
         },
     )
 }
@@ -372,15 +378,14 @@ pub async fn init_cpi_signature_account(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
     cpi_account_keypair: &Keypair,
+    fee_payer: &Keypair,
 ) -> Pubkey {
     use solana_sdk::instruction::Instruction;
 
     use crate::create_account_instruction;
-
-    let payer = context.payer.insecure_clone();
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(
-        &context.payer.pubkey(),
+        &fee_payer.pubkey(),
         account_size,
         context
             .banks_client
@@ -391,9 +396,9 @@ pub async fn init_cpi_signature_account(
         &light_system_program::ID,
         Some(cpi_account_keypair),
     );
-    let data = light_system_program::instruction::InitCpiContextAccount {};
+    let data = light_system_program::instruction::InitCpiContextAccount { fee: 5000 };
     let accounts = light_system_program::accounts::InitializeCpiContextAccount {
-        fee_payer: payer.insecure_clone().pubkey(),
+        fee_payer: fee_payer.pubkey(),
         cpi_context_account: cpi_account_keypair.pubkey(),
         system_program: system_program::ID,
         associated_merkle_tree: *merkle_tree_pubkey,
@@ -406,8 +411,8 @@ pub async fn init_cpi_signature_account(
     create_and_send_transaction(
         context,
         &[account_create_ix, instruction],
-        &payer.pubkey(),
-        &[&payer, cpi_account_keypair],
+        &fee_payer.pubkey(),
+        &[fee_payer, cpi_account_keypair],
     )
     .await
     .unwrap();

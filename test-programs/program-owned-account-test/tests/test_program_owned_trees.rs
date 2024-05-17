@@ -51,6 +51,7 @@ async fn test_program_owned_merkle_tree() {
         &payer_pubkey,
         &mint,
         &program_owned_merkle_tree_pubkey,
+        &cpi_signature_keypair.pubkey(),
         vec![amount; 1],
         vec![recipient_keypair.pubkey(); 1],
     );
@@ -99,13 +100,13 @@ async fn test_program_owned_merkle_tree() {
     let invalid_program_owned_merkle_tree_pubkey =
         invalid_program_owned_merkle_tree_keypair.pubkey();
     let invalid_program_owned_nullifier_queue_keypair = Keypair::new();
-    let cpi_signature_keypair = Keypair::new();
+    let invalid_cpi_signature_keypair = Keypair::new();
     test_indexer
         .add_state_merkle_tree(
             &mut context,
             &invalid_program_owned_merkle_tree_keypair,
             &invalid_program_owned_nullifier_queue_keypair,
-            &cpi_signature_keypair,
+            &invalid_cpi_signature_keypair,
             Some(Pubkey::new_unique()),
         )
         .await;
@@ -115,6 +116,7 @@ async fn test_program_owned_merkle_tree() {
         &payer_pubkey,
         &mint,
         &invalid_program_owned_merkle_tree_pubkey,
+        &invalid_cpi_signature_keypair.pubkey(),
         vec![amount + 1; 1],
         vec![recipient_keypair.pubkey(); 1],
     );

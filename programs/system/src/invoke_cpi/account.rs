@@ -30,11 +30,13 @@ use anchor_lang::prelude::*;
 pub struct CpiContextAccount {
     pub associated_merkle_tree: Pubkey,
     pub context: Vec<InstructionDataInvokeCpi>,
+    pub network_fee: u64,
 }
 
 impl CpiContextAccount {
-    pub fn init(&mut self, associated_merkle_tree: Pubkey) {
+    pub fn init(&mut self, associated_merkle_tree: Pubkey, network_fee: u64) {
         self.associated_merkle_tree = associated_merkle_tree;
         self.context = Vec::new();
+        self.network_fee = network_fee;
     }
 }

@@ -68,7 +68,6 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
-use crate::airdrop_lamports;
 use crate::spl::{
     compress_test, compressed_transfer_test, create_token_account, decompress_test,
     mint_tokens_helper,
@@ -86,6 +85,7 @@ use crate::test_indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
     StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
 };
+use crate::{airdrop_lamports, TransactionParams};
 use crate::{test_env::setup_test_programs_with_accounts, test_indexer::TestIndexer};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
@@ -98,8 +98,8 @@ use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::SliceRandom;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::rngs::{StdRng, ThreadRng};
+use rand::{Rng, RngCore, SeedableRng};
 use solana_program_test::ProgramTestContext;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
@@ -174,7 +174,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             vec![StateMerkleTreeAccounts {
                 merkle_tree: env_accounts.merkle_tree_pubkey,
                 nullifier_queue: env_accounts.nullifier_queue_pubkey,
-                cpi_context: env_accounts.cpi_signature_account_pubkey,
+                cpi_context: env_accounts.cpi_context_account_pubkey,
             }],
             vec![AddressMerkleTreeAccounts {
                 merkle_tree: env_accounts.address_merkle_tree_pubkey,
@@ -186,9 +186,10 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             prover_server_path,
         )
         .await;
-
-        // 43 is an arbitrary constant
-        let seed: u64 = seed.unwrap_or(43);
+        let mut thread_rng = ThreadRng::default();
+        let random_seed = thread_rng.next_u64();
+        let seed: u64 = seed.unwrap_or(random_seed);
+        println!("\n\ne2e test seed {}\n\n", seed);
         let mut rng = StdRng::seed_from_u64(seed);
         let user = Self::create_user(&mut rng, &mut context).await;
         let payer = context.payer.insecure_clone();
@@ -307,6 +308,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
     async fn create_state_tree(&mut self) {
         let merkle_tree_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
+        let cpi_context_keypair = Keypair::new();
         create_state_merkle_tree_and_queue_account(
             &self.payer,
             &mut self.context,
@@ -314,6 +316,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             &nullifier_queue_keypair,
             None,
             1,
+        )
+        .await;
+        init_cpi_signature_account(
+            &mut self.context,
+            &merkle_tree_keypair.pubkey(),
+            &cpi_context_keypair,
+            &self.payer,
         )
         .await;
         let merkle_tree = Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
@@ -324,7 +333,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             accounts: StateMerkleTreeAccounts {
                 merkle_tree: merkle_tree_keypair.pubkey(),
                 nullifier_queue: nullifier_queue_keypair.pubkey(),
-                cpi_context: Pubkey::new_unique(),
+                cpi_context: cpi_context_keypair.pubkey(),
             },
             merkle_tree,
         });
@@ -476,9 +485,17 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             &mut self.context,
             &new_merkle_tree_keypair.pubkey(),
             &new_cpi_signature_keypair,
+            &self.payer,
         )
         .await;
-
+        println!(
+            "\n\nNew state Merkle tree: {:?}",
+            new_merkle_tree_keypair.pubkey()
+        );
+        println!(
+            "cpi signature account: {:?}",
+            new_cpi_signature_keypair.pubkey()
+        );
         self.indexer
             .add_state_merkle_tree(
                 &mut self.context,
@@ -515,7 +532,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 input_compressed_accounts.as_slice(),
                 recipients.as_slice(),
                 output_merkle_trees.as_slice(),
-                None,
+                Some(TransactionParams {
+                    num_new_addresses: 0,
+                    num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    num_output_compressed_accounts: num_output_merkle_trees as u8,
+                    compress: 0,
+                    fee_config: crate::FeeConfig::default(),
+                }),
             )
             .await
             .unwrap();
@@ -546,7 +569,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 &recipient,
                 decompress_amount,
                 &output_merkle_tree,
-                None,
+                Some(TransactionParams {
+                    num_new_addresses: 0,
+                    num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    num_output_compressed_accounts: 1u8,
+                    compress: 0,
+                    fee_config: crate::FeeConfig::default(),
+                }),
             )
             .await
             .unwrap();
@@ -576,7 +605,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             create_output_compressed_accounts_for_input_accounts,
             amount,
             &output_merkle_tree,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: amount as i64,
+                fee_config: crate::FeeConfig::default(),
+            }),
         )
         .await
         .unwrap();
@@ -614,7 +649,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             address_seeds.as_slice(),
             &Vec::new(),
             false,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: num_addresses as u8,
+                num_input_compressed_accounts: 0u8,
+                num_output_compressed_accounts: num_addresses as u8,
+                compress: 0,
+                fee_config: crate::FeeConfig::default(),
+            }),
         )
         .await
         .unwrap();
@@ -666,7 +707,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             &amounts,
             &token_accounts,
             &output_merkle_tree_pubkeys,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts: output_merkle_tree_pubkeys.len() as u8,
+                compress: 0,
+                fee_config: crate::FeeConfig::default(),
+            }),
         )
         .await;
         self.stats.spl_transfers += 1;
@@ -712,7 +759,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1);
 
             let amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
-            // decompress
+            // TODO: test with input accounts
             compress_test(
                 &self.users[user_index].keypair,
                 &mut self.context,
@@ -721,7 +768,13 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 &mint,
                 &output_merkle_tree_account[0],
                 &token_account,
-                None,
+                Some(TransactionParams {
+                    num_new_addresses: 0u8,
+                    num_input_compressed_accounts: 0u8,
+                    num_output_compressed_accounts: 1u8,
+                    compress: 0, // sol amount this is an spl compress test
+                    fee_config: crate::FeeConfig::default(),
+                }),
             )
             .await;
             self.stats.spl_compress += 1;
@@ -766,11 +819,17 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             &self.users[user_index].keypair,
             &mut self.context,
             &mut self.indexer,
-            token_accounts,
+            token_accounts.clone(),
             amount,
             &output_merkle_tree_account[0],
             &token_account,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: 0, // sol amount this is an spl decompress test
+                fee_config: crate::FeeConfig::default(),
+            }),
         )
         .await;
         self.stats.spl_decompress += 1;

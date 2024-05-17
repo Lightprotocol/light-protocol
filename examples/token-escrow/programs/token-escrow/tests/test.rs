@@ -12,7 +12,7 @@
 
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
-use light_test_utils::spl::mint_tokens_helper;
+use light_test_utils::spl::{get_cpi_context_from_test_indexer, mint_tokens_helper};
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, TestIndexer};
 use light_test_utils::{
@@ -256,7 +256,13 @@ pub async fn perform_escrow(
             context,
         )
         .await;
-
+    let cpi_context_account = get_cpi_context_from_test_indexer(
+        &test_indexer,
+        &input_compressed_token_account_data
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey,
+    );
     let create_ix_inputs = CreateEscrowInstructionInputs {
         input_token_data: &vec![input_compressed_token_account_data.token_data],
         lock_up_time: *lock_up_time,
@@ -276,6 +282,7 @@ pub async fn perform_escrow(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
+        cpi_context_account: &cpi_context_account,
     };
     create_escrow_instruction(create_ix_inputs.clone(), *escrow_amount)
 }
@@ -423,7 +430,13 @@ pub async fn perform_withdrawal(
             context,
         )
         .await;
-
+    let cpi_context_account = get_cpi_context_from_test_indexer(
+        &test_indexer,
+        &escrow_token_data_with_context
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey,
+    );
     let create_ix_inputs = CreateEscrowInstructionInputs {
         input_token_data: &vec![escrow_token_data_with_context.token_data],
         lock_up_time: 0,
@@ -443,6 +456,7 @@ pub async fn perform_withdrawal(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &escrow_token_data_with_context.token_data.mint,
+        cpi_context_account: &cpi_context_account,
     };
 
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)

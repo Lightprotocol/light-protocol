@@ -174,7 +174,7 @@ impl Default for FeeConfig {
             state_merkle_tree_rollover: 149,
             nullifier_queue_rollover: 29,
             address_queue_rollover: 181,
-            tip: 1,
+            tip: 5000,
         }
     }
 }
@@ -243,24 +243,14 @@ where
 
     // assert correct rollover fee and tip distribution
     if let Some(transaction_params) = transaction_params {
+        let mut signers = signers.to_vec();
+        signers.dedup();
         let post_balance = context
             .banks_client
             .get_account(*payer)
             .await?
             .unwrap()
             .lamports;
-
-        let mut tip = 0;
-        for rollover in &[
-            transaction_params.num_new_addresses,
-            transaction_params.num_input_compressed_accounts,
-            transaction_params.num_output_compressed_accounts,
-        ] {
-            if *rollover != 0 {
-                tip += transaction_params.fee_config.tip as i64;
-            }
-        }
-
         let expected_post_balance = pre_balance as i64
             - i64::from(transaction_params.num_new_addresses)
                 * transaction_params.fee_config.address_queue_rollover as i64
@@ -269,8 +259,8 @@ where
             - i64::from(transaction_params.num_output_compressed_accounts)
                 * transaction_params.fee_config.state_merkle_tree_rollover as i64
             - transaction_params.compress
-            - 5000
-            - tip * (i64::from(transaction_params.num_output_compressed_accounts) / 28 + 1);
+            - 5000 * signers.len() as i64
+            - transaction_params.fee_config.tip as i64;
 
         if post_balance as i64 != expected_post_balance {
             println!("transaction_params: {:?}", transaction_params);
@@ -281,7 +271,7 @@ where
                 "diff post_balance: {}",
                 post_balance as i64 - expected_post_balance
             );
-            println!("tip: {}", tip);
+            println!("tip: {}", transaction_params.fee_config.tip);
             return Err(BanksClientError::TransactionError(
                 solana_sdk::transaction::TransactionError::InstructionError(
                     0,

@@ -357,6 +357,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -378,6 +379,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -401,6 +403,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -423,6 +426,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -447,6 +451,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -496,6 +501,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -526,6 +532,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -544,6 +551,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -573,6 +581,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -604,6 +613,7 @@ async fn test_invalid_inputs() {
         &Some(proof_rpc_result.proof.clone()),
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
+        &env.cpi_context_account_pubkey,
     )
     .await
     .unwrap();
@@ -622,6 +632,7 @@ async fn perform_transfer_failing_test(
     proof: &Option<CompressedProof>,
     root_indices: &[u16],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
+    cpi_context: &Pubkey,
 ) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
     let input_compressed_account_token_data: Vec<TokenData> = input_compressed_accounts
         .iter()
@@ -654,6 +665,7 @@ async fn perform_transfer_failing_test(
         None,
         None,
         None,
+        cpi_context,
     )
     .unwrap();
 

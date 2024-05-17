@@ -1,4 +1,4 @@
-use crate::{errors::CompressedPdaError, sdk::accounts::InvokeCpiAccounts};
+use crate::sdk::accounts::InvokeAccounts;
 
 use super::{
     account::CpiContextAccount, instruction::InvokeCpiInstruction, InstructionDataInvokeCpi,
@@ -10,16 +10,9 @@ pub fn process_cpi_context<'info>(
     ctx: &mut Context<'_, '_, '_, 'info, InvokeCpiInstruction<'info>>,
 ) -> Result<Option<InstructionDataInvokeCpi>> {
     let cpi_context = &inputs.cpi_context;
-    if ctx.accounts.get_cpi_context_account().is_some() && cpi_context.is_none() {
-        return err!(CompressedPdaError::CpiContextMissing);
-    }
 
     if let Some(cpi_context) = cpi_context {
-        let cpi_context_account = match ctx.accounts.get_cpi_context_account() {
-            Some(cpi_context_account) => cpi_context_account,
-            None => return err!(CompressedPdaError::CpiContextMissing),
-        };
-
+        let cpi_context_account = ctx.accounts.get_cpi_context_account();
         if cpi_context.set_context {
             set_cpi_context(cpi_context_account, inputs);
             return Ok(None);

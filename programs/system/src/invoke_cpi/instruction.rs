@@ -48,15 +48,12 @@ pub struct InvokeCpiInstruction<'info> {
     pub compression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
     #[account(mut)]
-    pub cpi_context_account: Option<Account<'info, CpiContextAccount>>,
+    pub cpi_context_account: Account<'info, CpiContextAccount>,
 }
 
 impl<'info> InvokeCpiAccounts<'info> for InvokeCpiInstruction<'info> {
     fn get_invoking_program(&self) -> &UncheckedAccount<'info> {
         &self.invoking_program
-    }
-    fn get_cpi_context_account(&mut self) -> &mut Option<Account<'info, CpiContextAccount>> {
-        &mut self.cpi_context_account
     }
 }
 
@@ -100,6 +97,10 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
 
     fn get_system_program(&self) -> &Program<'info, System> {
         &self.system_program
+    }
+
+    fn get_cpi_context_account(&mut self) -> &mut Account<'info, CpiContextAccount> {
+        &mut self.cpi_context_account
     }
 }
 

@@ -3,6 +3,7 @@ use crate::{
     sdk::accounts::{InvokeAccounts, SignerAccounts},
     InstructionDataInvoke,
 };
+use account_compression::transfer_lamports_cpi;
 use aligned_sized::*;
 use anchor_lang::{
     prelude::*,
@@ -83,23 +84,23 @@ pub fn compress_lamports<
         None => return err!(CompressedPdaError::DeCompressLamportsUndefinedForCompressSol),
     };
 
-    transfer_lamports_compress(
+    transfer_lamports_cpi(
         &ctx.accounts.get_authority().to_account_info(),
         &recipient,
         lamports,
     )
 }
 
-pub fn transfer_lamports_compress<'info>(
-    from: &AccountInfo<'info>,
-    to: &AccountInfo<'info>,
-    lamports: u64,
-) -> Result<()> {
-    let instruction =
-        anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
-    anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;
-    Ok(())
-}
+// pub fn transfer_lamports_compress<'info>(
+//     from: &AccountInfo<'info>,
+//     to: &AccountInfo<'info>,
+//     lamports: u64,
+// ) -> Result<()> {
+//     let instruction =
+//         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
+//     anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;
+//     Ok(())
+// }
 
 pub fn transfer_lamports<'info>(
     from: &AccountInfo<'info>,

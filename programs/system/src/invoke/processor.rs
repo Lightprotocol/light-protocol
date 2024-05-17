@@ -1,3 +1,4 @@
+use account_compression::transfer_lamports_cpi;
 use anchor_lang::{prelude::*, Bumps};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_verifier::CompressedProof as CompressedVerifierProof;
@@ -46,7 +47,7 @@ pub fn process<
 >(
     inputs: InstructionDataInvoke,
     invoking_program: Option<Pubkey>,
-    ctx: Context<'a, 'b, 'c, 'info, A>,
+    mut ctx: Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
@@ -182,6 +183,10 @@ pub fn process<
             bench_sbf_end!("cpda_append");
         }
     }
+
+    // pay network fee ---------------------------------------------------
+    pay_network_fee(&inputs, &mut ctx)?;
+
     bench_sbf_start!("emit_state_transition_event");
 
     // emit state transition event ---------------------------------------------------
@@ -195,6 +200,36 @@ pub fn process<
     )?;
     bench_sbf_end!("emit_state_transition_event");
 
+    Ok(())
+}
+
+fn pay_network_fee<'info, A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps>(
+    inputs: &InstructionDataInvoke,
+    ctx: &mut Context<'_, '_, '_, '_, A>,
+) -> Result<()> {
+    let first_merkle_tree_index = if !inputs
+        .input_compressed_accounts_with_merkle_context
+        .is_empty()
+    {
+        inputs.input_compressed_accounts_with_merkle_context[0]
+            .merkle_context
+            .merkle_tree_pubkey_index
+    } else {
+        inputs.output_compressed_accounts[0].merkle_tree_index
+    };
+    let fee_payer = ctx.accounts.get_fee_payer().to_account_info();
+
+    let cpi_context_account = ctx.accounts.get_cpi_context_account();
+    if ctx.remaining_accounts[first_merkle_tree_index as usize].key()
+        != cpi_context_account.associated_merkle_tree
+    {
+        return Err(CompressedPdaError::CpiContextNotAssociated.into());
+    }
+    transfer_lamports_cpi(
+        &fee_payer,
+        &cpi_context_account.to_account_info(),
+        cpi_context_account.network_fee,
+    )?;
     Ok(())
 }
 
