@@ -608,6 +608,7 @@ where
             .unwrap();
         let changelog_event_1 = match changelog_event_1 {
             ChangelogEvent::V1(changelog_event_1) => changelog_event_1,
+            ChangelogEvent::V2(_) => unreachable!(),
         };
 
         let mut changelog_index = 0;
@@ -620,6 +621,7 @@ where
             .unwrap();
         let changelog_event_2 = match changelog_event_2 {
             ChangelogEvent::V1(changelog_event_2) => changelog_event_2,
+            ChangelogEvent::V2(_) => unreachable!(),
         };
 
         for leaf in leaves {
@@ -1862,6 +1864,7 @@ fn test_changelog_event_v1() {
         let changelog_event = merkle_tree.get_changelog_event([0u8; 32], i, i, 1).unwrap();
         let changelog_event = match changelog_event {
             ChangelogEvent::V1(changelog_event) => changelog_event,
+            ChangelogEvent::V2(_) => unreachable!(),
         };
 
         let spl_changelog_entry = Box::new(spl_merkle_tree.change_logs[i]);

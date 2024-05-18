@@ -7,11 +7,10 @@ use account_compression::{
     utils::constants::{
         STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
     },
-    NullifierQueueConfig, NullifyEvent, NullifyEvents, StateMerkleTreeAccount,
-    StateMerkleTreeConfig, ID,
+    NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
+use light_concurrent_merkle_tree::{event::ChangelogEvent, ConcurrentMerkleTree26};
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
@@ -985,7 +984,7 @@ pub async fn nullify(
         ),
     ];
 
-    let event = create_and_send_transaction_with_event::<NullifyEvents>(
+    let event = create_and_send_transaction_with_event::<ChangelogEvent>(
         context,
         &instructions,
         &payer.pubkey(),
@@ -1046,11 +1045,13 @@ pub async fn nullify(
                 + STATE_MERKLE_TREE_ROOTS as usize
         )
     );
-    let event = event.as_ref().unwrap().nullifiers[0].clone();
+    let event = event.as_ref().unwrap();
     match event {
-        NullifyEvent::V1(event_v1) => {
+        ChangelogEvent::V1(_) => panic!("Expected V2 event"),
+        ChangelogEvent::V2(event_v1) => {
             assert_eq!(event_v1.id, merkle_tree_pubkey.to_bytes());
-            assert_eq!(event_v1.index, element_index);
+            assert_eq!(event_v1.leaves[0].leaf_index, element_index);
+            assert_eq!(event_v1.leaves[0].leaf, [0u8; 32]);
         }
     }
     Ok(())

@@ -1,7 +1,10 @@
 use std::cell::{RefCell, RefMut};
 
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::light_hasher::{Hasher, Poseidon};
+use light_concurrent_merkle_tree::{
+    event::UpdatedLeaf,
+    light_hasher::{Hasher, Poseidon},
+};
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
@@ -61,7 +64,7 @@ fn program_update<H>(
     low_nullifier: IndexedElement<usize>,
     low_nullifier_next_value: &BigUint,
     low_nullifier_proof: &mut BoundedVec<[u8; 32]>,
-) -> Result<(), IndexedMerkleTreeError>
+) -> Result<(UpdatedLeaf, UpdatedLeaf), IndexedMerkleTreeError>
 where
     H: Hasher,
 {
@@ -135,7 +138,27 @@ where
             &old_low_nullifier_next_value,
             &mut low_nullifier_proof,
         ) {
-            Ok(_) => true,
+            Ok((new_low_leaf, new_leaf)) => {
+                assert_eq!(
+                    new_low_leaf.leaf_index,
+                    nullifier_bundle.new_low_element.index as u64
+                );
+                let leaf_hash = nullifier_bundle
+                    .new_low_element
+                    .hash::<H>(&nullifier_bundle.new_element.value)
+                    .unwrap();
+                assert_eq!(new_low_leaf.leaf, leaf_hash);
+                let leaf_hash = nullifier_bundle
+                    .new_element
+                    .hash::<H>(&nullifier_bundle.new_element_next_value)
+                    .unwrap();
+                assert_eq!(new_leaf.leaf, leaf_hash);
+                assert_eq!(
+                    new_leaf.leaf_index,
+                    nullifier_bundle.new_element.index as u64
+                );
+                true
+            }
             Err(e) => {
                 update_errors.push(e);
                 false

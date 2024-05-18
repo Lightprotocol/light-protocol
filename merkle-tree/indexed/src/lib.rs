@@ -3,7 +3,8 @@ use std::marker::PhantomData;
 use array::{IndexedArray, IndexedElement};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, Pod};
 use light_concurrent_merkle_tree::{
-    errors::ConcurrentMerkleTreeError, light_hasher::Hasher, ConcurrentMerkleTree,
+    errors::ConcurrentMerkleTreeError, event::UpdatedLeaf, light_hasher::Hasher,
+    ConcurrentMerkleTree,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
@@ -175,7 +176,7 @@ where
         low_element: IndexedElement<I>,
         low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
-    ) -> Result<(), IndexedMerkleTreeError> {
+    ) -> Result<(UpdatedLeaf, UpdatedLeaf), IndexedMerkleTreeError> {
         // TODO: fix concurrency (broken right now)
         // let patched_low_element = self.patch_low_element(&low_element)?;
         // if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
@@ -234,7 +235,16 @@ where
             next_value: bigint_to_be_bytes_array::<32>(&new_element.value)?,
             index: new_low_element.index,
         });
-        Ok(())
+        let new_low_element = UpdatedLeaf {
+            leaf: new_low_leaf,
+            leaf_index: usize::from(new_low_element.index) as u64,
+        };
+        let new_leaf = UpdatedLeaf {
+            leaf: new_leaf,
+            leaf_index: usize::from(new_element.index) as u64,
+        };
+
+        Ok((new_low_element, new_leaf))
     }
 
     /// Initializes the address merkle tree with the given initial value.

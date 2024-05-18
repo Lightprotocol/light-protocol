@@ -13,6 +13,7 @@ pub struct Changelogs {
 #[repr(C)]
 pub enum ChangelogEvent {
     V1(ChangelogEventV1),
+    V2(ChangelogEventV2),
 }
 
 /// Node of the Merkle path with an index representing the position in a
@@ -34,4 +35,21 @@ pub struct ChangelogEventV1 {
     pub seq: u64,
     /// Changelog event index.
     pub index: u32,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
+pub struct ChangelogEventV2 {
+    /// Public key of the tree.
+    pub id: [u8; 32],
+    pub leaves: Vec<UpdatedLeaf>,
+    /// Number of successful operations on the on-chain tree.
+    /// seq corresponds to leaves[0].
+    /// seq + 1 corresponds to leaves[1].
+    pub seq: u64,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
+pub struct UpdatedLeaf {
+    pub leaf: [u8; 32],
+    pub leaf_index: u64,
 }

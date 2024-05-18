@@ -8,7 +8,8 @@ use account_compression::{
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
 use light_test_utils::{
-    address_tree_rollover::perform_address_merkle_tree_roll_over, test_forester::update_merkle_tree,
+    address_tree_rollover::perform_address_merkle_tree_roll_over, test_env::NOOP_PROGRAM_ID,
+    test_forester::update_merkle_tree,
 };
 use light_test_utils::{
     address_tree_rollover::{
@@ -21,7 +22,7 @@ use light_test_utils::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
-use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     instruction::InstructionError,
     pubkey::Pubkey,
@@ -75,6 +76,7 @@ async fn relayer_update(
 async fn test_address_queue() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
+    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     program_test.set_compute_max_units(1_400_000u64);
 
     let mut context = program_test.start_with_context().await;
@@ -141,6 +143,7 @@ async fn test_address_queue() {
 async fn test_insert_invalid_low_element() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
+    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let mut context = program_test.start_with_context().await;
 
     let payer = context.payer.insecure_clone();
@@ -249,29 +252,30 @@ async fn test_insert_invalid_low_element() {
         .unwrap()
         .value;
     let low_element_proof = local_merkle_tree.get_proof_of_leaf(1, false).unwrap();
-    assert_eq!(
-        update_merkle_tree(
-            &mut context,
-            address_queue_keypair.pubkey(),
-            address_merkle_tree_keypair.pubkey(),
-            index as u16,
-            next_index as u64,
-            low_element.index as u64,
-            bigint_to_be_bytes_array(&low_element.value).unwrap(),
-            low_element.next_index as u64,
-            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-            low_element_proof.to_array().unwrap(),
-        )
-        .await
-        .unwrap()
-        .result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement.into()
-            )
-        ))
-    );
+    let expected_error: u32 = IndexedMerkleTreeError::LowElementGreaterOrEqualToNewElement.into();
+    assert!(match update_merkle_tree(
+        &mut context,
+        address_queue_keypair.pubkey(),
+        address_merkle_tree_keypair.pubkey(),
+        index as u16,
+        next_index as u64,
+        low_element.index as u64,
+        bigint_to_be_bytes_array(&low_element.value).unwrap(),
+        low_element.next_index as u64,
+        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+        low_element_proof.to_array().unwrap(),
+    )
+    .await
+    .unwrap_err()
+    {
+        BanksClientError::TransactionError(
+            solana_sdk::transaction::TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(error_code),
+            ),
+        ) if error_code == expected_error => true,
+        _ => false,
+    });
 
     // Try inserting address 50, while pointing to index 0 as low element.
     // Therefore, the new element is greater than next element.
@@ -304,35 +308,37 @@ async fn test_insert_invalid_low_element() {
         .unwrap()
         .value;
     let low_element_proof = local_merkle_tree.get_proof_of_leaf(0, false).unwrap();
-    assert_eq!(
-        update_merkle_tree(
-            &mut context,
-            address_queue_keypair.pubkey(),
-            address_merkle_tree_keypair.pubkey(),
-            index as u16,
-            next_index as u64,
-            low_element.index as u64,
-            bigint_to_be_bytes_array(&low_element.value).unwrap(),
-            low_element.next_index as u64,
-            bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-            low_element_proof.to_array().unwrap(),
-        )
-        .await
-        .unwrap()
-        .result,
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement.into()
-            )
-        ))
-    );
+    let expected_error: u32 = IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement.into();
+    assert!(match update_merkle_tree(
+        &mut context,
+        address_queue_keypair.pubkey(),
+        address_merkle_tree_keypair.pubkey(),
+        index as u16,
+        next_index as u64,
+        low_element.index as u64,
+        bigint_to_be_bytes_array(&low_element.value).unwrap(),
+        low_element.next_index as u64,
+        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+        low_element_proof.to_array().unwrap(),
+    )
+    .await
+    .unwrap_err()
+    {
+        BanksClientError::TransactionError(
+            solana_sdk::transaction::TransactionError::InstructionError(
+                0,
+                InstructionError::Custom(error_code),
+            ),
+        ) if error_code == expected_error => true,
+        _ => false,
+    });
 }
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
+    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     let mut context = program_test.start_with_context().await;
 
     let payer = context.payer.insecure_clone();

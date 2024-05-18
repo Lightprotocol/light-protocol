@@ -6,6 +6,3 @@ pub use public_state_merkle_tree::*;
 
 pub mod change_log_event;
 pub use change_log_event::*;
-
-pub mod nullify_event;
-pub use nullify_event::*;

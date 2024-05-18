@@ -1,18 +1,17 @@
+use crate::create_and_send_transaction_with_event;
+use crate::test_env::NOOP_PROGRAM_ID;
 use crate::test_indexer::AddressMerkleTreeBundle;
-use crate::{
-    create_and_send_transaction, get_hash_set, test_indexer::StateMerkleTreeBundle, AccountZeroCopy,
-};
+use crate::{get_hash_set, test_indexer::StateMerkleTreeBundle, AccountZeroCopy};
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;
 use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, ID};
 use account_compression::{AddressMerkleTreeAccount, AddressQueueAccount};
 use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
+use light_concurrent_merkle_tree::event::ChangelogEvent;
+use light_hasher::Poseidon;
 use light_utils::bigint::bigint_to_be_bytes_array;
-use solana_program_test::{
-    BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
-};
-use solana_sdk::transaction::TransactionError;
+use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -101,9 +100,29 @@ pub async fn nullify_compressed_accounts(
             ),
         ];
 
-        create_and_send_transaction(context, &instructions, &payer.pubkey(), &[payer])
-            .await
-            .unwrap();
+        let event = create_and_send_transaction_with_event::<ChangelogEvent>(
+            context,
+            &instructions,
+            &payer.pubkey(),
+            &[payer],
+            None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
+        match event {
+            ChangelogEvent::V2(event) => {
+                assert_eq!(event.id, state_tree_bundle.accounts.merkle_tree.to_bytes());
+                assert_eq!(event.seq, onchain_merkle_tree.sequence_number as u64 + 1);
+                assert_eq!(event.leaves.len(), 1);
+                assert_eq!(event.leaves[0].leaf, [0u8; 32]);
+                assert_eq!(event.leaves[0].leaf_index, leaf_index as u64);
+            }
+            _ => {
+                panic!("Wrong event type.");
+            }
+        }
 
         assert_value_is_marked_in_queue(
             context,
@@ -199,7 +218,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
     let relayer_merkle_tree = &mut address_tree_bundle.merkle_tree;
     let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
-    let mut update_errors: Vec<TransactionError> = Vec::new();
+    let mut update_errors: Vec<BanksClientError> = Vec::new();
 
     loop {
         let address_merkle_tree =
@@ -246,10 +265,43 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
             low_address_proof.to_array().unwrap(),
         )
         .await
-        .unwrap()
-        .result
         {
-            Ok(_) => true,
+            Ok(event) => {
+                let event = event.unwrap();
+                match event {
+                    ChangelogEvent::V2(event) => {
+                        assert_eq!(event.id, address_merkle_tree_pubkey.to_bytes());
+                        assert_eq!(event.seq, old_sequence_number as u64 + 1);
+                        assert_eq!(event.leaves.len(), 2);
+                        let new_low_element_leaf = address_bundle
+                            .new_low_element
+                            .hash::<Poseidon>(&address_bundle.new_element.value);
+                        assert_eq!(
+                            event.leaves[0].leaf,
+                            new_low_element_leaf.unwrap(),
+                            "New low element leaf mismatch."
+                        );
+                        let new_element_leaf = address_bundle
+                            .new_element
+                            .hash::<Poseidon>(&address_bundle.new_element_next_value);
+                        assert_eq!(
+                            event.leaves[1].leaf,
+                            new_element_leaf.unwrap(),
+                            "New element leaf mismatch."
+                        );
+                        assert_eq!(event.leaves[0].leaf_index, old_low_address.index as u64);
+                        assert_eq!(
+                            event.leaves[1].leaf_index,
+                            address_bundle.new_element.index as u64
+                        );
+                    }
+                    _ => {
+                        panic!("Wrong event type.");
+                    }
+                }
+
+                true
+            }
             Err(e) => {
                 update_errors.push(e);
                 break;
@@ -328,7 +380,7 @@ pub async fn update_merkle_tree(
     low_address_next_index: u64,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
-) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
+) -> Result<Option<ChangelogEvent>, BanksClientError> {
     let changelog_index = {
         // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
         let address_merkle_tree =
@@ -358,19 +410,19 @@ pub async fn update_merkle_tree(
             AccountMeta::new(context.payer.pubkey(), true),
             AccountMeta::new(address_queue_pubkey, false),
             AccountMeta::new(address_merkle_tree_pubkey, false),
+            AccountMeta::new(NOOP_PROGRAM_ID, false),
         ],
         data: instruction_data.data(),
     };
-    let transaction = Transaction::new_signed_with_payer(
+    let payer = context.payer.insecure_clone();
+    create_and_send_transaction_with_event::<ChangelogEvent>(
+        context,
         &[update_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        context.last_blockhash,
-    );
-    context
-        .banks_client
-        .process_transaction_with_metadata(transaction)
-        .await
+        &context.payer.pubkey(),
+        &[&payer],
+        None,
+    )
+    .await
 }
 
 pub async fn insert_addresses(
