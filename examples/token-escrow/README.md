@@ -1,7 +1,8 @@
 # Token Escrow program example
 
-An example program escrowing compressed tokens into (1) a regular solana program account, (2) into a compressed-pda account.
+This example program escrows compressed tokens into (1) a regular Solana program account and (2) a compressed-pda account.
 
+**Note:** Breaking changes to interfaces can occur. To ensure compatibility with the latest release, please check out the [latest release branch](https://github.com/Lightprotocol/light-protocol/tree/light-v0.3.0/examples/token-escrow).
 
 ### Run the tests
 
@@ -19,4 +20,4 @@ cd examples/token-escrow/programs/token-escrow
 cargo test-sbf -- --test-threads=1
 ```
 
-##  This program is unsafe, don't use it in production.
+##  This program is unsafe; don't use it in production.
