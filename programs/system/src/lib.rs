@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-
 pub mod invoke;
 pub use invoke::instruction::*;
 pub mod invoke_cpi;
@@ -26,13 +25,13 @@ pub mod light_system_program {
     };
 
     use super::*;
-    // TODO: add claim fees method
+
     // TODO: test init from registry program method
     pub fn init_cpi_context_account(
         ctx: Context<InitializeCpiContextAccount>,
         fee: u64,
     ) -> Result<()> {
-        // check that merkle tree is initialized
+        // check that merkle tree is initialized and signer is eligible
         let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;
         merkle_tree_account.load_merkle_tree()?;
         if merkle_tree_account.owner != ctx.accounts.fee_payer.key() {
@@ -41,10 +40,29 @@ pub mod light_system_program {
         ctx.accounts
             .cpi_context_account
             .init(ctx.accounts.associated_merkle_tree.key(), fee);
-        msg!(
-            "initialized cpi signature account pubkey {:?}",
-            ctx.accounts.cpi_context_account.key()
-        );
+        Ok(())
+    }
+
+    pub fn claim_from_cpi_context_account(ctx: Context<ClaimCpiContextAccount>) -> Result<()> {
+        // check that merkle tree is initialized and signer is eligible
+        let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;
+        merkle_tree_account.load_merkle_tree()?;
+        if merkle_tree_account.owner != ctx.accounts.fee_payer.key() {
+            return Err(crate::errors::CompressedPdaError::InvalidMerkleTreeOwner.into());
+        }
+        let sender_account_info = &mut ctx.accounts.cpi_context_account.to_account_info();
+        let rent = Rent::get()?;
+        let rent_exempt_reserve = rent.minimum_balance(sender_account_info.data.borrow().len());
+        let lamports = sender_account_info.lamports();
+        let claim_amount = lamports.checked_sub(rent_exempt_reserve).unwrap();
+        ctx.accounts
+            .cpi_context_account
+            .sub_lamports(claim_amount)
+            .map_err(|_| ProgramError::InsufficientFunds)?;
+        ctx.accounts
+            .recipient
+            .add_lamports(claim_amount)
+            .map_err(|_| ProgramError::InsufficientFunds)?;
         Ok(())
     }
 

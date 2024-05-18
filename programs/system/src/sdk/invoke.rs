@@ -331,41 +331,43 @@ mod test {
             1
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data
-                .input_compressed_accounts_with_merkle_context[0]
-                .merkle_context
-                .merkle_tree_pubkey_index as usize],
+            instruction.accounts[10
+                + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
+                    .merkle_context
+                    .merkle_tree_pubkey_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data
-                .input_compressed_accounts_with_merkle_context[1]
-                .merkle_context
-                .merkle_tree_pubkey_index as usize],
+            instruction.accounts[10
+                + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
+                    .merkle_context
+                    .merkle_tree_pubkey_index as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data
-                .input_compressed_accounts_with_merkle_context[0]
-                .merkle_context
-                .nullifier_queue_pubkey_index as usize],
+            instruction.accounts[10
+                + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[0]
+                    .merkle_context
+                    .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data
-                .input_compressed_accounts_with_merkle_context[1]
-                .merkle_context
-                .nullifier_queue_pubkey_index as usize],
+            instruction.accounts[10
+                + deserialized_instruction_data.input_compressed_accounts_with_merkle_context[1]
+                    .merkle_context
+                    .nullifier_queue_pubkey_index as usize],
             AccountMeta::new(nullifier_array_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data.output_compressed_accounts[0]
-                .merkle_tree_index as usize],
+            instruction.accounts[10
+                + deserialized_instruction_data.output_compressed_accounts[0].merkle_tree_index
+                    as usize],
             AccountMeta::new(merkle_tree_pubkey, false)
         );
         assert_eq!(
-            instruction.accounts[9 + deserialized_instruction_data.output_compressed_accounts[1]
-                .merkle_tree_index as usize],
+            instruction.accounts[10
+                + deserialized_instruction_data.output_compressed_accounts[1].merkle_tree_index
+                    as usize],
             AccountMeta::new(merkle_tree_pubkey_1, false)
         );
     }

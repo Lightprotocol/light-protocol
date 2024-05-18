@@ -15,7 +15,7 @@ use light_registry::sdk::{
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 
-use solana_program_test::{ProgramTest, ProgramTestContext};
+use solana_program_test::{BanksClientError, ProgramTest, ProgramTestContext};
 
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
@@ -214,13 +214,14 @@ pub async fn setup_test_programs_with_accounts(
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
 
-    init_cpi_signature_account(
+    init_cpi_context_account(
         &mut context,
         &merkle_tree_pubkey,
         &cpi_signature_keypair,
         &payer,
     )
-    .await;
+    .await
+    .unwrap();
     (
         context,
         EnvAccounts {
@@ -374,12 +375,12 @@ pub async fn create_address_merkle_tree_and_queue_account(
         .unwrap();
 }
 
-pub async fn init_cpi_signature_account(
+pub async fn init_cpi_context_account(
     context: &mut ProgramTestContext,
     merkle_tree_pubkey: &Pubkey,
     cpi_account_keypair: &Keypair,
     fee_payer: &Keypair,
-) -> Pubkey {
+) -> Result<Pubkey, BanksClientError> {
     use solana_sdk::instruction::Instruction;
 
     use crate::create_account_instruction;
@@ -414,7 +415,6 @@ pub async fn init_cpi_signature_account(
         &fee_payer.pubkey(),
         &[fee_payer, cpi_account_keypair],
     )
-    .await
-    .unwrap();
-    cpi_account_keypair.pubkey()
+    .await?;
+    Ok(cpi_account_keypair.pubkey())
 }

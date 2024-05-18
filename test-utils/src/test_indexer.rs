@@ -2,7 +2,7 @@ use {
     crate::{
         create_account_instruction, create_and_send_transaction,
         test_env::{
-            create_state_merkle_tree_and_queue_account, init_cpi_signature_account, EnvAccounts,
+            create_state_merkle_tree_and_queue_account, init_cpi_context_account, EnvAccounts,
         },
         AccountZeroCopy,
     },
@@ -232,13 +232,14 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             self.state_merkle_trees.len() as u64,
         )
         .await;
-        init_cpi_signature_account(
+        init_cpi_context_account(
             context,
             &merkle_tree_keypair.pubkey(),
             cpi_signature_keypair,
             &self.payer,
         )
-        .await;
+        .await
+        .unwrap();
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),

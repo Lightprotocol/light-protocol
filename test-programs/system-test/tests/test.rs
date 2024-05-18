@@ -9,6 +9,7 @@ use light_system_program::{
     },
 };
 use light_test_utils::{
+    airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
     assert_custom_error_or_program_error, create_and_send_transaction,
     create_and_send_transaction_with_event,
@@ -21,10 +22,13 @@ use light_test_utils::{
 };
 use solana_cli_output::CliAccount;
 use solana_program_test::BanksClientError;
-use solana_sdk::transaction::TransactionError;
 use solana_sdk::{
-    instruction::InstructionError, pubkey::Pubkey, signer::Signer, transaction::Transaction,
+    instruction::{Instruction, InstructionError},
+    pubkey::Pubkey,
+    signer::Signer,
+    transaction::Transaction,
 };
+use solana_sdk::{signature::Keypair, transaction::TransactionError};
 use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
@@ -704,6 +708,121 @@ async fn test_with_compression() {
     )
     .await
     .unwrap();
+}
+
+#[tokio::test]
+async fn test_cpi_context() {
+    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+    let payer = context.payer.insecure_clone();
+    let mut test_indexer = TestIndexer::<200>::init_from_env(
+        &payer,
+        &env,
+        false,
+        true,
+        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+    )
+    .await;
+
+    let new_cpi_context_keypair = Keypair::new();
+    // try to create a cpi context account with invalid Merkle tree owner as signer
+    let error = light_test_utils::test_env::init_cpi_context_account(
+        &mut context,
+        &env.merkle_tree_pubkey,
+        &new_cpi_context_keypair,
+        &payer,
+    )
+    .await;
+    let error_code = CompressedPdaError::InvalidMerkleTreeOwner as u32 + 6000;
+    // Use matches! to check the error pattern and validate the error code
+    assert!(match error {
+        Err(BanksClientError::TransactionError(TransactionError::InstructionError(
+            1,
+            InstructionError::Custom(actual_code),
+        ))) => {
+            actual_code == error_code
+        }
+        _ => false,
+    });
+
+    // Compress to generate 5k lamports in network fees
+    compress_sol_test(
+        &mut context,
+        &mut test_indexer,
+        &payer,
+        &Vec::new(),
+        false,
+        1_000_000,
+        &env.merkle_tree_pubkey,
+        Some(TransactionParams {
+            num_new_addresses: 0,
+            num_input_compressed_accounts: 0,
+            num_output_compressed_accounts: 1,
+            compress: 1_000_000,
+            fee_config: crate::FeeConfig::default(),
+        }),
+    )
+    .await
+    .unwrap();
+
+    // claim functional
+    let recipient = Pubkey::new_unique();
+    // airdrop rentexempt
+    airdrop_lamports(&mut context, &recipient, 1_000_000)
+        .await
+        .unwrap();
+    let instruction = light_system_program::instruction::ClaimFromCpiContextAccount {};
+    let accounts = light_system_program::accounts::ClaimCpiContextAccount {
+        cpi_context_account: env.cpi_context_account_pubkey,
+        recipient,
+        fee_payer: env.governance_authority.pubkey(),
+        associated_merkle_tree: env.merkle_tree_pubkey,
+    };
+    use anchor_lang::{InstructionData, ToAccountMetas};
+    let instruction = Instruction {
+        program_id: light_system_program::id(),
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction.data(),
+    };
+
+    create_and_send_transaction(
+        &mut context,
+        &[instruction],
+        &env.governance_authority.pubkey(),
+        &[&env.governance_authority],
+    )
+    .await
+    .unwrap();
+
+    let recipient_post_balance = context.banks_client.get_balance(recipient).await.unwrap();
+    assert_eq!(recipient_post_balance, 1_005_000);
+
+    // claim with invalid Merkle tree owner as signer should fail
+    let instruction = light_system_program::instruction::ClaimFromCpiContextAccount {};
+    let accounts = light_system_program::accounts::ClaimCpiContextAccount {
+        cpi_context_account: env.cpi_context_account_pubkey,
+        recipient,
+        fee_payer: payer.pubkey(),
+        associated_merkle_tree: env.merkle_tree_pubkey,
+    };
+
+    let instruction = Instruction {
+        program_id: light_system_program::id(),
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction.data(),
+    };
+    let error =
+        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
+    let error_code = CompressedPdaError::InvalidMerkleTreeOwner as u32 + 6000;
+    // Use matches! to check the error pattern and validate the error code
+    assert!(match error {
+        Err(BanksClientError::TransactionError(TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(actual_code),
+        ))) => {
+            actual_code == error_code
+        }
+        _ => false,
+    });
 }
 
 #[ignore = "this is a helper function to regenerate accounts"]

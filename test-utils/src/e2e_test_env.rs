@@ -78,7 +78,7 @@ use crate::system_program::{
 };
 use crate::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    init_cpi_signature_account,
+    init_cpi_context_account,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use crate::test_indexer::{
@@ -318,13 +318,14 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             1,
         )
         .await;
-        init_cpi_signature_account(
+        init_cpi_context_account(
             &mut self.context,
             &merkle_tree_keypair.pubkey(),
             &cpi_context_keypair,
             &self.payer,
         )
-        .await;
+        .await
+        .unwrap();
         let merkle_tree = Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
@@ -481,13 +482,14 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         .await
         .unwrap();
         let new_cpi_signature_keypair = Keypair::new();
-        init_cpi_signature_account(
+        init_cpi_context_account(
             &mut self.context,
             &new_merkle_tree_keypair.pubkey(),
             &new_cpi_signature_keypair,
             &self.payer,
         )
-        .await;
+        .await
+        .unwrap();
         println!(
             "\n\nNew state Merkle tree: {:?}",
             new_merkle_tree_keypair.pubkey()

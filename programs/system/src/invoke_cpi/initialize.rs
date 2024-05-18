@@ -13,3 +13,15 @@ pub struct InitializeCpiContextAccount<'info> {
     pub system_program: Program<'info, System>,
     pub associated_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
 }
+
+#[derive(Accounts)]
+pub struct ClaimCpiContextAccount<'info> {
+    #[account(mut)]
+    pub fee_payer: Signer<'info>,
+    #[account(mut)]
+    pub cpi_context_account: Account<'info, CpiContextAccount>,
+    pub associated_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
+    /// CHECK: recpient is unchecked
+    #[account(mut)]
+    pub recipient: AccountInfo<'info>,
+}

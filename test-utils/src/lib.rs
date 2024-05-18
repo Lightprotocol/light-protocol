@@ -271,7 +271,7 @@ where
                 "diff post_balance: {}",
                 post_balance as i64 - expected_post_balance
             );
-            println!("tip: {}", transaction_params.fee_config.tip);
+            println!("network fee: {}", transaction_params.fee_config.tip);
             return Err(BanksClientError::TransactionError(
                 solana_sdk::transaction::TransactionError::InstructionError(
                     0,

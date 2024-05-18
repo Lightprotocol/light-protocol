@@ -41,6 +41,32 @@ export type LightSystemProgram = {
             ];
         },
         {
+            name: 'claimFromCpiContextAccount';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiContextAccount';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'associatedMerkleTree';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'recipient';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [];
+        },
+        {
             name: 'invoke';
             accounts: [
                 {
@@ -902,6 +928,32 @@ export const IDL: LightSystemProgram = {
                     type: 'u64',
                 },
             ],
+        },
+        {
+            name: 'claimFromCpiContextAccount',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiContextAccount',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'associatedMerkleTree',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'recipient',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [],
         },
         {
             name: 'invoke',

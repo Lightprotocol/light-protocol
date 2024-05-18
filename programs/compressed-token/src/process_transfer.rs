@@ -205,9 +205,6 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
 
     let signer_seeds = &[&seeds[..]];
-    // let cpi_context_account = cpi_context.map(|cpi_context| {
-    //     ctx.remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
-    // });
     let inputs_struct = light_system_program::invoke_cpi::instruction::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context,
