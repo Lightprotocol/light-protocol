@@ -334,35 +334,6 @@ pub fn pack_new_address_params(
     new_address_params_packed
 }
 
-impl InstructionDataTransfer {
-    /// Checks that the lengths of the vectors are consistent with each other.
-    /// Note that this function does not check the inputs themselves just plausible of the lengths.
-    /// input roots must be the same length as input compressed accounts
-    /// output compressed accounts must be the same length as output state merkle tree account indices
-    pub fn check_input_lengths(&self) -> Result<()> {
-        if self.input_root_indices.len() != self.input_compressed_accounts_with_merkle_context.len()
-        {
-            msg!("input_root_indices.len() {} != {} input_compressed_accounts_with_merkle_context.len()",
-                self.input_root_indices.len(), self.input_compressed_accounts_with_merkle_context.len()
-            );
-            msg!("self {:?}", self);
-            return Err(ErrorCode::LengthMismatch.into());
-        }
-
-        if self.output_compressed_accounts.len()
-            != self.output_state_merkle_tree_account_indices.len()
-        {
-            msg!("output_compressed_accounts.len() {} != {} output_state_merkle_tree_account_indices.len()",
-                self.output_compressed_accounts.len(), self.output_state_merkle_tree_account_indices.len()
-            );
-            msg!("self {:?}", self);
-            return Err(ErrorCode::LengthMismatch.into());
-        }
-
-        Ok(())
-    }
-}
-
 // TODO: refactor to compressed_account
 // #[derive(Debug)]
 // #[account]

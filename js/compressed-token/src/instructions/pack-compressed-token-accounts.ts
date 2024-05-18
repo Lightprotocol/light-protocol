@@ -4,14 +4,14 @@ import {
     getIndexOrAdd,
     bn,
     padOutputStateMerkleTrees,
+    TokenTransferOutputData,
 } from '@lightprotocol/stateless.js';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
+import { PackedTokenTransferOutputData } from '../types';
 
 export type PackCompressedTokenAccountsParams = {
     /** Input state to be consumed */
     inputCompressedTokenAccounts: ParsedTokenAccount[];
-    /** Length of output compressed accounts */
-    outputCompressedAccountsLength: number;
     /**
      * State trees that the output should be inserted into. Defaults to the 0th
      * state tree of the input state. Gets padded to the length of
@@ -20,6 +20,12 @@ export type PackCompressedTokenAccountsParams = {
     outputStateTrees?: PublicKey[] | PublicKey;
     /** Optional remaining accounts to append to */
     remainingAccounts?: PublicKey[];
+    /**
+     *  Root indices that are used on-chain to fetch the correct root
+     *  from the state Merkle tree account for validity proof verification.
+     */
+    rootIndices: number[];
+    tokenTransferOutputs: TokenTransferOutputData[];
 };
 
 // TODO: include owner and lamports in packing.
@@ -30,14 +36,15 @@ export function packCompressedTokenAccounts(
     params: PackCompressedTokenAccountsParams,
 ): {
     inputTokenDataWithContext: InputTokenDataWithContext[];
-    outputStateMerkleTreeIndices: number[];
     remainingAccountMetas: AccountMeta[];
+    packedOutputTokenData: PackedTokenTransferOutputData[];
 } {
     const {
         inputCompressedTokenAccounts,
-        outputCompressedAccountsLength,
         outputStateTrees,
         remainingAccounts = [],
+        rootIndices,
+        tokenTransferOutputs,
     } = params;
 
     const _remainingAccounts = remainingAccounts.slice();
@@ -56,42 +63,50 @@ export function packCompressedTokenAccounts(
     /// Currently just packs 'delegate' to pubkeyArray
     const packedInputTokenData: InputTokenDataWithContext[] = [];
     /// pack inputs
-    inputCompressedTokenAccounts.forEach((account: ParsedTokenAccount) => {
-        const merkleTreePubkeyIndex = getIndexOrAdd(
-            _remainingAccounts,
-            account.compressedAccount.merkleTree,
-        );
+    inputCompressedTokenAccounts.forEach(
+        (account: ParsedTokenAccount, index) => {
+            const merkleTreePubkeyIndex = getIndexOrAdd(
+                _remainingAccounts,
+                account.compressedAccount.merkleTree,
+            );
 
-        const nullifierQueuePubkeyIndex = getIndexOrAdd(
-            _remainingAccounts,
-            account.compressedAccount.nullifierQueue,
-        );
+            const nullifierQueuePubkeyIndex = getIndexOrAdd(
+                _remainingAccounts,
+                account.compressedAccount.nullifierQueue,
+            );
 
-        packedInputTokenData.push({
-            amount: account.parsed.amount,
-            delegateIndex,
-            delegatedAmount: account.parsed.delegatedAmount.eq(bn(0))
-                ? null
-                : account.parsed.delegatedAmount,
-            isNative: account.parsed.isNative,
-            merkleContext: {
-                merkleTreePubkeyIndex,
-                nullifierQueuePubkeyIndex,
-                leafIndex: account.compressedAccount.leafIndex,
-            },
-        });
-    });
+            packedInputTokenData.push({
+                amount: account.parsed.amount,
+                delegateIndex,
+                delegatedAmount: account.parsed.delegatedAmount.eq(bn(0))
+                    ? null
+                    : account.parsed.delegatedAmount,
+                isNative: account.parsed.isNative,
+                merkleContext: {
+                    merkleTreePubkeyIndex,
+                    nullifierQueuePubkeyIndex,
+                    leafIndex: account.compressedAccount.leafIndex,
+                },
+                rootIndex: rootIndices[index],
+            });
+        },
+    );
 
     /// pack output state trees
     const paddedOutputStateMerkleTrees = padOutputStateMerkleTrees(
         outputStateTrees,
-        outputCompressedAccountsLength,
+        tokenTransferOutputs.length,
         inputCompressedTokenAccounts.map(acc => acc.compressedAccount),
     );
-    const outputStateMerkleTreeIndices: number[] = [];
-    paddedOutputStateMerkleTrees.forEach(account => {
-        const indexMerkleTree = getIndexOrAdd(_remainingAccounts, account);
-        outputStateMerkleTreeIndices.push(indexMerkleTree);
+    const packedOutputTokenData: PackedTokenTransferOutputData[] = [];
+    paddedOutputStateMerkleTrees.forEach((account, index) => {
+        const merkleTreeIndex = getIndexOrAdd(_remainingAccounts, account);
+        packedOutputTokenData.push({
+            owner: tokenTransferOutputs[index].owner,
+            amount: tokenTransferOutputs[index].amount,
+            lamports: tokenTransferOutputs[index].lamports,
+            merkleTreeIndex,
+        });
     });
     // to meta
     const remainingAccountMetas = _remainingAccounts.map(
@@ -104,7 +119,7 @@ export function packCompressedTokenAccounts(
 
     return {
         inputTokenDataWithContext: packedInputTokenData,
-        outputStateMerkleTreeIndices,
         remainingAccountMetas,
+        packedOutputTokenData,
     };
 }

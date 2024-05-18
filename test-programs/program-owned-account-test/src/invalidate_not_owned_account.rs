@@ -11,7 +11,6 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
     compressed_account: PackedCompressedAccountWithMerkleContext,
     proof: Option<CompressedProof>,
-    root_indices: Vec<u16>,
     bump: u8,
 ) -> Result<()> {
     let seeds: [&[u8]; 2] = [b"cpi_signer".as_slice(), &[bump]];
@@ -19,8 +18,6 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: vec![compressed_account],
         output_compressed_accounts: Vec::new(),
-        input_root_indices: root_indices,
-        output_state_merkle_tree_account_indices: Vec::new(),
         proof,
         new_address_params: Vec::new(),
         compression_lamports: None,

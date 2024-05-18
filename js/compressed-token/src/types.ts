@@ -19,6 +19,25 @@ export type TokenTransferOutputData = {
     lamports: BN | null;
 };
 
+export type PackedTokenTransferOutputData = {
+    /**
+     * The owner of the output token account
+     */
+    owner: PublicKey;
+    /**
+     * The amount of tokens of the output token account
+     */
+    amount: BN;
+    /**
+     * lamports associated with the output token account
+     */
+    lamports: BN | null;
+    /**
+     * Merkle tree pubkey index in remaining accounts
+     */
+    merkleTreeIndex: number;
+};
+
 export type InputTokenDataWithContext = {
     /**
      * The amount of tokens to transfer

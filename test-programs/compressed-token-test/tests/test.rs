@@ -338,11 +338,13 @@ async fn test_invalid_inputs() {
         amount: input_compressed_account_token_data.amount - 1000,
         owner: recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
     let transfer_recipient_out_compressed_account_0 = TokenTransferOutputData {
         amount: 1000 + 1,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
     // invalid token data amount (+ 1)
     let res = perform_transfer_failing_test(
@@ -363,6 +365,7 @@ async fn test_invalid_inputs() {
         amount: 1000 - 1,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
     // invalid token data amount (- 1)
     let res = perform_transfer_failing_test(
@@ -385,6 +388,7 @@ async fn test_invalid_inputs() {
         amount: 0,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
     // invalid token data zero out amount
     let res = perform_transfer_failing_test(
@@ -406,6 +410,7 @@ async fn test_invalid_inputs() {
         amount: input_compressed_account_token_data.amount,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
     // invalid double token data  amount
     let res = perform_transfer_failing_test(
@@ -428,6 +433,7 @@ async fn test_invalid_inputs() {
         amount: 1000,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: Some(1),
+        merkle_tree: merkle_tree_pubkey,
     };
 
     // invalid_lamports_amount
@@ -471,11 +477,13 @@ async fn test_invalid_inputs() {
         amount: input_compressed_account_token_data.amount - 1000,
         owner: recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
     let transfer_recipient_out_compressed_account_0 = TokenTransferOutputData {
         amount: 1000,
         owner: transfer_recipient_keypair.pubkey(),
         lamports: None,
+        merkle_tree: merkle_tree_pubkey,
     };
 
     let res = perform_transfer_failing_test(
@@ -633,7 +641,6 @@ async fn perform_transfer_failing_test(
                 leaf_index: x.merkle_context.leaf_index,
             })
             .collect::<Vec<MerkleContext>>(),
-        &[*merkle_tree_pubkey, *merkle_tree_pubkey], // output compressed account Merkle trees
         &[
             change_token_transfer_output,
             transfer_recipient_token_transfer_output,

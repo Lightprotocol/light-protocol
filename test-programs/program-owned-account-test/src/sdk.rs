@@ -79,7 +79,6 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
 #[derive(Debug, Clone)]
 pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub signer: &'a Pubkey,
-    pub root_indices: &'a [u16],
     pub proof: &'a CompressedProof,
     pub input_merkle_tree_pubkey: &'a Pubkey,
     pub compressed_account: &'a PackedCompressedAccountWithMerkleContext,
@@ -96,7 +95,6 @@ pub fn create_invalidate_not_owned_account_instruction(
         proof: Some(input_params.proof.clone()),
         compressed_account: input_params.compressed_account.clone(),
         bump,
-        root_indices: input_params.root_indices.to_vec(),
     };
 
     let registered_program_pda = Pubkey::find_program_address(

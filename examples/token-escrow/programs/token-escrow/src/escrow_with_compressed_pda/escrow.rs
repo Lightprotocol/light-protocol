@@ -1,7 +1,8 @@
 use crate::{create_change_output_compressed_token_account, EscrowError, EscrowTimeLock};
 use anchor_lang::prelude::*;
 use light_compressed_token::{
-    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
+    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
+    PackedTokenTransferOutputData,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_system_program::{
@@ -11,7 +12,7 @@ use light_system_program::{
         compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
         CompressedCpiContext,
     },
-    InstructionDataInvokeCpi, NewAddressParamsPacked,
+    InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
 /// create compressed pda data
@@ -22,7 +23,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
     lock_up_time: u64,
     escrow_amount: u64,
     proof: CompressedProof,
-    root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -32,15 +32,17 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
     bump: u8,
 ) -> Result<()> {
     let compressed_pda = create_compressed_pda_data(lock_up_time, &ctx, &new_address_params)?;
-    let escrow_token_data = TokenTransferOutputData {
+    let escrow_token_data = PackedTokenTransferOutputData {
         amount: escrow_amount,
         owner: ctx.accounts.token_owner_pda.key(),
         lamports: None,
+        merkle_tree_index: output_state_merkle_tree_account_indices[0],
     };
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
         &[escrow_token_data],
         &ctx.accounts.signer.key(),
+        output_state_merkle_tree_account_indices[1],
     );
     let output_compressed_accounts = vec![escrow_token_data, change_token_data];
 
@@ -50,8 +52,6 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        output_state_merkle_tree_account_indices,
-        root_indices,
         proof.clone(),
         cpi_context,
     )?;
@@ -71,7 +71,7 @@ fn cpi_compressed_pda_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
     proof: CompressedProof,
     new_address_params: NewAddressParamsPacked,
-    compressed_pda: CompressedAccount,
+    compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: CompressedCpiContext,
     bump: u8,
 ) -> Result<()> {
@@ -82,8 +82,6 @@ fn cpi_compressed_pda_transfer<'info>(
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
-        input_root_indices: Vec::new(),
-        output_state_merkle_tree_account_indices: vec![0],
         proof: Some(proof),
         new_address_params: vec![new_address_params],
         compression_lamports: None,
@@ -133,7 +131,7 @@ fn create_compressed_pda_data(
     lock_up_time: u64,
     ctx: &Context<'_, '_, '_, '_, EscrowCompressedTokensWithCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
-) -> Result<CompressedAccount> {
+) -> Result<OutputCompressedAccountWithPackedContext> {
     let current_slot = Clock::get()?.slot;
     let timelock_compressed_pda = EscrowTimeLock {
         slot: current_slot.checked_add(lock_up_time).unwrap(),
@@ -151,11 +149,14 @@ fn create_compressed_pda_data(
         &new_address_params.seed,
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
-    Ok(CompressedAccount {
-        owner: crate::ID,
-        lamports: 0,
-        address: Some(derive_address),
-        data: Some(compressed_account_data),
+    Ok(OutputCompressedAccountWithPackedContext {
+        compressed_account: CompressedAccount {
+            owner: crate::ID,
+            lamports: 0,
+            address: Some(derive_address),
+            data: Some(compressed_account_data),
+        },
+        merkle_tree_index: 0,
     })
 }
 
@@ -197,6 +198,7 @@ pub struct PackedInputCompressedPda {
     pub new_lock_up_time: u64,
     pub address: [u8; 32],
     pub merkle_context: PackedMerkleContext,
+    pub root_index: u16,
 }
 // TODO: add functionality to deposit into an existing escrow account
 #[inline(never)]
@@ -205,9 +207,7 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
     mint: Pubkey,
     signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
-    output_compressed_accounts: Vec<TokenTransferOutputData>,
-    output_state_merkle_tree_account_indices: Vec<u8>,
-    root_indices: Vec<u16>,
+    output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
     proof: CompressedProof,
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
@@ -215,12 +215,10 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
 
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
-        root_indices,
         mint,
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        output_state_merkle_tree_account_indices,
         is_compress: false,
         compression_amount: None,
         cpi_context: Some(cpi_context),

@@ -46,15 +46,8 @@ pub mod program_owned_account_test {
         ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
         compressed_account: PackedCompressedAccountWithMerkleContext,
         proof: Option<CompressedProof>,
-        root_indices: Vec<u16>,
         bump: u8,
     ) -> Result<()> {
-        process_invalidate_not_owned_compressed_account(
-            ctx,
-            compressed_account,
-            proof,
-            root_indices,
-            bump,
-        )
+        process_invalidate_not_owned_compressed_account(ctx, compressed_account, proof, bump)
     }
 }

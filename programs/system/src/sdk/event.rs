@@ -1,14 +1,13 @@
 use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
 use std::{io::Write, mem};
 
-use super::compressed_account::CompressedAccount;
+use crate::OutputCompressedAccountWithPackedContext;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
 pub struct PublicTransactionEvent {
     pub input_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_account_hashes: Vec<[u8; 32]>,
-    pub output_compressed_accounts: Vec<CompressedAccount>,
-    pub output_state_merkle_tree_account_indices: Vec<u8>,
+    pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     pub output_leaf_indices: Vec<u32>,
     pub relay_fee: Option<u64>,
     pub is_compress: bool,
@@ -27,8 +26,8 @@ impl SizedEvent for PublicTransactionEvent {
         mem::size_of::<Self>()
             + self.input_compressed_account_hashes.len() * mem::size_of::<[u8; 32]>()
             + self.output_compressed_account_hashes.len() * mem::size_of::<[u8; 32]>()
-            + self.output_compressed_accounts.len() * mem::size_of::<CompressedAccount>()
-            + self.output_state_merkle_tree_account_indices.len()
+            + self.output_compressed_accounts.len()
+                * mem::size_of::<OutputCompressedAccountWithPackedContext>()
             + self.output_leaf_indices.len() * mem::size_of::<u32>()
             + self.pubkey_array.len() * mem::size_of::<Pubkey>()
             + self
@@ -60,14 +59,6 @@ impl PublicTransactionEvent {
         }
         #[cfg(target_os = "solana")]
         light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
-
-        writer.write_all(
-            &(self.output_state_merkle_tree_account_indices.len() as u32).to_le_bytes(),
-        )?;
-
-        for index in self.output_state_merkle_tree_account_indices.iter() {
-            writer.write_all(&[*index])?;
-        }
 
         writer.write_all(&(self.output_leaf_indices.len() as u32).to_le_bytes())?;
         for index in self.output_leaf_indices.iter() {
@@ -113,7 +104,7 @@ impl PublicTransactionEvent {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use crate::sdk::compressed_account::CompressedAccountData;
+    use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
     use rand::Rng;
 
     #[test]
@@ -122,17 +113,19 @@ pub mod test {
         let event = PublicTransactionEvent {
             input_compressed_account_hashes: vec![[0u8; 32], [1u8; 32]],
             output_compressed_account_hashes: vec![[2u8; 32], [3u8; 32]],
-            output_compressed_accounts: vec![CompressedAccount {
-                owner: Pubkey::new_unique(),
-                lamports: 100,
-                address: Some([5u8; 32]),
-                data: Some(CompressedAccountData {
-                    discriminator: [6u8; 8],
-                    data: vec![7u8; 32],
-                    data_hash: [8u8; 32],
-                }),
+            output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: Pubkey::new_unique(),
+                    lamports: 100,
+                    address: Some([5u8; 32]),
+                    data: Some(CompressedAccountData {
+                        discriminator: [6u8; 8],
+                        data: vec![7u8; 32],
+                        data_hash: [8u8; 32],
+                    }),
+                },
+                merkle_tree_index: 1,
             }],
-            output_state_merkle_tree_account_indices: vec![1, 2, 3],
             output_leaf_indices: vec![4, 5, 6],
             relay_fee: Some(1000),
             is_compress: true,
@@ -164,15 +157,18 @@ pub mod test {
                 (0..rng.gen_range(1..10)).map(|_| rng.gen()).collect();
             let output_hashes: Vec<[u8; 32]> =
                 (0..rng.gen_range(1..10)).map(|_| rng.gen()).collect();
-            let output_accounts: Vec<CompressedAccount> = (0..rng.gen_range(1..10))
-                .map(|_| CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: rng.gen(),
-                    address: Some(rng.gen()),
-                    data: None,
+            let output_accounts: Vec<OutputCompressedAccountWithPackedContext> = (0..rng
+                .gen_range(1..10))
+                .map(|_| OutputCompressedAccountWithPackedContext {
+                    compressed_account: CompressedAccount {
+                        owner: Pubkey::new_unique(),
+                        lamports: rng.gen(),
+                        address: Some(rng.gen()),
+                        data: None,
+                    },
+                    merkle_tree_index: rng.gen(),
                 })
                 .collect();
-            let merkle_indices: Vec<u8> = (0..rng.gen_range(1..10)).map(|_| rng.gen()).collect();
             let leaf_indices: Vec<u32> = (0..rng.gen_range(1..10)).map(|_| rng.gen()).collect();
             let pubkeys: Vec<Pubkey> = (0..rng.gen_range(1..10))
                 .map(|_| Pubkey::new_unique())
@@ -187,7 +183,6 @@ pub mod test {
                 input_compressed_account_hashes: input_hashes,
                 output_compressed_account_hashes: output_hashes,
                 output_compressed_accounts: output_accounts,
-                output_state_merkle_tree_account_indices: merkle_indices,
                 output_leaf_indices: leaf_indices,
                 relay_fee: if rng.gen() { Some(rng.gen()) } else { None },
                 is_compress: rng.gen(),

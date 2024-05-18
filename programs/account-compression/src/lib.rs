@@ -138,7 +138,7 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
         leaves: Vec<(u8, [u8; 32])>,
     ) -> Result<()> {
-        process_append_leaves_to_merkle_trees(ctx, &leaves)
+        process_append_leaves_to_merkle_trees(ctx, leaves)
     }
 
     pub fn nullify_leaves<'a, 'b, 'c: 'info, 'info>(

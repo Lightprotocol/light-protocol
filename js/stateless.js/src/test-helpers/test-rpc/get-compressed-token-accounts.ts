@@ -71,7 +71,9 @@ async function parseEventWithTokenTlvData(
         event.outputCompressedAccounts.map((compressedAccount, i) => {
             const merkleContext: MerkleContext = {
                 merkleTree:
-                    pubkeyArray[event.outputStateMerkleTreeAccountIndices[i]],
+                    pubkeyArray[
+                        event.outputCompressedAccounts[i].merkleTreeIndex
+                    ],
                 nullifierQueue:
                     // FIXME: fix make dynamic
                     defaultTestStateTreeAccounts().nullifierQueue,
@@ -79,18 +81,21 @@ async function parseEventWithTokenTlvData(
                 leafIndex: event.outputLeafIndices[i],
             };
 
-            if (!compressedAccount.data) throw new Error('No data');
+            if (!compressedAccount.compressedAccount.data)
+                throw new Error('No data');
 
-            const parsedData = parseTokenLayoutWithIdl(compressedAccount);
+            const parsedData = parseTokenLayoutWithIdl(
+                compressedAccount.compressedAccount,
+            );
 
             if (!parsedData) throw new Error('Invalid token data');
 
             const withMerkleContext = createCompressedAccountWithMerkleContext(
                 merkleContext,
-                compressedAccount.owner,
-                compressedAccount.lamports,
-                compressedAccount.data,
-                compressedAccount.address ?? undefined,
+                compressedAccount.compressedAccount.owner,
+                compressedAccount.compressedAccount.lamports,
+                compressedAccount.compressedAccount.data,
+                compressedAccount.compressedAccount.address ?? undefined,
             );
             return {
                 compressedAccount: withMerkleContext,

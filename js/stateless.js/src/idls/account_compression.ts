@@ -1201,6 +1201,11 @@ export type AccountCompression = {
             name: 'RolloverNotConfigured';
             msg: 'RolloverNotConfigured';
         },
+        {
+            code: 6027;
+            name: 'NotAllLeavesProcessed';
+            msg: 'NotAllLeavesProcessed';
+        },
     ];
 };
 
@@ -2406,6 +2411,11 @@ export const IDL: AccountCompression = {
             code: 6026,
             name: 'RolloverNotConfigured',
             msg: 'RolloverNotConfigured',
+        },
+        {
+            code: 6027,
+            name: 'NotAllLeavesProcessed',
+            msg: 'NotAllLeavesProcessed',
         },
     ],
 };

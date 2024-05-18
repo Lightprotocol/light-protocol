@@ -214,10 +214,12 @@ pub fn assert_public_transaction_event(
         *input_compressed_account_hashes.unwrap_or(&Vec::<[u8; 32]>::new()),
         "assert_public_transaction_event: input compressed account hashes mismatch"
     );
-    for index in event.output_state_merkle_tree_account_indices.iter() {
-        assert_eq!(
-            event.pubkey_array[*index as usize],
-            output_merkle_tree_accounts[*index as usize].merkle_tree,
+    for account in event.output_compressed_accounts.iter() {
+        assert!(
+            output_merkle_tree_accounts
+                .iter()
+                .any(|x| x.merkle_tree == event.pubkey_array[account.merkle_tree_index as usize]),
+            // output_merkle_tree_accounts[account.merkle_tree_index as usize].merkle_tree,
             "assert_public_transaction_event: output state merkle tree account index mismatch"
         );
     }

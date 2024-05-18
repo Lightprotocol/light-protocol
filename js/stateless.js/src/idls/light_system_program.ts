@@ -211,12 +211,6 @@ export type LightSystemProgram = {
                         };
                     },
                     {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext';
                         type: {
                             vec: {
@@ -228,16 +222,9 @@ export type LightSystemProgram = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'CompressedAccount';
+                                defined: 'OutputCompressedAccountWithPackedContext';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ];
-                        type: 'bytes';
                     },
                     {
                         name: 'relayFee';
@@ -262,6 +249,42 @@ export type LightSystemProgram = {
                     {
                         name: 'isCompress';
                         type: 'bool';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'OutputCompressedAccountWithContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleTree';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleTreeIndex';
+                        type: 'u8';
                     },
                 ];
             };
@@ -366,12 +389,6 @@ export type LightSystemProgram = {
                         };
                     },
                     {
-                        name: 'inputRootIndices';
-                        type: {
-                            vec: 'u16';
-                        };
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext';
                         type: {
                             vec: {
@@ -383,16 +400,9 @@ export type LightSystemProgram = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'CompressedAccount';
+                                defined: 'OutputCompressedAccountWithPackedContext';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ];
-                        type: 'bytes';
                     },
                     {
                         name: 'relayFee';
@@ -443,6 +453,13 @@ export type LightSystemProgram = {
                         type: {
                             defined: 'PackedMerkleContext';
                         };
+                    },
+                    {
+                        name: 'rootIndex';
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ];
+                        type: 'u16';
                     },
                 ];
             };
@@ -588,13 +605,9 @@ export type LightSystemProgram = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'CompressedAccount';
+                                defined: 'OutputCompressedAccountWithPackedContext';
                             };
                         };
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices';
-                        type: 'bytes';
                     },
                     {
                         name: 'outputLeafIndices';
@@ -1047,12 +1060,6 @@ export const IDL: LightSystemProgram = {
                         },
                     },
                     {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext',
                         type: {
                             vec: {
@@ -1065,16 +1072,10 @@ export const IDL: LightSystemProgram = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'CompressedAccount',
+                                defined:
+                                    'OutputCompressedAccountWithPackedContext',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ],
-                        type: 'bytes',
                     },
                     {
                         name: 'relayFee',
@@ -1099,6 +1100,42 @@ export const IDL: LightSystemProgram = {
                     {
                         name: 'isCompress',
                         type: 'bool',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'OutputCompressedAccountWithContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleTree',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleTreeIndex',
+                        type: 'u8',
                     },
                 ],
             },
@@ -1203,12 +1240,6 @@ export const IDL: LightSystemProgram = {
                         },
                     },
                     {
-                        name: 'inputRootIndices',
-                        type: {
-                            vec: 'u16',
-                        },
-                    },
-                    {
                         name: 'inputCompressedAccountsWithMerkleContext',
                         type: {
                             vec: {
@@ -1221,16 +1252,10 @@ export const IDL: LightSystemProgram = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'CompressedAccount',
+                                defined:
+                                    'OutputCompressedAccountWithPackedContext',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        docs: [
-                            'The indices of the accounts in the output state merkle tree.',
-                        ],
-                        type: 'bytes',
                     },
                     {
                         name: 'relayFee',
@@ -1281,6 +1306,13 @@ export const IDL: LightSystemProgram = {
                         type: {
                             defined: 'PackedMerkleContext',
                         },
+                    },
+                    {
+                        name: 'rootIndex',
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ],
+                        type: 'u16',
                     },
                 ],
             },
@@ -1426,13 +1458,10 @@ export const IDL: LightSystemProgram = {
                         name: 'outputCompressedAccounts',
                         type: {
                             vec: {
-                                defined: 'CompressedAccount',
+                                defined:
+                                    'OutputCompressedAccountWithPackedContext',
                             },
                         },
-                    },
-                    {
-                        name: 'outputStateMerkleTreeAccountIndices',
-                        type: 'bytes',
                     },
                     {
                         name: 'outputLeafIndices',

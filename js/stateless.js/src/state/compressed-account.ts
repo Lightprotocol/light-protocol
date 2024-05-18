@@ -1,6 +1,10 @@
 import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { CompressedAccount, CompressedAccountData } from './types';
+import {
+    CompressedAccount,
+    CompressedAccountData,
+    OutputCompressedAccountWithPackedContext,
+} from './types';
 import { BN254, bn } from './BN254';
 import { Buffer } from 'buffer';
 
@@ -40,6 +44,22 @@ export const createCompressedAccount = (
     lamports: lamports ?? bn(0),
     address: address ?? null,
     data: data ?? null,
+});
+
+export const createOutputCompressedAccount = (
+    owner: PublicKey,
+    merkleTreeIndex: number,
+    lamports?: BN,
+    data?: CompressedAccountData,
+    address?: PublicKey,
+): OutputCompressedAccountWithPackedContext => ({
+    compressedAccount: {
+        owner,
+        lamports: lamports ?? bn(0),
+        address: address ?? null,
+        data: data ?? null,
+    },
+    merkleTreeIndex,
 });
 
 export const createCompressedAccountWithMerkleContext = (

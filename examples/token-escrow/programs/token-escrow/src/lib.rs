@@ -2,7 +2,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use light_compressed_token::InputTokenDataWithContext;
-use light_compressed_token::TokenTransferOutputData;
+use light_compressed_token::PackedTokenTransferOutputData;
 use light_system_program::invoke::processor::CompressedProof;
 pub mod escrow_with_compressed_pda;
 pub mod escrow_with_pda;
@@ -37,7 +37,6 @@ pub mod token_escrow {
         lock_up_time: u64,
         escrow_amount: u64,
         proof: CompressedProof,
-        root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
         input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -48,7 +47,6 @@ pub mod token_escrow {
             lock_up_time,
             escrow_amount,
             proof,
-            root_indices,
             mint,
             signer_is_delegate,
             input_token_data_with_context,
@@ -63,7 +61,6 @@ pub mod token_escrow {
         bump: u8,
         withdrawal_amount: u64,
         proof: CompressedProof,
-        root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
         input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -74,7 +71,6 @@ pub mod token_escrow {
             bump,
             withdrawal_amount,
             proof,
-            root_indices,
             mint,
             signer_is_delegate,
             input_token_data_with_context,
@@ -90,7 +86,6 @@ pub mod token_escrow {
         lock_up_time: u64,
         escrow_amount: u64,
         proof: CompressedProof,
-        root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
         input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -104,7 +99,6 @@ pub mod token_escrow {
             lock_up_time,
             escrow_amount,
             proof,
-            root_indices,
             mint,
             signer_is_delegate,
             input_token_data_with_context,
@@ -122,7 +116,6 @@ pub mod token_escrow {
         ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
         withdrawal_amount: u64,
         proof: CompressedProof,
-        root_indices: Vec<u16>,
         mint: Pubkey,
         signer_is_delegate: bool,
         input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -135,7 +128,6 @@ pub mod token_escrow {
             ctx,
             withdrawal_amount,
             proof,
-            root_indices,
             mint,
             signer_is_delegate,
             input_token_data_with_context,
@@ -153,9 +145,10 @@ pub mod token_escrow {
 /// Outputs compressed account with the change amount, and owner of the compressed input accounts.
 fn create_change_output_compressed_token_account(
     input_token_data_with_context: &[InputTokenDataWithContext],
-    output_compressed_accounts: &[TokenTransferOutputData],
+    output_compressed_accounts: &[PackedTokenTransferOutputData],
     owner: &Pubkey,
-) -> TokenTransferOutputData {
+    merkle_tree_index: u8,
+) -> PackedTokenTransferOutputData {
     let input_sum = input_token_data_with_context
         .iter()
         .map(|account| account.amount)
@@ -165,9 +158,10 @@ fn create_change_output_compressed_token_account(
         .map(|account| account.amount)
         .sum::<u64>();
     let change_amount = input_sum - output_sum;
-    TokenTransferOutputData {
+    PackedTokenTransferOutputData {
         amount: change_amount,
         owner: *owner,
         lamports: None,
+        merkle_tree_index,
     }
 }

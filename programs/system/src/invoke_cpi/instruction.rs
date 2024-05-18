@@ -8,10 +8,10 @@ use crate::{
     invoke::{processor::CompressedProof, sol_compression::COMPRESSED_SOL_PDA_SEED},
     sdk::{
         accounts::{InvokeAccounts, InvokeCpiAccounts, SignerAccounts},
-        compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
+        compressed_account::PackedCompressedAccountWithMerkleContext,
         CompressedCpiContext,
     },
-    NewAddressParamsPacked,
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
 use super::account::CpiContextAccount;
@@ -107,12 +107,9 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
-    pub input_root_indices: Vec<u16>,
     pub input_compressed_accounts_with_merkle_context:
         Vec<PackedCompressedAccountWithMerkleContext>,
-    pub output_compressed_accounts: Vec<CompressedAccount>,
-    /// The indices of the accounts in the output state merkle tree.
-    pub output_state_merkle_tree_account_indices: Vec<u8>,
+    pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     pub relay_fee: Option<u64>,
     pub compression_lamports: Option<u64>,
     pub is_compress: bool,
@@ -125,14 +122,10 @@ impl InstructionDataInvokeCpi {
         for other in other {
             self.new_address_params
                 .extend_from_slice(&other.new_address_params);
-            self.input_root_indices
-                .extend_from_slice(&other.input_root_indices);
             self.input_compressed_accounts_with_merkle_context
                 .extend_from_slice(&other.input_compressed_accounts_with_merkle_context);
             self.output_compressed_accounts
                 .extend_from_slice(&other.output_compressed_accounts);
-            self.output_state_merkle_tree_account_indices
-                .extend_from_slice(&other.output_state_merkle_tree_account_indices);
         }
     }
 }
@@ -142,8 +135,8 @@ mod tests {
 
     use crate::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-        InstructionDataInvokeCpi, NewAddressParamsPacked,
+        sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+        InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
     };
 
     // test combine instruction data transfer
@@ -156,12 +149,10 @@ mod tests {
                 c: [0; 32],
             }),
             new_address_params: vec![NewAddressParamsPacked::default()],
-            input_root_indices: vec![1],
             input_compressed_accounts_with_merkle_context: vec![
                 PackedCompressedAccountWithMerkleContext::default(),
             ],
-            output_compressed_accounts: vec![CompressedAccount::default()],
-            output_state_merkle_tree_account_indices: vec![1],
+            output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext::default()],
             relay_fee: Some(1),
             compression_lamports: Some(1),
             is_compress: true,
@@ -174,12 +165,10 @@ mod tests {
                 b: [0; 64],
                 c: [0; 32],
             }),
-            input_root_indices: vec![1],
             input_compressed_accounts_with_merkle_context: vec![
                 PackedCompressedAccountWithMerkleContext::default(),
             ],
-            output_compressed_accounts: vec![CompressedAccount::default()],
-            output_state_merkle_tree_account_indices: vec![1],
+            output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext::default()],
             relay_fee: Some(1),
             compression_lamports: Some(1),
             is_compress: true,
@@ -189,7 +178,6 @@ mod tests {
         };
         instruction_data_transfer.combine(&[other]);
         assert_eq!(instruction_data_transfer.new_address_params.len(), 2);
-        assert_eq!(instruction_data_transfer.input_root_indices.len(), 2);
         assert_eq!(
             instruction_data_transfer
                 .input_compressed_accounts_with_merkle_context
@@ -198,12 +186,6 @@ mod tests {
         );
         assert_eq!(
             instruction_data_transfer.output_compressed_accounts.len(),
-            2
-        );
-        assert_eq!(
-            instruction_data_transfer
-                .output_state_merkle_tree_account_indices
-                .len(),
             2
         );
     }

@@ -60,10 +60,10 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
             const withCtx: CompressedAccountWithMerkleContext =
                 createCompressedAccountWithMerkleContext(
                     merkleContext,
-                    account.owner,
-                    account.lamports,
-                    account.data ?? undefined,
-                    account.address ?? undefined,
+                    account.compressedAccount.owner,
+                    account.compressedAccount.lamports,
+                    account.compressedAccount.data ?? undefined,
+                    account.compressedAccount.address ?? undefined,
                 );
             allOutputAccounts.push(withCtx);
         }

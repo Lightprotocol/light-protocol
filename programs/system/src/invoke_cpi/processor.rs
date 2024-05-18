@@ -33,14 +33,11 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
             .input_compressed_accounts_with_merkle_context,
         output_compressed_accounts: inputs.output_compressed_accounts,
         relay_fee: inputs.relay_fee,
-        input_root_indices: inputs.input_root_indices,
-        output_state_merkle_tree_account_indices: inputs.output_state_merkle_tree_account_indices,
         proof: inputs.proof,
         new_address_params: inputs.new_address_params,
         compression_lamports: inputs.compression_lamports,
         is_compress: inputs.is_compress,
     };
-    data.check_input_lengths()?;
     bench_sbf_end!("cpda_InstructionDataInvoke");
     process(data, Some(ctx.accounts.invoking_program.key()), ctx)
 }

@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use light_compressed_token::{
-    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext, TokenTransferOutputData,
+    CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
+    PackedTokenTransferOutputData,
 };
 use light_system_program::invoke::processor::CompressedProof;
 
@@ -11,7 +12,6 @@ pub fn process_escrow_compressed_tokens_with_pda<'info>(
     lock_up_time: u64,
     escrow_amount: u64,
     proof: CompressedProof,
-    root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -21,27 +21,27 @@ pub fn process_escrow_compressed_tokens_with_pda<'info>(
     let current_slot = Clock::get()?.slot;
     ctx.accounts.timelock_pda.slot = current_slot.checked_add(lock_up_time).unwrap();
 
-    let escrow_token_data = TokenTransferOutputData {
+    let escrow_token_data = PackedTokenTransferOutputData {
         amount: escrow_amount,
         owner: ctx.accounts.token_owner_pda.key(),
         lamports: None,
+        merkle_tree_index: output_state_merkle_tree_account_indices[0],
     };
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
         &[escrow_token_data],
         &ctx.accounts.signer.key(),
+        output_state_merkle_tree_account_indices[1],
     );
     let output_compressed_accounts = vec![escrow_token_data, change_token_data];
 
     cpi_compressed_token_transfer(
         &ctx,
         proof,
-        root_indices,
         mint,
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        output_state_merkle_tree_account_indices,
     )
 }
 
@@ -52,7 +52,6 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
     bump: u8,
     withdrawal_amount: u64,
     proof: CompressedProof,
-    root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
@@ -63,15 +62,17 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
         return err!(EscrowError::EscrowLocked);
     }
 
-    let escrow_token_data = TokenTransferOutputData {
+    let escrow_token_data = PackedTokenTransferOutputData {
         amount: withdrawal_amount,
         owner: ctx.accounts.signer.key(),
         lamports: None,
+        merkle_tree_index: output_state_merkle_tree_account_indices[0],
     };
     let change_token_data = create_change_output_compressed_token_account(
         &input_token_data_with_context,
         &[escrow_token_data],
         &ctx.accounts.token_owner_pda.key(),
+        output_state_merkle_tree_account_indices[1],
     );
     let output_compressed_accounts = vec![escrow_token_data, change_token_data];
 
@@ -79,12 +80,10 @@ pub fn process_withdraw_compressed_escrow_tokens_with_pda<'info>(
         &ctx,
         bump,
         proof,
-        root_indices,
         mint,
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        output_state_merkle_tree_account_indices,
     )
 }
 
@@ -122,21 +121,17 @@ pub struct EscrowTimeLock {
 pub fn cpi_compressed_token_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
     proof: CompressedProof,
-    root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
-    output_compressed_accounts: Vec<TokenTransferOutputData>,
-    output_state_merkle_tree_account_indices: Vec<u8>,
+    output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
-        root_indices,
         mint,
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        output_state_merkle_tree_account_indices,
         is_compress: false,
         compression_amount: None,
         cpi_context: None,
@@ -179,21 +174,17 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithPda<'info>>,
     bump: u8,
     proof: CompressedProof,
-    root_indices: Vec<u16>,
     mint: Pubkey,
     signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
-    output_compressed_accounts: Vec<TokenTransferOutputData>,
-    output_state_merkle_tree_account_indices: Vec<u8>,
+    output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
-        root_indices,
         mint,
         signer_is_delegate,
         input_token_data_with_context,
         output_compressed_accounts,
-        output_state_merkle_tree_account_indices,
         is_compress: false,
         compression_amount: None,
         cpi_context: None,

@@ -8,6 +8,8 @@ use light_utils::hash_to_bn254_field_size_be;
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
+    /// Index of root used in inclusion validity proof.
+    pub root_index: u16,
 }
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
