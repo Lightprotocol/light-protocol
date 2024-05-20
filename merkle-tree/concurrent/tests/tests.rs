@@ -2856,7 +2856,7 @@ where
             reference_tree.append(&leaf).unwrap();
         } else {
             // Update random leaf.
-            let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
+            let leaf_index = rng.gen_range(1..reference_tree.leaves().len());
             let old_leaf = reference_tree.leaf(leaf_index);
             let new_leaf: [u8; 32] = Fr::rand(&mut rng)
                 .into_bigint()
@@ -2890,6 +2890,14 @@ where
         res,
         Err(ConcurrentMerkleTreeError::InvalidProof(_, _))
     ));
+
+    // Try to update the original `leaf` with an up-to-date proof and changelog
+    // index. Expect a success.
+    let changelog_index = merkle_tree.changelog_index();
+    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+    merkle_tree
+        .update(changelog_index, &leaf, &new_leaf, 0, &mut proof)
+        .unwrap();
 }
 
 #[test]
