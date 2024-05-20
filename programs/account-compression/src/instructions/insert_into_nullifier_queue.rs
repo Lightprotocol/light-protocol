@@ -49,10 +49,10 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             AccountLoader::<NullifierQueueAccount>::try_from(queue).unwrap();
         let array_account = unpacked_queue_account.load()?;
 
-        if array_account.associated_merkle_tree != merkle_tree.key() {
+        if array_account.metadata.associated_merkle_tree != merkle_tree.key() {
             msg!(
                 "Nullifier queue account {:?} is not associated with any state Merkle tree {:?}. Associated State Merkle tree {:?}",
-               queue.key() ,merkle_tree.key(), array_account.associated_merkle_tree);
+               queue.key() ,merkle_tree.key(), array_account.metadata.associated_merkle_tree);
             return Err(AccountCompressionErrorCode::InvalidNullifierQueue.into());
         }
 
@@ -75,11 +75,12 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
                 &ctx,
                 &indexed_array,
             )?;
-            if queue_bundle.merkle_tree.key() != indexed_array.associated_merkle_tree {
+            if queue_bundle.merkle_tree.key() != indexed_array.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            lamports =
-                indexed_array.tip + indexed_array.rollover_fee * queue_bundle.elements.len() as u64;
+            lamports = indexed_array.metadata.rollover_metadata.network_fee
+                + indexed_array.metadata.rollover_metadata.rollover_fee
+                    * queue_bundle.elements.len() as u64;
         }
         {
             let merkle_tree =

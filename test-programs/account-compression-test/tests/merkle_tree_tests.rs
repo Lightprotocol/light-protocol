@@ -5,6 +5,7 @@ use account_compression::{
     initialize_nullifier_queue::{nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount},
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     utils::constants::{
+        STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
         STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
     },
     NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
@@ -12,11 +13,12 @@ use account_compression::{
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{event::ChangelogEvent, ConcurrentMerkleTree26};
 use light_hash_set::HashSetError;
-use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Poseidon};
+use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_test_utils::{
     airdrop_lamports, create_account_instruction, create_and_send_transaction,
     create_and_send_transaction_with_event, get_hash_set,
+    merkle_tree::assert_merkle_tree_initialized,
     state_tree_rollover::{
         assert_rolled_over_pair, perform_state_merkle_tree_roll_over,
         set_state_merkle_tree_next_index,
@@ -587,7 +589,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue(
     payer_pubkey: &Pubkey,
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
-    tip: u64,
+    network_fee: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
 ) -> Pubkey {
@@ -627,7 +629,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue(
     let mut state_merkle_tree_config = StateMerkleTreeConfig::default();
     state_merkle_tree_config.rollover_threshold = rollover_threshold;
     state_merkle_tree_config.close_threshold = close_threshold;
-    state_merkle_tree_config.tip = Some(tip);
+    state_merkle_tree_config.network_fee = Some(network_fee);
 
     let instruction = create_initialize_merkle_tree_instruction(
         context.payer.pubkey(),
@@ -659,9 +661,42 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         merkle_tree_pubkey,
     )
     .await;
-    assert_eq!(merkle_tree.deserialized().owner, *payer_pubkey);
-    assert_eq!(merkle_tree.deserialized().delegate, Pubkey::default());
-    assert_eq!(merkle_tree.deserialized().index, 1);
+
+    assert_eq!(
+        merkle_tree.deserialized().metadata.rollover_metadata.index,
+        1
+    );
+    // TODO(vadorovsky): Assert fees.
+    assert_eq!(
+        merkle_tree.deserialized().metadata.next_merkle_tree,
+        Pubkey::default()
+    );
+    assert_eq!(
+        merkle_tree.deserialized().metadata.access_metadata.owner,
+        *payer_pubkey
+    );
+    assert_eq!(
+        merkle_tree.deserialized().metadata.access_metadata.delegate,
+        Pubkey::default()
+    );
+    assert_eq!(
+        merkle_tree.deserialized().metadata.associated_queue,
+        queue_keypair.pubkey()
+    );
+
+    let merkle_tree = merkle_tree.deserialized().copy_merkle_tree().unwrap();
+    assert_merkle_tree_initialized(
+        &merkle_tree,
+        STATE_MERKLE_TREE_HEIGHT as usize,
+        STATE_MERKLE_TREE_CHANGELOG as usize,
+        STATE_MERKLE_TREE_ROOTS as usize,
+        STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+        1,
+        1,
+        0,
+        &Poseidon::zero_bytes()[0],
+    );
+
     merkle_tree_keypair.pubkey()
 }
 
@@ -742,8 +777,15 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .await;
     let merkle_tree_deserialized = merkle_tree.deserialized();
-    let roll_over_fee = (merkle_tree_deserialized.rollover_fee * (leaves.len() as u64))
-        + merkle_tree_deserialized.tip;
+    let roll_over_fee = (merkle_tree_deserialized
+        .metadata
+        .rollover_metadata
+        .rollover_fee
+        * (leaves.len() as u64))
+        + merkle_tree_deserialized
+            .metadata
+            .rollover_metadata
+            .network_fee;
     let merkle_tree = merkle_tree_deserialized.copy_merkle_tree().unwrap();
     assert_eq!(
         merkle_tree.next_index,

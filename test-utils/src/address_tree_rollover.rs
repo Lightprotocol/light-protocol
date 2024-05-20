@@ -1,6 +1,12 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
-use crate::get_hash_set;
+use crate::{
+    get_hash_set,
+    rollover::{
+        assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
+        assert_rolledover_queues_metadata,
+    },
+};
 use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction,
     utils::constants::ADDRESS_MERKLE_TREE_HEIGHT, AddressMerkleTreeAccount, AddressQueueAccount,
@@ -181,82 +187,23 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
         AccountLoader::<AddressMerkleTreeAccount>::try_from(&account_info).unwrap();
     let old_loaded_mt_account = old_mt_account.load().unwrap();
 
-    // Old Merkle tree
-    // 1. rolled over slot is set to current slot
-    // 2. next Merkle tree is set to the new Merkle tree
-    assert_eq!(old_loaded_mt_account.rolledover_slot, current_slot);
-    assert_eq!(
-        old_loaded_mt_account.next_merkle_tree,
-        *new_merkle_tree_pubkey
-    );
-    // New Merkle tree
-    // 1. index is equal to the old Merkle tree index
-    // 2. rollover fee is equal to the old Merkle tree rollover fee (the fee is calculated onchain in case rent should change the fee might be different)
-    // 3. tip is equal to the old Merkle tree tip
-    // 4. rollover threshold is equal to the old Merkle tree rollover threshold
-    // 5. rolled over slot is set to u64::MAX (not rolled over)
-    // 6. close threshold is equal to the old Merkle tree close threshold
-    // 7. associated queue is equal to the new queue
-    // 7. next merkle tree is set to Pubkey::default() (not set)
-    // 8. owner is equal to the old Merkle tree owner
-    // 9. delegate is equal to the old Merkle tree delegate
-
-    assert_eq!(old_loaded_mt_account.index, new_loaded_mt_account.index);
-    assert_eq!(
-        old_loaded_mt_account.rollover_fee,
-        new_loaded_mt_account.rollover_fee
-    );
-    assert_eq!(old_loaded_mt_account.tip, new_loaded_mt_account.tip);
-    assert_eq!(
-        old_loaded_mt_account.rollover_threshold,
-        new_loaded_mt_account.rollover_threshold
-    );
-    assert_eq!(u64::MAX, new_loaded_mt_account.rolledover_slot);
-
-    assert_eq!(
-        old_loaded_mt_account.close_threshold,
-        new_loaded_mt_account.close_threshold
-    );
-    assert_eq!(new_loaded_mt_account.associated_queue, *new_queue_pubkey);
-    assert_eq!(new_loaded_mt_account.next_merkle_tree, Pubkey::default());
-
-    assert_eq!(old_loaded_mt_account.owner, new_loaded_mt_account.owner);
-    assert_eq!(
-        old_loaded_mt_account.delegate,
-        new_loaded_mt_account.delegate
+    assert_rolledover_merkle_trees_metadata(
+        &old_loaded_mt_account.metadata,
+        &new_loaded_mt_account.metadata,
+        current_slot,
+        new_queue_pubkey,
     );
 
-    let struct_old: *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }> =
-        old_loaded_mt_account.merkle_tree_struct.as_ptr() as _;
-    let struct_new: *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }> =
-        new_loaded_mt_account.merkle_tree_struct.as_ptr() as _;
-    assert_eq!(unsafe { (*struct_old).height }, unsafe {
-        (*struct_new).height
-    });
+    let struct_old = unsafe {
+        &*(old_loaded_mt_account.merkle_tree_struct.as_ptr()
+            as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
+    };
+    let struct_new = unsafe {
+        &*(new_loaded_mt_account.merkle_tree_struct.as_ptr()
+            as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
+    };
+    assert_rolledover_merkle_trees(struct_old, struct_new);
 
-    assert_eq!(unsafe { (*struct_old).changelog_capacity }, unsafe {
-        (*struct_new).changelog_capacity
-    });
-
-    assert_eq!(unsafe { (*struct_old).changelog_length }, unsafe {
-        (*struct_new).changelog_length
-    });
-
-    assert_eq!(unsafe { (*struct_old).current_changelog_index }, unsafe {
-        (*struct_new).current_changelog_index
-    });
-
-    assert_eq!(unsafe { (*struct_old).roots_capacity }, unsafe {
-        (*struct_new).roots_capacity
-    });
-
-    assert_eq!(unsafe { (*struct_old).roots_length }, unsafe {
-        (*struct_new).roots_length
-    });
-
-    assert_eq!(unsafe { (*struct_old).canopy_depth }, unsafe {
-        (*struct_new).canopy_depth
-    });
     {
         let mut new_queue_account = context
             .banks_client
@@ -300,37 +247,15 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
             AccountLoader::<AddressQueueAccount>::try_from(&account_info).unwrap();
         let old_loaded_queue_account = old_queue_account.load().unwrap();
 
-        assert_eq!(old_loaded_queue_account.rolledover_slot, current_slot);
-        assert_eq!(
-            old_loaded_queue_account.index,
-            new_loaded_queue_account.index
-        );
-        assert_eq!(
-            old_loaded_queue_account.rollover_fee,
-            new_loaded_queue_account.rollover_fee
-        );
-        assert_eq!(old_loaded_queue_account.tip, new_loaded_queue_account.tip);
-        assert_eq!(u64::MAX, new_loaded_queue_account.rolledover_slot);
-
-        assert_eq!(
-            old_loaded_queue_account.owner,
-            new_loaded_queue_account.owner
-        );
-
-        assert_eq!(
-            old_loaded_queue_account.delegate,
-            new_loaded_queue_account.delegate
-        );
-        assert_eq!(
-            new_loaded_queue_account.associated_merkle_tree,
-            *new_merkle_tree_pubkey
-        );
-        assert_eq!(old_loaded_queue_account.next_queue, *new_queue_pubkey);
-        assert_eq!(
+        assert_rolledover_queues_metadata(
+            &old_loaded_queue_account.metadata,
+            &new_loaded_queue_account.metadata,
+            current_slot,
+            new_merkle_tree_pubkey,
+            new_queue_pubkey,
             old_mt_account.get_lamports(),
-            new_mt_account.get_lamports()
-                + new_queue_account.get_lamports()
-                + old_mt_account.get_lamports()
+            new_mt_account.get_lamports(),
+            new_queue_account.get_lamports(),
         );
     }
     let fee_payer_post_balance = context

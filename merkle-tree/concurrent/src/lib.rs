@@ -4,10 +4,12 @@ use event::{ChangelogEvent, ChangelogEventV1};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 pub use light_hasher;
 use light_hasher::Hasher;
+
 pub mod changelog;
 pub mod errors;
 pub mod event;
 pub mod hash;
+
 use crate::{
     changelog::ChangelogEntry,
     errors::ConcurrentMerkleTreeError,

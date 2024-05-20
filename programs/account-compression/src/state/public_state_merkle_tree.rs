@@ -4,32 +4,14 @@ use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
 use light_hasher::Poseidon;
 
+use crate::{AccessMetadata, MerkleTreeMetadata, RolloverMetadata};
+
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
 #[derive(AnchorDeserialize, AnchorSerialize, Debug)]
 pub struct StateMerkleTreeAccount {
-    /// Unique index.
-    pub index: u64,
-    /// This fee is used for rent for the next account.
-    /// It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over
-    pub rollover_fee: u64,
-    /// The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).
-    pub rollover_threshold: u64,
-    /// Tip for maintaining the account.
-    pub tip: u64,
-    /// The slot when the account was rolled over, a rolled over account should not be written to.
-    pub rolledover_slot: u64,
-    /// If current slot is greater than rolledover_slot + close_threshold and the account is empty it can be closed.
-    pub close_threshold: u64,
-    /// Public key of the next Merkle tree.
-    pub next_merkle_tree: Pubkey,
-    /// Owner of the Merkle tree.
-    pub owner: Pubkey,
-    /// Delegate of the Merkle tree. This will be used for program owned Merkle trees.
-    pub delegate: Pubkey,
-    pub associated_queue: Pubkey,
-
+    pub metadata: MerkleTreeMetadata,
     /// Merkle tree for the transaction state.
     pub state_merkle_tree_struct: [u8; 272],
     pub state_merkle_tree_filled_subtrees: [u8; 832],
@@ -39,6 +21,16 @@ pub struct StateMerkleTreeAccount {
 }
 
 impl StateMerkleTreeAccount {
+    pub fn init(
+        &mut self,
+        access_metadata: AccessMetadata,
+        rollover_metadata: RolloverMetadata,
+        associated_queue: Pubkey,
+    ) {
+        self.metadata
+            .init(access_metadata, rollover_metadata, associated_queue)
+    }
+
     pub fn copy_merkle_tree(&self) -> Result<ConcurrentMerkleTree26<Poseidon>> {
         let tree = unsafe {
             ConcurrentMerkleTree26::copy_from_bytes(
@@ -144,16 +136,15 @@ mod test {
     #[test]
     fn test_load_merkle_tree() {
         let mut account = StateMerkleTreeAccount {
-            index: 1,
-            rollover_fee: 0,
-            tip: 0,
-            rollover_threshold: 100,
-            rolledover_slot: 0,
-            close_threshold: 0,
-            next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
-            owner: Pubkey::new_from_array([2u8; 32]),
-            delegate: Pubkey::new_from_array([3u8; 32]),
-            associated_queue: Pubkey::new_from_array([4u8; 32]),
+            metadata: MerkleTreeMetadata {
+                access_metadata: AccessMetadata::new(
+                    Pubkey::new_from_array([2u8; 32]),
+                    Some(Pubkey::new_from_array([3u8; 32])),
+                ),
+                rollover_metadata: RolloverMetadata::new(1, 0, Some(100), 0, None),
+                associated_queue: Pubkey::new_from_array([4u8; 32]),
+                next_merkle_tree: Pubkey::new_from_array([0u8; 32]),
+            },
             state_merkle_tree_struct: [0u8; 272],
             state_merkle_tree_filled_subtrees: [0u8; 832],
             state_merkle_tree_changelog: [0u8; 1220800],

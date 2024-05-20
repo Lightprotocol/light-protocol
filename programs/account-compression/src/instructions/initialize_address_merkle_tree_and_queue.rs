@@ -19,7 +19,7 @@ pub struct AddressMerkleTreeConfig {
     pub roots_size: u64,
     pub canopy_depth: u64,
     pub address_changelog_size: u64,
-    pub tip: Option<u64>,
+    pub network_fee: Option<u64>,
     pub rollover_threshold: Option<u64>,
     pub close_threshold: Option<u64>,
 }
@@ -32,7 +32,7 @@ impl Default for AddressMerkleTreeConfig {
             roots_size: ADDRESS_MERKLE_TREE_ROOTS,
             canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
             address_changelog_size: ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-            tip: Some(1),
+            network_fee: Some(1),
             rollover_threshold: Some(95),
             close_threshold: None,
         }
@@ -69,8 +69,9 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         queue_config.capacity_indices,
         queue_config.capacity_values,
         queue_config.sequence_threshold,
-        queue_config.tip.unwrap_or_default(),
+        queue_config.network_fee.unwrap_or_default(),
         merkle_tree_config.rollover_threshold,
+        merkle_tree_config.close_threshold,
         merkle_tree_config.height,
         merkle_tree_rent,
     )?;
@@ -86,7 +87,7 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         merkle_tree_config.canopy_depth,
         merkle_tree_config.address_changelog_size,
         ctx.accounts.queue.key(),
-        merkle_tree_config.tip.unwrap_or_default(),
+        merkle_tree_config.network_fee.unwrap_or_default(),
         merkle_tree_config.rollover_threshold,
         merkle_tree_config.close_threshold,
         merkle_tree_rent,
