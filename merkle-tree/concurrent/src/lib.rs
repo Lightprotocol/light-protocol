@@ -4,7 +4,6 @@ use event::{ChangelogEvent, MerkleTreeEvent};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecIterator};
 pub use light_hasher;
 use light_hasher::Hasher;
-use std::{marker::PhantomData, mem, slice};
 pub mod changelog;
 pub mod errors;
 pub mod event;

@@ -1,5 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_bounded_vec::Pod;
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct MerkleTreeEvents {
     pub events: Vec<MerkleTreeEvent>,
@@ -43,7 +42,7 @@ pub struct NullifierEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
     /// Indices of leaves that were nullified.
-    /// Nullified means updated with [u8;32].
+    /// Nullified means updated with [0u8;32].
     pub nullified_leaves_indices: Vec<u64>,
     /// Number of successful operations on the on-chain tree.
     /// seq corresponds to leaves[0].
@@ -54,19 +53,18 @@ pub struct NullifierEvent {
 #[derive(Debug, Default, Clone, Copy, BorshSerialize, BorshDeserialize)]
 pub struct RawIndexedElement<I>
 where
-    I: Clone + Pod,
+    I: Clone,
 {
     pub value: [u8; 32],
     pub next_index: I,
     pub next_value: [u8; 32],
     pub index: I,
 }
-unsafe impl<I> Pod for RawIndexedElement<I> where I: Pod + Clone {}
 
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub struct IndexedMerkleTreeUpdate<I>
 where
-    I: Clone + Pod,
+    I: Clone,
 {
     pub new_low_element: RawIndexedElement<I>,
     /// Leaf hash in new_low_element.index.
