@@ -139,14 +139,14 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
-                msg!(
-                    "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
-                    invoking_program,
-                    merkle_tree_unpacked.metadata.access_metadata.delegate
-                );
                 return Ok(next_index);
             }
         }
+        msg!(
+            "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
+            invoking_program,
+            merkle_tree_unpacked.metadata.access_metadata.delegate
+        );
         return Err(CompressedPdaError::InvalidMerkleTreeOwner.into());
     }
     Ok(next_index)
