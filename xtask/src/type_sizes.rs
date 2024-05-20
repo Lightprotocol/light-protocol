@@ -11,9 +11,11 @@ use account_compression::{
     },
     AddressMerkleTreeAccount, AddressQueueAccount, StateMerkleTreeAccount,
 };
-use light_concurrent_merkle_tree::{changelog::ChangelogEntry26, ConcurrentMerkleTree26};
+use light_concurrent_merkle_tree::{
+    changelog::ChangelogEntry26, event::RawIndexedElement, ConcurrentMerkleTree26,
+};
 use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{IndexedMerkleTree26, RawIndexedElement};
+use light_indexed_merkle_tree::IndexedMerkleTree26;
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]

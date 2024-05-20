@@ -2,7 +2,7 @@ use std::cell::{RefCell, RefMut};
 
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
-    event::UpdatedLeaf,
+    event::IndexedMerkleTreeUpdate,
     light_hasher::{Hasher, Poseidon},
 };
 use light_indexed_merkle_tree::{
@@ -64,7 +64,7 @@ fn program_update<H>(
     low_nullifier: IndexedElement<usize>,
     low_nullifier_next_value: &BigUint,
     low_nullifier_proof: &mut BoundedVec<[u8; 32]>,
-) -> Result<(UpdatedLeaf, UpdatedLeaf), IndexedMerkleTreeError>
+) -> Result<IndexedMerkleTreeUpdate<usize>, IndexedMerkleTreeError>
 where
     H: Hasher,
 {
@@ -138,24 +138,50 @@ where
             &old_low_nullifier_next_value,
             &mut low_nullifier_proof,
         ) {
-            Ok((new_low_leaf, new_leaf)) => {
+            Ok(event) => {
                 assert_eq!(
-                    new_low_leaf.leaf_index,
-                    nullifier_bundle.new_low_element.index as u64
+                    event.new_low_element.index,
+                    nullifier_bundle.new_low_element.index
+                );
+                assert_eq!(
+                    event.new_low_element.next_index,
+                    nullifier_bundle.new_low_element.next_index
+                );
+                assert_eq!(
+                    event.new_low_element.value,
+                    bigint_to_be_bytes_array::<32>(&nullifier_bundle.new_low_element.value)
+                        .unwrap()
+                );
+                assert_eq!(
+                    event.new_low_element.next_value,
+                    bigint_to_be_bytes_array::<32>(&nullifier_bundle.new_element.value).unwrap()
                 );
                 let leaf_hash = nullifier_bundle
                     .new_low_element
                     .hash::<H>(&nullifier_bundle.new_element.value)
                     .unwrap();
-                assert_eq!(new_low_leaf.leaf, leaf_hash);
+                assert_eq!(event.new_low_element_hash, leaf_hash);
                 let leaf_hash = nullifier_bundle
                     .new_element
                     .hash::<H>(&nullifier_bundle.new_element_next_value)
                     .unwrap();
-                assert_eq!(new_leaf.leaf, leaf_hash);
+                assert_eq!(event.new_high_element_hash, leaf_hash);
                 assert_eq!(
-                    new_leaf.leaf_index,
-                    nullifier_bundle.new_element.index as u64
+                    event.new_high_element.index,
+                    nullifier_bundle.new_element.index
+                );
+                assert_eq!(
+                    event.new_high_element.next_index,
+                    nullifier_bundle.new_element.next_index
+                );
+                assert_eq!(
+                    event.new_high_element.value,
+                    bigint_to_be_bytes_array::<32>(&nullifier_bundle.new_element.value).unwrap()
+                );
+                assert_eq!(
+                    event.new_high_element.next_value,
+                    bigint_to_be_bytes_array::<32>(&nullifier_bundle.new_element_next_value)
+                        .unwrap()
                 );
                 true
             }

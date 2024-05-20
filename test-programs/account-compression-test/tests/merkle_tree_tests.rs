@@ -11,7 +11,7 @@ use account_compression::{
     NullifierQueueConfig, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-use light_concurrent_merkle_tree::{event::ChangelogEvent, ConcurrentMerkleTree26};
+use light_concurrent_merkle_tree::{event::MerkleTreeEvent, ConcurrentMerkleTree26};
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
@@ -1026,7 +1026,7 @@ pub async fn nullify(
         ),
     ];
 
-    let event = create_and_send_transaction_with_event::<ChangelogEvent>(
+    let event = create_and_send_transaction_with_event::<MerkleTreeEvent>(
         context,
         &instructions,
         &payer.pubkey(),
@@ -1089,12 +1089,12 @@ pub async fn nullify(
     );
     let event = event.as_ref().unwrap();
     match event {
-        ChangelogEvent::V1(_) => panic!("Expected V2 event"),
-        ChangelogEvent::V2(event_v1) => {
+        MerkleTreeEvent::V1(_) => panic!("Expected V2 event"),
+        MerkleTreeEvent::V2(event_v1) => {
             assert_eq!(event_v1.id, merkle_tree_pubkey.to_bytes());
-            assert_eq!(event_v1.leaves[0].leaf_index, element_index);
-            assert_eq!(event_v1.leaves[0].leaf, [0u8; 32]);
+            assert_eq!(event_v1.nullified_leaves_indices[0], element_index);
         }
+        MerkleTreeEvent::V3(_) => panic!("Expected V2 event"),
     }
     Ok(())
 }

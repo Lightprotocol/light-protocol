@@ -4,7 +4,7 @@ use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
-    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::ChangelogEvent,
+    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     ConcurrentMerkleTree,
 };
 use light_hash_set::HashSet;
@@ -607,8 +607,9 @@ where
             )
             .unwrap();
         let changelog_event_1 = match changelog_event_1 {
-            ChangelogEvent::V1(changelog_event_1) => changelog_event_1,
-            ChangelogEvent::V2(_) => unreachable!(),
+            MerkleTreeEvent::V1(changelog_event_1) => changelog_event_1,
+            MerkleTreeEvent::V2(_) => unreachable!(),
+            MerkleTreeEvent::V3(_) => unreachable!(),
         };
 
         let mut changelog_index = 0;
@@ -620,8 +621,9 @@ where
             .get_changelog_event([0u8; 32], changelog_index, sequence_number, 1)
             .unwrap();
         let changelog_event_2 = match changelog_event_2 {
-            ChangelogEvent::V1(changelog_event_2) => changelog_event_2,
-            ChangelogEvent::V2(_) => unreachable!(),
+            MerkleTreeEvent::V1(changelog_event_2) => changelog_event_2,
+            MerkleTreeEvent::V2(_) => unreachable!(),
+            MerkleTreeEvent::V3(_) => unreachable!(),
         };
 
         for leaf in leaves {
@@ -1863,8 +1865,9 @@ fn test_changelog_event_v1() {
     for i in 0..leaves {
         let changelog_event = merkle_tree.get_changelog_event([0u8; 32], i, i, 1).unwrap();
         let changelog_event = match changelog_event {
-            ChangelogEvent::V1(changelog_event) => changelog_event,
-            ChangelogEvent::V2(_) => unreachable!(),
+            MerkleTreeEvent::V1(changelog_event) => changelog_event,
+            MerkleTreeEvent::V2(_) => unreachable!(),
+            MerkleTreeEvent::V3(_) => unreachable!(),
         };
 
         let spl_changelog_entry = Box::new(spl_merkle_tree.change_logs[i]);

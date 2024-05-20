@@ -1,10 +1,10 @@
 use std::{iter::Skip, marker::PhantomData, mem, slice};
 
-use event::{ChangelogEvent, ChangelogEventV1};
+use event::{ChangelogEvent, MerkleTreeEvent};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecIterator};
 pub use light_hasher;
 use light_hasher::Hasher;
-
+use std::{marker::PhantomData, mem, slice};
 pub mod changelog;
 pub mod errors;
 pub mod event;
@@ -1063,7 +1063,7 @@ where
         first_changelog_index: usize,
         first_sequence_number: usize,
         num_changelog_entries: usize,
-    ) -> Result<ChangelogEvent, ConcurrentMerkleTreeError> {
+    ) -> Result<MerkleTreeEvent, ConcurrentMerkleTreeError> {
         let mut paths = Vec::with_capacity(num_changelog_entries);
         for i in 0..num_changelog_entries {
             let changelog_index = (first_changelog_index + i) % self.changelog_capacity;
@@ -1094,7 +1094,7 @@ where
             .index
             .try_into()
             .map_err(|_| ConcurrentMerkleTreeError::IntegerOverflow)?;
-        Ok(ChangelogEvent::V1(ChangelogEventV1 {
+        Ok(MerkleTreeEvent::V1(ChangelogEvent {
             id: merkle_tree_account_pubkey,
             paths,
             seq: first_sequence_number as u64,

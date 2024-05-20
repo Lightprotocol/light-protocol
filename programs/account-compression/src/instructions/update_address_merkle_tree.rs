@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::event::{ChangelogEvent, ChangelogEventV2};
+use light_concurrent_merkle_tree::event::{IndexedMerkleTreeEvent, MerkleTreeEvent};
 use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 
@@ -77,7 +77,7 @@ pub fn process_update_address_merkle_tree<'info>(
     // - changelog index gets values from account
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof
-    let (new_low_leaf, new_leaf) = merkle_tree
+    let indexed_merkle_tree_update = merkle_tree
         .merkle_tree
         .update(
             usize::from(changelog_index),
@@ -93,9 +93,9 @@ pub fn process_update_address_merkle_tree<'info>(
         .mark_with_sequence_number(&value, sequence_number)
         .map_err(ProgramError::from)?;
 
-    let address_event = ChangelogEvent::V2(ChangelogEventV2 {
+    let address_event = MerkleTreeEvent::V3(IndexedMerkleTreeEvent {
         id: ctx.accounts.merkle_tree.key().to_bytes(),
-        leaves: vec![new_low_leaf, new_leaf],
+        leaves: vec![indexed_merkle_tree_update],
         // Address Merkle tree update does one update and one append,
         // thus the first seq number is final seq - 1.
         seq: merkle_tree.merkle_tree.merkle_tree.sequence_number as u64 - 1,
