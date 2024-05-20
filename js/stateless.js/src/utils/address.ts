@@ -75,13 +75,12 @@ export function packNewAddressParams(
 } {
     const _remainingAccounts = remainingAccounts.slice();
 
-    let newAddressParamsPacked: NewAddressParamsPacked[] = newAddressParams.map(
-        x => ({
+    const newAddressParamsPacked: NewAddressParamsPacked[] =
+        newAddressParams.map(x => ({
             ...x,
             addressMerkleTreeAccountIndex: 0, // will be assigned later
             addressQueueAccountIndex: 0, // will be assigned later
-        }),
-    );
+        }));
 
     newAddressParams.forEach((params, i) => {
         newAddressParamsPacked[i].addressMerkleTreeAccountIndex = getIndexOrAdd(

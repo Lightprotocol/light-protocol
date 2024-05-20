@@ -296,7 +296,7 @@ export class IndexedArray {
         lowElementIndex: number,
         value: BN,
     ): IndexedElementBundle {
-        let newLowElement = this.elements[lowElementIndex];
+        const newLowElement = this.elements[lowElementIndex];
 
         const newElementIndex = this.currentNodeIndex + 1;
         const newElement = new IndexedElement(
@@ -306,7 +306,7 @@ export class IndexedArray {
         );
         newLowElement.nextIndex = newElementIndex;
 
-        let newElementNextValue = this.elements[newElement.nextIndex].value;
+        const newElementNextValue = this.elements[newElement.nextIndex].value;
 
         return new IndexedElementBundle(
             newLowElement,
@@ -606,7 +606,7 @@ if (import.meta.vitest) {
         it.only('should append 3 times and match merkle trees', async () => {
             const lightWasm = await WasmFactory.getInstance();
 
-            let indexedArray = IndexedArray.default();
+            const indexedArray = IndexedArray.default();
             indexedArray.init();
 
             // 1st
@@ -664,7 +664,7 @@ if (import.meta.vitest) {
             refItems1 = new IndexedElement(1, bn(FIELD_SIZE_SUB_ONE), 0);
             refItems2 = new IndexedElement(2, bn(30), 3);
             refItems3 = new IndexedElement(3, bn(42), 1);
-            let refItems4 = new IndexedElement(4, bn(12), 2);
+            const refItems4 = new IndexedElement(4, bn(12), 2);
 
             const newElement3 = indexedArray.append(bn(12));
             expect(newElement3.newElement).toEqual(refItems4);
@@ -680,7 +680,7 @@ if (import.meta.vitest) {
             hash1 = indexedArray.hashElement(lightWasm, 1);
             hash2 = indexedArray.hashElement(lightWasm, 2);
             hash3 = indexedArray.hashElement(lightWasm, 3);
-            let hash4 = indexedArray.hashElement(lightWasm, 4);
+            const hash4 = indexedArray.hashElement(lightWasm, 4);
             leaves = [hash0, hash1, hash2, hash3, hash4].map(leaf =>
                 bn(leaf!).toString(),
             );

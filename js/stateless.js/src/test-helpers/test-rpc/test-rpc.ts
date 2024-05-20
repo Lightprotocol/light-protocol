@@ -440,13 +440,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 index < event.outputCompressedAccounts.length;
                 index++
             ) {
-                const address = event.outputCompressedAccounts[index].address;
+                const address =
+                    event.outputCompressedAccounts[index].compressedAccount
+                        .address;
                 if (address) {
                     allAddresses.push(address);
                 }
             }
         }
-        let indexedArray = IndexedArray.default();
+        const indexedArray = IndexedArray.default();
         indexedArray.init();
         const hashes: BN[] = [];
         console.log('allAddresses', allAddresses);

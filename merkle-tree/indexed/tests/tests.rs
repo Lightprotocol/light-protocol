@@ -572,7 +572,6 @@ pub fn functional_non_inclusion_test() {
 //  * 3. append the tree with H(new_inserted_value,index_of_next_value, next_value)
 //  *
 //  */
-
 // /// This test is generating a situation where the low element has to be patched.
 // /// Scenario:
 // /// 1. two parties start with the initialized indexing array
@@ -592,25 +591,20 @@ pub fn print_test_data() {
     let mut relayer_indexing_array =
         IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
     relayer_indexing_array.init().unwrap();
-    let mut relayer_merkle_tree = reference::IndexedMerkleTree::<Poseidon, usize>::new(
-        26,
-        10,
-    )
-    .unwrap();
+    let mut relayer_merkle_tree =
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(26, 10).unwrap();
     relayer_merkle_tree.init().unwrap();
     println!("indexed mt inited root {:?}", relayer_merkle_tree.root());
     let address1 = 30_u32.to_biguint().unwrap();
-   
-    let test_address : BigUint = BigUint::from_bytes_be(&[
-        171, 159,  63,  33,  62,  94, 156,  27,
-         61, 216, 203, 164,  91, 229, 110,  16,
-        230, 124, 129, 133, 222, 159,  99, 235,
-         50, 181,  94, 203, 105,  23,  82
+
+    let test_address: BigUint = BigUint::from_bytes_be(&[
+        171, 159, 63, 33, 62, 94, 156, 27, 61, 216, 203, 164, 91, 229, 110, 16, 230, 124, 129, 133,
+        222, 159, 99, 235, 50, 181, 94, 203, 105, 23, 82,
     ]);
 
     let non_inclusion_proof_0 = relayer_merkle_tree
-    .get_non_inclusion_proof(&test_address, &relayer_indexing_array)
-    .unwrap();
+        .get_non_inclusion_proof(&test_address, &relayer_indexing_array)
+        .unwrap();
 
     println!("non inclusion proof init {:?}", non_inclusion_proof_0);
 
@@ -626,9 +620,18 @@ pub fn print_test_data() {
         .get_non_inclusion_proof(&address1, &relayer_indexing_array)
         .unwrap();
     println!("non inclusion proof address 1 {:?}", non_inclusion_proof);
-    println!("indexed array state element 0 {:?}", relayer_indexing_array.get(0).unwrap());
-    println!("indexed array state element 1 {:?}", relayer_indexing_array.get(1).unwrap());
-    println!("indexed array state element 2 {:?}", relayer_indexing_array.get(2).unwrap());
+    println!(
+        "indexed array state element 0 {:?}",
+        relayer_indexing_array.get(0).unwrap()
+    );
+    println!(
+        "indexed array state element 1 {:?}",
+        relayer_indexing_array.get(1).unwrap()
+    );
+    println!(
+        "indexed array state element 2 {:?}",
+        relayer_indexing_array.get(2).unwrap()
+    );
 
     let address2 = 42_u32.to_biguint().unwrap();
     relayer_merkle_tree
@@ -643,10 +646,22 @@ pub fn print_test_data() {
         .get_non_inclusion_proof(&address2, &relayer_indexing_array)
         .unwrap();
     println!("non inclusion proof address 2 {:?}", non_inclusion_proof);
-    println!("indexed array state element 0 {:?}", relayer_indexing_array.get(0).unwrap());
-    println!("indexed array state element 1 {:?}", relayer_indexing_array.get(1).unwrap());
-    println!("indexed array state element 2 {:?}", relayer_indexing_array.get(2).unwrap());
-    println!("indexed array state element 3 {:?}", relayer_indexing_array.get(3).unwrap());
+    println!(
+        "indexed array state element 0 {:?}",
+        relayer_indexing_array.get(0).unwrap()
+    );
+    println!(
+        "indexed array state element 1 {:?}",
+        relayer_indexing_array.get(1).unwrap()
+    );
+    println!(
+        "indexed array state element 2 {:?}",
+        relayer_indexing_array.get(2).unwrap()
+    );
+    println!(
+        "indexed array state element 3 {:?}",
+        relayer_indexing_array.get(3).unwrap()
+    );
 
     let address3 = 12_u32.to_biguint().unwrap();
     relayer_merkle_tree
@@ -661,11 +676,26 @@ pub fn print_test_data() {
         .get_non_inclusion_proof(&address3, &relayer_indexing_array)
         .unwrap();
     println!("non inclusion proof address 3 {:?}", non_inclusion_proof);
-    println!("indexed array state element 0 {:?}", relayer_indexing_array.get(0).unwrap());
-    println!("indexed array state element 1 {:?}", relayer_indexing_array.get(1).unwrap());
-    println!("indexed array state element 2 {:?}", relayer_indexing_array.get(2).unwrap());
-    println!("indexed array state element 3 {:?}", relayer_indexing_array.get(3).unwrap());
-    println!("indexed array state element 4 {:?}", relayer_indexing_array.get(4).unwrap());
+    println!(
+        "indexed array state element 0 {:?}",
+        relayer_indexing_array.get(0).unwrap()
+    );
+    println!(
+        "indexed array state element 1 {:?}",
+        relayer_indexing_array.get(1).unwrap()
+    );
+    println!(
+        "indexed array state element 2 {:?}",
+        relayer_indexing_array.get(2).unwrap()
+    );
+    println!(
+        "indexed array state element 3 {:?}",
+        relayer_indexing_array.get(3).unwrap()
+    );
+    println!(
+        "indexed array state element 4 {:?}",
+        relayer_indexing_array.get(4).unwrap()
+    );
 
     // // indexed array:
     // // element: 0
@@ -749,7 +779,7 @@ pub fn print_test_data() {
 pub fn functional_changelog_test() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
-
+}
 //     perform_change_log_test(address_1.clone(), address_2.clone());
 // }
 
