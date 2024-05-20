@@ -32,13 +32,10 @@ impl From<BoundedVecError> for solana_program::program_error::ProgramError {
     }
 }
 
-/// `BoundedVec` is a custom vector implementation which:
-///
-/// * Forbids post-initialization reallocations. The size is not known during
-///   compile time (that makes it different from arrays), but can be defined
-///   only once (that makes it different from [`Vec`](std::vec::Vec)).
-/// * Can store only Plain Old Data ([`Pod`](bytemuck::Pod)). It cannot nest
-///   any other dynamically sized types.
+/// `BoundedVec` is a custom vector implementation which forbids
+/// post-initialization reallocations. The size is not known during compile
+/// time (that makes it different from arrays), but can be defined only once
+/// (that makes it different from [`Vec`](std::vec::Vec)).
 pub struct BoundedVec<'a, T>
 where
     T: Clone,
@@ -60,10 +57,7 @@ where
         // layout is guaranteed to be aligned.
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
 
-        // SAFETY: As long as the provided `Pod` type is correct, this global
-        // allocator call should be correct too.
-        //
-        // We are handling the null pointer case gracefully.
+        // SAFETY: We are handling the null pointer case gracefully.
         let ptr = unsafe { alloc::alloc(layout) };
         if ptr.is_null() {
             handle_alloc_error(layout);
@@ -346,10 +340,7 @@ where
         // layout is guaranteed to be aligned.
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
 
-        // SAFETY: As long as the provided `Pod` type is correct, this global
-        // allocator call should be correct too.
-        //
-        // We are handling the null pointer case gracefully.
+        // SAFETY: We are handling the null pointer case gracefully.
         let ptr = unsafe { alloc::alloc(layout) };
         if ptr.is_null() {
             handle_alloc_error(layout);

@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, mem, slice};
 
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec, Pod};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
 };
@@ -15,15 +15,7 @@ pub struct IndexedMerkleTreeCopy<'a, H, I, const HEIGHT: usize>(
 )
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>;
 
 pub type IndexedMerkleTreeCopy22<'a, H, I> = IndexedMerkleTreeCopy<'a, H, I, 22>;
@@ -34,15 +26,7 @@ pub type IndexedMerkleTreeCopy40<'a, H, I> = IndexedMerkleTreeCopy<'a, H, I, 40>
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeCopy<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,

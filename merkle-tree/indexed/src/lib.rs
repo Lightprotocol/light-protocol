@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use array::{IndexedArray, IndexedElement};
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec, Pod};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::UpdatedLeaf, light_hasher::Hasher,
     ConcurrentMerkleTree,
@@ -24,29 +24,20 @@ pub const FIELD_SIZE_SUB_ONE: &str =
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RawIndexedElement<I>
 where
-    I: Clone + Pod,
+    I: Clone,
 {
     pub value: [u8; 32],
     pub next_index: I,
     pub next_value: [u8; 32],
     pub index: I,
 }
-unsafe impl<I> Pod for RawIndexedElement<I> where I: Pod + Clone {}
 
 #[derive(Debug)]
 #[repr(C)]
 pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
@@ -63,15 +54,7 @@ pub type IndexedMerkleTree40<'a, H, I> = IndexedMerkleTree<'a, H, I, 40>;
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd
-        + CheckedSub
-        + Copy
-        + Clone
-        + PartialOrd
-        + ToBytes
-        + TryFrom<usize>
-        + Unsigned
-        + Pod,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
     pub fn new(

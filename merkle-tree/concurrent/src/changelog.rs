@@ -9,7 +9,7 @@ pub struct ChangelogEntry<const HEIGHT: usize> {
     pub root: [u8; 32],
     // Path of the changelog.
     pub path: [[u8; 32]; HEIGHT],
-    // Index.
+    // Index of the affected leaf.
     pub index: u64,
 }
 
