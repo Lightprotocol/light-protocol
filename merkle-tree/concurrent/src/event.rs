@@ -69,8 +69,11 @@ where
     I: Clone + Pod,
 {
     pub new_low_element: RawIndexedElement<I>,
+    /// Leaf hash in new_low_element.index.
     pub new_low_element_hash: [u8; 32],
     pub new_high_element: RawIndexedElement<I>,
+    /// Leaf hash in new_high_element.index,
+    /// is equivalent with next_index.
     pub new_high_element_hash: [u8; 32],
 }
 
@@ -78,7 +81,7 @@ where
 pub struct IndexedMerkleTreeEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
-    pub leaves: Vec<IndexedMerkleTreeUpdate<usize>>,
+    pub updates: Vec<IndexedMerkleTreeUpdate<usize>>,
     /// Number of successful operations on the on-chain tree.
     /// seq corresponds to leaves[0].
     /// seq + 1 corresponds to leaves[1].

@@ -277,74 +277,65 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
                     MerkleTreeEvent::V3(event) => {
                         assert_eq!(event.id, address_merkle_tree_pubkey.to_bytes());
                         assert_eq!(event.seq, old_sequence_number as u64 + 1);
-                        assert_eq!(event.leaves.len(), 1);
-                        let event = &event.leaves[0];
-                        // let new_low_element_leaf = address_bundle
-                        //     .new_low_element
-                        //     .hash::<Poseidon>(&address_bundle.new_element.value);
-                        // assert_eq!(
-                        //     event.leaves[0].leaf,
-                        //     new_low_element_leaf.unwrap(),
-                        //     "New low element leaf mismatch."
-                        // );
-                        // let new_element_leaf = address_bundle
-                        //     .new_element
-                        //     .hash::<Poseidon>(&address_bundle.new_element_next_value);
-                        // assert_eq!(
-                        //     event.leaves[1].leaf,
-                        //     new_element_leaf.unwrap(),
-                        //     "New element leaf mismatch."
-                        // );
-                        // assert_eq!(event.leaves[0].leaf_index, old_low_address.index as u64);
-                        // assert_eq!(
-                        //     event.leaves[1].leaf_index,
-                        //     address_bundle.new_element.index as u64
-                        // );
+                        assert_eq!(event.updates.len(), 1);
+                        let event = &event.updates[0];
                         assert_eq!(
-                            event.new_low_element.index,
-                            address_bundle.new_low_element.index
+                            event.new_low_element.index, address_bundle.new_low_element.index,
+                            "Empty Address Queue Test: invalid new_low_element.index"
                         );
                         assert_eq!(
                             event.new_low_element.next_index,
-                            address_bundle.new_low_element.next_index
+                            address_bundle.new_low_element.next_index,
+                            "Empty Address Queue Test: invalid new_low_element.next_index"
                         );
                         assert_eq!(
                             event.new_low_element.value,
                             bigint_to_be_bytes_array::<32>(&address_bundle.new_low_element.value)
-                                .unwrap()
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_low_element.value"
                         );
                         assert_eq!(
                             event.new_low_element.next_value,
                             bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
-                                .unwrap()
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_low_element.next_value"
                         );
                         let leaf_hash = address_bundle
                             .new_low_element
                             .hash::<Poseidon>(&address_bundle.new_element.value)
                             .unwrap();
-                        assert_eq!(event.new_low_element_hash, leaf_hash);
+                        assert_eq!(
+                            event.new_low_element_hash, leaf_hash,
+                            "Empty Address Queue Test: invalid new_low_element_hash"
+                        );
                         let leaf_hash = address_bundle
                             .new_element
                             .hash::<Poseidon>(&address_bundle.new_element_next_value)
                             .unwrap();
-                        assert_eq!(event.new_high_element_hash, leaf_hash);
                         assert_eq!(
-                            event.new_high_element.index,
-                            address_bundle.new_element.index
+                            event.new_high_element_hash, leaf_hash,
+                            "Empty Address Queue Test: invalid new_high_element_hash"
+                        );
+                        assert_eq!(
+                            event.new_high_element.index, address_bundle.new_element.index,
+                            "Empty Address Queue Test: invalid new_high_element.index"
                         );
                         assert_eq!(
                             event.new_high_element.next_index,
-                            address_bundle.new_element.next_index
+                            address_bundle.new_element.next_index,
+                            "Empty Address Queue Test: invalid new_high_element.next_index"
                         );
                         assert_eq!(
                             event.new_high_element.value,
                             bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
-                                .unwrap()
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_high_element.value"
                         );
                         assert_eq!(
                             event.new_high_element.next_value,
                             bigint_to_be_bytes_array::<32>(&address_bundle.new_element_next_value)
-                                .unwrap()
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_high_element.next_value"
                         );
                     }
                     _ => {

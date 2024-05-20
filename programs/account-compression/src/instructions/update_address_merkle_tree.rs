@@ -95,7 +95,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     let address_event = MerkleTreeEvent::V3(IndexedMerkleTreeEvent {
         id: ctx.accounts.merkle_tree.key().to_bytes(),
-        leaves: vec![indexed_merkle_tree_update],
+        updates: vec![indexed_merkle_tree_update],
         // Address Merkle tree update does one update and one append,
         // thus the first seq number is final seq - 1.
         seq: merkle_tree.merkle_tree.merkle_tree.sequence_number as u64 - 1,
