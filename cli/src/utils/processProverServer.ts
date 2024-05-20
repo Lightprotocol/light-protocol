@@ -19,7 +19,6 @@ export async function startProver(
   proveCompressedAccounts: boolean,
   proveNewAddresses: boolean,
 ) {
-  console.log("Starting prover...", proveCompressedAccounts, proveNewAddresses);
   if (!proveCompressedAccounts && !proveNewAddresses) {
     console.log(
       "No flags provided. Please provide at least one flag to start the prover.",

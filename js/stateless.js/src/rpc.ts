@@ -115,7 +115,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
                 new PublicKey('9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE'),
                 bn(_account.lamports),
                 _account.data ? parseAccountData(_account.data) : undefined,
-                _account.address ? _account.address : undefined,
+                _account.address || undefined,
             );
 
         const parsed: TokenData = {
