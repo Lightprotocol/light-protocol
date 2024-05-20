@@ -29,7 +29,7 @@ pub mod light_system_program {
     // TODO: test init from registry program method
     pub fn init_cpi_context_account(
         ctx: Context<InitializeCpiContextAccount>,
-        fee: u64,
+        network_fee: u64,
     ) -> Result<()> {
         // check that merkle tree is initialized and signer is eligible
         let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;
@@ -39,7 +39,7 @@ pub mod light_system_program {
         }
         ctx.accounts
             .cpi_context_account
-            .init(ctx.accounts.associated_merkle_tree.key(), fee);
+            .init(ctx.accounts.associated_merkle_tree.key(), network_fee);
         Ok(())
     }
 

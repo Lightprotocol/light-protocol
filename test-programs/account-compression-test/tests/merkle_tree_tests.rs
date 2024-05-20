@@ -59,7 +59,7 @@ async fn test_nullifier_queue_security() {
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
     let payer_pubkey = context.payer.pubkey();
-    let tip = 123;
+    let tip = 0;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -364,7 +364,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
     let payer_pubkey = context.payer.pubkey();
-    let tip = 123;
+    let tip = 0;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -742,8 +742,7 @@ pub async fn functional_3_append_leaves_to_merkle_tree(
     )
     .await;
     let merkle_tree_deserialized = merkle_tree.deserialized();
-    let roll_over_fee = (merkle_tree_deserialized.rollover_fee * (leaves.len() as u64))
-        + merkle_tree_deserialized.tip;
+    let roll_over_fee = (merkle_tree_deserialized.rollover_fee * (leaves.len() as u64));
     let merkle_tree = merkle_tree_deserialized.copy_merkle_tree().unwrap();
     assert_eq!(
         merkle_tree.next_index,
@@ -831,7 +830,7 @@ async fn test_nullify_leaves() {
     let mut context = program_test.start_with_context().await;
     let payer = context.payer.insecure_clone();
     let payer_pubkey = context.payer.pubkey();
-    let tip = 123;
+    let tip = 0;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -1079,7 +1078,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
     program_test.set_compute_max_units(1_400_000u64);
     let mut context = program_test.start_with_context().await;
     let payer_pubkey = context.payer.pubkey();
-    let tip = 123;
+    let tip = 0;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(

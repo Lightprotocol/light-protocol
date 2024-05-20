@@ -397,7 +397,7 @@ pub async fn init_cpi_context_account(
         &light_system_program::ID,
         Some(cpi_account_keypair),
     );
-    let data = light_system_program::instruction::InitCpiContextAccount { fee: 5000 };
+    let data = light_system_program::instruction::InitCpiContextAccount { network_fee: 5000 };
     let accounts = light_system_program::accounts::InitializeCpiContextAccount {
         fee_payer: fee_payer.pubkey(),
         cpi_context_account: cpi_account_keypair.pubkey(),

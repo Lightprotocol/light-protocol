@@ -306,8 +306,8 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
     }
 
     async fn create_state_tree(&mut self) {
-        let merkle_tree_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
-        let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
         let cpi_context_keypair = Keypair::new();
         create_state_merkle_tree_and_queue_account(
             &self.payer,
@@ -342,8 +342,8 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
     }
 
     async fn create_address_tree(&mut self) {
-        let merkle_tree_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
-        let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
+        let merkle_tree_keypair = Keypair::new();
+        let nullifier_queue_keypair = Keypair::new();
         create_address_merkle_tree_and_queue_account(
             &self.payer,
             &mut self.context,
