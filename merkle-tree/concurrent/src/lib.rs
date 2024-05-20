@@ -1,7 +1,7 @@
-use std::{marker::PhantomData, mem, slice};
+use std::{iter::Skip, marker::PhantomData, mem, slice};
 
 use event::{ChangelogEvent, ChangelogEventV1};
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecIterator};
 pub use light_hasher;
 use light_hasher::Hasher;
 
@@ -771,7 +771,27 @@ where
         Ok(())
     }
 
-    /// Returns an updated Merkle proof.
+    /// Returns an iterator with changelog entries newer than the requested
+    /// `changelog_index`.
+    pub fn changelog_entries(
+        &self,
+        changelog_index: usize,
+    ) -> Skip<CyclicBoundedVecIterator<'_, ChangelogEntry<HEIGHT>>> {
+        // `CyclicBoundedVec::iter_from` returns an iterator which includes also
+        // the element indicated by the provided index.
+        //
+        // However, we want to iterate only on changelog events **newer** than
+        // the provided one.
+        //
+        // Calling `iter_from(changelog_index + 1)` wouldn't work. If
+        // `changelog_index` points to the newest changelog entry,
+        // `changelog_index + 1` would point to the **oldest** changelog entry.
+        // That would result in iterating over the whole changelog - from the
+        // oldest to the newest element.
+        self.changelog.iter_from(changelog_index).skip(1)
+    }
+
+    /// Updates the given Merkle proof.
     ///
     /// The update is performed by checking whether there are any new changelog
     /// entries and whether they contain changes which affect the current
@@ -794,7 +814,12 @@ where
         leaf_index: usize,
         proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), ConcurrentMerkleTreeError> {
-        for changelog_entry in self.changelog.iter_from(changelog_index) {
+        // Iterate over changelog entries starting from the requested
+        // `changelog_index`.
+        //
+        // Since we are interested only in subsequent, new changelog entries,
+        // skip the first result.
+        for changelog_entry in self.changelog_entries(changelog_index) {
             changelog_entry.update_proof(leaf_index, proof)?;
         }
 

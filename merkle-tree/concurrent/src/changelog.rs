@@ -1,4 +1,4 @@
-use light_bounded_vec::{BoundedVec, Pod};
+use light_bounded_vec::BoundedVec;
 
 use crate::errors::ConcurrentMerkleTreeError;
 
@@ -9,7 +9,7 @@ pub struct ChangelogEntry<const HEIGHT: usize> {
     pub root: [u8; 32],
     // Path of the changelog.
     pub path: [[u8; 32]; HEIGHT],
-    // Index.
+    // Index of the affected leaf.
     pub index: u64,
 }
 
@@ -17,8 +17,6 @@ pub type ChangelogEntry22 = ChangelogEntry<22>;
 pub type ChangelogEntry26 = ChangelogEntry<26>;
 pub type ChangelogEntry32 = ChangelogEntry<32>;
 pub type ChangelogEntry40 = ChangelogEntry<40>;
-
-unsafe impl<const HEIGHT: usize> Pod for ChangelogEntry<HEIGHT> {}
 
 impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     pub fn new(root: [u8; 32], path: [[u8; 32]; HEIGHT], index: usize) -> Self {
@@ -65,6 +63,12 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         if leaf_index != self.index() {
             let intersection_index = self.intersection_index(leaf_index);
             proof[intersection_index] = self.path[intersection_index];
+        } else {
+            // This case means that the leaf we are trying to update was
+            // already updated. Therefore, the right thing to do is to notify
+            // the caller to sync the local Merkle tree and update the leaf,
+            // if necessary.
+            return Err(ConcurrentMerkleTreeError::CannotUpdateLeaf);
         }
 
         Ok(())

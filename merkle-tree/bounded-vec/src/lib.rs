@@ -32,37 +32,13 @@ impl From<BoundedVecError> for solana_program::program_error::ProgramError {
     }
 }
 
-/// Plain Old Data.
-///
-/// # Safety
-///
-/// This trait should be implemented only for types with size known at compile
-/// time, like primitives or arrays of primitives.
-pub unsafe trait Pod {}
-
-unsafe impl Pod for i8 {}
-unsafe impl Pod for i16 {}
-unsafe impl Pod for i32 {}
-unsafe impl Pod for i64 {}
-unsafe impl Pod for isize {}
-unsafe impl Pod for u8 {}
-unsafe impl Pod for u16 {}
-unsafe impl Pod for u32 {}
-unsafe impl Pod for u64 {}
-unsafe impl Pod for usize {}
-
-unsafe impl<const N: usize> Pod for [u8; N] {}
-
-/// `BoundedVec` is a custom vector implementation which:
-///
-/// * Forbids post-initialization reallocations. The size is not known during
-///   compile time (that makes it different from arrays), but can be defined
-///   only once (that makes it different from [`Vec`](std::vec::Vec)).
-/// * Can store only Plain Old Data ([`Pod`](bytemuck::Pod)). It cannot nest
-///   any other dynamically sized types.
+/// `BoundedVec` is a custom vector implementation which forbids
+/// post-initialization reallocations. The size is not known during compile
+/// time (that makes it different from arrays), but can be defined only once
+/// (that makes it different from [`Vec`](std::vec::Vec)).
 pub struct BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
 {
     capacity: usize,
     length: usize,
@@ -71,7 +47,7 @@ where
 
 impl<'a, T> BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
 {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
@@ -81,10 +57,7 @@ where
         // layout is guaranteed to be aligned.
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
 
-        // SAFETY: As long as the provided `Pod` type is correct, this global
-        // allocator call should be correct too.
-        //
-        // We are handling the null pointer case gracefully.
+        // SAFETY: We are handling the null pointer case gracefully.
         let ptr = unsafe { alloc::alloc(layout) };
         if ptr.is_null() {
             handle_alloc_error(layout);
@@ -259,9 +232,43 @@ where
     }
 }
 
+impl<'a, T> Clone for BoundedVec<'a, T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        // Create a new buffer with the same capacity as the original
+        let size = mem::size_of::<T>() * self.capacity;
+        let align = mem::align_of::<T>();
+        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
+
+        let ptr = unsafe { alloc::alloc(layout) };
+        if ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+
+        // Create a slice from the newly allocated buffer
+        let new_data = unsafe { slice::from_raw_parts_mut(ptr as *mut T, self.capacity) };
+
+        // Copy elements from the original data slice to the new slice
+        let new_vec = Self {
+            capacity: self.capacity,
+            length: self.length,
+            data: new_data,
+        };
+
+        // Clone each element into the new vector
+        for i in 0..self.length {
+            new_vec.data[i] = self.data[i].clone();
+        }
+
+        new_vec
+    }
+}
+
 impl<'a, T> fmt::Debug for BoundedVec<'a, T>
 where
-    T: Clone + fmt::Debug + Pod,
+    T: Clone + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", &self.data[..self.length])
@@ -270,7 +277,7 @@ where
 
 impl<'a, T, I: SliceIndex<[T]>> Index<I> for BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
     I: SliceIndex<[T]>,
 {
     type Output = I::Output;
@@ -283,7 +290,7 @@ where
 
 impl<'a, T, I> IndexMut<I> for BoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
@@ -293,7 +300,7 @@ where
 
 impl<'a, T> PartialEq for BoundedVec<'a, T>
 where
-    T: Clone + PartialEq + Pod,
+    T: Clone + PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.data[..self.length]
@@ -302,7 +309,7 @@ where
     }
 }
 
-impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq + Pod {}
+impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq {}
 
 /// `CyclicBoundedVec` is a wrapper around [`Vec`](std::vec::Vec) which:
 ///
@@ -312,7 +319,7 @@ impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq + Pod {}
 #[derive(Debug)]
 pub struct CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
 {
     capacity: usize,
     length: usize,
@@ -323,7 +330,7 @@ where
 
 impl<'a, T> CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
 {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
@@ -333,10 +340,7 @@ where
         // layout is guaranteed to be aligned.
         let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
 
-        // SAFETY: As long as the provided `Pod` type is correct, this global
-        // allocator call should be correct too.
-        //
-        // We are handling the null pointer case gracefully.
+        // SAFETY: We are handling the null pointer case gracefully.
         let ptr = unsafe { alloc::alloc(layout) };
         if ptr.is_null() {
             handle_alloc_error(layout);
@@ -500,7 +504,7 @@ where
 
 impl<'a, T, I> Index<I> for CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
     I: SliceIndex<[T]>,
 {
     type Output = I::Output;
@@ -513,7 +517,7 @@ where
 
 impl<'a, T, I> IndexMut<I> for CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
@@ -523,18 +527,18 @@ where
 
 impl<'a, T> PartialEq for CyclicBoundedVec<'a, T>
 where
-    T: Clone + Pod + PartialEq,
+    T: Clone + PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
         self.data[..self.length].iter().eq(other.data.iter())
     }
 }
 
-impl<'a, T> Eq for CyclicBoundedVec<'a, T> where T: Clone + Eq + Pod {}
+impl<'a, T> Eq for CyclicBoundedVec<'a, T> where T: Clone + Eq {}
 
 pub struct CyclicBoundedVecIterator<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
 {
     vec: &'a CyclicBoundedVec<'a, T>,
     current: usize,
@@ -543,7 +547,7 @@ where
 
 impl<'a, T> Iterator for CyclicBoundedVecIterator<'a, T>
 where
-    T: Clone + Pod,
+    T: Clone,
 {
     type Item = &'a T;
 

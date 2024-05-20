@@ -2,7 +2,7 @@ use std::{cmp, mem};
 
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use light_bounded_vec::BoundedVec;
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::ChangelogEvent,
     ConcurrentMerkleTree,
@@ -1917,27 +1917,43 @@ pub fn test_100_nullify_mt() {
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
 
         let mut rng = rand::thread_rng();
+
+        // Pick random queue indices to nullify.
+        let mut queue_indices = std::collections::HashSet::new();
+        while queue_indices.len() < cmp::min(9, iterations) {
+            let index = rng.gen_range(0..iterations);
+            queue_indices.insert(index);
+        }
+
         let change_log_index = onchain_merkle_tree.changelog_index();
 
-        let mut nullified_leaf_indices = vec![0];
-        for _ in 1..std::cmp::min(9, iterations) {
-            let mut leaf = [0u8; 32];
-            let mut leaf_index = 0;
-            while nullified_leaf_indices.contains(&leaf_index) {
-                let index = rng.gen_range(0..std::cmp::min(9, iterations));
-                leaf = queue.by_value_index(index, None).unwrap().value_bytes();
-                leaf_index = crank_merkle_tree.get_leaf_index(&leaf).unwrap().clone();
-            }
+        let mut nullified_leaf_indices = Vec::with_capacity(queue_indices.len());
 
-            nullified_leaf_indices.push(leaf_index);
-            let mut proof0 = crank_merkle_tree
+        // Nullify the leaves we picked.
+        for queue_index in queue_indices {
+            let leaf_cell = queue
+                .by_value_index(queue_index, Some(onchain_merkle_tree.sequence_number))
+                .unwrap();
+            let leaf_index = crank_merkle_tree
+                .get_leaf_index(&leaf_cell.value_bytes())
+                .unwrap()
+                .clone();
+
+            let mut proof = crank_merkle_tree
                 .get_proof_of_leaf(leaf_index, false)
                 .unwrap();
             onchain_merkle_tree
-                .update(change_log_index, &leaf, &[0u8; 32], leaf_index, &mut proof0)
+                .update(
+                    change_log_index,
+                    &leaf_cell.value_bytes(),
+                    &[0u8; 32],
+                    leaf_index,
+                    &mut proof,
+                )
                 .unwrap();
+
+            nullified_leaf_indices.push(leaf_index);
         }
-        nullified_leaf_indices.remove(0);
         for leaf_index in nullified_leaf_indices {
             crank_merkle_tree.update(&[0; 32], leaf_index).unwrap();
         }
@@ -2206,4 +2222,756 @@ fn test_subtree_updates() {
     assert_eq!(spl_concurrent_mt.get_root(), ref_mt.root());
     assert_eq!(spl_concurrent_mt.get_root(), con_mt.root());
     assert_eq!(ref_mt.root(), con_mt.root());
+}
+
+/// Tests an update of a leaf which was modified by another updates.
+fn update_already_modified_leaf<
+    H,
+    // Number of conflicting updates of the same leaf.
+    const CONFLICTS: usize,
+    // Number of appends of random leaves before submitting the conflicting
+    // updates.
+    const RANDOM_APPENDS_BEFORE_CONFLICTS: usize,
+    // Number of appends of random leaves after every single conflicting
+    // update.
+    const RANDOM_APPENDS_AFTER_EACH_CONFLICT: usize,
+>()
+where
+    H: Hasher,
+{
+    const HEIGHT: usize = 26;
+    const MAX_CHANGELOG: usize = 8;
+    const MAX_ROOTS: usize = 8;
+    const CANOPY: usize = 0;
+
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, MAX_CHANGELOG, MAX_ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    // Create tree with a single leaf.
+    let first_leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    merkle_tree.append(&first_leaf).unwrap();
+    reference_tree.append(&first_leaf).unwrap();
+
+    // Save a proof of the first append.
+    let outdated_changelog_index = merkle_tree.changelog_index();
+    let mut outdated_proof = reference_tree.get_proof_of_leaf(0, false).unwrap().clone();
+
+    let mut old_leaf = first_leaf;
+    for _ in 0..CONFLICTS {
+        // Update leaf. Always use an up-to-date proof.
+        let mut up_to_date_proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+        let new_leaf = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        merkle_tree
+            .update(
+                merkle_tree.changelog_index(),
+                &old_leaf,
+                &new_leaf,
+                0,
+                &mut up_to_date_proof,
+            )
+            .unwrap();
+        reference_tree.update(&new_leaf, 0).unwrap();
+
+        old_leaf = new_leaf;
+
+        assert_eq!(merkle_tree.root(), reference_tree.root());
+    }
+
+    // Update leaf. This time, try using an outdated proof.
+    let new_leaf = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    let res = merkle_tree.update(
+        outdated_changelog_index,
+        &first_leaf,
+        &new_leaf,
+        0,
+        &mut outdated_proof,
+    );
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::CannotUpdateLeaf)
+    ));
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_1_0_0() {
+    update_already_modified_leaf::<Keccak, 1, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_1_0_0() {
+    update_already_modified_leaf::<Poseidon, 1, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_1_0_0() {
+    update_already_modified_leaf::<Sha256, 1, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_1_1_1() {
+    update_already_modified_leaf::<Keccak, 1, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_1_1_1() {
+    update_already_modified_leaf::<Poseidon, 1, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_1_1_1() {
+    update_already_modified_leaf::<Sha256, 1, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_1_2_2() {
+    update_already_modified_leaf::<Keccak, 1, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_1_2_2() {
+    update_already_modified_leaf::<Poseidon, 1, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_1_2_2() {
+    update_already_modified_leaf::<Sha256, 1, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_2_0_0() {
+    update_already_modified_leaf::<Keccak, 2, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_2_0_0() {
+    update_already_modified_leaf::<Poseidon, 2, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_2_0_0() {
+    update_already_modified_leaf::<Sha256, 2, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_2_1_1() {
+    update_already_modified_leaf::<Keccak, 2, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_2_1_1() {
+    update_already_modified_leaf::<Poseidon, 2, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_2_1_1() {
+    update_already_modified_leaf::<Sha256, 2, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_2_2_2() {
+    update_already_modified_leaf::<Keccak, 2, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_2_2_2() {
+    update_already_modified_leaf::<Poseidon, 2, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_2_2_2() {
+    update_already_modified_leaf::<Sha256, 2, 2, 2>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_4_0_0() {
+    update_already_modified_leaf::<Keccak, 4, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_4_0_0() {
+    update_already_modified_leaf::<Poseidon, 4, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_4_0_0() {
+    update_already_modified_leaf::<Sha256, 4, 0, 0>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_4_1_1() {
+    update_already_modified_leaf::<Keccak, 4, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_4_1_1() {
+    update_already_modified_leaf::<Poseidon, 4, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_4_1_1() {
+    update_already_modified_leaf::<Sha256, 4, 1, 1>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_keccak_4_4_4() {
+    update_already_modified_leaf::<Keccak, 4, 4, 4>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_poseidon_4_4_4() {
+    update_already_modified_leaf::<Poseidon, 4, 4, 4>()
+}
+
+#[test]
+fn test_update_already_modified_leaf_sha256_4_4_4() {
+    update_already_modified_leaf::<Sha256, 4, 4, 4>()
+}
+
+/// Checks whether the [`changelog_entries`](ConcurrentMerkleTree::changelog_entries)
+/// method returns an iterator with expected entries.
+///
+/// We expect the `changelog_entries` method to return an iterator with entries
+/// newer than the requested index.
+///
+/// # Examples
+///
+/// (In the tree) `current_index`: 1
+/// (Requested) `changelog_index`: 1
+/// Expected iterator: `[]` (empty)
+///
+/// (In the tree) `current_index`: 3
+/// (Requested) `changelog_index`: 1
+/// Expected iterator: `[2, 3]` (1 is skipped)
+///
+/// Changelog capacity: 12
+/// (In the tree) `current_index`: 9
+/// (Requested) `changelog_index`: 3 (lowed than `current_index`, because the
+/// changelog is full and started overwriting values from the head)
+/// Expected iterator: `[10, 11, 12, 13, 14, 15]` (9 is skipped)
+fn changelog_entries<H>()
+where
+    H: Hasher,
+{
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 12;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    merkle_tree
+        .append(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 1,
+        ])
+        .unwrap();
+
+    let changelog_entries = merkle_tree.changelog_entries(1).collect::<Vec<_>>();
+    assert!(changelog_entries.is_empty());
+
+    merkle_tree
+        .append(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 2,
+        ])
+        .unwrap();
+    merkle_tree
+        .append(&[
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 3,
+        ])
+        .unwrap();
+
+    let changelog_leaves = merkle_tree
+        .changelog_entries(1)
+        .map(|changelog_entry| changelog_entry.path[0])
+        .collect::<Vec<_>>();
+    assert_eq!(
+        changelog_leaves.as_slice(),
+        &[
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 2
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 3
+            ]
+        ]
+    );
+
+    for i in 4_u8..16_u8 {
+        merkle_tree
+            .append(&[
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, i,
+            ])
+            .unwrap();
+    }
+
+    let changelog_leaves = merkle_tree
+        .changelog_entries(9)
+        .map(|changelog_entry| changelog_entry.path[0])
+        .collect::<Vec<_>>();
+    assert_eq!(
+        changelog_leaves.as_slice(),
+        &[
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 10
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 11
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 12
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 13
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 14
+            ],
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 15
+            ]
+        ]
+    );
+}
+
+#[test]
+fn changelog_entries_keccak() {
+    changelog_entries::<Keccak>()
+}
+
+#[test]
+fn changelog_entries_poseidon() {
+    changelog_entries::<Poseidon>()
+}
+
+#[test]
+fn changelog_entries_sha256() {
+    changelog_entries::<Sha256>()
+}
+
+/// Checks whether the [`changelog_entries`](ConcurrentMerkleTree::changelog_entries)
+/// method returns an iterator with expected entries.
+///
+/// It tests random insertions and updates and checks the consistency of leaves
+/// (`path[0]`) in changelogs.
+fn changelog_entries_random<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
+where
+    H: Hasher,
+{
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    let changelog_entries = merkle_tree.changelog_entries(0).collect::<Vec<_>>();
+    assert!(changelog_entries.is_empty());
+
+    // Requesting changelog entries starting from the current `changelog_index()`
+    // should always return an empty iterator.
+    let changelog_entries = merkle_tree
+        .changelog_entries(merkle_tree.changelog_index())
+        .collect::<Vec<_>>();
+    assert!(changelog_entries.is_empty());
+
+    // Vector of changelog indices after each operation.
+    let mut leaf_indices = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Vector of roots after each operation.
+    let mut roots = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Vector of merkle paths we get from the reference tree after each operation.
+    let mut merkle_paths = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Changelog is always initialized with a changelog path consisting of zero
+    // bytes. For consistency, we need to assert the 1st zero byte as the first
+    // expected leaf in the changelog.
+    let merkle_path = reference_tree.get_path_of_leaf(0, true).unwrap();
+    leaf_indices.push(0);
+    merkle_paths.push(merkle_path);
+    roots.push(merkle_tree.root());
+
+    for _ in 0..1000 {
+        // Append random leaf.
+        let leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        let leaf_index = merkle_tree.next_index();
+        merkle_tree.append(&leaf).unwrap();
+        reference_tree.append(&leaf).unwrap();
+
+        leaf_indices.push(leaf_index);
+        roots.push(merkle_tree.root());
+        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        merkle_paths.push(merkle_path);
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
+
+        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+            .iter()
+            .skip(1)
+            .zip(merkle_paths.iter().skip(1))
+            .zip(roots.iter().skip(1))
+            .zip(changelog_entries)
+        {
+            assert_eq!(changelog_entry.index, *leaf_index as u64);
+            assert_eq!(&changelog_entry.root, root);
+            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+        }
+
+        // Requesting changelog entries starting from the current `changelog_index()`
+        // should always return an empty iterator.
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog_index())
+            .collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+
+        // Update random leaf.
+        let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
+        let old_leaf = reference_tree.leaf(leaf_index);
+        let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        merkle_tree
+            .update(
+                merkle_tree.changelog_index(),
+                &old_leaf,
+                &new_leaf,
+                leaf_index,
+                &mut proof,
+            )
+            .unwrap();
+        reference_tree.update(&new_leaf, leaf_index).unwrap();
+
+        leaf_indices.push(leaf_index);
+        roots.push(merkle_tree.root());
+        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        merkle_paths.push(merkle_path);
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
+
+        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+            .iter()
+            .skip(1)
+            .zip(merkle_paths.iter().skip(1))
+            .zip(roots.iter().skip(1))
+            .zip(changelog_entries)
+        {
+            assert_eq!(changelog_entry.index, *leaf_index as u64);
+            assert_eq!(&changelog_entry.root, root);
+            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+        }
+
+        // Requesting changelog entries starting from the current `changelog_index()`
+        // should always return an empty iterator.
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog_index())
+            .collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+    }
+}
+
+#[test]
+fn test_changelog_entries_random_keccak_26_256_256_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    changelog_entries_random::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_keccak_26_256_256_10() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 10;
+    changelog_entries_random::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_poseidon_26_256_256_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    changelog_entries_random::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_poseidon_26_256_256_10() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 10;
+    changelog_entries_random::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_sha256_26_256_256_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    changelog_entries_random::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_entries_random_sha256_26_256_256_10() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 10;
+    changelog_entries_random::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+/// When reading the tests above (`changelog_entries`, `changelog_entries_random`)
+/// you might be still wondering why is skipping the **current** changelog element
+/// necessary.
+///
+/// The explanation is that not skipping the current element might produce leaf
+/// conflicts. Imagine that we insert a leaf and then we try to immediately update
+/// it. Starting the iteration
+///
+/// This test reproduces that case and serves as a proof that skipping is the
+/// right action.
+fn changelog_iteration_without_skipping<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
+where
+    H: Hasher,
+{
+    /// A broken re-implementation of `ConcurrentMerkleTree::update_proof_from_changelog`
+    /// which reproduces the described issue.
+    fn update_proof_from_changelog<H, const HEIGHT: usize>(
+        merkle_tree: &ConcurrentMerkleTree<H, HEIGHT>,
+        changelog_index: usize,
+        leaf_index: usize,
+        proof: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<(), ConcurrentMerkleTreeError>
+    where
+        H: Hasher,
+    {
+        for changelog_entry in merkle_tree.changelog.iter_from(changelog_index) {
+            changelog_entry.update_proof(leaf_index, proof)?;
+        }
+
+        Ok(())
+    }
+
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    let leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+
+    merkle_tree.append(&leaf).unwrap();
+    reference_tree.append(&leaf).unwrap();
+
+    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+
+    let res =
+        update_proof_from_changelog(&merkle_tree, merkle_tree.changelog_index(), 0, &mut proof);
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::CannotUpdateLeaf)
+    ));
+}
+
+#[test]
+fn test_changelog_interation_without_skipping_keccak_26_16_16_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 16;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+    changelog_iteration_without_skipping::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_interation_without_skipping_poseidon_26_16_16_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 16;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+    changelog_iteration_without_skipping::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_changelog_interation_without_skipping_sha256_26_16_16_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 16;
+    const ROOTS: usize = 16;
+    const CANOPY: usize = 0;
+    changelog_iteration_without_skipping::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+/// Tests an update with an old `changelog_index` and proof, which refers to the
+/// state before the changelog wrap-around (enough new operations to overwrite
+/// the whole changelog). Such an update should fail,
+fn update_changelog_wrap_around<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+>()
+where
+    H: Hasher,
+{
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    // The leaf which we will want to update with an expired changelog.
+    let leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    let (changelog_index, _) = merkle_tree.append(&leaf).unwrap();
+    reference_tree.append(&leaf).unwrap();
+    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+
+    // Perform enough appends and updates to overfill the changelog
+    for i in 0..CHANGELOG {
+        if i % 2 == 0 {
+            // Append random leaf.
+            let leaf: [u8; 32] = Fr::rand(&mut rng)
+                .into_bigint()
+                .to_bytes_be()
+                .try_into()
+                .unwrap();
+            merkle_tree.append(&leaf).unwrap();
+            reference_tree.append(&leaf).unwrap();
+        } else {
+            // Update random leaf.
+            let leaf_index = rng.gen_range(1..reference_tree.leaves().len());
+            let old_leaf = reference_tree.leaf(leaf_index);
+            let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+                .into_bigint()
+                .to_bytes_be()
+                .try_into()
+                .unwrap();
+            let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+            merkle_tree
+                .update(
+                    merkle_tree.changelog_index(),
+                    &old_leaf,
+                    &new_leaf,
+                    leaf_index,
+                    &mut proof,
+                )
+                .unwrap();
+            reference_tree.update(&new_leaf, leaf_index).unwrap();
+        }
+    }
+
+    // Try to update the original `leaf` with an outdated proof and changelog
+    // index. Expect an error.
+    let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+
+    let res = merkle_tree.update(changelog_index, &leaf, &new_leaf, 0, &mut proof);
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::InvalidProof(_, _))
+    ));
+
+    // Try to update the original `leaf` with an up-to-date proof and changelog
+    // index. Expect a success.
+    let changelog_index = merkle_tree.changelog_index();
+    let mut proof = reference_tree.get_proof_of_leaf(0, false).unwrap();
+    merkle_tree
+        .update(changelog_index, &leaf, &new_leaf, 0, &mut proof)
+        .unwrap();
+}
+
+#[test]
+fn test_update_changelog_wrap_around_keccak_26_256_512_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    update_changelog_wrap_around::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_update_changelog_wrap_around_poseidon_26_256_512_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    update_changelog_wrap_around::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+}
+
+#[test]
+fn test_update_changelog_wrap_around_sha256_26_256_512_0() {
+    const HEIGHT: usize = 26;
+    const CHANGELOG: usize = 256;
+    const ROOTS: usize = 256;
+    const CANOPY: usize = 0;
+    update_changelog_wrap_around::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
