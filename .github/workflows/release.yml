@@ -50,9 +50,6 @@ jobs:
             PACKAGE=$(echo "$COMMIT_MESSAGE" | grep -o "version of TypeScript project [^ ]*" | cut -d " " -f5)
             LANGUAGE="rust"
           fi
-          # Hardcode for now:
-          PACKAGE="all"
-          LANGUAGE="rust"
 
           # Needed for Anchor.
           PACKAGE_SNAKE_CASE=$(echo "$PACKAGE" | tr '-' '_')
@@ -60,6 +57,7 @@ jobs:
           printf "package=%s\package-snake-case=%s\nlanguage=%s\n" "$PACKAGE" "$PACKAGE_SNAKE_CASE" "$LANGUAGE" >> "$GITHUB_OUTPUT"
 
       - name: Set Git user configuration
+        if: steps.extract-project.outputs.language != ''
         run: |
           git config user.name "GitHub Actions"
           git config user.email "github-actions@github.com"
@@ -110,6 +108,7 @@ jobs:
           git push origin "${PACKAGE}-v${VERSION}"
 
       - name: Log in to crates.io
+        if: steps.extract-project.outputs.language == 'rust'
         run: |
           cargo login "${{ secrets.CRATES_IO_TOKEN }}"
 
@@ -169,7 +168,7 @@ jobs:
 
       - name: GitHub release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.extract-project.outputs.language != ''
         with:
           token: ${{ secrets.PAT_TOKEN }}
           files: |
