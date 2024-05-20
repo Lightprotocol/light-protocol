@@ -241,7 +241,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
         let (address, address_hashset_index) = address.unwrap();
         // Create new element from the dequeued value.
         let (old_low_address, old_low_address_next_value) = relayer_indexing_array
-            .find_low_element(&address.value_biguint())
+            .find_low_element_for_nonexistent(&address.value_biguint())
             .unwrap();
         let address_bundle = relayer_indexing_array
             .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())

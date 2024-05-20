@@ -130,7 +130,7 @@ where
         value: &BigUint,
         indexed_array: &IndexedArray<H, I, T>,
     ) -> Result<NonInclusionProof, IndexedReferenceMerkleTreeError> {
-        let (low_element, _next_value) = indexed_array.find_low_element(value)?;
+        let (low_element, _next_value) = indexed_array.find_low_element_for_nonexistent(value)?;
         let merkle_proof = self
             .get_proof_of_leaf(usize::from(low_element.index), true)
             .unwrap();
