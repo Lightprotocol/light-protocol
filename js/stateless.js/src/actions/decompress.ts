@@ -43,12 +43,6 @@ export async function decompress(
     const inputLamports = sumUpLamports(
         userCompressedAccountsWithMerkleContext,
     );
-    console.log(
-        'inputLamports',
-        inputLamports.toString(),
-        'decompress: ',
-        lamports.toString(),
-    );
 
     if (lamports.gt(inputLamports)) {
         throw new Error(

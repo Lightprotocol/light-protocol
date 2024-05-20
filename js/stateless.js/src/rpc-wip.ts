@@ -1,3 +1,4 @@
+// TODO: add as refactor into test-rpc.ts and rpc.ts
 // async getValidityProof(
 //     hashes: BN254[],
 //     newAddresses: PublicKey[] = [],

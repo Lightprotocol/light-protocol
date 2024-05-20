@@ -56,34 +56,6 @@ export interface LightWasm {
     poseidonHashBN(input: string[] | BN[]): BN;
 }
 
-function parseAddressMerkleTreeAccountRootHistory(data: Buffer): number[][] {
-    let startOffset = 1222136;
-    let endOffset = startOffset + 76800;
-    let rootData = data.subarray(startOffset, endOffset);
-
-    let rootAccount: number[][] = [];
-    let chunkSize = 32;
-    for (let i = 0; i < rootData.length; i += chunkSize) {
-        const root = Array.from(rootData.subarray(i, i + chunkSize));
-        rootAccount.push(root);
-    }
-    return rootAccount;
-}
-
-async function fetchAndSearchAddressMerkleTreeRootHistoryArray(
-    rpc: TestRpc,
-    addressMerkleTreeAccountPubkey: PublicKey,
-    root: number[] | BN,
-): Promise<number> {
-    let accountInfo = await rpc.getAccountInfo(addressMerkleTreeAccountPubkey);
-    if (!accountInfo) {
-        throw new Error('Address Merkle Tree Account does not exist.');
-    }
-    let roots = parseAddressMerkleTreeAccountRootHistory(accountInfo.data);
-    const indexOfRoot = roots.findIndex(r => r.toString() === root.toString());
-    return indexOfRoot;
-}
-
 /**
  * Returns a mock RPC instance for use in unit tests.
  *
