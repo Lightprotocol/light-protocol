@@ -528,7 +528,7 @@ if (import.meta.vitest) {
                 .WasmFactory;
         });
 
-        it.only('should findLowElementIndex', () => {
+        it('should findLowElementIndex', () => {
             const indexedArray = new IndexedArray(
                 [
                     refIndexedArrayElem0,
@@ -543,7 +543,7 @@ if (import.meta.vitest) {
             expect(indexedArray.findLowElementIndex(bn(31))).toEqual(2);
         });
 
-        it.only('should findLowElement', () => {
+        it('should findLowElement', () => {
             const indexedArray = new IndexedArray(
                 [
                     refIndexedArrayElem0,
@@ -566,7 +566,7 @@ if (import.meta.vitest) {
             expect(nextValue2).toEqual(bn(FIELD_SIZE_SUB_ONE));
         });
 
-        it.only('should appendWithLowElementIndex', () => {
+        it('should appendWithLowElementIndex', () => {
             const indexedArray = new IndexedArray(
                 [
                     new IndexedElement(0, bn(0), 1),
@@ -586,7 +586,7 @@ if (import.meta.vitest) {
             );
         });
 
-        it.only('should append', () => {
+        it('should append', () => {
             const indexedArray = new IndexedArray(
                 [
                     new IndexedElement(0, bn(0), 1),
@@ -603,7 +603,7 @@ if (import.meta.vitest) {
             );
         });
 
-        it.only('should append 3 times and match merkle trees', async () => {
+        it('should append 3 times and match merkle trees', async () => {
             const lightWasm = await WasmFactory.getInstance();
 
             const indexedArray = IndexedArray.default();
