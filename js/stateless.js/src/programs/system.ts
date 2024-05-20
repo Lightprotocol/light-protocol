@@ -527,7 +527,7 @@ export class LightSystemProgram {
             proof: recentValidityProof,
             inputCompressedAccountsWithMerkleContext:
                 packedInputCompressedAccounts,
-            outputCompressedAccounts: outputCompressedAccounts,
+            outputCompressedAccounts: packedOutputCompressedAccounts,
             relayFee: null,
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],

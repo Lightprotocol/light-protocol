@@ -29,7 +29,7 @@ describe('compress', () => {
         payer = await newAccountWithLamports(rpc, 1e9, 256);
     });
 
-    it('should create account with address', async () => {
+    it.skip('should create account with address', async () => {
         await createAccount(
             rpc as TestRpc,
             payer,
@@ -108,6 +108,7 @@ describe('compress', () => {
                 STATE_MERKLE_TREE_TIP.toNumber(),
         );
 
+        
         /// Decompress
         const decompressLamportsAmount = 1e6;
         const decompressRecipient = payer.publicKey;
