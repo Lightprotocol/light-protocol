@@ -121,6 +121,30 @@ where
         self.roots.last().cloned().unwrap()
     }
 
+    pub fn get_path_of_leaf<'a>(
+        &self,
+        mut index: usize,
+        full: bool,
+    ) -> Result<BoundedVec<'a, [u8; 32]>, BoundedVecError> {
+        let mut path = BoundedVec::with_capacity(self.height);
+        let limit = match full {
+            true => self.height,
+            false => self.height - self.canopy_depth,
+        };
+
+        for level in 0..limit {
+            let node = self.layers[level]
+                .get(index)
+                .cloned()
+                .unwrap_or(H::zero_bytes()[level]);
+            path.push(node)?;
+
+            index /= 2;
+        }
+
+        Ok(path)
+    }
+
     pub fn get_proof_of_leaf<'a>(
         &self,
         mut index: usize,
