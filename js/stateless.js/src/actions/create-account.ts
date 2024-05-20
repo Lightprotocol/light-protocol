@@ -53,7 +53,7 @@ export async function createAccount(
     const address = await deriveAddress(seed, addressTree);
 
     /// TODO: pass trees
-    const proof = await rpc.getNewAddressValidityProof(new PublicKey(address));
+    const proof = await rpc.getNewAddressValidityProof(address);
 
     const params: NewAddressParams = {
         seed: seed,
@@ -65,6 +65,7 @@ export async function createAccount(
     const ix = await LightSystemProgram.createAccount({
         payer: payer.publicKey,
         newAddressParams: params,
+        newAddress: Array.from(address.toBytes()),
         recentValidityProof: proof.compressedProof,
         programId,
         outputStateTree: outputStateTree

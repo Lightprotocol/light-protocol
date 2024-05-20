@@ -56,6 +56,34 @@ export interface LightWasm {
     poseidonHashBN(input: string[] | BN[]): BN;
 }
 
+function parseAddressMerkleTreeAccountRootHistory(data: Buffer): number[][] {
+    let startOffset = 1222136;
+    let endOffset = startOffset + 76800;
+    let rootData = data.subarray(startOffset, endOffset);
+
+    let rootAccount: number[][] = [];
+    let chunkSize = 32;
+    for (let i = 0; i < rootData.length; i += chunkSize) {
+        const root = Array.from(rootData.subarray(i, i + chunkSize));
+        rootAccount.push(root);
+    }
+    return rootAccount;
+}
+
+async function fetchAndSearchAddressMerkleTreeRootHistoryArray(
+    rpc: TestRpc,
+    addressMerkleTreeAccountPubkey: PublicKey,
+    root: number[] | BN,
+): Promise<number> {
+    let accountInfo = await rpc.getAccountInfo(addressMerkleTreeAccountPubkey);
+    if (!accountInfo) {
+        throw new Error('Address Merkle Tree Account does not exist.');
+    }
+    let roots = parseAddressMerkleTreeAccountRootHistory(accountInfo.data);
+    const indexOfRoot = roots.findIndex(r => r.toString() === root.toString());
+    return indexOfRoot;
+}
+
 /**
  * Returns a mock RPC instance for use in unit tests.
  *
@@ -429,31 +457,32 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         const treePublicKey = defaultTestStateTreeAccounts().addressTree;
         const queuePublicKey = defaultTestStateTreeAccounts().addressQueue;
 
-        /// Builds address tree via indexedArray
-        const events: PublicTransactionEvent[] = await getParsedEvents(
-            this,
-        ).then(events => events.reverse());
-        const allAddresses: PublicKey[] = [];
-        for (const event of events) {
-            for (
-                let index = 0;
-                index < event.outputCompressedAccounts.length;
-                index++
-            ) {
-                const address =
-                    event.outputCompressedAccounts[index].compressedAccount
-                        .address;
-                if (address) {
-                    allAddresses.push(address);
-                }
-            }
-        }
+        // TODO: The Merkle tree root doesnt actually advance at all unless we
+        // start emptying the address queue.
+        const allAddresses: number[][] = [];
+        // indexedArray const events: PublicTransactionEvent[] = await
+        // getParsedEvents( this, ).then(events => events.reverse());
+        // for (const event of events) {
+        //     for (
+        //         let index = 0;
+        //         index < event.outputCompressedAccounts.length;
+        //         index++
+        //     ) {
+        //         const address =
+        //             event.outputCompressedAccounts[index].compressedAccount
+        //                 .address;
+        //         if (address) {
+        //             allAddresses.push(address);
+        //         }
+        //     }
+        // }
+
         const indexedArray = IndexedArray.default();
         indexedArray.init();
         const hashes: BN[] = [];
-        console.log('allAddresses', allAddresses);
+
         for (let i = 0; i < allAddresses.length; i++) {
-            indexedArray.append(bn(allAddresses[i].toBytes()));
+            indexedArray.append(bn(allAddresses[i]));
         }
         for (let i = 0; i < indexedArray.elements.length; i++) {
             const hash = indexedArray.hashElement(this.lightWasm, i);
@@ -470,10 +499,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         if (!lowElement) {
             throw new Error('Address not found');
         }
-        const leafIndex = lowElement.index; //tree.indexOf(lowElement.index);
-        // const leafIndices = lowElementHash.map(hash =>
-        //     tree.indexOf(hash.toString()),
-        // );
+        const leafIndex = lowElement.index;
 
         const bnPathElementsAll = [leafIndex].map(leafIndex => {
             const pathElements: string[] = tree.path(leafIndex).pathElements;
@@ -482,24 +508,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
 
             return bnPathElements;
         });
-
-        // const roots = new Array(1).fill(bn(tree.root()));
-
-        /// assemble return type
-        // const merkleProofs: MerkleContextWithMerkleProof[] = [];
-        // for (let i = 0; i < 1; i++) {
-        //     const merkleProof: MerkleContextWithMerkleProof = {
-        //         hash: hashes[leafIndex].toArray(undefined, 32),
-        //         merkleTree: treePublicKey,
-        //         leafIndex: leafIndex,
-        //         merkleProof: bnPathElementsAll[i],
-        //         nullifierQueue: queuePublicKey,
-        //         rootIndex: allAddresses.length,
-        //         root: roots[i],
-        //     };
-        //     merkleProofs.push(merkleProof);
-        // }
-        // return merkleProofs;
 
         const higherRangeValue = indexedArray.get(lowElement.nextIndex)!.value;
 
@@ -512,28 +520,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             merkle_proof_hashed_indexed_element_leaf: bnPathElementsAll[0],
             index_hashed_indexed_element_leaf: bn(lowElement.index), // ??
         };
-        console.log('nonInclusionMerkleProofInputs', {
-            root: bn(tree.root()).toString(),
-            value: bn(bn(address.toBytes()).toArray('be', 32)).toString(),
-            leaf_lower_range_value: lowElement.value.toString(),
-            leaf_higher_range_value: higherRangeValue.toString(),
-            leaf_index: bn(lowElement.nextIndex).toString(),
-            merkle_proof_hashed_indexed_element_leaf: bnPathElementsAll[0],
-            index_hashed_indexed_element_leaf: bn(lowElement.index).toString(), // ??
-        });
-        console.log('nonInclusionMerkleProofInputs as arrays', {
-            root: bn(tree.root()).toArray(),
-            value: bn(bn(address.toBytes()).toArray('be', 32)).toArray(
-                'be',
-                32,
-            ),
-            leaf_lower_range_value: lowElement.value.toArray(),
-            leaf_higher_range_value: higherRangeValue.toArray(),
-            leaf_index: bn(lowElement.nextIndex).toArray(),
-            merkle_proof_hashed_indexed_element_leaf:
-                bnPathElementsAll[0].length,
-            index_hashed_indexed_element_leaf: bn(lowElement.index).toArray(), // ??
-        });
 
         /// from_non_inclusion_proof_inputs
         const nonInclusionJsonStruct: NonInclusionJsonStruct = {
@@ -556,7 +542,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         const batch = {
             'new-addresses': [nonInclusionJsonStruct],
         };
-        const addressRootIndices = [allAddresses.length];
+
+        /// The starting root is 3. New addresses arent directly inserted into
+        /// the address tree, so unless the address queue gets emptied, the root
+        /// will always be 3.
+        /// TODO: make dynamic to account for forester.
+        const addressRootIndices = [3];
 
         // req
         const inputsData = JSON.stringify(batch);
@@ -566,7 +557,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             logMsg = `Proof generation for depth:${this.depth} n:${hashes.length}`;
             console.time(logMsg);
         }
-        console.log('inputsData', inputsData);
 
         const PROOF_URL = `${this.proverEndpoint}/prove`;
         const response = await fetch(PROOF_URL, {

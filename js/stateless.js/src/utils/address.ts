@@ -15,7 +15,7 @@ import { getIndexOrAdd } from '../instruction';
 export async function deriveAddress(
     seed: Uint8Array,
     merkleTreePubkey: PublicKey = defaultTestStateTreeAccounts().merkleTree,
-): Promise<Buffer> {
+): Promise<PublicKey> {
     const bytes = merkleTreePubkey.toBytes();
     const combined = Buffer.from([...bytes, ...seed]);
     const hash = await hashToBn254FieldSizeBe(combined);
@@ -24,7 +24,7 @@ export async function deriveAddress(
         throw new Error('DeriveAddressError');
     }
     const buf = hash[0];
-    return buf;
+    return new PublicKey(buf);
 }
 
 export interface NewAddressParams {
@@ -48,7 +48,17 @@ export interface NewAddressParams {
     addressQueuePubkey: PublicKey;
 }
 
-export interface NewAddressParamsPacked extends NewAddressParams {
+export interface NewAddressParamsPacked {
+    /**
+     * Seed for the compressed account. Must be seed used to derive
+     * newAccountAddress
+     */
+    seed: number[];
+    /**
+     * Recent state root index of the address tree. The expiry is tied to the
+     * validity proof.
+     */
+    addressMerkleTreeRootIndex: number;
     /**
      * Index of the address merkle tree account in the remaining accounts array
      */
@@ -77,21 +87,22 @@ export function packNewAddressParams(
 
     const newAddressParamsPacked: NewAddressParamsPacked[] =
         newAddressParams.map(x => ({
-            ...x,
+            seed: Array.from(x.seed),
+            addressMerkleTreeRootIndex: x.addressMerkleTreeRootIndex,
             addressMerkleTreeAccountIndex: 0, // will be assigned later
             addressQueueAccountIndex: 0, // will be assigned later
         }));
 
     newAddressParams.forEach((params, i) => {
         newAddressParamsPacked[i].addressMerkleTreeAccountIndex = getIndexOrAdd(
-            remainingAccounts,
+            _remainingAccounts,
             params.addressMerkleTreePubkey,
         );
     });
 
     newAddressParams.forEach((params, i) => {
         newAddressParamsPacked[i].addressQueueAccountIndex = getIndexOrAdd(
-            remainingAccounts,
+            _remainingAccounts,
             params.addressQueuePubkey,
         );
     });
@@ -111,7 +122,7 @@ if (import.meta.vitest) {
                 '11111111111111111111111111111111',
             );
             const derivedAddress = await deriveAddress(seed, merkleTreePubkey);
-            expect(derivedAddress).toBeInstanceOf(Buffer);
+            expect(derivedAddress).toBeInstanceOf(PublicKey);
         });
     });
 

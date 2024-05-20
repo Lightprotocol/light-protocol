@@ -609,6 +609,14 @@ if (import.meta.vitest) {
             const indexedArray = IndexedArray.default();
             indexedArray.init();
 
+            let hash0 = indexedArray.hashElement(lightWasm, 0);
+            let hash1 = indexedArray.hashElement(lightWasm, 1);
+            let leaves = [hash0, hash1].map(leaf => bn(leaf!).toString());
+            let tree = new MerkleTree(26, lightWasm, leaves);
+            expect(tree.root()).toEqual(
+                bn(refIndexedMerkleTreeInitedRoot).toString(),
+            );
+
             // 1st
             const newElement = indexedArray.append(bn(30));
             expect(newElement.newElement).toEqual(refIndexedArrayElem2);
@@ -616,14 +624,11 @@ if (import.meta.vitest) {
             expect(newElement.newElementNextValue).toEqual(
                 bn(FIELD_SIZE_SUB_ONE),
             );
-
-            let hash0 = indexedArray.hashElement(lightWasm, 0);
-            let hash1 = indexedArray.hashElement(lightWasm, 1);
+            hash0 = indexedArray.hashElement(lightWasm, 0);
+            hash1 = indexedArray.hashElement(lightWasm, 1);
             let hash2 = indexedArray.hashElement(lightWasm, 2);
-            let leaves = [hash0, hash1, hash2].map(leaf =>
-                bn(leaf!).toString(),
-            );
-            let tree = new MerkleTree(26, lightWasm, leaves);
+            leaves = [hash0, hash1, hash2].map(leaf => bn(leaf!).toString());
+            tree = new MerkleTree(26, lightWasm, leaves);
             expect(tree.root()).toEqual(
                 bn(refIndexedMerkleTreeRootWithOneAppend).toString(),
             );

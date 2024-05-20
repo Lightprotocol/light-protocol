@@ -21,6 +21,8 @@ pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'in
         .iter()
         .enumerate()
         .for_each(|(i, new_address_params)| {
+            msg!("new_address_params: {:?}", new_address_params);
+            msg!("ctx.remaining_accounts: {:?}", ctx.remaining_accounts);
             let address = derive_address(
                 &ctx.remaining_accounts
                     [new_address_params.address_merkle_tree_account_index as usize]
@@ -28,6 +30,7 @@ pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'in
                 &new_address_params.seed,
             )
             .unwrap();
+            msg!("address: {:?}", address);
             input_compressed_account_addresses.push(Some(address));
             new_addresses[i] = address;
         });

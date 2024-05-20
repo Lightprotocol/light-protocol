@@ -1,4 +1,4 @@
-import { describe, it, assert, beforeAll } from 'vitest';
+import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import {
     STATE_MERKLE_TREE_ROLLOVER_FEE,
@@ -26,11 +26,11 @@ describe('compress', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc);
+        payer = await newAccountWithLamports(rpc, 1e9, 256);
     });
 
-    it.only('should create account with address', async () => {
-        const txId = await createAccount(
+    it('should create account with address', async () => {
+        await createAccount(
             rpc as TestRpc,
             payer,
             new Uint8Array([
@@ -39,12 +39,45 @@ describe('compress', () => {
             ]),
             LightSystemProgram.programId,
         );
-        console.log('created account', txId);
+
+        await createAccount(
+            rpc as TestRpc,
+            payer,
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,
+            ]),
+            LightSystemProgram.programId,
+        );
+
+        await createAccount(
+            rpc as TestRpc,
+            payer,
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
+            ]),
+            LightSystemProgram.programId,
+        );
+        await expect(
+            createAccount(
+                rpc as TestRpc,
+                payer,
+                new Uint8Array([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
+                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
+                ]),
+                LightSystemProgram.programId,
+            ),
+        ).rejects.toThrow();
     });
 
     it('should compress lamports and then decompress', async () => {
+        payer = await newAccountWithLamports(rpc, 1e9, 256);
+
         const compressLamportsAmount = 1e7;
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
+        /// 3 createAccounts costing 5000+332 lamports each (treedepth 26)  - 5332 * 3
         assert.equal(preCompressBalance, 1e9);
 
         await compress(

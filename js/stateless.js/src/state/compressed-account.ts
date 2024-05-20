@@ -38,7 +38,7 @@ export const createCompressedAccount = (
     owner: PublicKey,
     lamports?: BN,
     data?: CompressedAccountData,
-    address?: PublicKey,
+    address?: number[],
 ): CompressedAccount => ({
     owner,
     lamports: lamports ?? bn(0),
@@ -46,28 +46,12 @@ export const createCompressedAccount = (
     data: data ?? null,
 });
 
-export const createOutputCompressedAccount = (
-    owner: PublicKey,
-    merkleTreeIndex: number,
-    lamports?: BN,
-    data?: CompressedAccountData,
-    address?: PublicKey,
-): OutputCompressedAccountWithPackedContext => ({
-    compressedAccount: {
-        owner,
-        lamports: lamports ?? bn(0),
-        address: address ?? null,
-        data: data ?? null,
-    },
-    merkleTreeIndex,
-});
-
 export const createCompressedAccountWithMerkleContext = (
     merkleContext: MerkleContext,
     owner: PublicKey,
     lamports?: BN,
     data?: CompressedAccountData,
-    address?: PublicKey,
+    address?: number[],
 ): CompressedAccountWithMerkleContext => ({
     ...createCompressedAccount(owner, lamports, data, address),
     ...merkleContext,
@@ -110,7 +94,7 @@ if (import.meta.vitest) {
                 data: Buffer.from(new Uint8Array([1, 2, 3])),
                 dataHash: [0],
             };
-            const address = PublicKey.unique();
+            const address = Array.from(PublicKey.unique().toBytes());
             const account = createCompressedAccount(
                 owner,
                 lamports,

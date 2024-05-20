@@ -14,14 +14,11 @@ import {
 } from '../idls/light_system_program';
 import { useWallet } from '../wallet';
 import {
-    CompressedAccountData,
     CompressedAccount,
     CompressedAccountWithMerkleContext,
     CompressedProof,
     InstructionDataInvoke,
-    OutputCompressedAccountWithPackedContext,
     bn,
-    createOutputCompressedAccount,
     createCompressedAccount,
 } from '../state';
 import { packCompressedAccounts, toAccountMetas } from '../instruction';
@@ -30,13 +27,7 @@ import {
     validateSameOwner,
     validateSufficientBalance,
 } from '../utils/validation';
-import {
-    placeholderValidityProof,
-    deriveAddress,
-    packNewAddressParams,
-    NewAddressParams,
-} from '../utils';
-import { C } from 'vitest/dist/reporters-5f784f42';
+import { packNewAddressParams, NewAddressParams } from '../utils';
 
 export const sumUpLamports = (
     accounts: CompressedAccountWithMerkleContext[],
@@ -59,6 +50,7 @@ type CreateAccountWithSeedParams = {
      * Address params for the new compressed account
      */
     newAddressParams: NewAddressParams;
+    newAddress: number[];
     /**
      * Recent validity proof proving that there's no existing compressed account
      * registered with newAccountAddress
@@ -302,7 +294,7 @@ export class LightSystemProgram {
      * No data by default
      */
     static createNewAddressOutputState(
-        address: PublicKey,
+        address: number[],
         owner: PublicKey,
     ): CompressedAccount[] {
         return [createCompressedAccount(owner, bn(0), undefined, address)];
@@ -317,12 +309,12 @@ export class LightSystemProgram {
     static async createAccount({
         payer,
         newAddressParams,
+        newAddress,
         recentValidityProof,
         outputStateTree,
-        programId,
     }: CreateAccountWithSeedParams): Promise<TransactionInstruction> {
         const outputCompressedAccounts = this.createNewAddressOutputState(
-            programId || this.programId,
+            newAddress,
             payer,
         );
         /// Pack accounts
@@ -340,19 +332,20 @@ export class LightSystemProgram {
         const { newAddressParamsPacked, remainingAccounts } =
             packNewAddressParams([newAddressParams], _remainingAccounts);
 
+        const rawData: InstructionDataInvoke = {
+            proof: recentValidityProof,
+            inputCompressedAccountsWithMerkleContext:
+                packedInputCompressedAccounts,
+            outputCompressedAccounts: packedOutputCompressedAccounts,
+            relayFee: null,
+            newAddressParams: newAddressParamsPacked,
+            compressionLamports: null,
+            isCompress: false,
+        };
         /// Encode instruction data
         const ixData = this.program.coder.types.encode(
             'InstructionDataInvoke',
-            {
-                proof: recentValidityProof,
-                inputCompressedAccountsWithMerkleContext:
-                    packedInputCompressedAccounts,
-                outputCompressedAccounts: packedOutputCompressedAccounts,
-                relayFee: null,
-                newAddressParams: newAddressParamsPacked,
-                compressionLamports: null,
-                isCompress: false,
-            },
+            rawData,
         );
 
         /// Build anchor instruction
