@@ -108,7 +108,6 @@ describe('compress', () => {
                 STATE_MERKLE_TREE_TIP.toNumber(),
         );
 
-        
         /// Decompress
         const decompressLamportsAmount = 1e6;
         const decompressRecipient = payer.publicKey;
