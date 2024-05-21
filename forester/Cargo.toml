@@ -1,0 +1,46 @@
+[package]
+name = "forester"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+config = "0.14.0"
+anchor-lang = "0.29.0"
+clap = {version = "4.0.26", features = ["derive"]}
+solana-sdk = "1.18.11"
+solana-client = "1.18.11"
+solana-transaction-status = "1.18.11"
+tiny-bip39 = "0.8.2"
+chrono = "0.4.37"
+time = "0.3.34"
+account-compression = { path = "../programs/account-compression", features = ["cpi"] }
+light-system-program = { path = "../programs/system", features = ["cpi"] }
+light-hash-set = { path = "../merkle-tree/hash-set", features = ["solana"] }
+light-concurrent-merkle-tree = {path = "../merkle-tree/concurrent"}
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+reqwest = { version = "0.11", features = ["json", "rustls-tls"]  }
+futures = "0.3.30"
+thiserror = "1"
+borsh = "0.10.3"
+bs58 = "0.4.0"
+photon-api = { path = "../photon-api" }
+bincode = "1.3"
+sysinfo = "0.30"
+light-test-utils = { path = "../test-utils" }
+log = "0.4"
+env_logger = "0.11"
+
+[dev-dependencies]
+function_name = "0.3.0"
+serial_test = "2.0.0"
+rstest = "0.18.2"
+light-circuitlib-rs = {path = "../circuit-lib/circuitlib-rs"}
+light-merkle-tree-reference = {path = "../merkle-tree/reference"}
+light-hasher = {path = "../merkle-tree/hasher"}
+light-bounded-vec = {path = "../merkle-tree/bounded-vec"}
+num-bigint = "0.4"
+num-traits = "0.2"
+rand = "0.8.5"

@@ -45,6 +45,7 @@ jobs:
       - name: Build workspace
         run: |
           source ./scripts/devenv.sh
+          ./scripts/build.sh
           echo "Rust version: $(rustc --version)"
 
       - name: Test workspace

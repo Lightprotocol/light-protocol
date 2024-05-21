@@ -18,8 +18,8 @@ use light_test_utils::spl::{
     decompress_test, mint_tokens_helper,
 };
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error,
-    test_env::setup_test_programs_with_accounts, test_indexer::TestIndexer,
+    airdrop_lamports, assert_custom_error_or_program_error, indexer::TestIndexer,
+    test_env::setup_test_programs_with_accounts,
 };
 use light_verifier::VerifierError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};

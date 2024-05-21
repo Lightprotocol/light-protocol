@@ -49,9 +49,9 @@ pub trait RpcConnection {
     fn get_slot(&mut self) -> impl std::future::Future<Output = Result<u64, RpcError>> + Send;
     fn airdrop_lamports(
         &mut self,
-        destination_pubkey: &Pubkey,
+        to: &Pubkey,
         lamports: u64,
-    ) -> impl std::future::Future<Output = Result<(), RpcError>> + Send;
+    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
 
     // TODO: return Result<T, Error>
     fn get_anchor_account<T: AnchorDeserialize>(

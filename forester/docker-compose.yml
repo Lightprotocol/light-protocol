@@ -1,0 +1,28 @@
+name: photondb
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=photon
+      - POSTGRES_DB=photon
+      - POSTGRES_PASSWORD=photon
+    ports:
+      - 5432:5432
+    volumes:
+      - db_data:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - "8888:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=photon@lightprotocol.com
+      - PGADMIN_DEFAULT_PASSWORD=photon
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  db_data:
+  pgadmin-data:

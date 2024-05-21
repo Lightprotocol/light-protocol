@@ -3,9 +3,9 @@ use crate::{
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
     create_account_instruction,
     test_env::COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
-    test_indexer::{TestIndexer, TokenDataWithContext},
 };
 
+use crate::indexer::{TestIndexer, TokenDataWithContext};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 use light_compressed_token::{
@@ -70,6 +70,7 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
         .await
         .unwrap()
         .unwrap();
+
     let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
     assert_mint_to(
         rpc,

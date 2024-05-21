@@ -1,10 +1,8 @@
 #![cfg(feature = "test-sbf")]
 
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
-use light_test_utils::rpc::solana_rpc::SERVER_URL;
 use light_test_utils::rpc::{ProgramTestRpcConnection, SolanaRpcConnection};
 use light_test_utils::test_env::{get_test_env_accounts, setup_test_programs_with_accounts};
-use solana_client::rpc_client::RpcClient;
 use std::process::Command;
 
 async fn spawn_test_validator() {
@@ -23,8 +21,7 @@ async fn spawn_test_validator() {
 async fn test_5_validator_all() {
     spawn_test_validator().await;
     let env_accounts = get_test_env_accounts();
-    let client = RpcClient::new(SERVER_URL);
-    let rpc = SolanaRpcConnection::new(client).await;
+    let rpc = SolanaRpcConnection::new().await;
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         env_accounts,

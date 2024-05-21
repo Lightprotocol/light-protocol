@@ -1,7 +1,7 @@
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
     get_hash_set,
-    test_indexer::{StateMerkleTreeAccounts, TestIndexer},
+    indexer::{StateMerkleTreeAccounts, TestIndexer},
     AccountZeroCopy,
 };
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
@@ -38,7 +38,7 @@ pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize
 }
 
 /// General tx assert:
-/// 1. ouputs created
+/// 1. outputs created
 /// 2. inputs nullified
 /// 3. addressed inserted into address queue
 /// 4. Public Transaction event emitted correctly

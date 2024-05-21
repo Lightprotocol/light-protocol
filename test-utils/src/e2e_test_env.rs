@@ -1,7 +1,7 @@
 // Flow:
 // init indexer
 // init first keypair
-// init crank
+// init forester
 // vec of public Merkle tree NF queue pairs
 // vec of public address Mt and queue pairs
 // for i in rounds
@@ -69,6 +69,10 @@
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
 use crate::airdrop_lamports;
+use crate::indexer::{
+    create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
+    StateMerkleTreeAccounts, StateMerkleTreeBundle, TestIndexer, TokenDataWithContext,
+};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::spl::{
     compress_test, compressed_transfer_test, create_token_account, decompress_test,
@@ -83,11 +87,6 @@ use crate::test_env::{
     init_cpi_context_account, EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
-use crate::test_indexer::TestIndexer;
-use crate::test_indexer::{
-    create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
-    StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
-};
 use crate::transaction_params::{FeeConfig, TransactionParams};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
@@ -166,7 +165,7 @@ where
 {
     pub async fn new(
         mut rpc: R,
-        env_accounts: EnvAccounts,
+        env_accounts: &EnvAccounts,
         keypair_action_config: KeypairActionConfig,
         general_action_config: GeneralActionConfig,
         rounds: u64,
@@ -231,7 +230,7 @@ where
     /// Creates a new user with a random keypair and 100 sol
     pub async fn create_user(rng: &mut StdRng, rpc: &mut R) -> User {
         let keypair: Keypair = Keypair::from_seed(&[rng.gen_range(0..255); 32]).unwrap();
-        airdrop_lamports(rpc, &keypair.pubkey(), 100_000_000_000)
+        airdrop_lamports(rpc, &keypair.pubkey(), 10_000_000_000)
             .await
             .unwrap();
         User {
@@ -593,7 +592,7 @@ where
 
     pub async fn compress_sol(&mut self, user_index: usize, balance: u64) {
         println!("\n --------------------------------------------------\n\t\t Compress Sol\n --------------------------------------------------");
-        // Limit max compress amount to 1 sol so that context.payer doesn't get depleted by aidrops.
+        // Limit max compress amount to 1 sol so that context.payer doesn't get depleted by airdrops.
         let max_amount = std::cmp::min(balance, 1_000_000_000);
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
         let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
@@ -854,8 +853,14 @@ where
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
         for _ in 0..num {
-            let index =
-                Self::safe_gen_range(&mut self.rng, 0..self.indexer.state_merkle_trees.len(), 0);
+            let range_max: usize = std::cmp::min(
+                self.keypair_action_config
+                    .max_output_accounts
+                    .unwrap_or(self.indexer.state_merkle_trees.len() as u64),
+                self.indexer.state_merkle_trees.len() as u64,
+            ) as usize;
+
+            let index = Self::safe_gen_range(&mut self.rng, 0..range_max, 0);
             pubkeys.push(self.indexer.state_merkle_trees[index].accounts.merkle_tree);
         }
         pubkeys.sort();
@@ -1014,6 +1019,20 @@ impl KeypairActionConfig {
             max_output_accounts: Some(10),
         }
     }
+
+    pub fn test_forester_default() -> Self {
+        Self {
+            compress_sol: Some(1.0),
+            decompress_sol: Some(0.5),
+            transfer_sol: Some(1.0),
+            create_address: None,
+            compress_spl: None,
+            decompress_spl: None,
+            mint_spl: None,
+            transfer_spl: None,
+            max_output_accounts: Some(3),
+        }
+    }
 }
 
 // Configures probabilities for general actions
@@ -1032,6 +1051,18 @@ impl Default for GeneralActionConfig {
             create_address_mt: Some(1.0),
             nullify_compressed_accounts: Some(0.1),
             empty_address_queue: Some(1.0),
+        }
+    }
+}
+
+impl GeneralActionConfig {
+    pub fn test_forester_default() -> Self {
+        Self {
+            add_keypair: Some(1.0),
+            create_state_mt: Some(1.0),
+            create_address_mt: Some(0.0),
+            nullify_compressed_accounts: Some(0.0),
+            empty_address_queue: Some(0.0),
         }
     }
 }

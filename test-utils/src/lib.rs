@@ -22,13 +22,13 @@ pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
 pub mod e2e_test_env;
+pub mod indexer;
 pub mod rpc;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
 pub mod test_env;
 pub mod test_forester;
-pub mod test_indexer;
 pub mod transaction_params;
 
 #[derive(Debug, Clone)]

@@ -199,15 +199,12 @@ impl RpcConnection for ProgramTestRpcConnection {
 
     async fn airdrop_lamports(
         &mut self,
-        destination_pubkey: &Pubkey,
+        to: &Pubkey,
         lamports: u64,
-    ) -> Result<(), RpcError> {
+    ) -> Result<Signature, RpcError> {
         // Create a transfer instruction
-        let transfer_instruction = system_instruction::transfer(
-            &self.context.payer.pubkey(),
-            destination_pubkey,
-            lamports,
-        );
+        let transfer_instruction =
+            system_instruction::transfer(&self.context.payer.pubkey(), to, lamports);
         let latest_blockhash = self.get_latest_blockhash().await.unwrap();
         // Create and sign a transaction
         let transaction = Transaction::new_signed_with_payer(
@@ -216,6 +213,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             &vec![&self.get_payer()],
             latest_blockhash,
         );
+        let sig = *transaction.signatures.first().unwrap();
 
         // Send the transaction
         self.context
@@ -223,7 +221,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             .process_transaction(transaction)
             .await?;
 
-        Ok(())
+        Ok(sig)
     }
 
     async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {

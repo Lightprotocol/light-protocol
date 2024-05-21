@@ -20,11 +20,11 @@ use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
     assert_custom_error_or_program_error,
+    indexer::TestIndexer,
     system_program::{
         compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
     test_env::setup_test_programs_with_accounts,
-    test_indexer::TestIndexer,
 };
 use light_test_utils::{rpc::errors::RpcError, test_env::EnvAccounts};
 use light_utils::hash_to_bn254_field_size_be;

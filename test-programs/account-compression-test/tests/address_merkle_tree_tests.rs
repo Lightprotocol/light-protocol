@@ -21,9 +21,9 @@ use light_test_utils::{
         assert_rolled_over_address_merkle_tree_and_queue, set_address_merkle_tree_next_index,
     },
     get_hash_set,
+    indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle},
     test_env::create_address_merkle_tree_and_queue_account,
     test_forester::{empty_address_queue_test, insert_addresses},
-    test_indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle},
 };
 use light_test_utils::{rpc::errors::assert_rpc_error, AccountZeroCopy};
 use light_utils::bigint::bigint_to_be_bytes_array;
