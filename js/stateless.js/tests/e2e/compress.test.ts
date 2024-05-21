@@ -29,7 +29,7 @@ describe('compress', () => {
         payer = await newAccountWithLamports(rpc, 1e9, 256);
     });
 
-    it.skip('should create account with address', async () => {
+    it('should create account with address', async () => {
         await createAccount(
             rpc as TestRpc,
             payer,
