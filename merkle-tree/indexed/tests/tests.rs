@@ -616,10 +616,6 @@ pub fn print_test_data() {
         "indexed mt with one append {:?}",
         relayer_merkle_tree.root()
     );
-    let non_inclusion_proof = relayer_merkle_tree
-        .get_non_inclusion_proof(&address1, &relayer_indexing_array)
-        .unwrap();
-    println!("non inclusion proof address 1 {:?}", non_inclusion_proof);
     println!(
         "indexed array state element 0 {:?}",
         relayer_indexing_array.get(0).unwrap()
@@ -759,27 +755,27 @@ pub fn print_test_data() {
     //     .unwrap();
 }
 
-/**
- *
- * Range Hash (value, next_index, next_value) -> need next value not next value index
- * Update of a range:
- * 1. Find the low element, low element points to the next hight element
- * 2. update low element with H (low_value, new_inserted_value_index, new_inserted_value)
- * 3. append the tree with H(new_inserted_value,index_of_next_value, next_value)
- *
- */
-/// This test is generating a situation where the low element has to be patched.
-/// Scenario:
-/// 1. two parties start with the initialized indexing array
-/// 2. both parties compute their values with the empty indexed Merkle tree state
-/// 3. party one inserts first
-/// 4. party two needs to patch the low element because the low element has changed
-/// 5. party two inserts
-#[test]
-pub fn functional_changelog_test() {
-    let address_1 = 30_u32.to_biguint().unwrap();
-    let address_2 = 10_u32.to_biguint().unwrap();
-}
+// /**
+//  *
+//  * Range Hash (value, next_index, next_value) -> need next value not next value index
+//  * Update of a range:
+//  * 1. Find the low element, low element points to the next hight element
+//  * 2. update low element with H (low_value, new_inserted_value_index, new_inserted_value)
+//  * 3. append the tree with H(new_inserted_value,index_of_next_value, next_value)
+//  *
+// */
+// This test is generating a situation where the low element has to be patched.
+// Scenario:
+// 1. two parties start with the initialized indexing array
+// 2. both parties compute their values with the empty indexed Merkle tree state
+// 3. party one inserts first
+// 4. party two needs to patch the low element because the low element has changed
+// 5. party two inserts
+// #[test]
+// pub fn functional_changelog_test() {
+//     let address_1 = 30_u32.to_biguint().unwrap();
+//     let address_2 = 10_u32.to_biguint().unwrap();
+
 //     perform_change_log_test(address_1.clone(), address_2.clone());
 // }
 
