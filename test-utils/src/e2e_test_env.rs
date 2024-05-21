@@ -925,7 +925,7 @@ impl KeypairActionConfig {
             compress_sol: Some(0.5),
             decompress_sol: Some(1.0),
             transfer_sol: Some(1.0),
-            create_address: Some(0.2),
+            create_address: Some(1.0),
             compress_spl: Some(0.7),
             decompress_spl: Some(0.5),
             mint_spl: None,

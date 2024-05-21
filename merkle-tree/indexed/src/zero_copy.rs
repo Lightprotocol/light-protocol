@@ -5,7 +5,7 @@ use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
 };
 use light_hasher::Hasher;
-use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use num_traits::{Bounded, CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree, RawIndexedElement};
 
@@ -13,7 +13,15 @@ use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree, RawIndexedElement
 pub struct IndexedMerkleTreeZeroCopy<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub merkle_tree: &'a IndexedMerkleTree<'a, H, I, HEIGHT>,
@@ -27,7 +35,15 @@ pub type IndexedMerkleTreeZeroCopy40<'a, H, I> = IndexedMerkleTreeZeroCopy<'a, H
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
@@ -197,7 +213,15 @@ where
 pub struct IndexedMerkleTreeZeroCopyMut<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub merkle_tree: &'a mut IndexedMerkleTree<'a, H, I, HEIGHT>,
@@ -211,7 +235,15 @@ pub type IndexedMerkleTreeZeroCopyMut40<'a, H, I> = IndexedMerkleTreeZeroCopyMut
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure mutable

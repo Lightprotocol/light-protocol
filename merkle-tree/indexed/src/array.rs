@@ -3,9 +3,20 @@ use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 use light_concurrent_merkle_tree::light_hasher::Hasher;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
+use num_traits::{Bounded, CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::{errors::IndexedMerkleTreeError, FIELD_SIZE_SUB_ONE};
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RawIndexedElement<I>
+where
+    I: Clone,
+{
+    pub value: [u8; 32],
+    pub next_index: I,
+    pub next_value: [u8; 32],
+    pub index: I,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
@@ -17,6 +28,28 @@ where
     pub index: I,
     pub value: BigUint,
     pub next_index: I,
+}
+
+impl<I> From<RawIndexedElement<I>> for IndexedElement<I>
+where
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
+    usize: From<I>,
+{
+    fn from(value: RawIndexedElement<I>) -> Self {
+        Self {
+            value: BigUint::from_bytes_be(&value.value),
+            index: value.index,
+            next_index: value.next_index,
+        }
+    }
 }
 
 impl<I> PartialEq for IndexedElement<I>

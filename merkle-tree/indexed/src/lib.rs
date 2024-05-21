@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use array::{IndexedArray, IndexedElement};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError, event::UpdatedLeaf, light_hasher::Hasher,
@@ -8,7 +7,7 @@ use light_concurrent_merkle_tree::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
-use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
+use num_traits::{Bounded, CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 
 pub mod array;
 pub mod copy;
@@ -16,28 +15,28 @@ pub mod errors;
 pub mod reference;
 pub mod zero_copy;
 
-use crate::errors::IndexedMerkleTreeError;
+use crate::{
+    array::{IndexedArray, IndexedElement, RawIndexedElement},
+    errors::IndexedMerkleTreeError,
+};
 
 pub const FIELD_SIZE_SUB_ONE: &str =
     "21888242871839275222246405745257275088548364400416034343698204186575808495616";
-
-#[derive(Debug, Default, Clone, Copy)]
-pub struct RawIndexedElement<I>
-where
-    I: Clone,
-{
-    pub value: [u8; 32],
-    pub next_index: I,
-    pub next_value: [u8; 32],
-    pub index: I,
-}
 
 #[derive(Debug)]
 #[repr(C)]
 pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
@@ -54,7 +53,15 @@ pub type IndexedMerkleTree40<'a, H, I> = IndexedMerkleTree<'a, H, I, 40>;
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: Bounded
+        + CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub fn new(
@@ -156,41 +163,21 @@ where
         Ok(())
     }
 
-    #[allow(clippy::type_complexity)]
     pub fn patch_low_element(
         &mut self,
-        low_element: &IndexedElement<I>,
-    ) -> Result<Option<(IndexedElement<I>, [u8; 32])>, IndexedMerkleTreeError> {
-        let changelog_element_index = self
-            .changelog
-            .iter()
-            .position(|element| element.index == low_element.index);
-        // key (index) value index in the changelog
-
-        match changelog_element_index {
-            Some(changelog_element_index) => {
-                let max_usize = usize::MAX;
-                // TODO: benchmark whether overwriting or the comparison is more expensive.
-                // Removed elements must not be used again.
-                if changelog_element_index == max_usize {
-                    return Err(IndexedMerkleTreeError::LowElementNotFound);
-                }
-                let changelog_element = &mut self.changelog[changelog_element_index];
-                let patched_element = IndexedElement::<I> {
-                    value: BigUint::from_bytes_be(&changelog_element.value),
-                    index: changelog_element.index,
-                    next_index: changelog_element.next_index,
-                };
-                // Removing the value:
-                // Writing data costs CU thus we just overwrite the index
-                // with an impossible value so that it cannot be found.
-                changelog_element.index = max_usize
-                    .try_into()
-                    .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
-                // Only use changelog event values, since these originate from an account -> can be trusted
-                Ok(Some((patched_element, changelog_element.next_value)))
+        changelog_index: usize,
+        low_element: &mut IndexedElement<I>,
+        low_element_next_value: &mut BigUint,
+    ) {
+        for changelog_entry in self.changelog.iter_from(changelog_index).skip(1) {
+            if changelog_entry.index == I::max_value() {
+                continue;
             }
-            None => Ok(None),
+            if changelog_entry.index == low_element.index {
+                // Replace the low element with the one found in changelog.
+                *low_element = (*changelog_entry).into();
+                *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.next_value);
+            }
         }
     }
 
@@ -198,12 +185,16 @@ where
         &mut self,
         changelog_index: usize,
         new_element: IndexedElement<I>,
-        low_element: IndexedElement<I>,
-        low_element_next_value: BigUint,
+        mut low_element: IndexedElement<I>,
+        mut low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(UpdatedLeaf, UpdatedLeaf), IndexedMerkleTreeError> {
         // TODO: fix concurrency (broken right now)
-        // let patched_low_element = self.patch_low_element(&low_element)?;
+        self.patch_low_element(
+            changelog_index,
+            &mut low_element,
+            &mut low_element_next_value,
+        );
         // if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
         //     low_element = patched_low_element;
         //     low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
