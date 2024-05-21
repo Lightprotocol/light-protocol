@@ -1,8 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
-pub struct Changelogs {
-    pub changelogs: Vec<ChangelogEvent>,
+pub struct MerkleTreeEvents {
+    pub events: Vec<MerkleTreeEvent>,
 }
 
 /// Event containing the Merkle path of the given
@@ -11,9 +10,10 @@ pub struct Changelogs {
 /// version of state Merkle tree.
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 #[repr(C)]
-pub enum ChangelogEvent {
-    V1(ChangelogEventV1),
-    V2(ChangelogEventV2),
+pub enum MerkleTreeEvent {
+    V1(ChangelogEvent),
+    V2(NullifierEvent),
+    V3(IndexedMerkleTreeEvent),
 }
 
 /// Node of the Merkle path with an index representing the position in a
@@ -26,7 +26,7 @@ pub struct PathNode {
 
 /// Version 1 of the [`ChangelogEvent`](light_merkle_tree_program::state::ChangelogEvent).
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
-pub struct ChangelogEventV1 {
+pub struct ChangelogEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
     // Merkle paths.
@@ -38,18 +38,50 @@ pub struct ChangelogEventV1 {
 }
 
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
-pub struct ChangelogEventV2 {
+pub struct NullifierEvent {
     /// Public key of the tree.
     pub id: [u8; 32],
-    pub leaves: Vec<UpdatedLeaf>,
+    /// Indices of leaves that were nullified.
+    /// Nullified means updated with [0u8;32].
+    pub nullified_leaves_indices: Vec<u64>,
     /// Number of successful operations on the on-chain tree.
     /// seq corresponds to leaves[0].
     /// seq + 1 corresponds to leaves[1].
     pub seq: u64,
 }
 
+#[derive(Debug, Default, Clone, Copy, BorshSerialize, BorshDeserialize)]
+pub struct RawIndexedElement<I>
+where
+    I: Clone,
+{
+    pub value: [u8; 32],
+    pub next_index: I,
+    pub next_value: [u8; 32],
+    pub index: I,
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
-pub struct UpdatedLeaf {
-    pub leaf: [u8; 32],
-    pub leaf_index: u64,
+pub struct IndexedMerkleTreeUpdate<I>
+where
+    I: Clone,
+{
+    pub new_low_element: RawIndexedElement<I>,
+    /// Leaf hash in new_low_element.index.
+    pub new_low_element_hash: [u8; 32],
+    pub new_high_element: RawIndexedElement<I>,
+    /// Leaf hash in new_high_element.index,
+    /// is equivalent with next_index.
+    pub new_high_element_hash: [u8; 32],
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
+pub struct IndexedMerkleTreeEvent {
+    /// Public key of the tree.
+    pub id: [u8; 32],
+    pub updates: Vec<IndexedMerkleTreeUpdate<usize>>,
+    /// Number of successful operations on the on-chain tree.
+    /// seq corresponds to leaves[0].
+    /// seq + 1 corresponds to leaves[1].
+    pub seq: u64,
 }

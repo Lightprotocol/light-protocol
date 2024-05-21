@@ -8,7 +8,7 @@ use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, 
 use account_compression::{AddressMerkleTreeAccount, AddressQueueAccount};
 use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_concurrent_merkle_tree::event::ChangelogEvent;
+use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use solana_program_test::{BanksClientError, ProgramTestContext};
@@ -100,7 +100,7 @@ pub async fn nullify_compressed_accounts(
             ),
         ];
 
-        let event = create_and_send_transaction_with_event::<ChangelogEvent>(
+        let event = create_and_send_transaction_with_event::<MerkleTreeEvent>(
             context,
             &instructions,
             &payer.pubkey(),
@@ -112,12 +112,11 @@ pub async fn nullify_compressed_accounts(
         .unwrap();
 
         match event {
-            ChangelogEvent::V2(event) => {
+            MerkleTreeEvent::V2(event) => {
                 assert_eq!(event.id, state_tree_bundle.accounts.merkle_tree.to_bytes());
                 assert_eq!(event.seq, onchain_merkle_tree.sequence_number as u64 + 1);
-                assert_eq!(event.leaves.len(), 1);
-                assert_eq!(event.leaves[0].leaf, [0u8; 32]);
-                assert_eq!(event.leaves[0].leaf_index, leaf_index as u64);
+                assert_eq!(event.nullified_leaves_indices.len(), 1);
+                assert_eq!(event.nullified_leaves_indices[0], leaf_index as u64);
             }
             _ => {
                 panic!("Wrong event type.");
@@ -275,30 +274,68 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
             Ok(event) => {
                 let event = event.unwrap();
                 match event {
-                    ChangelogEvent::V2(event) => {
+                    MerkleTreeEvent::V3(event) => {
                         assert_eq!(event.id, address_merkle_tree_pubkey.to_bytes());
                         assert_eq!(event.seq, old_sequence_number as u64 + 1);
-                        assert_eq!(event.leaves.len(), 2);
-                        let new_low_element_leaf = address_bundle
+                        assert_eq!(event.updates.len(), 1);
+                        let event = &event.updates[0];
+                        assert_eq!(
+                            event.new_low_element.index, address_bundle.new_low_element.index,
+                            "Empty Address Queue Test: invalid new_low_element.index"
+                        );
+                        assert_eq!(
+                            event.new_low_element.next_index,
+                            address_bundle.new_low_element.next_index,
+                            "Empty Address Queue Test: invalid new_low_element.next_index"
+                        );
+                        assert_eq!(
+                            event.new_low_element.value,
+                            bigint_to_be_bytes_array::<32>(&address_bundle.new_low_element.value)
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_low_element.value"
+                        );
+                        assert_eq!(
+                            event.new_low_element.next_value,
+                            bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_low_element.next_value"
+                        );
+                        let leaf_hash = address_bundle
                             .new_low_element
-                            .hash::<Poseidon>(&address_bundle.new_element.value);
+                            .hash::<Poseidon>(&address_bundle.new_element.value)
+                            .unwrap();
                         assert_eq!(
-                            event.leaves[0].leaf,
-                            new_low_element_leaf.unwrap(),
-                            "New low element leaf mismatch."
+                            event.new_low_element_hash, leaf_hash,
+                            "Empty Address Queue Test: invalid new_low_element_hash"
                         );
-                        let new_element_leaf = address_bundle
+                        let leaf_hash = address_bundle
                             .new_element
-                            .hash::<Poseidon>(&address_bundle.new_element_next_value);
+                            .hash::<Poseidon>(&address_bundle.new_element_next_value)
+                            .unwrap();
                         assert_eq!(
-                            event.leaves[1].leaf,
-                            new_element_leaf.unwrap(),
-                            "New element leaf mismatch."
+                            event.new_high_element_hash, leaf_hash,
+                            "Empty Address Queue Test: invalid new_high_element_hash"
                         );
-                        assert_eq!(event.leaves[0].leaf_index, old_low_address.index as u64);
                         assert_eq!(
-                            event.leaves[1].leaf_index,
-                            address_bundle.new_element.index as u64
+                            event.new_high_element.index, address_bundle.new_element.index,
+                            "Empty Address Queue Test: invalid new_high_element.index"
+                        );
+                        assert_eq!(
+                            event.new_high_element.next_index,
+                            address_bundle.new_element.next_index,
+                            "Empty Address Queue Test: invalid new_high_element.next_index"
+                        );
+                        assert_eq!(
+                            event.new_high_element.value,
+                            bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_high_element.value"
+                        );
+                        assert_eq!(
+                            event.new_high_element.next_value,
+                            bigint_to_be_bytes_array::<32>(&address_bundle.new_element_next_value)
+                                .unwrap(),
+                            "Empty Address Queue Test: invalid new_high_element.next_value"
                         );
                     }
                     _ => {
@@ -389,7 +426,7 @@ pub async fn update_merkle_tree(
     low_address_next_index: u64,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
-) -> Result<Option<ChangelogEvent>, BanksClientError> {
+) -> Result<Option<MerkleTreeEvent>, BanksClientError> {
     let changelog_index = {
         // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
         let address_merkle_tree =
@@ -424,7 +461,7 @@ pub async fn update_merkle_tree(
         data: instruction_data.data(),
     };
     let payer = context.payer.insecure_clone();
-    create_and_send_transaction_with_event::<ChangelogEvent>(
+    create_and_send_transaction_with_event::<MerkleTreeEvent>(
         context,
         &[update_ix],
         &context.payer.pubkey(),

@@ -2,12 +2,13 @@ use std::{marker::PhantomData, mem, slice};
 
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
-    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, ConcurrentMerkleTree,
+    changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::RawIndexedElement,
+    ConcurrentMerkleTree,
 };
 use light_hasher::Hasher;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
-use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree, RawIndexedElement};
+use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 
 #[derive(Debug)]
 pub struct IndexedMerkleTreeCopy<'a, H, I, const HEIGHT: usize>(

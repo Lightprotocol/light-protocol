@@ -3,7 +3,9 @@ use std::marker::PhantomData;
 use array::{IndexedArray, IndexedElement};
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
-    errors::ConcurrentMerkleTreeError, event::UpdatedLeaf, light_hasher::Hasher,
+    errors::ConcurrentMerkleTreeError,
+    event::{IndexedMerkleTreeUpdate, RawIndexedElement},
+    light_hasher::Hasher,
     ConcurrentMerkleTree,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
@@ -20,17 +22,6 @@ use crate::errors::IndexedMerkleTreeError;
 
 pub const FIELD_SIZE_SUB_ONE: &str =
     "21888242871839275222246405745257275088548364400416034343698204186575808495616";
-
-#[derive(Debug, Default, Clone, Copy)]
-pub struct RawIndexedElement<I>
-where
-    I: Clone,
-{
-    pub value: [u8; 32],
-    pub next_index: I,
-    pub next_value: [u8; 32],
-    pub index: I,
-}
 
 #[derive(Debug)]
 #[repr(C)]
@@ -201,7 +192,7 @@ where
         low_element: IndexedElement<I>,
         low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
-    ) -> Result<(UpdatedLeaf, UpdatedLeaf), IndexedMerkleTreeError> {
+    ) -> Result<IndexedMerkleTreeUpdate<I>, IndexedMerkleTreeError> {
         // TODO: fix concurrency (broken right now)
         // let patched_low_element = self.patch_low_element(&low_element)?;
         // if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
@@ -253,22 +244,26 @@ where
         // Append new element.
         let new_leaf = new_element.hash::<H>(&low_element_next_value)?;
         self.merkle_tree.append(&new_leaf)?;
-
-        self.changelog.push(RawIndexedElement {
+        let new_low_element_change_log = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_low_element.value).unwrap(),
             next_index: new_low_element.next_index,
             next_value: bigint_to_be_bytes_array::<32>(&new_element.value)?,
             index: new_low_element.index,
-        });
-        let new_low_element = UpdatedLeaf {
-            leaf: new_low_leaf,
-            leaf_index: usize::from(new_low_element.index) as u64,
         };
-        let new_leaf = UpdatedLeaf {
-            leaf: new_leaf,
-            leaf_index: usize::from(new_element.index) as u64,
+        self.changelog.push(new_low_element_change_log);
+        let new_high_element = RawIndexedElement {
+            value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
+            next_index: new_element.next_index,
+            next_value: bigint_to_be_bytes_array::<32>(&low_element_next_value)?,
+            index: new_element.index,
+        };
+        let output = IndexedMerkleTreeUpdate {
+            new_low_element: new_low_element_change_log,
+            new_low_element_hash: new_low_leaf,
+            new_high_element,
+            new_high_element_hash: new_leaf,
         };
 
-        Ok((new_low_element, new_leaf))
+        Ok(output)
     }
 }

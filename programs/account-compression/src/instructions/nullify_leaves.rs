@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::event::{ChangelogEvent, ChangelogEventV2, UpdatedLeaf};
+use light_concurrent_merkle_tree::event::{MerkleTreeEvent, NullifierEvent};
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 use light_macros::heap_neutral;
 
@@ -113,7 +113,6 @@ fn insert_nullifier(
         );
         return Err(AccountCompressionErrorCode::InvalidMerkleProof.into());
     }
-    let mut leaves = Vec::with_capacity(leaves_queue_indices.len());
     let seq = (merkle_tree.sequence_number + 1) as u64;
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
         let leaf_cell = nullifier_queue
@@ -132,22 +131,17 @@ fn insert_nullifier(
             )
             .map_err(ProgramError::from)?;
 
-        leaves.push(UpdatedLeaf {
-            leaf: ZERO_BYTES[0],
-            leaf_index: indices[i],
-        });
-
         // TODO: replace with root history sequence number
         nullifier_queue
             .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
             .map_err(ProgramError::from)?;
     }
-    let nullify_event = ChangelogEventV2 {
+    let nullify_event = NullifierEvent {
         id: ctx.accounts.merkle_tree.key().to_bytes(),
-        leaves,
+        nullified_leaves_indices: indices.to_vec(),
         seq,
     };
-    let nullify_event = ChangelogEvent::V2(nullify_event);
+    let nullify_event = MerkleTreeEvent::V2(nullify_event);
     emit_indexer_event(nullify_event.try_to_vec()?, &ctx.accounts.log_wrapper)?;
     Ok(())
 }
