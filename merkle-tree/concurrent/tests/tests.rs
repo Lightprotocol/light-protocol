@@ -10,9 +10,10 @@ use light_concurrent_merkle_tree::{
 use light_hash_set::HashSet;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use light_merkle_tree_reference::store::Store;
+use light_utils::rand::gen_range_exclude;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
-use rand::{thread_rng, Rng};
+use rand::{rngs::ThreadRng, thread_rng, Rng};
 use solana_program::pubkey::Pubkey;
 
 /// Tests whether append operations work as expected.
@@ -205,6 +206,99 @@ where
     assert_eq!(merkle_tree.rightmost_leaf, leaf4);
 }
 
+/// Performs invalid updates on the given Merkle tree by trying to swap all
+/// parameters separately. Asserts the errors that the Merkle tree should
+/// return as a part of validation of these inputs.
+fn invalid_updates<H, const HEIGHT: usize, const CHANGELOG: usize>(
+    rng: &mut ThreadRng,
+    merkle_tree: &mut ConcurrentMerkleTree<H, HEIGHT>,
+    changelog_index: usize,
+    old_leaf: &[u8; 32],
+    new_leaf: &[u8; 32],
+    leaf_index: usize,
+    proof: BoundedVec<[u8; 32]>,
+) where
+    H: Hasher,
+{
+    // This test case works only for larger changelogs, where there is a chance
+    // to encounter conflicting changelog entries.
+    //
+    // We assume that it's going to work for changelogs with capacity greater
+    // than 1. But the smaller the changelog and the more non-conflicting
+    // operations are done in between, the higher the chance of this check
+    // failing. If you ever encounter issues with reproducing this error, try
+    // tuning your changelog size or make sure that conflicting operations are
+    // done frequently enough.
+    if CHANGELOG > 1 {
+        let invalid_changelog_index = 0;
+        let mut proof_clone = proof.clone();
+        let res = merkle_tree.update(
+            invalid_changelog_index,
+            old_leaf,
+            new_leaf,
+            leaf_index,
+            &mut proof_clone,
+        );
+        assert!(matches!(
+            res,
+            Err(ConcurrentMerkleTreeError::CannotUpdateLeaf)
+        ));
+    }
+
+    let invalid_old_leaf: [u8; 32] = Fr::rand(rng)
+        .into_bigint()
+        .to_bytes_be()
+        .try_into()
+        .unwrap();
+    let mut proof_clone = proof.clone();
+    let res = merkle_tree.update(
+        changelog_index,
+        &invalid_old_leaf,
+        &new_leaf,
+        0,
+        &mut proof_clone,
+    );
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::InvalidProof(_, _))
+    ));
+
+    let invalid_index_in_range = gen_range_exclude(rng, 0..merkle_tree.next_index(), &[leaf_index]);
+    let mut proof_clone = proof.clone();
+    let res = merkle_tree.update(
+        changelog_index,
+        old_leaf,
+        new_leaf,
+        invalid_index_in_range,
+        &mut proof_clone,
+    );
+    assert!(matches!(
+        res,
+        Err(ConcurrentMerkleTreeError::InvalidProof(_, _))
+    ));
+
+    // Try pointing to the leaf indices outside the range only if the tree is
+    // not full. Otherwise, it doesn't make sense and even `gen_range` will
+    // fail.
+    let next_index = merkle_tree.next_index();
+    let limit_leaves = 1 << HEIGHT;
+    if next_index < limit_leaves {
+        let invalid_index_outside_range = rng.gen_range(next_index..limit_leaves);
+        let mut proof_clone = proof.clone();
+        let res = merkle_tree.update(
+            changelog_index,
+            old_leaf,
+            new_leaf,
+            invalid_index_outside_range,
+            &mut proof_clone,
+        );
+        assert!(matches!(
+            res,
+            Err(ConcurrentMerkleTreeError::CannotUpdateEmpty)
+        ));
+    }
+}
+
 /// Tests whether update operations work as expected.
 fn update<H, const CHANGELOG: usize, const ROOTS: usize, const CANOPY: usize>()
 where
@@ -215,6 +309,8 @@ where
     let mut merkle_tree =
         ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
     merkle_tree.init().unwrap();
+
+    let mut rng = thread_rng();
 
     let leaf1 = H::hash(&[1u8; 32]).unwrap();
     let leaf2 = H::hash(&[2u8; 32]).unwrap();
@@ -274,9 +370,18 @@ where
     //
     // Merkle proof for the replaced leaf L1 is:
     // [L2, H2, Z[2], Z[3]]
+    let changelog_index = merkle_tree.changelog_index();
     let mut proof = BoundedVec::from_array(&[leaf2, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    let changelog_index = merkle_tree.changelog_index();
+    invalid_updates::<H, HEIGHT, CHANGELOG>(
+        &mut rng,
+        &mut merkle_tree,
+        changelog_index,
+        &leaf1,
+        &new_leaf1,
+        0,
+        proof.clone(),
+    );
     merkle_tree
         .update(changelog_index, &leaf1, &new_leaf1, 0, &mut proof)
         .unwrap();
@@ -316,10 +421,19 @@ where
     //
     // Merkle proof for the replaced leaf L2 is:
     // [L1, H2, Z[2], Z[3]]
+    let changelog_index = merkle_tree.changelog_index();
     let mut proof =
         BoundedVec::from_array(&[new_leaf1, h2, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    let changelog_index = merkle_tree.changelog_index();
+    invalid_updates::<H, HEIGHT, CHANGELOG>(
+        &mut rng,
+        &mut merkle_tree,
+        changelog_index,
+        &leaf2,
+        &new_leaf2,
+        1,
+        proof.clone(),
+    );
     merkle_tree
         .update(changelog_index, &leaf2, &new_leaf2, 1, &mut proof)
         .unwrap();
@@ -359,9 +473,18 @@ where
     //
     // Merkle proof for the replaced leaf L3 is:
     // [L4, H1, Z[2], Z[3]]
+    let changelog_index = merkle_tree.changelog_index();
     let mut proof = BoundedVec::from_array(&[leaf4, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    let changelog_index = merkle_tree.changelog_index();
+    invalid_updates::<H, HEIGHT, CHANGELOG>(
+        &mut rng,
+        &mut merkle_tree,
+        changelog_index,
+        &leaf3,
+        &new_leaf3,
+        2,
+        proof.clone(),
+    );
     merkle_tree
         .update(changelog_index, &leaf3, &new_leaf3, 2, &mut proof)
         .unwrap();
@@ -401,10 +524,19 @@ where
     //
     // Merkle proof for the replaced leaf L4 is:
     // [L3, H1, Z[2], Z[3]]
+    let changelog_index = merkle_tree.changelog_index();
     let mut proof =
         BoundedVec::from_array(&[new_leaf3, h1, H::zero_bytes()[2], H::zero_bytes()[3]]);
 
-    let changelog_index = merkle_tree.root_index();
+    invalid_updates::<H, HEIGHT, CHANGELOG>(
+        &mut rng,
+        &mut merkle_tree,
+        changelog_index,
+        &leaf4,
+        &new_leaf4,
+        3,
+        proof.clone(),
+    );
     merkle_tree
         .update(changelog_index, &leaf4, &new_leaf4, 3, &mut proof)
         .unwrap();
