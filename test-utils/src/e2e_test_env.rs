@@ -69,6 +69,7 @@
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
 use crate::airdrop_lamports;
+use crate::rpc::rpc_connection::RpcConnection;
 use crate::spl::{
     compress_test, compressed_transfer_test, create_token_account, decompress_test,
     mint_tokens_helper,
@@ -79,14 +80,14 @@ use crate::system_program::{
 };
 use crate::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    init_cpi_signature_account,
+    init_cpi_signature_account, EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
+use crate::test_indexer::TestIndexer;
 use crate::test_indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
     StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
 };
-use crate::{test_env::setup_test_programs_with_accounts, test_indexer::TestIndexer};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
 };
@@ -100,7 +101,6 @@ use rand::distributions::uniform::{SampleRange, SampleUniform};
 use rand::prelude::SliceRandom;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use solana_program_test::ProgramTestContext;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::{SeedDerivable, Signer};
@@ -144,12 +144,12 @@ impl Stats {
     }
 }
 
-pub struct E2ETestEnv<const INDEXED_ARRAY_SIZE: usize> {
+pub struct E2ETestEnv<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub payer: Keypair,
-    pub indexer: TestIndexer<INDEXED_ARRAY_SIZE>,
+    pub indexer: TestIndexer<INDEXED_ARRAY_SIZE, R>,
     pub users: Vec<User>,
     pub mints: Vec<Pubkey>,
-    pub context: ProgramTestContext,
+    pub rpc: R,
     pub keypair_action_config: KeypairActionConfig,
     pub general_action_config: GeneralActionConfig,
     pub round: u64,
@@ -158,19 +158,25 @@ pub struct E2ETestEnv<const INDEXED_ARRAY_SIZE: usize> {
     pub stats: Stats,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
+impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> E2ETestEnv<INDEXED_ARRAY_SIZE, R>
+where
+    R: RpcConnection,
+{
     pub async fn new(
+        mut rpc: R,
+        env_accounts: EnvAccounts,
         keypair_action_config: KeypairActionConfig,
         general_action_config: GeneralActionConfig,
         rounds: u64,
         seed: Option<u64>,
         prover_server_path: &str,
     ) -> Self {
-        let (mut context, env_accounts) = setup_test_programs_with_accounts(None).await;
+        // let (mut rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
+
         let inclusion = keypair_action_config.transfer_sol.is_some()
             || keypair_action_config.transfer_spl.is_some();
         let non_inclusion = keypair_action_config.create_address.is_some();
-        let mut indexer = TestIndexer::<INDEXED_ARRAY_SIZE>::new(
+        let mut indexer = TestIndexer::<INDEXED_ARRAY_SIZE, R>::new(
             vec![StateMerkleTreeAccounts {
                 merkle_tree: env_accounts.merkle_tree_pubkey,
                 nullifier_queue: env_accounts.nullifier_queue_pubkey,
@@ -180,7 +186,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 merkle_tree: env_accounts.address_merkle_tree_pubkey,
                 queue: env_accounts.address_merkle_tree_queue_pubkey,
             }],
-            context.payer.insecure_clone(),
+            rpc.get_payer().insecure_clone(),
             inclusion,
             non_inclusion,
             prover_server_path,
@@ -190,11 +196,11 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         // 43 is an arbitrary constant
         let seed: u64 = seed.unwrap_or(43);
         let mut rng = StdRng::seed_from_u64(seed);
-        let user = Self::create_user(&mut rng, &mut context).await;
-        let payer = context.payer.insecure_clone();
-        let mint = create_mint_helper(&mut context, &payer).await;
+        let user = Self::create_user(&mut rng, &mut rpc).await;
+        let payer = rpc.get_payer().insecure_clone();
+        let mint = create_mint_helper(&mut rpc, &payer).await;
         mint_tokens_helper(
-            &mut context,
+            &mut rpc,
             &mut indexer,
             &env_accounts.merkle_tree_pubkey,
             &payer,
@@ -207,7 +213,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             payer,
             indexer,
             users: vec![user],
-            context,
+            rpc,
             keypair_action_config,
             general_action_config,
             round: 0,
@@ -219,9 +225,9 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
     }
 
     /// Creates a new user with a random keypair and 100 sol
-    pub async fn create_user(rng: &mut StdRng, context: &mut ProgramTestContext) -> User {
+    pub async fn create_user(rng: &mut StdRng, rpc: &mut R) -> User {
         let keypair: Keypair = Keypair::from_seed(&[rng.gen_range(0..255); 32]).unwrap();
-        airdrop_lamports(context, &keypair.pubkey(), 100_000_000_000)
+        airdrop_lamports(rpc, &keypair.pubkey(), 100_000_000_000)
             .await
             .unwrap();
         User {
@@ -258,7 +264,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             .rng
             .gen_bool(self.general_action_config.add_keypair.unwrap_or_default())
         {
-            let user = Self::create_user(&mut self.rng, &mut self.context).await;
+            let user = Self::create_user(&mut self.rng, &mut self.rpc).await;
             self.users.push(user);
         }
 
@@ -286,8 +292,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 .unwrap_or_default(),
         ) {
             for state_tree_bundle in self.indexer.state_merkle_trees.iter_mut() {
-                nullify_compressed_accounts(&mut self.context, &self.payer, state_tree_bundle)
-                    .await;
+                nullify_compressed_accounts(&mut self.rpc, &self.payer, state_tree_bundle).await;
             }
         }
 
@@ -297,7 +302,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 .unwrap_or_default(),
         ) {
             for address_merkle_tree_bundle in self.indexer.address_merkle_trees.iter_mut() {
-                empty_address_queue_test(&mut self.context, address_merkle_tree_bundle)
+                empty_address_queue_test(&mut self.rpc, address_merkle_tree_bundle)
                     .await
                     .unwrap();
             }
@@ -309,7 +314,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         create_state_merkle_tree_and_queue_account(
             &self.payer,
-            &mut self.context,
+            &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             None,
@@ -336,7 +341,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         create_address_merkle_tree_and_queue_account(
             &self.payer,
-            &mut self.context,
+            &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             None,
@@ -371,10 +376,10 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         // TODO: Add assert
     }
 
-    pub fn safe_gen_range<T, R>(rng: &mut StdRng, range: R, empty_fallback: T) -> T
+    pub fn safe_gen_range<T, RR>(rng: &mut StdRng, range: RR, empty_fallback: T) -> T
     where
         T: SampleUniform + Copy,
-        R: SampleRange<T> + Sized,
+        RR: SampleRange<T> + Sized,
     {
         if range.is_empty() {
             return empty_fallback;
@@ -426,9 +431,8 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         // compress sol
         // check sufficient sol balance
         let balance = self
-            .context
-            .banks_client
-            .get_balance(self.users[user_index].keypair.pubkey())
+            .rpc
+            .get_balance(&self.users[user_index].keypair.pubkey())
             .await
             .unwrap();
         if self
@@ -463,7 +467,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         let new_nullifier_queue_keypair = Keypair::new();
         let new_merkle_tree_keypair = Keypair::new();
         perform_state_merkle_tree_roll_over(
-            &mut self.context,
+            &mut self.rpc,
             &new_nullifier_queue_keypair,
             &new_merkle_tree_keypair,
             &bundle.merkle_tree,
@@ -473,7 +477,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         .unwrap();
         let new_cpi_signature_keypair = Keypair::new();
         init_cpi_signature_account(
-            &mut self.context,
+            &mut self.rpc,
             &new_merkle_tree_keypair.pubkey(),
             &new_cpi_signature_keypair,
         )
@@ -481,7 +485,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
 
         self.indexer
             .add_state_merkle_tree(
-                &mut self.context,
+                &mut self.rpc,
                 &new_merkle_tree_keypair,
                 &new_nullifier_queue_keypair,
                 &new_cpi_signature_keypair,
@@ -509,7 +513,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees as u64);
 
             transfer_compressed_sol_test(
-                &mut self.context,
+                &mut self.rpc,
                 &mut self.indexer,
                 &self.users[user_index].keypair,
                 input_compressed_accounts.as_slice(),
@@ -539,7 +543,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 .sum::<u64>();
             let decompress_amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
             decompress_sol_test(
-                &mut self.context,
+                &mut self.rpc,
                 &mut self.indexer,
                 &self.users[user_index].keypair,
                 &input_compressed_accounts,
@@ -569,7 +573,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         // };
         let output_merkle_tree = self.get_merkle_tree_pubkeys(1)[0];
         compress_sol_test(
-            &mut self.context,
+            &mut self.rpc,
             &mut self.indexer,
             &self.users[user_index].keypair,
             input_compressed_accounts.as_slice(),
@@ -581,7 +585,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         .await
         .unwrap();
         airdrop_lamports(
-            &mut self.context,
+            &mut self.rpc,
             &self.users[user_index].keypair.pubkey(),
             amount,
         )
@@ -606,7 +610,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         // TODO: add other input compressed accounts
         // (to test whether the address generation degrades performance)
         create_addresses_test(
-            &mut self.context,
+            &mut self.rpc,
             &mut self.indexer,
             address_merkle_tree_pubkeys.as_slice(),
             address_queue_pubkeys.as_slice(),
@@ -657,8 +661,8 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         let output_merkle_tree_pubkeys =
             self.get_merkle_tree_pubkeys(num_output_compressed_accounts as u64);
         compressed_transfer_test(
-            &self.context.payer.insecure_clone(),
-            &mut self.context,
+            &self.rpc.get_payer().insecure_clone(),
+            &mut self.rpc,
             &mut self.indexer,
             &mint,
             &self.users[user_index].keypair.insecure_clone(),
@@ -683,16 +687,11 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
                 .gen_range(0..self.users[user_index].token_accounts.len())];
             token_account = _token_account;
             mint = _mint;
-            self.context
-                .banks_client
-                .get_account(_token_account)
-                .await
-                .unwrap();
+            self.rpc.get_account(_token_account).await.unwrap();
             use solana_sdk::program_pack::Pack;
             let account = spl_token::state::Account::unpack(
                 &self
-                    .context
-                    .banks_client
+                    .rpc
                     .get_account(_token_account)
                     .await
                     .unwrap()
@@ -715,7 +714,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             // decompress
             compress_test(
                 &self.users[user_index].keypair,
-                &mut self.context,
+                &mut self.rpc,
                 &mut self.indexer,
                 amount,
                 &mint,
@@ -741,7 +740,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             None => {
                 let token_account_keypair = Keypair::new();
                 create_token_account(
-                    &mut self.context,
+                    &mut self.rpc,
                     &mint,
                     &token_account_keypair,
                     &self.users[user_index].keypair,
@@ -764,7 +763,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
         // decompress
         decompress_test(
             &self.users[user_index].keypair,
-            &mut self.context,
+            &mut self.rpc,
             &mut self.indexer,
             token_accounts,
             amount,
@@ -831,7 +830,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> E2ETestEnv<INDEXED_ARRAY_SIZE> {
             let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 1..8, 1);
             let mt_pubkey = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
             mint_tokens_helper(
-                &mut self.context,
+                &mut self.rpc,
                 &mut self.indexer,
                 &mt_pubkey,
                 &self.payer,

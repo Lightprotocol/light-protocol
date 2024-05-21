@@ -8,19 +8,20 @@ use light_system_program::{
         invoke::create_invoke_instruction,
     },
 };
+use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
+use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_test_utils::{
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error, create_and_send_transaction,
-    create_and_send_transaction_with_event,
+    assert_custom_error_or_program_error,
     system_program::{
         compress_sol_test, create_addresses_test, decompress_sol_test, transfer_compressed_sol_test,
     },
     test_env::setup_test_programs_with_accounts,
     test_indexer::TestIndexer,
-    FeeConfig, TransactionParams,
 };
 use solana_cli_output::CliAccount;
-use solana_program_test::BanksClientError;
 use solana_sdk::transaction::TransactionError;
 use solana_sdk::{
     instruction::InstructionError, pubkey::Pubkey, signer::Signer, transaction::Transaction,
@@ -38,8 +39,8 @@ use tokio::fs::write as async_write;
 async fn invoke_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
-    let payer = context.payer.insecure_clone();
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let payer = context.get_payer().insecure_clone();
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -74,22 +75,22 @@ async fn invoke_test() {
         None,
     );
 
-    let event = create_and_send_transaction_with_event(
-        &mut context,
-        &[instruction],
-        &payer_pubkey,
-        &[&payer],
-        Some(TransactionParams {
-            num_input_compressed_accounts: 0,
-            num_output_compressed_accounts: 1,
-            num_new_addresses: 0,
-            compress: 0,
-            fee_config: FeeConfig::default(),
-        }),
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let event = context
+        .create_and_send_transaction_with_event(
+            &[instruction],
+            &payer_pubkey,
+            &[&payer],
+            Some(TransactionParams {
+                num_input_compressed_accounts: 0,
+                num_output_compressed_accounts: 1,
+                num_new_addresses: 0,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
     let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event);
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
@@ -125,8 +126,9 @@ async fn invoke_test() {
         None,
     );
 
-    let res =
-        create_and_send_transaction(&mut context, &[instruction], &payer_pubkey, &[&payer]).await;
+    let res = context
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+        .await;
     assert!(res.is_err());
 
     // check invalid signer for in compressed_account
@@ -156,8 +158,9 @@ async fn invoke_test() {
         None,
     );
 
-    let res =
-        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
+    let res = context
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
     assert!(res.is_err());
 
     // create Merkle proof
@@ -202,22 +205,22 @@ async fn invoke_test() {
     );
     println!("Transaction with zkp -------------------------");
 
-    let event = create_and_send_transaction_with_event(
-        &mut context,
-        &[instruction],
-        &payer_pubkey,
-        &[&payer],
-        Some(TransactionParams {
-            num_input_compressed_accounts: 1,
-            num_output_compressed_accounts: 1,
-            num_new_addresses: 0,
-            compress: 0,
-            fee_config: FeeConfig::default(),
-        }),
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let event = context
+        .create_and_send_transaction_with_event(
+            &[instruction],
+            &payer_pubkey,
+            &[&payer],
+            Some(TransactionParams {
+                num_input_compressed_accounts: 1,
+                num_output_compressed_accounts: 1,
+                num_new_addresses: 0,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
     test_indexer.add_event_and_compressed_accounts(&event);
 
     println!("Double spend -------------------------");
@@ -246,8 +249,9 @@ async fn invoke_test() {
         false,
         None,
     );
-    let res =
-        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
+    let res = context
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
     assert!(res.is_err());
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
@@ -274,8 +278,9 @@ async fn invoke_test() {
         false,
         None,
     );
-    let res =
-        create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer]).await;
+    let res = context
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await;
     assert!(res.is_err());
 }
 
@@ -289,8 +294,8 @@ async fn invoke_test() {
 #[tokio::test]
 async fn test_with_address() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let payer = context.get_payer().insecure_clone();
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -330,14 +335,10 @@ async fn test_with_address() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap(),
     );
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
-    .unwrap();
+
+    let res = context.process_transaction_with_metadata(transaction).await;
     assert_custom_error_or_program_error(res, CompressedPdaError::InvalidAddress.into()).unwrap();
     println!("creating address -------------------------");
     create_addresses_test(
@@ -407,7 +408,7 @@ async fn test_with_address() {
     // Should fail to insert the same address twice in the same tx
     assert!(matches!(
         event,
-        Err(BanksClientError::TransactionError(
+        Err(RpcError::TransactionError(
             // ElementAlreadyExists
             TransactionError::InstructionError(0, InstructionError::Custom(9002))
         ))
@@ -479,13 +480,13 @@ async fn test_with_address() {
 #[tokio::test]
 async fn test_with_compression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
+    let payer = context.get_payer().insecure_clone();
 
     let payer_pubkey = payer.pubkey();
 
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -519,16 +520,12 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap(),
     );
-    let error = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
-    .unwrap();
+
+    let result = context.process_transaction_with_metadata(transaction).await;
     // should fail because of insufficient input funds
-    assert_custom_error_or_program_error(error, CompressedPdaError::ComputeOutputSumFailed.into())
+    assert_custom_error_or_program_error(result, CompressedPdaError::ComputeOutputSumFailed.into())
         .unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: compress_amount,
@@ -555,16 +552,12 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap(),
     );
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
-    .unwrap();
+
+    let result = context.process_transaction_with_metadata(transaction).await;
     // should fail because of insufficient decompress amount funds
-    assert_custom_error_or_program_error(res, CompressedPdaError::ComputeOutputSumFailed.into())
+    assert_custom_error_or_program_error(result, CompressedPdaError::ComputeOutputSumFailed.into())
         .unwrap();
 
     compress_sol_test(
@@ -630,18 +623,14 @@ async fn test_with_compression() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        context.get_latest_blockhash().await.unwrap(),
     );
     println!("Transaction with zkp -------------------------");
 
-    let res = solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
-    .unwrap();
+    let result = context.process_transaction_with_metadata(transaction).await;
     // should fail because of insufficient output funds
-    assert_custom_error_or_program_error(res, CompressedPdaError::SumCheckFailed.into()).unwrap();
+    assert_custom_error_or_program_error(result, CompressedPdaError::SumCheckFailed.into())
+        .unwrap();
 
     let compressed_account_with_context =
         test_indexer.get_compressed_accounts_by_owner(&payer_pubkey)[0].clone();
@@ -680,7 +669,7 @@ async fn regenerate_accounts() {
 
     for (name, pubkey) in pubkeys {
         // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
-        let account = context.banks_client.get_account(pubkey).await.unwrap();
+        let account = context.get_account(pubkey).await.unwrap();
         println!(
             "{} DISCRIMINATOR {:?}",
             name,

@@ -1,5 +1,3 @@
-use crate::{create_and_send_transaction, get_account};
-
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
@@ -20,6 +18,8 @@ use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair};
 
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use solana_sdk::{signature::Signer, system_instruction};
 
 pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
@@ -124,20 +124,19 @@ pub const SIGNATURE_CPI_TEST_KEYPAIR: [u8; 64] = [
 
 pub async fn setup_test_programs_with_accounts(
     additional_programs: Option<Vec<(String, Pubkey)>>,
-) -> (ProgramTestContext, EnvAccounts) {
+) -> (ProgramTestRpcConnection, EnvAccounts) {
     use crate::airdrop_lamports;
-
-    let mut context = setup_test_programs(additional_programs).await;
+    let context = setup_test_programs(additional_programs).await;
+    let mut context = ProgramTestRpcConnection { context };
     let cpi_authority_pda = get_cpi_authority_pda();
     let authority_pda = get_governance_authority_pda();
     let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
-    airdrop_lamports(&mut context, &payer.pubkey(), 100_000_000_000)
-        .await
-        .unwrap();
+    let _ = airdrop_lamports(&mut context, &payer.pubkey(), 100_000_000_000).await;
 
     let instruction =
         create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
-    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
+    context
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
     let (group_pda, seed) = get_group_account();
@@ -145,15 +144,19 @@ pub async fn setup_test_programs_with_accounts(
     let instruction =
         create_initialize_group_authority_instruction(payer.pubkey(), group_pda, seed);
 
-    create_and_send_transaction(&mut context, &[instruction], &payer.pubkey(), &[&payer])
+    context
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let group_authority = get_account::<GroupAuthority>(&mut context, group_pda).await;
+    let group_authority = context
+        .get_anchor_account::<GroupAuthority>(&group_pda)
+        .await;
     assert_eq!(group_authority.authority, cpi_authority_pda.0);
     assert_eq!(group_authority.seed, seed);
 
-    let gov_authority = get_account::<GroupAuthority>(&mut context, authority_pda.0).await;
-
+    let gov_authority = context
+        .get_anchor_account::<GroupAuthority>(&authority_pda.0)
+        .await;
     assert_eq!(gov_authority.authority, payer.pubkey());
 
     let (instruction, registered_program_pda) = create_register_program_instruction(
@@ -167,21 +170,20 @@ pub async fn setup_test_programs_with_accounts(
         &payer.pubkey(),
         &cpi_authority_pda.0,
         context
-            .banks_client
             .get_rent()
             .await
             .unwrap()
             .minimum_balance(RegisteredProgram::LEN),
     );
 
-    create_and_send_transaction(
-        &mut context,
-        &[transfer_instruction, instruction],
-        &payer.pubkey(),
-        &[&payer],
-    )
-    .await
-    .unwrap();
+    context
+        .create_and_send_transaction(
+            &[transfer_instruction, instruction],
+            &payer.pubkey(),
+            &[&payer],
+        )
+        .await
+        .unwrap();
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
@@ -231,9 +233,9 @@ pub async fn setup_test_programs_with_accounts(
     )
 }
 
-pub async fn create_state_merkle_tree_and_queue_account(
+pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
-    context: &mut ProgramTestContext,
+    rpc: &mut R,
     merkle_tree_keypair: &Keypair,
     nullifier_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
@@ -244,9 +246,7 @@ pub async fn create_state_merkle_tree_and_queue_account(
     let merkle_tree_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,
-        context
-            .banks_client
-            .get_rent()
+        rpc.get_rent()
             .await
             .unwrap()
             .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
@@ -262,12 +262,7 @@ pub async fn create_state_merkle_tree_and_queue_account(
     let nullifier_queue_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(size),
+        rpc.get_rent().await.unwrap().minimum_balance(size),
         &ACCOUNT_COMPRESSION_ID,
         Some(nullifier_queue_keypair),
     );
@@ -290,19 +285,17 @@ pub async fn create_state_merkle_tree_and_queue_account(
         ],
         Some(&payer.pubkey()),
         &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
-        context.get_new_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap(),
     );
-    context
-        .banks_client
-        .process_transaction(transaction.clone())
+    rpc.process_transaction_with_metadata(transaction.clone())
         .await
         .unwrap();
 }
 
 #[inline(never)]
-pub async fn create_address_merkle_tree_and_queue_account(
+pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
-    context: &mut ProgramTestContext,
+    context: &mut R,
     address_merkle_tree_keypair: &Keypair,
     address_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
@@ -323,21 +316,15 @@ pub async fn create_address_merkle_tree_and_queue_account(
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(size),
+        context.get_rent().await.unwrap().minimum_balance(size),
         &ACCOUNT_COMPRESSION_ID,
         Some(address_queue_keypair),
     );
 
-    let mt_account_create_ix = crate::create_account_instruction(
+    let mt_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         account_compression::AddressMerkleTreeAccount::LEN,
         context
-            .banks_client
             .get_rent()
             .await
             .unwrap()
@@ -359,17 +346,16 @@ pub async fn create_address_merkle_tree_and_queue_account(
         &[account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
         &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
-        context.last_blockhash,
+        context.get_latest_blockhash().await.unwrap(),
     );
     context
-        .banks_client
-        .process_transaction(transaction.clone())
+        .process_transaction_with_metadata(transaction.clone())
         .await
         .unwrap();
 }
 
-pub async fn init_cpi_signature_account(
-    context: &mut ProgramTestContext,
+pub async fn init_cpi_signature_account<R: RpcConnection>(
+    rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     cpi_account_keypair: &Keypair,
 ) -> Pubkey {
@@ -377,17 +363,12 @@ pub async fn init_cpi_signature_account(
 
     use crate::create_account_instruction;
 
-    let payer = context.payer.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(
-        &context.payer.pubkey(),
+        &rpc.get_payer().pubkey(),
         account_size,
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(account_size),
+        rpc.get_rent().await.unwrap().minimum_balance(account_size),
         &light_system_program::ID,
         Some(cpi_account_keypair),
     );
@@ -403,8 +384,7 @@ pub async fn init_cpi_signature_account(
         accounts: accounts.to_account_metas(Some(true)),
         data: data.data(),
     };
-    create_and_send_transaction(
-        context,
+    rpc.create_and_send_transaction(
         &[account_create_ix, instruction],
         &payer.pubkey(),
         &[&payer, cpi_account_keypair],

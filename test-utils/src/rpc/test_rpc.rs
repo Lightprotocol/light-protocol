@@ -1,0 +1,254 @@
+use anchor_lang::prelude::Pubkey;
+use anchor_lang::solana_program::clock::Slot;
+use anchor_lang::solana_program::hash::Hash;
+use anchor_lang::solana_program::system_instruction;
+use anchor_lang::AnchorDeserialize;
+use solana_program_test::{BanksClientError, ProgramTestContext};
+use solana_sdk::account::{Account, AccountSharedData};
+use solana_sdk::instruction::{Instruction, InstructionError};
+use solana_sdk::signature::{Keypair, Signature};
+use solana_sdk::signer::Signer;
+use solana_sdk::transaction::{Transaction, TransactionError};
+
+use account_compression::initialize_address_merkle_tree::Rent;
+
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::transaction_params::TransactionParams;
+
+pub struct ProgramTestRpcConnection {
+    pub context: ProgramTestContext,
+}
+
+impl RpcConnection for ProgramTestRpcConnection {
+    async fn create_and_send_transaction_with_event<T>(
+        &mut self,
+        instruction: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<T>, RpcError>
+    where
+        T: AnchorDeserialize,
+    {
+        let pre_balance = self
+            .context
+            .banks_client
+            .get_account(*payer)
+            .await?
+            .unwrap()
+            .lamports;
+
+        let transaction = Transaction::new_signed_with_payer(
+            instruction,
+            Some(payer),
+            signers,
+            self.context.get_new_latest_blockhash().await?,
+        );
+
+        // Simulate the transaction. Currently, in banks-client/server, only
+        // simulations are able to track CPIs. Therefore, simulating is the
+        // only way to retrieve the event.
+        let simulation_result = self
+            .context
+            .banks_client
+            .simulate_transaction(transaction.clone())
+            .await?;
+        // Handle an error nested in the simulation result.
+        if let Some(Err(e)) = simulation_result.result {
+            let error = match e {
+                TransactionError::InstructionError(_, _) => RpcError::TransactionError(e),
+                _ => RpcError::from(BanksClientError::TransactionError(e)),
+            };
+            return Err(error);
+        }
+
+        // Retrieve the event.
+        let event = simulation_result
+            .simulation_details
+            .and_then(|details| details.inner_instructions)
+            .and_then(|instructions| {
+                instructions.iter().flatten().find_map(|inner_instruction| {
+                    T::try_from_slice(inner_instruction.instruction.data.as_slice()).ok()
+                })
+            });
+        // If transaction was successful, execute it.
+        if let Some(Ok(())) = simulation_result.result {
+            let result = self
+                .context
+                .banks_client
+                .process_transaction(transaction)
+                .await;
+            if let Err(e) = result {
+                let error = RpcError::from(e);
+                return Err(error);
+            }
+        }
+
+        // assert correct rollover fee and tip distribution
+        if let Some(transaction_params) = transaction_params {
+            let post_balance = self
+                .context
+                .banks_client
+                .get_account(*payer)
+                .await?
+                .unwrap()
+                .lamports;
+
+            let mut tip = 0;
+            for rollover in &[
+                transaction_params.num_new_addresses,
+                transaction_params.num_input_compressed_accounts,
+                transaction_params.num_output_compressed_accounts,
+            ] {
+                if *rollover != 0 {
+                    tip += transaction_params.fee_config.network_fee as i64;
+                }
+            }
+
+            let expected_post_balance = pre_balance as i64
+                - i64::from(transaction_params.num_new_addresses)
+                    * transaction_params.fee_config.address_queue_rollover as i64
+                - i64::from(transaction_params.num_input_compressed_accounts)
+                    * transaction_params.fee_config.nullifier_queue_rollover as i64
+                - i64::from(transaction_params.num_output_compressed_accounts)
+                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
+                - transaction_params.compress
+                - 5000
+                - tip * (i64::from(transaction_params.num_output_compressed_accounts) / 28 + 1);
+
+            if post_balance as i64 != expected_post_balance {
+                println!("transaction_params: {:?}", transaction_params);
+                println!("pre_balance: {}", pre_balance);
+                println!("post_balance: {}", post_balance);
+                println!("expected post_balance: {}", expected_post_balance);
+                println!(
+                    "diff post_balance: {}",
+                    post_balance as i64 - expected_post_balance
+                );
+                println!("tip: {}", tip);
+                return Err(RpcError::from(BanksClientError::TransactionError(
+                    TransactionError::InstructionError(0, InstructionError::Custom(11111)),
+                )));
+            }
+        }
+        Ok(event)
+    }
+
+    async fn create_and_send_transaction(
+        &mut self,
+        instruction: &[Instruction],
+        payer: &Pubkey,
+        signers: &[&Keypair],
+    ) -> Result<Signature, RpcError> {
+        let transaction = Transaction::new_signed_with_payer(
+            instruction,
+            Some(payer),
+            &signers.to_vec(),
+            self.get_latest_blockhash().await.unwrap(),
+        );
+        let signature = transaction.signatures[0];
+        self.process_transaction_with_metadata(transaction).await?;
+        Ok(signature)
+    }
+
+    fn get_payer(&self) -> &Keypair {
+        &self.context.payer
+    }
+
+    async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
+        self.context
+            .banks_client
+            .get_account(address)
+            .await
+            .map_err(RpcError::from)
+    }
+
+    fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData) {
+        self.context.set_account(address, account);
+    }
+
+    async fn get_rent(&mut self) -> Result<Rent, RpcError> {
+        self.context
+            .banks_client
+            .get_rent()
+            .await
+            .map_err(RpcError::from)
+    }
+
+    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
+        self.context
+            .get_new_latest_blockhash()
+            .await
+            .map_err(|e| RpcError::from(BanksClientError::from(e)))
+    }
+
+    async fn process_transaction_with_metadata(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<(), RpcError> {
+        let result = self
+            .context
+            .banks_client
+            .process_transaction_with_metadata(transaction)
+            .await
+            .map_err(RpcError::from)?;
+        result.result.map_err(RpcError::TransactionError)?;
+        Ok(())
+    }
+
+    async fn get_root_slot(&mut self) -> Result<u64, RpcError> {
+        self.context
+            .banks_client
+            .get_root_slot()
+            .await
+            .map_err(RpcError::from)
+    }
+
+    async fn airdrop_lamports(
+        &mut self,
+        destination_pubkey: &Pubkey,
+        lamports: u64,
+    ) -> Result<(), RpcError> {
+        // Create a transfer instruction
+        let transfer_instruction = system_instruction::transfer(
+            &self.context.payer.pubkey(),
+            destination_pubkey,
+            lamports,
+        );
+        let latest_blockhash = self.get_latest_blockhash().await.unwrap();
+        // Create and sign a transaction
+        let transaction = Transaction::new_signed_with_payer(
+            &[transfer_instruction],
+            Some(&self.get_payer().pubkey()),
+            &vec![&self.get_payer()],
+            latest_blockhash,
+        );
+
+        // Send the transaction
+        self.context
+            .banks_client
+            .process_transaction(transaction)
+            .await?;
+
+        Ok(())
+    }
+
+    // TODO: return Result<T, Error>
+    async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {
+        let account = self.get_account(*pubkey).await.unwrap().unwrap();
+        T::deserialize(&mut &account.data[8..]).unwrap()
+    }
+
+    async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {
+        self.context
+            .banks_client
+            .get_balance(*pubkey)
+            .await
+            .map_err(RpcError::from)
+    }
+
+    fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
+        self.context.warp_to_slot(slot).map_err(RpcError::from)
+    }
+}

@@ -9,14 +9,14 @@ use light_system_program::sdk::compressed_account::{
 };
 
 use light_system_program::NewAddressParams;
+use light_test_utils::assert_custom_error_or_program_error;
+use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{
     create_address_merkle_tree_and_queue_account, setup_test_programs_with_accounts, EnvAccounts,
 };
 use light_test_utils::test_indexer::{create_mint_helper, TestIndexer};
-use light_test_utils::{
-    assert_custom_error_or_program_error, create_and_send_transaction_with_event,
-};
 use light_utils::hash_to_bn254_field_size_be;
 use program_owned_account_test::sdk::{
     create_invalidate_not_owned_account_instruction, create_pda_instruction,
@@ -24,21 +24,19 @@ use program_owned_account_test::sdk::{
 };
 use program_owned_account_test::{self, RegisteredUser};
 use program_owned_account_test::{CreatePdaMode, ID};
-use solana_program_test::{
-    BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
-};
+use solana_program_test::BanksClientError;
 use solana_sdk::instruction::InstructionError;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn only_test_create_pda() {
-    let (mut context, env) = setup_test_programs_with_accounts(Some(vec![(
+    let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
         String::from("program_owned_account_test"),
         ID,
     )]))
     .await;
-    let payer = context.payer.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
         &payer,
         &env,
@@ -53,7 +51,7 @@ async fn only_test_create_pda() {
 
     perform_create_pda_with_event(
         &mut test_indexer,
-        &mut context,
+        &mut rpc,
         &env,
         &payer,
         seed,
@@ -71,7 +69,7 @@ async fn only_test_create_pda() {
     let invalid_owner_program = Pubkey::new_unique();
     let res = perform_create_pda_failing(
         &mut test_indexer,
-        &mut context,
+        &mut rpc,
         &env,
         &payer,
         seed,
@@ -81,7 +79,7 @@ async fn only_test_create_pda() {
     )
     .await;
     assert_eq!(
-        res.unwrap().result,
+        res.unwrap(),
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
@@ -92,7 +90,7 @@ async fn only_test_create_pda() {
 
     let res = perform_create_pda_failing(
         &mut test_indexer,
-        &mut context,
+        &mut rpc,
         &env,
         &payer,
         seed,
@@ -102,7 +100,7 @@ async fn only_test_create_pda() {
     )
     .await;
     assert_eq!(
-        res.unwrap().result,
+        res.unwrap(),
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
@@ -110,11 +108,11 @@ async fn only_test_create_pda() {
             )
         ))
     );
-    let mint = create_mint_helper(&mut context, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer).await;
 
     let amount = 10000u64;
     mint_tokens_helper(
-        &mut context,
+        &mut rpc,
         &mut test_indexer,
         &env.merkle_tree_pubkey,
         &payer,
@@ -128,14 +126,14 @@ async fn only_test_create_pda() {
         .clone();
     let res = perform_invalidate_not_owned_compressed_account(
         &mut test_indexer,
-        &mut context,
+        &mut rpc,
         &env,
         &payer,
         &compressed_token_account,
     )
     .await;
     assert_eq!(
-        res.unwrap().result,
+        res.unwrap(),
         Err(solana_sdk::transaction::TransactionError::InstructionError(
             0,
             InstructionError::Custom(
@@ -147,23 +145,23 @@ async fn only_test_create_pda() {
 
 #[tokio::test]
 async fn test_create_pda_in_program_owned_merkle_tree() {
-    let (mut context, mut env) = setup_test_programs_with_accounts(Some(vec![(
+    let (mut rpc, mut env) = setup_test_programs_with_accounts(Some(vec![(
         String::from("program_owned_account_test"),
-        program_owned_account_test::ID,
+        ID,
     )]))
     .await;
 
-    let payer = context.payer.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
     let program_owned_address_merkle_tree_keypair = Keypair::new();
     env.address_merkle_tree_pubkey = program_owned_address_merkle_tree_keypair.pubkey();
     let program_owned_address_queue_keypair = Keypair::new();
     env.address_merkle_tree_queue_pubkey = program_owned_address_queue_keypair.pubkey();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &mut context,
+        &mut rpc,
         &program_owned_address_merkle_tree_keypair,
         &program_owned_address_queue_keypair,
-        Some(program_owned_account_test::ID),
+        Some(ID),
         2,
     )
     .await;
@@ -185,22 +183,17 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
         &env,
         seed,
         &mut test_indexer,
-        &mut context,
+        &mut rpc,
         &data,
         payer_pubkey,
         &ID,
         CreatePdaMode::ProgramIsSigner,
     )
     .await;
-    let event = create_and_send_transaction_with_event(
-        &mut context,
-        &[instruction],
-        &payer_pubkey,
-        &[&payer],
-        None,
-    )
-    .await
-    .unwrap();
+    let event = rpc
+        .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[&payer], None)
+        .await
+        .unwrap();
     test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
 
     assert_created_pda(&mut test_indexer, &env, &payer, &seed, &data).await;
@@ -211,7 +204,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
     env.address_merkle_tree_queue_pubkey = program_owned_address_queue_keypair.pubkey();
     create_address_merkle_tree_and_queue_account(
         &payer,
-        &mut context,
+        &mut rpc,
         &program_owned_address_merkle_tree_keypair,
         &program_owned_address_queue_keypair,
         Some(light_compressed_token::ID),
@@ -230,7 +223,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
         &env,
         seed,
         &mut test_indexer,
-        &mut context,
+        &mut rpc,
         &data,
         payer_pubkey,
         &ID,
@@ -241,13 +234,9 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap(),
     );
-    let res = context
-        .banks_client
-        .process_transaction_with_metadata(tx)
-        .await
-        .unwrap();
+    let res = rpc.process_transaction_with_metadata(tx).await.unwrap();
     assert_custom_error_or_program_error(
         res,
         light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
@@ -255,22 +244,22 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
     .unwrap();
 }
 
-pub async fn perform_create_pda_failing(
-    test_indexer: &mut TestIndexer<200>,
-    context: &mut ProgramTestContext,
+pub async fn perform_create_pda_failing<R: RpcConnection>(
+    test_indexer: &mut TestIndexer<200, R>,
+    rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
     seed: [u8; 32],
     data: &[u8; 31],
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
-) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
+) -> Result<solana_sdk::transaction::Result<()>, RpcError> {
     let payer_pubkey = payer.pubkey();
     let instruction = perform_create_pda(
         env,
         seed,
         test_indexer,
-        context,
+        rpc,
         data,
         payer_pubkey,
         owner_program,
@@ -281,17 +270,13 @@ pub async fn perform_create_pda_failing(
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap(),
     );
-    solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
+    rpc.process_transaction_with_metadata(transaction).await
 }
-pub async fn perform_create_pda_with_event(
-    test_indexer: &mut TestIndexer<200>,
-    context: &mut ProgramTestContext,
+pub async fn perform_create_pda_with_event<R: RpcConnection>(
+    test_indexer: &mut TestIndexer<200, R>,
+    rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
     seed: [u8; 32],
@@ -304,38 +289,31 @@ pub async fn perform_create_pda_with_event(
         env,
         seed,
         test_indexer,
-        context,
+        rpc,
         data,
         payer_pubkey,
         owner_program,
         signer_is_program,
     )
     .await;
-    let event = create_and_send_transaction_with_event(
-        context,
-        &[instruction],
-        &payer_pubkey,
-        &[payer],
-        None,
-    )
-    .await?;
+    let event = rpc
+        .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[payer], None)
+        .await?;
     test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
     Ok(())
 }
 
-async fn perform_create_pda(
+async fn perform_create_pda<R: RpcConnection>(
     env: &EnvAccounts,
     seed: [u8; 32],
-    test_indexer: &mut TestIndexer<200>,
-    context: &mut ProgramTestContext,
+    test_indexer: &mut TestIndexer<200, R>,
+    rpc: &mut R,
     data: &[u8; 31],
     payer_pubkey: Pubkey,
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
-    let address =
-        light_system_program::sdk::address::derive_address(&env.address_merkle_tree_pubkey, &seed)
-            .unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -343,7 +321,7 @@ async fn perform_create_pda(
             None,
             Some(&[address]),
             Some(vec![env.address_merkle_tree_pubkey]),
-            context,
+            rpc,
         )
         .await;
 
@@ -367,8 +345,8 @@ async fn perform_create_pda(
     instruction
 }
 
-pub async fn assert_created_pda(
-    test_indexer: &mut TestIndexer<200>,
+pub async fn assert_created_pda<R: RpcConnection>(
+    test_indexer: &mut TestIndexer<200, R>,
     env: &EnvAccounts,
     payer: &Keypair,
     seed: &[u8; 32],
@@ -411,13 +389,13 @@ pub async fn assert_created_pda(
     );
 }
 
-pub async fn perform_invalidate_not_owned_compressed_account(
-    test_indexer: &mut TestIndexer<200>,
-    context: &mut ProgramTestContext,
+pub async fn perform_invalidate_not_owned_compressed_account<R: RpcConnection>(
+    test_indexer: &mut TestIndexer<200, R>,
+    rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
+) -> Result<solana_sdk::transaction::Result<()>, RpcError> {
     let payer_pubkey = payer.pubkey();
     let hash = compressed_account
         .compressed_account
@@ -432,7 +410,7 @@ pub async fn perform_invalidate_not_owned_compressed_account(
             Some(&[env.merkle_tree_pubkey]),
             None,
             None,
-            context,
+            rpc,
         )
         .await;
     let create_ix_inputs = InvalidateNotOwnedCompressedAccountInstructionInputs {
@@ -454,11 +432,7 @@ pub async fn perform_invalidate_not_owned_compressed_account(
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        context.get_new_latest_blockhash().await.unwrap(),
+        rpc.get_latest_blockhash().await.unwrap(),
     );
-    solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
+    rpc.process_transaction_with_metadata(transaction).await
 }

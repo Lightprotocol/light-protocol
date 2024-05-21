@@ -1,13 +1,13 @@
 use crate::{
     assert_compressed_tx::get_merkle_tree_snapshots,
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
-    create_account_instruction, create_and_send_transaction,
-    create_and_send_transaction_with_event,
+    create_account_instruction,
     test_env::COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
     test_indexer::{TestIndexer, TokenDataWithContext},
-    TransactionParams,
 };
 
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::transaction_params::TransactionParams;
 use light_compressed_token::{
     get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
@@ -16,7 +16,7 @@ use light_compressed_token::{
 };
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
-use solana_program_test::{BanksClientError, ProgramTestContext};
+use solana_program_test::BanksClientError;
 use solana_sdk::{
     instruction::Instruction,
     program_pack::Pack,
@@ -26,9 +26,9 @@ use solana_sdk::{
 use spl_token::instruction::initialize_mint;
 use spl_token::state::Mint;
 
-pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     merkle_tree_pubkey: &Pubkey,
     mint_authority: &Keypair,
     mint: &Pubkey,
@@ -49,46 +49,32 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize>(
         test_indexer.get_state_merkle_tree_accounts(&vec![*merkle_tree_pubkey; amounts.len()]);
 
     let snapshots =
-        get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(context, &output_merkle_tree_accounts)
-            .await;
-    let previous_mint_supply = spl_token::state::Mint::unpack(
-        &context
-            .banks_client
-            .get_account(*mint)
-            .await
+        get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(rpc, &output_merkle_tree_accounts).await;
+    let previous_mint_supply =
+        spl_token::state::Mint::unpack(&rpc.get_account(*mint).await.unwrap().unwrap().data)
             .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap()
-    .supply;
+            .supply;
 
     let pool: Pubkey = get_token_pool_pda(mint);
-    let previous_pool_amount = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(pool)
-            .await
+    let previous_pool_amount =
+        spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
             .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap()
-    .amount;
-    let event = create_and_send_transaction_with_event::<PublicTransactionEvent>(
-        context,
-        &[instruction],
-        &payer_pubkey,
-        &[mint_authority],
-        None,
-    )
-    .await
-    .unwrap()
-    .unwrap();
+            .amount;
+    let event = rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[instruction],
+            &payer_pubkey,
+            &[mint_authority],
+            None,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+
     let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
 
     assert_mint_to(
-        context,
+        rpc,
         test_indexer,
         &recipients,
         *mint,
@@ -101,8 +87,8 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize>(
     .await;
 }
 
-pub async fn create_mint(
-    context: &mut ProgramTestContext,
+pub async fn create_mint<R: RpcConnection>(
+    rpc: &mut R,
     payer: &Keypair,
     mint_authority: &Pubkey,
     decimals: u8,
@@ -115,7 +101,7 @@ pub async fn create_mint(
         None => &keypair,
     };
     let mint_pubkey = (*mint_keypair).pubkey();
-    let rent = context.banks_client.get_rent().await.unwrap();
+    let rent = rpc.get_rent().await.unwrap();
     let mint_rent = rent.minimum_balance(Mint::LEN);
 
     let account_create_ix = crate::create_account_instruction(
@@ -134,8 +120,7 @@ pub async fn create_mint(
         decimals,
     )
     .unwrap();
-    create_and_send_transaction(
-        context,
+    rpc.create_and_send_transaction(
         &[account_create_ix, create_mint_ix],
         &payer.pubkey(),
         &[payer],
@@ -145,10 +130,9 @@ pub async fn create_mint(
     mint_pubkey
 }
 
-pub async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -> Pubkey {
+pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
-    let rent = context
-        .banks_client
+    let rent = rpc
         .get_rent()
         .await
         .unwrap()
@@ -158,10 +142,10 @@ pub async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypai
     let (instructions, pool) =
         create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
 
-    create_and_send_transaction(context, &instructions, &payer_pubkey, &[payer, &mint])
+    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
         .await
         .unwrap();
-    assert_create_mint(context, &payer_pubkey, &mint.pubkey(), &pool).await;
+    assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
     mint.pubkey()
 }
 pub fn create_initialize_mint_instructions(
@@ -207,14 +191,13 @@ pub fn create_initialize_mint_instructions(
 
 /// Creates an spl token account and initializes it with the given mint and owner.
 /// This function is useful to create token accounts for spl compression and decompression tests.
-pub async fn create_token_account(
-    context: &mut ProgramTestContext,
+pub async fn create_token_account<R: RpcConnection>(
+    rpc: &mut R,
     mint: &Pubkey,
     account_keypair: &Keypair,
     owner: &Keypair,
 ) -> Result<(), BanksClientError> {
-    let rent = context
-        .banks_client
+    let rent = rpc
         .get_rent()
         .await
         .unwrap()
@@ -233,8 +216,7 @@ pub async fn create_token_account(
         &owner.pubkey(),
     )
     .unwrap();
-    create_and_send_transaction(
-        context,
+    rpc.create_and_send_transaction(
         &[account_create_ix, instruction],
         &owner.pubkey(),
         &[account_keypair, owner],
@@ -245,10 +227,10 @@ pub async fn create_token_account(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
+pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     payer: &Keypair,
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     mint: &Pubkey,
     from: &Keypair,
     recipients: &[Pubkey],
@@ -324,7 +306,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
             Some(&input_merkle_tree_pubkeys),
             None,
             None,
-            context,
+            rpc,
         )
         .await;
 
@@ -348,37 +330,37 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
         test_indexer.get_state_merkle_tree_accounts(output_merkle_tree_pubkeys);
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-        context,
+    let snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+        rpc,
         output_merkle_tree_accounts.as_slice(),
     )
     .await;
-    let input_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-        context,
+    let input_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+        rpc,
         input_merkle_tree_accounts.as_slice(),
     )
     .await;
-    let event: PublicTransactionEvent = create_and_send_transaction_with_event(
-        context,
-        &[instruction],
-        &payer.pubkey(),
-        &[payer, from],
-        transaction_params,
-        // Some(TransactionParams {
-        //     num_new_addresses: 0,
-        //     num_input_compressed_accounts: input_compressed_account_hashes.len() as u8,
-        //     num_output_compressed_accounts: output_compressed_accounts.len() as u8,
-        //     compress: 5000, // for second signer
-        //     fee_config: crate::FeeConfig::default(),
-        // }),
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let event = rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[instruction],
+            &payer.pubkey(),
+            &[payer, from],
+            transaction_params,
+            // Some(TransactionParams {
+            //     num_new_addresses: 0,
+            //     num_input_compressed_accounts: input_compressed_account_hashes.len() as u8,
+            //     num_output_compressed_accounts: output_compressed_accounts.len() as u8,
+            //     compress: 5000, // for second signer
+            //     fee_config: crate::FeeConfig::default(),
+            // }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
 
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
     assert_transfer(
-        context,
+        rpc,
         test_indexer,
         &output_compressed_accounts,
         created_output_accounts
@@ -395,10 +377,10 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
+pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     payer: &Keypair,
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     input_compressed_accounts: Vec<TokenDataWithContext>,
     amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
@@ -438,12 +420,12 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
             Some(&input_merkle_tree_pubkeys),
             None,
             None,
-            context,
+            rpc,
         )
         .await;
     let mint = input_compressed_accounts[0].token_data.mint;
     let instruction = create_transfer_instruction(
-        &context.payer.pubkey(),
+        &rpc.get_payer().pubkey(),
         &payer.pubkey(), // authority
         &input_compressed_accounts
             .iter()
@@ -470,42 +452,40 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
     let input_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&input_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-        context,
+    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+        rpc,
         output_merkle_tree_accounts.as_slice(),
     )
     .await;
-    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-        context,
+    let input_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+        rpc,
         input_merkle_tree_accounts.as_slice(),
     )
     .await;
     let recipient_token_account_data_pre = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(*recipient_token_account)
+        &rpc.get_account(*recipient_token_account)
             .await
             .unwrap()
             .unwrap()
             .data,
     )
     .unwrap();
-    let context_payer = context.payer.insecure_clone();
-    let event = create_and_send_transaction_with_event(
-        context,
-        &[instruction],
-        &payer.pubkey(),
-        &[&context_payer, payer],
-        transaction_params,
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let context_payer = rpc.get_payer().insecure_clone();
+    let event = rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[instruction],
+            &payer.pubkey(),
+            &[&context_payer, payer],
+            transaction_params,
+        )
+        .await
+        .unwrap()
+        .unwrap();
 
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
     println!("created_output_accounts: {:?}", created_output_accounts);
     assert_transfer(
-        context,
+        rpc,
         test_indexer,
         &[change_out_compressed_account],
         created_output_accounts
@@ -521,9 +501,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
     .await;
 
     let recipient_token_account_data = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(*recipient_token_account)
+        &rpc.get_account(*recipient_token_account)
             .await
             .unwrap()
             .unwrap()
@@ -537,10 +515,10 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
+pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     payer: &Keypair,
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     amount: u64,
     mint: &Pubkey,
     output_merkle_tree_pubkey: &Pubkey,
@@ -564,7 +542,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
     .unwrap();
 
     let instruction = create_transfer_instruction(
-        &context.payer.pubkey(),
+        &rpc.get_payer().pubkey(),
         &payer.pubkey(),              // authority
         &Vec::new(),                  // input_compressed_account_merkle_tree_pubkeys
         &[output_compressed_account], // output_compressed_accounts
@@ -582,38 +560,36 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
     let output_merkle_tree_accounts =
         test_indexer.get_state_merkle_tree_accounts(&output_merkle_tree_pubkeys);
-    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-        context,
+    let output_merkle_tree_test_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+        rpc,
         output_merkle_tree_accounts.as_slice(),
     )
     .await;
     let input_merkle_tree_test_snapshots = Vec::new();
     let recipient_token_account_data_pre = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(*sender_token_account)
+        &rpc.get_account(*sender_token_account)
             .await
             .unwrap()
             .unwrap()
             .data,
     )
     .unwrap();
-    let context_payer = context.payer.insecure_clone();
-    let event = create_and_send_transaction_with_event(
-        context,
-        &[approve_instruction, instruction],
-        &payer.pubkey(),
-        &[&context_payer, payer],
-        transaction_params,
-    )
-    .await
-    .unwrap()
-    .unwrap();
+    let context_payer = rpc.get_payer().insecure_clone();
+    let event = rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[approve_instruction, instruction],
+            &payer.pubkey(),
+            &[&context_payer, payer],
+            transaction_params,
+        )
+        .await
+        .unwrap()
+        .unwrap();
 
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
 
     assert_transfer(
-        context,
+        rpc,
         test_indexer,
         &[output_compressed_account],
         created_output_accounts
@@ -629,9 +605,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize>(
     .await;
 
     let recipient_token_account_data = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(*sender_token_account)
+        &rpc.get_account(*sender_token_account)
             .await
             .unwrap()
             .unwrap()

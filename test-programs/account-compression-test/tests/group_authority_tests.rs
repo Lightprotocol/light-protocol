@@ -4,7 +4,9 @@ use std::str::FromStr;
 
 use account_compression::{self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, ID};
 use anchor_lang::{system_program, InstructionData};
-use light_test_utils::{airdrop_lamports, get_account};
+use light_test_utils::airdrop_lamports;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -28,7 +30,8 @@ async fn test_create_and_update_group() {
     program_test.add_program("light_system_program", compressed_pda_id, None);
 
     program_test.set_compute_max_units(1_400_000u64);
-    let mut context = program_test.start_with_context().await;
+    let context = program_test.start_with_context().await;
+    let mut context = ProgramTestRpcConnection { context };
 
     let seed = [1u8; 32];
     let group_accounts =
@@ -36,33 +39,35 @@ async fn test_create_and_update_group() {
 
     let instruction_data = account_compression::instruction::InitializeGroupAuthority {
         _seed: seed,
-        authority: context.payer.pubkey(),
+        authority: context.get_payer().pubkey(),
     };
 
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
+            AccountMeta::new(context.get_payer().pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
         ],
         data: instruction_data.data(),
     };
 
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.payer.pubkey()),
-        &vec![&context.payer],
-        context.last_blockhash,
+        Some(&context.get_payer().pubkey()),
+        &vec![&context.get_payer()],
+        latest_blockhash,
     );
     context
-        .banks_client
-        .process_transaction(transaction)
+        .process_transaction_with_metadata(transaction)
         .await
         .unwrap();
 
-    let group_authority = get_account::<GroupAuthority>(&mut context, group_accounts.0).await;
-    assert_eq!(group_authority.authority, context.payer.pubkey());
+    let group_authority = context
+        .get_anchor_account::<GroupAuthority>(&group_accounts.0)
+        .await;
+    assert_eq!(group_authority.authority, context.get_payer().pubkey());
     assert_eq!(group_authority.seed, seed);
 
     let updated_keypair = Keypair::new();
@@ -74,51 +79,54 @@ async fn test_create_and_update_group() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
+            AccountMeta::new(context.get_payer().pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(updated_keypair.pubkey(), false),
         ],
         data: update_group_authority_ix.data(),
     };
 
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.payer.pubkey()),
-        &vec![&context.payer],
-        context.last_blockhash,
+        Some(&context.get_payer().pubkey()),
+        &vec![&context.get_payer()],
+        latest_blockhash,
     );
     context
-        .banks_client
-        .process_transaction(transaction)
+        .process_transaction_with_metadata(transaction)
         .await
         .unwrap();
 
-    let group_authority = get_account::<GroupAuthority>(&mut context, group_accounts.0).await;
+    let group_authority = context
+        .get_anchor_account::<GroupAuthority>(&group_accounts.0)
+        .await;
 
     assert_eq!(group_authority.authority, updated_keypair.pubkey());
     assert_eq!(group_authority.seed, seed);
 
     // update with old authority should fail
     let update_group_authority_ix = account_compression::instruction::UpdateGroupAuthority {
-        authority: context.payer.pubkey(),
+        authority: context.get_payer().pubkey(),
     };
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
+            AccountMeta::new(context.get_payer().pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(updated_keypair.pubkey(), false),
         ],
         data: update_group_authority_ix.data(),
     };
 
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.payer.pubkey()),
-        &vec![&context.payer],
-        context.last_blockhash,
+        Some(&context.get_payer().pubkey()),
+        &vec![&context.get_payer()],
+        latest_blockhash,
     );
-    let update_error = context.banks_client.process_transaction(transaction).await;
+    let update_error = context.process_transaction_with_metadata(transaction).await;
     assert!(update_error.is_err());
 
     airdrop_lamports(&mut context, &updated_keypair.pubkey(), 1_000_000_000)
@@ -146,11 +154,10 @@ async fn test_create_and_update_group() {
         &[instruction],
         Some(&updated_keypair.pubkey()),
         &vec![&updated_keypair],
-        context.last_blockhash,
+        context.get_latest_blockhash().await.unwrap(),
     );
     context
-        .banks_client
-        .process_transaction(transaction)
+        .process_transaction_with_metadata(transaction)
         .await
         .unwrap();
     // add new program to group with invalid authority
@@ -164,7 +171,7 @@ async fn test_create_and_update_group() {
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
+            AccountMeta::new(context.get_payer().pubkey(), true),
             AccountMeta::new(registered_program_pda, false),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
@@ -172,15 +179,15 @@ async fn test_create_and_update_group() {
         data: register_program_ix.data(),
     };
 
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
-        Some(&context.payer.pubkey()),
-        &vec![&context.payer],
-        context.last_blockhash,
+        Some(&context.get_payer().pubkey()),
+        &vec![&context.get_payer()],
+        latest_blockhash,
     );
     context
-        .banks_client
-        .process_transaction(transaction)
+        .process_transaction_with_metadata(transaction)
         .await
         .unwrap_err();
 }

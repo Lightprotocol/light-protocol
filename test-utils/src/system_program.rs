@@ -1,33 +1,33 @@
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::transaction_params::TransactionParams;
 use crate::{
     assert_compressed_tx::{
         assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
     },
-    create_and_send_transaction_with_event,
     test_indexer::TestIndexer,
-    TransactionParams,
 };
 use light_hasher::Poseidon;
+use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::{
     sdk::{
         address::derive_address,
         compressed_account::{
             CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext,
         },
-        event::PublicTransactionEvent,
         invoke::{create_invoke_instruction, get_compressed_sol_pda},
     },
     NewAddressParams,
 };
-use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     address_merkle_tree_pubkeys: &[Pubkey],
     address_merkle_tree_queue_pubkeys: &[Pubkey],
     mut output_merkle_tree_pubkeys: Vec<Pubkey>,
@@ -35,7 +35,7 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
     transaction_params: Option<TransactionParams>,
-) -> Result<(), BanksClientError> {
+) -> Result<(), RpcError> {
     if address_merkle_tree_pubkeys.len() != address_seeds.len() {
         panic!("address_merkle_tree_pubkeys and address_seeds length mismatch for create_addresses_test");
     }
@@ -62,7 +62,7 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
     for address in derived_addresses.iter() {
         output_compressed_accounts.push(CompressedAccount {
             lamports: 0,
-            owner: context.payer.pubkey(),
+            owner: rpc.get_payer().pubkey(),
             data: None,
             address: Some(*address),
         });
@@ -72,7 +72,7 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
         for compressed_account in input_compressed_accounts.iter() {
             output_compressed_accounts.push(CompressedAccount {
                 lamports: 0,
-                owner: context.payer.pubkey(),
+                owner: rpc.get_payer().pubkey(),
                 data: None,
                 address: compressed_account.compressed_account.address,
             });
@@ -80,10 +80,10 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
         }
     }
 
-    let payer = context.payer.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
 
     let inputs = CompressedTransactionTestInputs {
-        context,
+        rpc,
         test_indexer,
         fee_payer: &payer,
         authority: &payer,
@@ -104,16 +104,16 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     create_out_compressed_accounts_for_input_compressed_accounts: bool,
     compress_amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
     transaction_params: Option<TransactionParams>,
-) -> Result<(), BanksClientError> {
+) -> Result<(), RpcError> {
     let input_lamports = if input_compressed_accounts.is_empty() {
         0
     } else {
@@ -142,7 +142,7 @@ pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize>(
         }
     }
     let inputs = CompressedTransactionTestInputs {
-        context,
+        rpc,
         test_indexer,
         fee_payer: authority,
         authority,
@@ -163,16 +163,16 @@ pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipient: &Pubkey,
     decompress_amount: u64,
     output_merkle_tree_pubkey: &Pubkey,
     transaction_params: Option<TransactionParams>,
-) -> Result<(), BanksClientError> {
+) -> Result<(), RpcError> {
     let input_lamports = input_compressed_accounts
         .iter()
         .map(|x| x.compressed_account.lamports)
@@ -180,13 +180,13 @@ pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize>(
 
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: input_lamports - decompress_amount,
-        owner: context.payer.pubkey(),
+        owner: rpc.get_payer().pubkey(),
         data: None,
         address: None,
     }];
-    let payer = context.payer.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
     let inputs = CompressedTransactionTestInputs {
-        context,
+        rpc,
         test_indexer,
         fee_payer: &payer,
         authority,
@@ -207,15 +207,15 @@ pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     authority: &Keypair,
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     recipients: &[Pubkey],
     output_merkle_tree_pubkeys: &[Pubkey],
     transaction_params: Option<TransactionParams>,
-) -> Result<(), BanksClientError> {
+) -> Result<(), RpcError> {
     if recipients.len() != output_merkle_tree_pubkeys.len() {
         panic!("recipients and output_merkle_tree_pubkeys length mismatch for transfer_compressed_sol_test");
     }
@@ -252,10 +252,10 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize>(
             address,
         });
     }
-    let payer = context.payer.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
 
     let inputs = CompressedTransactionTestInputs {
-        context,
+        rpc,
         test_indexer,
         fee_payer: &payer,
         authority,
@@ -275,9 +275,9 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize>(
     Ok(())
 }
 
-pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize> {
-    context: &'a mut ProgramTestContext,
-    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
+    rpc: &'a mut R,
+    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     fee_payer: &'a Keypair,
     authority: &'a Keypair,
     input_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
@@ -294,9 +294,9 @@ pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize> 
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
-    inputs: CompressedTransactionTestInputs<'_, INDEXED_ARRAY_SIZE>,
-) -> Result<(), BanksClientError> {
+pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    inputs: CompressedTransactionTestInputs<'_, INDEXED_ARRAY_SIZE, R>,
+) -> Result<(), RpcError> {
     let mut compressed_account_hashes = Vec::new();
 
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
@@ -348,7 +348,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
                 state_input_merkle_trees,
                 inputs.created_addresses,
                 address_merkle_tree_pubkeys,
-                inputs.context,
+                inputs.rpc,
             )
             .await;
         root_indices = proof_rpc_res.root_indices;
@@ -356,8 +356,8 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
         let input_merkle_tree_accounts = inputs
             .test_indexer
             .get_state_merkle_tree_accounts(state_input_merkle_trees.unwrap_or(&[]));
-        input_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-            inputs.context,
+        input_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+            inputs.rpc,
             input_merkle_tree_accounts.as_slice(),
         )
         .await;
@@ -374,8 +374,8 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
     let output_merkle_tree_accounts = inputs
         .test_indexer
         .get_state_merkle_tree_accounts(inputs.output_merkle_tree_pubkeys);
-    let output_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE>(
-        inputs.context,
+    let output_merkle_tree_snapshots = get_merkle_tree_snapshots::<INDEXED_ARRAY_SIZE, R>(
+        inputs.rpc,
         output_merkle_tree_accounts.as_slice(),
     )
     .await;
@@ -407,8 +407,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
     let mut compressed_sol_pda_balance_pre = 0;
     if inputs.compression_lamports.is_some() {
         compressed_sol_pda_balance_pre = match inputs
-            .context
-            .banks_client
+            .rpc
             .get_account(get_compressed_sol_pda())
             .await
             .unwrap()
@@ -420,8 +419,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
     if inputs.recipient.is_some() {
         // TODO: assert sender balance after fee refactor
         recipient_balance_pre = match inputs
-            .context
-            .banks_client
+            .rpc
             .get_account(inputs.recipient.unwrap())
             .await
             .unwrap()
@@ -430,21 +428,22 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize>(
             None => 0,
         };
     }
-    let event = create_and_send_transaction_with_event::<PublicTransactionEvent>(
-        inputs.context,
-        &[instruction],
-        &inputs.fee_payer.pubkey(),
-        &[inputs.fee_payer, inputs.authority],
-        inputs.transaction_params,
-    )
-    .await?
-    .unwrap();
+    let event = inputs
+        .rpc
+        .create_and_send_transaction_with_event::<PublicTransactionEvent>(
+            &[instruction],
+            &inputs.fee_payer.pubkey(),
+            &[inputs.fee_payer, inputs.authority],
+            inputs.transaction_params,
+        )
+        .await?
+        .unwrap();
 
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
         .add_event_and_compressed_accounts(&event);
     let input = AssertCompressedTransactionInputs {
-        context: inputs.context,
+        rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
         output_compressed_accounts: inputs.output_compressed_accounts,
         created_output_compressed_accounts: created_output_compressed_accounts.as_slice(),
