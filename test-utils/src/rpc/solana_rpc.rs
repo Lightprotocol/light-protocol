@@ -29,36 +29,11 @@ pub struct SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    pub async fn request_airdrop(payer_pubkey: &Pubkey, lamports: u64) -> Result<(), RpcError> {
-        let client = RpcClient::new(SERVER_URL);
-        let commitment_config = CommitmentConfig::finalized();
-        let balance = client
-            .get_balance_with_commitment(payer_pubkey, commitment_config)
-            .map_err(RpcError::from)?
-            .value;
-        println!("Old balance: {}", balance);
-        if balance < lamports {
-            let latest_blockhash = client.get_latest_blockhash().unwrap();
-            client
-                .request_airdrop_with_blockhash(payer_pubkey, lamports, &latest_blockhash)
-                .map_err(RpcError::from)?;
-            let mut new_balance = balance;
-            while new_balance < lamports {
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-                new_balance = client
-                    .get_balance_with_commitment(payer_pubkey, commitment_config)
-                    .map_err(RpcError::from)?
-                    .value;
-            }
-            println!("New balance: {}", balance);
-        }
-        Ok(())
-    }
-
-    pub async fn new(client: RpcClient) -> Self {
+    pub async fn new() -> Self {
         let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
-        Self::request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
-            .await
+        let client = RpcClient::new_with_commitment(SERVER_URL, CommitmentConfig::confirmed());
+        client
+            .request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
             .unwrap();
         Self { client, payer }
     }
@@ -69,6 +44,7 @@ impl SolanaRpcConnection {
     ) -> Result<T, RpcError> {
         let rpc_transaction_config = RpcTransactionConfig {
             encoding: Some(UiTransactionEncoding::Base64),
+            commitment: Some(CommitmentConfig::confirmed()),
             ..Default::default()
         };
         let transaction = self
@@ -234,7 +210,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        let commitment_config = CommitmentConfig::finalized();
+        let commitment_config = CommitmentConfig::confirmed();
         let result = self
             .client
             .get_account_with_commitment(&address, commitment_config);
@@ -273,10 +249,12 @@ impl RpcConnection for SolanaRpcConnection {
 
     async fn airdrop_lamports(
         &mut self,
-        _destination_pubkey: &Pubkey,
-        _lamports: u64,
-    ) -> Result<(), RpcError> {
-        todo!()
+        to: &Pubkey,
+        lamports: u64,
+    ) -> Result<Signature, RpcError> {
+        self.client
+            .request_airdrop(to, lamports)
+            .map_err(RpcError::from)
     }
 
     async fn get_anchor_account<T: AnchorDeserialize>(&mut self, _pubkey: &Pubkey) -> T {

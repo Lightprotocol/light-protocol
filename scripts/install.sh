@@ -118,6 +118,7 @@ CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
 LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
 PHOTON_VERSION="0.18.0"
+PHOTON_BRANCH="nullify"
 
 case "${OS}" in
     "Darwin")
@@ -206,7 +207,14 @@ rustup component add clippy
 rustup component add rustfmt
 
 cargo install cargo-expand wasm-pack
-cargo install photon-indexer --version ${PHOTON_VERSION}
+
+# check if variable PHOTON_BRANCH is not empty, then install photon-indexer from the branch, otherwise install the version
+if [ -n "$PHOTON_BRANCH" ]; then
+    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH
+else
+  cargo install photon-indexer --version ${PHOTON_VERSION}
+fi
+
 echo "📥 Downloading Node.js"
 download_and_extract \
     "node-v${NODE_VERSION}-${ARCH_SUFFIX_NODE}.tar.gz" \

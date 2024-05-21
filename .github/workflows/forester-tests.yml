@@ -1,0 +1,50 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "forester/**"
+      - "photon-api/**"
+      - ".github/workflows/forester-tests.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "forester/**"
+      - "photon-api/**"
+      - ".github/workflows/forester-tests.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: forester-tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  forester-tests:
+    name: forester-tests
+    if: github.event.pull_request.draft == false
+    runs-on: buildjet-2vcpu-ubuntu-2204
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Run forester tests
+        run: |
+          source ./scripts/devenv.sh
+          mkdir -p ./target/deploy
+          cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --package forester
+          

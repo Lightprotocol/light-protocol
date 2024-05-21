@@ -3,7 +3,7 @@ use crate::{
         assert_merkle_tree_after_tx, assert_nullifiers_exist_in_hash_sets,
         assert_public_transaction_event, MerkleTreeTestSnapShot,
     },
-    test_indexer::{TestIndexer, TokenDataWithContext},
+    indexer::{TestIndexer, TokenDataWithContext},
 };
 use light_compressed_token::{get_cpi_authority_pda, get_token_pool_pda, TokenTransferOutputData};
 use light_system_program::sdk::{

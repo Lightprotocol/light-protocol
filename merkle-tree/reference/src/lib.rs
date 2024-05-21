@@ -16,7 +16,7 @@ pub enum ReferenceMerkleTreeError {
     InvalidProofLength(usize, usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MerkleTree<H>
 where
     H: Hasher,

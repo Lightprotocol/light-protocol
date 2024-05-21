@@ -42,12 +42,8 @@ jobs:
         shell: bash
         run: ./scripts/install.sh
 
-      - name: Build workspace
-        run: |
-          source ./scripts/devenv.sh
-          echo "Rust version: $(rustc --version)"
-
       - name: Test workspace
         run:  |
           source ./scripts/devenv.sh
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --workspace --all-targets
+          echo "Rust version: $(rustc --version)"
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --workspace --all-targets  --exclude photon-api --exclude forester

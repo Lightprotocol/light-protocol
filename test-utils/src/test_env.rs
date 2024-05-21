@@ -434,8 +434,10 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         tree_config.clone(),
         queue_config.clone(),
     );
+    let c_ix =
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(10_000_000);
     let transaction = Transaction::new_signed_with_payer(
-        &[account_create_ix, mt_account_create_ix, instruction],
+        &[c_ix, account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),
         &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
         context.get_latest_blockhash().await.unwrap(),

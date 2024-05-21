@@ -9,3 +9,4 @@ packages:
   - "js/stateless.js/**"
   - "js/compressed-token/**"
   - "examples/**"
+  - "forester/**"
