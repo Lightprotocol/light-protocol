@@ -1,8 +1,42 @@
 #![cfg(feature = "test-sbf")]
 
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
-use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
-use light_test_utils::test_env::setup_test_programs_with_accounts;
+use light_test_utils::rpc::solana_rpc::SERVER_URL;
+use light_test_utils::rpc::{ProgramTestRpcConnection, SolanaRpcConnection};
+use light_test_utils::test_env::{init_env_accounts, setup_test_programs_with_accounts};
+use solana_client::rpc_client::RpcClient;
+use std::process::Command;
+
+async fn spawn_test_validator() {
+    println!("Starting validator...");
+    let path = "../../cli/test_bin/run test-validator --skip-indexer --skip-prover";
+    Command::new("sh")
+        .arg("-c")
+        .arg(path)
+        .spawn()
+        .expect("Failed to start server process");
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+    println!("Validator started successfully");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_50_validator_all() {
+    spawn_test_validator().await;
+    let env_accounts = init_env_accounts();
+    let client = RpcClient::new(SERVER_URL);
+    let rpc = SolanaRpcConnection::new(client).await;
+    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+        rpc,
+        env_accounts,
+        KeypairActionConfig::all_default(),
+        GeneralActionConfig::default(),
+        10,
+        None,
+        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+    )
+    .await;
+    env.execute_rounds().await;
+}
 
 #[tokio::test]
 async fn test_50_all() {

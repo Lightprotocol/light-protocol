@@ -349,7 +349,7 @@ async fn test_insert_invalid_low_element() {
     )
     .await
     .unwrap_err(), RpcError::TransactionError(TransactionError::InstructionError(
-            0,
+                0,
             InstructionError::Custom(error_code)),
         ) if error_code == expected_error));
 }

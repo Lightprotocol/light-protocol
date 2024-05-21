@@ -48,17 +48,20 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     let create_nullifier_queue_instruction = create_account_instruction(
         &payer_pubkey,
         size,
-        rpc.get_rent().await.unwrap().minimum_balance(size),
+        rpc.get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
         &ID,
         Some(new_nullifier_queue_keypair),
     );
     let create_state_merkle_tree_instruction = create_account_instruction(
         &payer_pubkey,
         account_compression::StateMerkleTreeAccount::LEN,
-        rpc.get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
+        rpc.get_minimum_balance_for_rent_exemption(
+            account_compression::StateMerkleTreeAccount::LEN,
+        )
+        .await
+        .unwrap(),
         &ID,
         Some(new_state_merkle_tree_keypair),
     );
@@ -155,7 +158,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         false,
         &mut new_mt_lamports,
         &mut new_mt_account.data,
-        &account_compression::ID,
+        &ID,
         false,
         0u64,
     );

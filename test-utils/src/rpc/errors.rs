@@ -21,6 +21,9 @@ pub enum RpcError {
 
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
+
+    #[error("Error: `{0}`")]
+    CustomError(String),
 }
 
 pub fn assert_rpc_error(result: Result<(), RpcError>, i: u8, expected_error_code: u32) {

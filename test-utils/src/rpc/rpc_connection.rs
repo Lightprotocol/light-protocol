@@ -1,12 +1,13 @@
 use crate::rpc::errors::RpcError;
 use crate::transaction_params::TransactionParams;
-use account_compression::initialize_address_merkle_tree::{AnchorDeserialize, Pubkey, Rent};
+use account_compression::initialize_address_merkle_tree::{AnchorDeserialize, Pubkey};
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::instruction::Instruction;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::hash::Hash;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::Transaction;
+use std::fmt::Debug;
 
 pub trait RpcConnection {
     fn create_and_send_transaction_with_event<T>(
@@ -17,7 +18,7 @@ pub trait RpcConnection {
         transaction_params: Option<TransactionParams>,
     ) -> impl std::future::Future<Output = Result<Option<T>, RpcError>> + Send
     where
-        T: AnchorDeserialize + Send;
+        T: AnchorDeserialize + Send + Debug;
 
     fn create_and_send_transaction(
         &mut self,
@@ -32,7 +33,12 @@ pub trait RpcConnection {
         address: Pubkey,
     ) -> impl std::future::Future<Output = Result<Option<Account>, RpcError>> + Send;
     fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData);
-    fn get_rent(&mut self) -> impl std::future::Future<Output = Result<Rent, RpcError>> + Send;
+
+    fn get_minimum_balance_for_rent_exemption(
+        &mut self,
+        data_len: usize,
+    ) -> impl std::future::Future<Output = Result<u64, RpcError>> + Send;
+
     fn get_latest_blockhash(
         &mut self,
     ) -> impl std::future::Future<Output = Result<Hash, RpcError>> + Send;

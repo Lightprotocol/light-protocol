@@ -1,5 +1,5 @@
-use crate::rpc::rpc_connection::RpcConnection;
 use std::marker::PhantomData;
+
 use {
     crate::{
         create_account_instruction,
@@ -50,6 +50,8 @@ use {
     spl_token::instruction::initialize_mint,
     std::{thread, time::Duration},
 };
+
+use crate::rpc::rpc_connection::RpcConnection;
 
 #[derive(Debug)]
 pub struct ProofRpcResult {
@@ -765,10 +767,9 @@ pub fn create_initialize_mint_instructions(
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
-        .get_rent()
+        .get_minimum_balance_for_rent_exemption(anchor_spl::token::Mint::LEN)
         .await
-        .unwrap()
-        .minimum_balance(anchor_spl::token::Mint::LEN);
+        .unwrap();
     let mint = Keypair::new();
 
     let (instructions, _): ([Instruction; 4], Pubkey) =

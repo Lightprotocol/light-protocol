@@ -17,11 +17,11 @@ use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{setup_test_programs_with_accounts, EnvAccounts};
 use light_test_utils::test_indexer::{create_mint_helper, TestIndexer};
 
-use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_verifier::VerifierError;
-use solana_sdk::instruction::{Instruction, InstructionError};
+use solana_sdk::instruction::Instruction;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 use token_escrow::escrow_with_compressed_pda::sdk::get_token_owner_pda;
@@ -157,7 +157,7 @@ async fn test_escrow_pda() {
 
     // try withdrawal before lockup time
     let withdrawal_amount = 50u64;
-    let res = perform_withdrawal_failing(
+    let result = perform_withdrawal_failing(
         &mut rpc,
         &mut test_indexer,
         &env,
@@ -167,15 +167,11 @@ async fn test_escrow_pda() {
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(EscrowError::EscrowLocked.into());
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(0, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(res, Err(error) if error.to_string() == rpc_error.to_string()));
+    assert_rpc_error(result, 0, EscrowError::EscrowLocked.into());
 
     rpc.warp_to_slot(1000).unwrap();
     // try withdrawal with invalid signer
-    let res = perform_withdrawal_failing(
+    let result = perform_withdrawal_failing(
         &mut rpc,
         &mut test_indexer,
         &env,
@@ -185,11 +181,7 @@ async fn test_escrow_pda() {
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(VerifierError::ProofVerificationFailed.into());
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(0, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(res, Err(error) if error.to_string() == rpc_error.to_string()));
+    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into());
 
     perform_withdrawal_with_event(
         &mut rpc,
@@ -287,8 +279,10 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let instruction =
         perform_escrow(rpc, test_indexer, env, payer, escrow_amount, lock_up_time).await;
-    let rent = rpc.get_rent().await.unwrap();
-    let rent = rent.minimum_balance(16);
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(16)
+        .await
+        .unwrap();
     let event = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],

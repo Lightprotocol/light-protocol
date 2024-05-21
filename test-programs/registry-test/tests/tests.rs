@@ -59,10 +59,9 @@ pub async fn setup_test_programs_with_accounts() -> ProgramTestRpcConnection {
         &payer.pubkey(),
         &cpi_authority_pda.0,
         context
-            .get_rent()
+            .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
             .await
-            .unwrap()
-            .minimum_balance(RegisteredProgram::LEN),
+            .unwrap(),
     );
 
     context
@@ -99,10 +98,9 @@ async fn test_e2e() {
         &payer.pubkey(),
         &cpi_authority_pda.0,
         context
-            .get_rent()
+            .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
             .await
-            .unwrap()
-            .minimum_balance(RegisteredProgram::LEN),
+            .unwrap(),
     );
 
     context
