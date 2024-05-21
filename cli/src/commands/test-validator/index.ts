@@ -31,7 +31,7 @@ class SetupCommand extends Command {
     }),
     "prove-new-addresses": Flags.boolean({
       description: "Enable proving of new addresses.",
-      default: false,
+      default: true,
       exclusive: ["skip-prover"],
     }),
     "relax-indexer-version-constraint": Flags.boolean({

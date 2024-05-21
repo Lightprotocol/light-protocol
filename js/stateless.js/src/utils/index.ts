@@ -1,3 +1,4 @@
+export * from './address';
 export * from './airdrop';
 export * from './conversion';
 export * from './parse-validity-proof';

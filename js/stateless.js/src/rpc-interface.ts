@@ -110,6 +110,13 @@ const PublicKeyFromString = coerce(
 /**
  * @internal
  */
+const ArrayFromString = coerce(instance(Array<number>), string(), value =>
+    Array.from(new PublicKey(value).toBytes()),
+);
+
+/**
+ * @internal
+ */
 const BN254FromString = coerce(instance(BN), string(), value => {
     return createBN254(value, 'base58');
 });
@@ -186,7 +193,7 @@ export function jsonRpcResultAndContext<T, U>(value: Struct<T, U>) {
  * @internal
  */
 export const CompressedAccountResult = pick({
-    address: nullable(PublicKeyFromString),
+    address: nullable(ArrayFromString),
     hash: BN254FromString,
     data: nullable(
         pick({

@@ -35,6 +35,7 @@ import {
     bn,
 } from '../../state';
 import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
+import { IndexedArray } from '../merkle-tree';
 
 export interface TestRpcConfig {
     /** Address of the state tree to index. Default: public default test state
@@ -424,6 +425,143 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return 1;
     }
 
+    async getNewAddressValidityProof(address: PublicKey) {
+        const treePublicKey = defaultTestStateTreeAccounts().addressTree;
+        const queuePublicKey = defaultTestStateTreeAccounts().addressQueue;
+
+        // TODO: The Merkle tree root doesnt actually advance at all unless we
+        // start emptying the address queue.
+        const allAddresses: number[][] = [];
+        // indexedArray const events: PublicTransactionEvent[] = await
+        // getParsedEvents( this, ).then(events => events.reverse());
+        // for (const event of events) {
+        //     for (
+        //         let index = 0;
+        //         index < event.outputCompressedAccounts.length;
+        //         index++
+        //     ) {
+        //         const address =
+        //             event.outputCompressedAccounts[index].compressedAccount
+        //                 .address;
+        //         if (address) {
+        //             allAddresses.push(address);
+        //         }
+        //     }
+        // }
+
+        const indexedArray = IndexedArray.default();
+        indexedArray.init();
+        const hashes: BN[] = [];
+
+        for (let i = 0; i < allAddresses.length; i++) {
+            indexedArray.append(bn(allAddresses[i]));
+        }
+        for (let i = 0; i < indexedArray.elements.length; i++) {
+            const hash = indexedArray.hashElement(this.lightWasm, i);
+            hashes.push(bn(hash!));
+        }
+        const tree = new MerkleTree(
+            this.depth,
+            this.lightWasm,
+            hashes.map(hash => bn(hash).toString()),
+        );
+
+        /// Creates merkle proof
+        const [lowElement] = indexedArray.findLowElement(bn(address.toBytes()));
+        if (!lowElement) {
+            throw new Error('Address not found');
+        }
+        const leafIndex = lowElement.index;
+
+        const bnPathElementsAll = [leafIndex].map(leafIndex => {
+            const pathElements: string[] = tree.path(leafIndex).pathElements;
+
+            const bnPathElements = pathElements.map(value => bn(value));
+
+            return bnPathElements;
+        });
+
+        const higherRangeValue = indexedArray.get(lowElement.nextIndex)!.value;
+
+        const nonInclusionMerkleProofInputs: NonInclusionMerkleProofInputs = {
+            root: bn(tree.root()),
+            value: bn(bn(address.toBytes()).toArray('be', 32)),
+            leaf_lower_range_value: lowElement.value,
+            leaf_higher_range_value: higherRangeValue,
+            leaf_index: bn(lowElement.nextIndex),
+            merkle_proof_hashed_indexed_element_leaf: bnPathElementsAll[0],
+            index_hashed_indexed_element_leaf: bn(lowElement.index), // ??
+        };
+
+        /// from_non_inclusion_proof_inputs
+        const nonInclusionJsonStruct: NonInclusionJsonStruct = {
+            root: toHex(nonInclusionMerkleProofInputs.root),
+            value: toHex(nonInclusionMerkleProofInputs.value),
+            pathIndex:
+                nonInclusionMerkleProofInputs.index_hashed_indexed_element_leaf.toNumber(),
+            pathElements:
+                nonInclusionMerkleProofInputs.merkle_proof_hashed_indexed_element_leaf.map(
+                    hex => toHex(hex),
+                ),
+            leafIndex: nonInclusionMerkleProofInputs.leaf_index.toNumber(),
+            leafLowerRangeValue: toHex(
+                nonInclusionMerkleProofInputs.leaf_lower_range_value,
+            ),
+            leafHigherRangeValue: toHex(
+                nonInclusionMerkleProofInputs.leaf_higher_range_value,
+            ),
+        };
+        const batch = {
+            'new-addresses': [nonInclusionJsonStruct],
+        };
+
+        /// The starting root is 3. New addresses arent directly inserted into
+        /// the address tree, so unless the address queue gets emptied, the root
+        /// will always be 3.
+        /// TODO: make dynamic to account for forester.
+        const addressRootIndices = [3];
+
+        // req
+        const inputsData = JSON.stringify(batch);
+
+        let logMsg: string = '';
+        if (this.log) {
+            logMsg = `Proof generation for depth:${this.depth} n:${hashes.length}`;
+            console.time(logMsg);
+        }
+
+        const PROOF_URL = `${this.proverEndpoint}/prove`;
+        const response = await fetch(PROOF_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: inputsData,
+        });
+        if (!response.ok) {
+            throw new Error(`Error fetching proof: ${response.statusText}`);
+        }
+
+        // TOOD: add type coercion
+        const data: any = await response.json();
+        const parsed = proofFromJsonStruct(data);
+        const compressedProof = negateAndCompressProof(parsed);
+
+        if (this.log) console.timeEnd(logMsg);
+
+        const value: CompressedProofWithContext = {
+            compressedProof,
+            roots: [bn(tree.root())],
+            rootIndices: addressRootIndices,
+            leafIndices: [leafIndex],
+            leaves: [bn(address.toBytes())],
+            merkleTrees: [treePublicKey],
+            nullifierQueues: [queuePublicKey],
+        };
+
+        return value;
+    }
+
     /**
      * Fetch the latest validity proof for compressed accounts specified by an
      * array of account hashes.
@@ -500,3 +638,33 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return value;
     }
 }
+
+// type NonInclusionProof = {
+//      root: string,
+//      value: string,
+//      leaf_lower_range_value: string,
+//      leaf_higher_range_value: string,
+//      leaf_index: usize,
+//      next_index: usize,
+//      merkle_proof: BoundedVec<'a, [u8; 32]>,
+// }
+
+export type NonInclusionMerkleProofInputs = {
+    root: BN;
+    value: BN;
+    leaf_lower_range_value: BN;
+    leaf_higher_range_value: BN;
+    leaf_index: BN;
+    merkle_proof_hashed_indexed_element_leaf: BN[];
+    index_hashed_indexed_element_leaf: BN;
+};
+
+export type NonInclusionJsonStruct = {
+    root: string;
+    value: string;
+    pathIndex: number;
+    pathElements: string[];
+    leafLowerRangeValue: string;
+    leafHigherRangeValue: string;
+    leafIndex: number;
+};
