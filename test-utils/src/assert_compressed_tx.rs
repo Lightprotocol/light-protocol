@@ -1,3 +1,4 @@
+use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
     get_hash_set,
     test_indexer::{StateMerkleTreeAccounts, TestIndexer},
@@ -13,13 +14,13 @@ use light_system_program::sdk::{
 };
 use num_bigint::BigUint;
 use num_traits::FromBytes;
-use solana_program_test::ProgramTestContext;
 use solana_sdk::account::ReadableAccount;
 use solana_sdk::pubkey::Pubkey;
 
-pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize> {
-    pub context: &'a mut ProgramTestContext,
-    pub test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>
+{
+    pub rpc: &'a mut R,
+    pub test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     pub output_compressed_accounts: &'a [CompressedAccount],
     pub created_output_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub input_compressed_account_hashes: &'a [[u8; 32]],
@@ -45,8 +46,8 @@ pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize
 /// 5. Merkle tree was updated correctly
 /// 6. TODO: Fees have been paid (after fee refactor)
 /// 7. Check compression amount was transferred
-pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize>(
-    input: AssertCompressedTransactionInputs<'_, INDEXED_ARRAY_SIZE>,
+pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    input: AssertCompressedTransactionInputs<'_, INDEXED_ARRAY_SIZE, R>,
 ) {
     // CHECK 1
     assert_created_compressed_accounts(
@@ -62,7 +63,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize>(
     );
     // CHECK 2
     assert_nullifiers_exist_in_hash_sets(
-        input.context,
+        input.rpc,
         input.input_merkle_tree_snapshots,
         input.input_compressed_account_hashes,
     )
@@ -70,7 +71,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize>(
 
     // CHECK 3
     assert_addresses_exist_in_hash_sets(
-        input.context,
+        input.rpc,
         input.address_queue_pubkeys,
         input.created_addresses,
     )
@@ -97,7 +98,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize>(
     );
     // CHECK 5
     assert_merkle_tree_after_tx(
-        input.context,
+        input.rpc,
         input.output_merkle_tree_snapshots,
         input.test_indexer,
     )
@@ -106,7 +107,7 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize>(
     // CHECK 7
     if let Some(compression_lamports) = input.compression_lamports {
         assert_compression(
-            input.context,
+            input.rpc,
             compression_lamports,
             input.compressed_sol_pda_balance_pre,
             input.recipient_balance_pre,
@@ -117,15 +118,15 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize>(
     }
 }
 
-pub async fn assert_nullifiers_exist_in_hash_sets(
-    context: &mut ProgramTestContext,
+pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
+    rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     input_compressed_account_hashes: &[[u8; 32]],
 ) {
     for (i, hash) in input_compressed_account_hashes.iter().enumerate() {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, NullifierQueueAccount>(
-                context,
+            get_hash_set::<u16, NullifierQueueAccount, R>(
+                rpc,
                 snapshots[i].accounts.nullifier_queue,
             )
             .await
@@ -136,14 +137,14 @@ pub async fn assert_nullifiers_exist_in_hash_sets(
     }
 }
 
-pub async fn assert_addresses_exist_in_hash_sets(
-    context: &mut ProgramTestContext,
+pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
+    rpc: &mut R,
     address_queue_pubkeys: &[Pubkey],
     created_addresses: &[[u8; 32]],
 ) {
     for (address, pubkey) in created_addresses.iter().zip(address_queue_pubkeys) {
         let address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount>(context, *pubkey).await };
+            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, *pubkey).await };
         assert!(address_queue
             .contains(&BigUint::from_be_bytes(address), None)
             .unwrap());
@@ -259,17 +260,17 @@ pub struct MerkleTreeTestSnapShot {
 /// Asserts:
 /// 1. The root has been updated
 /// 2. The next index has been updated
-pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
+pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
 ) {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
     deduped_snapshots.dedup();
     for (i, snapshot) in deduped_snapshots.iter().enumerate() {
         let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, snapshot.accounts.merkle_tree)
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, snapshot.accounts.merkle_tree)
                 .await;
         let merkle_tree = merkle_tree_account
             .deserialized()
@@ -326,21 +327,19 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize>(
 /// 2. next_index
 /// 3. num_added_accounts // so that we can assert the expected next index after tx
 /// 4. lamports of all bundle accounts
-pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
+pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
     accounts: &[StateMerkleTreeAccounts],
 ) -> Vec<MerkleTreeTestSnapShot> {
     let mut snapshots = Vec::new();
     for account_bundle in accounts.iter() {
         let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(context, account_bundle.merkle_tree)
-                .await;
+            AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, account_bundle.merkle_tree).await;
         let merkle_tree = merkle_tree_account
             .deserialized()
             .copy_merkle_tree()
             .unwrap();
-        let queue_account_lamports = match context
-            .banks_client
+        let queue_account_lamports = match rpc
             .get_account(account_bundle.nullifier_queue)
             .await
             .unwrap()
@@ -348,15 +347,11 @@ pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize>(
             Some(x) => x.lamports,
             None => 0,
         };
-        let cpi_context_account_lamports = match context
-            .banks_client
-            .get_account(account_bundle.cpi_context)
-            .await
-            .unwrap()
-        {
-            Some(x) => x.lamports,
-            None => 0,
-        };
+        let cpi_context_account_lamports =
+            match rpc.get_account(account_bundle.cpi_context).await.unwrap() {
+                Some(x) => x.lamports,
+                None => 0,
+            };
         snapshots.push(MerkleTreeTestSnapShot {
             accounts: *account_bundle,
             root: merkle_tree.root(),
@@ -373,8 +368,8 @@ pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize>(
     snapshots
 }
 
-pub async fn assert_compression(
-    context: &mut ProgramTestContext,
+pub async fn assert_compression<R: RpcConnection>(
+    context: &mut R,
     compress_amount: u64,
     compressed_sol_pda_balance_pre: u64,
     recipient_balance_pre: u64,
@@ -383,7 +378,6 @@ pub async fn assert_compression(
 ) {
     if is_compress {
         let compressed_sol_pda_balance = context
-            .banks_client
             .get_account(get_compressed_sol_pda())
             .await
             .unwrap()
@@ -396,15 +390,11 @@ pub async fn assert_compression(
             "assert_compression: balance of compressed sol pda insufficient, compress sol failed"
         );
     } else {
-        let compressed_sol_pda_balance = match context
-            .banks_client
-            .get_account(get_compressed_sol_pda())
-            .await
-            .unwrap()
-        {
-            Some(account) => account.lamports,
-            None => 0,
-        };
+        let compressed_sol_pda_balance =
+            match context.get_account(get_compressed_sol_pda()).await.unwrap() {
+                Some(account) => account.lamports,
+                None => 0,
+            };
 
         assert_eq!(
             compressed_sol_pda_balance,
@@ -413,7 +403,6 @@ pub async fn assert_compression(
         );
 
         let recipient_balance = context
-            .banks_client
             .get_account(*recipient)
             .await
             .unwrap()

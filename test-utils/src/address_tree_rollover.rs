@@ -1,5 +1,7 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
     get_hash_set,
     rollover::{
@@ -15,9 +17,6 @@ use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
 use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
 use memoffset::offset_of;
-use solana_program_test::{
-    BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
-};
 use solana_sdk::{
     account::{AccountSharedData, WritableAccount},
     account_info::AccountInfo,
@@ -28,8 +27,8 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-pub async fn set_address_merkle_tree_next_index(
-    context: &mut ProgramTestContext,
+pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
+    rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,
     lamports: u64,
@@ -40,22 +39,12 @@ pub async fn set_address_merkle_tree_next_index(
         + offset_of!(AddressMerkleTreeAccount, merkle_tree_struct)
         + offset_of!(ConcurrentMerkleTree26<Poseidon>, next_index); // 6 * 8 + 8 + 4 * 32 + 8 * 8;
     let offset_end = offset_start + 8;
-    let mut merkle_tree = context
-        .banks_client
-        .get_account(*merkle_tree_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
+    let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     merkle_tree.data[offset_start..offset_end].copy_from_slice(&next_index.to_le_bytes());
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
-    context.set_account(merkle_tree_pubkey, &account_share_data);
-    let merkle_tree = context
-        .banks_client
-        .get_account(*merkle_tree_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
+    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    let merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let data_in_offset = u64::from_le_bytes(
         merkle_tree.data[offset_start..offset_end]
             .try_into()
@@ -64,15 +53,15 @@ pub async fn set_address_merkle_tree_next_index(
     assert_eq!(data_in_offset, next_index);
 }
 
-pub async fn perform_address_merkle_tree_roll_over(
-    context: &mut ProgramTestContext,
+pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
+    context: &mut R,
     new_queue_keypair: &Keypair,
     new_address_merkle_tree_keypair: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
-) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
-    let payer = context.payer.insecure_clone();
-    let size = account_compression::AddressQueueAccount::size(
+) -> Result<(), RpcError> {
+    let payer = context.get_payer().insecure_clone();
+    let size = AddressQueueAccount::size(
         account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
         account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
     )
@@ -80,12 +69,7 @@ pub async fn perform_address_merkle_tree_roll_over(
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
-        context
-            .banks_client
-            .get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(size),
+        context.get_rent().await.unwrap().minimum_balance(size),
         &account_compression::ID,
         Some(new_queue_keypair),
     );
@@ -94,7 +78,6 @@ pub async fn perform_address_merkle_tree_roll_over(
         &payer.pubkey(),
         account_compression::AddressMerkleTreeAccount::LEN,
         context
-            .banks_client
             .get_rent()
             .await
             .unwrap()
@@ -104,8 +87,8 @@ pub async fn perform_address_merkle_tree_roll_over(
     );
     let instruction_data = instruction::RolloverAddressMerkleTreeAndQueue {};
     let accounts = accounts::RolloverAddressMerkleTreeAndQueue {
-        fee_payer: context.payer.pubkey(),
-        authority: context.payer.pubkey(),
+        fee_payer: context.get_payer().pubkey(),
+        authority: context.get_payer().pubkey(),
         registered_program_pda: None,
         new_address_merkle_tree: new_address_merkle_tree_keypair.pubkey(),
         new_queue: new_queue_keypair.pubkey(),
@@ -117,35 +100,31 @@ pub async fn perform_address_merkle_tree_roll_over(
         accounts: [accounts.to_account_metas(Some(true))].concat(),
         data: instruction_data.data(),
     };
-    let blockhash = context.get_new_latest_blockhash().await.unwrap();
+    let blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, mt_account_create_ix, instruction],
-        Some(&context.payer.pubkey()),
+        Some(&context.get_payer().pubkey()),
         &vec![
-            &context.payer,
+            &context.get_payer(),
             &new_queue_keypair,
             &new_address_merkle_tree_keypair,
         ],
         blockhash,
     );
-    context
-        .banks_client
-        .process_transaction_with_metadata(transaction)
-        .await
+    context.process_transaction(transaction).await
 }
 
-pub async fn assert_rolled_over_address_merkle_tree_and_queue(
-    context: &mut ProgramTestContext,
+pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
+    rpc: &mut R,
     fee_payer_prior_balance: &u64,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
     new_merkle_tree_pubkey: &Pubkey,
     new_queue_pubkey: &Pubkey,
 ) {
-    let current_slot = context.banks_client.get_root_slot().await.unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
 
-    let mut new_mt_account = context
-        .banks_client
+    let mut new_mt_account = rpc
         .get_account(*new_merkle_tree_pubkey)
         .await
         .unwrap()
@@ -165,8 +144,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
         AccountLoader::<AddressMerkleTreeAccount>::try_from(&account_info).unwrap();
     let new_loaded_mt_account = new_mt_account.load().unwrap();
 
-    let mut old_mt_account = context
-        .banks_client
+    let mut old_mt_account = rpc
         .get_account(*old_merkle_tree_pubkey)
         .await
         .unwrap()
@@ -205,12 +183,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
     assert_rolledover_merkle_trees(struct_old, struct_new);
 
     {
-        let mut new_queue_account = context
-            .banks_client
-            .get_account(*new_queue_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
+        let mut new_queue_account = rpc.get_account(*new_queue_pubkey).await.unwrap().unwrap();
         let mut new_mt_lamports = 0u64;
         let account_info = AccountInfo::new(
             new_queue_pubkey,
@@ -225,12 +198,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
         let new_queue_account =
             AccountLoader::<AddressQueueAccount>::try_from(&account_info).unwrap();
         let new_loaded_queue_account = new_queue_account.load().unwrap();
-        let mut old_queue_account = context
-            .banks_client
-            .get_account(*old_queue_pubkey)
-            .await
-            .unwrap()
-            .unwrap();
+        let mut old_queue_account = rpc.get_account(*old_queue_pubkey).await.unwrap().unwrap();
 
         let mut old_mt_lamports = 0u64;
         let account_info = AccountInfo::new(
@@ -258,9 +226,8 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
             new_queue_account.get_lamports(),
         );
     }
-    let fee_payer_post_balance = context
-        .banks_client
-        .get_account(context.payer.pubkey())
+    let fee_payer_post_balance = rpc
+        .get_account(rpc.get_payer().pubkey())
         .await
         .unwrap()
         .unwrap()
@@ -269,9 +236,9 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue(
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     {
         let old_address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount>(context, *old_queue_pubkey).await };
+            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, *old_queue_pubkey).await };
         let new_address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount>(context, *new_queue_pubkey).await };
+            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, *new_queue_pubkey).await };
 
         assert_eq!(
             old_address_queue.capacity_indices,

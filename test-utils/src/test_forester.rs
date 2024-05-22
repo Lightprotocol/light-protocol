@@ -1,7 +1,9 @@
-use crate::create_and_send_transaction_with_event;
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
 use crate::test_env::NOOP_PROGRAM_ID;
 use crate::test_indexer::AddressMerkleTreeBundle;
 use crate::{get_hash_set, test_indexer::StateMerkleTreeBundle, AccountZeroCopy};
+use account_compression::initialize_nullifier_queue::NullifierQueueAccount;
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;
 use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, ID};
@@ -11,7 +13,6 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_utils::bigint::bigint_to_be_bytes_array;
-use solana_program_test::{BanksClientError, ProgramTestContext};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -20,7 +21,7 @@ use solana_sdk::{
 };
 use thiserror::Error;
 
-// doesn't keep it's own Merkle tree but gets it from the indexer
+// doesn't keep its own Merkle tree but gets it from the indexer
 // can also get all the state and Address Merkle trees from the indexer
 // the lightweight version is just a function
 // we should have a random option that shuffles the order in which to nullify transactions
@@ -34,23 +35,21 @@ use thiserror::Error;
 /// 2. State tree root is updated
 /// 3. TODO: add event is emitted (after rebase)
 /// optional: assert that the Merkle tree doesn't change except the updated leaf
-pub async fn nullify_compressed_accounts(
-    context: &mut ProgramTestContext,
+pub async fn nullify_compressed_accounts<R: RpcConnection>(
+    rpc: &mut R,
     payer: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
 ) {
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, account_compression::initialize_nullifier_queue::NullifierQueueAccount>(
-            context,
+        get_hash_set::<u16, NullifierQueueAccount, R>(
+            rpc,
             state_tree_bundle.accounts.nullifier_queue,
         )
         .await
     };
-    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        context,
-        state_tree_bundle.accounts.merkle_tree,
-    )
-    .await;
+    let merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
+            .await;
     let onchain_merkle_tree = merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -100,16 +99,16 @@ pub async fn nullify_compressed_accounts(
             ),
         ];
 
-        let event = create_and_send_transaction_with_event::<MerkleTreeEvent>(
-            context,
-            &instructions,
-            &payer.pubkey(),
-            &[payer],
-            None,
-        )
-        .await
-        .unwrap()
-        .unwrap();
+        let event = rpc
+            .create_and_send_transaction_with_event::<MerkleTreeEvent>(
+                &instructions,
+                &payer.pubkey(),
+                &[payer],
+                None,
+            )
+            .await
+            .unwrap()
+            .unwrap();
 
         match event {
             MerkleTreeEvent::V2(event) => {
@@ -124,7 +123,7 @@ pub async fn nullify_compressed_accounts(
         }
 
         assert_value_is_marked_in_queue(
-            context,
+            rpc,
             state_tree_bundle,
             index_in_nullifier_queue,
             &onchain_merkle_tree,
@@ -143,11 +142,9 @@ pub async fn nullify_compressed_accounts(
             .update(&[0u8; 32], leaf_index)
             .unwrap();
     }
-    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        context,
-        state_tree_bundle.accounts.merkle_tree,
-    )
-    .await;
+    let merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
+            .await;
     let onchain_merkle_tree = merkle_tree_account
         .deserialized()
         .copy_merkle_tree()
@@ -158,20 +155,16 @@ pub async fn nullify_compressed_accounts(
     );
 }
 
-async fn assert_value_is_marked_in_queue<'a>(
-    context: &mut ProgramTestContext,
+async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
+    rpc: &mut R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,
-    onchain_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<
-        'a,
-        light_hasher::Poseidon,
-        26,
-    >,
+    onchain_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<'a, Poseidon, 26>,
     compressed_account: &[u8; 32],
 ) {
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, account_compression::initialize_nullifier_queue::NullifierQueueAccount>(
-            context,
+        get_hash_set::<u16, NullifierQueueAccount, R>(
+            rpc,
             state_tree_bundle.accounts.nullifier_queue,
         )
         .await
@@ -183,11 +176,9 @@ async fn assert_value_is_marked_in_queue<'a>(
         )
         .unwrap();
     assert_eq!(&array_element.value_bytes(), compressed_account);
-    let merkle_tree_account = AccountZeroCopy::<StateMerkleTreeAccount>::new(
-        context,
-        state_tree_bundle.accounts.merkle_tree,
-    )
-    .await;
+    let merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
+            .await;
     assert_eq!(
         array_element.sequence_number(),
         Some(
@@ -209,29 +200,27 @@ pub enum RelayerUpdateError {}
 /// 1. Element has been marked correctly
 /// 2. Merkle tree has been updated correctly
 /// TODO: Event has been emitted, event doesn't exist yet
-pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
+pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
     address_tree_bundle: &mut AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>,
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
     let relayer_merkle_tree = &mut address_tree_bundle.merkle_tree;
     let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
-    let mut update_errors: Vec<BanksClientError> = Vec::new();
+    let mut update_errors: Vec<RpcError> = Vec::new();
 
     loop {
         let address_merkle_tree =
-            AccountZeroCopy::<AddressMerkleTreeAccount>::new(context, address_merkle_tree_pubkey)
-                .await;
+            AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey).await;
         let address_merkle_tree_deserialized = *address_merkle_tree.deserialized();
         let address_merkle_tree = address_merkle_tree_deserialized.copy_merkle_tree().unwrap();
         assert_eq!(
             relayer_merkle_tree.root(),
             address_merkle_tree.indexed_merkle_tree().root(),
         );
-        let address_queue = unsafe {
-            get_hash_set::<u16, AddressQueueAccount>(context, address_queue_pubkey).await
-        };
+        let address_queue =
+            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, address_queue_pubkey).await };
 
         let address = address_queue.first_no_seq().unwrap();
         if address.is_none() {
@@ -258,7 +247,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
         let old_root = address_merkle_tree.indexed_merkle_tree().merkle_tree.root();
         // Update on-chain tree.
         let update_successful = match update_merkle_tree(
-            context,
+            rpc,
             address_queue_pubkey,
             address_merkle_tree_pubkey,
             address_hashset_index,
@@ -352,17 +341,15 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
         };
 
         if update_successful {
-            let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
-                context,
-                address_merkle_tree_pubkey,
-            )
-            .await;
+            let merkle_tree_account =
+                AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey)
+                    .await;
             let merkle_tree = merkle_tree_account
                 .deserialized()
                 .copy_merkle_tree()
                 .unwrap();
             let address_queue = unsafe {
-                get_hash_set::<u16, AddressQueueAccount>(context, address_queue_pubkey).await
+                get_hash_set::<u16, AddressQueueAccount, R>(rpc, address_queue_pubkey).await
             };
 
             assert_eq!(
@@ -402,7 +389,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
             assert_eq!(
                 relayer_merkle_tree.root(),
                 merkle_tree.indexed_merkle_tree().merkle_tree.root(),
-                "Root offchain onchain inconsistent."
+                "Root off-chain onchain inconsistent."
             );
         }
     }
@@ -415,8 +402,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn update_merkle_tree(
-    context: &mut ProgramTestContext,
+pub async fn update_merkle_tree<R: RpcConnection>(
+    rpc: &mut R,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     value: u16,
@@ -426,12 +413,11 @@ pub async fn update_merkle_tree(
     low_address_next_index: u64,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
-) -> Result<Option<MerkleTreeEvent>, BanksClientError> {
+) -> Result<Option<MerkleTreeEvent>, RpcError> {
     let changelog_index = {
         // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
         let address_merkle_tree =
-            AccountZeroCopy::<AddressMerkleTreeAccount>::new(context, address_merkle_tree_pubkey)
-                .await;
+            AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey).await;
 
         let address_merkle_tree = &address_merkle_tree
             .deserialized()
@@ -453,35 +439,34 @@ pub async fn update_merkle_tree(
     let update_ix = Instruction {
         program_id: ID,
         accounts: vec![
-            AccountMeta::new(context.payer.pubkey(), true),
+            AccountMeta::new(rpc.get_payer().pubkey(), true),
             AccountMeta::new(address_queue_pubkey, false),
             AccountMeta::new(address_merkle_tree_pubkey, false),
             AccountMeta::new(NOOP_PROGRAM_ID, false),
         ],
         data: instruction_data.data(),
     };
-    let payer = context.payer.insecure_clone();
-    create_and_send_transaction_with_event::<MerkleTreeEvent>(
-        context,
+    let payer = rpc.get_payer().insecure_clone();
+    rpc.create_and_send_transaction_with_event::<MerkleTreeEvent>(
         &[update_ix],
-        &context.payer.pubkey(),
+        &rpc.get_payer().pubkey(),
         &[&payer],
         None,
     )
     .await
 }
 
-pub async fn insert_addresses(
-    context: &mut ProgramTestContext,
+pub async fn insert_addresses<R: RpcConnection>(
+    context: &mut R,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     addresses: Vec<[u8; 32]>,
-) -> Result<(), BanksClientError> {
+) -> Result<(), RpcError> {
     let num_addresses = addresses.len();
     let instruction_data = InsertAddresses { addresses };
     let accounts = account_compression::accounts::InsertAddresses {
-        fee_payer: context.payer.pubkey(),
-        authority: context.payer.pubkey(),
+        fee_payer: context.get_payer().pubkey(),
+        authority: context.get_payer().pubkey(),
         registered_program_pda: None,
         system_program: system_program::ID,
     };
@@ -503,11 +488,12 @@ pub async fn insert_addresses(
         .concat(),
         data: instruction_data.data(),
     };
+    let latest_blockhash = context.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[insert_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &context.payer],
-        context.last_blockhash,
+        Some(&context.get_payer().pubkey()),
+        &[&context.get_payer(), &context.get_payer()],
+        latest_blockhash,
     );
-    context.banks_client.process_transaction(transaction).await
+    context.process_transaction(transaction).await
 }

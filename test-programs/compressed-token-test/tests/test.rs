@@ -10,6 +10,9 @@ use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
+use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::spl::{
     compress_test, compressed_transfer_test, create_mint_helper, create_token_account,
     decompress_test, mint_tokens_helper,
@@ -19,23 +22,20 @@ use light_test_utils::{
     test_env::setup_test_programs_with_accounts, test_indexer::TestIndexer,
 };
 use light_verifier::VerifierError;
-use solana_program_test::{
-    BanksClientError, BanksTransactionResultWithMetadata, ProgramTestContext,
-};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn test_create_mint() {
-    let (mut context, _) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
-    create_mint_helper(&mut context, &payer).await;
+    let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    create_mint_helper(&mut rpc, &payer).await;
 }
 
 async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -45,11 +45,11 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
     .await;
 
     let recipient_keypair = Keypair::new();
-    let mint = create_mint_helper(&mut context, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer).await;
     for _ in 0..ITER {
         let amount = 10000u64;
         mint_tokens_helper(
-            &mut context,
+            &mut rpc,
             &mut test_indexer,
             &merkle_tree_pubkey,
             &payer,
@@ -161,10 +161,10 @@ async fn test_8_transfer() {
 /// Creates inputs compressed accounts with amount tokens each
 /// Transfers all tokens from inputs compressed accounts evenly distributed to outputs compressed accounts
 async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -172,10 +172,10 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
-    let mint = create_mint_helper(&mut context, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer).await;
     let sender = Keypair::new();
     mint_tokens_helper(
-        &mut context,
+        &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
         &payer,
@@ -196,7 +196,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
     output_amounts.push(equal_amount + rest_amount);
     compressed_transfer_test(
         &payer,
-        &mut context,
+        &mut rpc,
         &mut test_indexer,
         &mint,
         &sender,
@@ -212,9 +212,9 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
 #[tokio::test]
 async fn test_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
+    let payer = context.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -284,11 +284,11 @@ async fn test_decompression() {
 /// 5. Invalid delegated amount
 #[tokio::test]
 async fn test_invalid_inputs() {
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
-    let payer = context.payer.insecure_clone();
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::<200>::init_from_env(
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -297,13 +297,13 @@ async fn test_invalid_inputs() {
     )
     .await;
     let recipient_keypair = Keypair::new();
-    airdrop_lamports(&mut context, &recipient_keypair.pubkey(), 1_000_000_000)
+    airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint = create_mint_helper(&mut context, &payer).await;
+    let mint = create_mint_helper(&mut rpc, &payer).await;
     let amount = 10000u64;
     mint_tokens_helper(
-        &mut context,
+        &mut rpc,
         &mut test_indexer,
         &merkle_tree_pubkey,
         &payer,
@@ -331,7 +331,7 @@ async fn test_invalid_inputs() {
                 .merkle_tree_pubkey]),
             None,
             None,
-            &mut context,
+            &mut rpc,
         )
         .await;
     let change_out_compressed_account_0 = TokenTransferOutputData {
@@ -348,7 +348,7 @@ async fn test_invalid_inputs() {
     };
     // invalid token data amount (+ 1)
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -358,8 +358,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
     let transfer_recipient_out_compressed_account_0 = TokenTransferOutputData {
         amount: 1000 - 1,
@@ -369,7 +368,7 @@ async fn test_invalid_inputs() {
     };
     // invalid token data amount (- 1)
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -379,8 +378,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
 
     assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
 
@@ -392,7 +390,7 @@ async fn test_invalid_inputs() {
     };
     // invalid token data zero out amount
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         zero_amount,
         zero_amount,
         &merkle_tree_pubkey,
@@ -402,8 +400,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(res, ErrorCode::SumCheckFailed.into()).unwrap();
 
     let double_amount = TokenTransferOutputData {
@@ -414,7 +411,7 @@ async fn test_invalid_inputs() {
     };
     // invalid double token data  amount
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         double_amount,
         double_amount,
         &merkle_tree_pubkey,
@@ -424,9 +421,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
-
+    .await;
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
     let invalid_lamports_amount = TokenTransferOutputData {
@@ -438,7 +433,7 @@ async fn test_invalid_inputs() {
 
     // invalid_lamports_amount
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         invalid_lamports_amount,
         &merkle_tree_pubkey,
@@ -448,8 +443,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(
         res,
         light_system_program::errors::CompressedPdaError::ComputeOutputSumFailed.into(),
@@ -487,7 +481,7 @@ async fn test_invalid_inputs() {
     };
 
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -497,8 +491,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(res, ErrorCode::ComputeOutputSumFailed.into()).unwrap();
 
     let mut input_compressed_account_token_data =
@@ -517,7 +510,7 @@ async fn test_invalid_inputs() {
         .unwrap()
         .data = vec;
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -527,15 +520,14 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
         .unwrap();
     let input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
         .compressed_account
         .clone()];
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -545,8 +537,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
         .unwrap();
     let mut input_compressed_account_token_data =
@@ -564,7 +555,7 @@ async fn test_invalid_inputs() {
         .unwrap()
         .data = vec;
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -574,9 +565,7 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
-
+    .await;
     assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
         .unwrap();
 
@@ -595,7 +584,7 @@ async fn test_invalid_inputs() {
         .unwrap()
         .data = vec;
     let res = perform_transfer_failing_test(
-        &mut context,
+        &mut rpc,
         change_out_compressed_account_0,
         transfer_recipient_out_compressed_account_0,
         &merkle_tree_pubkey,
@@ -605,15 +594,14 @@ async fn test_invalid_inputs() {
         &proof_rpc_result.root_indices,
         &input_compressed_accounts,
     )
-    .await
-    .unwrap();
+    .await;
     assert_custom_error_or_program_error(res, ErrorCode::DelegateUndefined.into()).unwrap();
     kill_gnark_server();
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn perform_transfer_failing_test(
-    context: &mut ProgramTestContext,
+async fn perform_transfer_failing_test<R: RpcConnection>(
+    rpc: &mut R,
     change_token_transfer_output: TokenTransferOutputData,
     transfer_recipient_token_transfer_output: TokenTransferOutputData,
     merkle_tree_pubkey: &Pubkey,
@@ -622,7 +610,7 @@ async fn perform_transfer_failing_test(
     proof: &Option<CompressedProof>,
     root_indices: &[u16],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
-) -> Result<BanksTransactionResultWithMetadata, BanksClientError> {
+) -> Result<(), RpcError> {
     let input_compressed_account_token_data: Vec<TokenData> = input_compressed_accounts
         .iter()
         .map(|x| {
@@ -646,7 +634,7 @@ async fn perform_transfer_failing_test(
             transfer_recipient_token_transfer_output,
         ],
         root_indices,
-        &proof,
+        proof,
         input_compressed_account_token_data.as_slice(),
         input_compressed_account_token_data[0].mint,
         None,
@@ -657,15 +645,12 @@ async fn perform_transfer_failing_test(
     )
     .unwrap();
 
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer.pubkey()),
         [&payer].as_slice(),
-        context.get_new_latest_blockhash().await.unwrap(),
+        latest_blockhash,
     );
-    solana_program_test::BanksClient::process_transaction_with_metadata(
-        &mut context.banks_client,
-        transaction,
-    )
-    .await
+    rpc.process_transaction(transaction).await
 }

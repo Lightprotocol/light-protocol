@@ -1,6 +1,8 @@
+use crate::rpc::rpc_connection::RpcConnection;
+use std::marker::PhantomData;
 use {
     crate::{
-        create_account_instruction, create_and_send_transaction,
+        create_account_instruction,
         test_env::{
             create_state_merkle_tree_and_queue_account, init_cpi_signature_account, EnvAccounts,
         },
@@ -44,7 +46,6 @@ use {
     num_bigint::BigInt,
     num_traits::ops::bytes::FromBytes,
     reqwest::Client,
-    solana_program_test::ProgramTestContext,
     solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer},
     spl_token::instruction::initialize_mint,
     std::{thread, time::Duration},
@@ -85,7 +86,7 @@ pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
 
 // TODO: find a different way to init Indexed array on the heap so that it doesn't break the stack
 #[derive(Debug)]
-pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize> {
+pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
     pub address_merkle_trees: Vec<AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>>,
     pub payer: Keypair,
@@ -96,6 +97,7 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize> {
     pub events: Vec<PublicTransactionEvent>,
     pub path: String,
     pub proof_types: Vec<ProofType>,
+    phantom: PhantomData<R>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +105,7 @@ pub struct TokenDataWithContext {
     pub token_data: TokenData,
     pub compressed_account: CompressedAccountWithMerkleContext,
 }
-impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
+impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRAY_SIZE, R> {
     pub fn get_state_merkle_tree_accounts(
         &self,
         pubkeys: &[Pubkey],
@@ -192,6 +194,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             token_nullified_compressed_accounts: vec![],
             path: String::from(gnark_bin_path),
             proof_types: vec_proof_types,
+            phantom: Default::default(),
         }
     }
 
@@ -217,7 +220,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
 
     pub async fn add_state_merkle_tree(
         &mut self,
-        context: &mut ProgramTestContext,
+        rpc: &mut R,
         merkle_tree_keypair: &Keypair,
         nullifier_queue_keypair: &Keypair,
         cpi_signature_keypair: &Keypair,
@@ -225,19 +228,14 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
     ) {
         create_state_merkle_tree_and_queue_account(
             &self.payer,
-            context,
+            rpc,
             merkle_tree_keypair,
             nullifier_queue_keypair,
             owning_program_id,
             self.state_merkle_trees.len() as u64,
         )
         .await;
-        init_cpi_signature_account(
-            context,
-            &merkle_tree_keypair.pubkey(),
-            cpi_signature_keypair,
-        )
-        .await;
+        init_cpi_signature_account(rpc, &merkle_tree_keypair.pubkey(), cpi_signature_keypair).await;
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
@@ -325,7 +323,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
         state_merkle_tree_pubkeys: Option<&[Pubkey]>,
         new_addresses: Option<&[[u8; 32]]>,
         address_merkle_tree_pubkeys: Option<Vec<Pubkey>>,
-        context: &mut ProgramTestContext,
+        rpc: &mut R,
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
@@ -341,11 +339,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             match (compressed_accounts, new_addresses) {
                 (Some(accounts), None) => {
                     let (payload, indices) = self
-                        .process_inclusion_proofs(
-                            state_merkle_tree_pubkeys.unwrap(),
-                            accounts,
-                            context,
-                        )
+                        .process_inclusion_proofs(state_merkle_tree_pubkeys.unwrap(), accounts, rpc)
                         .await;
                     (indices, Vec::new(), payload.to_string())
                 }
@@ -354,24 +348,20 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                         .process_non_inclusion_proofs(
                             address_merkle_tree_pubkeys.unwrap().as_slice(),
                             addresses,
-                            context,
+                            rpc,
                         )
                         .await;
                     (Vec::<u16>::new(), indices, payload.to_string())
                 }
                 (Some(accounts), Some(addresses)) => {
                     let (inclusion_payload, inclusion_indices) = self
-                        .process_inclusion_proofs(
-                            state_merkle_tree_pubkeys.unwrap(),
-                            accounts,
-                            context,
-                        )
+                        .process_inclusion_proofs(state_merkle_tree_pubkeys.unwrap(), accounts, rpc)
                         .await;
                     let (non_inclusion_payload, non_inclusion_indices) = self
                         .process_non_inclusion_proofs(
                             address_merkle_tree_pubkeys.unwrap().as_slice(),
                             addresses,
-                            context,
+                            rpc,
                         )
                         .await;
 
@@ -425,7 +415,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
         &self,
         merkle_tree_pubkeys: &[Pubkey],
         accounts: &[[u8; 32]],
-        context: &mut ProgramTestContext,
+        rpc: &mut R,
     ) -> (BatchInclusionJsonStruct, Vec<u16>) {
         let mut inclusion_proofs = Vec::new();
         let mut root_indices = Vec::new();
@@ -446,8 +436,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
                 path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
             let merkle_tree_account =
-                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, merkle_tree_pubkeys[i])
-                    .await;
+                AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree_pubkeys[i]).await;
             let fetched_merkle_tree_account = merkle_tree_account.deserialized();
             let fetched_merkle_tree = fetched_merkle_tree_account.copy_merkle_tree().unwrap();
             assert_eq!(
@@ -474,7 +463,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
         &self,
         address_merkle_tree_pubkeys: &[Pubkey],
         addresses: &[[u8; 32]],
-        context: &mut ProgramTestContext,
+        rpc: &mut R,
     ) -> (BatchNonInclusionJsonStruct, Vec<u16>) {
         let mut non_inclusion_proofs = Vec::new();
         let mut address_root_indices = Vec::new();
@@ -492,7 +481,7 @@ impl<const INDEXED_ARRAY_SIZE: usize> TestIndexer<INDEXED_ARRAY_SIZE> {
             println!("proof_inputs {:?}", proof_inputs);
             non_inclusion_proofs.push(proof_inputs);
             let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
-                context,
+                rpc,
                 address_merkle_tree_pubkeys[i],
             )
             .await;
@@ -767,10 +756,9 @@ pub fn create_initialize_mint_instructions(
     )
 }
 
-pub async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypair) -> Pubkey {
+pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
-    let rent = context
-        .banks_client
+    let rent = rpc
         .get_rent()
         .await
         .unwrap()
@@ -780,7 +768,7 @@ pub async fn create_mint_helper(context: &mut ProgramTestContext, payer: &Keypai
     let (instructions, _): ([Instruction; 4], Pubkey) =
         create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
 
-    create_and_send_transaction(context, &instructions, &payer_pubkey, &[payer, &mint])
+    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
         .await
         .unwrap();
 

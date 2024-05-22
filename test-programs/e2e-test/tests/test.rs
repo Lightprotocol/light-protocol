@@ -1,10 +1,15 @@
 #![cfg(feature = "test-sbf")]
 
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
+use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
+use light_test_utils::test_env::setup_test_programs_with_accounts;
 
 #[tokio::test]
 async fn test_50_all() {
-    let mut env = E2ETestEnv::<500>::new(
+    let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
+    let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
+        rpc,
+        env_accounts,
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
         10,
@@ -21,7 +26,10 @@ async fn test_50_all() {
 async fn test_10000_all() {
     // Will fail after inserting 500 addresses since the local indexed array is full
     // TODO: initialize the indexed array with heap memory so that the stack doesn't overflow with bigger size
-    let mut env = E2ETestEnv::<500>::new(
+    let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
+    let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
+        rpc,
+        env_accounts,
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
         10000,

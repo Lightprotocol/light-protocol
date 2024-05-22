@@ -11,13 +11,14 @@ use light_compressed_token::{
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
-use solana_program_test::ProgramTestContext;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
-// TODO: replace with borsh serialize
+// TODO: replace with borsch serialize
+use crate::rpc::rpc_connection::RpcConnection;
 use anchor_lang::AnchorSerialize;
+
 /// General token tx assert:
-/// 1. ouputs created
+/// 1. outputs created
 /// 2. inputs nullified
 /// 3. Public Transaction event emitted correctly
 /// 4. Merkle tree was updated correctly
@@ -25,9 +26,9 @@ use anchor_lang::AnchorSerialize;
 /// 6. Check compression amount was transferred (outside of this function)
 /// No addresses in token transactions
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    context: &mut R,
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     out_compressed_accounts: &[TokenTransferOutputData],
     created_output_compressed_accounts: &[CompressedAccountWithMerkleContext],
     input_compressed_account_hashes: &[[u8; 32]],
@@ -76,8 +77,8 @@ pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize>(
     assert_merkle_tree_after_tx(context, output_merkle_tree_snapshots, test_indexer).await;
 }
 
-pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize>(
-    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     out_compressed_accounts: &[TokenTransferOutputData],
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
 ) {
@@ -179,9 +180,9 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_mint_to<'a, const INDEXED_ARRAY_SIZE: usize>(
-    context: &mut ProgramTestContext,
-    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE>,
+pub async fn assert_mint_to<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
+    rpc: &mut R,
+    test_indexer: &'a mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     recipients: &[Pubkey],
     mint: Pubkey,
     amounts: &[u64],
@@ -205,66 +206,38 @@ pub async fn assert_mint_to<'a, const INDEXED_ARRAY_SIZE: usize>(
             .expect("Mint to failed to create expected compressed token account.");
         created_token_accounts.remove(pos);
     }
-    assert_merkle_tree_after_tx(context, snapshots, test_indexer).await;
-    let mint_account: spl_token::state::Mint = spl_token::state::Mint::unpack(
-        &context
-            .banks_client
-            .get_account(mint)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
+    assert_merkle_tree_after_tx(rpc, snapshots, test_indexer).await;
+    let mint_account: spl_token::state::Mint =
+        spl_token::state::Mint::unpack(&rpc.get_account(mint).await.unwrap().unwrap().data)
+            .unwrap();
     let sum_amounts = amounts.iter().sum::<u64>();
     assert_eq!(mint_account.supply, previous_mint_supply + sum_amounts);
 
     let pool = get_token_pool_pda(&mint);
-    let pool_account = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(pool)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
+    let pool_account =
+        spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
+            .unwrap();
     assert_eq!(pool_account.amount, previous_sol_pool_amount + sum_amounts);
 }
 
-pub async fn assert_create_mint(
-    context: &mut ProgramTestContext,
+pub async fn assert_create_mint<R: RpcConnection>(
+    context: &mut R,
     authority: &Pubkey,
     mint: &Pubkey,
     pool: &Pubkey,
 ) {
-    let mint_account: spl_token::state::Mint = spl_token::state::Mint::unpack(
-        &context
-            .banks_client
-            .get_account(*mint)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
+    let mint_account: spl_token::state::Mint =
+        spl_token::state::Mint::unpack(&context.get_account(*mint).await.unwrap().unwrap().data)
+            .unwrap();
     let mint_authority = get_token_authority_pda(authority, mint).0;
     assert_eq!(mint_account.supply, 0);
     assert_eq!(mint_account.decimals, 2);
     assert_eq!(mint_account.mint_authority.unwrap(), mint_authority);
     assert_eq!(mint_account.freeze_authority, None.into());
     assert!(mint_account.is_initialized);
-    let mint_account: spl_token::state::Account = spl_token::state::Account::unpack(
-        &context
-            .banks_client
-            .get_account(*pool)
-            .await
-            .unwrap()
-            .unwrap()
-            .data,
-    )
-    .unwrap();
+    let mint_account: spl_token::state::Account =
+        spl_token::state::Account::unpack(&context.get_account(*pool).await.unwrap().unwrap().data)
+            .unwrap();
 
     assert_eq!(mint_account.amount, 0);
     assert_eq!(mint_account.delegate, None.into());
