@@ -18,7 +18,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     'b,
     'c: 'info,
     'info,
-    const ITER_SIZE: usize,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
     inputs: &'a InstructionDataInvoke,
@@ -26,7 +25,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
     addresses: &'a mut Vec<Option<[u8; 32]>>,
-    global_iter: &'a mut usize,
     invoking_program: &Option<Pubkey>,
     hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
 ) -> Result<()> {
@@ -64,19 +62,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         AccountMeta::new_readonly(account_infos[4].key(), false),
     ];
 
-    // let mut out_merkle_trees_account_infos = Vec::<AccountInfo>::new();
-    // let mut merkle_tree_indices = HashMap::<Pubkey, usize>::new();
-    // idea, enforce that Merkle tree compressed accounts are ordered,
-    // -> Merkle tree index can only be equal or higher than the previous one.
-    // if the index is higher add the account info to out_merkle_trees_account_infos.
-    let initial_index = *global_iter;
     let mut current_index: u8 = 0;
-    let end = if *global_iter + ITER_SIZE > inputs.output_compressed_accounts.len() {
-        inputs.output_compressed_accounts.len()
-    } else {
-        *global_iter + ITER_SIZE
-    };
-    let num_leaves = end - initial_index;
+    let num_leaves = output_compressed_account_hashes.len();
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
     let mut instruction_data = Vec::<u8>::with_capacity(12 + 32 * num_leaves);
@@ -85,11 +72,11 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
     // leaves vector length (for borsh compat)
     instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
-    if inputs.output_compressed_accounts[initial_index].merkle_tree_index == 0 {
+    if inputs.output_compressed_accounts[0].merkle_tree_index == 0 {
         let account_info = ctx.remaining_accounts
             [inputs.output_compressed_accounts[current_index as usize].merkle_tree_index as usize]
             .to_account_info();
-        mt_next_index = check_program_owner_state_merkle_tree(
+        (mt_next_index, _) = check_program_owner_state_merkle_tree(
             &ctx.remaining_accounts[current_index as usize],
             invoking_program,
         )?;
@@ -112,10 +99,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     bench_sbf_end!("cpda_append_data_init");
     bench_sbf_start!("cpda_append_rest");
 
-    for account in inputs.output_compressed_accounts[initial_index..end].iter() {
-        let j = *global_iter;
-        *global_iter += 1;
-
+    for (j, account) in inputs.output_compressed_accounts.iter().enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index > current index, Merkle tree account info is new, add it.
         // else Merkle tree index is out of order throw error.
@@ -124,7 +108,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             // do nothing, but is the most common case.
         } else if account.merkle_tree_index != current_index {
             current_index = account.merkle_tree_index;
-            mt_next_index = check_program_owner_state_merkle_tree(
+            (mt_next_index, _) = check_program_owner_state_merkle_tree(
                 &ctx.remaining_accounts[account.merkle_tree_index as usize],
                 invoking_program,
             )?;

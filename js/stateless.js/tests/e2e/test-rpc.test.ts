@@ -1,12 +1,12 @@
 import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import {
+    STATE_MERKLE_TREE_NETWORK_FEE,
     STATE_MERKLE_TREE_ROLLOVER_FEE,
-    STATE_MERKLE_TREE_TIP,
     defaultTestStateTreeAccounts,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
-import { compress, decompress } from '../../src/actions';
+import { compress, decompress, transfer } from '../../src/actions';
 import { bn, CompressedAccountWithMerkleContext } from '../../src/state';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -76,8 +76,7 @@ describe('test-rpc', () => {
             preCompressBalance -
                 compressLamportsAmount -
                 5000 -
-                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
-                STATE_MERKLE_TREE_TIP.toNumber(),
+                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
         );
     });
 
@@ -97,6 +96,28 @@ describe('test-rpc', () => {
             compressedAccounts[0].leafIndex,
         );
         expect(compressedAccountProof.rootIndex).toStrictEqual(2);
+        preCompressBalance = await rpc.getBalance(payer.publicKey);
+
+        await transfer(
+            rpc,
+            payer,
+            compressLamportsAmount,
+            payer,
+            payer.publicKey,
+            merkleTree,
+        );
+        const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        expect(compressedAccounts1?.length).toStrictEqual(1);
+        postCompressBalance = await rpc.getBalance(payer.publicKey);
+        assert.equal(
+            postCompressBalance,
+            preCompressBalance -
+                5000 -
+                STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
+                STATE_MERKLE_TREE_NETWORK_FEE.toNumber(),
+        );
 
         await compress(
             rpc,
@@ -105,10 +126,10 @@ describe('test-rpc', () => {
             payer.publicKey,
             merkleTree,
         );
-        const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
+        const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        expect(compressedAccounts1?.length).toStrictEqual(2);
+        expect(compressedAccounts2?.length).toStrictEqual(2);
     });
 
     it('getCompressedAccountProof: get many valid proofs (10)', async () => {

@@ -7,7 +7,6 @@ use crate::{
     },
     test_indexer::TestIndexer,
 };
-use account_compression::{sdk::create_claim_instruction, StateMerkleTreeAccount};
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::{
@@ -467,36 +466,5 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             .collect::<Vec<Pubkey>>(),
     };
     assert_compressed_transaction(input).await;
-    Ok(())
-}
-
-pub async fn claim(
-    context: &mut ProgramTestContext,
-    authority: &Keypair,
-    merkle_tree_pubkey: &Pubkey,
-    nullifier_queue_pubkey: &Pubkey,
-    recipient: &Pubkey,
-    num_tx: u64,
-) -> Result<(), BanksClientError> {
-    let instruction = create_claim_instruction(
-        &authority.pubkey(),
-        merkle_tree_pubkey,
-        nullifier_queue_pubkey,
-        recipient,
-    );
-    let pre_balance = match context.banks_client.get_account(*recipient).await.unwrap() {
-        Some(account) => account.lamports,
-        None => 0,
-    };
-    create_and_send_transaction(context, &[instruction], &authority.pubkey(), &[authority]).await?;
-    let post_balance = match context.banks_client.get_account(*recipient).await.unwrap() {
-        Some(account) => account.lamports,
-        None => 0,
-    };
-    let merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *merkle_tree_pubkey).await;
-    let merkle_tree_account = merkle_tree_account.deserialized();
-    let network_fee = merkle_tree_account.metadata.rollover_metadata.network_fee;
-    assert_eq!(post_balance, pre_balance + num_tx * network_fee);
     Ok(())
 }

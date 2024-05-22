@@ -40,7 +40,7 @@ impl default::Default for StateMerkleTreeConfig {
             changelog_size: STATE_MERKLE_TREE_CHANGELOG,
             roots_size: STATE_MERKLE_TREE_ROOTS,
             canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(1),
+            network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
         }

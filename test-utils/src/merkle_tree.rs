@@ -1,12 +1,11 @@
 use light_utils::fee::compute_rollover_fee;
-use solana_program_test::ProgramTestContext;
 use solana_sdk::pubkey::Pubkey;
 
-use crate::AccountZeroCopy;
+use crate::{rpc::rpc_connection::RpcConnection, AccountZeroCopy};
 
 #[allow(clippy::too_many_arguments)]
-pub async fn assert_merkle_tree_initialized(
-    context: &mut ProgramTestContext,
+pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
+    rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     queue_pubkey: &Pubkey,
     height: usize,
@@ -23,7 +22,7 @@ pub async fn assert_merkle_tree_initialized(
     payer_pubkey: &Pubkey,
 ) {
     let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
-        context,
+        rpc,
         *merkle_tree_pubkey,
     )
     .await;
@@ -31,15 +30,13 @@ pub async fn assert_merkle_tree_initialized(
 
     let merkle_tree = merkle_tree_account.copy_merkle_tree().unwrap();
 
-    let balance_merkle_tree = context
-        .banks_client
+    let balance_merkle_tree = rpc
         .get_account(*merkle_tree_pubkey)
         .await
         .unwrap()
         .unwrap()
         .lamports;
-    let balance_nullifier_queue = context
-        .banks_client
+    let balance_nullifier_queue = rpc
         .get_account(*queue_pubkey)
         .await
         .unwrap()

@@ -228,7 +228,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account in psp account compression program
     pub account_compression_program: Program<'info, AccountCompression>,
     #[account(mut)]
-    pub cpi_signature_account: Option<Account<'info, CpiSignatureAccount>>,
+    pub cpi_context_account: Option<Account<'info, CpiSignatureAccount>>,
     pub invoking_program: Option<UncheckedAccount<'info>>,
     #[account(
         mut,

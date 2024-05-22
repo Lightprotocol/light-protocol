@@ -33,6 +33,3 @@ pub use rollover_state_merkle_tree::*;
 
 pub mod rollover_address_merkle_tree_and_queue;
 pub use rollover_address_merkle_tree_and_queue::*;
-
-pub mod claim;
-pub use claim::*;

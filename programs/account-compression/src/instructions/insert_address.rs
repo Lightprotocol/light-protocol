@@ -34,7 +34,6 @@ impl<'info> GroupAccounts<'info> for InsertAddresses<'info> {
 pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, InsertAddresses<'info>>,
     addresses: Vec<[u8; 32]>,
-    charge_network_fee: bool,
 ) -> Result<()> {
     let expected_remaining_accounts = addresses.len() * 2;
     if expected_remaining_accounts != ctx.remaining_accounts.len() {
@@ -82,14 +81,9 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
             if queue_bundle.merkle_tree.key() != address_queue.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            let network_fee = if charge_network_fee {
-                address_queue.metadata.rollover_metadata.network_fee
-            } else {
-                0
-            };
-            lamports = network_fee
-                + address_queue.metadata.rollover_metadata.rollover_fee
-                    * queue_bundle.elements.len() as u64;
+
+            lamports = address_queue.metadata.rollover_metadata.rollover_fee
+                * queue_bundle.elements.len() as u64;
             drop(address_queue);
         }
 

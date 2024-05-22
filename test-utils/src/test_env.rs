@@ -361,15 +361,12 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
     cpi_account_keypair: &Keypair,
     payer: &Keypair,
 ) -> Pubkey {
-
     use solana_sdk::instruction::Instruction;
 
     use crate::create_account_instruction;
-
-    let payer = rpc.get_payer().insecure_clone();
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(
-        &rpc.get_payer().pubkey(),
+        &payer.pubkey(),
         account_size,
         rpc.get_rent().await.unwrap().minimum_balance(account_size),
         &light_system_program::ID,
@@ -377,7 +374,7 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
     );
     let data = light_system_program::instruction::InitCpiContextAccount {};
     let accounts = light_system_program::accounts::InitializeCpiContextAccount {
-        fee_payer: payer.insecure_clone().pubkey(),
+        fee_payer: payer.pubkey(),
         cpi_context_account: cpi_account_keypair.pubkey(),
         system_program: system_program::ID,
         associated_merkle_tree: *merkle_tree_pubkey,
@@ -390,7 +387,7 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
     rpc.create_and_send_transaction(
         &[account_create_ix, instruction],
         &payer.pubkey(),
-        &[&payer, cpi_account_keypair],
+        &[payer, cpi_account_keypair],
     )
     .await
     .unwrap();

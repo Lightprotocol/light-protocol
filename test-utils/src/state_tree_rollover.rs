@@ -1,11 +1,11 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
 use crate::{
-    create_account_instruction, get_hash_set,
-    rollover::{
+    assert_rollover::{
         assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
         assert_rolledover_queues_metadata,
     },
+    create_account_instruction, get_hash_set,
 };
 
 use crate::rpc::errors::RpcError;

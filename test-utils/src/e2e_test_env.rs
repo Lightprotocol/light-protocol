@@ -80,7 +80,7 @@ use crate::system_program::{
 };
 use crate::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    init_cpi_signature_account, EnvAccounts,
+    init_cpi_context_account, EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use crate::test_indexer::TestIndexer;
@@ -88,6 +88,7 @@ use crate::test_indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
     StateMerkleTreeAccounts, StateMerkleTreeBundle, TokenDataWithContext,
 };
+use crate::transaction_params::{FeeConfig, TransactionParams};
 use account_compression::utils::constants::{
     STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
 };
@@ -172,8 +173,6 @@ where
         seed: Option<u64>,
         prover_server_path: &str,
     ) -> Self {
-        // let (mut rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
-
         let inclusion = keypair_action_config.transfer_sol.is_some()
             || keypair_action_config.transfer_spl.is_some();
         let non_inclusion = keypair_action_config.create_address.is_some();
@@ -197,6 +196,8 @@ where
         let mut thread_rng = ThreadRng::default();
         let random_seed = thread_rng.next_u64();
         let seed: u64 = seed.unwrap_or(random_seed);
+        // Keep this print so that in case the test fails
+        // we can use the seed to reproduce the error.
         println!("\n\ne2e test seed {}\n\n", seed);
         let mut rng = StdRng::seed_from_u64(seed);
         let user = Self::create_user(&mut rng, &mut rpc).await;
@@ -330,7 +331,7 @@ where
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
         init_cpi_context_account(
-            &mut self.context,
+            &mut self.rpc,
             &merkle_tree_keypair.pubkey(),
             &cpi_context_keypair,
             &self.payer,
@@ -516,13 +517,21 @@ where
                 .iter()
                 .map(|u| u.keypair.pubkey())
                 .collect::<Vec<Pubkey>>();
-            let num_output_merkle_trees =
-                Self::safe_gen_range(&mut self.rng, 1..recipients.len(), 1);
+            let num_output_merkle_trees = Self::safe_gen_range(
+                &mut self.rng,
+                1..std::cmp::min(
+                    self.keypair_action_config
+                        .max_output_accounts
+                        .unwrap_or(recipients.len() as u64),
+                    recipients.len() as u64,
+                ),
+                1,
+            );
             let recipients = recipients
-                .choose_multiple(&mut self.rng, num_output_merkle_trees)
+                .choose_multiple(&mut self.rng, num_output_merkle_trees as usize)
                 .copied()
                 .collect::<Vec<_>>();
-            let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees as u64);
+            let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees);
 
             transfer_compressed_sol_test(
                 &mut self.rpc,
@@ -531,7 +540,13 @@ where
                 input_compressed_accounts.as_slice(),
                 recipients.as_slice(),
                 output_merkle_trees.as_slice(),
-                None,
+                Some(TransactionParams {
+                    num_new_addresses: 0,
+                    num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    num_output_compressed_accounts: num_output_merkle_trees as u8,
+                    compress: 0,
+                    fee_config: FeeConfig::default(),
+                }),
             )
             .await
             .unwrap();
@@ -562,7 +577,13 @@ where
                 &recipient,
                 decompress_amount,
                 &output_merkle_tree,
-                None,
+                Some(TransactionParams {
+                    num_new_addresses: 0,
+                    num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    num_output_compressed_accounts: 1u8,
+                    compress: 0,
+                    fee_config: FeeConfig::default(),
+                }),
             )
             .await
             .unwrap();
@@ -592,7 +613,13 @@ where
             create_output_compressed_accounts_for_input_accounts,
             amount,
             &output_merkle_tree,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: amount as i64,
+                fee_config: FeeConfig::default(),
+            }),
         )
         .await
         .unwrap();
@@ -619,6 +646,7 @@ where
             address_seeds.push(address_seed)
         }
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
+
         // TODO: add other input compressed accounts
         // (to test whether the address generation degrades performance)
         create_addresses_test(
@@ -630,7 +658,13 @@ where
             address_seeds.as_slice(),
             &Vec::new(),
             false,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: num_addresses as u8,
+                num_input_compressed_accounts: 0u8,
+                num_output_compressed_accounts: num_addresses as u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
         )
         .await
         .unwrap();
@@ -672,6 +706,7 @@ where
 
         let output_merkle_tree_pubkeys =
             self.get_merkle_tree_pubkeys(num_output_compressed_accounts as u64);
+
         compressed_transfer_test(
             &self.rpc.get_payer().insecure_clone(),
             &mut self.rpc,
@@ -682,7 +717,13 @@ where
             &amounts,
             &token_accounts,
             &output_merkle_tree_pubkeys,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts: output_merkle_tree_pubkeys.len() as u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
         )
         .await;
         self.stats.spl_transfers += 1;
@@ -723,7 +764,6 @@ where
             let output_merkle_tree_account = self.get_merkle_tree_pubkeys(1);
 
             let amount = Self::safe_gen_range(&mut self.rng, 1000..balance, balance / 2);
-            // decompress
             compress_test(
                 &self.users[user_index].keypair,
                 &mut self.rpc,
@@ -732,7 +772,13 @@ where
                 &mint,
                 &output_merkle_tree_account[0],
                 &token_account,
-                None,
+                Some(TransactionParams {
+                    num_new_addresses: 0u8,
+                    num_input_compressed_accounts: 0u8,
+                    num_output_compressed_accounts: 1u8,
+                    compress: 0, // sol amount this is an spl compress test
+                    fee_config: FeeConfig::default(),
+                }),
             )
             .await;
             self.stats.spl_compress += 1;
@@ -777,11 +823,17 @@ where
             &self.users[user_index].keypair,
             &mut self.rpc,
             &mut self.indexer,
-            token_accounts,
+            token_accounts.clone(),
             amount,
             &output_merkle_tree_account[0],
             &token_account,
-            None,
+            Some(TransactionParams {
+                num_new_addresses: 0u8,
+                num_input_compressed_accounts: token_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
         )
         .await;
         self.stats.spl_decompress += 1;
@@ -902,6 +954,7 @@ pub struct KeypairActionConfig {
     pub decompress_spl: Option<f64>,
     pub mint_spl: Option<f64>,
     pub transfer_spl: Option<f64>,
+    pub max_output_accounts: Option<u64>,
 }
 
 impl KeypairActionConfig {
@@ -915,6 +968,7 @@ impl KeypairActionConfig {
             decompress_spl: None,
             mint_spl: None,
             transfer_spl: None,
+            max_output_accounts: None,
         }
     }
 
@@ -928,6 +982,7 @@ impl KeypairActionConfig {
             decompress_spl: Some(0.5),
             mint_spl: None,
             transfer_spl: Some(0.5),
+            max_output_accounts: Some(10),
         }
     }
 
@@ -941,6 +996,7 @@ impl KeypairActionConfig {
             decompress_spl: Some(0.5),
             mint_spl: None,
             transfer_spl: Some(0.5),
+            max_output_accounts: Some(10),
         }
     }
     pub fn test_default() -> Self {
@@ -953,6 +1009,7 @@ impl KeypairActionConfig {
             decompress_spl: Some(0.0),
             mint_spl: None,
             transfer_spl: Some(0.0),
+            max_output_accounts: Some(10),
         }
     }
 }

@@ -19,7 +19,7 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
     pub output_compressed_account_merkle_tree_pubkey: &'a Pubkey,
     pub proof: &'a CompressedProof,
     pub new_address_params: NewAddressParams,
-    pub cpi_signature_account: &'a Pubkey,
+    pub cpi_context_account: &'a Pubkey,
     pub owner_program: &'a Pubkey,
     pub signer_is_program: CreatePdaMode,
 }

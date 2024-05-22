@@ -44,9 +44,10 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
     addresses: &'a [[u8; 32]],
     new_address_params: &'a [NewAddressParamsPacked],
     invoking_program: &Option<Pubkey>,
-    charge_network_fee: bool,
-) -> anchor_lang::Result<()> {
+) -> anchor_lang::Result<Option<(u8, u64)>> {
     let mut remaining_accounts = Vec::<AccountInfo>::with_capacity(addresses.len() * 2);
+    let mut network_fee_bundle = None;
+
     new_address_params.iter().try_for_each(|params| {
         remaining_accounts
             .push(ctx.remaining_accounts[params.address_queue_account_index as usize].clone());
@@ -54,10 +55,14 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
         remaining_accounts.push(
             ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone(),
         );
-        check_program_owner_address_merkle_tree(
+        let network_fee = check_program_owner_address_merkle_tree(
             &ctx.remaining_accounts[params.address_merkle_tree_account_index as usize],
             invoking_program,
-        )
+        )?;
+        if network_fee_bundle.is_none() && network_fee.is_some() {
+            network_fee_bundle = Some((params.address_queue_account_index, network_fee.unwrap()));
+        }
+        anchor_lang::Result::Ok(())
     })?;
 
     insert_addresses_cpi(
@@ -69,8 +74,8 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
         &ctx.accounts.get_system_program().to_account_info(),
         remaining_accounts,
         addresses.to_vec(),
-        charge_network_fee,
-    )
+    )?;
+    Ok(network_fee_bundle)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -83,7 +88,6 @@ pub fn insert_addresses_cpi<'a, 'b>(
     system_program: &'b AccountInfo<'a>,
     remaining_accounts: Vec<AccountInfo<'a>>,
     addresses: Vec<[u8; 32]>,
-    charge_network_fee: bool,
 ) -> Result<()> {
     let (_, bump) =
         anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
@@ -100,5 +104,5 @@ pub fn insert_addresses_cpi<'a, 'b>(
         CpiContext::new_with_signer(account_compression_program_id.clone(), accounts, seeds);
     cpi_ctx.remaining_accounts.extend(remaining_accounts);
 
-    account_compression::cpi::insert_addresses(cpi_ctx, addresses, charge_network_fee)
+    account_compression::cpi::insert_addresses(cpi_ctx, addresses)
 }

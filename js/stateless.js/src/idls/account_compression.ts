@@ -436,6 +436,10 @@ export type AccountCompression = {
                         defined: 'NullifierQueueConfig';
                     };
                 },
+                {
+                    name: 'additionalRent';
+                    type: 'u64';
+                },
             ];
         },
         {
@@ -1609,6 +1613,10 @@ export const IDL: AccountCompression = {
                     type: {
                         defined: 'NullifierQueueConfig',
                     },
+                },
+                {
+                    name: 'additionalRent',
+                    type: 'u64',
                 },
             ],
         },

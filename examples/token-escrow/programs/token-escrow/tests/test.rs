@@ -171,7 +171,7 @@ async fn test_escrow_pda() {
     let transaction_error =
         solana_sdk::transaction::TransactionError::InstructionError(0, instruction_error);
     let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(res, Err(rpc_error)));
+    assert!(matches!(res, Err(error) if error.to_string() == rpc_error.to_string()));
 
     rpc.warp_to_slot(1000).unwrap();
     // try withdrawal with invalid signer
@@ -189,7 +189,7 @@ async fn test_escrow_pda() {
     let transaction_error =
         solana_sdk::transaction::TransactionError::InstructionError(0, instruction_error);
     let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(res, Err(rpc_error)));
+    assert!(matches!(res, Err(error) if error.to_string() == rpc_error.to_string()));
 
     perform_withdrawal_with_event(
         &mut rpc,

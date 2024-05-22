@@ -43,7 +43,7 @@ pub fn process_initialize_state_merkle_tree(
         }
         None => 0,
     };
-
+    msg!("rollover fee: {}", rollover_fee);
     merkle_tree.init(
         AccessMetadata::new(owner, delegate),
         RolloverMetadata::new(

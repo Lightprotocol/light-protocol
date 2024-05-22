@@ -26,12 +26,15 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     {
         let mut nullifier_queue = nullifier_queue_account_loader.load_init()?;
-        let mut rollover_meta_data = RolloverMetadata::default();
-        rollover_meta_data.index = index;
-        rollover_meta_data.rollover_threshold = rollover_threshold.unwrap_or_default();
-        rollover_meta_data.close_threshold = close_threshold.unwrap_or(u64::MAX);
-        rollover_meta_data.rolledover_slot = u64::MAX;
-        rollover_meta_data.network_fee = network_fee;
+        let rollover_meta_data = RolloverMetadata {
+            index,
+            rollover_threshold: rollover_threshold.unwrap_or_default(),
+            close_threshold: close_threshold.unwrap_or(u64::MAX),
+            rolledover_slot: u64::MAX,
+            network_fee,
+            rollover_fee: 0,
+        };
+
         nullifier_queue.init(
             AccessMetadata {
                 owner,

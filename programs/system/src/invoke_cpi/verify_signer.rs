@@ -130,16 +130,21 @@ pub fn output_compressed_accounts_write_access_check(
 pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
-) -> Result<u32> {
+) -> Result<(u32, Option<u64>)> {
     let merkle_tree =
         AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
-    let next_index = merkle_tree_unpacked.load_next_index()?.try_into().unwrap();
+    let next_index: u32 = merkle_tree_unpacked.load_next_index()?.try_into().unwrap();
+    let network_fee = if merkle_tree_unpacked.metadata.rollover_metadata.network_fee != 0 {
+        Some(merkle_tree_unpacked.metadata.rollover_metadata.network_fee)
+    } else {
+        None
+    };
     // TODO: rename delegate to program_owner
     if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
-                return Ok(next_index);
+                return Ok((next_index, network_fee));
             }
         }
         msg!(
@@ -149,16 +154,21 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
         );
         return Err(CompressedPdaError::InvalidMerkleTreeOwner.into());
     }
-    Ok(next_index)
+    Ok((next_index, network_fee))
 }
 
 pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
-) -> Result<()> {
+) -> Result<Option<u64>> {
     let merkle_tree =
         AccountLoader::<AddressMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
+    let network_fee = if merkle_tree_unpacked.metadata.rollover_metadata.network_fee != 0 {
+        Some(merkle_tree_unpacked.metadata.rollover_metadata.network_fee)
+    } else {
+        None
+    };
     // TODO: rename delegate to program_owner
     if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
@@ -168,7 +178,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
                     invoking_program,
                     merkle_tree_unpacked.metadata.access_metadata.delegate
                 );
-                return Ok(());
+                return Ok(network_fee);
             }
         }
         msg!(
@@ -178,6 +188,6 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
         );
         Err(CompressedPdaError::InvalidMerkleTreeOwner.into())
     } else {
-        Ok(())
+        Ok(network_fee)
     }
 }

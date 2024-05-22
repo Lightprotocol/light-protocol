@@ -49,9 +49,8 @@ pub mod account_compression {
     pub fn insert_addresses<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertAddresses<'info>>,
         addresses: Vec<[u8; 32]>,
-        charge_network_fee: bool,
     ) -> Result<()> {
-        process_insert_addresses(ctx, addresses, charge_network_fee)
+        process_insert_addresses(ctx, addresses)
     }
     /// Updates the address Merkle tree with a new address.
     pub fn update_address_merkle_tree<'info>(
@@ -165,9 +164,8 @@ pub mod account_compression {
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
         elements: Vec<[u8; 32]>,
-        charge_network_fee: bool,
     ) -> Result<()> {
-        process_insert_into_nullifier_queues(ctx, &elements, charge_network_fee)
+        process_insert_into_nullifier_queues(ctx, &elements)
     }
 
     pub fn rollover_state_merkle_tree_and_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
@@ -176,84 +174,7 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
-    pub fn claim_from_state_merkle_tree_account_account(
-        ctx: Context<Claim>,
-        bump: u8,
-    ) -> Result<()> {
-        // check that merkle tree is initialized and signer is eligible
-        let merkle_tree_account = ctx.accounts.merkle_tree.load()?;
-        let merkle_tree = merkle_tree_account.load_merkle_tree()?;
-        if merkle_tree_account.metadata.access_metadata.owner != ctx.accounts.authority.key() {
-            return Err(crate::errors::AccountCompressionErrorCode::InvalidAuthority.into());
-        }
-        // Check that the queue is associated with the merkle tree.
-        if merkle_tree_account.metadata.associated_queue != ctx.accounts.nullifier_queue.key() {
-            return err!(
-                crate::errors::AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated,
-            );
-        }
-        let sender_account_info = &mut ctx.accounts.merkle_tree.to_account_info();
-        let rent = Rent::get()?;
-        let rent_exempt_reserve = rent.minimum_balance(sender_account_info.data.borrow().len());
-        let rollover_reserve = merkle_tree_account.metadata.rollover_metadata.rollover_fee
-            * (merkle_tree.next_index() as u64 - 1);
-        let lamports = sender_account_info.lamports();
-        let claim_amount = lamports
-            .checked_sub(rent_exempt_reserve)
-            .unwrap()
-            .checked_sub(rollover_reserve)
-            .unwrap();
-        // ctx.accounts
-        //     .merkle_tree
-        //     .sub_lamports(claim_amount)
-        //     .map_err(|_| ProgramError::InsufficientFunds)?;
-        // ctx.accounts
-        //     .recipient
-        //     .add_lamports(claim_amount)
-        //     .map_err(|_| ProgramError::InsufficientFunds)?;
-        transfer_lamports_cpi_signed(
-            &ctx.accounts.authority,
-            &ctx.accounts.cpi_signer.to_account_info(),
-            &sender_account_info,
-            &ctx.accounts.recipient.to_account_info(),
-            claim_amount,
-            bump,
-        )?;
-
-        let nullifier_queue_account = ctx.accounts.nullifier_queue.load()?;
-
-        let sender_account_info = &mut ctx.accounts.nullifier_queue.to_account_info();
-        let rent = Rent::get()?;
-        let rent_exempt_reserve = rent.minimum_balance(sender_account_info.data.borrow().len());
-        let rollover_reserve = nullifier_queue_account
-            .metadata
-            .rollover_metadata
-            .rollover_fee
-            * (merkle_tree.next_index() as u64 - 1);
-        let lamports = sender_account_info.lamports();
-        let claim_amount = lamports
-            .checked_sub(rent_exempt_reserve)
-            .unwrap()
-            .checked_sub(rollover_reserve)
-            .unwrap();
-        // ctx.accounts
-        //     .nullifier_queue
-        //     .sub_lamports(claim_amount)
-        //     .map_err(|_| ProgramError::InsufficientFunds)?;
-        // ctx.accounts
-        //     .recipient
-        //     .add_lamports(claim_amount)
-        //     .map_err(|_| ProgramError::InsufficientFunds)?;
-        transfer_lamports_cpi_signed(
-            &ctx.accounts.authority,
-            &ctx.accounts.cpi_signer.to_account_info(),
-            &sender_account_info,
-            &ctx.accounts.recipient.to_account_info(),
-            claim_amount,
-            bump,
-        )?;
-        Ok(())
-    }
+    // TODO: add claim instruction
     // TODO: insert into indexed array just insert into one array instead of possibly multiple
 
     // TODO: insert_from_nullifier_queue_into_merkle_tree ( to nullify transactions)

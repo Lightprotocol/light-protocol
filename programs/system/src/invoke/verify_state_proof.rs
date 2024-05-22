@@ -126,17 +126,8 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
                 .unwrap()
                 .0;
             hashed_pubkeys.push((merkle_tree_pubkey, current_hashed_mt));
-        } else if current_mt_index
-            < input_compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey_index as i16
-        {
-            // TODO: add failing test
-            msg!("Invalid Merkle tree index: {} current index {} (Merkle tree indices need to be in ascendin order.", input_compressed_account_with_context
-            .merkle_context
-            .merkle_tree_pubkey_index as i16, current_mt_index);
-            return err!(CompressedPdaError::InvalidMerkleTreeIndex);
         }
+
         if owner_pubkey
             != input_compressed_account_with_context
                 .compressed_account

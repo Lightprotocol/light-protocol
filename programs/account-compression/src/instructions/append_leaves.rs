@@ -1,5 +1,3 @@
-use std::cmp;
-
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 
@@ -8,10 +6,6 @@ use crate::{
     utils::check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
     RegisteredProgram,
 };
-
-// TODO: test how high we can go with the batch size
-const BATCH_SIZE: usize = 28;
-
 #[derive(Accounts)]
 pub struct AppendLeaves<'info> {
     #[account(mut)]
@@ -56,13 +50,7 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     leaves.sort_by(|a, b| a.0.cmp(&b.0));
 
-    let mut leaves_processed = 0;
-    for i in 0..(leaves.len().div_ceil(BATCH_SIZE)) {
-        let leaves_start = i * BATCH_SIZE;
-        let leaves_to_process = cmp::min(leaves.len().saturating_sub(i * BATCH_SIZE), BATCH_SIZE);
-        let leaves_end = leaves_start + leaves_to_process;
-        leaves_processed += process_batch(&ctx, &leaves[i * BATCH_SIZE..leaves_end])?;
-    }
+    let leaves_processed = process_batch(&ctx, &leaves)?;
     if leaves_processed != leaves.len() {
         return err!(crate::errors::AccountCompressionErrorCode::NotAllLeavesProcessed);
     }
@@ -106,9 +94,8 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
 
             let mut merkle_tree_account = merkle_tree_account.load_mut()?;
-            let mut lamports =
+            let lamports =
                 merkle_tree_account.metadata.rollover_metadata.rollover_fee * (end - start) as u64;
-            lamports += merkle_tree_account.metadata.rollover_metadata.network_fee;
 
             check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
                 ctx,
@@ -155,6 +142,12 @@ pub fn transfer_lamports_cpi<'info>(
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
+    msg!(
+        "transfer from {} to {} with lamports {}",
+        from.key,
+        to.key,
+        lamports
+    );
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;

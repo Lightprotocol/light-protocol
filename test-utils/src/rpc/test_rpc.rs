@@ -89,27 +89,24 @@ impl RpcConnection for ProgramTestRpcConnection {
         if let Some(transaction_params) = transaction_params {
             let mut deduped_signers = signers.to_vec();
             deduped_signers.dedup();
-            let post_balance = self
-                .context
-                .banks_client
-                .get_account(*payer)
-                .await?
-                .unwrap()
-                .lamports;
+            let post_balance = self.get_account(*payer).await?.unwrap().lamports;
 
-            // network_fee is always charged once per transaction
-            let network_fee = transaction_params.fee_config.network_fee as i64;
-
+            // a network_fee is charged if there are input compressed accounts or new addresses
+            let mut network_fee: i64 = 0;
+            if transaction_params.num_input_compressed_accounts != 0 {
+                network_fee += transaction_params.fee_config.network_fee as i64;
+            }
+            if transaction_params.num_new_addresses != 0 {
+                network_fee += transaction_params.fee_config.address_network_fee as i64;
+            }
             let expected_post_balance = pre_balance as i64
                 - i64::from(transaction_params.num_new_addresses)
                     * transaction_params.fee_config.address_queue_rollover as i64
-                - i64::from(transaction_params.num_input_compressed_accounts)
-                    * transaction_params.fee_config.nullifier_queue_rollover as i64
                 - i64::from(transaction_params.num_output_compressed_accounts)
                     * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
-                - 5000 * deduped_signers
-                - network_fee * (i64::from(transaction_params.num_output_compressed_accounts) / 28 + 1);
+                - 5000 * deduped_signers.len() as i64
+                - network_fee;
 
             if post_balance as i64 != expected_post_balance {
                 println!("transaction_params: {:?}", transaction_params);

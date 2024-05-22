@@ -79,29 +79,13 @@ export const TRANSACTION_MERKLE_TREE_ROLLOVER_THRESHOLD = new BN(
 );
 
 /**
- * Tip to reward the forester that empties the queues and nullifies leaves.
- *
- * Is charged per output compressed account.
- */
-export const STATE_MERKLE_TREE_TIP = new BN(1);
-
-/**
  * Fee to provide continous funding for the state Merkle tree.
  * Once the state Merkle tree is at 95% capacity the accumulated fees
  * will be used to fund the next state Merkle tree with the same parameters.
  *
  * Is charged per output compressed account.
  */
-export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(149);
-
-/**
- * Fee to provide continous funding for the nullifier queue corresponding to a state Merkle tree.
- * Once the state Merkle tree is at 95% capacity the accumulated fees
- * will be used to fund the next nullifier queue along side the state tree with the same parameters.
- *
- * Is charged per input compressed account.
- */
-export const STATE_NULLIFIER_QUEUE_ROLLOVER_FEE = new BN(29);
+export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(181);
 
 /**
  * Fee to provide continous funding for the address queue and address Merkle tree.
@@ -110,4 +94,15 @@ export const STATE_NULLIFIER_QUEUE_ROLLOVER_FEE = new BN(29);
  *
  * Is charged per newly created address.
  */
-export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(178);
+export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(181);
+
+export const STATE_MERKLE_TREE_NETWORK_FEE = new BN(5000);
+
+/**
+ * Fee to provide continous funding for the address queue and address Merkle tree.
+ * Once the address Merkle tree is at 95% capacity the accumulated fees
+ * will be used to fund the next address queue and address tree with the same parameters.
+ *
+ * Is charged per the transaction creates at least one address.
+ */
+export const ADDRESS_TREE_NETWORK_FEE = new BN(5000);

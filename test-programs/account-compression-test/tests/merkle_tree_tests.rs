@@ -517,8 +517,8 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
 
     fail_2_append_leaves_with_invalid_inputs(&mut context, &merkle_tree_pubkey).await;
 
-    // We should always support appending 60 leaves at once.
-    let leaves = (0u8..=60)
+    // We should always support appending 140 leaves at once.
+    let leaves = (0u8..=140)
         .map(|i| {
             (
                 0,
@@ -690,15 +690,11 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     let merkle_tree =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *merkle_tree_pubkey).await;
     let merkle_tree_deserialized = merkle_tree.deserialized();
-    let roll_over_fee = (merkle_tree_deserialized
+    let roll_over_fee = merkle_tree_deserialized
         .metadata
         .rollover_metadata
         .rollover_fee
-        * (leaves.len() as u64))
-        + merkle_tree_deserialized
-            .metadata
-            .rollover_metadata
-            .network_fee;
+        * (leaves.len() as u64);
     let merkle_tree = merkle_tree_deserialized.copy_merkle_tree().unwrap();
     assert_eq!(
         merkle_tree.next_index,
@@ -1033,7 +1029,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
     let context = program_test.start_with_context().await;
     let mut rpc = ProgramTestRpcConnection { context };
     let payer_pubkey = rpc.get_payer().pubkey();
-    let tip = 123;
+    let network_fee = 123;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -1041,7 +1037,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        tip,
+        network_fee,
         rollover_threshold,
         close_threshold,
     )
@@ -1175,6 +1171,7 @@ async fn functional_5_test_insert_into_nullifier_queues<R: RpcConnection>(
     let array = unsafe {
         get_hash_set::<u16, NullifierQueueAccount, R>(rpc, *nullifier_queue_pubkey).await
     };
+
     let array_element = array.by_value_index(2, None).unwrap();
     assert_eq!(array_element.value_biguint(), element);
     assert_eq!(array_element.sequence_number(), None);
@@ -1190,7 +1187,6 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: elements.to_vec(),
-        charge_network_fee: true,
     };
     let accounts = account_compression::accounts::InsertIntoNullifierQueues {
         fee_payer: fee_payer.pubkey(),
