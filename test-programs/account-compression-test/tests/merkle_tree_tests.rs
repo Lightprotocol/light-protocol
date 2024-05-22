@@ -277,11 +277,7 @@ async fn fail_insert_into_full_queue<R: RpcConnection>(
     )
     .await;
 
-    assert_rpc_error(
-        result,
-        0,
-        HashSetError::Full.into(),
-    );
+    assert_rpc_error(result, 0, HashSetError::Full.into());
 }
 
 pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
