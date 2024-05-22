@@ -652,5 +652,5 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         [&payer].as_slice(),
         latest_blockhash,
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }

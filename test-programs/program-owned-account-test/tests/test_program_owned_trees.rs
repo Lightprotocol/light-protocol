@@ -1,8 +1,10 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::StateMerkleTreeAccount;
+use anchor_lang::prelude::Program;
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_test_utils::{
     assert_custom_error_or_program_error,
@@ -13,7 +15,7 @@ use light_test_utils::{
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
-async fn test_program_owned_merkle_tree<R: RpcConnection>() {
+async fn test_program_owned_merkle_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
         String::from("program_owned_account_test"),
         program_owned_account_test::ID,
@@ -27,7 +29,7 @@ async fn test_program_owned_merkle_tree<R: RpcConnection>() {
     let program_owned_nullifier_queue_keypair = Keypair::new();
     let cpi_signature_keypair = Keypair::new();
 
-    let mut test_indexer = TestIndexer::<200, R>::init_from_env(
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
         true,
@@ -117,14 +119,14 @@ async fn test_program_owned_merkle_tree<R: RpcConnection>() {
         vec![recipient_keypair.pubkey(); 1],
     );
 
+    let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer_pubkey),
         &[&payer],
-        rpc.get_latest_blockhash().unwrap(),
+        latest_blockhash,
     );
-    let res = rpc.process_transaction(transaction).await.unwrap();
-
+    let res = rpc.process_transaction(transaction).await;
     assert_custom_error_or_program_error(
         res,
         light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),

@@ -10,7 +10,7 @@ use light_system_program::sdk::compressed_account::{
 
 use light_system_program::NewAddressParams;
 use light_test_utils::assert_custom_error_or_program_error;
-use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::spl::mint_tokens_helper;
 use light_test_utils::test_env::{
@@ -24,8 +24,6 @@ use program_owned_account_test::sdk::{
 };
 use program_owned_account_test::{self, RegisteredUser};
 use program_owned_account_test::{CreatePdaMode, ID};
-use solana_program_test::BanksClientError;
-use solana_sdk::instruction::InstructionError;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
 
@@ -78,14 +76,11 @@ async fn only_test_create_pda() {
         CreatePdaMode::ProgramIsSigner,
     )
     .await;
-    assert_eq!(
-        res.unwrap(),
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_system_program::errors::CompressedPdaError::WriteAccessCheckFailed.into()
-            )
-        ))
+
+    assert_rpc_error(
+        res,
+        0,
+        light_system_program::errors::CompressedPdaError::WriteAccessCheckFailed.into(),
     );
 
     let res = perform_create_pda_failing(
@@ -99,15 +94,13 @@ async fn only_test_create_pda() {
         CreatePdaMode::InvalidSignerSeeds,
     )
     .await;
-    assert_eq!(
-        res.unwrap(),
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_system_program::errors::CompressedPdaError::SignerCheckFailed.into()
-            )
-        ))
+
+    assert_rpc_error(
+        res,
+        0,
+        light_system_program::errors::CompressedPdaError::SignerCheckFailed.into(),
     );
+
     let mint = create_mint_helper(&mut rpc, &payer).await;
 
     let amount = 10000u64;
@@ -132,15 +125,12 @@ async fn only_test_create_pda() {
         &compressed_token_account,
     )
     .await;
-    assert_eq!(
-        res.unwrap(),
-        Err(solana_sdk::transaction::TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                light_system_program::errors::CompressedPdaError::SignerCheckFailed.into()
-            )
-        ))
-    );
+
+    assert_rpc_error(
+        res,
+        0,
+        light_system_program::errors::CompressedPdaError::SignerCheckFailed.into(),
+    )
 }
 
 #[tokio::test]
@@ -236,7 +226,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    let res = rpc.process_transaction(tx).await.unwrap();
+    let res = rpc.process_transaction(tx).await;
     assert_custom_error_or_program_error(
         res,
         light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
@@ -244,6 +234,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
     .unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_create_pda_failing<R: RpcConnection>(
     test_indexer: &mut TestIndexer<200, R>,
     rpc: &mut R,
@@ -253,7 +244,7 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
     data: &[u8; 31],
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
-) -> Result<solana_sdk::transaction::Result<()>, RpcError> {
+) -> Result<(), RpcError> {
     let payer_pubkey = payer.pubkey();
     let instruction = perform_create_pda(
         env,
@@ -272,8 +263,10 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
+
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_create_pda_with_event<R: RpcConnection>(
     test_indexer: &mut TestIndexer<200, R>,
     rpc: &mut R,
@@ -283,7 +276,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     data: &[u8; 31],
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
-) -> Result<(), BanksClientError> {
+) -> Result<(), RpcError> {
     let payer_pubkey = payer.pubkey();
     let instruction = perform_create_pda(
         env,
@@ -303,6 +296,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn perform_create_pda<R: RpcConnection>(
     env: &EnvAccounts,
     seed: [u8; 32],
@@ -341,8 +335,7 @@ async fn perform_create_pda<R: RpcConnection>(
         owner_program,
         signer_is_program,
     };
-    let instruction = create_pda_instruction(create_ix_inputs.clone());
-    instruction
+    create_pda_instruction(create_ix_inputs.clone())
 }
 
 pub async fn assert_created_pda<R: RpcConnection>(
@@ -358,7 +351,7 @@ pub async fn assert_created_pda<R: RpcConnection>(
         .find(|x| x.compressed_account.owner == ID)
         .unwrap()
         .clone();
-    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
@@ -395,7 +388,7 @@ pub async fn perform_invalidate_not_owned_compressed_account<R: RpcConnection>(
     env: &EnvAccounts,
     payer: &Keypair,
     compressed_account: &CompressedAccountWithMerkleContext,
-) -> Result<solana_sdk::transaction::Result<()>, RpcError> {
+) -> Result<(), RpcError> {
     let payer_pubkey = payer.pubkey();
     let hash = compressed_account
         .compressed_account
@@ -434,5 +427,5 @@ pub async fn perform_invalidate_not_owned_compressed_account<R: RpcConnection>(
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
