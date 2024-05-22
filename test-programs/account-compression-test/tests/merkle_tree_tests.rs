@@ -15,7 +15,7 @@ use light_concurrent_merkle_tree::{event::MerkleTreeEvent, ConcurrentMerkleTree2
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
@@ -344,7 +344,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         tip,
-        rollover_threshold.clone(),
+        rollover_threshold,
         close_threshold,
     )
     .await;
@@ -358,7 +358,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
         tip,
-        rollover_threshold.clone(),
+        rollover_threshold,
         close_threshold,
     )
     .await;
@@ -398,12 +398,11 @@ async fn test_init_and_rollover_state_merkle_tree() {
     )
     .await;
 
-    let instruction_error =
-        InstructionError::Custom(AccountCompressionErrorCode::NotReadyForRollover.into());
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::NotReadyForRollover.into(),
+    );
 
     set_state_merkle_tree_next_index(
         &mut context,
@@ -421,13 +420,11 @@ async fn test_init_and_rollover_state_merkle_tree() {
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(
+    assert_rpc_error(
+        result,
+        2,
         AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     );
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
 
     let result = perform_state_merkle_tree_roll_over(
         &mut context,
@@ -438,13 +435,11 @@ async fn test_init_and_rollover_state_merkle_tree() {
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(
+    assert_rpc_error(
+        result,
+        2,
         AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     );
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
 
     let signer_prior_balance = context
         .get_account(payer_pubkey)
@@ -485,12 +480,11 @@ async fn test_init_and_rollover_state_merkle_tree() {
     )
     .await;
 
-    let instruction_error =
-        InstructionError::Custom(AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into());
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into(),
+    );
 }
 
 /// Tests:
@@ -561,7 +555,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
             .unwrap()
             .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
         &ID,
-        Some(&merkle_tree_keypair),
+        Some(merkle_tree_keypair),
     );
 
     let size = NullifierQueueAccount::size(
@@ -574,7 +568,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         size,
         rpc.get_rent().await.unwrap().minimum_balance(size),
         &ID,
-        Some(&queue_keypair),
+        Some(queue_keypair),
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
@@ -606,9 +600,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         &vec![&rpc.get_payer(), &merkle_tree_keypair, queue_keypair],
         latest_blockhash,
     );
-    rpc.process_transaction_with_metadata(transaction.clone())
-        .await
-        .unwrap();
+    rpc.process_transaction(transaction.clone()).await.unwrap();
     let merkle_tree = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree_pubkey).await;
 
     assert_eq!(
@@ -682,9 +674,8 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
         &vec![&context.get_payer()],
         latest_blockhash,
     );
-    let remaining_accounts_missmatch_error =
-        context.process_transaction_with_metadata(transaction).await;
-    assert!(remaining_accounts_missmatch_error.is_err());
+    let remaining_accounts_mismatch_error = context.process_transaction(transaction).await;
+    assert!(remaining_accounts_mismatch_error.is_err());
 }
 
 pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
@@ -788,8 +779,7 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
         &vec![&rpc.get_payer(), &invalid_autority],
         latest_blockhash,
     );
-    let remaining_accounts_mismatch_error =
-        rpc.process_transaction_with_metadata(transaction).await;
+    let remaining_accounts_mismatch_error = rpc.process_transaction(transaction).await;
     assert!(remaining_accounts_mismatch_error.is_err());
 }
 
@@ -827,7 +817,7 @@ async fn test_nullify_leaves() {
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         tip,
-        rollover_threshold.clone(),
+        rollover_threshold,
         close_threshold,
     )
     .await;
@@ -841,7 +831,7 @@ async fn test_nullify_leaves() {
         &other_merkle_tree_keypair,
         &invalid_nullifier_queue_keypair,
         tip,
-        rollover_threshold.clone(),
+        rollover_threshold,
         close_threshold,
     )
     .await;
@@ -861,7 +851,7 @@ async fn test_nullify_leaves() {
     .await
     .unwrap();
 
-    let mut reference_merkle_tree = light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
+    let mut reference_merkle_tree = MerkleTree::<Poseidon>::new(
         STATE_MERKLE_TREE_HEIGHT as usize,
         STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
     );
@@ -963,7 +953,7 @@ pub async fn nullify<R: RpcConnection>(
     let instructions = [
         account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
             vec![change_log_index].as_slice(),
-            vec![leaf_queue_index.clone()].as_slice(),
+            vec![leaf_queue_index].as_slice(),
             vec![element_index].as_slice(),
             vec![proof].as_slice(),
             &rpc.get_payer().pubkey(),
@@ -1073,7 +1063,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         tip,
-        rollover_threshold.clone(),
+        rollover_threshold,
         close_threshold,
     )
     .await;
@@ -1240,7 +1230,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
 
     let instruction = Instruction {
         program_id: ID,
-        accounts: vec![accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
     let latest_blockhash = context.get_latest_blockhash().await.unwrap();
@@ -1250,7 +1240,5 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
         &vec![fee_payer, payer],
         latest_blockhash,
     );
-    context
-        .process_transaction_with_metadata(transaction.clone())
-        .await
+    context.process_transaction(transaction.clone()).await
 }
