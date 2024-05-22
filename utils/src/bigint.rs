@@ -243,70 +243,148 @@ mod test {
 
     #[test]
     fn test_bigint_conversion_invalid_size() {
-        let mut rng = thread_rng();
+        let b8 = BigUint::from_bytes_be(&[1; 8]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b8);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 7], UtilsError> = bigint_to_be_bytes_array(&b8);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(7))));
+        let res: Result<[u8; 8], UtilsError> = bigint_to_be_bytes_array(&b8);
+        assert!(res.is_ok());
 
-        let b64 = rng.gen_biguint(64);
+        let b8 = BigUint::from_bytes_le(&[1; 8]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b8);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 7], UtilsError> = bigint_to_le_bytes_array(&b8);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(7))));
+        let res: Result<[u8; 8], UtilsError> = bigint_to_le_bytes_array(&b8);
+        assert!(res.is_ok());
+
+        let b16 = BigUint::from_bytes_be(&[1; 16]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b16);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 15], UtilsError> = bigint_to_be_bytes_array(&b16);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(15))));
+        let res: Result<[u8; 16], UtilsError> = bigint_to_be_bytes_array(&b16);
+        assert!(res.is_ok());
+
+        let b16 = BigUint::from_bytes_le(&[1; 16]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b16);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 15], UtilsError> = bigint_to_le_bytes_array(&b16);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(15))));
+        let res: Result<[u8; 16], UtilsError> = bigint_to_le_bytes_array(&b16);
+        assert!(res.is_ok());
+
+        let b32 = BigUint::from_bytes_be(&[1; 32]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b32);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 31], UtilsError> = bigint_to_be_bytes_array(&b32);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(31))));
+        let res: Result<[u8; 32], UtilsError> = bigint_to_be_bytes_array(&b32);
+        assert!(res.is_ok());
+
+        let b32 = BigUint::from_bytes_le(&[1; 32]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b32);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 31], UtilsError> = bigint_to_le_bytes_array(&b32);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(31))));
+        let res: Result<[u8; 32], UtilsError> = bigint_to_le_bytes_array(&b32);
+        assert!(res.is_ok());
+
+        let b64 = BigUint::from_bytes_be(&[1; 64]);
         let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b64);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 7], UtilsError> = bigint_to_be_bytes_array(&b64);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(7))));
-        let res: Result<[u8; 9], UtilsError> = bigint_to_be_bytes_array(&b64);
+        let res: Result<[u8; 63], UtilsError> = bigint_to_be_bytes_array(&b64);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(63))));
+        let res: Result<[u8; 64], UtilsError> = bigint_to_be_bytes_array(&b64);
         assert!(res.is_ok());
 
-        let b128 = rng.gen_biguint(128);
+        let b64 = BigUint::from_bytes_le(&[1; 64]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b64);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 63], UtilsError> = bigint_to_le_bytes_array(&b64);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(63))));
+        let res: Result<[u8; 64], UtilsError> = bigint_to_le_bytes_array(&b64);
+        assert!(res.is_ok());
+
+        let b128 = BigUint::from_bytes_be(&[1; 128]);
         let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b128);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 15], UtilsError> = bigint_to_be_bytes_array(&b128);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(15))));
-        let res: Result<[u8; 17], UtilsError> = bigint_to_be_bytes_array(&b128);
+        let res: Result<[u8; 127], UtilsError> = bigint_to_be_bytes_array(&b128);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(127))));
+        let res: Result<[u8; 128], UtilsError> = bigint_to_be_bytes_array(&b128);
         assert!(res.is_ok());
 
-        let b256 = rng.gen_biguint(256);
+        let b128 = BigUint::from_bytes_le(&[1; 128]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b128);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 127], UtilsError> = bigint_to_le_bytes_array(&b128);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(127))));
+        let res: Result<[u8; 128], UtilsError> = bigint_to_le_bytes_array(&b128);
+        assert!(res.is_ok());
+
+        let b256 = BigUint::from_bytes_be(&[1; 256]);
         let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b256);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 31], UtilsError> = bigint_to_be_bytes_array(&b256);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(31))));
-        let res: Result<[u8; 33], UtilsError> = bigint_to_be_bytes_array(&b256);
+        let res: Result<[u8; 255], UtilsError> = bigint_to_be_bytes_array(&b256);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(255))));
+        let res: Result<[u8; 256], UtilsError> = bigint_to_be_bytes_array(&b256);
         assert!(res.is_ok());
 
-        let b320 = rng.gen_biguint(320);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b320);
+        let b256 = BigUint::from_bytes_le(&[1; 256]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b256);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 39], UtilsError> = bigint_to_be_bytes_array(&b320);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(39))));
-        let res: Result<[u8; 41], UtilsError> = bigint_to_be_bytes_array(&b320);
+        let res: Result<[u8; 255], UtilsError> = bigint_to_le_bytes_array(&b256);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(255))));
+        let res: Result<[u8; 256], UtilsError> = bigint_to_le_bytes_array(&b256);
         assert!(res.is_ok());
 
-        let b384 = rng.gen_biguint(384);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b384);
+        let b512 = BigUint::from_bytes_be(&[1; 512]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b512);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 47], UtilsError> = bigint_to_be_bytes_array(&b384);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(47))));
-        let res: Result<[u8; 49], UtilsError> = bigint_to_be_bytes_array(&b384);
+        let res: Result<[u8; 511], UtilsError> = bigint_to_be_bytes_array(&b512);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(511))));
+        let res: Result<[u8; 512], UtilsError> = bigint_to_be_bytes_array(&b512);
         assert!(res.is_ok());
 
-        let b448 = rng.gen_biguint(448);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b448);
+        let b512 = BigUint::from_bytes_le(&[1; 512]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b512);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 55], UtilsError> = bigint_to_be_bytes_array(&b448);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(55))));
-        let res: Result<[u8; 57], UtilsError> = bigint_to_be_bytes_array(&b448);
+        let res: Result<[u8; 511], UtilsError> = bigint_to_le_bytes_array(&b512);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(511))));
+        let res: Result<[u8; 512], UtilsError> = bigint_to_le_bytes_array(&b512);
         assert!(res.is_ok());
 
-        let b768 = rng.gen_biguint(768);
+        let b768 = BigUint::from_bytes_be(&[1; 768]);
         let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b768);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 95], UtilsError> = bigint_to_be_bytes_array(&b768);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(95))));
-        let res: Result<[u8; 97], UtilsError> = bigint_to_be_bytes_array(&b768);
+        let res: Result<[u8; 767], UtilsError> = bigint_to_be_bytes_array(&b768);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(767))));
+        let res: Result<[u8; 768], UtilsError> = bigint_to_be_bytes_array(&b768);
         assert!(res.is_ok());
 
-        let b832 = rng.gen_biguint(832);
-        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b832);
+        let b768 = BigUint::from_bytes_le(&[1; 768]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b768);
         assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
-        let res: Result<[u8; 103], UtilsError> = bigint_to_be_bytes_array(&b832);
-        assert!(matches!(res, Err(UtilsError::InputTooLarge(103))));
-        let res: Result<[u8; 105], UtilsError> = bigint_to_be_bytes_array(&b832);
+        let res: Result<[u8; 767], UtilsError> = bigint_to_le_bytes_array(&b768);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(767))));
+        let res: Result<[u8; 768], UtilsError> = bigint_to_le_bytes_array(&b768);
+        assert!(res.is_ok());
+
+        let b1024 = BigUint::from_bytes_be(&[1; 1024]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_be_bytes_array(&b1024);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 1023], UtilsError> = bigint_to_be_bytes_array(&b1024);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1023))));
+        let res: Result<[u8; 1024], UtilsError> = bigint_to_be_bytes_array(&b1024);
+        assert!(res.is_ok());
+
+        let b1024 = BigUint::from_bytes_le(&[1; 1024]);
+        let res: Result<[u8; 1], UtilsError> = bigint_to_le_bytes_array(&b1024);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1))));
+        let res: Result<[u8; 1023], UtilsError> = bigint_to_le_bytes_array(&b1024);
+        assert!(matches!(res, Err(UtilsError::InputTooLarge(1023))));
+        let res: Result<[u8; 1024], UtilsError> = bigint_to_le_bytes_array(&b1024);
         assert!(res.is_ok());
     }
 }
