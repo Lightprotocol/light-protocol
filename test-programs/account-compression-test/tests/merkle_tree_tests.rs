@@ -174,7 +174,7 @@ async fn test_nullifier_queue_security() {
     // CHECK: 5
     let element: [u8; 32] =
         bigint_to_be_bytes_array(&replacement_value.to_biguint().unwrap()).unwrap();
-    let _ = insert_into_nullifier_queues(
+    insert_into_nullifier_queues(
         &vec![element],
         &payer,
         &payer,
@@ -452,7 +452,8 @@ async fn test_init_and_rollover_state_merkle_tree() {
         .unwrap()
         .unwrap()
         .lamports;
-    let _ = perform_state_merkle_tree_roll_over(
+
+    perform_state_merkle_tree_roll_over(
         &mut context,
         &new_nullifier_queue_keypair,
         &new_state_merkle_tree_keypair,
@@ -1121,7 +1122,7 @@ async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
 ) {
     let payer = rpc.get_payer().insecure_clone();
     let elements = vec![[1_u8; 32], [2_u8; 32]];
-    let _ = insert_into_nullifier_queues(
+    insert_into_nullifier_queues(
         &elements,
         &payer,
         &payer,
@@ -1192,7 +1193,7 @@ async fn functional_5_test_insert_into_nullifier_queues<R: RpcConnection>(
     let payer = rpc.get_payer().insecure_clone();
     let element = 3_u32.to_biguint().unwrap();
     let elements = vec![bigint_to_be_bytes_array(&element).unwrap()];
-    let _ = insert_into_nullifier_queues(
+    insert_into_nullifier_queues(
         &elements,
         &payer,
         &payer,

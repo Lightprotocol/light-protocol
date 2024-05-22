@@ -202,7 +202,8 @@ async fn test_insert_invalid_low_element() {
         bigint_to_be_bytes_array(&address1).unwrap(),
         bigint_to_be_bytes_array(&address2).unwrap(),
     ];
-    let _ = insert_addresses(
+
+    insert_addresses(
         &mut context,
         address_queue_keypair.pubkey(),
         address_merkle_tree_keypair.pubkey(),
@@ -210,6 +211,7 @@ async fn test_insert_invalid_low_element() {
     )
     .await
     .unwrap();
+
     relayer_update(
         &mut context,
         address_queue_keypair.pubkey(),
