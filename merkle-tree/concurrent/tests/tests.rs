@@ -1239,17 +1239,183 @@ where
 
     let mut rng = thread_rng();
 
+    // Vector of changelog indices after each operation.
+    let mut leaf_indices = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Vector of roots after each operation.
+    let mut roots = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Vector of merkle paths we get from the reference tree after each operation.
+    let mut merkle_paths = CyclicBoundedVec::with_capacity(CHANGELOG);
+    // Changelog is always initialized with a changelog path consisting of zero
+    // bytes. For consistency, we need to assert the 1st zero byte as the first
+    // expected leaf in the changelog.
+    let merkle_path = reference_tree.get_path_of_leaf(0, true).unwrap();
+    leaf_indices.push(0);
+    merkle_paths.push(merkle_path);
+    roots.push(merkle_tree.root());
+
+    // Try to make the tree full. After each append, update a random leaf.
+    // Reload the tree from bytes after each action.
     for _ in 0..(1 << HEIGHT) {
+        // Reload the tree.
+        let merkle_tree = unsafe {
+            ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
+                bytes_struct.as_mut_slice(),
+                bytes_filled_subtrees.as_mut_slice(),
+                bytes_changelog.as_mut_slice(),
+                bytes_roots.as_mut_slice(),
+                bytes_canopy.as_mut_slice(),
+            )
+            .unwrap()
+        };
+
+        // Append leaf.
         let leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
             .try_into()
             .unwrap();
-
+        let leaf_index = merkle_tree.next_index();
         merkle_tree.append(&leaf).unwrap();
         reference_tree.append(&leaf).unwrap();
 
+        leaf_indices.push(leaf_index);
+        roots.push(merkle_tree.root());
+        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        merkle_paths.push(merkle_path);
+
         assert_eq!(merkle_tree.root(), reference_tree.root());
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
+
+        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+            .iter()
+            .skip(1)
+            .zip(merkle_paths.iter().skip(1))
+            .zip(roots.iter().skip(1))
+            .zip(changelog_entries)
+        {
+            assert_eq!(changelog_entry.index, *leaf_index as u64);
+            assert_eq!(&changelog_entry.root, root);
+            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+        }
+
+        for (root_1, root_2) in merkle_tree.roots.iter().zip(roots.iter()) {
+            assert_eq!(root_1, root_2);
+        }
+
+        // Update random leaf.
+        let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
+        let old_leaf = reference_tree.leaf(leaf_index);
+        let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        merkle_tree
+            .update(
+                merkle_tree.changelog_index(),
+                &old_leaf,
+                &new_leaf,
+                leaf_index,
+                &mut proof,
+            )
+            .unwrap();
+        reference_tree.update(&new_leaf, leaf_index).unwrap();
+
+        assert_eq!(merkle_tree.root(), reference_tree.root());
+
+        leaf_indices.push(leaf_index);
+        roots.push(merkle_tree.root());
+        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        merkle_paths.push(merkle_path);
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
+
+        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+            .iter()
+            .skip(1)
+            .zip(merkle_paths.iter().skip(1))
+            .zip(roots.iter().skip(1))
+            .zip(changelog_entries)
+        {
+            assert_eq!(changelog_entry.index, *leaf_index as u64);
+            assert_eq!(&changelog_entry.root, root);
+            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+        }
+
+        for (root_1, root_2) in merkle_tree.roots.iter().zip(roots.iter()) {
+            assert_eq!(root_1, root_2);
+        }
+    }
+
+    // Keep updating random leaves in loop.
+    for _ in 0..1000 {
+        // Reload the tree.
+        let merkle_tree = unsafe {
+            ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
+                bytes_struct.as_mut_slice(),
+                bytes_filled_subtrees.as_mut_slice(),
+                bytes_changelog.as_mut_slice(),
+                bytes_roots.as_mut_slice(),
+                bytes_canopy.as_mut_slice(),
+            )
+            .unwrap()
+        };
+
+        // Update random leaf.
+        let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
+        let old_leaf = reference_tree.leaf(leaf_index);
+        let new_leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        merkle_tree
+            .update(
+                merkle_tree.changelog_index(),
+                &old_leaf,
+                &new_leaf,
+                leaf_index,
+                &mut proof,
+            )
+            .unwrap();
+        reference_tree.update(&new_leaf, leaf_index).unwrap();
+
+        assert_eq!(merkle_tree.root(), reference_tree.root());
+
+        leaf_indices.push(leaf_index);
+        roots.push(merkle_tree.root());
+        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        merkle_paths.push(merkle_path);
+
+        let changelog_entries = merkle_tree
+            .changelog_entries(merkle_tree.changelog.first_index())
+            .collect::<Vec<_>>();
+        assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
+
+        for (((leaf_index, merkle_path), root), changelog_entry) in leaf_indices
+            .iter()
+            .skip(1)
+            .zip(merkle_paths.iter().skip(1))
+            .zip(roots.iter().skip(1))
+            .zip(changelog_entries)
+        {
+            assert_eq!(changelog_entry.index, *leaf_index as u64);
+            assert_eq!(&changelog_entry.root, root);
+            assert_eq!(&changelog_entry.path, merkle_path.as_slice());
+        }
+
+        for (root_1, root_2) in merkle_tree.roots.iter().zip(roots.iter()) {
+            assert_eq!(root_1, root_2);
+        }
     }
 
     let merkle_tree = unsafe {
