@@ -97,7 +97,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         ],
         blockhash,
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
 
 pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
@@ -181,7 +181,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     );
     let old_mt_account = AccountLoader::<StateMerkleTreeAccount>::try_from(&account_info).unwrap();
     let old_loaded_mt_account = old_mt_account.load().unwrap();
-    let current_slot = rpc.get_root_slot().await.unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
 
     assert_rolledover_merkle_trees_metadata(
         &old_loaded_mt_account.metadata,

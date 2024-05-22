@@ -109,7 +109,7 @@ pub async fn airdrop_lamports<R: RpcConnection>(
     );
 
     // Send the transaction
-    rpc.process_transaction_with_metadata(transaction).await?;
+    rpc.process_transaction(transaction).await?;
     Ok(())
 }
 

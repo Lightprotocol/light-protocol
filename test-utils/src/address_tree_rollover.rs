@@ -111,7 +111,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         ],
         blockhash,
     );
-    context.process_transaction_with_metadata(transaction).await
+    context.process_transaction(transaction).await
 }
 
 pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
@@ -122,7 +122,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
     new_merkle_tree_pubkey: &Pubkey,
     new_queue_pubkey: &Pubkey,
 ) {
-    let current_slot = rpc.get_root_slot().await.unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
 
     let mut new_mt_account = rpc
         .get_account(*new_merkle_tree_pubkey)

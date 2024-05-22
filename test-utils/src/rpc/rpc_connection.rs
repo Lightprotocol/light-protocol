@@ -36,20 +36,23 @@ pub trait RpcConnection {
     fn get_latest_blockhash(
         &mut self,
     ) -> impl std::future::Future<Output = Result<Hash, RpcError>> + Send;
-    fn process_transaction_with_metadata(
+    fn process_transaction(
         &mut self,
         transaction: Transaction,
     ) -> impl std::future::Future<Output = Result<(), RpcError>> + Send;
-    fn get_root_slot(&mut self) -> impl std::future::Future<Output = Result<u64, RpcError>> + Send;
+    fn get_slot(&mut self) -> impl std::future::Future<Output = Result<u64, RpcError>> + Send;
     fn airdrop_lamports(
         &mut self,
         destination_pubkey: &Pubkey,
         lamports: u64,
     ) -> impl std::future::Future<Output = Result<(), RpcError>> + Send;
+
+    // TODO: return Result<T, Error>
     fn get_anchor_account<T: AnchorDeserialize>(
         &mut self,
         pubkey: &Pubkey,
     ) -> impl std::future::Future<Output = T> + Send;
+
     fn get_balance(
         &mut self,
         pubkey: &Pubkey,

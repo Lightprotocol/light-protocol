@@ -236,7 +236,7 @@ async fn test_create_pda_in_program_owned_merkle_tree() {
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    let res = rpc.process_transaction_with_metadata(tx).await.unwrap();
+    let res = rpc.process_transaction(tx).await.unwrap();
     assert_custom_error_or_program_error(
         res,
         light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),

@@ -59,10 +59,7 @@ async fn test_create_and_update_group() {
         &vec![&context.get_payer()],
         latest_blockhash,
     );
-    context
-        .process_transaction_with_metadata(transaction)
-        .await
-        .unwrap();
+    context.process_transaction(transaction).await.unwrap();
 
     let group_authority = context
         .get_anchor_account::<GroupAuthority>(&group_accounts.0)
@@ -93,10 +90,7 @@ async fn test_create_and_update_group() {
         &vec![&context.get_payer()],
         latest_blockhash,
     );
-    context
-        .process_transaction_with_metadata(transaction)
-        .await
-        .unwrap();
+    context.process_transaction(transaction).await.unwrap();
 
     let group_authority = context
         .get_anchor_account::<GroupAuthority>(&group_accounts.0)
@@ -126,7 +120,7 @@ async fn test_create_and_update_group() {
         &vec![&context.get_payer()],
         latest_blockhash,
     );
-    let update_error = context.process_transaction_with_metadata(transaction).await;
+    let update_error = context.process_transaction(transaction).await;
     assert!(update_error.is_err());
 
     airdrop_lamports(&mut context, &updated_keypair.pubkey(), 1_000_000_000)
@@ -156,10 +150,7 @@ async fn test_create_and_update_group() {
         &vec![&updated_keypair],
         context.get_latest_blockhash().await.unwrap(),
     );
-    context
-        .process_transaction_with_metadata(transaction)
-        .await
-        .unwrap();
+    context.process_transaction(transaction).await.unwrap();
     // add new program to group with invalid authority
     let other_program_id = Pubkey::new_unique();
     let registered_program_pda =
@@ -186,8 +177,5 @@ async fn test_create_and_update_group() {
         &vec![&context.get_payer()],
         latest_blockhash,
     );
-    context
-        .process_transaction_with_metadata(transaction)
-        .await
-        .unwrap_err();
+    context.process_transaction(transaction).await.unwrap_err();
 }

@@ -148,7 +148,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             self.get_latest_blockhash().await.unwrap(),
         );
         let signature = transaction.signatures[0];
-        self.process_transaction_with_metadata(transaction).await?;
+        self.process_transaction(transaction).await?;
         Ok(signature)
     }
 
@@ -183,10 +183,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
     }
 
-    async fn process_transaction_with_metadata(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<(), RpcError> {
+    async fn process_transaction(&mut self, transaction: Transaction) -> Result<(), RpcError> {
         let result = self
             .context
             .banks_client
@@ -197,7 +194,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(())
     }
 
-    async fn get_root_slot(&mut self) -> Result<u64, RpcError> {
+    async fn get_slot(&mut self) -> Result<u64, RpcError> {
         self.context
             .banks_client
             .get_root_slot()
@@ -234,7 +231,6 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(())
     }
 
-    // TODO: return Result<T, Error>
     async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {
         let account = self.get_account(*pubkey).await.unwrap().unwrap();
         T::deserialize(&mut &account.data[8..]).unwrap()

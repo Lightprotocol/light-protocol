@@ -128,14 +128,11 @@ impl RpcConnection for SolanaRpcConnection {
         todo!()
     }
 
-    async fn process_transaction_with_metadata(
-        &mut self,
-        _transaction: Transaction,
-    ) -> Result<(), RpcError> {
+    async fn process_transaction(&mut self, _transaction: Transaction) -> Result<(), RpcError> {
         todo!()
     }
 
-    async fn get_root_slot(&mut self) -> Result<u64, RpcError> {
+    async fn get_slot(&mut self) -> Result<u64, RpcError> {
         todo!()
     }
 

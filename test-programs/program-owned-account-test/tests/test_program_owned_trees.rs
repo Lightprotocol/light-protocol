@@ -123,10 +123,7 @@ async fn test_program_owned_merkle_tree<R: RpcConnection>() {
         &[&payer],
         rpc.get_latest_blockhash().unwrap(),
     );
-    let res = rpc
-        .process_transaction_with_metadata(transaction)
-        .await
-        .unwrap();
+    let res = rpc.process_transaction(transaction).await.unwrap();
 
     assert_custom_error_or_program_error(
         res,

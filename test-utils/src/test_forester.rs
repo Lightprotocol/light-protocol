@@ -495,5 +495,5 @@ pub async fn insert_addresses<R: RpcConnection>(
         &[&context.get_payer(), &context.get_payer()],
         latest_blockhash,
     );
-    context.process_transaction_with_metadata(transaction).await
+    context.process_transaction(transaction).await
 }

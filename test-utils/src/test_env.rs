@@ -287,9 +287,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &vec![payer, merkle_tree_keypair, nullifier_queue_keypair],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction_with_metadata(transaction.clone())
-        .await
-        .unwrap();
+    rpc.process_transaction(transaction.clone()).await.unwrap();
 }
 
 #[inline(never)]
@@ -349,7 +347,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         context.get_latest_blockhash().await.unwrap(),
     );
     context
-        .process_transaction_with_metadata(transaction.clone())
+        .process_transaction(transaction.clone())
         .await
         .unwrap();
 }

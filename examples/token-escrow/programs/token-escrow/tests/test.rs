@@ -324,7 +324,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
 
 pub async fn assert_escrow<R: RpcConnection>(
@@ -359,7 +359,7 @@ pub async fn assert_escrow<R: RpcConnection>(
     let timelock_account = rpc
         .get_anchor_account::<EscrowTimeLock>(&time_lock_pubkey)
         .await;
-    let current_slot = rpc.get_root_slot().await.unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
     assert_eq!(timelock_account.slot, *lock_up_time + current_slot);
 }
 
@@ -482,7 +482,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
         &[&payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
 pub fn assert_withdrawal<R: RpcConnection>(
     test_indexer: &TestIndexer<200, R>,

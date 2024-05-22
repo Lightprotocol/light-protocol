@@ -81,7 +81,7 @@ async fn test_escrow_with_compressed_pda() {
     .await
     .unwrap();
 
-    let current_slot = rpc.get_root_slot().await.unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
     let lockup_end = lock_up_time + current_slot;
     assert_escrow(
         &mut test_indexer,
@@ -168,7 +168,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
         latest_blockhash,
     );
 
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
 
 pub async fn perform_escrow_with_event<R: RpcConnection>(
@@ -399,7 +399,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
         &[&payer],
         latest_blockhash,
     );
-    rpc.process_transaction_with_metadata(transaction).await
+    rpc.process_transaction(transaction).await
 }
 pub async fn perform_withdrawal<R: RpcConnection>(
     rpc: &mut R,
@@ -544,7 +544,7 @@ pub async fn assert_withdrawal<R: RpcConnection>(
     let compressed_escrow_pda_data =
         EscrowTimeLock::deserialize_reader(&mut &compressed_escrow_pda_deserialized.data[..])
             .unwrap();
-    let current_slot = rpc.get_root_slot().await.unwrap();
+    let current_slot = rpc.get_slot().await.unwrap();
     assert_eq!(compressed_escrow_pda_data.slot, lock_up_time + current_slot);
     assert_eq!(
         compressed_escrow_pda_deserialized.discriminator,

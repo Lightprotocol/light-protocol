@@ -338,7 +338,7 @@ async fn test_with_address() {
         context.get_latest_blockhash().await.unwrap(),
     );
 
-    let res = context.process_transaction_with_metadata(transaction).await;
+    let res = context.process_transaction(transaction).await;
     assert_custom_error_or_program_error(res, CompressedPdaError::InvalidAddress.into()).unwrap();
     println!("creating address -------------------------");
     create_addresses_test(
@@ -523,7 +523,7 @@ async fn test_with_compression() {
         context.get_latest_blockhash().await.unwrap(),
     );
 
-    let result = context.process_transaction_with_metadata(transaction).await;
+    let result = context.process_transaction(transaction).await;
     // should fail because of insufficient input funds
     assert_custom_error_or_program_error(result, CompressedPdaError::ComputeOutputSumFailed.into())
         .unwrap();
@@ -555,7 +555,7 @@ async fn test_with_compression() {
         context.get_latest_blockhash().await.unwrap(),
     );
 
-    let result = context.process_transaction_with_metadata(transaction).await;
+    let result = context.process_transaction(transaction).await;
     // should fail because of insufficient decompress amount funds
     assert_custom_error_or_program_error(result, CompressedPdaError::ComputeOutputSumFailed.into())
         .unwrap();
@@ -627,7 +627,7 @@ async fn test_with_compression() {
     );
     println!("Transaction with zkp -------------------------");
 
-    let result = context.process_transaction_with_metadata(transaction).await;
+    let result = context.process_transaction(transaction).await;
     // should fail because of insufficient output funds
     assert_custom_error_or_program_error(result, CompressedPdaError::SumCheckFailed.into())
         .unwrap();
