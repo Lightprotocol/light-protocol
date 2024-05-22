@@ -277,11 +277,11 @@ async fn fail_insert_into_full_queue<R: RpcConnection>(
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(HashSetError::Full.into());
-    let transaction_error =
-        solana_sdk::transaction::TransactionError::InstructionError(0, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
+    assert_rpc_error(
+        result,
+        0,
+        HashSetError::Full.into(),
+    );
 }
 
 pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(

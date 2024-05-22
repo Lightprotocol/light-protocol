@@ -15,9 +15,10 @@ use account_compression::{
     utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeConfig, AddressQueueAccount, ID,
 };
+use light_hash_set::HashSetError;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
-use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
@@ -402,11 +403,11 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     )
     .await;
 
-    let instruction_error =
-        InstructionError::Custom(AccountCompressionErrorCode::NotReadyForRollover.into());
-    let transaction_error = TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::NotReadyForRollover.into(),
+    );
 
     let lamports_queue_accounts = context
         .get_account(address_queue_keypair.pubkey())
@@ -437,11 +438,11 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     )
     .await;
 
-    let instruction_error =
-        InstructionError::Custom(AccountCompressionErrorCode::NotReadyForRollover.into());
-    let transaction_error = TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::NotReadyForRollover.into(),
+    );
 
     set_address_merkle_tree_next_index(
         &mut context,
@@ -460,12 +461,11 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(
+    assert_rpc_error(
+        result,
+        2,
         AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     );
-    let transaction_error = TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
 
     let result = perform_address_merkle_tree_roll_over(
         &mut context,
@@ -476,12 +476,11 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     )
     .await;
 
-    let instruction_error = InstructionError::Custom(
+    assert_rpc_error(
+        result,
+        2,
         AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated.into(),
     );
-    let transaction_error = TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
 
     let signer_prior_balance = context
         .get_account(payer.pubkey())
@@ -521,9 +520,9 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     )
     .await;
 
-    let instruction_error =
-        InstructionError::Custom(AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into());
-    let transaction_error = TransactionError::InstructionError(2, instruction_error);
-    let rpc_error = RpcError::TransactionError(transaction_error);
-    assert!(matches!(result, Err(rpc_error)));
+    assert_rpc_error(
+        result,
+        2,
+        AccountCompressionErrorCode::MerkleTreeAlreadyRolledOver.into(),
+    );
 }
