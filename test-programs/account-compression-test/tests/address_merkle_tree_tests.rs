@@ -15,7 +15,6 @@ use account_compression::{
     utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeConfig, AddressQueueAccount, ID,
 };
-use light_hash_set::HashSetError;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};

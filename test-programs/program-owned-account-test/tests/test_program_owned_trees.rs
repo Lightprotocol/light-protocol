@@ -1,7 +1,6 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::StateMerkleTreeAccount;
-use anchor_lang::prelude::Program;
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;

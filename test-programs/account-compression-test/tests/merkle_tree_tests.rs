@@ -33,7 +33,7 @@ use num_bigint::ToBigUint;
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     account::AccountSharedData,
-    instruction::{AccountMeta, Instruction, InstructionError},
+    instruction::{AccountMeta, Instruction},
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
