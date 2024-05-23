@@ -105,7 +105,7 @@ impl RpcConnection for ProgramTestRpcConnection {
                 - i64::from(transaction_params.num_output_compressed_accounts)
                     * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
-                - 5000 * deduped_signers.len() as i64
+                - transaction_params.fee_config.solana_network_fee * deduped_signers.len() as i64
                 - network_fee;
 
             if post_balance as i64 != expected_post_balance {

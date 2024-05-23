@@ -13,6 +13,7 @@ pub struct FeeConfig {
     pub address_queue_rollover: u64,
     pub network_fee: u64,
     pub address_network_fee: u64,
+    pub solana_network_fee: i64,
 }
 
 impl Default for FeeConfig {
@@ -23,6 +24,7 @@ impl Default for FeeConfig {
             address_queue_rollover: 181,
             network_fee: 5000,
             address_network_fee: 5000,
+            solana_network_fee: 5000,
         }
     }
 }

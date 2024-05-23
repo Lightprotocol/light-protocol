@@ -142,12 +142,6 @@ pub fn transfer_lamports_cpi<'info>(
     to: &AccountInfo<'info>,
     lamports: u64,
 ) -> Result<()> {
-    msg!(
-        "transfer from {} to {} with lamports {}",
-        from.key,
-        to.key,
-        lamports
-    );
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     anchor_lang::solana_program::program::invoke(&instruction, &[from.clone(), to.clone()])?;
