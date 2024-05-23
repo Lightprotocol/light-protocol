@@ -74,7 +74,9 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         }
     }
 
-    for (index_in_nullifier_queue, compressed_account) in compressed_account_to_nullify.iter() {
+    for (i, (index_in_nullifier_queue, compressed_account)) in
+        compressed_account_to_nullify.iter().enumerate()
+    {
         let leaf_index: usize = state_tree_bundle
             .merkle_tree
             .get_leaf_index(compressed_account)
@@ -113,7 +115,10 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         match event {
             MerkleTreeEvent::V2(event) => {
                 assert_eq!(event.id, state_tree_bundle.accounts.merkle_tree.to_bytes());
-                assert_eq!(event.seq, onchain_merkle_tree.sequence_number as u64 + 1);
+                assert_eq!(
+                    event.seq,
+                    onchain_merkle_tree.sequence_number as u64 + 1 + i as u64
+                );
                 assert_eq!(event.nullified_leaves_indices.len(), 1);
                 assert_eq!(event.nullified_leaves_indices[0], leaf_index as u64);
             }

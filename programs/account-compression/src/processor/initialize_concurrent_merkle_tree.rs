@@ -30,6 +30,7 @@ pub fn process_initialize_state_merkle_tree(
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
     rent: u64,
+    queue_rent: u64,
 ) -> Result<()> {
     // Initialize new Merkle trees.
     let mut merkle_tree = merkle_tree_account_loader.load_init()?;
@@ -37,10 +38,12 @@ pub fn process_initialize_state_merkle_tree(
     let rollover_fee = match rollover_threshold {
         Some(rollover_threshold) => {
             compute_rollover_fee(rollover_threshold, *height, rent).map_err(ProgramError::from)?
+                + compute_rollover_fee(rollover_threshold, *height, queue_rent)
+                    .map_err(ProgramError::from)?
         }
         None => 0,
     };
-
+    msg!("rollover fee: {}", rollover_fee);
     merkle_tree.init(
         AccessMetadata::new(owner, delegate),
         RolloverMetadata::new(

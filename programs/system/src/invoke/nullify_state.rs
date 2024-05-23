@@ -6,6 +6,8 @@ use crate::{
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
 use light_macros::heap_neutral;
 
+// TODO: add a check in account compression program that only the owning program can create a Merkle tree.
+// TODO: add failing test for 2
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Checks that if nullifier queue has delegate it invoking_program is delegate.
 /// 3. Inserts nullifiers into the queue.
@@ -21,7 +23,7 @@ pub fn insert_nullifiers<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     nullifiers: &'a [[u8; 32]],
     invoking_program: &Option<Pubkey>,
-) -> Result<()> {
+) -> Result<Option<(u8, u64)>> {
     light_heap::bench_sbf_start!("cpda_insert_nullifiers_prep_accs");
     let mut account_infos = vec![
         ctx.accounts.get_fee_payer().to_account_info(),
@@ -59,14 +61,22 @@ pub fn insert_nullifiers<
         });
         account_infos.push(account_info.clone());
     }
+    // Transfer one network fee to the nullifier queue of the first account with a non zero fee.
+    let mut network_fee_bundle = None;
     inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
         .try_for_each(|account| -> Result<()> {
-            check_program_owner_state_merkle_tree(
+            let (_, network_fee) = check_program_owner_state_merkle_tree(
                 &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
                 invoking_program,
             )?;
+            if network_fee_bundle.is_none() && network_fee.is_some() {
+                network_fee_bundle = Some((
+                    account.merkle_context.nullifier_queue_pubkey_index,
+                    network_fee.unwrap(),
+                ));
+            }
             accounts.push(AccountMeta {
                 pubkey: ctx.remaining_accounts
                     [account.merkle_context.merkle_tree_pubkey_index as usize]
@@ -104,5 +114,5 @@ pub fn insert_nullifiers<
         account_infos.as_slice(),
         seeds,
     )?;
-    Ok(())
+    Ok(network_fee_bundle)
 }

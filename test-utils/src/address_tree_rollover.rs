@@ -3,11 +3,11 @@
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
-    get_hash_set,
-    rollover::{
+    assert_rollover::{
         assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
         assert_rolledover_queues_metadata,
     },
+    get_hash_set,
 };
 use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction,

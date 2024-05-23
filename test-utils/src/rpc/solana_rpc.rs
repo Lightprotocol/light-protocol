@@ -55,31 +55,29 @@ impl RpcConnection for SolanaRpcConnection {
             .instructions
             .iter()
             .find_map(|instruction| T::try_from_slice(instruction.data.as_slice()).ok());
-
+        // assert correct rollover fee and tip distribution
         if let Some(transaction_params) = transaction_params {
-            let post_balance = self.client.get_balance(payer)?;
+            let mut deduped_signers = signers.to_vec();
+            deduped_signers.dedup();
+            let post_balance = self.get_account(*payer).await?.unwrap().lamports;
 
-            let mut tip = 0;
-            for rollover in &[
-                transaction_params.num_new_addresses,
-                transaction_params.num_input_compressed_accounts,
-                transaction_params.num_output_compressed_accounts,
-            ] {
-                if *rollover != 0 {
-                    tip += transaction_params.fee_config.network_fee as i64;
-                }
+            // a network_fee is charged if there are input compressed accounts or new addresses
+            let mut network_fee: i64 = 0;
+            if transaction_params.num_input_compressed_accounts != 0 {
+                network_fee += transaction_params.fee_config.network_fee as i64;
+            }
+            if transaction_params.num_new_addresses != 0 {
+                network_fee += transaction_params.fee_config.address_network_fee as i64;
             }
 
             let expected_post_balance = pre_balance as i64
                 - i64::from(transaction_params.num_new_addresses)
                     * transaction_params.fee_config.address_queue_rollover as i64
-                - i64::from(transaction_params.num_input_compressed_accounts)
-                    * transaction_params.fee_config.nullifier_queue_rollover as i64
                 - i64::from(transaction_params.num_output_compressed_accounts)
                     * transaction_params.fee_config.state_merkle_tree_rollover as i64
                 - transaction_params.compress
-                - 5000
-                - tip * (i64::from(transaction_params.num_output_compressed_accounts) / 28 + 1);
+                - 5000 * deduped_signers.len() as i64
+                - network_fee;
 
             if post_balance as i64 != expected_post_balance {
                 println!("transaction_params: {:?}", transaction_params);
@@ -90,7 +88,7 @@ impl RpcConnection for SolanaRpcConnection {
                     "diff post_balance: {}",
                     post_balance as i64 - expected_post_balance
                 );
-                println!("tip: {}", tip);
+                println!("network_fee: {}", network_fee);
                 return Err(RpcError::from(BanksClientError::TransactionError(
                     TransactionError::InstructionError(0, InstructionError::Custom(11111)),
                 )));

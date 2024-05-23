@@ -4,7 +4,7 @@ use {
     crate::{
         create_account_instruction,
         test_env::{
-            create_state_merkle_tree_and_queue_account, init_cpi_signature_account, EnvAccounts,
+            create_state_merkle_tree_and_queue_account, init_cpi_context_account, EnvAccounts,
         },
         AccountZeroCopy,
     },
@@ -132,7 +132,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             vec![StateMerkleTreeAccounts {
                 merkle_tree: env.merkle_tree_pubkey,
                 nullifier_queue: env.nullifier_queue_pubkey,
-                cpi_context: env.cpi_signature_account_pubkey,
+                cpi_context: env.cpi_context_account_pubkey,
             }],
             vec![AddressMerkleTreeAccounts {
                 merkle_tree: env.address_merkle_tree_pubkey,
@@ -223,7 +223,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         rpc: &mut R,
         merkle_tree_keypair: &Keypair,
         nullifier_queue_keypair: &Keypair,
-        cpi_signature_keypair: &Keypair,
+        cpi_context_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
     ) {
         create_state_merkle_tree_and_queue_account(
@@ -235,12 +235,18 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             self.state_merkle_trees.len() as u64,
         )
         .await;
-        init_cpi_signature_account(rpc, &merkle_tree_keypair.pubkey(), cpi_signature_keypair).await;
+        init_cpi_context_account(
+            rpc,
+            &merkle_tree_keypair.pubkey(),
+            cpi_context_keypair,
+            &self.payer,
+        )
+        .await;
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             nullifier_queue: nullifier_queue_keypair.pubkey(),
-            cpi_context: Pubkey::default(),
+            cpi_context: cpi_context_keypair.pubkey(),
         };
         let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
             STATE_MERKLE_TREE_HEIGHT as usize,

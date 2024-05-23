@@ -10,18 +10,21 @@ pub struct TransactionParams {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FeeConfig {
     pub state_merkle_tree_rollover: u64,
-    pub nullifier_queue_rollover: u64,
     pub address_queue_rollover: u64,
     pub network_fee: u64,
+    pub address_network_fee: u64,
+    pub solana_network_fee: i64,
 }
 
 impl Default for FeeConfig {
     fn default() -> Self {
         Self {
-            state_merkle_tree_rollover: 149,
-            nullifier_queue_rollover: 29,
+            // rollover fee plus additonal lamports for the cpi account
+            state_merkle_tree_rollover: 181,
             address_queue_rollover: 181,
-            network_fee: 1,
+            network_fee: 5000,
+            address_network_fee: 5000,
+            solana_network_fee: 5000,
         }
     }
 }

@@ -12,7 +12,7 @@ pub trait RpcConnection {
     fn create_and_send_transaction_with_event<T>(
         &mut self,
         instruction: &[Instruction],
-        payer: &Pubkey,
+        authority: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
     ) -> impl std::future::Future<Output = Result<Option<T>, RpcError>> + Send
@@ -22,7 +22,7 @@ pub trait RpcConnection {
     fn create_and_send_transaction(
         &mut self,
         instruction: &[Instruction],
-        payer: &Pubkey,
+        authority: &Pubkey,
         signers: &[&Keypair],
     ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
 

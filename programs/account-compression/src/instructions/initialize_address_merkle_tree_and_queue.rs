@@ -32,7 +32,7 @@ impl Default for AddressMerkleTreeConfig {
             roots_size: ADDRESS_MERKLE_TREE_ROOTS,
             canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
             address_changelog_size: ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-            network_fee: Some(1),
+            network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
         }

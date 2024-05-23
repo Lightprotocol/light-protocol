@@ -1,18 +1,13 @@
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
-
-use anchor_lang::ToAccountMetas;
-
-use anchor_lang::{system_program, InstructionData};
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_macros::pubkey;
-
 use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
     create_initialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
-
 use solana_program_test::{ProgramTest, ProgramTestContext};
 
 use solana_sdk::transaction::Transaction;
@@ -22,6 +17,7 @@ use crate::rpc::rpc_connection::RpcConnection;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use solana_sdk::{signature::Signer, system_instruction};
 
+pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
 pub const ACCOUNT_COMPRESSION_ID: Pubkey = pubkey!("5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN");
 pub const PDA_PROGRAM_ID: Pubkey = pubkey!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
@@ -65,7 +61,7 @@ pub struct EnvAccounts {
     pub registered_program_pda: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_queue_pubkey: Pubkey,
-    pub cpi_signature_account_pubkey: Pubkey,
+    pub cpi_context_account_pubkey: Pubkey,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -216,7 +212,13 @@ pub async fn setup_test_programs_with_accounts(
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
 
-    init_cpi_signature_account(&mut context, &merkle_tree_pubkey, &cpi_signature_keypair).await;
+    init_cpi_context_account(
+        &mut context,
+        &merkle_tree_pubkey,
+        &cpi_signature_keypair,
+        &payer,
+    )
+    .await;
     (
         context,
         EnvAccounts {
@@ -228,7 +230,7 @@ pub async fn setup_test_programs_with_accounts(
             registered_program_pda,
             address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
             address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
-            cpi_signature_account_pubkey: cpi_signature_keypair.pubkey(),
+            cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
         },
     )
 }
@@ -275,6 +277,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         NullifierQueueConfig::default(),
         program_owner,
         index,
+        CPI_CONTEXT_ACCOUNT_RENT,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -352,19 +355,18 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         .unwrap();
 }
 
-pub async fn init_cpi_signature_account<R: RpcConnection>(
+pub async fn init_cpi_context_account<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     cpi_account_keypair: &Keypair,
+    payer: &Keypair,
 ) -> Pubkey {
     use solana_sdk::instruction::Instruction;
 
     use crate::create_account_instruction;
-
-    let payer = rpc.get_payer().insecure_clone();
     let account_size: usize = 20 * 1024 + 8;
     let account_create_ix = create_account_instruction(
-        &rpc.get_payer().pubkey(),
+        &payer.pubkey(),
         account_size,
         rpc.get_rent().await.unwrap().minimum_balance(account_size),
         &light_system_program::ID,
@@ -372,7 +374,7 @@ pub async fn init_cpi_signature_account<R: RpcConnection>(
     );
     let data = light_system_program::instruction::InitCpiContextAccount {};
     let accounts = light_system_program::accounts::InitializeCpiContextAccount {
-        fee_payer: payer.insecure_clone().pubkey(),
+        fee_payer: payer.pubkey(),
         cpi_context_account: cpi_account_keypair.pubkey(),
         system_program: system_program::ID,
         associated_merkle_tree: *merkle_tree_pubkey,
@@ -385,7 +387,7 @@ pub async fn init_cpi_signature_account<R: RpcConnection>(
     rpc.create_and_send_transaction(
         &[account_create_ix, instruction],
         &payer.pubkey(),
-        &[&payer, cpi_account_keypair],
+        &[payer, cpi_account_keypair],
     )
     .await
     .unwrap();

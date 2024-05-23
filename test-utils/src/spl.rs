@@ -474,7 +474,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     let event = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
-            &payer.pubkey(),
+            &context_payer.pubkey(),
             &[&context_payer, payer],
             transaction_params,
         )

@@ -78,9 +78,8 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
             if queue_bundle.merkle_tree.key() != indexed_array.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            lamports = indexed_array.metadata.rollover_metadata.network_fee
-                + indexed_array.metadata.rollover_metadata.rollover_fee
-                    * queue_bundle.elements.len() as u64;
+            lamports = indexed_array.metadata.rollover_metadata.rollover_fee
+                * queue_bundle.elements.len() as u64;
         }
         {
             let merkle_tree =

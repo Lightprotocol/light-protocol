@@ -29,7 +29,7 @@ pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
     pub mint: &'a Pubkey,
     pub new_address_params: NewAddressParams,
-    pub cpi_signature_account: &'a Pubkey,
+    pub cpi_context_account: &'a Pubkey,
 }
 
 pub fn create_escrow_instruction(
@@ -58,17 +58,15 @@ pub fn create_escrow_instruction(
 
     let new_address_params =
         pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
-    let cpi_context_account_index: u8 =
-        match remaining_accounts.get(input_params.cpi_signature_account) {
-            Some(entry) => (*entry).try_into().unwrap(),
-            None => {
-                remaining_accounts.insert(
-                    *input_params.cpi_signature_account,
-                    remaining_accounts.len(),
-                );
-                (remaining_accounts.len() - 1) as u8
-            }
-        };
+    let cpi_context_account_index: u8 = match remaining_accounts
+        .get(input_params.cpi_context_account)
+    {
+        Some(entry) => (*entry).try_into().unwrap(),
+        None => {
+            remaining_accounts.insert(*input_params.cpi_context_account, remaining_accounts.len());
+            (remaining_accounts.len() - 1) as u8
+        }
+    };
     let instruction_data = crate::instruction::EscrowCompressedTokensWithCompressedPda {
         lock_up_time: input_params.lock_up_time,
         escrow_amount,
@@ -106,7 +104,7 @@ pub fn create_escrow_instruction(
         self_program: crate::ID,
         token_owner_pda: token_owner_pda.0,
         system_program: solana_sdk::system_program::id(),
-        cpi_context_account: *input_params.cpi_signature_account,
+        cpi_context_account: *input_params.cpi_context_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
@@ -139,7 +137,7 @@ pub struct CreateCompressedPdaWithdrawalInstructionInputs<'a> {
     pub old_lock_up_time: u64,
     pub new_lock_up_time: u64,
     pub address: [u8; 32],
-    pub cpi_signature_account: &'a Pubkey,
+    pub cpi_context_account: &'a Pubkey,
 }
 
 pub fn create_withdrawal_instruction(
@@ -173,17 +171,15 @@ pub fn create_withdrawal_instruction(
         ],
         &mut remaining_accounts,
     );
-    let cpi_context_account_index: u8 =
-        match remaining_accounts.get(input_params.cpi_signature_account) {
-            Some(entry) => (*entry).try_into().unwrap(),
-            None => {
-                remaining_accounts.insert(
-                    *input_params.cpi_signature_account,
-                    remaining_accounts.len(),
-                );
-                (remaining_accounts.len() - 1) as u8
-            }
-        };
+    let cpi_context_account_index: u8 = match remaining_accounts
+        .get(input_params.cpi_context_account)
+    {
+        Some(entry) => (*entry).try_into().unwrap(),
+        None => {
+            remaining_accounts.insert(*input_params.cpi_context_account, remaining_accounts.len());
+            (remaining_accounts.len() - 1) as u8
+        }
+    };
     let cpi_context = CompressedCpiContext {
         set_context: false,
         cpi_context_account_index,
@@ -228,7 +224,7 @@ pub fn create_withdrawal_instruction(
         self_program: crate::ID,
         token_owner_pda,
         system_program: solana_sdk::system_program::id(),
-        cpi_context_account: *input_params.cpi_signature_account,
+        cpi_context_account: *input_params.cpi_context_account,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

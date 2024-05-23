@@ -40,7 +40,7 @@ impl default::Default for StateMerkleTreeConfig {
             changelog_size: STATE_MERKLE_TREE_CHANGELOG,
             roots_size: STATE_MERKLE_TREE_ROOTS,
             canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(1),
+            network_fee: Some(5000),
             rollover_threshold: Some(95),
             close_threshold: None,
         }
@@ -72,6 +72,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     delegate: Option<Pubkey>,
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
+    additional_rent: u64,
 ) -> Result<()> {
     if state_merkle_tree_config.height != StateMerkleTreeConfig::default().height {
         unimplemented!("Only default state height supported.");
@@ -102,7 +103,8 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         state_merkle_tree_config.network_fee.unwrap_or(0),
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
-        ctx.accounts.merkle_tree.get_lamports(),
+        ctx.accounts.merkle_tree.get_lamports() + additional_rent,
+        ctx.accounts.nullifier_queue.get_lamports(),
     )?;
     process_initialize_nullifier_queue(
         ctx.accounts.nullifier_queue.to_account_info(),
@@ -117,7 +119,6 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,
         nullifier_queue_config.network_fee.unwrap_or(0),
-        state_merkle_tree_config.height,
     )?;
     Ok(())
 }

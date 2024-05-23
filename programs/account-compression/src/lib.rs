@@ -123,6 +123,9 @@ pub mod account_compression {
         delegate: Option<Pubkey>,
         state_merkle_tree_config: StateMerkleTreeConfig,
         nullifier_queue_config: NullifierQueueConfig,
+        // additional rent for the cpi context account
+        // so that it can be rolled over as well
+        additional_rent: u64,
     ) -> Result<()> {
         process_initialize_state_merkle_tree_and_nullifier_queue(
             ctx,
@@ -131,6 +134,7 @@ pub mod account_compression {
             delegate,
             state_merkle_tree_config,
             nullifier_queue_config,
+            additional_rent,
         )
     }
 
@@ -170,6 +174,7 @@ pub mod account_compression {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
 
+    // TODO: add claim instruction
     // TODO: insert into indexed array just insert into one array instead of possibly multiple
 
     // TODO: insert_from_nullifier_queue_into_merkle_tree ( to nullify transactions)

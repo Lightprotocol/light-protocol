@@ -517,8 +517,8 @@ async fn test_init_and_insert_leaves_into_merkle_tree() {
 
     fail_2_append_leaves_with_invalid_inputs(&mut context, &merkle_tree_pubkey).await;
 
-    // We should always support appending 60 leaves at once.
-    let leaves = (0u8..=60)
+    // We should always support appending 140 leaves at once.
+    let leaves = (0u8..=140)
         .map(|i| {
             (
                 0,
@@ -579,10 +579,11 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         rpc.get_payer().pubkey(),
         merkle_tree_pubkey,
         queue_keypair.pubkey(),
-        state_merkle_tree_config,
+        state_merkle_tree_config.clone(),
         NullifierQueueConfig::default(),
         None,
         1,
+        0,
     );
 
     let latest_blockhash = rpc.get_latest_blockhash().await.unwrap();
@@ -597,33 +598,10 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         latest_blockhash,
     );
     rpc.process_transaction(transaction.clone()).await.unwrap();
-    let merkle_tree = AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree_pubkey).await;
-
-    assert_eq!(
-        merkle_tree.deserialized().metadata.rollover_metadata.index,
-        1
-    );
-    // TODO(vadorovsky): Assert fees.
-    assert_eq!(
-        merkle_tree.deserialized().metadata.next_merkle_tree,
-        Pubkey::default()
-    );
-    assert_eq!(
-        merkle_tree.deserialized().metadata.access_metadata.owner,
-        *payer_pubkey
-    );
-    assert_eq!(
-        merkle_tree.deserialized().metadata.access_metadata.delegate,
-        Pubkey::default()
-    );
-    assert_eq!(
-        merkle_tree.deserialized().metadata.associated_queue,
-        queue_keypair.pubkey()
-    );
-
-    let merkle_tree = merkle_tree.deserialized().copy_merkle_tree().unwrap();
     assert_merkle_tree_initialized(
-        &merkle_tree,
+        rpc,
+        &merkle_tree_pubkey,
+        &queue_keypair.pubkey(),
         STATE_MERKLE_TREE_HEIGHT as usize,
         STATE_MERKLE_TREE_CHANGELOG as usize,
         STATE_MERKLE_TREE_ROOTS as usize,
@@ -632,7 +610,12 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         1,
         0,
         &Poseidon::zero_bytes()[0],
-    );
+        rollover_threshold,
+        close_threshold,
+        network_fee,
+        payer_pubkey,
+    )
+    .await;
 
     merkle_tree_keypair.pubkey()
 }
@@ -707,15 +690,11 @@ pub async fn functional_3_append_leaves_to_merkle_tree<R: RpcConnection>(
     let merkle_tree =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(context, *merkle_tree_pubkey).await;
     let merkle_tree_deserialized = merkle_tree.deserialized();
-    let roll_over_fee = (merkle_tree_deserialized
+    let roll_over_fee = merkle_tree_deserialized
         .metadata
         .rollover_metadata
         .rollover_fee
-        * (leaves.len() as u64))
-        + merkle_tree_deserialized
-            .metadata
-            .rollover_metadata
-            .network_fee;
+        * (leaves.len() as u64);
     let merkle_tree = merkle_tree_deserialized.copy_merkle_tree().unwrap();
     assert_eq!(
         merkle_tree.next_index,
@@ -1050,7 +1029,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
     let context = program_test.start_with_context().await;
     let mut rpc = ProgramTestRpcConnection { context };
     let payer_pubkey = rpc.get_payer().pubkey();
-    let tip = 123;
+    let network_fee = 123;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -1058,7 +1037,7 @@ async fn test_init_and_insert_into_nullifier_queue() {
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        tip,
+        network_fee,
         rollover_threshold,
         close_threshold,
     )
@@ -1192,6 +1171,7 @@ async fn functional_5_test_insert_into_nullifier_queues<R: RpcConnection>(
     let array = unsafe {
         get_hash_set::<u16, NullifierQueueAccount, R>(rpc, *nullifier_queue_pubkey).await
     };
+
     let array_element = array.by_value_index(2, None).unwrap();
     assert_eq!(array_element.value_biguint(), element);
     assert_eq!(array_element.sequence_number(), None);

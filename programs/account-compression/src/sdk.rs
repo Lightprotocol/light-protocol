@@ -7,9 +7,10 @@ use solana_sdk::{
 };
 
 use crate::{
-    instruction::InitializeAddressMerkleTreeAndQueue,
-    instruction::InitializeStateMerkleTreeAndNullifierQueue, AddressMerkleTreeConfig,
-    AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    instruction::{
+        InitializeAddressMerkleTreeAndQueue, InitializeStateMerkleTreeAndNullifierQueue,
+    },
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
 
 pub fn create_initialize_merkle_tree_instruction(
@@ -20,6 +21,7 @@ pub fn create_initialize_merkle_tree_instruction(
     nullifier_queue_config: NullifierQueueConfig,
     delegate: Option<Pubkey>,
     index: u64,
+    additional_rent: u64,
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
         index,
@@ -27,6 +29,7 @@ pub fn create_initialize_merkle_tree_instruction(
         delegate,
         state_merkle_tree_config,
         nullifier_queue_config,
+        additional_rent,
     };
     Instruction {
         program_id: crate::ID,
