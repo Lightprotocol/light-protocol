@@ -87,5 +87,5 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
-            eval "$subtest"
+            RUSTFLAGS="-D warnings" "$subtest"
           done
