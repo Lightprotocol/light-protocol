@@ -39,31 +39,31 @@ jobs:
         include:
           - program: account-compression
             sub-tests: '[
-              "cargo-test-sbf -p account-compression-test -- --test-threads=1"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p account-compression-test -- --test-threads=1"
             ]'
           - program: light-system-program
             sub-tests: '[
-              "cargo-test-sbf -p system-test -- --test-threads=1"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p system-test -- --test-threads=1"
             ]'
           - program: light-registry
             sub-tests: '[
-              "cargo-test-sbf -p registry-test -- --test-threads=1"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p registry-test -- --test-threads=1"
             ]'
           - program: light-compressed-token
             sub-tests: '[
-              "cargo-test-sbf -p compressed-token-test -- --test-threads=1"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p compressed-token-test -- --test-threads=1"
             ]'
           - program: token-escrow
             sub-tests: '[
-              "cargo-test-sbf -p token-escrow -- --test-threads=1"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p token-escrow -- --test-threads=1"
             ]'
           - program: program-owned-account-test
             sub-tests: '[
-              "cargo-test-sbf -p program-owned-account-test -- --test-threads=1"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p program-owned-account-test -- --test-threads=1"
             ]'
           - program: random-e2e-test
             sub-tests: '[
-              "cargo-test-sbf -p e2e-test -- --nocapture"
+              "RUSTFLAGS="-D warnings" cargo-test-sbf -p e2e-test -- --nocapture"
             ]'
 
     steps:
@@ -87,5 +87,5 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
-            RUSTFLAGS="-D warnings" "$subtest"
+            eval "$subtest"
           done
