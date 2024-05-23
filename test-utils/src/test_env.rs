@@ -234,7 +234,7 @@ pub async fn setup_test_programs_with_accounts(
     )
 }
 
-pub fn init_env_accounts() -> EnvAccounts {
+pub fn get_test_env_accounts() -> EnvAccounts {
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
