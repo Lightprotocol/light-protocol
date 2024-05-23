@@ -56,16 +56,28 @@ type CreateAccountWithSeedParams = {
      * registered with newAccountAddress
      */
     recentValidityProof: CompressedProof;
-
     /**
      * State tree pubkey.
      */
     outputStateTree: PublicKey;
-
     /**
      * Public key of the program to assign as the owner of the created account
      */
-    programId: PublicKey | undefined;
+    programId?: PublicKey;
+    /**
+     * Optional input accounts to transfer lamports from into the new compressed
+     * account.
+     */
+    inputCompressedAccounts?: CompressedAccountWithMerkleContext[];
+    /**
+     * Optional input state root indices of 'inputCompressedAccounts'. The
+     * expiry is tied to the 'recentValidityProof'.
+     */
+    inputStateRootIndices?: number[];
+    /**
+     * Optional lamports to transfer into the new compressed account.
+     */
+    lamports?: number | BN;
 };
 
 /**
@@ -296,8 +308,30 @@ export class LightSystemProgram {
     static createNewAddressOutputState(
         address: number[],
         owner: PublicKey,
+        lamports?: BN | number,
+        inputCompressedAccounts?: CompressedAccountWithMerkleContext[],
     ): CompressedAccount[] {
-        return [createCompressedAccount(owner, bn(0), undefined, address)];
+        lamports = bn(lamports ?? 0);
+        const inputLamports = sumUpLamports(inputCompressedAccounts ?? []);
+        const changeLamports = inputLamports.sub(lamports);
+
+        validateSufficientBalance(changeLamports);
+
+        if (changeLamports.eq(bn(0)) || !inputCompressedAccounts) {
+            return [
+                createCompressedAccount(owner, lamports, undefined, address),
+            ];
+        }
+
+        validateSameOwner(inputCompressedAccounts);
+        const outputCompressedAccounts: CompressedAccount[] = [
+            createCompressedAccount(
+                inputCompressedAccounts[0].owner,
+                changeLamports,
+            ),
+            createCompressedAccount(owner, lamports, undefined, address),
+        ];
+        return outputCompressedAccounts;
     }
 
     /**
@@ -312,10 +346,15 @@ export class LightSystemProgram {
         newAddress,
         recentValidityProof,
         outputStateTree,
+        inputCompressedAccounts,
+        inputStateRootIndices,
+        lamports,
     }: CreateAccountWithSeedParams): Promise<TransactionInstruction> {
         const outputCompressedAccounts = this.createNewAddressOutputState(
             newAddress,
             payer,
+            lamports,
+            inputCompressedAccounts,
         );
         /// Pack accounts
         const {
@@ -323,8 +362,8 @@ export class LightSystemProgram {
             packedOutputCompressedAccounts,
             remainingAccounts: _remainingAccounts,
         } = packCompressedAccounts(
-            [],
-            [],
+            inputCompressedAccounts ?? [],
+            inputStateRootIndices ?? [],
             outputCompressedAccounts,
             outputStateTree,
         );
@@ -342,6 +381,8 @@ export class LightSystemProgram {
             compressionLamports: null,
             isCompress: false,
         };
+        console.log('rawData: ', rawData);
+        console.log('rawData JSON: ', JSON.stringify(rawData));
         /// Encode instruction data
         const ixData = this.program.coder.types.encode(
             'InstructionDataInvoke',

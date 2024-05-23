@@ -862,18 +862,23 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the latest validity proof for compressed accounts specified by an
-     * array of account hashes.
+     * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account hashes. (2) new unique addresses specified by an
+     * array of addresses.
      *
-     * Validity proofs prove the presence of compressed accounts in state trees,
-     * enabling verification without recomputing the merkle proof path, thus
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
      * lowering verification and data costs.
      *
-     * @param hashes    Array of BN254 hashes.
-     * @returns         validity proof with context
+     * @param hashes        Array of BN254 hashes.
+     * @param newAddresses  Array of BN254 new addresses.
+     * @returns             validity proof with context
      */
+
     async getValidityProof(
-        hashes: BN254[],
+        hashes: BN254[] = [],
+        newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
         /// get merkle proofs
         const merkleProofsWithContext =
@@ -881,6 +886,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         /// to hex
         const inputs: HexInputsForProver[] = [];
+
         for (let i = 0; i < merkleProofsWithContext.length; i++) {
             const input: HexInputsForProver = {
                 root: toHex(merkleProofsWithContext[i].root),
