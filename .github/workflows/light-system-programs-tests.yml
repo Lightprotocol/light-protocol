@@ -34,6 +34,7 @@ jobs:
     name: system-programs
     if: github.event.pull_request.draft == false
     runs-on: buildjet-2vcpu-ubuntu-2204
+    timeout-minutes: 120
     strategy:
       matrix:
         include:

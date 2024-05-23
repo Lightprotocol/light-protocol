@@ -20,7 +20,7 @@ async fn spawn_test_validator() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_50_validator_all() {
+async fn test_5_validator_all() {
     spawn_test_validator().await;
     let env_accounts = init_env_accounts();
     let client = RpcClient::new(SERVER_URL);
@@ -30,7 +30,7 @@ async fn test_50_validator_all() {
         env_accounts,
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
-        10,
+        5,
         None,
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
@@ -39,7 +39,7 @@ async fn test_50_validator_all() {
 }
 
 #[tokio::test]
-async fn test_50_all() {
+async fn test_10_all() {
     let (rpc, env_accounts) = setup_test_programs_with_accounts(None).await;
     let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
         rpc,

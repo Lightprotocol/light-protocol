@@ -98,7 +98,7 @@ impl SolanaRpcConnection {
             }
         };
 
-        for (i, ix) in inner_instructions.iter().enumerate() {
+        for ix in inner_instructions.iter() {
             for ui_instruction in ix.instructions.iter() {
                 match ui_instruction {
                     UiInstruction::Compiled(ui_compiled_instruction) => {
@@ -109,12 +109,6 @@ impl SolanaRpcConnection {
                                     "Failed to decode instruction data".to_string(),
                                 )
                             })?;
-
-                        println!(
-                            "solana_rpc: inner instruction {}: data.len: {}",
-                            i,
-                            data.len()
-                        );
 
                         if let Ok(parsed_data) = T::try_from_slice(data.as_slice()) {
                             return Ok(parsed_data);
