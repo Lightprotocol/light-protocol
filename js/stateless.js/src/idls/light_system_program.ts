@@ -810,76 +810,71 @@ export type LightSystemProgram = {
         },
         {
             code: 6024;
-            name: 'DelegateUndefined';
-            msg: 'DelegateUndefined while delegated amount is defined';
-        },
-        {
-            code: 6025;
             name: 'CpiContextAccountUndefined';
             msg: 'CpiContextAccountUndefined';
         },
         {
-            code: 6026;
+            code: 6025;
             name: 'WriteAccessCheckFailed';
             msg: 'WriteAccessCheckFailed';
         },
         {
-            code: 6027;
+            code: 6026;
             name: 'InvokingProgramNotProvided';
             msg: 'InvokingProgramNotProvided';
         },
         {
-            code: 6028;
+            code: 6027;
             name: 'SignerSeedsNotProvided';
             msg: 'SignerSeedsNotProvided';
         },
         {
-            code: 6029;
+            code: 6028;
             name: 'AdditionOverflowForDecompressSol';
             msg: 'AdditionOverflowForDecompressSol';
         },
         {
-            code: 6030;
+            code: 6029;
             name: 'InsufficientLamportsForDecompressSol';
             msg: 'InsufficientLamportsForDecompressSol';
         },
         {
-            code: 6031;
+            code: 6030;
             name: 'CpiContextMissing';
             msg: 'InsufficientLamportsForCompressSol';
         },
         {
-            code: 6032;
+            code: 6031;
             name: 'InvalidMerkleTreeOwner';
             msg: 'InvalidMerkleTreeOwner';
         },
         {
-            code: 6033;
+            code: 6032;
             name: 'ProofIsNone';
             msg: 'ProofIsNone';
         },
         {
-            code: 6034;
+            code: 6033;
             name: 'InvalidMerkleTreeIndex';
             msg: 'InvalidMerkleTreeIndex';
         },
         {
-            code: 6035;
+            code: 6034;
             name: 'ProofIsSome';
             msg: 'ProofIsSome';
         },
         {
-            code: 6036;
+            code: 6035;
             name: 'EmptyInputs';
             msg: 'EmptyInputs';
         },
         {
-            code: 6037;
+            code: 6036;
             name: 'CpiContextProofMismatch';
             msg: 'CpiContextMismatch';
         },
         {
-            code: 6038;
+            code: 6037;
             name: 'CpiContextEmpty';
             msg: 'CpiContextEmpty';
         },
@@ -1703,76 +1698,71 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6024,
-            name: 'DelegateUndefined',
-            msg: 'DelegateUndefined while delegated amount is defined',
-        },
-        {
-            code: 6025,
             name: 'CpiContextAccountUndefined',
             msg: 'CpiContextAccountUndefined',
         },
         {
-            code: 6026,
+            code: 6025,
             name: 'WriteAccessCheckFailed',
             msg: 'WriteAccessCheckFailed',
         },
         {
-            code: 6027,
+            code: 6026,
             name: 'InvokingProgramNotProvided',
             msg: 'InvokingProgramNotProvided',
         },
         {
-            code: 6028,
+            code: 6027,
             name: 'SignerSeedsNotProvided',
             msg: 'SignerSeedsNotProvided',
         },
         {
-            code: 6029,
+            code: 6028,
             name: 'AdditionOverflowForDecompressSol',
             msg: 'AdditionOverflowForDecompressSol',
         },
         {
-            code: 6030,
+            code: 6029,
             name: 'InsufficientLamportsForDecompressSol',
             msg: 'InsufficientLamportsForDecompressSol',
         },
         {
-            code: 6031,
+            code: 6030,
             name: 'CpiContextMissing',
             msg: 'InsufficientLamportsForCompressSol',
         },
         {
-            code: 6032,
+            code: 6031,
             name: 'InvalidMerkleTreeOwner',
             msg: 'InvalidMerkleTreeOwner',
         },
         {
-            code: 6033,
+            code: 6032,
             name: 'ProofIsNone',
             msg: 'ProofIsNone',
         },
         {
-            code: 6034,
+            code: 6033,
             name: 'InvalidMerkleTreeIndex',
             msg: 'InvalidMerkleTreeIndex',
         },
         {
-            code: 6035,
+            code: 6034,
             name: 'ProofIsSome',
             msg: 'ProofIsSome',
         },
         {
-            code: 6036,
+            code: 6035,
             name: 'EmptyInputs',
             msg: 'EmptyInputs',
         },
         {
-            code: 6037,
+            code: 6036,
             name: 'CpiContextProofMismatch',
             msg: 'CpiContextMismatch',
         },
         {
-            code: 6038,
+            code: 6037,
             name: 'CpiContextEmpty',
             msg: 'CpiContextEmpty',
         },

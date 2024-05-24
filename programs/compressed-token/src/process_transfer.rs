@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     create_output_compressed_accounts,
@@ -23,9 +21,10 @@ use light_system_program::{
     InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
+use std::mem;
 
 /// Process a token transfer instruction
-///
+/// build inputs -> sum check -> build outputs -> add token data to inputs -> invoke cpi
 /// 1.  Unpack compressed input accounts and input token data, this uses
 ///     standardized signer / delegate and will fail in proof verification in
 ///     case either is invalid.
@@ -46,7 +45,9 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     let inputs: CompressedTokenInstructionDataTransfer =
         CompressedTokenInstructionDataTransfer::deserialize(&mut inputs.as_slice())?;
     bench_sbf_end!("t_deserialize");
-
+    if inputs.signer_is_delegate {
+        unimplemented!("Delegate is not implemented yet.");
+    }
     bench_sbf_start!("t_context_and_check_sig");
     let (mut compressed_input_accounts, input_token_data) = inputs
         .get_input_compressed_accounts_with_merkle_context_and_check_signer(
@@ -99,7 +100,14 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             inputs
                 .output_compressed_accounts
                 .iter()
-                .map(|data: &PackedTokenTransferOutputData| data.lamports)
+                .map(|data: &PackedTokenTransferOutputData| {
+                    if data.lamports.is_some() {
+                        unimplemented!(
+                            "Joint Token and lamports transfers are not implemented yet."
+                        );
+                    }
+                    data.lamports
+                })
                 .collect::<Vec<Option<u64>>>()
                 .as_slice(),
         ),
@@ -390,7 +398,7 @@ impl CompressedTokenInstructionDataTransfer {
                 && *signer
                     != remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
             {
-                return err!(ErrorCode::SignerCheckFailed);
+                return err!(ErrorCode::DelegateSignerCheckFailed);
             }
             if input_token_data.delegated_amount.is_some()
                 && input_token_data.delegate_index.is_none()

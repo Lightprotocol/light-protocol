@@ -50,8 +50,6 @@ pub enum CompressedPdaError {
     DecompressRecipientUndefinedForDecompressSol,
     #[msg("LengthMismatch")]
     LengthMismatch,
-    #[msg("DelegateUndefined while delegated amount is defined")]
-    DelegateUndefined,
     #[msg("CpiContextAccountUndefined")]
     CpiContextAccountUndefined,
     #[msg("WriteAccessCheckFailed")]

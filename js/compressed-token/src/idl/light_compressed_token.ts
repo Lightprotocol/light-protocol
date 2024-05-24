@@ -981,6 +981,9 @@ export type LightCompressedToken = {
                     {
                         name: 'DelegateUndefined';
                     },
+                    {
+                        name: 'DelegateSignerCheckFailed';
+                    },
                 ];
             };
         },
@@ -1985,6 +1988,9 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'DelegateUndefined',
+                    },
+                    {
+                        name: 'DelegateSignerCheckFailed',
                     },
                 ],
             },
