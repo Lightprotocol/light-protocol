@@ -72,6 +72,7 @@ pub fn process_update_address_merkle_tree<'info>(
     let low_address: IndexedElement<usize> = IndexedElement {
         index: low_address_index as usize,
         value: BigUint::from_bytes_be(&low_address_value),
+        // TODO: this value is not used in the update because we send the actual next element v
         next_index: low_address_next_index as usize,
     };
 
