@@ -69,7 +69,10 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
-        context.get_rent().await.unwrap().minimum_balance(size),
+        context
+            .get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
         &account_compression::ID,
         Some(new_queue_keypair),
     );
@@ -78,10 +81,11 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         &payer.pubkey(),
         account_compression::AddressMerkleTreeAccount::LEN,
         context
-            .get_rent()
+            .get_minimum_balance_for_rent_exemption(
+                account_compression::AddressMerkleTreeAccount::LEN,
+            )
             .await
-            .unwrap()
-            .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
+            .unwrap(),
         &account_compression::ID,
         Some(new_address_merkle_tree_keypair),
     );

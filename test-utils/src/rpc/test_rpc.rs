@@ -10,8 +10,6 @@ use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::Signer;
 use solana_sdk::transaction::{Transaction, TransactionError};
 
-use account_compression::initialize_address_merkle_tree::Rent;
-
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
@@ -159,12 +157,18 @@ impl RpcConnection for ProgramTestRpcConnection {
         self.context.set_account(address, account);
     }
 
-    async fn get_rent(&mut self) -> Result<Rent, RpcError> {
-        self.context
+    async fn get_minimum_balance_for_rent_exemption(
+        &mut self,
+        data_len: usize,
+    ) -> Result<u64, RpcError> {
+        let rent = self
+            .context
             .banks_client
             .get_rent()
             .await
-            .map_err(RpcError::from)
+            .map_err(RpcError::from);
+
+        Ok(rent?.minimum_balance(data_len))
     }
 
     async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {

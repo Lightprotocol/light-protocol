@@ -31,7 +31,7 @@ light-verifier = {path = "../../circuit-lib/verifier"}
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.18.11"
-
+solana-client = "1.18.11"
 
 [dev-dependencies]
 solana-program-test = "1.18.11"

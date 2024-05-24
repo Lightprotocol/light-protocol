@@ -809,6 +809,7 @@ where
                 token_account_keypair.pubkey()
             }
         };
+
         self.users[user_index]
             .token_accounts
             .push((mint, token_account));
@@ -818,6 +819,7 @@ where
             .map(|token_account| token_account.token_data.amount)
             .sum::<u64>();
         let amount = Self::safe_gen_range(&mut self.rng, 1000..max_amount, max_amount / 2);
+
         // decompress
         decompress_test(
             &self.users[user_index].keypair,

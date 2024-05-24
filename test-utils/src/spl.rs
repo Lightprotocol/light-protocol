@@ -70,9 +70,7 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
         .await
         .unwrap()
         .unwrap();
-
     let (_, created_token_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
-
     assert_mint_to(
         rpc,
         test_indexer,
@@ -101,10 +99,12 @@ pub async fn create_mint<R: RpcConnection>(
         None => &keypair,
     };
     let mint_pubkey = (*mint_keypair).pubkey();
-    let rent = rpc.get_rent().await.unwrap();
-    let mint_rent = rent.minimum_balance(Mint::LEN);
+    let mint_rent = rpc
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
+        .await
+        .unwrap();
 
-    let account_create_ix = crate::create_account_instruction(
+    let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         Mint::LEN,
         mint_rent,
@@ -133,10 +133,9 @@ pub async fn create_mint<R: RpcConnection>(
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
-        .get_rent()
+        .get_minimum_balance_for_rent_exemption(anchor_spl::token::Mint::LEN)
         .await
-        .unwrap()
-        .minimum_balance(anchor_spl::token::Mint::LEN);
+        .unwrap();
     let mint = Keypair::new();
 
     let (instructions, pool) =
@@ -189,7 +188,7 @@ pub fn create_initialize_mint_instructions(
     )
 }
 
-/// Creates an spl token account and initializes it with the given mint and owner.
+/// Creates a spl token account and initializes it with the given mint and owner.
 /// This function is useful to create token accounts for spl compression and decompression tests.
 pub async fn create_token_account<R: RpcConnection>(
     rpc: &mut R,
@@ -198,10 +197,9 @@ pub async fn create_token_account<R: RpcConnection>(
     owner: &Keypair,
 ) -> Result<(), BanksClientError> {
     let rent = rpc
-        .get_rent()
+        .get_minimum_balance_for_rent_exemption(anchor_spl::token::TokenAccount::LEN)
         .await
-        .unwrap()
-        .minimum_balance(anchor_spl::token::TokenAccount::LEN);
+        .unwrap();
     let account_create_ix = create_account_instruction(
         &owner.pubkey(),
         anchor_spl::token::TokenAccount::LEN,
@@ -310,7 +308,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         )
         .await;
 
-    let instruction = light_compressed_token::transfer_sdk::create_transfer_instruction(
+    let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &from.pubkey(), // authority
         &input_merkle_tree_context,
@@ -413,7 +411,6 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         .iter()
         .map(|x| x.compressed_account.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
-
     let proof_rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
             Some(&input_compressed_account_hashes),
@@ -483,7 +480,6 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         .unwrap();
 
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
-    println!("created_output_accounts: {:?}", created_output_accounts);
     assert_transfer(
         rpc,
         test_indexer,

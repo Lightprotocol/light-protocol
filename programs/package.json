@@ -11,6 +11,6 @@
     "test-registry": "cargo-test-sbf -p registry-test -- --test-threads=1",
     "token-escrow": "cargo-test-sbf -p token-escrow -- --test-threads=1",
     "program-owned-account-test": "cargo-test-sbf -p program-owned-account-test -- --test-threads=1",
-    "random-e2e-test": "cargo-test-sbf -p e2e-test -- --nocapture"
+    "random-e2e-test": "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture"
   }
 }

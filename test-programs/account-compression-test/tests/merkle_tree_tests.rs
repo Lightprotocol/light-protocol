@@ -546,10 +546,11 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     let merkle_tree_account_create_ix = create_account_instruction(
         &rpc.get_payer().pubkey(),
         StateMerkleTreeAccount::LEN,
-        rpc.get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
+        rpc.get_minimum_balance_for_rent_exemption(
+            account_compression::StateMerkleTreeAccount::LEN,
+        )
+        .await
+        .unwrap(),
         &ID,
         Some(merkle_tree_keypair),
     );
@@ -562,7 +563,9 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     let nullifier_queue_account_create_ix = create_account_instruction(
         payer_pubkey,
         size,
-        rpc.get_rent().await.unwrap().minimum_balance(size),
+        rpc.get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
         &ID,
         Some(queue_keypair),
     );

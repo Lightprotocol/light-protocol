@@ -34,6 +34,7 @@ jobs:
     name: system-programs
     if: github.event.pull_request.draft == false
     runs-on: buildjet-2vcpu-ubuntu-2204
+    timeout-minutes: 120
     strategy:
       matrix:
         include:
@@ -63,7 +64,7 @@ jobs:
             ]'
           - program: random-e2e-test
             sub-tests: '[
-              "cargo-test-sbf -p e2e-test -- --nocapture"
+              "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"
             ]'
 
     steps:

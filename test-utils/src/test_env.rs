@@ -166,10 +166,9 @@ pub async fn setup_test_programs_with_accounts(
         &payer.pubkey(),
         &cpi_authority_pda.0,
         context
-            .get_rent()
+            .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
             .await
-            .unwrap()
-            .minimum_balance(RegisteredProgram::LEN),
+            .unwrap(),
     );
 
     context
@@ -235,6 +234,43 @@ pub async fn setup_test_programs_with_accounts(
     )
 }
 
+pub fn get_test_env_accounts() -> EnvAccounts {
+    let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
+    let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
+    let nullifier_queue_pubkey = nullifier_queue_keypair.pubkey();
+
+    let (group_pda, _) = get_group_account();
+    let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+    let authority_pda = get_governance_authority_pda();
+    let (_, registered_program_pda) = create_register_program_instruction(
+        payer.pubkey(),
+        authority_pda,
+        group_pda,
+        PDA_PROGRAM_ID,
+    );
+
+    let address_merkle_tree_keypair =
+        Keypair::from_bytes(&ADDRESS_MERKLE_TREE_TEST_KEYPAIR).unwrap();
+
+    let address_merkle_tree_queue_keypair =
+        Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
+
+    let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
+
+    EnvAccounts {
+        merkle_tree_pubkey,
+        nullifier_queue_pubkey,
+        group_pda,
+        governance_authority: payer,
+        governance_authority_pda: authority_pda.0,
+        registered_program_pda,
+        address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
+        address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
+        cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
+    }
+}
+
 pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
     rpc: &mut R,
@@ -248,10 +284,11 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     let merkle_tree_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,
-        rpc.get_rent()
-            .await
-            .unwrap()
-            .minimum_balance(account_compression::StateMerkleTreeAccount::LEN),
+        rpc.get_minimum_balance_for_rent_exemption(
+            account_compression::StateMerkleTreeAccount::LEN,
+        )
+        .await
+        .unwrap(),
         &ACCOUNT_COMPRESSION_ID,
         Some(merkle_tree_keypair),
     );
@@ -264,7 +301,9 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     let nullifier_queue_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
-        rpc.get_rent().await.unwrap().minimum_balance(size),
+        rpc.get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
         &ACCOUNT_COMPRESSION_ID,
         Some(nullifier_queue_keypair),
     );
@@ -317,7 +356,10 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
-        context.get_rent().await.unwrap().minimum_balance(size),
+        context
+            .get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
         &ACCOUNT_COMPRESSION_ID,
         Some(address_queue_keypair),
     );
@@ -326,10 +368,11 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &payer.pubkey(),
         account_compression::AddressMerkleTreeAccount::LEN,
         context
-            .get_rent()
+            .get_minimum_balance_for_rent_exemption(
+                account_compression::AddressMerkleTreeAccount::LEN,
+            )
             .await
-            .unwrap()
-            .minimum_balance(account_compression::AddressMerkleTreeAccount::LEN),
+            .unwrap(),
         &ACCOUNT_COMPRESSION_ID,
         Some(address_merkle_tree_keypair),
     );
@@ -368,7 +411,9 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         account_size,
-        rpc.get_rent().await.unwrap().minimum_balance(account_size),
+        rpc.get_minimum_balance_for_rent_exemption(account_size)
+            .await
+            .unwrap(),
         &light_system_program::ID,
         Some(cpi_account_keypair),
     );

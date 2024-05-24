@@ -26,6 +26,7 @@ light-compressed-token = { path = "../programs/compressed-token", version = "0.3
 light-system-program = { path = "../programs/system", version = "0.3.4", features = ["cpi"] }
 light-registry = { path = "../programs/registry", version = "0.3.4", features = ["cpi"] }
 spl-token = { version="3.5.0", features = ["no-entrypoint"] }
+solana-transaction-status = { git = "https://github.com/Lightprotocol/agave", branch = "v1.18.11-enforce-cpi-tracking" }
 tokio = "1.36"
 light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.4" }
 reqwest = "0.11.26"
