@@ -43,6 +43,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     let nullifier_queue = unsafe {
         get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
+
     let merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
             .await;
@@ -54,19 +55,26 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
     );
+    let pre_root = onchain_merkle_tree.root();
     let change_log_index = onchain_merkle_tree.changelog_index() as u64;
 
     let mut compressed_account_to_nullify = Vec::new();
     println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES\n --------------------------------------------------");
-    for (i, element) in nullifier_queue.iter() {
-        if element.sequence_number().is_none() {
-            println!("element to nullify: {:?}", element.value_bytes());
-            let leaf_index: usize = state_tree_bundle
-                .merkle_tree
-                .get_leaf_index(&element.value_bytes())
-                .unwrap();
-            println!("leaf_index: {:?}", leaf_index);
-            compressed_account_to_nullify.push((i, element.value_bytes()));
+
+    let first = nullifier_queue.first_no_seq().unwrap();
+
+    for i in 0..nullifier_queue.capacity {
+        let bucket = nullifier_queue.get_bucket(i).unwrap();
+        if let Some(bucket) = bucket {
+            if bucket.sequence_number.is_none() {
+                println!("element to nullify: {:?}", bucket.value_bytes());
+                let leaf_index: usize = state_tree_bundle
+                    .merkle_tree
+                    .get_leaf_index(&bucket.value_bytes())
+                    .unwrap();
+                println!("leaf_index: {:?}", leaf_index);
+                compressed_account_to_nullify.push((i, bucket.value_bytes()));
+            }
         }
     }
 
@@ -77,6 +85,8 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .merkle_tree
             .get_leaf_index(compressed_account)
             .unwrap();
+        println!("nullifying leaf: {:?}", leaf_index);
+
         let proof: Vec<[u8; 32]> = state_tree_bundle
             .merkle_tree
             .get_proof_of_leaf(leaf_index, false)
@@ -131,12 +141,20 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         )
         .await;
     }
+
     // Locally nullify all leaves
     for (_, compressed_account) in compressed_account_to_nullify.iter() {
         let leaf_index = state_tree_bundle
             .merkle_tree
             .get_leaf_index(compressed_account)
             .unwrap();
+        println!("locally nullifying leaf_index {}", leaf_index);
+        println!("compressed_account {:?}", compressed_account);
+        println!(
+            "merkle tree pubkey {:?}",
+            state_tree_bundle.accounts.merkle_tree
+        );
+
         state_tree_bundle
             .merkle_tree
             .update(&[0u8; 32], leaf_index)
@@ -153,6 +171,10 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
     );
+    // SAFEGUARD: check that the root changed if there was at least one element to nullify
+    if first.is_some() {
+        assert_ne!(pre_root, onchain_merkle_tree.root());
+    }
 }
 
 async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(

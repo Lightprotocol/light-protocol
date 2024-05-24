@@ -1,13 +1,12 @@
+use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
+use num_bigint::{BigUint, ToBigUint};
+use num_traits::{FromBytes, ToPrimitive};
 use std::{
     alloc::{self, handle_alloc_error, Layout},
     cmp::Ordering,
     mem,
     ptr::NonNull,
 };
-
-use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
-use num_bigint::{BigUint, ToBigUint};
-use num_traits::{FromBytes, ToPrimitive};
 use thiserror::Error;
 
 pub mod zero_copy;
@@ -54,8 +53,8 @@ impl From<HashSetError> for solana_program::program_error::ProgramError {
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub struct HashSetCell {
-    value: [u8; 32],
-    sequence_number: Option<usize>,
+    pub value: [u8; 32],
+    pub sequence_number: Option<usize>,
 }
 
 impl HashSetCell {
@@ -524,13 +523,6 @@ impl HashSet {
             None => Err(HashSetError::ElementDoesNotExist),
         }
     }
-
-    pub fn iter(&self) -> HashSetIterator {
-        HashSetIterator {
-            hash_set: self,
-            current: 0,
-        }
-    }
 }
 
 impl Drop for HashSet {
@@ -540,27 +532,6 @@ impl Drop for HashSet {
         unsafe {
             let layout = Layout::array::<Option<HashSetCell>>(self.capacity).unwrap();
             alloc::dealloc(self.buckets.as_ptr() as *mut u8, layout);
-        }
-    }
-}
-
-pub struct HashSetIterator<'a> {
-    hash_set: &'a HashSet,
-    current: usize,
-}
-
-impl<'a> Iterator for HashSetIterator<'a> {
-    type Item = (usize, &'a HashSetCell);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current < self.hash_set.capacity {
-            let element_index = self.current;
-            let element = unsafe { &*self.hash_set.buckets.as_ptr().add(element_index) };
-
-            self.current += 1;
-            element.as_ref().map(|element| (element_index, element))
-        } else {
-            None
         }
     }
 }
@@ -747,7 +718,6 @@ mod test {
 
         // The hash set should be empty.
         assert_eq!(hs.first(0).unwrap(), None);
-
         let mut rng = thread_rng();
         let mut seq = 0;
         let nullifiers: [BigUint; 24000] =
@@ -756,7 +726,6 @@ mod test {
             for nullifier in nf_chunk.iter() {
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
                 hs.insert(&nullifier, seq as usize).unwrap();
-
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), true);
                 assert_eq!(
                     hs.find_element(&nullifier, Some(seq))

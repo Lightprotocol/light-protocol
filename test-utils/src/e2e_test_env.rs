@@ -1033,7 +1033,7 @@ impl Default for GeneralActionConfig {
             add_keypair: Some(0.3),
             create_state_mt: Some(1.0),
             create_address_mt: Some(1.0),
-            nullify_compressed_accounts: Some(0.1),
+            nullify_compressed_accounts: Some(1.0),
             empty_address_queue: Some(1.0),
         }
     }
