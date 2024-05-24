@@ -92,17 +92,9 @@ describe('compress', () => {
             bob.publicKey,
         );
 
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1000),
-            merkleTree,
-        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
 
-        await decompress(rpc, payer, mint, bn(900), bob, bobAta, merkleTree);
+        await decompress(rpc, payer, mint, bn(900), bob, bobAta);
     });
 
     it('should compress from bobAta -> charlie', async () => {

@@ -145,13 +145,7 @@ describe('compress', () => {
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(preCompressBalance, 1e9);
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            merkleTree,
-        );
+        await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
 
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -189,12 +183,11 @@ describe('compress', () => {
         );
     });
 
-    it('should compress lamports and then decompress', async () => {
+    it('should compress lamports and create an account with address and lamports', async () => {
         payer = await newAccountWithLamports(rpc, 1e9, 256);
 
         const compressLamportsAmount = 1e7;
         const preCompressBalance = await rpc.getBalance(payer.publicKey);
-
         assert.equal(preCompressBalance, 1e9);
 
         await compress(
@@ -232,7 +225,6 @@ describe('compress', () => {
             payer,
             decompressLamportsAmount,
             decompressRecipient,
-            merkleTree,
         );
 
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
@@ -243,12 +235,18 @@ describe('compress', () => {
             Number(compressedAccounts2[0].lamports),
             compressLamportsAmount - decompressLamportsAmount,
         );
+        await decompress(rpc, payer, 1, decompressRecipient, merkleTree);
+
         const postDecompressBalance = await rpc.getBalance(decompressRecipient);
         assert.equal(
             postDecompressBalance,
             postCompressBalance +
-                decompressLamportsAmount -
-                txFees([{ in: 1, out: 1 }]),
+                decompressLamportsAmount +
+                1 -
+                txFees([
+                    { in: 1, out: 1 },
+                    { in: 1, out: 1 },
+                ]),
         );
     });
 });

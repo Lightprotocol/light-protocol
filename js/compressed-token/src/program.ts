@@ -21,6 +21,7 @@ import {
     useWallet,
     validateSameOwner,
     validateSufficientBalance,
+    defaultTestStateTreeAccounts,
 } from '@lightprotocol/stateless.js';
 import {
     MINT_SIZE,
@@ -58,9 +59,10 @@ type CompressParams = {
      */
     amount: number | BN;
     /**
-     * The state tree that the tx output should be inserted into.
+     * The state tree that the tx output should be inserted into. Defaults to a
+     * public state tree if unspecified.
      */
-    outputStateTree: PublicKey;
+    outputStateTree?: PublicKey;
 };
 
 type DecompressParams = {
@@ -81,10 +83,6 @@ type DecompressParams = {
      */
     amount: number | BN;
     /**
-     * The state tree that the change tx output should be inserted into.
-     */
-    outputStateTree: PublicKey;
-    /**
      * The recent state root indices of the input state. The expiry is tied to
      * the proof.
      */
@@ -94,6 +92,11 @@ type DecompressParams = {
      * expires after n slots.
      */
     recentValidityProof: CompressedProof;
+    /**
+     * The state tree that the change tx output should be inserted into.
+     * Defaults to a public state tree if unspecified.
+     */
+    outputStateTree?: PublicKey;
 };
 
 export type TransferParams = {
@@ -136,17 +139,29 @@ export type TransferParams = {
  * Create Mint account for compressed Tokens
  */
 export type CreateMintParams = {
-    /** Tx feepayer */
+    /**
+     * Tx feepayer
+     */
     feePayer: PublicKey;
-    /** Mint authority */
+    /**
+     * Mint authority
+     */
     authority: PublicKey;
-    /** Mint public key */
+    /**
+     * Mint public key
+     */
     mint: PublicKey;
-    /** Mint decimals */
+    /**
+     * Mint decimals
+     */
     decimals: number;
-    /** Optional: freeze authority */
+    /**
+     * Optional: freeze authority
+     */
     freezeAuthority: PublicKey | null;
-    /** lamport amount for mint account rent exemption */
+    /**
+     * lamport amount for mint account rent exemption
+     */
     rentExemptBalance: number;
 };
 
@@ -154,18 +169,31 @@ export type CreateMintParams = {
  * Create compressed token accounts
  */
 export type MintToParams = {
-    /** Tx feepayer */
+    /**
+     * Tx feepayer
+     */
     feePayer: PublicKey;
-    /** Mint authority */
+    /**
+     * Mint authority
+     */
     authority: PublicKey;
-    /** Mint public key */
+    /**
+     * Mint public key
+     */
     mint: PublicKey;
-    /** The Solana Public Keys to mint to. Accepts batches */
+    /**
+     * The Solana Public Keys to mint to.
+     */
     toPubkey: PublicKey[] | PublicKey;
-    /** The amount of compressed tokens to mint. Accepts batches */
-    amount: BN | BN[] | number | number[]; // TODO: check if considers mint decimals
-    /** Public key of the state tree to mint into. */
-    merkleTree: PublicKey; // TODO: make optional with default system state trees
+    /**
+     * The amount of compressed tokens to mint.
+     */
+    amount: BN | BN[] | number | number[];
+    /**
+     * Public key of the state tree to mint into. Defaults to a public state
+     * tree if unspecified.
+     */
+    merkleTree?: PublicKey;
 };
 
 /**
@@ -183,20 +211,35 @@ export type RegisterMintParams = {
  * Mint from existing SPL mint to compressed token accounts
  */
 export type ApproveAndMintToParams = {
-    /** Tx feepayer */
+    /**
+     * Tx feepayer
+     */
     feePayer: PublicKey;
-    /** Mint authority */
+    /**
+     * Mint authority
+     */
     authority: PublicKey;
-    /** Mint authority (associated) token account */
+    /**
+     * Mint authority (associated) token account
+     */
     authorityTokenAccount: PublicKey;
-    /** Mint public key */
+    /**
+     * Mint public key
+     */
     mint: PublicKey;
-    /** The Solana Public Key to mint to. */
+    /**
+     * The Solana Public Key to mint to.
+     */
     toPubkey: PublicKey;
-    /** The amount of compressed tokens to mint. */
+    /**
+     * The amount of compressed tokens to mint.
+     */
     amount: BN | number;
-    /** Public key of the state tree to mint into. */
-    merkleTree: PublicKey; // TODO: make optional with default system state trees
+    /**
+     * Public key of the state tree to mint into. Defaults to a public state
+     * tree if unspecified.
+     */
+    merkleTree?: PublicKey;
 };
 
 /**
@@ -482,7 +525,8 @@ export class CompressedTokenProgram {
                 accountCompressionAuthority:
                     systemKeys.accountCompressionAuthority,
                 accountCompressionProgram: systemKeys.accountCompressionProgram,
-                merkleTree,
+                merkleTree:
+                    merkleTree ?? defaultTestStateTreeAccounts().merkleTree,
                 selfProgram: this.programId,
             })
             .instruction();
@@ -632,7 +676,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts: [],
-            outputStateTrees: [outputStateTree],
+            outputStateTrees: outputStateTree,
             rootIndices: [],
             tokenTransferOutputs,
         });
@@ -717,7 +761,7 @@ export class CompressedTokenProgram {
             remainingAccountMetas,
         } = packCompressedTokenAccounts({
             inputCompressedTokenAccounts,
-            outputStateTrees: [outputStateTree],
+            outputStateTrees: outputStateTree,
             rootIndices: recentInputStateRootIndices,
             tokenTransferOutputs: tokenTransferOutputs,
         });

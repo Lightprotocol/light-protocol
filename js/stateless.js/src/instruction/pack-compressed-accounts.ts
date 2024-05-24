@@ -6,6 +6,7 @@ import {
 } from '../state';
 import { CompressedAccountWithMerkleContext } from '../state/compressed-account';
 import { toArray } from '../utils/conversion';
+import { defaultTestStateTreeAccounts } from '../constants';
 
 /**
  * @internal Finds the index of a PublicKey in an array, or adds it if not
@@ -38,8 +39,8 @@ export function padOutputStateMerkleTrees(
     /// Default: use the 0th state tree of input state for all output accounts
     if (outputStateMerkleTrees === undefined) {
         if (inputCompressedAccountsWithMerkleContext.length === 0) {
-            throw new Error(
-                'inputCompressedAccountsWithMerkleContext cannot be empty when outputStateMerkleTrees is undefined',
+            return new Array(numberOfOutputCompressedAccounts).fill(
+                defaultTestStateTreeAccounts().merkleTree,
             );
         }
         return new Array(numberOfOutputCompressedAccounts).fill(

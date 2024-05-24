@@ -22,7 +22,10 @@ import {
     createCompressedAccount,
 } from '../state';
 import { packCompressedAccounts, toAccountMetas } from '../instruction';
-import { defaultStaticAccountsStruct } from '../constants';
+import {
+    defaultStaticAccountsStruct,
+    defaultTestStateTreeAccounts,
+} from '../constants';
 import {
     validateSameOwner,
     validateSufficientBalance,
@@ -57,9 +60,9 @@ type CreateAccountWithSeedParams = {
      */
     recentValidityProof: CompressedProof;
     /**
-     * State tree pubkey.
+     * State tree pubkey. Defaults to a public state tree if unspecified.
      */
-    outputStateTree: PublicKey;
+    outputStateTree?: PublicKey;
     /**
      * Public key of the program to assign as the owner of the created account
      */
@@ -140,10 +143,10 @@ type CompressParams = {
      */
     lamports: number | BN;
     /**
-     * The state tree that the tx output should be inserted into. This can be a
-     *
+     * The state tree that the tx output should be inserted into. Defaults to a
+     * public state tree if unspecified.
      */
-    outputStateTree: PublicKey;
+    outputStateTree?: PublicKey;
 };
 
 /**
@@ -478,6 +481,7 @@ export class LightSystemProgram {
     }: CompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
+
         const outputCompressedAccount = createCompressedAccount(
             toAddress,
             lamports,
@@ -534,7 +538,6 @@ export class LightSystemProgram {
      * Creates a transaction instruction that transfers compressed lamports from
      * one owner to another.
      */
-    /// TODO: add check that outputStateTree is provided or supplemented if change exists
     static async decompress({
         payer,
         inputCompressedAccounts,
@@ -546,6 +549,7 @@ export class LightSystemProgram {
     }: DecompressParams): Promise<TransactionInstruction> {
         /// Create output state
         lamports = bn(lamports);
+
         const outputCompressedAccounts = this.createDecompressOutputState(
             inputCompressedAccounts,
             lamports,

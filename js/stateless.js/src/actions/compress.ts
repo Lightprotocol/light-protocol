@@ -40,9 +40,7 @@ export async function compress(
         payer: payer.publicKey,
         toAddress,
         lamports,
-        outputStateTree: outputStateTree
-            ? outputStateTree
-            : defaultTestStateTreeAccounts().merkleTree, // TODO: should fetch the current shared state tree
+        outputStateTree,
     });
 
     const tx = buildAndSignTx(

@@ -38,7 +38,7 @@ export async function transfer(
     owner: Signer,
     toAddress: PublicKey,
     /// TODO: allow multiple
-    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
+    merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
@@ -51,13 +51,6 @@ export async function transfer(
         compressedAccounts,
         lamports,
     );
-
-    /// TODO: remove once we have remove testrpc from RPC
-    /// Here for debugging
-    // const rpc = await getTestRpc();
-    // await testRpc.getValidityProof(
-    //     inputAccounts.map(account => bn(account.hash)),
-    // );
 
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),

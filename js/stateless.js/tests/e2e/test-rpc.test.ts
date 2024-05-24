@@ -119,13 +119,7 @@ describe('test-rpc', () => {
                 STATE_MERKLE_TREE_NETWORK_FEE.toNumber(),
         );
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            merkleTree,
-        );
+        await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
         const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -134,7 +128,7 @@ describe('test-rpc', () => {
 
     it('getCompressedAccountProof: get many valid proofs (10)', async () => {
         for (let lamports = 1; lamports <= 10; lamports++) {
-            await decompress(rpc, payer, lamports, payer.publicKey, merkleTree);
+            await decompress(rpc, payer, lamports, payer.publicKey);
         }
     });
     it('getIndexerHealth', async () => {
