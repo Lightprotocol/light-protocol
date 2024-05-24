@@ -873,6 +873,16 @@ export type LightSystemProgram = {
             name: 'EmptyInputs';
             msg: 'EmptyInputs';
         },
+        {
+            code: 6037;
+            name: 'CpiContextProofMismatch';
+            msg: 'CpiContextMismatch';
+        },
+        {
+            code: 6038;
+            name: 'CpiContextEmpty';
+            msg: 'CpiContextEmpty';
+        },
     ];
 };
 
@@ -1755,6 +1765,16 @@ export const IDL: LightSystemProgram = {
             code: 6036,
             name: 'EmptyInputs',
             msg: 'EmptyInputs',
+        },
+        {
+            code: 6037,
+            name: 'CpiContextProofMismatch',
+            msg: 'CpiContextMismatch',
+        },
+        {
+            code: 6038,
+            name: 'CpiContextEmpty',
+            msg: 'CpiContextEmpty',
         },
     ],
 };

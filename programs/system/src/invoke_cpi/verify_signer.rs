@@ -8,6 +8,10 @@ use crate::{
     InstructionDataInvokeCpi,
 };
 
+/// Checks:
+/// 1. Invoking program is signer (cpi_signer_check)
+/// 2. Input compressed accounts with data are owned by the invoking program (input_compressed_accounts_signer_check)
+/// 3. Output compressed accounts with data are owned by the invoking program (output_compressed_accounts_write_access_check)
 pub fn cpi_signer_checks(
     signer_seeds: &[Vec<u8>],
     invoking_programid: &Pubkey,
@@ -34,7 +38,7 @@ pub fn cpi_signer_checks(
 pub fn cpi_signer_check(
     signer_seeds: &[Vec<u8>],
     invoking_program: &Pubkey,
-    signer: &Pubkey,
+    authority: &Pubkey,
 ) -> Result<()> {
     let seeds = signer_seeds
         .iter()
@@ -42,28 +46,29 @@ pub fn cpi_signer_check(
         .collect::<Vec<&[u8]>>();
     let derived_signer =
         Pubkey::create_program_address(&seeds[..], invoking_program).map_err(ProgramError::from)?;
-    if derived_signer != *signer {
+    if derived_signer != *authority {
         msg!(
-                    "Signer/Program cannot write into an account it doesn't own. Write access check failed derived cpi signer {} !=  signer {}",
-                    derived_signer,
-                    signer
-                );
-        msg!("seeds: {:?}", seeds);
-        return err!(CompressedPdaError::SignerCheckFailed);
+            "Cpi signer check failed. Seeds {:?} derived cpi signer {} !=  authority {}",
+            seeds,
+            derived_signer,
+            authority
+        );
+        return err!(CompressedPdaError::CpiSignerCheckFailed);
     }
     Ok(())
 }
 
 /// Checks the signer for input compressed accounts.
-/// 1. If any compressed account has data the owner has to be the invokinging program.
-/// 2. If no compressed account has data the owner has to be the signer.
-/// (Compressed accounts can be either owned by the program the signing pda if the compressed account has no data.)
+/// 1. If a compressed account has data the owner has to be the invokinging program.
+/// 2. If a compressed account has data no data the owner has to be authority.
+/// (Compressed accounts can be either owned by the program or
+/// the authority (which can be a pda) if the compressed account has no data.)
 #[inline(never)]
 #[heap_neutral]
 pub fn input_compressed_accounts_signer_check(
     inputs: &InstructionDataInvokeCpi,
     invoking_program_id: &Pubkey,
-    signer: &Pubkey,
+    authority: &Pubkey,
 ) -> Result<()> {
     inputs
     .input_compressed_accounts_with_merkle_context
@@ -86,11 +91,11 @@ pub fn input_compressed_accounts_signer_check(
                 }
             }
             // CHECK 2
-            else if compressed_account_with_context.compressed_account.owner != *signer {
+            else if compressed_account_with_context.compressed_account.owner != *authority {
             msg!(
-                "signer check failed compressed account owner {} !=  signer {}",
+                "signer check failed compressed account owner {} !=  authority {}",
                     compressed_account_with_context.compressed_account.owner,
-                    signer
+                    authority
             );
             err!(CompressedPdaError::SignerCheckFailed)
             } else {
@@ -110,7 +115,6 @@ pub fn output_compressed_accounts_write_access_check(
     inputs: &InstructionDataInvokeCpi,
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
-    // is triggered if one output account has data
     for compressed_account in inputs.output_compressed_accounts.iter() {
         if compressed_account.compressed_account.data.is_some()
             && compressed_account.compressed_account.owner != invoking_program_id.key()

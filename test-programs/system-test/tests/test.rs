@@ -72,7 +72,6 @@ async fn invoke_failing_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.get_payer().insecure_clone();
-
     // no inputs
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
         &Vec::new(),

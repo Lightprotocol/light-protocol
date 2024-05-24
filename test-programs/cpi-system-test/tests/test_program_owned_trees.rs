@@ -13,11 +13,12 @@ use light_test_utils::{
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
+// TODO: move to token tests
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("program_owned_account_test"),
-        program_owned_account_test::ID,
+        String::from("test_cpi_system"),
+        test_cpi_system::ID,
     )]))
     .await;
     let payer = rpc.get_payer().insecure_clone();

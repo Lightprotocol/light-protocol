@@ -15,10 +15,10 @@ pub enum CreatePdaMode {
     ProgramIsSigner,
     ProgramIsNotSigner,
     InvalidSignerSeeds,
+    InvalidInvokingProgram,
+    WriteToAccountNotOwned,
 }
-/// create compressed pda data
-/// transfer tokens
-/// execute complete transaction
+
 pub fn process_create_pda<'info>(
     ctx: Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
     data: [u8; 31],
@@ -42,6 +42,7 @@ pub fn process_create_pda<'info>(
                 cpi_context,
             )?;
         }
+        // functional test
         CreatePdaMode::ProgramIsSigner => {
             cpi_compressed_pda_transfer_as_program(
                 &ctx,
@@ -50,7 +51,7 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
-                b"cpi_signer".as_slice(),
+                CreatePdaMode::ProgramIsSigner,
             )?;
         }
         CreatePdaMode::InvalidSignerSeeds => {
@@ -61,13 +62,37 @@ pub fn process_create_pda<'info>(
                 compressed_pda,
                 cpi_context,
                 bump,
-                b"cpi_signer1".as_slice(),
+                CreatePdaMode::InvalidSignerSeeds,
+            )?;
+        }
+        CreatePdaMode::InvalidInvokingProgram => {
+            cpi_compressed_pda_transfer_as_program(
+                &ctx,
+                proof,
+                new_address_params,
+                compressed_pda,
+                cpi_context,
+                bump,
+                CreatePdaMode::InvalidInvokingProgram,
+            )?;
+        }
+        CreatePdaMode::WriteToAccountNotOwned => {
+            cpi_compressed_pda_transfer_as_program(
+                &ctx,
+                proof,
+                new_address_params,
+                compressed_pda,
+                cpi_context,
+                bump,
+                CreatePdaMode::WriteToAccountNotOwned,
             )?;
         }
     }
     Ok(())
 }
 
+/// Functional:
+/// 1. ProgramIsSigner
 fn cpi_compressed_pda_transfer_as_non_program<'info>(
     ctx: &Context<'_, '_, '_, 'info, CreateCompressedPda<'info>>,
     proof: Option<CompressedProof>,
@@ -121,9 +146,27 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
     compressed_pda: OutputCompressedAccountWithPackedContext,
     cpi_context: Option<CompressedCpiContext>,
     bump: u8,
-    signer_seed: &[u8],
+    mode: CreatePdaMode,
 ) -> Result<()> {
-    let local_bump = Pubkey::find_program_address(&[signer_seed], &crate::ID).1;
+    let signer_seed = match mode {
+        CreatePdaMode::InvalidSignerSeeds => b"cpi_signer1".as_slice(),
+        _ => b"cpi_signer".as_slice(),
+    };
+    let invoking_program = match mode {
+        CreatePdaMode::InvalidInvokingProgram => ctx.accounts.signer.to_account_info(),
+        _ => ctx.accounts.self_program.to_account_info(),
+    };
+    let compressed_pda = match mode {
+        CreatePdaMode::WriteToAccountNotOwned => {
+            // account with data needs to be owned by the program
+            let mut compressed_pda = compressed_pda;
+            compressed_pda.compressed_account.owner = ctx.accounts.signer.key();
+            compressed_pda
+        }
+        _ => compressed_pda,
+    };
+
+    let local_bump = Pubkey::find_program_address(&[signer_seed], &invoking_program.key()).1;
     let seeds: [&[u8]; 2] = [signer_seed, &[local_bump]];
     let inputs_struct = InstructionDataInvokeCpi {
         relay_fee: None,
@@ -148,7 +191,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         noop_program: ctx.accounts.noop_program.to_account_info(),
         account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: ctx.accounts.self_program.to_account_info(),
+        invoking_program,
         compressed_sol_pda: None,
         compression_recipient: None,
         system_program: ctx.accounts.system_program.to_account_info(),
@@ -235,7 +278,7 @@ pub struct CreateCompressedPda<'info> {
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK:
     pub noop_program: AccountInfo<'info>,
-    pub self_program: Program<'info, crate::program::ProgramOwnedAccountTest>,
+    pub self_program: Program<'info, crate::program::TestCpiSystem>,
     /// CHECK:
     pub cpi_signer: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
