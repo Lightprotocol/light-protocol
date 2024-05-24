@@ -24,6 +24,4 @@ npx nx run @lightprotocol/stateless.js:build
 npx nx run @lightprotocol/compressed-token:build
 npx nx run @lightprotocol/zk-compression-cli:build
 
-
 echo "Build process completed successfully."
-

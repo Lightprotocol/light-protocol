@@ -20,6 +20,26 @@ pub struct StateMerkleTreeAccount {
     pub state_merkle_tree_canopy: [u8; 65472],
 }
 
+pub trait SequenceNumber {
+    fn get_sequence_number(&self) -> Result<usize>;
+}
+
+impl SequenceNumber for StateMerkleTreeAccount {
+    fn get_sequence_number(&self) -> Result<usize> {
+        let tree = unsafe {
+            ConcurrentMerkleTree26::<Poseidon>::from_bytes(
+                &self.state_merkle_tree_struct,
+                &self.state_merkle_tree_filled_subtrees,
+                &self.state_merkle_tree_changelog,
+                &self.state_merkle_tree_roots,
+                &self.state_merkle_tree_canopy,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(tree.sequence_number)
+    }
+}
+
 impl StateMerkleTreeAccount {
     pub fn init(
         &mut self,

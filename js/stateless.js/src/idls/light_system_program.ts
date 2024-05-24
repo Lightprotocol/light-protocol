@@ -741,8 +741,8 @@ export type LightSystemProgram = {
         },
         {
             code: 6015;
-            name: 'InvalidNullifierQueue';
-            msg: 'InvalidNullifierQueue';
+            name: 'InvalidQueue';
+            msg: 'InvalidQueue';
         },
         {
             code: 6016;
@@ -1595,8 +1595,8 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6015,
-            name: 'InvalidNullifierQueue',
-            msg: 'InvalidNullifierQueue',
+            name: 'InvalidQueue',
+            msg: 'InvalidQueue',
         },
         {
             code: 6016,

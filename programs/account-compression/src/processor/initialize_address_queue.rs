@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
 use crate::{
-    address_queue_from_bytes_zero_copy_init, state::AddressQueueAccount, AccessMetadata,
-    RolloverMetadata,
+    state::{queue_from_bytes_zero_copy_init, QueueAccount},
+    AccessMetadata, QueueType, RolloverMetadata,
 };
 
 #[derive(Accounts)]
@@ -11,12 +11,12 @@ pub struct InitializeAddressQueue<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     #[account(zero)]
-    pub queue: AccountLoader<'info, AddressQueueAccount>,
+    pub queue: AccountLoader<'info, QueueAccount>,
 }
 
 pub fn process_initialize_address_queue<'info>(
     queue_account_info: &AccountInfo<'info>,
-    queue_loader: &AccountLoader<'info, AddressQueueAccount>,
+    queue_loader: &AccountLoader<'info, QueueAccount>,
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
@@ -55,13 +55,14 @@ pub fn process_initialize_address_queue<'info>(
                 close_threshold,
             ),
             associated_merkle_tree,
+            QueueType::AddressQueue,
         );
 
         drop(address_queue);
     }
 
     let _ = unsafe {
-        address_queue_from_bytes_zero_copy_init(
+        queue_from_bytes_zero_copy_init(
             &mut queue_account_info.try_borrow_mut_data()?,
             capacity_indices as usize,
             capacity_values as usize,

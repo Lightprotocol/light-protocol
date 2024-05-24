@@ -1,7 +1,7 @@
 use std::mem;
 
 use account_compression::{
-    initialize_nullifier_queue::NullifierQueueAccount,
+    state::queue::QueueAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
@@ -9,7 +9,7 @@ use account_compression::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
         STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
     },
-    AddressMerkleTreeAccount, AddressQueueAccount, StateMerkleTreeAccount,
+    AddressMerkleTreeAccount, StateMerkleTreeAccount,
 };
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry26, event::RawIndexedElement, ConcurrentMerkleTree26,
@@ -55,7 +55,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "NullifierQueueAccount".to_owned(),
-            space: NullifierQueueAccount::size(
+            space: QueueAccount::size(
                 STATE_NULLIFIER_QUEUE_INDICES as usize,
                 STATE_NULLIFIER_QUEUE_VALUES as usize,
             )
@@ -63,7 +63,7 @@ pub fn type_sizes() -> anyhow::Result<()> {
         },
         Type {
             name: "AddressQueue".to_owned(),
-            space: AddressQueueAccount::size(
+            space: QueueAccount::size(
                 ADDRESS_QUEUE_INDICES as usize,
                 ADDRESS_QUEUE_VALUES as usize,
             )

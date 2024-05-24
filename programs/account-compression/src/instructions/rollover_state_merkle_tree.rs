@@ -4,12 +4,12 @@ use light_macros::heap_neutral;
 use crate::{
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
-        initialize_nullifier_queue::{
-            nullifier_queue_from_bytes_zero_copy_mut, process_initialize_nullifier_queue,
-            NullifierQueueAccount,
-        },
+        initialize_nullifier_queue::process_initialize_nullifier_queue,
     },
-    state::StateMerkleTreeAccount,
+    state::{
+        queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
+        StateMerkleTreeAccount,
+    },
     transfer_lamports,
     utils::check_registered_or_signer::GroupAccounts,
     RegisteredProgram,
@@ -25,11 +25,11 @@ pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {
     #[account(zero)]
     pub new_state_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(zero)]
-    pub new_nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
+    pub new_nullifier_queue: AccountLoader<'info, QueueAccount>,
     #[account(mut)]
     pub old_state_merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
-    pub old_nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
+    pub old_nullifier_queue: AccountLoader<'info, QueueAccount>,
 }
 
 impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'info> {
@@ -105,8 +105,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
     {
         let nullifier_queue_account = ctx.accounts.old_nullifier_queue.to_account_info();
         let mut nullifier_queue = nullifier_queue_account.try_borrow_mut_data()?;
-        let nullifier_queue =
-            unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
+        let nullifier_queue = unsafe { queue_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
         process_initialize_nullifier_queue(
             ctx.accounts.new_nullifier_queue.to_account_info(),
             &ctx.accounts.new_nullifier_queue,

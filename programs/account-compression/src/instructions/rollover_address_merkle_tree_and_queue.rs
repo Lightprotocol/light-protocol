@@ -2,11 +2,12 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use light_macros::heap_neutral;
 
 use crate::{
-    address_queue_from_bytes_zero_copy_mut,
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
-    initialize_address_queue::process_initialize_address_queue, state::AddressMerkleTreeAccount,
-    transfer_lamports, utils::check_registered_or_signer::GroupAccounts, AddressQueueAccount,
-    RegisteredProgram,
+    initialize_address_queue::process_initialize_address_queue,
+    state::{queue_from_bytes_zero_copy_mut, QueueAccount},
+    transfer_lamports,
+    utils::check_registered_or_signer::GroupAccounts,
+    AddressMerkleTreeAccount, RegisteredProgram,
 };
 
 #[derive(Accounts)]
@@ -19,11 +20,11 @@ pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     #[account(zero)]
     pub new_address_merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     #[account(zero)]
-    pub new_queue: AccountLoader<'info, AddressQueueAccount>,
+    pub new_queue: AccountLoader<'info, QueueAccount>,
     #[account(mut)]
     pub old_address_merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     #[account(mut)]
-    pub old_queue: AccountLoader<'info, AddressQueueAccount>,
+    pub old_queue: AccountLoader<'info, QueueAccount>,
 }
 
 impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
@@ -100,7 +101,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     {
         let queue_account = ctx.accounts.old_queue.to_account_info();
         let mut queue = queue_account.try_borrow_mut_data()?;
-        let queue = unsafe { address_queue_from_bytes_zero_copy_mut(&mut queue)? };
+        let queue = unsafe { queue_from_bytes_zero_copy_mut(&mut queue)? };
         process_initialize_address_queue(
             &ctx.accounts.new_queue.to_account_info(),
             &ctx.accounts.new_queue,

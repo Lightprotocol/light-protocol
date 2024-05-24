@@ -5,8 +5,9 @@ use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 
 use crate::{
-    address_queue_from_bytes_zero_copy_mut, emit_indexer_event,
-    state::address::{AddressMerkleTreeAccount, AddressQueueAccount},
+    emit_indexer_event,
+    state::{queue_from_bytes_zero_copy_mut, QueueAccount},
+    AddressMerkleTreeAccount,
 };
 
 #[derive(Accounts)]
@@ -14,7 +15,7 @@ pub struct UpdateMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     #[account(mut)]
-    pub queue: AccountLoader<'info, AddressQueueAccount>,
+    pub queue: AccountLoader<'info, QueueAccount>,
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     /// CHECK: in event emitting
@@ -41,7 +42,7 @@ pub fn process_update_address_merkle_tree<'info>(
 ) -> Result<()> {
     let address_queue = ctx.accounts.queue.to_account_info();
     let mut address_queue = address_queue.try_borrow_mut_data()?;
-    let mut address_queue = unsafe { address_queue_from_bytes_zero_copy_mut(&mut address_queue)? };
+    let mut address_queue = unsafe { queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;

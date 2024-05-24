@@ -1,15 +1,14 @@
-use std::mem;
-
 use account_compression::{
-    initialize_nullifier_queue::NullifierQueueAccount,
+    state::queue::QueueAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_QUEUE_INDICES, ADDRESS_QUEUE_VALUES,
         STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
     },
-    AddressMerkleTreeAccount, AddressQueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
+    AddressMerkleTreeAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use light_utils::fee::compute_rollover_fee;
 use solana_program::rent::Rent;
+use std::mem;
 use tabled::{Table, Tabled};
 
 #[derive(Tabled)]
@@ -30,14 +29,10 @@ pub fn fees() -> anyhow::Result<()> {
                 state_merkle_tree_config.rollover_threshold.unwrap(),
                 STATE_MERKLE_TREE_HEIGHT as u32,
                 rent.minimum_balance(8 + mem::size_of::<StateMerkleTreeAccount>()),
-            )?,
-        },
-        AccountFee {
-            account: "Nullifier queue (rollover)".to_owned(),
-            fee: compute_rollover_fee(
+            )? + compute_rollover_fee(
                 state_merkle_tree_config.rollover_threshold.unwrap(),
                 STATE_MERKLE_TREE_HEIGHT as u32,
-                rent.minimum_balance(NullifierQueueAccount::size(
+                rent.minimum_balance(QueueAccount::size(
                     STATE_NULLIFIER_QUEUE_INDICES as usize,
                     STATE_NULLIFIER_QUEUE_VALUES as usize,
                 )?),
@@ -52,7 +47,7 @@ pub fn fees() -> anyhow::Result<()> {
             )? + compute_rollover_fee(
                 state_merkle_tree_config.rollover_threshold.unwrap(),
                 ADDRESS_MERKLE_TREE_HEIGHT as u32,
-                rent.minimum_balance(AddressQueueAccount::size(
+                rent.minimum_balance(QueueAccount::size(
                     ADDRESS_QUEUE_INDICES.into(),
                     ADDRESS_QUEUE_VALUES.into(),
                 )?),

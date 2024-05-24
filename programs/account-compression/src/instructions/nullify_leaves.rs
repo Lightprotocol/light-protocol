@@ -7,9 +7,7 @@ use light_macros::heap_neutral;
 use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
-    processor::initialize_nullifier_queue::{
-        nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
-    },
+    state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
     state::StateMerkleTreeAccount,
     RegisteredProgram,
 };
@@ -25,7 +23,7 @@ pub struct NullifyLeaves<'info> {
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
-    pub nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
+    pub nullifier_queue: AccountLoader<'info, QueueAccount>,
 }
 
 // TODO: implement for multiple nullifiers got a stack frame error with a loop
@@ -93,14 +91,13 @@ fn insert_nullifier(
             merkle_tree.metadata.associated_queue,
             ctx.accounts.nullifier_queue.key()
         );
-        return Err(AccountCompressionErrorCode::InvalidNullifierQueue.into());
+        return Err(AccountCompressionErrorCode::InvalidQueue.into());
     }
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
     let nullifier_queue = ctx.accounts.nullifier_queue.to_account_info();
     let mut nullifier_queue = nullifier_queue.try_borrow_mut_data()?;
-    let mut nullifier_queue =
-        unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
+    let mut nullifier_queue = unsafe { queue_from_bytes_zero_copy_mut(&mut nullifier_queue)? };
 
     let allowed_proof_size = merkle_tree.height - merkle_tree.canopy_depth;
     if proofs[0].len() != allowed_proof_size {

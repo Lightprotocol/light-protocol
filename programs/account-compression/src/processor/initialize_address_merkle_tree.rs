@@ -5,14 +5,6 @@ use crate::{
 pub use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
-#[derive(Accounts)]
-pub struct InitializeAddressMerkleTree<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(zero)]
-    pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
-}
-
 pub fn process_initialize_address_merkle_tree(
     address_merkle_tree_loader: &AccountLoader<'_, AddressMerkleTreeAccount>,
     index: u64,

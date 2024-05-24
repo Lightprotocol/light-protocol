@@ -3,7 +3,7 @@ use crate::{
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps, InstructionData};
 use light_macros::heap_neutral;
 
 // TODO: add a check in account compression program that only the owning program can create a Merkle tree.
@@ -51,6 +51,7 @@ pub fn insert_nullifiers<
         },
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
+    let mut network_fee_bundle = None;
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
         let account_info =
             &ctx.remaining_accounts[account.merkle_context.nullifier_queue_pubkey_index as usize];
@@ -60,40 +61,32 @@ pub fn insert_nullifiers<
             is_writable: true,
         });
         account_infos.push(account_info.clone());
+        let (_, network_fee) = check_program_owner_state_merkle_tree(
+            &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
+            invoking_program,
+        )?;
+        if network_fee_bundle.is_none() && network_fee.is_some() {
+            network_fee_bundle = Some((
+                account.merkle_context.nullifier_queue_pubkey_index,
+                network_fee.unwrap(),
+            ));
+        }
+        accounts.push(AccountMeta {
+            pubkey: ctx.remaining_accounts
+                [account.merkle_context.merkle_tree_pubkey_index as usize]
+                .key(),
+            is_signer: false,
+            is_writable: false,
+        });
+        account_infos.push(
+            ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize]
+                .clone(),
+        );
     }
-    // Transfer one network fee to the nullifier queue of the first account with a non zero fee.
-    let mut network_fee_bundle = None;
-    inputs
-        .input_compressed_accounts_with_merkle_context
-        .iter()
-        .try_for_each(|account| -> Result<()> {
-            let (_, network_fee) = check_program_owner_state_merkle_tree(
-                &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
-                invoking_program,
-            )?;
-            if network_fee_bundle.is_none() && network_fee.is_some() {
-                network_fee_bundle = Some((
-                    account.merkle_context.nullifier_queue_pubkey_index,
-                    network_fee.unwrap(),
-                ));
-            }
-            accounts.push(AccountMeta {
-                pubkey: ctx.remaining_accounts
-                    [account.merkle_context.merkle_tree_pubkey_index as usize]
-                    .key(),
-                is_signer: false,
-                is_writable: false,
-            });
-            account_infos.push(
-                ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize]
-                    .clone(),
-            );
-            Ok(())
-        })?;
+
     light_heap::bench_sbf_end!("cpda_insert_nullifiers_prep_accs");
     light_heap::bench_sbf_start!("cpda_instruction_data");
 
-    use anchor_lang::InstructionData;
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: nullifiers.to_vec(),
     };

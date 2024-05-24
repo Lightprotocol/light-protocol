@@ -10,8 +10,8 @@ use crate::{
     get_hash_set,
 };
 use account_compression::{
-    accounts, initialize_address_merkle_tree::AccountLoader, instruction,
-    utils::constants::ADDRESS_MERKLE_TREE_HEIGHT, AddressMerkleTreeAccount, AddressQueueAccount,
+    accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
+    utils::constants::ADDRESS_MERKLE_TREE_HEIGHT, AddressMerkleTreeAccount,
 };
 use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
 use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
@@ -61,7 +61,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     old_queue_pubkey: &Pubkey,
 ) -> Result<(), RpcError> {
     let payer = context.get_payer().insecure_clone();
-    let size = AddressQueueAccount::size(
+    let size = QueueAccount::size(
         account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
         account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
     )
@@ -199,8 +199,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
             false,
             0u64,
         );
-        let new_queue_account =
-            AccountLoader::<AddressQueueAccount>::try_from(&account_info).unwrap();
+        let new_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let new_loaded_queue_account = new_queue_account.load().unwrap();
         let mut old_queue_account = rpc.get_account(*old_queue_pubkey).await.unwrap().unwrap();
 
@@ -215,8 +214,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
             false,
             0u64,
         );
-        let old_queue_account =
-            AccountLoader::<AddressQueueAccount>::try_from(&account_info).unwrap();
+        let old_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let old_loaded_queue_account = old_queue_account.load().unwrap();
 
         assert_rolledover_queues_metadata(
@@ -240,9 +238,9 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     {
         let old_address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, *old_queue_pubkey).await };
+            unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *old_queue_pubkey).await };
         let new_address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, *new_queue_pubkey).await };
+            unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *new_queue_pubkey).await };
 
         assert_eq!(
             old_address_queue.capacity_indices,

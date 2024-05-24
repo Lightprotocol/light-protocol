@@ -657,20 +657,6 @@ export type AccountCompression = {
             };
         },
         {
-            name: 'nullifierQueueAccount';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'metadata';
-                        type: {
-                            defined: 'QueueMetadata';
-                        };
-                    },
-                ];
-            };
-        },
-        {
             name: 'accessMetadata';
             type: {
                 kind: 'struct';
@@ -686,20 +672,6 @@ export type AccountCompression = {
                             'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
                         type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'addressQueueAccount';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'metadata';
-                        type: {
-                            defined: 'QueueMetadata';
-                        };
                     },
                 ];
             };
@@ -854,6 +826,24 @@ export type AccountCompression = {
                     {
                         name: 'nextQueue';
                         type: 'publicKey';
+                    },
+                    {
+                        name: 'queueType';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'queueAccount';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'QueueMetadata';
+                        };
                     },
                 ];
             };
@@ -1023,6 +1013,20 @@ export type AccountCompression = {
             };
         },
         {
+            name: 'QueueType';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'NullifierQueue';
+                    },
+                    {
+                        name: 'AddressQueue';
+                    },
+                ];
+            };
+        },
+        {
             name: 'AddressQueueConfig';
             type: {
                 kind: 'alias';
@@ -1130,8 +1134,8 @@ export type AccountCompression = {
         },
         {
             code: 6019;
-            name: 'InvalidNullifierQueue';
-            msg: 'InvalidNullifierQueue';
+            name: 'InvalidQueue';
+            msg: 'InvalidQueue';
         },
         {
             code: 6020;
@@ -1172,6 +1176,11 @@ export type AccountCompression = {
             code: 6027;
             name: 'NotAllLeavesProcessed';
             msg: 'NotAllLeavesProcessed';
+        },
+        {
+            code: 6028;
+            name: 'InvalidQueueType';
+            msg: 'InvalidQueueType';
         },
     ];
 };
@@ -1835,20 +1844,6 @@ export const IDL: AccountCompression = {
             },
         },
         {
-            name: 'nullifierQueueAccount',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'QueueMetadata',
-                        },
-                    },
-                ],
-            },
-        },
-        {
             name: 'accessMetadata',
             type: {
                 kind: 'struct',
@@ -1864,20 +1859,6 @@ export const IDL: AccountCompression = {
                             'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],
                         type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'addressQueueAccount',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'metadata',
-                        type: {
-                            defined: 'QueueMetadata',
-                        },
                     },
                 ],
             },
@@ -2032,6 +2013,24 @@ export const IDL: AccountCompression = {
                     {
                         name: 'nextQueue',
                         type: 'publicKey',
+                    },
+                    {
+                        name: 'queueType',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'queueAccount',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'QueueMetadata',
+                        },
                     },
                 ],
             },
@@ -2201,6 +2200,20 @@ export const IDL: AccountCompression = {
             },
         },
         {
+            name: 'QueueType',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'NullifierQueue',
+                    },
+                    {
+                        name: 'AddressQueue',
+                    },
+                ],
+            },
+        },
+        {
             name: 'AddressQueueConfig',
             type: {
                 kind: 'alias',
@@ -2308,8 +2321,8 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6019,
-            name: 'InvalidNullifierQueue',
-            msg: 'InvalidNullifierQueue',
+            name: 'InvalidQueue',
+            msg: 'InvalidQueue',
         },
         {
             code: 6020,
@@ -2350,6 +2363,11 @@ export const IDL: AccountCompression = {
             code: 6027,
             name: 'NotAllLeavesProcessed',
             msg: 'NotAllLeavesProcessed',
+        },
+        {
+            code: 6028,
+            name: 'InvalidQueueType',
+            msg: 'InvalidQueueType',
         },
     ],
 };

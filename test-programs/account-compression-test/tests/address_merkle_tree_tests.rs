@@ -1,19 +1,10 @@
 #![cfg(feature = "test-sbf")]
 
-use num_bigint::ToBigUint;
-use solana_program_test::ProgramTest;
-use solana_sdk::transaction::TransactionError;
-use solana_sdk::{
-    instruction::InstructionError,
-    pubkey::Pubkey,
-    signature::{Keypair, Signer},
-};
-use thiserror::Error;
-
 use account_compression::{
     errors::AccountCompressionErrorCode,
+    state::QueueAccount,
     utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeConfig, AddressQueueAccount, ID,
+    AddressMerkleTreeConfig, ID,
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
@@ -34,6 +25,15 @@ use light_test_utils::{
     test_indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle},
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
+use num_bigint::ToBigUint;
+use solana_program_test::ProgramTest;
+use solana_sdk::transaction::TransactionError;
+use solana_sdk::{
+    instruction::InstructionError,
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+};
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 enum RelayerUpdateError {}
@@ -109,7 +109,6 @@ async fn test_address_queue() {
         bigint_to_be_bytes_array(&address1).unwrap(),
         bigint_to_be_bytes_array(&address2).unwrap(),
     ];
-
     insert_addresses(
         &mut context,
         address_queue_keypair.pubkey(),
@@ -119,7 +118,7 @@ async fn test_address_queue() {
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<u16, AddressQueueAccount, ProgramTestRpcConnection>(
+        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(
             &mut context,
             address_queue_keypair.pubkey(),
         )
@@ -252,7 +251,7 @@ async fn test_insert_invalid_low_element() {
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<u16, AddressQueueAccount, ProgramTestRpcConnection>(
+        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(
             &mut context,
             address_queue_keypair.pubkey(),
         )
@@ -312,7 +311,7 @@ async fn test_insert_invalid_low_element() {
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<u16, AddressQueueAccount, ProgramTestRpcConnection>(
+        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(
             &mut context,
             address_queue_keypair.pubkey(),
         )
