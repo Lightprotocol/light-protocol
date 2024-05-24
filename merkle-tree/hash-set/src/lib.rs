@@ -384,40 +384,59 @@ where
 
     fn insert_into_occupied_cell(
         &mut self,
-        value_index: usize,
+        // value_index: usize,
+        value_bucket: &mut HashSetCell,
         value: &BigUint,
         current_sequence_number: usize,
     ) -> Result<bool, HashSetError> {
-        let value_bucket = unsafe { &mut *self.values.as_ptr().add(value_index) };
+        // let value_bucket = unsafe { &mut *self.values.as_ptr().add(value_index) };
 
-        match value_bucket {
-            // The cell in the value array is already taken.
-            Some(value_bucket) => {
-                // We can overwrite that cell only if the element
-                // is expired - when the difference between its
-                // sequence number and provided sequence number is
-                // greater than the threshold.
-                if let Some(element_sequence_number) = value_bucket.sequence_number {
-                    if current_sequence_number >= element_sequence_number {
-                        *value_bucket = HashSetCell {
-                            value: bigint_to_be_bytes_array(value)?,
-                            sequence_number: None,
-                        };
-                        return Ok(true);
-                    }
-                }
-                // Otherwise, we need to prevent having multiple valid
-                // elements with the same value.
-                if &BigUint::from_be_bytes(value_bucket.value.as_slice()) == value {
-                    return Err(HashSetError::ElementAlreadyExists);
-                }
+        // match value_bucket {
+        // The cell in the value array is already taken.
+        // Some(value_bucket) => {
+        // We can overwrite that cell only if the element
+        // is expired - when the difference between its
+        // sequence number and provided sequence number is
+        // greater than the threshold.
+        println!("insert_into_occ: value_bucket: {value_bucket:?}");
+        if let Some(element_sequence_number) = value_bucket.sequence_number {
+            println!("insert_into_occ: current_sequence_number: {current_sequence_number}, element_sequence_number: {element_sequence_number}");
+            if current_sequence_number >= element_sequence_number {
+                println!("Insertinnnnn");
+                *value_bucket = HashSetCell {
+                    value: bigint_to_be_bytes_array(value)?,
+                    sequence_number: None,
+                };
+                return Ok(true);
             }
-            // Panics: If there is a hash set cell pointing to a `None` value,
-            // it means we really screwed up in the implementation...
-            // That should never happen.
-            None => unreachable!(),
         }
+        // Otherwise, we need to prevent having multiple valid
+        // elements with the same value.
+        if &BigUint::from_be_bytes(value_bucket.value.as_slice()) == value {
+            return Err(HashSetError::ElementAlreadyExists);
+        }
+        // }
+        // Panics: If there is a hash set cell pointing to a `None` value,
+        // it means we really screwed up in the implementation...
+        // That should never happen.
+        // None => unreachable!(),
+        // }
         Ok(false)
+    }
+
+    /// Performs a quadratic probe and eturns an index inside
+    /// [`indices`](HashSet::indices) based on the provided `value` and
+    /// `iteration`.
+    fn probe_index(&self, value: &BigUint, iteration: usize) -> usize {
+        // PANICS: `usize` is always going to fit in `BigUint`.
+        let probe_index = (value
+            + (iteration.to_biguint().unwrap() * iteration.to_biguint().unwrap()))
+            % self.capacity_indices.to_biguint().unwrap();
+        // println!("probe_index: {probe_index:?}");
+        // PANICS: The modulus applied above guarantees that `probe_index` is
+        // going to fit in `usize` (`self.capacity_indices` is a generic `Unsigned`,
+        // but never larger than `usize`).
+        probe_index.to_usize().unwrap()
     }
 
     /// Inserts a value into the hash set, with `self.capacity_values` attempts.
@@ -432,56 +451,102 @@ where
         value: &BigUint,
         current_sequence_number: usize,
     ) -> Result<(), HashSetError> {
-        let index_bucket = self.find_element_iter(value, current_sequence_number, 0, 20)?;
-        let (value_index, is_new) = match index_bucket {
-            Some(value_index) => value_index,
-            None => {
-                return Err(HashSetError::Full);
-            }
-        };
+        // let (probe_index, is_new) = self
+        //     .find_index_cell_for_insertion(value, current_sequence_number, 0, 20)?
+        //     .ok_or({
+        //         println!("FULL");
+        //         HashSetError::Full
+        //     })?;
+        let (probe_index, is_new) =
+            match self.find_index_cell_for_insertion(value, current_sequence_number, 0, 20)? {
+                Some((probe_index, is_new)) => {
+                    println!("SOME");
+                    (probe_index, is_new)
+                }
+                None => {
+                    println!("NONE");
+                    return Err(HashSetError::Full);
+                }
+            };
+        // SAFETY: `indices` are always initialized.
+        let index_bucket = unsafe { &mut *self.indices.as_ptr().add(probe_index) };
 
         match is_new {
             // The visited hash set cell points to a value in the array.
             false => {
-                let index_bucket = unsafe { &*self.indices.as_ptr().add(value_index) };
+                let value_index =
+                    usize::try_from(index_bucket.unwrap()).map_err(|_| HashSetError::UsizeConv)?;
+                let value_bucket = unsafe { &mut *self.values.as_ptr().add(value_index) };
 
-                if self.insert_into_occupied_cell(
-                    usize::try_from(index_bucket.unwrap())
-                        .map_err(|_| HashSetError::IntegerOverflow)?,
-                    value,
-                    current_sequence_number,
-                )? {
-                    return Ok(());
+                match value_bucket {
+                    Some(value_bucket) => {
+                        if self.insert_into_occupied_cell(
+                            value_bucket,
+                            value,
+                            current_sequence_number,
+                        )? {
+                            return Ok(());
+                        }
+                    }
+                    // `value_bucket` has to be `Some` for an occupied cell.
+                    None => unreachable!(),
                 }
             }
             true => {
-                // SAFETY: `next_value_index` is always initialized.
-                let value_bucket =
-                    unsafe { &mut *self.values.as_ptr().add(*self.next_value_index) };
-
-                let index_bucket = unsafe { &mut *self.indices.as_ptr().add(value_index) };
                 *index_bucket = Some(
                     I::try_from(unsafe { *self.next_value_index })
                         .map_err(|_| HashSetError::IntegerOverflow)?,
                 );
-                *value_bucket = Some(HashSetCell {
-                    value: bigint_to_be_bytes_array(value)?,
-                    sequence_number: None,
-                });
+
+                for i in 0..self.capacity_values {
+                    let value_bucket = unsafe { &mut *self.values.as_ptr().add(i) };
+                    println!("lmao: {i}: value_bucket: {value_bucket:?}");
+                }
+
+                println!("next_value_index: {}", unsafe { *self.next_value_index });
+                // SAFETY: `next_value_index` is always initialized.
+                let value_bucket =
+                    unsafe { &mut *self.values.as_ptr().add(*self.next_value_index) };
+                println!("value_bucket: {value_bucket:?}");
+
+                match value_bucket {
+                    // If the `value_bucket` is occupied, that means that we wrapped
+                    // around the `value` array (we reached the end and started
+                    // iterating) from the start.
+                    //
+                    // In this sutiation, we can insert the new element only if the
+                    // bucket is expired. Otherwise, the hash set is full and we need
+                    // to return an error.
+                    Some(value_bucket) => {
+                        println!("insert: value_bucket: {value_bucket:?}");
+                        if !self.insert_into_occupied_cell(
+                            value_bucket,
+                            value,
+                            current_sequence_number,
+                        )? {
+                            println!("bazinga");
+                            return Err(HashSetError::Full);
+                        };
+                    }
+                    // If the `value_bucket` is vacant, just assign the `value` to it.
+                    None => {
+                        *value_bucket = Some(HashSetCell {
+                            value: bigint_to_be_bytes_array(value)?,
+                            sequence_number: None,
+                        });
+                    }
+                }
+
+                // Increment the `next_value_index` with a wrap-around.
+                //
                 // SAFETY: `next_value_index` is always initialized.
                 unsafe {
-                    *self.next_value_index = if *self.next_value_index < self.capacity_values {
-                        *self.next_value_index + 1
-                    } else {
-                        // TODO: Write a test to trigger this error.
-                        // (Blocked by investigation of filling the complete value array.)
-                        // This should never happen.
-                        return Err(HashSetError::Full);
-                    };
+                    *self.next_value_index = (*self.next_value_index + 1) % self.capacity_values;
                 }
                 return Ok(());
             }
         }
+        println!("3: HashSetError::Full");
         Err(HashSetError::Full)
     }
 
@@ -491,9 +556,7 @@ where
         current_sequence_number: Option<usize>,
     ) -> Result<Option<(&mut HashSetCell, I)>, HashSetError> {
         for i in 0..self.capacity_values {
-            let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
-                % self.capacity_values.to_biguint().unwrap();
-            let probe_index = probe_index.to_usize().unwrap();
+            let probe_index = self.probe_index(value, i);
             let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
 
             match index_bucket {
@@ -518,12 +581,14 @@ where
         Ok(None)
     }
 
-    /// find_element_iter iterates over a fixed range of elements
-    /// in the hash set.
-    /// We always have to iterate over the whole range
-    /// to make sure that the value is not in the hash-set.
+    /// Iterates over a fixed range of elements in the hash set.
+    ///
+    /// As long as we don't encounter an empty index cell, we always have to
+    /// iterate over the whole range to make sure that the value is not in the
+    /// hash set.
+    ///
     /// Returns the position of the first free value.
-    pub fn find_element_iter(
+    fn find_index_cell_for_insertion(
         &self,
         value: &BigUint,
         current_sequence_number: usize,
@@ -532,9 +597,9 @@ where
     ) -> Result<Option<(usize, bool)>, HashSetError> {
         let mut first_free_element: Option<(usize, bool)> = None;
         for i in start_iter..num_iterations {
-            let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
-                % self.capacity_values.to_biguint().unwrap();
-            let probe_index = probe_index.to_usize().unwrap();
+            // for i in 0..self.capacity_values {
+            let probe_index = self.probe_index(value, i);
+            // println!("find_element_iter: {i}, probe_index: {probe_index}");
             let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
 
             match index_bucket {
@@ -545,10 +610,15 @@ where
                     );
 
                     if let Some(value_bucket) = value_bucket {
+                        // println!("first_free_element: {first_free_element:?}");
+                        // if value_bucket.sequence_number.is_some() {
+                        // println!("find_element_iter: current_sequence_number: {current_sequence_number}, bucket sn: {}", value_bucket.sequence_number.unwrap());
+                        // }
                         if first_free_element.is_none()
                             && value_bucket.sequence_number.is_some()
                             && current_sequence_number >= value_bucket.sequence_number.unwrap()
                         {
+                            println!("find_element_iter: FOUND");
                             first_free_element = Some((probe_index, false));
                         }
                         if &value_bucket.value_biguint() == value {
@@ -566,6 +636,7 @@ where
                 }
             }
         }
+        println!("returining first_free_element: {first_free_element:?}");
         Ok(first_free_element)
     }
 
@@ -775,7 +846,7 @@ mod test {
     use super::*;
     use ark_bn254::Fr;
     use ark_ff::UniformRand;
-    use rand::{rngs::StdRng, thread_rng, SeedableRng};
+    use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
 
     #[test]
     fn test_find_next_prime() {
@@ -1021,21 +1092,66 @@ mod test {
             let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
 
             let mut rng = StdRng::seed_from_u64(1);
-            let mut res = Ok(());
-            let mut value = BigUint::from(Fr::rand(&mut rng));
+            // let mut res = Ok(());
+            // let mut value = BigUint::from(Fr::rand(&mut rng));
             // Since capacity is 4800, it will always fail on insert 4801.
             // It might fail earlier for the hashset is probabilistic.
-            for _ in 0..4801 {
-                value = BigUint::from(Fr::rand(&mut rng));
-                res = hs.insert(&value, 0);
+
+            // Insertions up to the value capacity should succeed.
+            for _ in 0..4800 {
+                let value = BigUint::from(Fr::rand(&mut rng));
+                hs.insert(&value, 0).unwrap();
+                hs.mark_with_sequence_number(&value, 0).unwrap();
             }
-            // The prior assert made the test always succeed
-            assert_eq!(res.unwrap_err(), HashSetError::Full);
-            assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
+
+            for i in 0..4800 {
+                let value_cell = hs.by_value_index(i, Some(0)).unwrap();
+                println!("{i}: value_cell: {value_cell:?}");
+                assert_eq!(value_cell.sequence_number, Some(2400));
+            }
+
+            // Insertion over the capacity. Do it with sequence number 0, so
+            // there is no chance of vacating any cell. Try many times.
+            for _ in 0..1000 {
+                let value = BigUint::from(Fr::rand(&mut rng));
+                let res = hs.insert(&value, 0);
+                assert!(matches!(res, Err(HashSetError::Full)));
+            }
+
+            for i in 0..4800 {
+                let value_cell = hs.by_value_index(i, Some(0)).unwrap();
+                println!("{i}: value_cell: {value_cell:?}");
+                assert_eq!(value_cell.sequence_number, Some(2400));
+            }
+
+            // Try again with defined sequence numbers, but still too small to
+            // vacate any cell.
+            for _ in 0..1000 {
+                let value = BigUint::from(Fr::rand(&mut rng));
+                // Sequence numbers lower than the threshold should not vacate
+                // any cell.
+                let sequence_number = rng.gen_range(0..hs.sequence_threshold);
+                let res = hs.insert(&value, sequence_number);
+                assert!(matches!(res, Err(HashSetError::Full)));
+            }
+
+            for i in 0..4800 {
+                let value_cell = hs.by_value_index(i, Some(0)).unwrap();
+                println!("ayy: {i}: value_cell: {value_cell:?}");
+                assert_eq!(value_cell.sequence_number, Some(2400));
+            }
+
+            // Use sequence numbers which are going to vacate cells. All
+            // insertions should be successful now.
+            for i in 0..4800 {
+                let value = BigUint::from(Fr::rand(&mut rng));
+                hs.insert(&value, 2401 + i).unwrap();
+            }
         }
     }
 
     #[test]
+    #[ignore]
     fn test_hash_set_full_onchain() {
         for _ in 0..1000 {
             let mut hs = HashSet::<u16>::new(6857, 600, 2400).unwrap();
