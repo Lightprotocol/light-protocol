@@ -64,7 +64,7 @@ jobs:
             ]'
           - program: random-e2e-test
             sub-tests: '[
-              "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture"
+              "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"
             ]'
 
     steps:
