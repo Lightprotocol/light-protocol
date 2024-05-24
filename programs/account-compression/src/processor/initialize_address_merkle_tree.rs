@@ -3,7 +3,6 @@ use crate::{
     RolloverMetadata,
 };
 pub use anchor_lang::prelude::*;
-use light_utils::fee::compute_rollover_fee;
 
 pub fn process_initialize_address_merkle_tree(
     address_merkle_tree_loader: &AccountLoader<'_, AddressMerkleTreeAccount>,
@@ -19,17 +18,12 @@ pub fn process_initialize_address_merkle_tree(
     network_fee: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
-    rent: u64,
 ) -> Result<()> {
     let mut address_merkle_tree = address_merkle_tree_loader.load_init()?;
 
-    let rollover_fee = match rollover_threshold {
-        Some(rollover_threshold) => {
-            compute_rollover_fee(rollover_threshold, height, rent).map_err(ProgramError::from)?
-        }
-        None => 0,
-    };
-
+    // The address Merkle tree is never directly called by the user.
+    // The whole rollover fees are collected by the address queue.
+    let rollover_fee = 0;
     address_merkle_tree.init(
         AccessMetadata::new(owner, delegate),
         RolloverMetadata::new(

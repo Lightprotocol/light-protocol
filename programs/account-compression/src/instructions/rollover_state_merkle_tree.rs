@@ -10,8 +10,7 @@ use crate::{
         queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
         StateMerkleTreeAccount,
     },
-    transfer_lamports,
-    utils::check_registered_or_signer::GroupAccounts,
+    utils::{check_registered_or_signer::GroupAccounts, transfer_lamports::transfer_lamports},
     RegisteredProgram,
 };
 

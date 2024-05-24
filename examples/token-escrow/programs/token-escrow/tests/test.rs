@@ -167,7 +167,7 @@ async fn test_escrow_pda() {
     )
     .await;
 
-    assert_rpc_error(result, 0, EscrowError::EscrowLocked.into());
+    assert_rpc_error(result, 0, EscrowError::EscrowLocked.into()).unwrap();
 
     rpc.warp_to_slot(1000).unwrap();
     // try withdrawal with invalid signer
@@ -181,7 +181,7 @@ async fn test_escrow_pda() {
     )
     .await;
 
-    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into());
+    assert_rpc_error(result, 0, VerifierError::ProofVerificationFailed.into()).unwrap();
 
     perform_withdrawal_with_event(
         &mut rpc,

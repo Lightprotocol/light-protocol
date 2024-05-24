@@ -1,4 +1,4 @@
-use account_compression::transfer_lamports_cpi;
+use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::{prelude::*, Bumps};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_verifier::CompressedProof as CompressedVerifierProof;
@@ -159,19 +159,24 @@ pub fn process<
         bench_sbf_end!("cpda_verify_state_proof");
         // insert nullifies (input compressed account hashes)---------------------------------------------------
         bench_sbf_start!("cpda_nullifiers");
-        let network_fee_bundle = insert_nullifiers(
-            &inputs,
-            &ctx,
-            &input_compressed_account_hashes,
-            &invoking_program,
-        )?;
-        if let Some(network_fee_bundle) = network_fee_bundle {
-            let (remaining_account_index, network_fee) = network_fee_bundle;
-            transfer_lamports_cpi(
-                ctx.accounts.get_fee_payer(),
-                &ctx.remaining_accounts[remaining_account_index as usize],
-                network_fee,
+        if !inputs
+            .input_compressed_accounts_with_merkle_context
+            .is_empty()
+        {
+            let network_fee_bundle = insert_nullifiers(
+                &inputs,
+                &ctx,
+                &input_compressed_account_hashes,
+                &invoking_program,
             )?;
+            if let Some(network_fee_bundle) = network_fee_bundle {
+                let (remaining_account_index, network_fee) = network_fee_bundle;
+                transfer_lamports_cpi(
+                    ctx.accounts.get_fee_payer(),
+                    &ctx.remaining_accounts[remaining_account_index as usize],
+                    network_fee,
+                )?;
+            }
         }
         bench_sbf_end!("cpda_nullifiers");
     } else if inputs.proof.is_some() {
