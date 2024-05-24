@@ -15,6 +15,7 @@ use crate::{
 
 pub fn create_initialize_merkle_tree_instruction(
     payer: Pubkey,
+    owner: Pubkey,
     merkle_tree_pubkey: Pubkey,
     nullifier_queue_pubkey: Pubkey,
     state_merkle_tree_config: StateMerkleTreeConfig,
@@ -25,7 +26,7 @@ pub fn create_initialize_merkle_tree_instruction(
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
         index,
-        owner: payer,
+        owner,
         delegate,
         state_merkle_tree_config,
         nullifier_queue_config,
@@ -76,6 +77,7 @@ pub fn create_insert_leaves_instruction(
 
 pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     index: u64,
+    payer: Pubkey,
     owner: Pubkey,
     delegate: Option<Pubkey>,
     merkle_tree_pubkey: Pubkey,
@@ -93,7 +95,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     Instruction {
         program_id: crate::ID,
         accounts: vec![
-            AccountMeta::new(owner, true),
+            AccountMeta::new(payer, true),
             AccountMeta::new(merkle_tree_pubkey, false),
             AccountMeta::new(queue_pubkey, false),
             AccountMeta::new_readonly(system_program::ID, false),

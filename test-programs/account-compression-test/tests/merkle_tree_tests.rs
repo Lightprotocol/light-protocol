@@ -395,6 +395,7 @@ async fn failing_queue_tests() {
     let address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
+        &payer.pubkey(),
         &mut rpc,
         &address_merkle_tree_keypair,
         &address_queue_keypair,
@@ -1227,6 +1228,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     };
 
     let instruction = create_initialize_merkle_tree_instruction(
+        rpc.get_payer().pubkey(),
         rpc.get_payer().pubkey(),
         merkle_tree_pubkey,
         queue_keypair.pubkey(),

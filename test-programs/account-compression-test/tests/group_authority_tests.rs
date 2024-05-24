@@ -2,7 +2,9 @@
 
 use std::str::FromStr;
 
-use account_compression::{self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, ID};
+use account_compression::{
+    self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
+};
 use anchor_lang::{system_program, InstructionData};
 use light_test_utils::airdrop_lamports;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -33,12 +35,13 @@ async fn test_create_and_update_group() {
     let context = program_test.start_with_context().await;
     let mut context = ProgramTestRpcConnection { context };
 
-    let seed = [1u8; 32];
-    let group_accounts =
-        Pubkey::find_program_address(&[GROUP_AUTHORITY_SEED, seed.as_slice()], &ID);
+    let seed = Keypair::new();
+    let group_accounts = Pubkey::find_program_address(
+        &[GROUP_AUTHORITY_SEED, seed.pubkey().to_bytes().as_slice()],
+        &ID,
+    );
 
     let instruction_data = account_compression::instruction::InitializeGroupAuthority {
-        _seed: seed,
         authority: context.get_payer().pubkey(),
     };
 
@@ -46,6 +49,7 @@ async fn test_create_and_update_group() {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(context.get_payer().pubkey(), true),
+            AccountMeta::new(seed.pubkey(), true),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
         ],
@@ -56,7 +60,7 @@ async fn test_create_and_update_group() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer()],
+        &vec![&context.get_payer(), &seed],
         latest_blockhash,
     );
     context.process_transaction(transaction).await.unwrap();
@@ -65,7 +69,7 @@ async fn test_create_and_update_group() {
         .get_anchor_account::<GroupAuthority>(&group_accounts.0)
         .await;
     assert_eq!(group_authority.authority, context.get_payer().pubkey());
-    assert_eq!(group_authority.seed, seed);
+    assert_eq!(group_authority.seed, seed.pubkey());
 
     let updated_keypair = Keypair::new();
     let update_group_authority_ix = account_compression::instruction::UpdateGroupAuthority {
@@ -97,7 +101,7 @@ async fn test_create_and_update_group() {
         .await;
 
     assert_eq!(group_authority.authority, updated_keypair.pubkey());
-    assert_eq!(group_authority.seed, seed);
+    assert_eq!(group_authority.seed, seed.pubkey());
 
     // update with old authority should fail
     let update_group_authority_ix = account_compression::instruction::UpdateGroupAuthority {
@@ -151,6 +155,11 @@ async fn test_create_and_update_group() {
         context.get_latest_blockhash().await.unwrap(),
     );
     context.process_transaction(transaction).await.unwrap();
+    let registerd_program_account = context
+        .get_anchor_account::<RegisteredProgram>(&registered_program_pda)
+        .await;
+    assert_eq!(registerd_program_account.pubkey, compressed_pda_id);
+    assert_eq!(registerd_program_account.group_pda, group_accounts.0);
     // add new program to group with invalid authority
     let other_program_id = Pubkey::new_unique();
     let registered_program_pda =

@@ -23,6 +23,7 @@ default = ["custom-heap"]
 anchor-lang ={ version="0.29.0" }
 light-compressed-token = { path = "../../programs/compressed-token", version = "0.3.4", features = ["cpi"]}
 light-system-program = { path = "../../programs/system", version = "0.3.4", features = ["cpi"]}
+light-registry = { path = "../../programs/registry", version = "0.3.4", features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression", version = "0.3.5", features = ["cpi"] }
 light-hasher = { path = "../../merkle-tree/hasher", version = "0.1.4" }
 light-utils = { path = "../../utils", version = "0.1.4" }

@@ -541,6 +541,7 @@ async fn perform_create_pda<R: RpcConnection>(
         cpi_context_account: &env.cpi_context_account_pubkey,
         owner_program,
         signer_is_program,
+        registered_program_pda: &env.registered_program_pda,
     };
     create_pda_instruction(create_ix_inputs.clone())
 }

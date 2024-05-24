@@ -8,6 +8,7 @@ use crate::{errors::AccountCompressionErrorCode, GroupAuthority};
 #[aligned_sized(anchor)]
 pub struct RegisteredProgram {
     pub pubkey: Pubkey,
+    pub group_pda: Pubkey,
 }
 
 #[derive(Accounts)]
@@ -24,7 +25,6 @@ pub struct RegisterProgramToGroup<'info> {
         space = RegisteredProgram::LEN,
     )]
     pub registered_program_pda: Account<'info, RegisteredProgram>,
-    #[account(mut)]
     pub group_authority_pda: Account<'info, GroupAuthority>,
     pub system_program: Program<'info, System>,
 }
@@ -34,5 +34,6 @@ pub fn process_register_program(
     verifier_pubkey: Pubkey,
 ) -> Result<()> {
     ctx.accounts.registered_program_pda.pubkey = verifier_pubkey;
+    ctx.accounts.registered_program_pda.group_pda = ctx.accounts.group_authority_pda.key();
     Ok(())
 }

@@ -6861,6 +6861,7 @@ dependencies = [
  "light-circuitlib-rs",
  "light-compressed-token",
  "light-hasher",
+ "light-registry",
  "light-system-program",
  "light-test-utils",
  "light-utils",

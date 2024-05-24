@@ -22,6 +22,7 @@ pub struct CreateCompressedPdaInstructionInputs<'a> {
     pub cpi_context_account: &'a Pubkey,
     pub owner_program: &'a Pubkey,
     pub signer_is_program: CreatePdaMode,
+    pub registered_program_pda: &'a Pubkey,
 }
 
 pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs) -> Instruction {
@@ -45,11 +46,6 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         cpi_context: None,
     };
 
-    let registered_program_pda = Pubkey::find_program_address(
-        &[light_system_program::ID.to_bytes().as_slice()],
-        &account_compression::ID,
-    )
-    .0;
     let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
@@ -59,7 +55,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         light_system_program: light_system_program::ID,
         account_compression_program: account_compression::ID,
-        registered_program_pda,
+        registered_program_pda: *input_params.registered_program_pda,
         compressed_token_cpi_authority_pda,
         account_compression_authority,
         self_program: crate::ID,
