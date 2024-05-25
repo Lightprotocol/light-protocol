@@ -18,7 +18,6 @@ import { toHex } from '../../utils/conversion';
 import {
     CompressedTransaction,
     HexInputsForProver,
-    HexBatchInputsForProver,
     SignatureWithMetadata,
 } from '../../rpc-interface';
 import {
@@ -30,6 +29,7 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
+    CompressedProof,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     bn,
@@ -37,16 +37,78 @@ import {
 import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
 import { IndexedArray } from '../merkle-tree';
 
+/** @internal */
+export const proverRequest = async (
+    proverEndpoint: string,
+    method: 'inclusion' | 'new-address' | 'combined',
+    params: any = [],
+    log = false,
+): Promise<CompressedProof> => {
+    let logMsg: string = '';
+
+    if (log) {
+        logMsg = `Proof generation for method:${method}`;
+        console.time(logMsg);
+    }
+
+    let body;
+    if (method === 'inclusion') {
+        body = JSON.stringify({ 'input-compressed-accounts': params });
+    } else if (method === 'new-address') {
+        body = JSON.stringify({ 'new-addresses': params });
+    } else if (method === 'combined') {
+        body = JSON.stringify({
+            'input-compressed-accounts': params[0],
+            'new-addresses': params[1],
+        });
+    }
+
+    const response = await fetch(`${proverEndpoint}/prove`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: body,
+    });
+
+    if (!response.ok) {
+        throw new Error(`Error fetching proof: ${response.statusText}`);
+    }
+    /// TODO: Move compression into the gnark prover to save bandwidth.
+    const data: any = await response.json();
+    const parsed = proofFromJsonStruct(data);
+    const compressedProof = negateAndCompressProof(parsed);
+
+    if (log) console.timeEnd(logMsg);
+
+    return compressedProof;
+};
+
 export interface TestRpcConfig {
-    /** Address of the state tree to index. Default: public default test state
-     * tree */
+    /**
+     * Address of the state tree to index. Default: public default test state
+     * tree.
+     */
     merkleTreeAddress?: PublicKey;
-    /** Nullifier queue associated with merkleTreeAddress */
+    /**
+     * Nullifier queue associated with merkleTreeAddress
+     */
     nullifierQueueAddress?: PublicKey;
-    /** Depth of state tree. Defaults to the public default test state tree depth */
+    /**
+     * Depth of state tree. Defaults to the public default test state tree depth
+     */
     depth?: number;
-    /** Log proof generation time */
+    /**
+     * Log proof generation time
+     */
     log?: boolean;
+    /**
+     * Address of the address tree to index. Default: public default test
+     * address tree.
+     */
+    addressTreeAddress?: PublicKey;
+    /**
+     * Address queue associated with addressTreeAddress
+     */
+    addressQueueAddress?: PublicKey;
 }
 
 export interface LightWasm {
@@ -112,6 +174,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     proverEndpoint: string;
     merkleTreeAddress: PublicKey;
     nullifierQueueAddress: PublicKey;
+    addressTreeAddress: PublicKey;
+    addressQueueAddress: PublicKey;
     lightWasm: LightWasm;
     depth: number;
     log = false;
@@ -140,15 +204,28 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
 
-        const { merkleTreeAddress, nullifierQueueAddress, depth, log } =
-            testRpcConfig ?? {};
+        const {
+            merkleTreeAddress,
+            nullifierQueueAddress,
+            depth,
+            log,
+            addressTreeAddress,
+            addressQueueAddress,
+        } = testRpcConfig ?? {};
 
-        const { merkleTree, nullifierQueue, merkleTreeHeight } =
-            defaultTestStateTreeAccounts();
+        const {
+            merkleTree,
+            nullifierQueue,
+            merkleTreeHeight,
+            addressQueue,
+            addressTree,
+        } = defaultTestStateTreeAccounts();
 
         this.lightWasm = hasher;
         this.merkleTreeAddress = merkleTreeAddress ?? merkleTree;
         this.nullifierQueueAddress = nullifierQueueAddress ?? nullifierQueue;
+        this.addressTreeAddress = addressTreeAddress ?? addressTree;
+        this.addressQueueAddress = addressQueueAddress ?? addressQueue;
         this.depth = depth ?? merkleTreeHeight;
         this.log = log ?? false;
     }
@@ -237,30 +314,22 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             allLeaves.map(leaf => bn(leaf).toString()),
         );
 
-        /// create merkle proofs
-        const leafIndices = hashes.map(hash => tree.indexOf(hash.toString()));
-
-        const bnPathElementsAll = leafIndices.map(leafIndex => {
-            const pathElements: string[] = tree.path(leafIndex).pathElements;
-
-            const bnPathElements = pathElements.map(value => bn(value));
-
-            return bnPathElements;
-        });
-
-        const roots = new Array(hashes.length).fill(bn(tree.root()));
-
-        /// assemble return type
+        /// create merkle proofs and assemble return type
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
+
         for (let i = 0; i < hashes.length; i++) {
+            const leafIndex = tree.indexOf(hashes[i].toString());
+            const pathElements = tree.path(leafIndex).pathElements;
+            const bnPathElements = pathElements.map(value => bn(value));
+            const root = bn(tree.root());
             const merkleProof: MerkleContextWithMerkleProof = {
                 hash: hashes[i].toArray(undefined, 32),
                 merkleTree: this.merkleTreeAddress,
-                leafIndex: leafIndices[i],
-                merkleProof: bnPathElementsAll[i], // hexPathElementsAll[i].map(hex => bn(hex)),
+                leafIndex: leafIndex,
+                merkleProof: bnPathElements,
                 nullifierQueue: this.nullifierQueueAddress,
                 rootIndex: allLeaves.length,
-                root: roots[i],
+                root: root,
             };
             merkleProofs.push(merkleProof);
         }
@@ -268,7 +337,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         /// Validate
         merkleProofs.forEach((proof, index) => {
             const leafIndex = proof.leafIndex;
-            const computedHash = tree.elements()[leafIndex]; //.toString();
+            const computedHash = tree.elements()[leafIndex];
             const hashArr = bn(computedHash).toArray(undefined, 32);
             if (!hashArr.every((val, index) => val === proof.hash[index])) {
                 throw new Error(
@@ -425,34 +494,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return 1;
     }
 
-    async getNewAddressValidityProof(address: PublicKey) {
-        const treePublicKey = defaultTestStateTreeAccounts().addressTree;
-        const queuePublicKey = defaultTestStateTreeAccounts().addressQueue;
-
-        // TODO: The Merkle tree root doesnt actually advance at all unless we
-        // start emptying the address queue.
-        const allAddresses: number[][] = [];
-        // indexedArray const events: PublicTransactionEvent[] = await
-        // getParsedEvents( this, ).then(events => events.reverse());
-        // for (const event of events) {
-        //     for (
-        //         let index = 0;
-        //         index < event.outputCompressedAccounts.length;
-        //         index++
-        //     ) {
-        //         const address =
-        //             event.outputCompressedAccounts[index].compressedAccount
-        //                 .address;
-        //         if (address) {
-        //             allAddresses.push(address);
-        //         }
-        //     }
-        // }
-
+    async getMultipleNewAddressProofs(addresses: BN254[]) {
+        /// Build tree
         const indexedArray = IndexedArray.default();
+        const allAddresses: BN[] = [];
         indexedArray.init();
         const hashes: BN[] = [];
-
+        // TODO(crank): add support for cranked address tree in 'allAddresses'.
+        // The Merkle tree root doesnt actually advance beyond init() unless we
+        // start emptying the address queue.
         for (let i = 0; i < allAddresses.length; i++) {
             indexedArray.append(bn(allAddresses[i]));
         }
@@ -466,188 +516,179 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             hashes.map(hash => bn(hash).toString()),
         );
 
-        /// Creates merkle proof
-        const [lowElement] = indexedArray.findLowElement(bn(address.toBytes()));
-        if (!lowElement) {
-            throw new Error('Address not found');
-        }
-        const leafIndex = lowElement.index;
+        /// Creates proof for each address
+        const newAddressProofs: MerkleContextWithNewAddressProof[] = [];
 
-        const bnPathElementsAll = [leafIndex].map(leafIndex => {
+        for (let i = 0; i < addresses.length; i++) {
+            const [lowElement] = indexedArray.findLowElement(addresses[i]);
+            if (!lowElement) throw new Error('Address not found');
+
+            const leafIndex = lowElement.index;
+
             const pathElements: string[] = tree.path(leafIndex).pathElements;
-
             const bnPathElements = pathElements.map(value => bn(value));
 
-            return bnPathElements;
-        });
+            const higherRangeValue = indexedArray.get(
+                lowElement.nextIndex,
+            )!.value;
+            const root = bn(tree.root());
 
-        const higherRangeValue = indexedArray.get(lowElement.nextIndex)!.value;
-
-        const nonInclusionMerkleProofInputs: NonInclusionMerkleProofInputs = {
-            root: bn(tree.root()),
-            value: bn(bn(address.toBytes()).toArray('be', 32)),
-            leaf_lower_range_value: lowElement.value,
-            leaf_higher_range_value: higherRangeValue,
-            leaf_index: bn(lowElement.nextIndex),
-            merkle_proof_hashed_indexed_element_leaf: bnPathElementsAll[0],
-            index_hashed_indexed_element_leaf: bn(lowElement.index), // ??
-        };
-
-        /// from_non_inclusion_proof_inputs
-        const nonInclusionJsonStruct: NonInclusionJsonStruct = {
-            root: toHex(nonInclusionMerkleProofInputs.root),
-            value: toHex(nonInclusionMerkleProofInputs.value),
-            pathIndex:
-                nonInclusionMerkleProofInputs.index_hashed_indexed_element_leaf.toNumber(),
-            pathElements:
-                nonInclusionMerkleProofInputs.merkle_proof_hashed_indexed_element_leaf.map(
-                    hex => toHex(hex),
-                ),
-            leafIndex: nonInclusionMerkleProofInputs.leaf_index.toNumber(),
-            leafLowerRangeValue: toHex(
-                nonInclusionMerkleProofInputs.leaf_lower_range_value,
-            ),
-            leafHigherRangeValue: toHex(
-                nonInclusionMerkleProofInputs.leaf_higher_range_value,
-            ),
-        };
-        const batch = {
-            'new-addresses': [nonInclusionJsonStruct],
-        };
-
-        /// The starting root is 3. New addresses arent directly inserted into
-        /// the address tree, so unless the address queue gets emptied, the root
-        /// will always be 3.
-        /// TODO: make dynamic to account for forester.
-        const addressRootIndices = [3];
-
-        // req
-        const inputsData = JSON.stringify(batch);
-
-        let logMsg: string = '';
-        if (this.log) {
-            logMsg = `Proof generation for depth:${this.depth} n:${hashes.length}`;
-            console.time(logMsg);
+            const proof: MerkleContextWithNewAddressProof = {
+                root,
+                value: addresses[i],
+                leafLowerRangeValue: lowElement.value,
+                leafHigherRangeValue: higherRangeValue,
+                leafIndex: bn(lowElement.nextIndex),
+                merkleProofHashedIndexedElementLeaf: bnPathElements,
+                indexHashedIndexedElementLeaf: bn(lowElement.index),
+                merkleTree: this.addressTreeAddress,
+                nullifierQueue: this.addressQueueAddress,
+            };
+            newAddressProofs.push(proof);
         }
-
-        const PROOF_URL = `${this.proverEndpoint}/prove`;
-        const response = await fetch(PROOF_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: inputsData,
-        });
-        if (!response.ok) {
-            throw new Error(`Error fetching proof: ${response.statusText}`);
-        }
-
-        // TOOD: add type coercion
-        const data: any = await response.json();
-        const parsed = proofFromJsonStruct(data);
-        const compressedProof = negateAndCompressProof(parsed);
-
-        if (this.log) console.timeEnd(logMsg);
-
-        const value: CompressedProofWithContext = {
-            compressedProof,
-            roots: [bn(tree.root())],
-            rootIndices: addressRootIndices,
-            leafIndices: [leafIndex],
-            leaves: [bn(address.toBytes())],
-            merkleTrees: [treePublicKey],
-            nullifierQueues: [queuePublicKey],
-        };
-
-        return value;
+        return newAddressProofs;
     }
 
     /**
-     * Fetch the latest validity proof for compressed accounts specified by an
-     * array of account hashes.
+     * Fetch the latest validity proof for (1) compressed accounts specified by
+     * an array of account hashes. (2) new unique addresses specified by an
+     * array of addresses.
      *
-     * Validity proofs prove the presence of compressed accounts in state trees,
-     * enabling verification without recomputing the merkle proof path, thus
+     * Validity proofs prove the presence of compressed accounts in state trees
+     * and the non-existence of addresses in address trees, respectively. They
+     * enable verification without recomputing the merkle proof path, thus
      * lowering verification and data costs.
      *
-     * @param hashes    Array of BN254 hashes.
-     * @returns         validity proof with context
+     * @param hashes        Array of BN254 hashes.
+     * @param newAddresses  Array of BN254 new addresses.
+     * @returns             validity proof with context
      */
     async getValidityProof(
-        hashes: BN254[],
+        hashes: BN254[] = [],
+        newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-        const merkleProofsWithContext =
-            await this.getMultipleCompressedAccountProofs(hashes);
+        let validityProof: CompressedProofWithContext;
 
-        const inputs: HexInputsForProver[] = [];
-        for (let i = 0; i < merkleProofsWithContext.length; i++) {
-            const input: HexInputsForProver = {
-                root: toHex(merkleProofsWithContext[i].root),
-                pathIndex: merkleProofsWithContext[i].leafIndex,
-                pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
-                    toHex(hex),
+        if (hashes.length === 0 && newAddresses.length === 0) {
+            throw new Error(
+                'Empty input. Provide hashes and/or new addresses.',
+            );
+        } else if (hashes.length > 0 && newAddresses.length === 0) {
+            /// inclusion
+            const merkleProofsWithContext =
+                await this.getMultipleCompressedAccountProofs(hashes);
+            const inputs = convertMerkleProofsWithContextToHex(
+                merkleProofsWithContext,
+            );
+            const compressedProof = await proverRequest(
+                this.proverEndpoint,
+                'inclusion',
+                inputs,
+                this.log,
+            );
+            validityProof = {
+                compressedProof,
+                roots: merkleProofsWithContext.map(proof => proof.root),
+                rootIndices: merkleProofsWithContext.map(
+                    proof => proof.rootIndex,
                 ),
-                leaf: toHex(bn(merkleProofsWithContext[i].hash)),
+                leafIndices: merkleProofsWithContext.map(
+                    proof => proof.leafIndex,
+                ),
+                leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
+                merkleTrees: merkleProofsWithContext.map(
+                    proof => proof.merkleTree,
+                ),
+                nullifierQueues: merkleProofsWithContext.map(
+                    proof => proof.nullifierQueue,
+                ),
             };
-            inputs.push(input);
-        }
+        } else if (hashes.length === 0 && newAddresses.length > 0) {
+            /// new-address
+            const newAddressProofs: MerkleContextWithNewAddressProof[] =
+                await this.getMultipleNewAddressProofs(newAddresses);
 
-        const batchInputs: HexBatchInputsForProver = {
-            'input-compressed-accounts': inputs,
-        };
+            const inputs =
+                convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
 
-        const inputsData = JSON.stringify(batchInputs);
+            const compressedProof = await proverRequest(
+                this.proverEndpoint,
+                'new-address',
+                inputs,
+                this.log,
+            );
 
-        let logMsg: string = '';
-        if (this.log) {
-            logMsg = `Proof generation for depth:${this.depth} n:${hashes.length}`;
-            console.time(logMsg);
-        }
+            validityProof = {
+                compressedProof,
+                roots: newAddressProofs.map(proof => proof.root),
+                // TODO(crank): make dynamic to enable forester support in
+                // test-rpc.ts. Currently this is a static root because the
+                // address tree doesn't advance.
+                rootIndices: newAddressProofs.map(_ => 3),
+                leafIndices: newAddressProofs.map(
+                    proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                ),
+                leaves: newAddressProofs.map(proof => bn(proof.value)),
+                merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
+                nullifierQueues: newAddressProofs.map(
+                    proof => proof.nullifierQueue,
+                ),
+            };
+        } else if (hashes.length > 0 && newAddresses.length > 0) {
+            /// combined
+            const merkleProofsWithContext =
+                await this.getMultipleCompressedAccountProofs(hashes);
+            const inputs = convertMerkleProofsWithContextToHex(
+                merkleProofsWithContext,
+            );
+            const newAddressProofs: MerkleContextWithNewAddressProof[] =
+                await this.getMultipleNewAddressProofs(newAddresses);
 
-        const PROOF_URL = `${this.proverEndpoint}/prove`;
-        const response = await fetch(PROOF_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: inputsData,
-        });
-        if (!response.ok) {
-            throw new Error(`Error fetching proof: ${response.statusText}`);
-        }
+            const newAddressInputs =
+                convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
 
-        // TOOD: add type coercion
-        const data: any = await response.json();
-        const parsed = proofFromJsonStruct(data);
-        const compressedProof = negateAndCompressProof(parsed);
+            const compressedProof = await proverRequest(
+                this.proverEndpoint,
+                'combined',
+                [inputs, newAddressInputs],
+                this.log,
+            );
 
-        if (this.log) console.timeEnd(logMsg);
+            validityProof = {
+                compressedProof,
+                roots: merkleProofsWithContext
+                    .map(proof => proof.root)
+                    .concat(newAddressProofs.map(proof => proof.root)),
+                rootIndices: merkleProofsWithContext
+                    .map(proof => proof.rootIndex)
+                    // TODO(crank): make dynamic to enable forester support in
+                    // test-rpc.ts. Currently this is a static root because the
+                    // address tree doesn't advance.
+                    .concat(newAddressProofs.map(_ => 3)),
+                leafIndices: merkleProofsWithContext
+                    .map(proof => proof.leafIndex)
+                    .concat(
+                        newAddressProofs.map(
+                            proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                        ),
+                    ),
+                leaves: merkleProofsWithContext
+                    .map(proof => bn(proof.hash))
+                    .concat(newAddressProofs.map(proof => bn(proof.value))),
+                merkleTrees: merkleProofsWithContext
+                    .map(proof => proof.merkleTree)
+                    .concat(newAddressProofs.map(proof => proof.merkleTree)),
+                nullifierQueues: merkleProofsWithContext
+                    .map(proof => proof.nullifierQueue)
+                    .concat(
+                        newAddressProofs.map(proof => proof.nullifierQueue),
+                    ),
+            };
+        } else throw new Error('Invalid input');
 
-        const value: CompressedProofWithContext = {
-            compressedProof,
-            roots: merkleProofsWithContext.map(proof => proof.root),
-            rootIndices: merkleProofsWithContext.map(proof => proof.rootIndex),
-            leafIndices: merkleProofsWithContext.map(proof => proof.leafIndex),
-            leaves: merkleProofsWithContext.map(proof => bn(proof.hash)),
-            merkleTrees: merkleProofsWithContext.map(proof => proof.merkleTree),
-            nullifierQueues: merkleProofsWithContext.map(
-                proof => proof.nullifierQueue,
-            ),
-        };
-
-        return value;
+        return validityProof;
     }
 }
-
-// type NonInclusionProof = {
-//      root: string,
-//      value: string,
-//      leaf_lower_range_value: string,
-//      leaf_higher_range_value: string,
-//      leaf_index: usize,
-//      next_index: usize,
-//      merkle_proof: BoundedVec<'a, [u8; 32]>,
-// }
 
 export type NonInclusionMerkleProofInputs = {
     root: BN;
@@ -659,6 +700,18 @@ export type NonInclusionMerkleProofInputs = {
     index_hashed_indexed_element_leaf: BN;
 };
 
+export type MerkleContextWithNewAddressProof = {
+    root: BN;
+    value: BN;
+    leafLowerRangeValue: BN;
+    leafHigherRangeValue: BN;
+    leafIndex: BN;
+    merkleProofHashedIndexedElementLeaf: BN[];
+    indexHashedIndexedElementLeaf: BN;
+    merkleTree: PublicKey;
+    nullifierQueue: PublicKey;
+};
+
 export type NonInclusionJsonStruct = {
     root: string;
     value: string;
@@ -668,3 +721,51 @@ export type NonInclusionJsonStruct = {
     leafHigherRangeValue: string;
     leafIndex: number;
 };
+
+function convertMerkleProofsWithContextToHex(
+    merkleProofsWithContext: MerkleContextWithMerkleProof[],
+): HexInputsForProver[] {
+    const inputs: HexInputsForProver[] = [];
+
+    for (let i = 0; i < merkleProofsWithContext.length; i++) {
+        const input: HexInputsForProver = {
+            root: toHex(merkleProofsWithContext[i].root),
+            pathIndex: merkleProofsWithContext[i].leafIndex,
+            pathElements: merkleProofsWithContext[i].merkleProof.map(hex =>
+                toHex(hex),
+            ),
+            leaf: toHex(bn(merkleProofsWithContext[i].hash)),
+        };
+        inputs.push(input);
+    }
+
+    return inputs;
+}
+
+function convertNonInclusionMerkleProofInputsToHex(
+    nonInclusionMerkleProofInputs: MerkleContextWithNewAddressProof[],
+): NonInclusionJsonStruct[] {
+    const inputs: NonInclusionJsonStruct[] = [];
+    for (let i = 0; i < nonInclusionMerkleProofInputs.length; i++) {
+        const input: NonInclusionJsonStruct = {
+            root: toHex(nonInclusionMerkleProofInputs[i].root),
+            value: toHex(nonInclusionMerkleProofInputs[i].value),
+            pathIndex:
+                nonInclusionMerkleProofInputs[
+                    i
+                ].indexHashedIndexedElementLeaf.toNumber(),
+            pathElements: nonInclusionMerkleProofInputs[
+                i
+            ].merkleProofHashedIndexedElementLeaf.map(hex => toHex(hex)),
+            leafIndex: nonInclusionMerkleProofInputs[i].leafIndex.toNumber(),
+            leafLowerRangeValue: toHex(
+                nonInclusionMerkleProofInputs[i].leafLowerRangeValue,
+            ),
+            leafHigherRangeValue: toHex(
+                nonInclusionMerkleProofInputs[i].leafHigherRangeValue,
+            ),
+        };
+        inputs.push(input);
+    }
+    return inputs;
+}

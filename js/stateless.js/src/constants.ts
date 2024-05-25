@@ -96,13 +96,12 @@ export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(181);
  */
 export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(181);
 
+/**
+ * Is charged if the transaction nullifies at least one compressed account.
+ */
 export const STATE_MERKLE_TREE_NETWORK_FEE = new BN(5000);
 
 /**
- * Fee to provide continous funding for the address queue and address Merkle tree.
- * Once the address Merkle tree is at 95% capacity the accumulated fees
- * will be used to fund the next address queue and address tree with the same parameters.
- *
- * Is charged per the transaction creates at least one address.
+ * Is charged if the transaction creates at least one address.
  */
 export const ADDRESS_TREE_NETWORK_FEE = new BN(5000);

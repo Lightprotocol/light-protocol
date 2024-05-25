@@ -109,7 +109,6 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
                 unsafe { address_queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
             for address in queue_bundle.elements.iter() {
-                msg!("Inserting address {:?}", address);
                 let address = BigUint::from_bytes_be(address.as_slice());
                 address_queue
                     .insert(&address, sequence_number)

@@ -413,5 +413,8 @@ export interface CompressionApiInterface {
 
     getIndexerSlot(): Promise<number>;
 
-    getValidityProof(hashes: BN254[]): Promise<CompressedProofWithContext>;
+    getValidityProof(
+        hashes: BN254[],
+        newAddresses: BN254[],
+    ): Promise<CompressedProofWithContext>;
 }
