@@ -171,7 +171,6 @@ describe('compress', () => {
                 txFees([{ in: 0, out: 1 }]),
         );
 
-        /// create account with lamports
         await createAccountWithLamports(
             rpc as TestRpc,
             payer,
@@ -183,7 +182,6 @@ describe('compress', () => {
             LightSystemProgram.programId,
         );
 
-        /// assert balance after account creation
         const postCreateAccountBalance = await rpc.getBalance(payer.publicKey);
         assert.equal(
             postCreateAccountBalance,

@@ -644,17 +644,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const newAddressInputs =
                 convertNonInclusionMerkleProofInputsToHex(newAddressProofs);
 
-            console.log('inputs', JSON.stringify(inputs));
-            console.log('newAddressInputs', JSON.stringify(newAddressInputs));
-
             const compressedProof = await proverRequest(
                 this.proverEndpoint,
                 'combined',
                 [inputs, newAddressInputs],
                 this.log,
             );
-
-            console.log('compressedProof', JSON.stringify(compressedProof));
 
             validityProof = {
                 compressedProof,
@@ -683,8 +678,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                         newAddressProofs.map(proof => proof.nullifierQueue),
                     ),
             };
-
-            console.log('validityProof', JSON.stringify(validityProof));
         } else throw new Error('Invalid input');
 
         return validityProof;
@@ -769,10 +762,4 @@ function convertNonInclusionMerkleProofInputsToHex(
         inputs.push(input);
     }
     return inputs;
-}
-
-//@ts-ignore
-if (import.meta.vitest) {
-    //@ts-ignore
-    const { it, expect, describe } = import.meta.vitest;
 }
