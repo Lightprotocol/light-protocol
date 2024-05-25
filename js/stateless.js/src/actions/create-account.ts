@@ -145,7 +145,7 @@ export async function createAccountWithLamports(
         [bn(address.toBytes())],
     );
 
-    /// TODO: Adapt before supporting addresses in rpc / cranked address trees.
+    /// TODO(crank): Adapt before supporting addresses in rpc / cranked address trees.
     /// Currently expects address roots to be consistent with one another and
     /// static. See test-rpc.ts for more details.
     const params: NewAddressParams = {

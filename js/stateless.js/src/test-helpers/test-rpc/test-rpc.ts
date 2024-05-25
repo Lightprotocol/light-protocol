@@ -500,9 +500,9 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         const allAddresses: BN[] = [];
         indexedArray.init();
         const hashes: BN[] = [];
-        // TODO: add support for cranked address tree. The Merkle tree root
-        // doesnt actually advance beyond init() unless we start emptying the
-        // address queue.
+        // TODO(crank): add support for cranked address tree in 'allAddresses'.
+        // The Merkle tree root doesnt actually advance beyond init() unless we
+        // start emptying the address queue.
         for (let i = 0; i < allAddresses.length; i++) {
             indexedArray.append(bn(allAddresses[i]));
         }
@@ -621,7 +621,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                rootIndices: newAddressProofs.map(_ => 3), // TODO: make dynamic to account for forester
+                // TODO(crank): make dynamic to enable forester support in
+                // test-rpc.ts. Currently this is a static root because the
+                // address tree doesn't advance.
+                rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(
                     proof => proof.leafIndex.toNumber(), // TODO: support >32bit
                 ),
@@ -658,7 +661,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.root)),
                 rootIndices: merkleProofsWithContext
                     .map(proof => proof.rootIndex)
-                    .concat(newAddressProofs.map(_ => 3)), // TODO: make dynamic to account for forester
+                    // TODO(crank): make dynamic to enable forester support in
+                    // test-rpc.ts. Currently this is a static root because the
+                    // address tree doesn't advance.
+                    .concat(newAddressProofs.map(_ => 3)),
                 leafIndices: merkleProofsWithContext
                     .map(proof => proof.leafIndex)
                     .concat(
