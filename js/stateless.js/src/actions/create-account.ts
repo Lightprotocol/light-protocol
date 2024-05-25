@@ -145,10 +145,13 @@ export async function createAccountWithLamports(
         [bn(address.toBytes())],
     );
 
+    /// TODO: Adapt before supporting addresses in rpc / cranked address trees.
+    /// Currently expects address roots to be consistent with one another and
+    /// static. See test-rpc.ts for more details.
     const params: NewAddressParams = {
         seed: seed,
         addressMerkleTreeRootIndex:
-            proof.rootIndices[proof.rootIndices.length - 1], // TODO: confirm
+            proof.rootIndices[proof.rootIndices.length - 1],
         addressMerkleTreePubkey:
             proof.merkleTrees[proof.merkleTrees.length - 1],
         addressQueuePubkey:
