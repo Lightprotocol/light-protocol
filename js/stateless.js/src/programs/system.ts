@@ -381,8 +381,7 @@ export class LightSystemProgram {
             compressionLamports: null,
             isCompress: false,
         };
-        console.log('rawData: ', rawData);
-        console.log('rawData JSON: ', JSON.stringify(rawData));
+
         /// Encode instruction data
         const ixData = this.program.coder.types.encode(
             'InstructionDataInvoke',

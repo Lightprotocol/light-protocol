@@ -127,12 +127,10 @@ export async function createAccountWithLamports(
         payer.publicKey,
     );
 
-    console.log('ca1: ', compressedAccounts);
     const [inputAccounts] = selectMinCompressedSolAccountsForTransfer(
         compressedAccounts,
         lamports,
     );
-    console.log('ca2: ', inputAccounts);
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
