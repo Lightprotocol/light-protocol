@@ -1,18 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-// 2. escrow tokens with compressed pda
-// create test env
-// create mint and mint tokens
-// escrow compressed tokens - with compressed pda
-// release compressed tokens
-
-// TODO: 3. escrow tokens by decompression with compressed pda
-// this design pattern can be used to use compressed accounts with an AMMM
-// create test env
-// create mint and mint tokens
-// decompress compressed tokens into program owned token account - with compressed pda
-// release compressed tokens
-
 use anchor_lang::AnchorDeserialize;
 use light_hasher::{Hasher, Poseidon};
 use light_system_program::sdk::address::derive_address;
