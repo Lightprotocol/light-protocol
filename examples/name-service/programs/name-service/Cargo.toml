@@ -1,0 +1,22 @@
+[package]
+name = "example-name-service"
+version = "0.1.0"
+description = "Created with Anchor"
+edition = "2021"
+rust-version = "1.75.0" 
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "example_name_service"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.29.0"
+
+
