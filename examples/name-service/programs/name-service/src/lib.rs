@@ -2,11 +2,15 @@ use anchor_lang::prelude::*;
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
+
 #[program]
 pub mod name_service {
     use super::*;
 
     pub fn create_name(ctx: Context<CreateName>, name: String, parent_name: Option<Pubkey>) -> Result<()> {
+
+        let compressed_pda = create_compressed_pda_data(lock_up_time, &ctx, &new_address_params)?;
+
         let name_account = &mut ctx.accounts.name_account;
 
         let seeds = [
@@ -66,7 +70,7 @@ pub struct CreateName<'info> {
     pub signer: Signer<'info>, // this the owner
     /// CHECK:
     #[account(seeds = [b"Light Name Service".as_slice(), signer.key.to_bytes().as_slice()], bump)]
-    pub name_account: AccountInfo<'info>,
+    pub name_account: AccountInfo<'info, NameRecord>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
@@ -83,6 +87,21 @@ pub struct CreateName<'info> {
     /// CHECK:
     #[account(mut)]
     pub cpi_context_account: AccountInfo<'info>,
-    #[account(init, payer = owner, space = 8 + 32 + 4 + 32)]
-    pub name_account: Account<'info, NameRecord>,
+ 
 }
+
+
+pub fn get_name_account_key_and_bump(signer: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[b"Light Name Service".as_ref(), signer.to_bytes().as_ref()],
+        &crate::id(),
+    )
+}
+
+// TODO: hash name 
+impl light_hasher::DataHasher for NameRecord {
+    fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
+        H::hash(&self.owner.to_le_bytes())
+    }
+}
+
