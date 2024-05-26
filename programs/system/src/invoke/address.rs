@@ -1,5 +1,3 @@
-use anchor_lang::{prelude::*, Bumps};
-
 use crate::{
     invoke_cpi::verify_signer::check_program_owner_address_merkle_tree,
     sdk::{
@@ -8,6 +6,7 @@ use crate::{
     },
     InstructionDataInvoke, NewAddressParamsPacked,
 };
+use anchor_lang::{prelude::*, Bumps};
 
 // DO NOT MAKE HEAP NEUTRAL: this function allocates new heap memory
 pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps>(
@@ -93,7 +92,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
         anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
     let bump = &[bump];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
-    let accounts = account_compression::cpi::accounts::InsertAddresses {
+    let accounts = account_compression::cpi::accounts::InsertIntoQueues {
         fee_payer: fee_payer.to_account_info(),
         authority: authority.to_account_info(),
         registered_program_pda: Some(registered_program_pda.to_account_info()),

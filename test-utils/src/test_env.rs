@@ -1,3 +1,4 @@
+use crate::create_account_instruction;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
@@ -292,12 +293,11 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &ACCOUNT_COMPRESSION_ID,
         Some(merkle_tree_keypair),
     );
-    let size =
-        account_compression::processor::initialize_nullifier_queue::NullifierQueueAccount::size(
-            account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
-            account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
-        )
-        .unwrap();
+    let size = account_compression::state::queue::QueueAccount::size(
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
+        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
+    )
+    .unwrap();
     let nullifier_queue_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
@@ -346,9 +346,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         AddressQueueConfig,
     };
 
-    use crate::create_account_instruction;
-
-    let size = account_compression::AddressQueueAccount::size(
+    let size = account_compression::state::QueueAccount::size(
         account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
         account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
     )

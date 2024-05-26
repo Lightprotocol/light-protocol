@@ -1,14 +1,11 @@
 pub mod initialize_address_merkle_tree_and_queue;
 pub use initialize_address_merkle_tree_and_queue::*;
 
-pub mod insert_address;
-pub use insert_address::*;
-
 pub mod update_address_merkle_tree;
 pub use update_address_merkle_tree::*;
 
-pub mod insert_into_nullifier_queue;
-pub use insert_into_nullifier_queue::*;
+pub mod insert_into_queues;
+pub use insert_into_queues::*;
 
 pub mod initialize_state_merkle_tree_and_nullifier_queue;
 pub use initialize_state_merkle_tree_and_nullifier_queue::*;

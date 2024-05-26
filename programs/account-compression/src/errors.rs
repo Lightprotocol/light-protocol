@@ -42,8 +42,8 @@ pub enum AccountCompressionErrorCode {
     NumberOfProofsMismatch,
     #[msg("InvalidMerkleProof")]
     InvalidMerkleProof,
-    #[msg("InvalidNullifierQueue")]
-    InvalidNullifierQueue,
+    #[msg("InvalidQueue")]
+    InvalidQueue,
     #[msg("InvalidMerkleTree")]
     InvalidMerkleTree,
     #[msg("Could not find the leaf in the queue")]
@@ -60,4 +60,6 @@ pub enum AccountCompressionErrorCode {
     RolloverNotConfigured,
     #[msg("NotAllLeavesProcessed")]
     NotAllLeavesProcessed,
+    #[msg("InvalidQueueType")]
+    InvalidQueueType,
 }

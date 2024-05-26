@@ -1,20 +1,19 @@
 use crate::{
+    check_queue_type,
     errors::AccountCompressionErrorCode,
-    processor::initialize_nullifier_queue::{
-        nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount,
-    },
+    state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
     transfer_lamports_cpi,
     utils::{
         check_registered_or_signer::check_registered_or_signer,
         queue::{QueueBundle, QueueMap},
     },
-    RegisteredProgram, StateMerkleTreeAccount,
+    QueueType, RegisteredProgram, SequenceNumber,
 };
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, ZeroCopy};
 use num_bigint::BigUint;
 
 #[derive(Accounts)]
-pub struct InsertIntoNullifierQueues<'info> {
+pub struct InsertIntoQueues<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     /// CHECK: should only be accessed by a registered program/owner/delegate.
@@ -26,9 +25,16 @@ pub struct InsertIntoNullifierQueues<'info> {
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.
-pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
+pub fn process_insert_into_queues<
+    'a,
+    'b,
+    'c: 'info,
+    'info,
+    MerkleTreeAccount: Owner + ZeroCopy + SequenceNumber,
+>(
+    ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
     elements: &'a [[u8; 32]],
+    queue_type: QueueType,
 ) -> Result<()> {
     let expected_remaining_accounts = elements.len() * 2;
     if expected_remaining_accounts != ctx.remaining_accounts.len() {
@@ -42,39 +48,40 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
     light_heap::bench_sbf_start!("acp_create_queue_map");
 
     let mut queue_map = QueueMap::new();
-    for i in 0..elements.len() {
-        let queue = ctx.remaining_accounts.get(i).unwrap();
-        let merkle_tree = ctx.remaining_accounts.get(elements.len() + i).unwrap();
-        let unpacked_queue_account =
-            AccountLoader::<NullifierQueueAccount>::try_from(queue).unwrap();
-        let array_account = unpacked_queue_account.load()?;
+    for i in (0..ctx.remaining_accounts.len()).step_by(2) {
+        let queue: &AccountInfo<'info> = ctx.remaining_accounts.get(i).unwrap();
+        let merkle_tree = ctx.remaining_accounts.get(i + 1).unwrap();
+        let associated_merkle_tree = {
+            let queue = AccountLoader::<QueueAccount>::try_from(queue)?;
+            let queue = queue.load()?;
+            check_queue_type(&queue.metadata.queue_type, &queue_type)?;
+            queue.metadata.associated_merkle_tree
+        };
 
-        if array_account.metadata.associated_merkle_tree != merkle_tree.key() {
+        if merkle_tree.key() != associated_merkle_tree {
             msg!(
-                "Nullifier queue account {:?} is not associated with any state Merkle tree {:?}. Associated State Merkle tree {:?}",
-               queue.key() ,merkle_tree.key(), array_account.metadata.associated_merkle_tree);
-            return Err(AccountCompressionErrorCode::InvalidNullifierQueue.into());
+                    "Queue account {:?} is not associated with any address Merkle tree. Provided accounts {:?}",
+                    queue.key(), ctx.remaining_accounts);
+            return err!(AccountCompressionErrorCode::InvalidQueue);
         }
 
         queue_map
             .entry(queue.key())
             .or_insert_with(|| QueueBundle::new(queue, merkle_tree))
             .elements
-            .push(elements[i]);
+            .push(elements[i / 2]);
     }
+
     light_heap::bench_sbf_end!("acp_create_queue_map");
 
     for queue_bundle in queue_map.values() {
         let lamports: u64;
 
-        let indexed_array = AccountLoader::<NullifierQueueAccount>::try_from(queue_bundle.queue)?;
+        let indexed_array = AccountLoader::<QueueAccount>::try_from(queue_bundle.queue)?;
         light_heap::bench_sbf_start!("acp_prep_insertion");
         {
             let indexed_array = indexed_array.load()?;
-            check_registered_or_signer::<InsertIntoNullifierQueues, NullifierQueueAccount>(
-                &ctx,
-                &indexed_array,
-            )?;
+            check_registered_or_signer::<InsertIntoQueues, QueueAccount>(&ctx, &indexed_array)?;
             if queue_bundle.merkle_tree.key() != indexed_array.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
@@ -83,16 +90,13 @@ pub fn process_insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         }
         {
             let merkle_tree =
-                AccountLoader::<StateMerkleTreeAccount>::try_from(queue_bundle.merkle_tree)?;
-            let sequence_number = {
-                let merkle_tree = merkle_tree.load()?;
-                merkle_tree.load_merkle_tree()?.sequence_number
-            };
+                AccountLoader::<MerkleTreeAccount>::try_from(queue_bundle.merkle_tree)?;
+            let sequence_number = merkle_tree.load()?.get_sequence_number()?;
 
             let indexed_array = indexed_array.to_account_info();
             let mut indexed_array = indexed_array.try_borrow_mut_data()?;
             let mut indexed_array =
-                unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
+                unsafe { queue_from_bytes_zero_copy_mut(&mut indexed_array).unwrap() };
             light_heap::bench_sbf_end!("acp_prep_insertion");
             light_heap::bench_sbf_start!("acp_insert_nf_into_queue");
             for element in queue_bundle.elements.iter() {

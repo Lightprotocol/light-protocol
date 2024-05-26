@@ -13,7 +13,7 @@ use crate::rpc::rpc_connection::RpcConnection;
 use account_compression::{
     self,
     initialize_address_merkle_tree::AccountLoader,
-    initialize_nullifier_queue::NullifierQueueAccount,
+    state::QueueAccount,
     utils::constants::{
         STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
     },
@@ -40,7 +40,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
 ) -> Result<(), RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
-    let size = NullifierQueueAccount::size(
+    let size = QueueAccount::size(
         STATE_NULLIFIER_QUEUE_INDICES as usize,
         STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
@@ -220,8 +220,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
             false,
             0u64,
         );
-        let new_queue_account =
-            AccountLoader::<NullifierQueueAccount>::try_from(&account_info).unwrap();
+        let new_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let new_loaded_queue_account = new_queue_account.load().unwrap();
         let mut old_queue_account = rpc
             .get_account(*old_nullifier_queue_pubkey)
@@ -239,8 +238,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
             false,
             0u64,
         );
-        let old_queue_account =
-            AccountLoader::<NullifierQueueAccount>::try_from(&account_info).unwrap();
+        let old_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let old_loaded_queue_account = old_queue_account.load().unwrap();
 
         assert_rolledover_queues_metadata(
@@ -262,12 +260,10 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         .lamports;
     // rent is reimbursed, 3 signatures cost 3 x 5000 lamports
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
-    let old_address_queue = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await
-    };
-    let new_address_queue = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await
-    };
+    let old_address_queue =
+        unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await };
+    let new_address_queue =
+        unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await };
 
     assert_eq!(
         old_address_queue.capacity_indices,

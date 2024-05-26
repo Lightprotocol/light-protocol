@@ -4,9 +4,7 @@ use crate::{
     test_indexer::{StateMerkleTreeAccounts, TestIndexer},
     AccountZeroCopy,
 };
-use account_compression::{
-    initialize_nullifier_queue::NullifierQueueAccount, AddressQueueAccount, StateMerkleTreeAccount,
-};
+use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
@@ -125,11 +123,7 @@ pub async fn assert_nullifiers_exist_in_hash_sets<R: RpcConnection>(
 ) {
     for (i, hash) in input_compressed_account_hashes.iter().enumerate() {
         let nullifier_queue = unsafe {
-            get_hash_set::<u16, NullifierQueueAccount, R>(
-                rpc,
-                snapshots[i].accounts.nullifier_queue,
-            )
-            .await
+            get_hash_set::<u16, QueueAccount, R>(rpc, snapshots[i].accounts.nullifier_queue).await
         };
         assert!(nullifier_queue
             .contains(&BigUint::from_be_bytes(hash.as_slice()), None)
@@ -143,8 +137,7 @@ pub async fn assert_addresses_exist_in_hash_sets<R: RpcConnection>(
     created_addresses: &[[u8; 32]],
 ) {
     for (address, pubkey) in created_addresses.iter().zip(address_queue_pubkeys) {
-        let address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, *pubkey).await };
+        let address_queue = unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *pubkey).await };
         assert!(address_queue
             .contains(&BigUint::from_be_bytes(address), None)
             .unwrap());

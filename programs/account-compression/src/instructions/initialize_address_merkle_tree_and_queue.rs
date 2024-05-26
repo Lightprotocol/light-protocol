@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use crate::{
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
-    state::AddressQueueAccount,
+    state::QueueAccount,
     utils::constants::{
         ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
         ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
@@ -47,7 +47,7 @@ pub struct InitializeAddressMerkleTreeAndQueue<'info> {
     #[account(zero)]
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     #[account(zero)]
-    pub queue: AccountLoader<'info, AddressQueueAccount>,
+    pub queue: AccountLoader<'info, QueueAccount>,
 }
 
 pub fn process_initialize_address_merkle_tree_and_queue<'info>(

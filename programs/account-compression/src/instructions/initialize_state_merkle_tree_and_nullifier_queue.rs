@@ -1,7 +1,7 @@
 use crate::{
     initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
-    initialize_nullifier_queue::{process_initialize_nullifier_queue, NullifierQueueAccount},
-    state::StateMerkleTreeAccount,
+    initialize_nullifier_queue::process_initialize_nullifier_queue,
+    state::{QueueAccount, StateMerkleTreeAccount},
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
         STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
@@ -18,7 +18,7 @@ pub struct InitializeStateMerkleTreeAndNullifierQueue<'info> {
     #[account(zero)]
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(zero)]
-    pub nullifier_queue: AccountLoader<'info, NullifierQueueAccount>,
+    pub nullifier_queue: AccountLoader<'info, QueueAccount>,
     pub system_program: Program<'info, System>,
 }
 

@@ -21,9 +21,7 @@ pub mod account_compression {
 
     use self::{
         initialize_state_merkle_tree_and_nullifier_queue::process_initialize_state_merkle_tree_and_nullifier_queue,
-        insert_into_nullifier_queue::{
-            process_insert_into_nullifier_queues, InsertIntoNullifierQueues,
-        },
+        insert_into_queues::{process_insert_into_queues, InsertIntoQueues},
     };
 
     use super::*;
@@ -47,11 +45,16 @@ pub mod account_compression {
     }
 
     pub fn insert_addresses<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertAddresses<'info>>,
+        ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         addresses: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_addresses(ctx, addresses)
+        process_insert_into_queues::<AddressMerkleTreeAccount>(
+            ctx,
+            addresses.as_slice(),
+            QueueType::AddressQueue,
+        )
     }
+
     /// Updates the address Merkle tree with a new address.
     pub fn update_address_merkle_tree<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
@@ -162,10 +165,14 @@ pub mod account_compression {
     }
 
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InsertIntoNullifierQueues<'info>>,
+        ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         elements: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_into_nullifier_queues(ctx, &elements)
+        process_insert_into_queues::<StateMerkleTreeAccount>(
+            ctx,
+            &elements,
+            QueueType::NullifierQueue,
+        )
     }
 
     pub fn rollover_state_merkle_tree_and_nullifier_queue<'a, 'b, 'c: 'info, 'info>(

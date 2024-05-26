@@ -3,11 +3,11 @@ use crate::rpc::rpc_connection::RpcConnection;
 use crate::test_env::NOOP_PROGRAM_ID;
 use crate::test_indexer::AddressMerkleTreeBundle;
 use crate::{get_hash_set, test_indexer::StateMerkleTreeBundle, AccountZeroCopy};
-use account_compression::initialize_nullifier_queue::NullifierQueueAccount;
 use account_compression::instruction::UpdateAddressMerkleTree;
+use account_compression::state::QueueAccount;
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;
+use account_compression::AddressMerkleTreeAccount;
 use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, ID};
-use account_compression::{AddressMerkleTreeAccount, AddressQueueAccount};
 use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
@@ -41,11 +41,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     state_tree_bundle: &mut StateMerkleTreeBundle,
 ) {
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount, R>(
-            rpc,
-            state_tree_bundle.accounts.nullifier_queue,
-        )
-        .await
+        get_hash_set::<u16, QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
     let merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
@@ -168,11 +164,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
     compressed_account: &[u8; 32],
 ) {
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount, R>(
-            rpc,
-            state_tree_bundle.accounts.nullifier_queue,
-        )
-        .await
+        get_hash_set::<u16, QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
     let array_element = nullifier_queue
         .by_value_index(
@@ -225,7 +217,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             address_merkle_tree.indexed_merkle_tree().root(),
         );
         let address_queue =
-            unsafe { get_hash_set::<u16, AddressQueueAccount, R>(rpc, address_queue_pubkey).await };
+            unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, address_queue_pubkey).await };
 
         let address = address_queue.first_no_seq().unwrap();
         if address.is_none() {
@@ -353,9 +345,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 .deserialized()
                 .copy_merkle_tree()
                 .unwrap();
-            let address_queue = unsafe {
-                get_hash_set::<u16, AddressQueueAccount, R>(rpc, address_queue_pubkey).await
-            };
+            let address_queue =
+                unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, address_queue_pubkey).await };
 
             assert_eq!(
                 address_queue
@@ -469,7 +460,7 @@ pub async fn insert_addresses<R: RpcConnection>(
 ) -> Result<(), RpcError> {
     let num_addresses = addresses.len();
     let instruction_data = InsertAddresses { addresses };
-    let accounts = account_compression::accounts::InsertAddresses {
+    let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: context.get_payer().pubkey(),
         authority: context.get_payer().pubkey(),
         registered_program_pda: None,
@@ -482,7 +473,7 @@ pub async fn insert_addresses<R: RpcConnection>(
             vec![
                 vec![
                     AccountMeta::new(address_queue_pubkey, false),
-                    AccountMeta::new(address_merkle_tree_pubkey, false),
+                    AccountMeta::new(address_merkle_tree_pubkey, false)
                 ];
                 num_addresses
             ]

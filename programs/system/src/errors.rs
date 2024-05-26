@@ -32,8 +32,8 @@ pub enum CompressedPdaError {
     InvalidAddress,
     #[msg("InvalidAddressQueue")]
     InvalidAddressQueue,
-    #[msg("InvalidNullifierQueue")]
-    InvalidNullifierQueue,
+    #[msg("InvalidQueue")]
+    InvalidQueue,
     #[msg("DeriveAddressError")]
     DeriveAddressError,
     #[msg("CompressSolTransferFailed")]

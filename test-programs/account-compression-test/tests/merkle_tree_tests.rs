@@ -2,8 +2,8 @@
 use account_compression::{
     self,
     errors::AccountCompressionErrorCode,
-    initialize_nullifier_queue::{nullifier_queue_from_bytes_zero_copy_mut, NullifierQueueAccount},
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
+    state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
         STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
@@ -163,8 +163,7 @@ async fn test_nullifier_queue_security() {
         .unwrap();
 
     let mut data = account.data.clone();
-    let nullifier_queue =
-        &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+    let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
     let replacement_start_value = 606;
     let replacement_value = find_overlapping_probe_index(
         1,
@@ -210,7 +209,7 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
     let current_index;
     let capacity;
     {
-        let hash_set = &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+        let hash_set = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
         current_index = unsafe { *hash_set.hash_set.next_value_index };
 
         capacity = hash_set.hash_set.capacity_values - left_over_indices;
@@ -229,8 +228,7 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
         .unwrap()
         .unwrap();
     let mut data = account.data.clone();
-    let nullifier_queue =
-        &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+    let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
     for i in current_index..capacity {
         let array_element = nullifier_queue.by_value_index(i, None).unwrap();
         assert_eq!(array_element.value_biguint(), i.to_biguint().unwrap());
@@ -555,7 +553,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         Some(merkle_tree_keypair),
     );
 
-    let size = NullifierQueueAccount::size(
+    let size = QueueAccount::size(
         STATE_NULLIFIER_QUEUE_INDICES as usize,
         STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
@@ -970,8 +968,7 @@ pub async fn nullify<R: RpcConnection>(
         .unwrap();
     let mut data = account.data.clone();
 
-    let nullifier_queue =
-        &mut unsafe { nullifier_queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+    let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
 
     let array_element = nullifier_queue
         .by_value_index(
@@ -1100,9 +1097,7 @@ async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
     )
     .await
     .unwrap();
-    let array = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount, R>(rpc, *nullifier_queue_pubkey).await
-    };
+    let array = unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
     let array_element_0 = array.by_value_index(0, None).unwrap();
     assert_eq!(array_element_0.value_bytes(), [1u8; 32]);
     assert_eq!(array_element_0.sequence_number(), None);
@@ -1171,9 +1166,7 @@ async fn functional_5_test_insert_into_nullifier_queues<R: RpcConnection>(
     )
     .await
     .unwrap();
-    let array = unsafe {
-        get_hash_set::<u16, NullifierQueueAccount, R>(rpc, *nullifier_queue_pubkey).await
-    };
+    let array = unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
 
     let array_element = array.by_value_index(2, None).unwrap();
     assert_eq!(array_element.value_biguint(), element);
@@ -1191,22 +1184,25 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         elements: elements.to_vec(),
     };
-    let accounts = account_compression::accounts::InsertIntoNullifierQueues {
+    let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
         authority: payer.pubkey(),
         registered_program_pda: None,
         system_program: system_program::ID,
     };
     let mut remaining_accounts = Vec::with_capacity(elements.len() * 2);
-    remaining_accounts.extend(vec![
-        AccountMeta::new(*nullifier_queue_pubkey, false);
-        elements.len()
-    ]);
-    remaining_accounts.extend(vec![
-        AccountMeta::new(*merkle_tree_pubkey, false);
-        elements.len()
-    ]);
-
+    remaining_accounts.extend(
+        vec![
+            vec![
+                AccountMeta::new(*nullifier_queue_pubkey, false),
+                AccountMeta::new(*merkle_tree_pubkey, false)
+            ];
+            elements.len()
+        ]
+        .iter()
+        .flat_map(|x| x.to_vec())
+        .collect::<Vec<AccountMeta>>(),
+    );
     let instruction = Instruction {
         program_id: ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),

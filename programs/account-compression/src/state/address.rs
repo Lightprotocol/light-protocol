@@ -1,110 +1,14 @@
-use std::{cell::RefMut, mem};
-
+use crate::{AccessMetadata, MerkleTreeMetadata, RolloverMetadata, SequenceNumber};
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_bounded_vec::CyclicBoundedVec;
 use light_concurrent_merkle_tree::ConcurrentMerkleTree26;
-use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     copy::IndexedMerkleTreeCopy26,
     zero_copy::{IndexedMerkleTreeZeroCopy26, IndexedMerkleTreeZeroCopyMut26},
 };
-
-use crate::{
-    utils::check_registered_or_signer::GroupAccess, AccessMetadata, MerkleTreeMetadata,
-    QueueMetadata, RolloverMetadata,
-};
-
-#[account(zero_copy)]
-#[aligned_sized(anchor)]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
-pub struct AddressQueueAccount {
-    pub metadata: QueueMetadata,
-}
-
-impl AddressQueueAccount {
-    pub fn init(
-        &mut self,
-        access_metadata: AccessMetadata,
-        rollover_metadata: RolloverMetadata,
-        associated_merkle_tree: Pubkey,
-    ) {
-        self.metadata
-            .init(access_metadata, rollover_metadata, associated_merkle_tree)
-    }
-}
-
-impl GroupAccess for AddressQueueAccount {
-    fn get_owner(&self) -> &Pubkey {
-        &self.metadata.access_metadata.owner
-    }
-
-    fn get_delegate(&self) -> &Pubkey {
-        &self.metadata.access_metadata.delegate
-    }
-}
-
-impl AddressQueueAccount {
-    pub fn size(capacity_indices: usize, capacity_values: usize) -> Result<usize> {
-        Ok(8 + mem::size_of::<Self>()
-            + HashSet::<u16>::size_in_account(capacity_indices, capacity_values)
-                .map_err(ProgramError::from)?)
-    }
-}
-
-/// Creates a copy of `AddressQueue` from the given account data.
-///
-/// # Safety
-///
-/// This operation is unsafe. It's the caller's responsibility to ensure that
-/// the provided account data have correct size and alignment.
-pub unsafe fn address_queue_from_bytes_copy(
-    mut data: RefMut<'_, &mut [u8]>,
-) -> Result<HashSet<u16>> {
-    let data = &mut data[8 + mem::size_of::<AddressQueueAccount>()..];
-    let queue = HashSet::<u16>::from_bytes_copy(data).map_err(ProgramError::from)?;
-    Ok(queue)
-}
-
-/// Casts the given account data to an `AddressQueueZeroCopy` instance.
-///
-/// # Safety
-///
-/// This operation is unsafe. It's the caller's responsibility to ensure that
-/// the provided account data have correct size and alignment.
-pub unsafe fn address_queue_from_bytes_zero_copy_mut(
-    data: &mut [u8],
-) -> Result<HashSetZeroCopy<u16>> {
-    let data = &mut data[8 + mem::size_of::<AddressQueueAccount>()..];
-    let queue =
-        HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
-    Ok(queue)
-}
-
-/// Casts the given account data to an `AddressQueueZeroCopy` instance.
-///
-/// # Safety
-///
-/// This operation is unsafe. It's the caller's responsibility to ensure that
-/// the provided account data have correct size and alignment.
-pub unsafe fn address_queue_from_bytes_zero_copy_init(
-    data: &mut [u8],
-    capacity_indices: usize,
-    capacity_values: usize,
-    sequence_threshold: usize,
-) -> Result<HashSetZeroCopy<u16>> {
-    let data = &mut data[8 + mem::size_of::<AddressQueueAccount>()..];
-    let queue = HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
-        data,
-        capacity_indices,
-        capacity_values,
-        sequence_threshold,
-    )
-    .map_err(ProgramError::from)?;
-    Ok(queue)
-}
 
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
@@ -117,6 +21,23 @@ pub struct AddressMerkleTreeAccount {
     pub merkle_tree_roots: [u8; 76800],
     pub merkle_tree_canopy: [u8; 65472],
     pub address_changelog: [u8; 20480],
+}
+
+impl SequenceNumber for AddressMerkleTreeAccount {
+    fn get_sequence_number(&self) -> Result<usize> {
+        let tree = unsafe {
+            IndexedMerkleTreeZeroCopy26::<Poseidon, usize>::from_bytes_zero_copy(
+                &self.merkle_tree_struct,
+                &self.merkle_tree_filled_subtrees,
+                &self.merkle_tree_changelog,
+                &self.merkle_tree_roots,
+                &self.merkle_tree_canopy,
+                &self.address_changelog,
+            )
+            .map_err(ProgramError::from)?
+        };
+        Ok(tree.merkle_tree.merkle_tree.sequence_number)
+    }
 }
 
 impl AddressMerkleTreeAccount {
