@@ -48,10 +48,9 @@ pub mod account_compression {
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
         addresses: Vec<[u8; 32]>,
     ) -> Result<()> {
-        process_insert_into_queues::<AddressMerkleTreeAccount>(
+        process_insert_into_queues::<AddressMerkleTreeAccount, AddressQueue>(
             ctx,
             addresses.as_slice(),
-            QueueType::AddressQueue,
         )
     }
 

@@ -1,11 +1,9 @@
-use crate::{
-    queue_from_bytes_zero_copy_init, AccessMetadata, QueueAccount, QueueType, RolloverMetadata,
-};
+use crate::{queue_from_bytes_zero_copy_init, AccessMetadata, NullifierQueue, RolloverMetadata};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     nullifier_queue_account_info: AccountInfo<'info>,
-    nullifier_queue_account_loader: &'a AccountLoader<'info, QueueAccount>,
+    nullifier_queue_account_loader: &'a AccountLoader<'info, NullifierQueue>,
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
@@ -35,7 +33,6 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
             },
             rollover_meta_data,
             associated_merkle_tree,
-            QueueType::NullifierQueue,
         );
 
         drop(nullifier_queue);

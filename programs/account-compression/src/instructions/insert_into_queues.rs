@@ -1,13 +1,14 @@
+use std::ops::Deref;
+
 use crate::{
-    check_queue_type,
     errors::AccountCompressionErrorCode,
-    state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
+    state::queue::queue_from_bytes_zero_copy_mut,
     transfer_lamports_cpi,
     utils::{
-        check_registered_or_signer::check_registered_or_signer,
+        check_registered_or_signer::{check_registered_or_signer, GroupAccess},
         queue::{QueueBundle, QueueMap},
     },
-    QueueType, RegisteredProgram, SequenceNumber,
+    QueueMetadata, RegisteredProgram, SequenceNumber,
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, ZeroCopy};
 use num_bigint::BigUint;
@@ -31,10 +32,10 @@ pub fn process_insert_into_queues<
     'c: 'info,
     'info,
     MerkleTreeAccount: Owner + ZeroCopy + SequenceNumber,
+    QueueAccount: Owner + ZeroCopy + Deref<Target = QueueMetadata>,
 >(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
     elements: &'a [[u8; 32]],
-    queue_type: QueueType,
 ) -> Result<()> {
     let expected_remaining_accounts = elements.len() * 2;
     if expected_remaining_accounts != ctx.remaining_accounts.len() {
@@ -54,8 +55,7 @@ pub fn process_insert_into_queues<
         let associated_merkle_tree = {
             let queue = AccountLoader::<QueueAccount>::try_from(queue)?;
             let queue = queue.load()?;
-            check_queue_type(&queue.metadata.queue_type, &queue_type)?;
-            queue.metadata.associated_merkle_tree
+            queue.associated_merkle_tree
         };
 
         if merkle_tree.key() != associated_merkle_tree {
@@ -81,12 +81,12 @@ pub fn process_insert_into_queues<
         light_heap::bench_sbf_start!("acp_prep_insertion");
         {
             let indexed_array = indexed_array.load()?;
-            check_registered_or_signer::<InsertIntoQueues, QueueAccount>(&ctx, &indexed_array)?;
-            if queue_bundle.merkle_tree.key() != indexed_array.metadata.associated_merkle_tree {
+            check_registered_or_signer::<InsertIntoQueues, QueueAccount>(&ctx, *indexed_array)?;
+            if queue_bundle.merkle_tree.key() != indexed_array.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }
-            lamports = indexed_array.metadata.rollover_metadata.rollover_fee
-                * queue_bundle.elements.len() as u64;
+            lamports =
+                indexed_array.rollover_metadata.rollover_fee * queue_bundle.elements.len() as u64;
         }
         {
             let merkle_tree =

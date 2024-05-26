@@ -2,8 +2,7 @@ use anchor_lang::prelude::*;
 use light_utils::fee::compute_rollover_fee;
 
 use crate::{
-    state::{queue_from_bytes_zero_copy_init, QueueAccount},
-    AccessMetadata, QueueType, RolloverMetadata,
+    state::queue_from_bytes_zero_copy_init, AccessMetadata, AddressQueue, RolloverMetadata,
 };
 
 #[derive(Accounts)]
@@ -16,7 +15,7 @@ pub struct InitializeAddressQueue<'info> {
 
 pub fn process_initialize_address_queue<'info>(
     queue_account_info: &AccountInfo<'info>,
-    queue_loader: &AccountLoader<'info, QueueAccount>,
+    queue_loader: &AccountLoader<'info, AddressQueue>,
     index: u64,
     owner: Pubkey,
     delegate: Option<Pubkey>,
@@ -55,7 +54,6 @@ pub fn process_initialize_address_queue<'info>(
                 close_threshold,
             ),
             associated_merkle_tree,
-            QueueType::AddressQueue,
         );
 
         drop(address_queue);
