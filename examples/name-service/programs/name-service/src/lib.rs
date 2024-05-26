@@ -43,28 +43,6 @@ pub mod name_service {
     }
 }
 
-#[derive(Accounts)]
-pub struct CreateName<'info> {
-    #[account(init, payer = owner, space = 8 + 32 + 4 + 32)]
-    pub name_account: Account<'info, NameRecord>,
-    #[account(mut)]
-    pub owner: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateName<'info> {
-    #[account(mut, has_one = owner)]
-    pub name_account: Account<'info, NameRecord>,
-    pub owner: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct DeleteName<'info> {
-    #[account(mut, close = owner, has_one = owner)]
-    pub name_account: Account<'info, NameRecord>,
-    pub owner: Signer<'info>,
-}
 
 #[account]
 #[derive(Default)]
@@ -78,4 +56,33 @@ pub struct NameRecord {
 pub enum CustomError {
     #[msg("No authority to perform this action")]
     Unauthorized,
+}
+
+
+// can use for all. acc validation needs be manual. 
+#[derive(Accounts)]
+pub struct CreateName<'info> {
+    #[account(mut)]
+    pub signer: Signer<'info>, // this the owner
+    /// CHECK:
+    #[account(seeds = [b"Light Name Service".as_slice(), signer.key.to_bytes().as_slice()], bump)]
+    pub name_account: AccountInfo<'info>,
+    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
+    pub account_compression_program:
+        Program<'info, account_compression::program::AccountCompression>,
+    /// CHECK:
+    pub account_compression_authority: AccountInfo<'info>,
+    /// CHECK:
+    pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
+    /// CHECK:
+    pub registered_program_pda: AccountInfo<'info>,
+    /// CHECK:
+    pub noop_program: AccountInfo<'info>,
+    pub self_program: Program<'info, crate::program::NameService>,
+    pub system_program: Program<'info, System>,
+    /// CHECK:
+    #[account(mut)]
+    pub cpi_context_account: AccountInfo<'info>,
+    #[account(init, payer = owner, space = 8 + 32 + 4 + 32)]
+    pub name_account: Account<'info, NameRecord>,
 }
