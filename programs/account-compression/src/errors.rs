@@ -34,10 +34,6 @@ pub enum AccountCompressionErrorCode {
     NumberOfIndicesMismatch,
     #[msg("IndexOutOfBounds")]
     IndexOutOfBounds,
-    #[msg("ElementAlreadyExists")]
-    ElementAlreadyExists,
-    #[msg("HashSetFull")]
-    HashSetFull,
     #[msg("NumberOfProofsMismatch")]
     NumberOfProofsMismatch,
     #[msg("InvalidMerkleProof")]
@@ -62,4 +58,6 @@ pub enum AccountCompressionErrorCode {
     NotAllLeavesProcessed,
     #[msg("InvalidQueueType")]
     InvalidQueueType,
+    #[msg("InputElementsEmpty")]
+    InputElementsEmpty,
 }

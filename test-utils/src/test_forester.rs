@@ -248,12 +248,12 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             address_queue_pubkey,
             address_merkle_tree_pubkey,
             address_hashset_index,
-            address_bundle.new_element.next_index as u64,
             old_low_address.index as u64,
             bigint_to_be_bytes_array(&old_low_address.value).unwrap(),
             old_low_address.next_index as u64,
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap(),
             low_address_proof.to_array().unwrap(),
+            None,
         )
         .await
         {
@@ -403,29 +403,32 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     value: u16,
-    next_index: u64,
     low_address_index: u64,
     low_address_value: [u8; 32],
     low_address_next_index: u64,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
+    changelog_index: Option<u16>,
 ) -> Result<Option<MerkleTreeEvent>, RpcError> {
-    let changelog_index = {
-        // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
-        let address_merkle_tree =
-            AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey).await;
+    let changelog_index = match changelog_index {
+        Some(changelog_index) => changelog_index as usize,
+        None => {
+            // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
+            let address_merkle_tree =
+                AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey)
+                    .await;
 
-        let address_merkle_tree = &address_merkle_tree
-            .deserialized()
-            .load_merkle_tree()
-            .unwrap();
-        address_merkle_tree.merkle_tree.changelog_index()
+            let address_merkle_tree = &address_merkle_tree
+                .deserialized()
+                .load_merkle_tree()
+                .unwrap();
+            address_merkle_tree.merkle_tree.changelog_index()
+        }
     };
 
     let instruction_data = UpdateAddressMerkleTree {
         changelog_index: changelog_index as u16,
         value,
-        next_index,
         low_address_index,
         low_address_value,
         low_address_next_index,

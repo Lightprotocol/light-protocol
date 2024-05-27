@@ -62,8 +62,6 @@ pub mod account_compression {
         changelog_index: u16,
         // Index of the address to dequeue.
         value: u16,
-        // Index of the next address.
-        next_index: u64,
         // Low address.
         low_address_index: u64,
         low_address_value: [u8; 32],
@@ -77,7 +75,6 @@ pub mod account_compression {
             ctx,
             changelog_index,
             value,
-            next_index as usize,
             low_address_index,
             low_address_value,
             low_address_next_index,

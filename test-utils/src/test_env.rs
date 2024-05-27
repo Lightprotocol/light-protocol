@@ -1,7 +1,13 @@
+use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
+use crate::assert_queue::assert_address_queue_initialized;
 use crate::create_account_instruction;
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::rpc::test_rpc::ProgramTestRpcConnection;
+use account_compression::QueueType;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
+use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_macros::pubkey;
 use light_registry::sdk::{
@@ -10,13 +16,10 @@ use light_registry::sdk::{
     get_cpi_authority_pda, get_governance_authority_pda, get_group_account,
 };
 use solana_program_test::{ProgramTest, ProgramTestContext};
-
-use solana_sdk::transaction::Transaction;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair};
-
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::rpc::test_rpc::ProgramTestRpcConnection;
-use solana_sdk::{signature::Signer, system_instruction};
+use solana_sdk::{
+    pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
+    transaction::Transaction,
+};
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
@@ -280,8 +283,6 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     program_owner: Option<Pubkey>,
     index: u64,
 ) {
-    use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
-
     let merkle_tree_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,
@@ -374,15 +375,16 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &ACCOUNT_COMPRESSION_ID,
         Some(address_merkle_tree_keypair),
     );
-
+    let tree_config = AddressMerkleTreeConfig::default();
+    let queue_config = AddressQueueConfig::default();
     let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
         index,
         payer.pubkey(),
         program_owner,
         address_merkle_tree_keypair.pubkey(),
         address_queue_keypair.pubkey(),
-        AddressMerkleTreeConfig::default(),
-        AddressQueueConfig::default(),
+        tree_config.clone(),
+        queue_config.clone(),
     );
     let transaction = Transaction::new_signed_with_payer(
         &[account_create_ix, mt_account_create_ix, instruction],
@@ -394,6 +396,47 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         .process_transaction(transaction.clone())
         .await
         .unwrap();
+
+    // To initialize the indexed tree we do 4 operations:
+    // 1. insert 0 append 0 and update 0
+    // 2. insert 1 append BN254_FIELD_SIZE -1 and update 0
+    // we appended two values this the expected next index is 2;
+    // The right most leaf is the hash of the indexed array element with value FIELD_SIZE - 1
+    // index 1, next_index: 0
+    let expected_change_log_length = 4;
+    let expected_roots_length = 4;
+    let expected_next_index = 2;
+    let expected_right_most_leaf = [
+        44, 52, 197, 107, 177, 35, 22, 127, 107, 74, 169, 250, 166, 2, 228, 145, 220, 126, 40, 237,
+        196, 176, 110, 41, 32, 173, 159, 91, 143, 216, 66, 32,
+    ];
+    assert_address_merkle_tree_initialized(
+        context,
+        &address_merkle_tree_keypair.pubkey(),
+        &address_queue_keypair.pubkey(),
+        &tree_config,
+        index,
+        program_owner,
+        expected_change_log_length,
+        expected_roots_length,
+        expected_next_index,
+        &expected_right_most_leaf,
+        &payer.pubkey(),
+    )
+    .await;
+
+    assert_address_queue_initialized(
+        context,
+        &address_queue_keypair.pubkey(),
+        &queue_config,
+        &address_merkle_tree_keypair.pubkey(),
+        &tree_config,
+        QueueType::AddressQueue,
+        index,
+        program_owner,
+        &payer.pubkey(),
+    )
+    .await;
 }
 
 pub async fn init_cpi_context_account<R: RpcConnection>(

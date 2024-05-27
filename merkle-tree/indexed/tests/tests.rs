@@ -506,6 +506,32 @@ where
         ),
         Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
     ));
+    let nullifier4 = 45_u32.to_biguint().unwrap();
+    onchain_queue.borrow_mut().append(&nullifier3).unwrap();
+    let changelog_index = onchain_tree.borrow_mut().changelog_index();
+    let (low_nullifier, low_nullifier_next_value) = local_indexed_array
+        .find_low_element_for_nonexistent(&nullifier4)
+        .unwrap();
+    let nullifier_next_index = low_nullifier.next_index + 1;
+    let mut low_nullifier_proof = local_merkle_tree
+        .get_proof_of_leaf(low_nullifier.index(), false)
+        .unwrap();
+    let result = program_update(
+        &mut onchain_queue.borrow_mut(),
+        &mut onchain_tree.borrow_mut(),
+        changelog_index as u16,
+        queue_index,
+        nullifier_index,
+        nullifier_next_index,
+        low_nullifier,
+        &low_nullifier_next_value,
+        &mut low_nullifier_proof,
+    );
+    println!("result {:?}", result);
+    assert!(matches!(
+        result,
+        Err(IndexedMerkleTreeError::NewElementNextIndexMismatch)
+    ));
 }
 
 #[test]

@@ -58,6 +58,22 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
+    if merkle_tree_config.height != AddressMerkleTreeConfig::default().height {
+        unimplemented!("Only default state height supported.");
+    }
+    if merkle_tree_config.canopy_depth != AddressMerkleTreeConfig::default().canopy_depth {
+        unimplemented!("Only default state canopy_depth supported.");
+    }
+    if merkle_tree_config.changelog_size != AddressMerkleTreeConfig::default().changelog_size {
+        unimplemented!("Only default state changelog_size supported.");
+    }
+    if merkle_tree_config.roots_size != AddressMerkleTreeConfig::default().roots_size {
+        unimplemented!("Only default state roots_size supported.");
+    }
+    if queue_config != AddressQueueConfig::default() {
+        unimplemented!("Only default nullifier queue config supported.");
+    }
+
     let merkle_tree_rent = ctx.accounts.merkle_tree.get_lamports();
     process_initialize_address_queue(
         &ctx.accounts.queue.to_account_info(),
@@ -75,13 +91,12 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         merkle_tree_config.height,
         merkle_tree_rent,
     )?;
-    let height = ADDRESS_MERKLE_TREE_HEIGHT as u32;
     process_initialize_address_merkle_tree(
         &ctx.accounts.merkle_tree,
         index,
         owner,
         delegate,
-        height,
+        merkle_tree_config.height,
         merkle_tree_config.changelog_size,
         merkle_tree_config.roots_size,
         merkle_tree_config.canopy_depth,
@@ -90,6 +105,5 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
         merkle_tree_config.network_fee.unwrap_or_default(),
         merkle_tree_config.rollover_threshold,
         merkle_tree_config.close_threshold,
-        merkle_tree_rent,
     )
 }

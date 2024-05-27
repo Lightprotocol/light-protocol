@@ -1,9 +1,3 @@
-use anchor_lang::prelude::*;
-use light_bounded_vec::BoundedVec;
-use light_concurrent_merkle_tree::event::{MerkleTreeEvent, NullifierEvent};
-use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
-use light_macros::heap_neutral;
-
 use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
@@ -11,6 +5,11 @@ use crate::{
     state::StateMerkleTreeAccount,
     RegisteredProgram,
 };
+use anchor_lang::prelude::*;
+use light_bounded_vec::BoundedVec;
+use light_concurrent_merkle_tree::event::{MerkleTreeEvent, NullifierEvent};
+use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
+use light_macros::heap_neutral;
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
@@ -36,19 +35,6 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     indices: &'a [u64],
     proofs: &'a [Vec<[u8; 32]>],
 ) -> Result<()> {
-    {
-        let array_account = ctx.accounts.nullifier_queue.load()?;
-        if array_account.metadata.associated_merkle_tree != ctx.accounts.merkle_tree.key() {
-            msg!(
-            "NullifyEvents queue and Merkle tree are not associated. Associated mt of nullifier queue {} != merkle tree {}",
-            array_account.metadata.associated_merkle_tree,
-            ctx.accounts.merkle_tree.key(),
-        );
-            return Err(AccountCompressionErrorCode::InvalidMerkleTree.into());
-        }
-        drop(array_account);
-    }
-
     if change_log_indices.len() != 1 {
         msg!("only implemented for 1 nullifier update");
         return Err(AccountCompressionErrorCode::NumberOfChangeLogIndicesMismatch.into());
@@ -91,7 +77,7 @@ fn insert_nullifier(
             merkle_tree.metadata.associated_queue,
             ctx.accounts.nullifier_queue.key()
         );
-        return Err(AccountCompressionErrorCode::InvalidQueue.into());
+        return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
@@ -108,7 +94,7 @@ fn insert_nullifier(
             merkle_tree.canopy_depth,
             allowed_proof_size,
         );
-        return Err(AccountCompressionErrorCode::InvalidMerkleProof.into());
+        return err!(AccountCompressionErrorCode::InvalidMerkleProof);
     }
     let seq = (merkle_tree.sequence_number + 1) as u64;
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
@@ -117,7 +103,8 @@ fn insert_nullifier(
             .cloned()
             .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
 
-        let mut proof = from_vec(proofs[i].as_slice()).map_err(ProgramError::from)?;
+        let mut proof =
+            from_vec(proofs[i].as_slice(), merkle_tree.height).map_err(ProgramError::from)?;
         merkle_tree
             .update(
                 change_log_indices[i] as usize,
@@ -144,9 +131,9 @@ fn insert_nullifier(
 }
 
 #[inline(never)]
-pub fn from_vec(vec: &[[u8; 32]]) -> Result<BoundedVec<[u8; 32]>> {
+pub fn from_vec(vec: &[[u8; 32]], height: usize) -> Result<BoundedVec<[u8; 32]>> {
     let proof: [[u8; 32]; 16] = vec.try_into().unwrap();
-    let mut bounded_vec = BoundedVec::with_capacity(26);
+    let mut bounded_vec = BoundedVec::with_capacity(height);
     bounded_vec.extend(proof).map_err(ProgramError::from)?;
     Ok(bounded_vec)
 }

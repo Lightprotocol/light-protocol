@@ -220,19 +220,19 @@ where
                 return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
         }
-
+        if new_element.next_index != low_element.next_index {
+            return Err(IndexedMerkleTreeError::NewElementNextIndexMismatch);
+        }
         // Instantiate `new_low_element` - the low element with updated values.
         let new_low_element = IndexedElement {
             index: low_element.index,
             value: low_element.value.clone(),
             next_index: new_element.index,
         };
-
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
         let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
-
         self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,

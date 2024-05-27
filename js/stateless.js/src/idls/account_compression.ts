@@ -215,10 +215,6 @@ export type AccountCompression = {
                     type: 'u16';
                 },
                 {
-                    name: 'nextIndex';
-                    type: 'u64';
-                },
-                {
                     name: 'lowAddressIndex';
                     type: 'u64';
                 },
@@ -1114,73 +1110,68 @@ export type AccountCompression = {
         },
         {
             code: 6015;
-            name: 'ElementAlreadyExists';
-            msg: 'ElementAlreadyExists';
-        },
-        {
-            code: 6016;
-            name: 'HashSetFull';
-            msg: 'HashSetFull';
-        },
-        {
-            code: 6017;
             name: 'NumberOfProofsMismatch';
             msg: 'NumberOfProofsMismatch';
         },
         {
-            code: 6018;
+            code: 6016;
             name: 'InvalidMerkleProof';
             msg: 'InvalidMerkleProof';
         },
         {
-            code: 6019;
+            code: 6017;
             name: 'InvalidQueue';
             msg: 'InvalidQueue';
         },
         {
-            code: 6020;
+            code: 6018;
             name: 'InvalidMerkleTree';
             msg: 'InvalidMerkleTree';
         },
         {
-            code: 6021;
+            code: 6019;
             name: 'LeafNotFound';
             msg: 'Could not find the leaf in the queue';
         },
         {
-            code: 6022;
+            code: 6020;
             name: 'RolloverThresholdTooHigh';
             msg: 'RolloverThresholdTooHigh';
         },
         {
-            code: 6023;
+            code: 6021;
             name: 'MerkleTreeAndQueueNotAssociated';
             msg: 'MerkleTreeAndQueueNotAssociated';
         },
         {
-            code: 6024;
+            code: 6022;
             name: 'MerkleTreeAlreadyRolledOver';
             msg: 'MerkleTreeAlreadyRolledOver';
         },
         {
-            code: 6025;
+            code: 6023;
             name: 'NotReadyForRollover';
             msg: 'NotReadyForRollover';
         },
         {
-            code: 6026;
+            code: 6024;
             name: 'RolloverNotConfigured';
             msg: 'RolloverNotConfigured';
         },
         {
-            code: 6027;
+            code: 6025;
             name: 'NotAllLeavesProcessed';
             msg: 'NotAllLeavesProcessed';
         },
         {
-            code: 6028;
+            code: 6026;
             name: 'InvalidQueueType';
             msg: 'InvalidQueueType';
+        },
+        {
+            code: 6027;
+            name: 'InputElementsEmpty';
+            msg: 'InputElementsEmpty';
         },
     ];
 };
@@ -1400,10 +1391,6 @@ export const IDL: AccountCompression = {
                 {
                     name: 'value',
                     type: 'u16',
-                },
-                {
-                    name: 'nextIndex',
-                    type: 'u64',
                 },
                 {
                     name: 'lowAddressIndex',
@@ -2301,73 +2288,68 @@ export const IDL: AccountCompression = {
         },
         {
             code: 6015,
-            name: 'ElementAlreadyExists',
-            msg: 'ElementAlreadyExists',
-        },
-        {
-            code: 6016,
-            name: 'HashSetFull',
-            msg: 'HashSetFull',
-        },
-        {
-            code: 6017,
             name: 'NumberOfProofsMismatch',
             msg: 'NumberOfProofsMismatch',
         },
         {
-            code: 6018,
+            code: 6016,
             name: 'InvalidMerkleProof',
             msg: 'InvalidMerkleProof',
         },
         {
-            code: 6019,
+            code: 6017,
             name: 'InvalidQueue',
             msg: 'InvalidQueue',
         },
         {
-            code: 6020,
+            code: 6018,
             name: 'InvalidMerkleTree',
             msg: 'InvalidMerkleTree',
         },
         {
-            code: 6021,
+            code: 6019,
             name: 'LeafNotFound',
             msg: 'Could not find the leaf in the queue',
         },
         {
-            code: 6022,
+            code: 6020,
             name: 'RolloverThresholdTooHigh',
             msg: 'RolloverThresholdTooHigh',
         },
         {
-            code: 6023,
+            code: 6021,
             name: 'MerkleTreeAndQueueNotAssociated',
             msg: 'MerkleTreeAndQueueNotAssociated',
         },
         {
-            code: 6024,
+            code: 6022,
             name: 'MerkleTreeAlreadyRolledOver',
             msg: 'MerkleTreeAlreadyRolledOver',
         },
         {
-            code: 6025,
+            code: 6023,
             name: 'NotReadyForRollover',
             msg: 'NotReadyForRollover',
         },
         {
-            code: 6026,
+            code: 6024,
             name: 'RolloverNotConfigured',
             msg: 'RolloverNotConfigured',
         },
         {
-            code: 6027,
+            code: 6025,
             name: 'NotAllLeavesProcessed',
             msg: 'NotAllLeavesProcessed',
         },
         {
-            code: 6028,
+            code: 6026,
             name: 'InvalidQueueType',
             msg: 'InvalidQueueType',
+        },
+        {
+            code: 6027,
+            name: 'InputElementsEmpty',
+            msg: 'InputElementsEmpty',
         },
     ],
 };

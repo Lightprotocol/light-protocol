@@ -5,8 +5,7 @@ use crate::{
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    transfer_lamports,
-    utils::check_registered_or_signer::GroupAccounts,
+    utils::{check_registered_or_signer::GroupAccounts, transfer_lamports::transfer_lamports},
     AddressMerkleTreeAccount, RegisteredProgram,
 };
 
@@ -93,7 +92,6 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             merkle_tree_metadata.rollover_metadata.network_fee,
             Some(merkle_tree_metadata.rollover_metadata.rollover_threshold),
             Some(merkle_tree_metadata.rollover_metadata.close_threshold),
-            ctx.accounts.new_address_merkle_tree.get_lamports(),
         )?;
 
         (queue_metadata, height)

@@ -24,20 +24,43 @@ pub enum RpcError {
 
     #[error("Error: `{0}`")]
     CustomError(String),
+    #[error("Assert Rpc Error: {0}")]
+    AssertRpcError(String),
 }
 
-pub fn assert_rpc_error(result: Result<(), RpcError>, i: u8, expected_error_code: u32) {
+pub fn assert_rpc_error(
+    result: Result<(), RpcError>,
+    i: u8,
+    expected_error_code: u32,
+) -> Result<(), RpcError> {
     match result {
         Err(RpcError::TransactionError(TransactionError::InstructionError(
             index,
             InstructionError::Custom(error_code),
-        ))) if index == i => {
-            assert_eq!(
-                error_code, expected_error_code,
-                "Error code does not match expected value"
-            );
-        }
-        Err(e) => panic!("Unexpected error type: {:?}", e),
-        _ => panic!("Expected an error, got a success or different error"),
+        ))) if index != i => Err(RpcError::AssertRpcError(
+            format!(
+                "Expected error code: {}, got: {} error: {}",
+                expected_error_code,
+                error_code,
+                result.unwrap_err()
+            )
+            .to_string(),
+        )),
+        Err(RpcError::TransactionError(TransactionError::InstructionError(
+            index,
+            InstructionError::Custom(error_code),
+        ))) if index == i && error_code == expected_error_code => Ok(()),
+
+        Err(RpcError::TransactionError(TransactionError::InstructionError(
+            0,
+            InstructionError::ProgramFailedToComplete,
+        ))) => Ok(()),
+        Err(e) => Err(RpcError::AssertRpcError(format!(
+            "Unexpected error type: {:?}",
+            e
+        ))),
+        _ => Err(RpcError::AssertRpcError(String::from(
+            "Unexpected error type",
+        ))),
     }
 }

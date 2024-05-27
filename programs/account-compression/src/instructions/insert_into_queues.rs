@@ -2,10 +2,10 @@ use crate::{
     check_queue_type,
     errors::AccountCompressionErrorCode,
     state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    transfer_lamports_cpi,
     utils::{
         check_registered_or_signer::check_registered_or_signer,
         queue::{QueueBundle, QueueMap},
+        transfer_lamports::transfer_lamports_cpi,
     },
     QueueType, RegisteredProgram, SequenceNumber,
 };
@@ -36,6 +36,9 @@ pub fn process_insert_into_queues<
     elements: &'a [[u8; 32]],
     queue_type: QueueType,
 ) -> Result<()> {
+    if elements.is_empty() {
+        return err!(AccountCompressionErrorCode::InputElementsEmpty);
+    }
     let expected_remaining_accounts = elements.len() * 2;
     if expected_remaining_accounts != ctx.remaining_accounts.len() {
         msg!(
@@ -62,7 +65,7 @@ pub fn process_insert_into_queues<
             msg!(
                     "Queue account {:?} is not associated with any address Merkle tree. Provided accounts {:?}",
                     queue.key(), ctx.remaining_accounts);
-            return err!(AccountCompressionErrorCode::InvalidQueue);
+            return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
         }
 
         queue_map

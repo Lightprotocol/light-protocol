@@ -81,7 +81,8 @@ async fn only_test_create_pda() {
         res,
         0,
         light_system_program::errors::CompressedPdaError::WriteAccessCheckFailed.into(),
-    );
+    )
+    .unwrap();
 
     let res = perform_create_pda_failing(
         &mut test_indexer,
@@ -99,7 +100,8 @@ async fn only_test_create_pda() {
         res,
         0,
         light_system_program::errors::CompressedPdaError::SignerCheckFailed.into(),
-    );
+    )
+    .unwrap();
 
     let mint = create_mint_helper(&mut rpc, &payer).await;
 
@@ -131,6 +133,7 @@ async fn only_test_create_pda() {
         0,
         light_system_program::errors::CompressedPdaError::SignerCheckFailed.into(),
     )
+    .unwrap();
 }
 
 #[tokio::test]
