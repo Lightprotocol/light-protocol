@@ -1,14 +1,30 @@
 use anchor_lang::prelude::*;
+use light_hasher::{errors::HasherError, Hasher};
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::{
+        address::derive_address,
+        compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
+        CompressedCpiContext,
+    },
+    InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+};
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
+
+pub struct LightContext {
+    pub proof: CompressedProof,
+    pub new_address_params: NewAddressParamsPacked,
+    pub cpi_context: CompressedCpiContext,
+    pub bump: u8,
+}
 
 
 #[program]
 pub mod name_service {
     use super::*;
 
-    pub fn create_name(ctx: Context<CreateName>, name: String, parent_name: Option<Pubkey>) -> Result<()> {
-
+    pub fn create_name(ctx: Context<NameService>, light_ctx: LightContext,name: String, parent_name: Option<Pubkey>) -> Result<()> {
 
         // hash the name 
         let compressed_pda = create_compressed_pda_data(hashed_name, &ctx, &new_address_params)?;
@@ -35,14 +51,14 @@ pub mod name_service {
         Ok(())
     }
 
-    pub fn update_name(ctx: Context<UpdateName>, new_name: String) -> Result<()> {
+    pub fn update_name(ctx: Context<NameService>, new_name: String) -> Result<()> {
         let name_account = &mut ctx.accounts.name_account;
         require!(name_account.owner == *ctx.accounts.owner.key, CustomError::Unauthorized);
         name_account.name = new_name;
         Ok(())
     }
 
-    pub fn delete_name(ctx: Context<DeleteName>) -> Result<()> {
+    pub fn delete_name(ctx: Context<NameService>) -> Result<()> {
         let name_account = &ctx.accounts.name_account;
         require!(name_account.owner == *ctx.accounts.owner.key, CustomError::Unauthorized);
         Ok(())
@@ -67,12 +83,12 @@ pub enum CustomError {
 
 // can use for all. acc validation needs be manual. 
 #[derive(Accounts)]
-pub struct CreateName<'info> {
+pub struct NameService<'info> {
     #[account(mut)]
     pub signer: Signer<'info>, // this the owner
     /// CHECK:
     #[account(seeds = [b"Light Name Service".as_slice(), signer.key.to_bytes().as_slice()], bump)]
-    pub name_account: AccountInfo<'info, NameRecord>,
+    pub name_account: AccountInfo<'info>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
@@ -108,8 +124,8 @@ impl light_hasher::DataHasher for NameRecord {
 }
 
 
-// TODO: rename. consider providing this as sdk in systemprogram
-fn cpi_compressed_pda_transfer<'info>(
+// TODO: move to sys sdk as util
+fn cpi_invoke_system_program<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
     proof: CompressedProof,
     new_address_params: NewAddressParamsPacked,

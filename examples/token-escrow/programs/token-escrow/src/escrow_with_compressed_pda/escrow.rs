@@ -90,7 +90,7 @@ fn cpi_compressed_pda_transfer<'info>(
         cpi_context: Some(cpi_context),
     };
 
-    let mut inputs = Vec::new();
+    let mut inputs: Vec<u8> = Vec::new();
     InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
     let cpi_context_account = match Some(cpi_context) {
         Some(cpi_context) => Some(
