@@ -157,7 +157,7 @@ pub fn process<
             }
         }?;
         bench_sbf_end!("cpda_verify_state_proof");
-        // insert nullifies (input compressed account hashes)---------------------------------------------------
+        // insert nullifiers (input compressed account hashes)---------------------------------------------------
         bench_sbf_start!("cpda_nullifiers");
         if !inputs
             .input_compressed_accounts_with_merkle_context
