@@ -220,7 +220,6 @@ where
                 return Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement);
             }
         }
-        // TODO: add failing test
         if new_element.next_index != low_element.next_index {
             return Err(IndexedMerkleTreeError::NewElementNextIndexMismatch);
         }

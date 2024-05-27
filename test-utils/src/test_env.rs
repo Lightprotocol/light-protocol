@@ -415,6 +415,8 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &address_merkle_tree_keypair.pubkey(),
         &address_queue_keypair.pubkey(),
         &tree_config,
+        index,
+        program_owner,
         expected_change_log_length,
         expected_roots_length,
         expected_next_index,
@@ -431,7 +433,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &tree_config,
         QueueType::AddressQueue,
         index,
-        None,
+        program_owner,
         &payer.pubkey(),
     )
     .await;

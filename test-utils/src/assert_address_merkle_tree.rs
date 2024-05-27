@@ -7,6 +7,8 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     queue_pubkey: &Pubkey,
     merkle_tree_config: &account_compression::AddressMerkleTreeConfig,
+    index: u64,
+    program_owner: Option<Pubkey>,
     expected_changelog_length: usize,
     expected_roots_length: usize,
     expected_next_index: usize,
@@ -41,8 +43,8 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         merkle_tree_account.metadata.rollover_metadata.rollover_fee,
         expected_rollover_fee
     );
-    // TODO: make variable
-    // assert_eq!(merkle_tree_account.metadata.rollover_metadata.index, 1);
+
+    assert_eq!(merkle_tree_account.metadata.rollover_metadata.index, index);
     assert_eq!(
         merkle_tree_account
             .metadata
@@ -65,7 +67,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     );
     let expected_access_meta_data = account_compression::AccessMetadata {
         owner: *payer_pubkey,
-        delegate: Pubkey::default(),
+        delegate: program_owner.unwrap_or_default(),
     };
     assert_eq!(
         merkle_tree_account.metadata.access_metadata,
