@@ -34,8 +34,6 @@ pub enum AccountCompressionErrorCode {
     NumberOfIndicesMismatch,
     #[msg("IndexOutOfBounds")]
     IndexOutOfBounds,
-    // #[msg("HashSetFull")]
-    // HashSetFull,
     #[msg("NumberOfProofsMismatch")]
     NumberOfProofsMismatch,
     #[msg("InvalidMerkleProof")]

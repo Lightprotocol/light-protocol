@@ -403,7 +403,6 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     value: u16,
-    // next_index: u64,
     low_address_index: u64,
     low_address_value: [u8; 32],
     low_address_next_index: u64,
@@ -430,7 +429,6 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     let instruction_data = UpdateAddressMerkleTree {
         changelog_index: changelog_index as u16,
         value,
-        // next_index,
         low_address_index,
         low_address_value,
         low_address_next_index,
