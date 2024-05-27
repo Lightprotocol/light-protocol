@@ -112,7 +112,21 @@ async fn test_address_queue_and_tree_functional() {
 /// help (which would always insert that nullifier correctly).
 /// Tests:
 /// 1. cannot insert the same address twice
-/// 2.
+/// 2. cannot insert an address with an invalid low address
+/// 2.1 cannot insert an address with an invalid low address (NewElementGreaterOrEqualToNextElement)
+/// 2.2 cannot insert an address with an invalid low address (LowElementGreaterOrEqualToNewElement)
+/// 3.1 invalid value index (element does not exist)
+/// 3.2 invalid value index (element has a sequence number)
+/// 4. invalid low element index
+/// 5. invalid low element value
+/// 6. invalid low element next index
+/// 7. invalid low element next value
+/// 8. invalid low element proof
+/// 9. invalid changelog index (lower)
+/// 10. TODO invalid changelog index (higher)
+/// 11. invalid queue account
+/// 12. invalid Merkle tree account
+/// 13. non-associated Merkle tree
 #[tokio::test]
 async fn update_address_merkle_tree_failing_tests() {
     let (mut context, payer, mut address_merkle_tree_bundle) =
@@ -184,7 +198,7 @@ async fn update_address_merkle_tree_failing_tests() {
         )
         .await
     };
-    // CHECK: 2 cannot insert an address with an invalid low address
+    // CHECK: 2.1 cannot insert an address with an invalid low address
     test_with_invalid_low_element(
         &mut context,
         address_queue_pubkey,
@@ -195,6 +209,7 @@ async fn update_address_merkle_tree_failing_tests() {
         IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement.into(),
     )
     .await;
+    // CHECK: 2.2 cannot insert an address with an invalid low address
     test_with_invalid_low_element(
         &mut context,
         address_queue_pubkey,
@@ -218,7 +233,7 @@ async fn update_address_merkle_tree_failing_tests() {
         .unwrap();
     let value_index = address_hashset_index;
 
-    // invalid value index (value doesn't exist)
+    // CHECK: 3.1 invalid value index (value doesn't exist)
     let invalid_value_index = 10;
     // unwraps on a None value onchain.
     update_merkle_tree(
@@ -235,7 +250,7 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .await
     .unwrap_err();
-    // invalid value index (value has a sequence number)
+    // CHECK: 3.2 invalid value index (value has a sequence number)
     let invalid_value_index = 0;
     // unwraps on a None value onchain.
     update_merkle_tree(
@@ -252,7 +267,7 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .await
     .unwrap_err();
-    // invalid low element index
+    // CHECK: 4 invalid low element index
     let invalid_lower_element_index = low_element.index - 1;
     let error_invalid_low_element_index = update_merkle_tree(
         &mut context,
@@ -275,8 +290,8 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .unwrap();
 
+    // CHECK: 5 invalid low element value
     let invalid_low_element_value = [0u8; 32];
-
     let error_invalid_low_element_value = update_merkle_tree(
         &mut context,
         address_queue_pubkey,
@@ -298,6 +313,7 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .unwrap();
 
+    // CHECK: 6 invalid low element next index
     let invalid_low_element_next_index = 1;
     let error_invalid_low_element_next_index = update_merkle_tree(
         &mut context,
@@ -319,6 +335,8 @@ async fn update_address_merkle_tree_failing_tests() {
         10008, // ConcurrentMerkleTreeError::InvalidProof
     )
     .unwrap();
+
+    // CHECK: 7 invalid low element next value
     let invalid_low_element_next_value = [9u8; 32];
     let error_invalid_low_element_next_value = update_merkle_tree(
         &mut context,
@@ -341,6 +359,7 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .unwrap();
 
+    // CHECK: 8 invalid low element proof
     let mut invalid_low_element_proof = low_element_proof.to_array().unwrap();
     invalid_low_element_proof.get_mut(0).unwrap()[0] = 0;
     let error_invalid_low_element_proof = update_merkle_tree(
@@ -371,6 +390,7 @@ async fn update_address_merkle_tree_failing_tests() {
         .load_merkle_tree()
         .unwrap();
     let changelog_index = address_merkle_tree.merkle_tree.changelog_index();
+    // CHECK: 9 invalid changelog index
     let invalid_changelog_index_low = changelog_index - 1;
     let error_invalid_changelog_index_low = update_merkle_tree(
         &mut context,
@@ -415,6 +435,7 @@ async fn update_address_merkle_tree_failing_tests() {
     //     10008, // ConcurrentMerkleTreeError::InvalidProof
     // )
     // .unwrap();
+    // CHECK: 11 invalid queue account
     let invalid_queue = address_merkle_tree_pubkey;
     let error_invalid_queue = update_merkle_tree(
         &mut context,
@@ -437,6 +458,7 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .unwrap();
 
+    // CHECK: 12 invalid Merkle tree account
     let invalid_merkle_tree = address_queue_pubkey;
     let error_invalid_merkle_tree = update_merkle_tree(
         &mut context,
@@ -470,6 +492,8 @@ async fn update_address_merkle_tree_failing_tests() {
         2,
     )
     .await;
+
+    // CHECK: 13 non-associated Merkle tree
     let invalid_merkle_tree = invalid_address_merkle_tree_keypair.pubkey();
     let error_non_associated_merkle_tree = update_merkle_tree(
         &mut context,
