@@ -22,7 +22,7 @@ pub fn process_initialize_address_merkle_tree(
     let mut address_merkle_tree = address_merkle_tree_loader.load_init()?;
 
     // The address Merkle tree is never directly called by the user.
-    // The whole rollover fees are collected by the address queue.
+    // All rollover fees are collected by the address queue.
     let rollover_fee = 0;
     address_merkle_tree.init(
         AccessMetadata::new(owner, delegate),
