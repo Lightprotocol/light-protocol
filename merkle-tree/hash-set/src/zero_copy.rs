@@ -23,6 +23,7 @@ where
         + TryFrom<u64>
         + TryFrom<usize>
         + Unsigned,
+    u64: TryFrom<I>,
     usize: TryFrom<I>,
     <usize as TryFrom<I>>::Error: fmt::Debug,
 {
@@ -73,14 +74,14 @@ where
             ));
         }
 
-        let capacity_indices = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
-        let capacity_values = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
-        let sequence_threshold = usize::from_ne_bytes(bytes[16..24].try_into().unwrap());
+        let capacity_values = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
+        let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
 
-        let next_value_index = bytes.as_mut_ptr().add(24) as *mut usize;
+        let next_value_index = bytes.as_mut_ptr().add(16) as *mut usize;
 
         let offset = HashSet::non_dyn_fields_size() + mem::size_of::<usize>();
-        let indices_size_unaligned = mem::size_of::<Option<I>>() * capacity_indices;
+        let indices_size_unaligned =
+            mem::size_of::<I>() * HashSet::capacity_indices(capacity_values);
         // Make sure that alignment of `indices` matches the alignment of `usize`.
         let indices_size = indices_size_unaligned + mem::align_of::<usize>()
             - (indices_size_unaligned % mem::align_of::<usize>());
@@ -90,7 +91,7 @@ where
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
 
-        let indices = NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<I>).unwrap();
+        let indices = NonNull::new(bytes.as_mut_ptr().add(offset) as *mut I).unwrap();
 
         let values_size = mem::size_of::<Option<HashSetCell>>() * capacity_values;
 
@@ -105,7 +106,6 @@ where
 
         Ok(Self {
             hash_set: mem::ManuallyDrop::new(HashSet {
-                capacity_indices,
                 capacity_values,
                 next_value_index,
                 sequence_threshold,
@@ -146,7 +146,6 @@ where
     /// be moved in memory) is certainly going to cause undefined behavior.
     pub unsafe fn from_bytes_zero_copy_init(
         bytes: &'a mut [u8],
-        capacity_indices: usize,
         capacity_values: usize,
         sequence_threshold: usize,
     ) -> Result<Self, HashSetError> {
@@ -157,15 +156,18 @@ where
             ));
         }
 
-        bytes[0..8].copy_from_slice(&capacity_indices.to_ne_bytes());
-        bytes[8..16].copy_from_slice(&capacity_values.to_ne_bytes());
-        bytes[16..24].copy_from_slice(&sequence_threshold.to_ne_bytes());
-        bytes[24..32].copy_from_slice(&0_usize.to_ne_bytes());
+        bytes[0..8].copy_from_slice(&capacity_values.to_ne_bytes());
+        bytes[8..16].copy_from_slice(&sequence_threshold.to_ne_bytes());
+        bytes[16..24].copy_from_slice(&0_usize.to_ne_bytes());
 
         let hash_set = Self::from_bytes_zero_copy_mut(bytes)?;
 
+        let capacity_indices = HashSet::capacity_indices(capacity_values);
         for i in 0..capacity_indices {
-            std::ptr::write(hash_set.hash_set.indices.as_ptr().add(i), None);
+            std::ptr::write(
+                hash_set.hash_set.indices.as_ptr().add(i),
+                I::try_from(i % capacity_values).map_err(|_| HashSetError::IntegerOverflow)?,
+            );
         }
         for i in 0..capacity_values {
             std::ptr::write(hash_set.hash_set.values.as_ptr().add(i), None);
@@ -228,6 +230,7 @@ where
         + TryFrom<u64>
         + TryFrom<usize>
         + Unsigned,
+    u64: TryFrom<I>,
     usize: TryFrom<I>,
     <usize as TryFrom<I>>::Error: fmt::Debug,
 {
@@ -255,12 +258,11 @@ mod test {
 
     #[test]
     fn test_load_from_bytes() {
-        const INDICES: usize = 6857;
         const VALUES: usize = 4800;
         const SEQUENCE_THRESHOLD: usize = 2400;
 
         // Create a buffer with random bytes.
-        let mut bytes = vec![0u8; HashSet::<u16>::size_in_account(INDICES, VALUES).unwrap()];
+        let mut bytes = vec![0u8; HashSet::<u16>::size_in_account(VALUES).unwrap()];
         thread_rng().fill(bytes.as_mut_slice());
 
         // Create random nullifiers.
@@ -273,7 +275,6 @@ mod test {
             let mut hs = unsafe {
                 HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
                     bytes.as_mut_slice(),
-                    INDICES,
                     VALUES,
                     SEQUENCE_THRESHOLD,
                 )
@@ -281,14 +282,16 @@ mod test {
             };
 
             // Ensure that the underlying data were properly initialized.
-            assert_eq!(hs.hash_set.capacity_indices, INDICES);
             assert_eq!(hs.hash_set.capacity_values, VALUES);
             assert_eq!(hs.hash_set.sequence_threshold, SEQUENCE_THRESHOLD);
             assert_eq!(unsafe { *hs.hash_set.next_value_index }, 0);
             let mut iterator = hs.iter();
             assert_eq!(iterator.next(), None);
-            for i in 0..INDICES {
-                assert!(unsafe { &*hs.hash_set.indices.as_ptr().add(i) }.is_none());
+            for i in 0..HashSet::<u16>::capacity_indices(VALUES) {
+                assert_eq!(
+                    *hs.hash_set.get_index_bucket(i).unwrap(),
+                    (i % VALUES) as u16
+                );
             }
             for i in 0..VALUES {
                 assert!(unsafe { &*hs.hash_set.values.as_ptr().add(i) }.is_none());
@@ -331,7 +334,6 @@ mod test {
 
     #[test]
     fn test_buffer_size_error() {
-        const INDICES: usize = 6857;
         const VALUES: usize = 4800;
         const SEQUENCE_THRESHOLD: usize = 2400;
 
@@ -340,7 +342,6 @@ mod test {
         let res = unsafe {
             HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
                 invalid_bytes.as_mut_slice(),
-                INDICES,
                 VALUES,
                 SEQUENCE_THRESHOLD,
             )
