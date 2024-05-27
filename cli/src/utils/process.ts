@@ -52,6 +52,8 @@ export async function executeCommand({
       detached: true,
     };
 
+    let logStream: fs.WriteStream | null = null;
+
     if (logFile) {
       const folderName = "test-ledger";
       const file = `./${folderName}/${commandBase}.log`;
@@ -60,11 +62,9 @@ export async function executeCommand({
         fs.mkdirSync(folderName);
       }
 
-      const logStream: fs.WriteStream = fs.createWriteStream(file, {
+      logStream = fs.createWriteStream(file, {
         flags: "a",
       });
-      process.stdout.pipe(logStream);
-      process.stderr.pipe(logStream);
     }
 
     console.log(`Executing command ${commandBase} ${args}...`);
@@ -73,6 +73,11 @@ export async function executeCommand({
       childProcess = spawn(command, args, options);
     } catch (e) {
       throw new Error(`Failed to execute command ${commandBase}: ${e}`);
+    }
+
+    if (logStream) {
+      childProcess.stdout.pipe(logStream);
+      childProcess.stderr.pipe(logStream);
     }
 
     childProcess.stdout.on("data", (data: Buffer) => {
@@ -85,6 +90,9 @@ export async function executeCommand({
     });
 
     childProcess.on("close", (code: number) => {
+      if (logStream) {
+        logStream.end();
+      }
       if (code !== 0) {
         console.log(`${commandBase} exited with code ${code}`);
         reject(new Error(`${commandBase} exited with code ${code}`));
