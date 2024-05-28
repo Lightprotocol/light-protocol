@@ -2,8 +2,6 @@ use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use anchor_lang::solana_program::{pubkey::Pubkey, system_instruction};
 use light_hash_set::HashSet;
-use num_bigint::ToBigUint;
-use num_traits::{Bounded, CheckedAdd, CheckedSub, Unsigned};
 use solana_sdk::{
     account::Account,
     instruction::{Instruction, InstructionError},
@@ -12,7 +10,7 @@ use solana_sdk::{
     transaction,
     transaction::Transaction,
 };
-use std::{fmt, marker::PhantomData, mem, pin::Pin};
+use std::{marker::PhantomData, mem, pin::Pin};
 
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
@@ -68,26 +66,7 @@ impl<'a, T> AccountZeroCopy<'a, T> {
 /// * The account data is aligned.
 ///
 /// Is the caller's responsibility.
-pub async unsafe fn get_hash_set<I, T, R: RpcConnection>(rpc: &mut R, pubkey: Pubkey) -> HashSet<I>
-where
-    I: Bounded
-        + CheckedAdd
-        + CheckedSub
-        + Clone
-        + Copy
-        + fmt::Display
-        + From<u8>
-        + PartialEq
-        + PartialOrd
-        + ToBigUint
-        + TryFrom<u64>
-        + TryFrom<usize>
-        + Unsigned,
-    f64: From<I>,
-    u64: TryFrom<I>,
-    usize: TryFrom<I>,
-    <usize as TryFrom<I>>::Error: fmt::Debug,
-{
+pub async unsafe fn get_hash_set<I, T, R: RpcConnection>(rpc: &mut R, pubkey: Pubkey) -> HashSet {
     let mut account = rpc.get_account(pubkey).await.unwrap().unwrap();
 
     HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<T>()..]).unwrap()

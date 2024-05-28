@@ -167,10 +167,8 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
         get_hash_set::<u16, QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
     let array_element = nullifier_queue
-        .by_value_index(
-            *index_in_nullifier_queue,
-            Some(onchain_merkle_tree.sequence_number),
-        )
+        .get_bucket(*index_in_nullifier_queue)
+        .unwrap()
         .unwrap();
     assert_eq!(&array_element.value_bytes(), compressed_account);
     let merkle_tree_account =
@@ -350,7 +348,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
 
             assert_eq!(
                 address_queue
-                    .by_value_index(address_hashset_index as usize, Some(0))
+                    .get_bucket(address_hashset_index as usize)
+                    .unwrap()
                     .unwrap()
                     .sequence_number()
                     .unwrap(),

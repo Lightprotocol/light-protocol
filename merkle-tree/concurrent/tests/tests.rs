@@ -2205,7 +2205,7 @@ pub fn test_100_nullify_mt() {
         onchain_merkle_tree.init().unwrap();
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
 
-        let mut queue = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
+        let mut queue = HashSet::new(6857, 2400).unwrap();
         for i in 1..1 + iterations {
             let mut leaf = [0; 32];
             leaf[31] = i as u8;
@@ -2232,9 +2232,7 @@ pub fn test_100_nullify_mt() {
 
         // Nullify the leaves we picked.
         for queue_index in queue_indices {
-            let leaf_cell = queue
-                .by_value_index(queue_index, Some(onchain_merkle_tree.sequence_number))
-                .unwrap();
+            let leaf_cell = queue.get_unmarked_bucket(queue_index).unwrap().unwrap();
             let leaf_index = crank_merkle_tree
                 .get_leaf_index(&leaf_cell.value_bytes())
                 .unwrap()

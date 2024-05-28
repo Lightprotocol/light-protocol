@@ -61,11 +61,9 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     old_queue_pubkey: &Pubkey,
 ) -> Result<(), RpcError> {
     let payer = context.get_payer().insecure_clone();
-    let size = QueueAccount::size(
-        account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
-        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
-    )
-    .unwrap();
+    let size =
+        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
+            .unwrap();
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,
@@ -242,15 +240,7 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
         let new_address_queue =
             unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *new_queue_pubkey).await };
 
-        assert_eq!(
-            old_address_queue.capacity_indices,
-            new_address_queue.capacity_indices,
-        );
-
-        assert_eq!(
-            old_address_queue.capacity_values,
-            new_address_queue.capacity_values,
-        );
+        assert_eq!(old_address_queue.capacity, new_address_queue.capacity);
 
         assert_eq!(
             old_address_queue.sequence_threshold,

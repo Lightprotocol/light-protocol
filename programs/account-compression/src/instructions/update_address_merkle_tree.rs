@@ -57,8 +57,9 @@ pub fn process_update_address_merkle_tree<'info>(
     let sequence_number = merkle_tree.merkle_tree.merkle_tree.sequence_number;
 
     let value = address_queue
-        .by_value_index(value_index as usize, None)
-        .unwrap()
+        .get_unmarked_bucket(value_index as usize)
+        .ok_or(AccountCompressionErrorCode::LeafNotFound)?
+        .ok_or(AccountCompressionErrorCode::LeafNotFound)?
         .value_biguint();
 
     // Update the address with ranges adjusted to the Merkle tree state.

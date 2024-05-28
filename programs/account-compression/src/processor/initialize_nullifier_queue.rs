@@ -10,8 +10,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     owner: Pubkey,
     delegate: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
-    capacity_indices: u16,
-    capacity_values: u16,
+    capacity: u16,
     sequence_threshold: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
@@ -46,8 +45,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     let _ = unsafe {
         queue_from_bytes_zero_copy_init(
             &mut nullifier_queue,
-            capacity_indices.into(),
-            capacity_values.into(),
+            capacity.into(),
             sequence_threshold as usize,
         )
         .unwrap()
