@@ -15,6 +15,7 @@ where
         + CheckedSub
         + Clone
         + Copy
+        + fmt::Debug
         + fmt::Display
         + From<u8>
         + PartialEq
@@ -37,6 +38,7 @@ where
         + CheckedSub
         + Clone
         + Copy
+        + fmt::Debug
         + fmt::Display
         + From<u8>
         + PartialEq
@@ -92,7 +94,7 @@ where
 
         let indices = NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<I>).unwrap();
 
-        let values_size = mem::size_of::<Option<HashSetCell>>() * capacity_values;
+        let values_size = mem::size_of::<Option<HashSetCell<I>>>() * capacity_values;
 
         let expected_size = HashSet::<I>::non_dyn_fields_size() + indices_size + values_size;
         if bytes.len() < expected_size {
@@ -101,7 +103,7 @@ where
 
         let offset = offset + indices_size;
         let values =
-            NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<HashSetCell>).unwrap();
+            NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<HashSetCell<I>>).unwrap();
 
         Ok(Self {
             hash_set: mem::ManuallyDrop::new(HashSet {
@@ -180,7 +182,10 @@ where
     }
 
     /// Returns a first available element.
-    pub fn first(&self, sequence_number: usize) -> Result<Option<&mut HashSetCell>, HashSetError> {
+    pub fn first(
+        &self,
+        sequence_number: usize,
+    ) -> Result<Option<&mut HashSetCell<I>>, HashSetError> {
         self.hash_set.first(sequence_number)
     }
 
@@ -188,7 +193,7 @@ where
         &self,
         value_index: usize,
         current_sequence_number: Option<usize>,
-    ) -> Option<&mut HashSetCell> {
+    ) -> Option<&mut HashSetCell<I>> {
         self.hash_set
             .by_value_index(value_index, current_sequence_number)
     }
@@ -220,6 +225,7 @@ where
         + CheckedSub
         + Clone
         + Copy
+        + fmt::Debug
         + fmt::Display
         + From<u8>
         + PartialEq
