@@ -7,6 +7,7 @@ use std::{
 use light_utils::{bigint::bigint_to_be_bytes_array, UtilsError};
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::{Bounded, CheckedAdd, CheckedSub, FromBytes, ToPrimitive, Unsigned};
+use rand::{rngs::StdRng, SeedableRng};
 use thiserror::Error;
 
 pub mod zero_copy;
@@ -180,22 +181,13 @@ where
         let capacity_indices = Self::capacity_indices(capacity_values);
 
         // Temporary vector.
-        let mut indices_tmp: Vec<Option<I>> = vec![None; capacity_indices];
+        let mut tmp_vec = Vec::new();
         for i in 0..capacity_values {
-            for j in 0..INDICES_CAPACITY_MULTIPLIER {
-                let probe_index = i + (j * j);
-                // PANICS: We ensured the bounds above.
-                let index_bucket = indices_tmp
-                    .get_mut((i * INDICES_CAPACITY_MULTIPLIER) + j)
-                    .unwrap();
-                if index_bucket.is_none() {
-                    *index_bucket = Some(
-                        I::try_from(probe_index % capacity_values)
-                            .map_err(|_| HashSetError::IntegerOverflow)?,
-                    );
-                }
-            }
+            tmp_vec.push(i);
+            tmp_vec.push(i);
         }
+        use rand::seq::SliceRandom;
+        tmp_vec.shuffle(&mut StdRng::seed_from_u64(69));
 
         let layout = Layout::array::<I>(capacity_indices).unwrap();
         // SAFETY: `I` is always a signed integer. Creating a layout for an
@@ -206,10 +198,14 @@ where
         }
         let indices = NonNull::new(indices_ptr).unwrap();
         for i in 0..capacity_indices {
-            let value_index = i % capacity_values;
-            let value_index =
-                I::try_from(value_index).map_err(|_| HashSetError::IntegerOverflow)?;
-            println!("indices: {i}: {value_index}");
+            // let value_index = i % capacity_values;
+            // let value_index =
+            //     I::try_from(value_index).map_err(|_| HashSetError::IntegerOverflow)?;
+            // println!("indices: {i}: {value_index}");
+            // unsafe {
+            //     std::ptr::write(indices_ptr.add(i), value_index);
+            // }
+            let value_index = I::try_from(tmp_vec[i]).map_err(|_| HashSetError::IntegerOverflow)?;
             unsafe {
                 std::ptr::write(indices_ptr.add(i), value_index);
             }
