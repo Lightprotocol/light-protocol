@@ -78,6 +78,7 @@ where
         let sequence_threshold = usize::from_ne_bytes(bytes[16..24].try_into().unwrap());
 
         let next_value_index = bytes.as_mut_ptr().add(24) as *mut usize;
+        let full = bytes.as_mut_ptr().add(30) as *mut bool;
 
         let offset = HashSet::non_dyn_fields_size() + mem::size_of::<usize>();
         let indices_size_unaligned = mem::size_of::<Option<I>>() * capacity_indices;
@@ -108,6 +109,7 @@ where
                 capacity_indices,
                 capacity_values,
                 next_value_index,
+                full,
                 sequence_threshold,
                 indices,
                 values,

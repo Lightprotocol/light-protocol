@@ -169,6 +169,8 @@ where
     /// Index of the next vacant cell in the value array.
     pub next_value_index: *mut usize,
 
+    pub full: *mut bool,
+
     /// An array of indices which maps a hash set key to the index of its
     /// value which is stored in the `values` array. It has a size greater
     /// than the expected number of elements, determined by the load factor.
@@ -258,6 +260,14 @@ where
         unsafe {
             *next_value_index = 0;
         }
+        let layout = Layout::new::<bool>();
+        let full = unsafe { alloc::alloc(layout) as *mut bool };
+        if full.is_null() {
+            handle_alloc_error(layout);
+        }
+        unsafe {
+            *full = false;
+        }
 
         let layout = Layout::array::<Option<I>>(capacity_indices).unwrap();
         // SAFETY: `I` is always a signed integer. Creating a layout for an
@@ -289,6 +299,7 @@ where
 
         Ok(HashSet {
             next_value_index,
+            full,
             sequence_threshold,
             capacity_indices,
             capacity_values,
@@ -336,6 +347,16 @@ where
             *next_value_index = usize::from_ne_bytes(bytes[24..32].try_into().unwrap());
         }
 
+        let full_layout = Layout::new::<bool>();
+        let full = unsafe { alloc::alloc(full_layout) as *mut bool };
+        if full.is_null() {
+            handle_alloc_error(full_layout);
+        }
+        unsafe {
+            // TODO: fixme
+            *full = false;
+        }
+
         let indices_layout = Layout::array::<Option<I>>(capacity_indices).unwrap();
         // SAFETY: `I` is always a signed integer. Creating a layout for an
         // array of integers of any size won't cause any panic.
@@ -376,6 +397,7 @@ where
             capacity_indices,
             capacity_values,
             next_value_index,
+            full,
             sequence_threshold,
             indices,
             values,
@@ -391,9 +413,16 @@ where
 
     /// Increments the `next_value_index` with a wrap-around.
     fn inc_next_value_index(&mut self) {
-        // SAFETY: `next_value_index` is always initialized.
+        // // SAFETY: `next_value_index` is always initialized.
+        // unsafe {
+        //     *self.next_value_index = (*self.next_value_index + 1) % self.capacity_values;
+        // }
         unsafe {
-            *self.next_value_index = (*self.next_value_index + 1) % self.capacity_values;
+            if *self.next_value_index + 1 < self.capacity_values {
+                *self.next_value_index += 1;
+            } else {
+                *self.full = true;
+            }
         }
     }
 
@@ -425,6 +454,10 @@ where
         // SAFETY: We checked the bounds above.
         let value_bucket = unsafe { &mut *self.values.as_ptr().add(index) };
         Some(value_bucket)
+    }
+
+    fn full(&self) -> bool {
+        unsafe { *self.full }
     }
 
     /// Performs a quadratic probe and eturns an index inside
@@ -532,7 +565,7 @@ where
                             value,
                             current_sequence_number,
                         )? {
-                            self.inc_next_value_index();
+                            // self.inc_next_value_index();
                             return Ok(());
                         }
                     }
@@ -643,8 +676,8 @@ where
         num_iterations: usize,
     ) -> Result<Option<(usize, bool)>, HashSetError> {
         let mut first_free_element: Option<(usize, bool)> = None;
-        for i in start_iter..num_iterations {
-            // for i in 0..self.capacity_values {
+        // for i in start_iter..num_iterations {
+        for i in 0..self.capacity_values {
             let probe_index = self.probe_index(value, i);
             // println!("find_element_iter: {i}, probe_index: {probe_index}");
             let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
@@ -674,7 +707,7 @@ where
                     }
                 }
                 None => {
-                    if first_free_element.is_none() {
+                    if !self.full() && first_free_element.is_none() {
                         first_free_element = Some((probe_index, true));
                         // Since we encountered an empty element we know for sure
                         // that the element is not in the hash set.
@@ -1135,10 +1168,11 @@ mod test {
 
     #[test]
     fn test_hash_set_full() {
-        for _ in 0..100 {
+        for _ in 0..10 {
             let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
 
-            let mut rng = StdRng::seed_from_u64(1);
+            let mut rng = thread_rng();
+            // let mut rng = StdRng::seed_from_u64(1);
             // let mut res = Ok(());
             // let mut value = BigUint::from(Fr::rand(&mut rng));
             // Since capacity is 4800, it will always fail on insert 4801.
@@ -1188,13 +1222,13 @@ mod test {
                 assert_eq!(value_cell.sequence_number, Some(2400));
             }
 
-            // // Use sequence numbers which are going to vacate cells. All
-            // // insertions should be successful now.
-            // for i in 0..4800 {
-            //     println!("INSERTIN {i}");
-            //     let value = BigUint::from(Fr::rand(&mut rng));
-            //     hs.insert(&value, 2401 + i).unwrap();
-            // }
+            // Use sequence numbers which are going to vacate cells. All
+            // insertions should be successful now.
+            for i in 0..4800 {
+                println!("INSERTIN {i}");
+                let value = BigUint::from(Fr::rand(&mut rng));
+                hs.insert(&value, 2401 + i).unwrap();
+            }
         }
     }
 
