@@ -590,7 +590,7 @@ export type LightSystemProgram = {
                         type: 'publicKey';
                     },
                     {
-                        name: 'sequenceNumber';
+                        name: 'seq';
                         type: 'u64';
                     },
                 ];
@@ -1467,7 +1467,7 @@ export const IDL: LightSystemProgram = {
                         type: 'publicKey',
                     },
                     {
-                        name: 'sequenceNumber',
+                        name: 'seq',
                         type: 'u64',
                     },
                 ],

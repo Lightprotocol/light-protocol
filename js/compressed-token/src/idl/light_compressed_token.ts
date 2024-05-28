@@ -628,7 +628,7 @@ export type LightCompressedToken = {
                         type: 'publicKey';
                     },
                     {
-                        name: 'sequenceNumber';
+                        name: 'seq';
                         type: 'u64';
                     },
                 ];
@@ -1646,7 +1646,7 @@ export const IDL: LightCompressedToken = {
                         type: 'publicKey',
                     },
                     {
-                        name: 'sequenceNumber',
+                        name: 'seq',
                         type: 'u64',
                     },
                 ],

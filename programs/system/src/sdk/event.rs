@@ -1,11 +1,11 @@
+use crate::OutputCompressedAccountWithPackedContext;
 use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
 use std::{io::Write, mem};
 
-use crate::OutputCompressedAccountWithPackedContext;
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
 pub struct MerkleTreeSequenceNumber {
     pub pubkey: Pubkey,
-    pub sequence_number: u64,
+    pub seq: u64,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
@@ -71,10 +71,11 @@ impl PublicTransactionEvent {
         for index in self.output_leaf_indices.iter() {
             writer.write_all(&index.to_le_bytes())?;
         }
+
         writer.write_all(&(self.sequence_numbers.len() as u32).to_le_bytes())?;
         for element in self.sequence_numbers.iter() {
             writer.write_all(&element.pubkey.to_bytes())?;
-            writer.write_all(&element.sequence_number.to_le_bytes())?;
+            writer.write_all(&element.seq.to_le_bytes())?;
         }
         match self.relay_fee {
             Some(relay_fee) => {
@@ -141,11 +142,11 @@ pub mod test {
             sequence_numbers: vec![
                 MerkleTreeSequenceNumber {
                     pubkey: Keypair::new().pubkey(),
-                    sequence_number: 10,
+                    seq: 10,
                 },
                 MerkleTreeSequenceNumber {
                     pubkey: Keypair::new().pubkey(),
-                    sequence_number: 2,
+                    seq: 2,
                 },
             ],
             output_leaf_indices: vec![4, 5, 6],
@@ -209,7 +210,7 @@ pub mod test {
                 sequence_numbers: (0..rng.gen_range(1..10))
                     .map(|_| MerkleTreeSequenceNumber {
                         pubkey: Keypair::new().pubkey(),
-                        sequence_number: rng.gen(),
+                        seq: rng.gen(),
                     })
                     .collect(),
                 relay_fee: if rng.gen() { Some(rng.gen()) } else { None },

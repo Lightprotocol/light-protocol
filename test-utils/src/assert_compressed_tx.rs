@@ -253,7 +253,7 @@ pub fn assert_public_transaction_event(
                 merkle_tree_pubkey
             );
         } else {
-            index.as_mut().unwrap().sequence_number += 1;
+            index.as_mut().unwrap().seq += 1;
         }
     }
     for sequence_number in updated_sequence_numbers.iter() {
@@ -297,7 +297,7 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             .unwrap();
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: snapshot.accounts.merkle_tree,
-            sequence_number: merkle_tree.sequence_number as u64,
+            seq: merkle_tree.sequence_number as u64,
         });
         if merkle_tree.root() == snapshot.root {
             println!("deduped_snapshots: {:?}", deduped_snapshots);

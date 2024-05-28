@@ -87,7 +87,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         )?;
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: account_info.key(),
-            sequence_number: seq,
+            seq,
         });
         hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
             Some(hashed_merkle_tree) => hashed_merkle_tree.1,
@@ -131,7 +131,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             });
             sequence_numbers.push(MerkleTreeSequenceNumber {
                 pubkey: account_info.key(),
-                sequence_number: seq,
+                seq,
             });
             hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
                 Some(hashed_merkle_tree) => hashed_merkle_tree.1,
