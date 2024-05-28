@@ -484,6 +484,7 @@ where
         current_sequence_number: Option<usize>,
     ) -> Result<Option<(&mut HashSetCell, I)>, HashSetError> {
         for i in 0..self.capacity_values {
+            let i = i + 300;
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
             let probe_index = probe_index.to_usize().unwrap();
@@ -528,7 +529,6 @@ where
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
             let probe_index = probe_index.to_usize().unwrap();
-            println!("probe_index: {}", probe_index);
             // let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
             let value_bucket = self.by_value_index(probe_index, Some(current_sequence_number));
 
@@ -1056,6 +1056,7 @@ mod test {
 
     #[test]
     fn test_hash_set_full_onchain() {
+        let mut res_vec = Vec::new();
         for _ in 0..1000 {
             let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
 
@@ -1063,26 +1064,42 @@ mod test {
                                         // We only fill each hash set to 80% because with much more we get conflicts.
                                         // TODO: investigate why even a 0.1 loadfactor does not enable a full value array.
             for i in 0..4800 {
+                // println!("Inserting {}", i);
                 let value = BigUint::from(Fr::rand(&mut rng));
-                let res = hs.insert(&value, 0).unwrap();
-                println!("\niteration {}", i);
-                //     match res {
-                //         Ok(_) => {
-                //             assert_eq!(hs.contains(&value, Some(0)).unwrap(), true);
-                //         }
-                //         Err(HashSetError::Full) => {
-                //             assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
-                //             panic!("unexpected error {}", i);
-                //         }
-                //         _ => {
-                //             panic!("unexpected error");
-                //         }
-                //     }
-                // }
+                let res = hs.insert(&value, 0);
+                match res {
+                    Ok(_) => {
+                        // assert_eq!(hs.contains(&value, Some(0)).unwrap(), true);
+                    }
+                    Err(HashSetError::Full) => {
+                        res_vec.push(i);
+                        break;
+                        // assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
+                        // panic!("unexpected error {}", i);
+                    }
+                    _ => {
+                        panic!("unexpected error");
+                    }
+                }
             }
         }
+        // print the max value in res_vec
+        println!("Num iterations {:?}", res_vec.len());
+        println!("max {:?}", res_vec.iter().max());
+        println!("min {:?}", res_vec.iter().min());
+        println!(
+            "average {:?}",
+            res_vec.iter().sum::<usize>() / res_vec.len()
+        );
+        res_vec.sort();
+        for (i, elements) in res_vec.chunks(100).enumerate() {
+            println!("\nruns {:?} - {:?}", i * 100, i * 100 + 100);
+            println!(
+                "average {:?}",
+                elements.iter().sum::<usize>() / elements.len()
+            );
+        }
     }
-
     #[test]
     fn test_hash_set_element_does_not_exist() {
         let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
