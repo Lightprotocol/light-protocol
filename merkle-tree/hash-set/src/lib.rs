@@ -443,14 +443,7 @@ where
         match is_new {
             // The visited hash set cell points to a value in the array.
             false => {
-                let index_bucket = unsafe { &*self.indices.as_ptr().add(value_index) };
-
-                if self.insert_into_occupied_cell(
-                    usize::try_from(index_bucket.unwrap())
-                        .map_err(|_| HashSetError::IntegerOverflow)?,
-                    value,
-                    current_sequence_number,
-                )? {
+                if self.insert_into_occupied_cell(value_index, value, current_sequence_number)? {
                     return Ok(());
                 }
             }
