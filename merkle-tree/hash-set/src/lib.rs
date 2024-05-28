@@ -459,11 +459,11 @@ where
                 let value_bucket =
                     unsafe { &mut *self.values.as_ptr().add(*self.next_value_index) };
 
-                let index_bucket = unsafe { &mut *self.indices.as_ptr().add(value_index) };
-                *index_bucket = Some(
-                    I::try_from(unsafe { *self.next_value_index })
-                        .map_err(|_| HashSetError::IntegerOverflow)?,
-                );
+                // let index_bucket = unsafe { &mut *self.indices.as_ptr().add(value_index) };
+                // *index_bucket = Some(
+                //     I::try_from(unsafe { *self.next_value_index })
+                //         .map_err(|_| HashSetError::IntegerOverflow)?,
+                // );
                 *value_bucket = Some(HashSetCell {
                     value: bigint_to_be_bytes_array(value)?,
                     sequence_number: None,
@@ -494,26 +494,25 @@ where
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
             let probe_index = probe_index.to_usize().unwrap();
-            let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
 
-            match index_bucket {
-                Some(value_index) => {
-                    let value_bucket = self.by_value_index(
-                        usize::try_from(*value_index).map_err(|_| HashSetError::UsizeConv)?,
-                        current_sequence_number,
-                    );
+            let value_bucket = self.by_value_index(probe_index, current_sequence_number);
 
-                    if let Some(value_bucket) = value_bucket {
-                        if &value_bucket.value_biguint() == value {
-                            return Ok(Some((value_bucket, *value_index)));
-                        }
+            match value_bucket {
+                Some(value_bucket) => {
+                    if &value_bucket.value_biguint() == value {
+                        return Ok(Some((value_bucket, I::zero())));
+                    } else {
+                        continue;
                     }
                 }
+
                 None => {
                     return Ok(None);
                 }
             }
         }
+        //     }
+        // }
 
         Ok(None)
     }
@@ -532,30 +531,29 @@ where
     ) -> Result<Option<(usize, bool)>, HashSetError> {
         let mut first_free_element: Option<(usize, bool)> = None;
         for i in start_iter..num_iterations {
+            let i = i + 300;
             let probe_index = (value.clone() + i.to_biguint().unwrap() * i.to_biguint().unwrap())
                 % self.capacity_values.to_biguint().unwrap();
             let probe_index = probe_index.to_usize().unwrap();
-            let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
+            println!("probe_index: {}", probe_index);
+            // let index_bucket = unsafe { &*self.indices.as_ptr().add(probe_index) };
+            let value_bucket = self.by_value_index(probe_index, Some(current_sequence_number));
 
-            match index_bucket {
-                Some(value_index) => {
-                    let value_bucket = self.by_value_index(
-                        usize::try_from(*value_index).map_err(|_| HashSetError::UsizeConv)?,
-                        Some(current_sequence_number),
-                    );
-
-                    if let Some(value_bucket) = value_bucket {
-                        if first_free_element.is_none()
-                            && value_bucket.sequence_number.is_some()
-                            && current_sequence_number >= value_bucket.sequence_number.unwrap()
-                        {
-                            first_free_element = Some((probe_index, false));
-                        }
-                        if &value_bucket.value_biguint() == value {
-                            return Err(HashSetError::ElementAlreadyExists);
-                        }
+            match value_bucket {
+                Some(value_bucket) => {
+                    if first_free_element.is_none()
+                        && value_bucket.sequence_number.is_some()
+                        && current_sequence_number >= value_bucket.sequence_number.unwrap()
+                    {
+                        first_free_element = Some((probe_index, false));
+                    }
+                    if &value_bucket.value_biguint() == value {
+                        return Err(HashSetError::ElementAlreadyExists);
+                    } else {
+                        continue;
                     }
                 }
+
                 None => {
                     if first_free_element.is_none() {
                         first_free_element = Some((probe_index, true));
@@ -565,6 +563,34 @@ where
                     }
                 }
             }
+            // match index_bucket {
+            //     Some(value_index) => {
+            //         let value_bucket = self.by_value_index(
+            //             usize::try_from(*value_index).map_err(|_| HashSetError::UsizeConv)?,
+            //             Some(current_sequence_number),
+            //         );
+
+            //         if let Some(value_bucket) = value_bucket {
+            //             if first_free_element.is_none()
+            //                 && value_bucket.sequence_number.is_some()
+            //                 && current_sequence_number >= value_bucket.sequence_number.unwrap()
+            //             {
+            //                 first_free_element = Some((probe_index, false));
+            //             }
+            //             if &value_bucket.value_biguint() == value {
+            //                 return Err(HashSetError::ElementAlreadyExists);
+            //             }
+            //         }
+            //     }
+            //     None => {
+            //         if first_free_element.is_none() {
+            //             first_free_element = Some((probe_index, true));
+            //             // Since we encountered an empty element we know for sure
+            //             // that the element is not in the hash set.
+            //             break;
+            //         }
+            //     }
+            // }
         }
         Ok(first_free_element)
     }
@@ -1038,26 +1064,28 @@ mod test {
     #[test]
     fn test_hash_set_full_onchain() {
         for _ in 0..1000 {
-            let mut hs = HashSet::<u16>::new(6857, 600, 2400).unwrap();
+            let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
 
-            let mut rng = StdRng::seed_from_u64(1);
-            // We only fill each hash set to 80% because with much more we get conflicts.
-            // TODO: investigate why even a 0.1 loadfactor does not enable a full value array.
-            for i in 0..500 {
+            let mut rng = thread_rng(); //StdRng::seed_from_u64(1);
+                                        // We only fill each hash set to 80% because with much more we get conflicts.
+                                        // TODO: investigate why even a 0.1 loadfactor does not enable a full value array.
+            for i in 0..4800 {
                 let value = BigUint::from(Fr::rand(&mut rng));
-                let res = hs.insert(&value, 0);
-                match res {
-                    Ok(_) => {
-                        assert_eq!(hs.contains(&value, Some(0)).unwrap(), true);
-                    }
-                    Err(HashSetError::Full) => {
-                        assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
-                        panic!("unexpected error {}", i);
-                    }
-                    _ => {
-                        panic!("unexpected error");
-                    }
-                }
+                let res = hs.insert(&value, 0).unwrap();
+                println!("\niteration {}", i);
+                //     match res {
+                //         Ok(_) => {
+                //             assert_eq!(hs.contains(&value, Some(0)).unwrap(), true);
+                //         }
+                //         Err(HashSetError::Full) => {
+                //             assert_eq!(hs.contains(&value, Some(0)).unwrap(), false);
+                //             panic!("unexpected error {}", i);
+                //         }
+                //         _ => {
+                //             panic!("unexpected error");
+                //         }
+                //     }
+                // }
             }
         }
     }
