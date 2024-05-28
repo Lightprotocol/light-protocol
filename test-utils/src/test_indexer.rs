@@ -337,7 +337,10 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
                 .contains(&compressed_accounts.unwrap().len())
         {
-            panic!("compressed_accounts must be of length 1, 2, 3, 4 or 8")
+            panic!(
+                "compressed_accounts must be of length 1, 2, 3, 4 or 8 != {}",
+                compressed_accounts.unwrap().len()
+            )
         }
         if new_addresses.is_some() && ![1usize, 2usize].contains(&new_addresses.unwrap().len()) {
             panic!("new_addresses must be of length 1, 2")

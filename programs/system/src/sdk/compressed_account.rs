@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anchor_lang::prelude::*;
-use light_hasher::Hasher;
+use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -16,6 +16,14 @@ pub struct PackedCompressedAccountWithMerkleContext {
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: MerkleContext,
+}
+impl CompressedAccountWithMerkleContext {
+    pub fn hash(&self) -> Result<[u8; 32]> {
+        self.compressed_account.hash::<Poseidon>(
+            &self.merkle_context.merkle_tree_pubkey,
+            &self.merkle_context.leaf_index,
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]

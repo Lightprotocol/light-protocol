@@ -49,6 +49,11 @@ pub fn process<
     invoking_program: Option<Pubkey>,
     ctx: Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
+    if inputs.relay_fee.is_some() {
+        // Once implemented the relay fee can be used to reimburse a relayer
+        // with compressed sol to execute the Solana transaction.
+        unimplemented!("relay fee is not implemented yet");
+    }
     // sum check ---------------------------------------------------
     // the sum of in compressed accounts and compressed accounts must be equal minus the relay fee
     bench_sbf_start!("cpda_sum_check");

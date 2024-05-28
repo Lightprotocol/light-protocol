@@ -36,6 +36,56 @@ pub fn create_invoke_instruction(
     is_compress: bool,
     compression_recipient: Option<Pubkey>,
 ) -> Instruction {
+    let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
+        new_address_params,
+        merkle_context,
+        input_compressed_accounts,
+        input_root_indices,
+        output_compressed_account_merkle_tree_pubkeys,
+        output_compressed_accounts,
+        proof,
+        compression_lamports,
+        is_compress,
+    );
+
+    let mut inputs = Vec::new();
+
+    InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
+
+    let instruction_data = crate::instruction::Invoke { inputs };
+
+    let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
+
+    let accounts = crate::accounts::InvokeInstruction {
+        fee_payer: *fee_payer,
+        authority: *payer,
+        registered_program_pda: get_registered_program_pda(&crate::ID),
+        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
+        account_compression_program: account_compression::ID,
+        account_compression_authority: get_cpi_authority_pda(&crate::ID),
+        compressed_sol_pda,
+        compression_recipient,
+        system_program: solana_sdk::system_program::ID,
+    };
+    Instruction {
+        program_id: crate::ID,
+        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+        data: instruction_data.data(),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn create_invoke_instruction_data_and_remaining_accounts(
+    new_address_params: &[NewAddressParams],
+    merkle_context: &[MerkleContext],
+    input_compressed_accounts: &[CompressedAccount],
+    input_root_indices: &[u16],
+    output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
+    output_compressed_accounts: &[CompressedAccount],
+    proof: Option<CompressedProof>,
+    compression_lamports: Option<u64>,
+    is_compress: bool,
+) -> (Vec<AccountMeta>, InstructionDataInvoke) {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
     let mut _input_compressed_accounts: Vec<PackedCompressedAccountWithMerkleContext> =
         Vec::<PackedCompressedAccountWithMerkleContext>::new();
@@ -152,31 +202,7 @@ pub fn create_invoke_instruction(
         compression_lamports,
         is_compress,
     };
-
-    let mut inputs = Vec::new();
-
-    InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
-
-    let instruction_data = crate::instruction::Invoke { inputs };
-
-    let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
-
-    let accounts = crate::accounts::InvokeInstruction {
-        fee_payer: *fee_payer,
-        authority: *payer,
-        registered_program_pda: get_registered_program_pda(&crate::ID),
-        noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
-        account_compression_program: account_compression::ID,
-        account_compression_authority: get_cpi_authority_pda(&crate::ID),
-        compressed_sol_pda,
-        compression_recipient,
-        system_program: solana_sdk::system_program::ID,
-    };
-    Instruction {
-        program_id: crate::ID,
-        accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-        data: instruction_data.data(),
-    }
+    (remaining_accounts, inputs_struct)
 }
 
 #[cfg(test)]

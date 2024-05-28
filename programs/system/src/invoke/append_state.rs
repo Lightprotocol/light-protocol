@@ -153,6 +153,16 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 
         output_compressed_account_indices[j] = mt_next_index + num_leaves_in_tree;
         num_leaves_in_tree += 1;
+        if inputs.output_compressed_accounts[j]
+            .compressed_account
+            .data
+            .is_some()
+            && invoking_program.is_none()
+        {
+            msg!("Invoking program not provided");
+            msg!("Only program owned compressed accounts can have data.");
+            return err!(CompressedPdaError::InvokingProgramNotProvided);
+        }
         let hashed_owner = match hashed_pubkeys.iter().find(|x| {
             x.0 == inputs.output_compressed_accounts[j]
                 .compressed_account
