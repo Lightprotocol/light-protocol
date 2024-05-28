@@ -113,7 +113,7 @@ pub struct InstructionDataInvokeCpi {
     pub relay_fee: Option<u64>,
     pub compression_lamports: Option<u64>,
     pub is_compress: bool,
-    pub signer_seeds: Vec<Vec<u8>>,
+    pub signer_seeds: Vec<Vec<u8>>, 
     pub cpi_context: Option<CompressedCpiContext>,
 }
 

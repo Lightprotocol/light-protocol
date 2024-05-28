@@ -9,8 +9,12 @@ This example program escrows compressed tokens into (1) a regular Solana program
 In the monorepo root, run the build.sh script
 
 ```bash
-. ./scripts/devenv.sh
-./scripts/build.sh
+    source ./scripts/devenv.sh
+    ./scripts/build.sh
+    mkdir -p ./target/deploy
+    cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
+    anchor build
+
 ```
 
 Then navigate to the token-escrow directory and run the rust tests:
@@ -20,4 +24,4 @@ cd examples/token-escrow/programs/token-escrow
 cargo test-sbf -- --test-threads=1
 ```
 
-##  This program is unsafe; don't use it in production.
+## This program is unsafe; don't use it in production.

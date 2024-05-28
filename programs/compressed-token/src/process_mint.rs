@@ -332,7 +332,7 @@ pub fn serialize_mint_to_cpi_instruction_data(
 pub fn mint_spl_to_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     amounts: &[u64],
-    signer_seeds: &[&[&[u8]]],
+    _signer_seeds: &[&[&[u8]]],
 ) -> Result<()> {
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
@@ -340,14 +340,15 @@ pub fn mint_spl_to_pool_pda<'info>(
     }
 
     let cpi_accounts = anchor_spl::token::MintTo {
-        authority: ctx.accounts.mint_authority_pda.to_account_info(),
+       // authority: ctx.accounts.mint_authority_pda.to_account_info(),
+       authority: ctx.accounts.authority.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new_with_signer(
+    let cpi_ctx = CpiContext::new(
         ctx.accounts.token_program.to_account_info(),
         cpi_accounts,
-        signer_seeds,
+       // signer_seeds,
     );
 
     anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
@@ -364,8 +365,9 @@ pub struct MintToInstruction<'info> {
     /// CHECK: that mint authority is derived from signer
     #[account(mut, seeds = [MINT_AUTHORITY_SEED, authority.key().to_bytes().as_slice(), mint.key().to_bytes().as_slice()], bump,)]
     pub mint_authority_pda: UncheckedAccount<'info>,
+    //  constraint = mint.mint_authority.unwrap() == mint_authority_pda.key
     /// CHECK: that authority is mint authority
-    #[account(mut, constraint = mint.mint_authority.unwrap() == mint_authority_pda.key())]
+    #[account(mut)]
     pub mint: Account<'info, Mint>,
     /// CHECK: this account
     #[account(mut)]

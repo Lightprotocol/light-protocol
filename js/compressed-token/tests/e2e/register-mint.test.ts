@@ -144,6 +144,12 @@ describe('registerMint', () => {
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
         await createTestSplMint(rpc, payer, mintKeypair, payer as Keypair);
+
+        // /// Wrong authority
+        // await expect(
+        //     registerMint(rpc, payer, Keypair.generate(), mint),
+        // ).rejects.toThrow();
+
         await registerMint(rpc, payer, payer, mint);
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);

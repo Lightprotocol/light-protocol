@@ -56,14 +56,77 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
         cpi_context,
     )?;
     msg!("escrow compressed tokens with compressed pda");
-    cpi_compressed_pda_transfer(
-        &ctx,
-        proof,
-        new_address_params,
-        compressed_pda,
-        cpi_context,
-        bump,
-    )?;
+
+    // create cpi signer seeds
+    let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
+    let seeds: [&[u8]; 3] = [b"escrow".as_slice(), signer_key_bytes.as_slice(), &[bump]];
+
+    let light_ctx = InstructionDataInvokeCpi {
+        relay_fee: None,
+        input_compressed_accounts_with_merkle_context: Vec::new(),
+        output_compressed_accounts: vec![compressed_pda],
+        proof: Some(proof),
+        new_address_params: vec![new_address_params],
+        compression_lamports: None,
+        is_compress: false,
+        signer_seeds: seeds.iter().map(|x| x.to_vec()).collect::<Vec<Vec<u8>>>(),
+        cpi_context: Some(cpi_context),
+    };
+
+    verify_and_write(&ctx, light_ctx)?;
+
+    // cpi_compressed_pda_transfer(
+    //     &ctx,
+    //     proof,
+    //     new_address_params,
+    //     compressed_pda,
+    //     cpi_context,
+    //     bump,
+    // )?;
+    Ok(())
+}
+
+pub fn verify_and_write<'info>(
+    ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
+    light_ctx: InstructionDataInvokeCpi,
+) -> Result<()> {
+    let mut inputs = Vec::new();
+    InstructionDataInvokeCpi::serialize(&light_ctx, &mut inputs).unwrap();
+
+    let cpi_context_account = light_ctx
+        .cpi_context
+        .as_ref()
+        .and_then(|cpi_context| {
+            ctx.remaining_accounts
+                .get(cpi_context.cpi_context_account_index as usize)
+        })
+        .map(|account_info| account_info.to_account_info())
+        .ok_or(EscrowError::CpiContextAccountIndexNotFound)?;
+
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+        fee_payer: ctx.accounts.signer.to_account_info(),
+        authority: ctx.accounts.token_owner_pda.to_account_info(),
+        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
+        noop_program: ctx.accounts.noop_program.to_account_info(),
+        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
+        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
+        invoking_program: ctx.accounts.self_program.to_account_info(),
+        compressed_sol_pda: None,
+        compression_recipient: None,
+        system_program: ctx.accounts.system_program.to_account_info(),
+        cpi_context_account,
+    };
+    let seeds = [seeds.as_slice()];
+    let mut cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.light_system_program.to_account_info(),
+        cpi_accounts,
+        &seeds,
+    );
+
+    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+
+    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+
     Ok(())
 }
 
@@ -77,7 +140,7 @@ fn cpi_compressed_pda_transfer<'info>(
 ) -> Result<()> {
     let bump = &[bump];
     let signer_bytes = ctx.accounts.signer.key.to_bytes();
-    let seeds = [b"escrow".as_slice(), signer_bytes.as_slice(), bump];
+    let seeds: [&[u8]; 3] = [b"escrow".as_slice(), signer_bytes.as_slice(), bump];
     let inputs_struct: InstructionDataInvokeCpi = InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),

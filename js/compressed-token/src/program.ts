@@ -494,6 +494,7 @@ export class CompressedTokenProgram {
                 authority,
                 tokenPoolPda,
                 systemProgram: SystemProgram.programId,
+                /// TODO: remove this
                 mintAuthorityPda,
                 tokenProgram: TOKEN_PROGRAM_ID,
                 cpiAuthorityPda: this.deriveCpiAuthorityPda,

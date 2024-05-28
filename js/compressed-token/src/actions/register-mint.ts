@@ -39,7 +39,7 @@ export async function registerMint(
     const { blockhash } = await rpc.getLatestBlockhash();
 
     const additionalSigners = dedupeSigner(payer, [mintAuthority]);
-
+    console.log('additionalSigners', additionalSigners);
     const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
