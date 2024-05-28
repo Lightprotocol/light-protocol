@@ -61,7 +61,7 @@ pub fn insert_nullifiers<
             is_writable: true,
         });
         account_infos.push(account_info.clone());
-        let (_, network_fee) = check_program_owner_state_merkle_tree(
+        let (_, network_fee, _) = check_program_owner_state_merkle_tree(
             &ctx.remaining_accounts[account.merkle_context.merkle_tree_pubkey_index as usize],
             invoking_program,
         )?;

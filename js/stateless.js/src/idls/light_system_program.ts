@@ -581,6 +581,22 @@ export type LightSystemProgram = {
             };
         },
         {
+            name: 'MerkleTreeSequenceNumber';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'pubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'sequenceNumber';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
             name: 'PublicTransactionEvent';
             type: {
                 kind: 'struct';
@@ -613,6 +629,14 @@ export type LightSystemProgram = {
                         name: 'outputLeafIndices';
                         type: {
                             vec: 'u32';
+                        };
+                    },
+                    {
+                        name: 'sequenceNumbers';
+                        type: {
+                            vec: {
+                                defined: 'MerkleTreeSequenceNumber';
+                            };
                         };
                     },
                     {
@@ -1434,6 +1458,22 @@ export const IDL: LightSystemProgram = {
             },
         },
         {
+            name: 'MerkleTreeSequenceNumber',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'pubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'sequenceNumber',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
             name: 'PublicTransactionEvent',
             type: {
                 kind: 'struct',
@@ -1467,6 +1507,14 @@ export const IDL: LightSystemProgram = {
                         name: 'outputLeafIndices',
                         type: {
                             vec: 'u32',
+                        },
+                    },
+                    {
+                        name: 'sequenceNumbers',
+                        type: {
+                            vec: {
+                                defined: 'MerkleTreeSequenceNumber',
+                            },
                         },
                     },
                     {

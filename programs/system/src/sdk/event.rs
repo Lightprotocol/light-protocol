@@ -2,6 +2,11 @@ use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSeria
 use std::{io::Write, mem};
 
 use crate::OutputCompressedAccountWithPackedContext;
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
+pub struct MerkleTreeSequenceNumber {
+    pub pubkey: Pubkey,
+    pub sequence_number: u64,
+}
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
 pub struct PublicTransactionEvent {
@@ -9,6 +14,7 @@ pub struct PublicTransactionEvent {
     pub output_compressed_account_hashes: Vec<[u8; 32]>,
     pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     pub output_leaf_indices: Vec<u32>,
+    pub sequence_numbers: Vec<MerkleTreeSequenceNumber>,
     pub relay_fee: Option<u64>,
     pub is_compress: bool,
     pub compression_lamports: Option<u64>,
@@ -29,6 +35,7 @@ impl SizedEvent for PublicTransactionEvent {
             + self.output_compressed_accounts.len()
                 * mem::size_of::<OutputCompressedAccountWithPackedContext>()
             + self.output_leaf_indices.len() * mem::size_of::<u32>()
+            + self.sequence_numbers.len() * (mem::size_of::<Pubkey>() + mem::size_of::<u64>())
             + self.pubkey_array.len() * mem::size_of::<Pubkey>()
             + self
                 .message
@@ -64,7 +71,11 @@ impl PublicTransactionEvent {
         for index in self.output_leaf_indices.iter() {
             writer.write_all(&index.to_le_bytes())?;
         }
-
+        writer.write_all(&(self.sequence_numbers.len() as u32).to_le_bytes())?;
+        for element in self.sequence_numbers.iter() {
+            writer.write_all(&element.pubkey.to_bytes())?;
+            writer.write_all(&element.sequence_number.to_le_bytes())?;
+        }
         match self.relay_fee {
             Some(relay_fee) => {
                 writer.write_all(&[1])?;
@@ -106,6 +117,7 @@ pub mod test {
     use super::*;
     use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
     use rand::Rng;
+    use solana_sdk::{signature::Keypair, signer::Signer};
 
     #[test]
     fn test_manual_vs_borsh_serialization() {
@@ -126,6 +138,16 @@ pub mod test {
                 },
                 merkle_tree_index: 1,
             }],
+            sequence_numbers: vec![
+                MerkleTreeSequenceNumber {
+                    pubkey: Keypair::new().pubkey(),
+                    sequence_number: 10,
+                },
+                MerkleTreeSequenceNumber {
+                    pubkey: Keypair::new().pubkey(),
+                    sequence_number: 2,
+                },
+            ],
             output_leaf_indices: vec![4, 5, 6],
             relay_fee: Some(1000),
             is_compress: true,
@@ -138,7 +160,7 @@ pub mod test {
         let borsh_serialized = event.try_to_vec().unwrap();
 
         // Serialize manually
-        let mut manual_serialized = Vec::new();
+        let mut manual_serialized = Vec::with_capacity(event.event_size());
         event.man_serialize(&mut manual_serialized).unwrap();
 
         // Compare the two byte arrays
@@ -184,6 +206,12 @@ pub mod test {
                 output_compressed_account_hashes: output_hashes,
                 output_compressed_accounts: output_accounts,
                 output_leaf_indices: leaf_indices,
+                sequence_numbers: (0..rng.gen_range(1..10))
+                    .map(|_| MerkleTreeSequenceNumber {
+                        pubkey: Keypair::new().pubkey(),
+                        sequence_number: rng.gen(),
+                    })
+                    .collect(),
                 relay_fee: if rng.gen() { Some(rng.gen()) } else { None },
                 is_compress: rng.gen(),
                 compression_lamports: if rng.gen() { Some(rng.gen()) } else { None },
@@ -192,7 +220,7 @@ pub mod test {
             };
 
             let borsh_serialized = event.try_to_vec().unwrap();
-            let mut manual_serialized = Vec::new();
+            let mut manual_serialized = Vec::with_capacity(event.event_size());
             event.man_serialize(&mut manual_serialized).unwrap();
 
             assert_eq!(

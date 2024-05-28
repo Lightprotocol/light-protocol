@@ -184,7 +184,14 @@ pub fn process<
         return err!(CompressedPdaError::ProofIsSome);
     }
     bench_sbf_end!("cpda_nullifiers");
+    let mut num_distinct_output_merkle_trees = inputs
+        .output_compressed_accounts
+        .iter()
+        .map(|x| x.merkle_tree_index)
+        .collect::<Vec<_>>();
+    num_distinct_output_merkle_trees.dedup();
 
+    let mut sequence_numbers = Vec::with_capacity(num_distinct_output_merkle_trees.len());
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         bench_sbf_start!("cpda_append");
@@ -196,6 +203,7 @@ pub fn process<
             &mut input_compressed_account_addresses,
             &invoking_program,
             &mut hashed_pubkeys,
+            &mut sequence_numbers,
         )?;
         bench_sbf_end!("cpda_append");
     }
@@ -209,6 +217,7 @@ pub fn process<
         input_compressed_account_hashes,
         output_compressed_account_hashes,
         output_leaf_indices,
+        sequence_numbers,
     )?;
     bench_sbf_end!("emit_state_transition_event");
 

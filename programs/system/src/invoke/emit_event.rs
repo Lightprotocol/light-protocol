@@ -9,7 +9,7 @@ use crate::{
     errors::CompressedPdaError,
     sdk::{
         accounts::InvokeAccounts,
-        event::{PublicTransactionEvent, SizedEvent},
+        event::{MerkleTreeSequenceNumber, PublicTransactionEvent, SizedEvent},
     },
     InstructionDataInvoke,
 };
@@ -19,6 +19,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     input_compressed_account_hashes: Vec<[u8; 32]>,
     output_compressed_account_hashes: Vec<[u8; 32]>,
     output_leaf_indices: Vec<u32>,
+    sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
     // TODO: add message and compression_lamports
     let event = PublicTransactionEvent {
@@ -26,6 +27,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         output_compressed_account_hashes,
         output_compressed_accounts: inputs.output_compressed_accounts,
         output_leaf_indices,
+        sequence_numbers,
         relay_fee: inputs.relay_fee,
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
         compression_lamports: inputs.compression_lamports,
