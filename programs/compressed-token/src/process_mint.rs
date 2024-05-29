@@ -1,7 +1,8 @@
 use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-    token_data::{AccountState, TokenData},
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::{AccountState, TokenData}
 };
+#[cfg(target_os = "solana")]
+use crate::get_cpi_signer_seeds;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_hasher::Poseidon;
@@ -192,10 +193,14 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 ) -> Result<()> {
     light_heap::bench_sbf_start!("tm_cpi");
 
+    // TODO: confirm that it's better to get the vec outside instead of inside serialize fn
+    let signer_seeds = get_cpi_signer_seeds();
+    let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
+
     // 4300 CU for 10 accounts
     // 6700 CU for 20 accounts
     // 7,978 CU for 25 accounts
-    serialize_mint_to_cpi_instruction_data(inputs, output_compressed_accounts); // ,signer_seeds);
+    serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec); // ,signer_seeds);
 
     light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
 
@@ -282,6 +287,8 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
             is_writable: true,
         },
     ];
+   
+    // let signer_seeds_ref = &[&signer_seeds[..]];
 
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: light_system_program::ID,
@@ -292,10 +299,10 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 
     light_heap::bench_sbf_end!("tm_cpi");
     light_heap::bench_sbf_start!("tm_invoke");
-    anchor_lang::solana_program::program::invoke( // invoke_signed
+    anchor_lang::solana_program::program::invoke_signed( // invoke_signed
         &instruction,
         account_infos.as_slice(),
-        // signer_seeds,
+        &[&signer_seeds[..]],
     )?;
     light_heap::bench_sbf_end!("tm_invoke");
     Ok(())
@@ -304,7 +311,8 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 #[inline(never)]
 pub fn serialize_mint_to_cpi_instruction_data(
     inputs: &mut Vec<u8>,
-    output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
+    output_compressed_accounts: &Vec<OutputCompressedAccountWithPackedContext>,
+    seeds: &Vec<Vec<u8>>,
     // seeds: &[&[&[u8]]],
 ) {
     let len = output_compressed_accounts.len();
@@ -322,8 +330,8 @@ pub fn serialize_mint_to_cpi_instruction_data(
     // seeds
     // let seeds: Vec<Vec<u8>> = seeds[0].iter().map(|seed| seed.to_vec()).collect();
 
-    // seeds.serialize(inputs).unwrap();
-    // inputs.extend_from_slice(&[0u8]);
+    seeds.serialize(inputs).unwrap();
+    inputs.extend_from_slice(&[0u8]);
 }
 
 #[inline(never)]
@@ -488,6 +496,7 @@ pub mod mint_sdk {
 
 #[test]
 fn test_manual_ix_data_serialization_borsh_compat() {
+    use crate:: get_cpi_signer_seeds;
     let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
     let amounts = vec![1, 2];
     let mint_pubkey = Pubkey::new_unique();
@@ -535,7 +544,13 @@ fn test_manual_ix_data_serialization_borsh_compat() {
     //     bump,
     // ];
     // TODO: check if cpi ??
-    let inputs_struct = light_system_program::InstructionDataInvoke {
+    let signer_seeds = get_cpi_signer_seeds();
+
+    let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
+    let mut inputs = Vec::<u8>::new();
+    serialize_mint_to_cpi_instruction_data(&mut inputs, &output_compressed_accounts, &signer_seeds_vec);//, &[&seeds]);
+
+    let inputs_struct = light_system_program::InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
         output_compressed_accounts: output_compressed_accounts.clone(),
@@ -543,14 +558,12 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         new_address_params: Vec::with_capacity(0),
         compression_lamports: None,
         is_compress: false,
-        // signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
-        // cpi_context: None,
+        signer_seeds: signer_seeds_vec, //signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
+        cpi_context: None,
     };
     let mut reference = Vec::<u8>::new();
     inputs_struct.serialize(&mut reference).unwrap();
-    let mut inputs = Vec::<u8>::new();
-    serialize_mint_to_cpi_instruction_data(&mut inputs, output_compressed_accounts);//, &[&seeds]);
-
+  
     assert_eq!(inputs.len(), reference.len());
     for (j, i) in inputs.iter().zip(reference.iter()).enumerate() {
         println!("j: {} i: {} {}", j, i.0, i.1);
