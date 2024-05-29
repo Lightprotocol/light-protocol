@@ -41,13 +41,60 @@ use tokio::fs::write as async_write;
 
 // TODO: use lazy_static to spawn the server once
 
-// invoke_failing_test
-// - inputs, outputs, new addresses, (fail with every input)
+/// invoke_failing_test
+/// - inputs, outputs, new addresses, (fail with every possible input)
+/// Test(outputs):
+/// 1. invalid lamports (ComputeOutputSumFailed)
+/// 2.1 all accounts have data but signer is not a program (InvokingProgramNotProvided)
+/// 2.2 one of multiple accounts has data but signer is not a program (InvokingProgramNotProvided)
+/// 3. invalid output Merkle tree (AccountDiscriminatorMismatch)
+/// 4. address (InvalidAddress)
+/// Test(address):
+/// 1. inconsistent address seed (ProofVerificationFailed)
+/// 2. invalid proof (ProofVerificationFailed)
+/// 3. invalid root index (ProofVerificationFailed)
+/// 4.1 invalid address queue account (InvalidQueueType)
+/// 4.2 invalid address queue account (AccountDiscriminatorMismatch)
+/// 5. invalid address Merkle tree account (AccountDiscriminatorMismatch)
+/// Test(inputs):
+/// 1. invalid proof (ProofVerificationFailed)
+/// 2. invalid root index (ProofVerificationFailed)
+/// 3. invalid leaf index (ProofVerificationFailed)
+/// 4.1 invalid account data lamports (ProofVerificationFailed)
+/// 4.2 invalid account data address (ProofVerificationFailed)
+/// 4.3 invalid account data owner (SignerCheckFailed)
+/// - invalid data is not tested because a compressed account that is not program owned cannot have data
+/// 5. invalid Merkle tree account (AccountDiscriminatorMismatch)
+/// 6.1 invalid queue account (InvalidQueueType)
+/// 6.2 invalid queue account (AccountDiscriminatorMismatch)
 #[tokio::test]
 async fn invoke_failing_test() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
 
     let payer = context.get_payer().insecure_clone();
+
+    // no inputs
+    let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        &Vec::new(),
+        None,
+        None,
+        false,
+    );
+    create_instruction_and_failing_transaction(
+        &mut context,
+        &payer,
+        inputs_struct,
+        remaining_accounts,
+        CompressedPdaError::EmptyInputs.into(),
+    )
+    .await
+    .unwrap();
+
     let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
         &env,
@@ -56,21 +103,54 @@ async fn invoke_failing_test() {
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
-    for i in 1..5 {
-        failing_transaction_output(&mut context, &payer, &env, i)
-            .await
-            .unwrap();
+    // cicuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
+    let options = [0usize, 1usize, 2usize, 3usize, 4usize, 8usize];
+
+    for mut num_addresses in 0..=2 {
+        for j in 0..6 {
+            // there is not combined circuit instantiation for 8 inputs and addresses
+            if j == 5 {
+                num_addresses = 0;
+            }
+            for num_outputs in 1..8 {
+                failing_transaction_inputs(
+                    &mut context,
+                    &mut test_indexer,
+                    &payer,
+                    &env,
+                    options[j],
+                    1_000_000,
+                    num_addresses,
+                    num_outputs,
+                    false,
+                )
+                .await
+                .unwrap();
+            }
+        }
     }
-    for i in 1..=2 {
-        failing_transaction_address(&mut context, &mut test_indexer, &payer, &env, i)
-            .await
-            .unwrap();
-    }
-    let options = [1usize, 2usize, 3usize, 4usize, 8usize];
-    for i in 0..5 {
-        failing_transaction_inputs(&mut context, &mut test_indexer, &payer, &env, options[i])
-            .await
-            .unwrap();
+    for mut num_addresses in 0..=2 {
+        for j in 0..6 {
+            // there is not combined circuit instantiation for 8 inputs and addresses
+            if j == 5 {
+                num_addresses = 0;
+            }
+            for num_outputs in 0..8 {
+                failing_transaction_inputs(
+                    &mut context,
+                    &mut test_indexer,
+                    &payer,
+                    &env,
+                    options[j],
+                    0,
+                    num_addresses,
+                    num_outputs,
+                    false,
+                )
+                .await
+                .unwrap();
+            }
+        }
     }
 }
 
@@ -80,8 +160,11 @@ pub async fn failing_transaction_inputs(
     payer: &Keypair,
     env: &EnvAccounts,
     num_inputs: usize,
+    amount: u64,
+    num_addresses: usize,
+    num_outputs: usize,
+    output_compressed_accounts_with_address: bool,
 ) -> Result<(), RpcError> {
-    println!("num_inputs: {:?}", num_inputs);
     // create compressed accounts that can be used as inputs
     for _ in 0..num_inputs {
         compress_sol_test(
@@ -90,43 +173,94 @@ pub async fn failing_transaction_inputs(
             payer,
             &[],
             false,
-            1_000_000,
+            amount,
             &env.merkle_tree_pubkey,
             None,
         )
         .await
         .unwrap();
     }
+    let (mut new_address_params, derived_addresses) =
+        create_address_test_inputs(env, num_addresses);
     let input_compressed_accounts =
         test_indexer.get_compressed_accounts_by_owner(&payer.pubkey())[0..num_inputs].to_vec();
-    let input_compressed_account_hashes = input_compressed_accounts
+    let hashes = input_compressed_accounts
         .iter()
         .map(|x| x.hash().unwrap())
         .collect::<Vec<_>>();
-    let input_state_merkle_trees = input_compressed_accounts
+    let input_compressed_account_hashes = if num_inputs != 0 {
+        Some(hashes.as_slice())
+    } else {
+        None
+    };
+    let mts = input_compressed_accounts
         .iter()
         .map(|x| x.merkle_context.merkle_tree_pubkey)
         .collect::<Vec<_>>();
-    let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
-            Some(input_compressed_account_hashes.as_slice()),
-            Some(input_state_merkle_trees.as_slice()),
-            None,
-            None,
-            context,
-        )
-        .await;
-    let output_compressed_account = CompressedAccount {
-        lamports: input_compressed_accounts
+    let input_state_merkle_trees = if num_inputs != 0 {
+        Some(mts.as_slice())
+    } else {
+        None
+    };
+    let proof_input_derived_addresses = if num_addresses != 0 {
+        Some(derived_addresses.as_slice())
+    } else {
+        None
+    };
+    let proof_input_address_merkle_tree_pubkeys = if num_addresses != 0 {
+        Some(vec![env.address_merkle_tree_pubkey; num_addresses])
+    } else {
+        None
+    };
+
+    let (root_indices, proof) =
+        if input_compressed_account_hashes.is_some() || proof_input_derived_addresses.is_some() {
+            let proof_rpc_res = test_indexer
+                .create_proof_for_compressed_accounts(
+                    input_compressed_account_hashes,
+                    input_state_merkle_trees,
+                    proof_input_derived_addresses,
+                    proof_input_address_merkle_tree_pubkeys,
+                    context,
+                )
+                .await;
+            for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
+                new_address_params[i as usize].address_merkle_tree_root_index = *root_index;
+            }
+            (proof_rpc_res.root_indices, Some(proof_rpc_res.proof))
+        } else {
+            (Vec::new(), None)
+        };
+    let (output_compressed_accounts, output_merkle_tree_pubkeys) = if num_outputs > 0 {
+        let mut output_compressed_accounts = vec![];
+        let mut output_merkle_tree_pubkeys = vec![];
+        let sum_lamports = input_compressed_accounts
             .iter()
             .map(|x| x.compressed_account.lamports)
-            .sum(),
-        owner: payer.pubkey(),
-        data: None,
-        address: None,
+            .sum::<u64>();
+        let output_amount = sum_lamports / num_outputs as u64;
+        let remainder = sum_lamports % num_outputs as u64;
+        for i in 0..num_outputs {
+            let address = if output_compressed_accounts_with_address && i < num_addresses {
+                Some(derived_addresses[i])
+            } else {
+                None
+            };
+            output_compressed_accounts.push(CompressedAccount {
+                lamports: output_amount,
+                owner: payer.pubkey(),
+                data: None,
+                address,
+            });
+            output_merkle_tree_pubkeys.push(env.merkle_tree_pubkey);
+        }
+        output_compressed_accounts[0].lamports += remainder;
+        (output_compressed_accounts, output_merkle_tree_pubkeys)
+    } else {
+        (Vec::new(), Vec::new())
     };
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
-        &[],
+        &new_address_params,
         &input_compressed_accounts
             .iter()
             .map(|x| x.merkle_context.clone())
@@ -135,15 +269,59 @@ pub async fn failing_transaction_inputs(
             .iter()
             .map(|x| x.compressed_account.clone())
             .collect::<Vec<_>>(),
-        &proof_rpc_res.root_indices,
-        &[env.merkle_tree_pubkey],
-        &[output_compressed_account], // no need for output compressed accounts the tx will fail before these are used
-        Some(proof_rpc_res.proof),
+        &root_indices,
+        &output_merkle_tree_pubkeys,
+        &output_compressed_accounts,
+        proof,
         None,
         false,
     );
+    if num_addresses > 0 {
+        failing_transaction_address(
+            context,
+            payer,
+            env,
+            &inputs_struct,
+            remaining_accounts.clone(),
+        )
+        .await?;
+    }
+    if num_inputs > 0 {
+        failing_transaction_inputs_inner(
+            context,
+            payer,
+            env,
+            &inputs_struct,
+            remaining_accounts.clone(),
+        )
+        .await?;
+    }
+    if num_outputs > 0 {
+        failing_transaction_output(
+            context,
+            payer,
+            env,
+            inputs_struct.clone(),
+            remaining_accounts.clone(),
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+pub async fn failing_transaction_inputs_inner(
+    context: &mut ProgramTestRpcConnection,
+    payer: &Keypair,
+    env: &EnvAccounts,
+    inputs_struct: &InstructionDataInvoke,
+    remaining_accounts: Vec<AccountMeta>,
+) -> Result<(), RpcError> {
+    let num_inputs = inputs_struct
+        .input_compressed_accounts_with_merkle_context
+        .len();
     // invalid proof
     {
+        println!("invalid proof");
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.proof.as_mut().unwrap().a = inputs_struct.proof.as_ref().unwrap().c.clone();
         create_instruction_and_failing_transaction(
@@ -158,6 +336,7 @@ pub async fn failing_transaction_inputs(
     }
     // invalid root index
     {
+        println!("invalid root index");
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1].root_index = 0;
         create_instruction_and_failing_transaction(
@@ -172,6 +351,12 @@ pub async fn failing_transaction_inputs(
     }
     // invalid leaf index
     {
+        println!(
+            "leaf index: {}",
+            inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
+                .merkle_context
+                .leaf_index
+        );
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
             .merkle_context
@@ -191,24 +376,33 @@ pub async fn failing_transaction_inputs(
         .unwrap();
     }
     // invalid account data (lamports)
-    {
+    if !inputs_struct.output_compressed_accounts.is_empty() {
         let mut inputs_struct = inputs_struct.clone();
+        let amount = inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
+            .compressed_account
+            .lamports;
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
             .compressed_account
-            .lamports = 1;
-        // adapting compressed ouput account so that sumcheck passes
-        inputs_struct.output_compressed_accounts[0]
-            .compressed_account
-            .lamports = inputs_struct.output_compressed_accounts[0]
-            .compressed_account
-            .lamports
-            - 999_999;
+            .lamports = amount + 1;
+        let error_code = if !inputs_struct.output_compressed_accounts.is_empty() {
+            // adapting compressed ouput account so that sumcheck passes
+            inputs_struct.output_compressed_accounts[0]
+                .compressed_account
+                .lamports = inputs_struct.output_compressed_accounts[0]
+                .compressed_account
+                .lamports
+                + 1;
+            VerifierError::ProofVerificationFailed.into()
+        } else {
+            CompressedPdaError::SumCheckFailed.into()
+        };
+
         create_instruction_and_failing_transaction(
             context,
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            VerifierError::ProofVerificationFailed.into(),
+            error_code,
         )
         .await
         .unwrap();
@@ -235,6 +429,7 @@ pub async fn failing_transaction_inputs(
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
             .compressed_account
             .owner = Pubkey::new_unique();
+
         create_instruction_and_failing_transaction(
             context,
             payer,
@@ -245,7 +440,7 @@ pub async fn failing_transaction_inputs(
         .await
         .unwrap();
     }
-    // invalid account data (owner)
+    // invalid account data (data)
     {
         let data = CompressedAccountData {
             discriminator: [1u8; 8],
@@ -335,17 +530,10 @@ pub async fn failing_transaction_inputs(
     Ok(())
 }
 
-pub async fn failing_transaction_address(
-    context: &mut ProgramTestRpcConnection,
-    test_indexer: &mut TestIndexer<200, ProgramTestRpcConnection>,
-    payer: &Keypair,
+fn create_address_test_inputs(
     env: &EnvAccounts,
     num_addresses: usize,
-) -> Result<(), RpcError> {
-    if num_addresses > 2 {
-        panic!("num_output_compressed_accounts should be less than 8");
-    }
-
+) -> (Vec<NewAddressParams>, Vec<[u8; 32]>) {
     let mut address_seeds = vec![];
     for i in 1..=num_addresses {
         address_seeds.push([i as u8; 32]);
@@ -364,29 +552,47 @@ pub async fn failing_transaction_address(
             derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
-    let proof_rpc_res = test_indexer
-        .create_proof_for_compressed_accounts(
-            None,
-            None,
-            Some(derived_addresses.as_slice()),
-            Some(vec![env.address_merkle_tree_pubkey; num_addresses]),
-            context,
-        )
-        .await;
-    for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
-        new_address_params[i as usize].address_merkle_tree_root_index = *root_index;
-    }
-    let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
-        &new_address_params,
-        &[],
-        &[],
-        &[],
-        &[],
-        &[],
-        Some(proof_rpc_res.proof),
-        None,
-        false,
-    );
+    (new_address_params, derived_addresses)
+}
+
+pub async fn failing_transaction_address(
+    context: &mut ProgramTestRpcConnection,
+    // test_indexer: &mut TestIndexer<200, ProgramTestRpcConnection>,
+    payer: &Keypair,
+    env: &EnvAccounts,
+    // num_addresses: usize,
+    inputs_struct: &InstructionDataInvoke,
+    remaining_accounts: Vec<AccountMeta>,
+) -> Result<(), RpcError> {
+    // if num_addresses > 2 {
+    //     panic!("num_output_compressed_accounts should be less than 8");
+    // }
+    // let (mut new_address_params, derived_addresses) =
+    //     create_address_test_inputs(env, num_addresses);
+
+    // let proof_rpc_res = test_indexer
+    //     .create_proof_for_compressed_accounts(
+    //         None,
+    //         None,
+    //         Some(derived_addresses.as_slice()),
+    //         Some(vec![env.address_merkle_tree_pubkey; num_addresses]),
+    //         context,
+    //     )
+    //     .await;
+    // for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
+    //     new_address_params[i as usize].address_merkle_tree_root_index = *root_index;
+    // }
+    // let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
+    //     &new_address_params,
+    //     &[],
+    //     &[],
+    //     &[],
+    //     &[],
+    //     &[],
+    //     Some(proof_rpc_res.proof),
+    //     None,
+    //     false,
+    // );
     // inconsistent seed
     {
         let mut inputs_struct = inputs_struct.clone();
@@ -504,162 +710,108 @@ pub async fn failing_transaction_output(
     context: &mut ProgramTestRpcConnection,
     payer: &Keypair,
     env: &EnvAccounts,
-    num_output_compressed_accounts: usize,
-    // address: Option<[u8; 32]>,
-    // proof: Option<ProofCompressed>,
+    inputs_struct: InstructionDataInvoke,
+    remaining_accounts: Vec<AccountMeta>,
 ) -> Result<(), RpcError> {
-    if num_output_compressed_accounts > 8 {
-        panic!("num_output_compressed_accounts should be less than 8");
-    }
-    let payer_pubkey = payer.pubkey();
-
-    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let num_output_compressed_accounts = inputs_struct.output_compressed_accounts.len();
     // invalid lamports
     {
-        let mut output_compressed_accounts = vec![];
-        let mut output_merkle_tree_pubkeys = vec![];
-
-        for i in 0..num_output_compressed_accounts {
-            output_compressed_accounts.push(CompressedAccount {
-                lamports: (i + 1) as u64,
-                owner: payer_pubkey,
-                data: None,
-                address: None,
-            });
-            output_merkle_tree_pubkeys.push(merkle_tree_pubkey);
-        }
-        perform_tx_with_output_compressed_accounts(
+        let mut inputs_struct = inputs_struct.clone();
+        let error_code = if inputs_struct
+            .input_compressed_accounts_with_merkle_context
+            .iter()
+            .map(|x| x.compressed_account.lamports)
+            .sum::<u64>()
+            == 0
+        {
+            CompressedPdaError::ComputeOutputSumFailed.into()
+        } else {
+            CompressedPdaError::SumCheckFailed.into()
+        };
+        inputs_struct.output_compressed_accounts[num_output_compressed_accounts - 1]
+            .compressed_account
+            .lamports = 1;
+        create_instruction_and_failing_transaction(
             context,
             payer,
-            payer_pubkey,
-            output_compressed_accounts,
-            output_merkle_tree_pubkeys,
-            CompressedPdaError::ComputeOutputSumFailed.into(),
+            inputs_struct.clone(),
+            remaining_accounts.clone(),
+            error_code,
         )
-        .await?;
+        .await
+        .unwrap();
     }
     // Data but signer is not a program
     {
-        let mut output_compressed_accounts = vec![];
-        let mut output_merkle_tree_pubkeys = vec![];
+        // let mut output_compressed_accounts = vec![];
+        // let mut output_merkle_tree_pubkeys = vec![];
+        let mut inputs_struct = inputs_struct.clone();
 
-        for i in 0..num_output_compressed_accounts {
+        for (i, account) in inputs_struct
+            .output_compressed_accounts
+            .iter_mut()
+            .enumerate()
+        {
             let data = CompressedAccountData {
                 discriminator: [i as u8; 8],
                 data: vec![i as u8; i],
                 data_hash: [i as u8; 32],
             };
-            output_compressed_accounts.push(CompressedAccount {
-                lamports: 0,
-                owner: payer_pubkey,
-                data: Some(data),
-                address: None,
-            });
-            output_merkle_tree_pubkeys.push(merkle_tree_pubkey);
+            account.compressed_account.data = Some(data);
         }
-        perform_tx_with_output_compressed_accounts(
+        create_instruction_and_failing_transaction(
             context,
             payer,
-            payer_pubkey,
-            output_compressed_accounts.clone(),
-            output_merkle_tree_pubkeys.clone(),
+            inputs_struct.clone(),
+            remaining_accounts.clone(),
             CompressedPdaError::InvokingProgramNotProvided.into(),
         )
-        .await?;
-        // only one account has data
-        output_compressed_accounts
-            .iter_mut()
-            .enumerate()
-            .for_each(|(i, compressed_account)| {
-                if i != num_output_compressed_accounts - 1 {
-                    compressed_account.data = None;
-                }
-            });
-        perform_tx_with_output_compressed_accounts(
-            context,
-            payer,
-            payer_pubkey,
-            output_compressed_accounts,
-            output_merkle_tree_pubkeys,
-            CompressedPdaError::InvokingProgramNotProvided.into(),
-        )
-        .await?;
+        .await
+        .unwrap();
     }
     // Invalid output Merkle tree
     {
-        let mut output_compressed_accounts = vec![];
-        let mut output_merkle_tree_pubkeys = vec![];
-        for _ in 0..num_output_compressed_accounts {
-            output_compressed_accounts.push(CompressedAccount {
-                lamports: 0,
-                owner: payer_pubkey,
-                data: None,
-                address: None,
-            });
-            output_merkle_tree_pubkeys.push(merkle_tree_pubkey);
-        }
-        output_merkle_tree_pubkeys[num_output_compressed_accounts - 1] =
-            env.address_merkle_tree_pubkey;
-        perform_tx_with_output_compressed_accounts(
+        let mut remaining_accounts = remaining_accounts.clone();
+        remaining_accounts[inputs_struct.output_compressed_accounts
+            [num_output_compressed_accounts - 1]
+            .merkle_tree_index as usize] = AccountMeta {
+            pubkey: env.address_merkle_tree_pubkey,
+            is_signer: false,
+            is_writable: false,
+        };
+        create_instruction_and_failing_transaction(
             context,
             payer,
-            payer_pubkey,
-            output_compressed_accounts,
-            output_merkle_tree_pubkeys,
+            inputs_struct.clone(),
+            remaining_accounts.clone(),
             ErrorCode::AccountDiscriminatorMismatch.into(),
         )
-        .await?;
+        .await
+        .unwrap();
     }
 
     // Address that doesn't exist
     {
-        let mut output_compressed_accounts = vec![];
-        let mut output_merkle_tree_pubkeys = vec![];
-        for i in 0..num_output_compressed_accounts {
-            let address = if i == num_output_compressed_accounts - 1 {
-                Some(
-                    hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice())
-                        .unwrap()
-                        .0,
-                )
-            } else {
-                None
-            };
-            output_compressed_accounts.push(CompressedAccount {
-                lamports: 0,
-                owner: payer_pubkey,
-                data: None,
-                address,
-            });
-            output_merkle_tree_pubkeys.push(merkle_tree_pubkey);
-        }
+        let mut inputs_struct = inputs_struct.clone();
 
-        perform_tx_with_output_compressed_accounts(
-            context,
-            payer,
-            payer_pubkey,
-            output_compressed_accounts.clone(),
-            output_merkle_tree_pubkeys.clone(),
-            CompressedPdaError::InvalidAddress.into(),
-        )
-        .await?;
-        if num_output_compressed_accounts >= 2 {
+        for account in inputs_struct.output_compressed_accounts.iter_mut() {
             let address = Some(
                 hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice())
                     .unwrap()
                     .0,
             );
-            output_compressed_accounts[num_output_compressed_accounts - 2].address = address;
+            account.compressed_account.address = address;
         }
-        perform_tx_with_output_compressed_accounts(
+
+        create_instruction_and_failing_transaction(
             context,
             payer,
-            payer_pubkey,
-            output_compressed_accounts,
-            output_merkle_tree_pubkeys,
+            inputs_struct.clone(),
+            remaining_accounts.clone(),
             CompressedPdaError::InvalidAddress.into(),
         )
-        .await?;
+        .await
+        .unwrap();
     }
     Ok(())
 }
@@ -725,11 +877,18 @@ pub async fn create_instruction_and_failing_transaction(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: instruction_data.data(),
     };
-    let result = context
+
+    let result = match context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
-        .unwrap_err();
-    println!("result: {:?}", result);
+    {
+        Ok(_) => {
+            println!("inputs_struct: {:?}", inputs_struct);
+            println!("expected_error_code: {}", expected_error_code);
+            panic!("Transaction should have failed");
+        }
+        Err(e) => e,
+    };
     assert_rpc_error(Err(result), 0, expected_error_code)
 }
 

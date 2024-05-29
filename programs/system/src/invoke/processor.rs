@@ -187,6 +187,13 @@ pub fn process<
     } else if inputs.proof.is_some() {
         msg!("Proof is some but no input compressed accounts or new addresses provided.");
         return err!(CompressedPdaError::ProofIsSome);
+    } else if inputs
+        .input_compressed_accounts_with_merkle_context
+        .is_empty()
+        && inputs.new_address_params.is_empty()
+        && inputs.output_compressed_accounts.is_empty()
+    {
+        return err!(CompressedPdaError::EmptyInputs);
     }
     bench_sbf_end!("cpda_nullifiers");
 

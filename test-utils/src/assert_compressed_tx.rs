@@ -370,12 +370,10 @@ pub async fn assert_compression<R: RpcConnection>(
     is_compress: bool,
 ) {
     if is_compress {
-        let compressed_sol_pda_balance = context
-            .get_account(get_compressed_sol_pda())
-            .await
-            .unwrap()
-            .unwrap()
-            .lamports;
+        let compressed_sol_pda_balance = match context.get_account(get_compressed_sol_pda()).await {
+            Ok(Some(account)) => account.lamports,
+            _ => 0,
+        };
 
         assert_eq!(
             compressed_sol_pda_balance,
