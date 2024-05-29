@@ -1,7 +1,10 @@
 use crate::{
     errors::CompressedPdaError,
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
+    sdk::{
+        accounts::{InvokeAccounts, SignerAccounts},
+        event::MerkleTreeSequenceNumber,
+    },
     InstructionDataInvoke,
 };
 use anchor_lang::solana_program::program::invoke_signed;
@@ -27,6 +30,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     addresses: &'a mut Vec<Option<[u8; 32]>>,
     invoking_program: &Option<Pubkey>,
     hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
+    sequence_numbers: &'a mut Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
     bench_sbf_start!("cpda_append_data_init");
     let mut account_infos = vec![
@@ -76,10 +80,15 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         let account_info = ctx.remaining_accounts
             [inputs.output_compressed_accounts[current_index as usize].merkle_tree_index as usize]
             .to_account_info();
-        (mt_next_index, _) = check_program_owner_state_merkle_tree(
+        let seq;
+        (mt_next_index, _, seq) = check_program_owner_state_merkle_tree(
             &ctx.remaining_accounts[current_index as usize],
             invoking_program,
         )?;
+        sequence_numbers.push(MerkleTreeSequenceNumber {
+            pubkey: account_info.key(),
+            seq,
+        });
         hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
             Some(hashed_merkle_tree) => hashed_merkle_tree.1,
             None => {
@@ -108,7 +117,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             // do nothing, but is the most common case.
         } else if account.merkle_tree_index != current_index {
             current_index = account.merkle_tree_index;
-            (mt_next_index, _) = check_program_owner_state_merkle_tree(
+            let seq;
+            (mt_next_index, _, seq) = check_program_owner_state_merkle_tree(
                 &ctx.remaining_accounts[account.merkle_tree_index as usize],
                 invoking_program,
             )?;
@@ -118,6 +128,10 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
                 pubkey: account_info.key(),
                 is_signer: false,
                 is_writable: true,
+            });
+            sequence_numbers.push(MerkleTreeSequenceNumber {
+                pubkey: account_info.key(),
+                seq,
             });
             hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
                 Some(hashed_merkle_tree) => hashed_merkle_tree.1,

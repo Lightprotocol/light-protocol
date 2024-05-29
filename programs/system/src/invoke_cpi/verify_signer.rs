@@ -130,10 +130,11 @@ pub fn output_compressed_accounts_write_access_check(
 pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
-) -> Result<(u32, Option<u64>)> {
+) -> Result<(u32, Option<u64>, u64)> {
     let merkle_tree =
         AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
+    let seq = merkle_tree_unpacked.load_merkle_tree()?.sequence_number as u64 + 1;
     let next_index: u32 = merkle_tree_unpacked.load_next_index()?.try_into().unwrap();
     let network_fee = if merkle_tree_unpacked.metadata.rollover_metadata.network_fee != 0 {
         Some(merkle_tree_unpacked.metadata.rollover_metadata.network_fee)
@@ -144,7 +145,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
-                return Ok((next_index, network_fee));
+                return Ok((next_index, network_fee, seq));
             }
         }
         msg!(
@@ -154,7 +155,7 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
         );
         return Err(CompressedPdaError::InvalidMerkleTreeOwner.into());
     }
-    Ok((next_index, network_fee))
+    Ok((next_index, network_fee, seq))
 }
 
 pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(

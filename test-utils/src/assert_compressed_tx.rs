@@ -5,6 +5,7 @@ use crate::{
     AccountZeroCopy,
 };
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
+use light_system_program::sdk::event::MerkleTreeSequenceNumber;
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
@@ -75,6 +76,14 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
     )
     .await;
 
+    // CHECK 5
+    let sequence_numbers = assert_merkle_tree_after_tx(
+        input.rpc,
+        input.output_merkle_tree_snapshots,
+        input.test_indexer,
+    )
+    .await;
+
     // CHECK 4
     assert_public_transaction_event(
         input.event,
@@ -93,14 +102,8 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
         input.compression_lamports,
         input.is_compress,
         input.relay_fee,
+        sequence_numbers,
     );
-    // CHECK 5
-    assert_merkle_tree_after_tx(
-        input.rpc,
-        input.output_merkle_tree_snapshots,
-        input.test_indexer,
-    )
-    .await;
 
     // CHECK 7
     if let Some(compression_lamports) = input.compression_lamports {
@@ -194,6 +197,7 @@ pub fn assert_created_compressed_accounts(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn assert_public_transaction_event(
     event: &PublicTransactionEvent,
     input_compressed_account_hashes: Option<&Vec<[u8; 32]>>,
@@ -202,6 +206,7 @@ pub fn assert_public_transaction_event(
     compression_lamports: Option<u64>,
     is_compress: bool,
     relay_fee: Option<u64>,
+    sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) {
     assert_eq!(
         event.input_compressed_account_hashes,
@@ -234,6 +239,26 @@ pub fn assert_public_transaction_event(
         event.relay_fee, relay_fee,
         "assert_public_transaction_event: relay fee mismatch"
     );
+    let mut updated_sequence_numbers = event.sequence_numbers.clone();
+    for account in event.output_compressed_accounts.iter() {
+        let merkle_tree_pubkey = event.pubkey_array[account.merkle_tree_index as usize];
+        let index = &mut updated_sequence_numbers
+            .iter_mut()
+            .find(|x| x.pubkey == merkle_tree_pubkey);
+        if index.is_none() {
+            println!("reference sequence numbers: {:?}", sequence_numbers);
+            println!("event: {:?}", event);
+            panic!(
+                "merkle tree pubkey not found in sequence numbers : {:?}",
+                merkle_tree_pubkey
+            );
+        } else {
+            index.as_mut().unwrap().seq += 1;
+        }
+    }
+    for sequence_number in updated_sequence_numbers.iter() {
+        sequence_numbers.iter().any(|x| x == sequence_number);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -257,10 +282,11 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
     rpc: &mut R,
     snapshots: &[MerkleTreeTestSnapShot],
     test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
-) {
+) -> Vec<MerkleTreeSequenceNumber> {
     let mut deduped_snapshots = snapshots.to_vec();
     deduped_snapshots.sort();
     deduped_snapshots.dedup();
+    let mut sequence_numbers = Vec::new();
     for (i, snapshot) in deduped_snapshots.iter().enumerate() {
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, snapshot.accounts.merkle_tree)
@@ -269,6 +295,10 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             .deserialized()
             .copy_merkle_tree()
             .unwrap();
+        sequence_numbers.push(MerkleTreeSequenceNumber {
+            pubkey: snapshot.accounts.merkle_tree,
+            seq: merkle_tree.sequence_number as u64,
+        });
         if merkle_tree.root() == snapshot.root {
             println!("deduped_snapshots: {:?}", deduped_snapshots);
             println!("i: {:?}", i);
@@ -312,6 +342,7 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             panic!("merkle tree root update failed");
         }
     }
+    sequence_numbers
 }
 
 /// Takes a snapshot of the provided the onchain Merkle trees.

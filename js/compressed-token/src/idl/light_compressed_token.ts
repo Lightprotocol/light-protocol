@@ -619,6 +619,22 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'MerkleTreeSequenceNumber';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'pubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'seq';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
             name: 'PublicTransactionEvent';
             type: {
                 kind: 'struct';
@@ -651,6 +667,14 @@ export type LightCompressedToken = {
                         name: 'outputLeafIndices';
                         type: {
                             vec: 'u32';
+                        };
+                    },
+                    {
+                        name: 'sequenceNumbers';
+                        type: {
+                            vec: {
+                                defined: 'MerkleTreeSequenceNumber';
+                            };
                         };
                     },
                     {
@@ -1613,6 +1637,22 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
+            name: 'MerkleTreeSequenceNumber',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'pubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'seq',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
             name: 'PublicTransactionEvent',
             type: {
                 kind: 'struct',
@@ -1646,6 +1686,14 @@ export const IDL: LightCompressedToken = {
                         name: 'outputLeafIndices',
                         type: {
                             vec: 'u32',
+                        },
+                    },
+                    {
+                        name: 'sequenceNumbers',
+                        type: {
+                            vec: {
+                                defined: 'MerkleTreeSequenceNumber',
+                            },
                         },
                     },
                     {

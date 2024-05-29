@@ -56,6 +56,9 @@ pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         vec = input_compressed_account_hashes.to_vec();
         Some(&vec)
     };
+    // CHECK 4
+    let sequence_numbers =
+        assert_merkle_tree_after_tx(context, output_merkle_tree_snapshots, test_indexer).await;
     // CHECK 3
     assert_public_transaction_event(
         event,
@@ -72,9 +75,8 @@ pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         None,
         false,
         None,
+        sequence_numbers,
     );
-    // CHECK 4
-    assert_merkle_tree_after_tx(context, output_merkle_tree_snapshots, test_indexer).await;
 }
 
 pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(

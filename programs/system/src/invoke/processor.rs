@@ -185,6 +185,10 @@ pub fn process<
     }
     bench_sbf_end!("cpda_nullifiers");
 
+    // Allocate space for sequence numbers with remaining account length as a proxy.
+    // We cannot do that inside of the insert_output_compressed_accounts_into_state_merkle_tree
+    // because the function is heap neutral.
+    let mut sequence_numbers = Vec::with_capacity(ctx.remaining_accounts.len());
     // insert leaves (output compressed account hashes) ---------------------------------------------------
     if !inputs.output_compressed_accounts.is_empty() {
         bench_sbf_start!("cpda_append");
@@ -196,11 +200,15 @@ pub fn process<
             &mut input_compressed_account_addresses,
             &invoking_program,
             &mut hashed_pubkeys,
+            &mut sequence_numbers,
         )?;
         bench_sbf_end!("cpda_append");
     }
     bench_sbf_start!("emit_state_transition_event");
-
+    // handle the case of unordered multiple output Merkle trees
+    sequence_numbers.dedup_by(|a, b| a.pubkey == b.pubkey);
+    // reduce the capacity of the sequence numbers vector
+    sequence_numbers.shrink_to_fit();
     // emit state transition event ---------------------------------------------------
     bench_sbf_start!("emit_state_transition_event");
     emit_state_transition_event(
@@ -209,6 +217,7 @@ pub fn process<
         input_compressed_account_hashes,
         output_compressed_account_hashes,
         output_leaf_indices,
+        sequence_numbers,
     )?;
     bench_sbf_end!("emit_state_transition_event");
 
