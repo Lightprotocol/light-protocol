@@ -449,8 +449,7 @@ where
             }
             true => {
                 // SAFETY: `next_value_index` is always initialized.
-                let value_bucket =
-                    unsafe { &mut *self.values.as_ptr().add(*self.next_value_index) };
+                let value_bucket = unsafe { &mut *self.values.as_ptr().add(value_index) };
 
                 // let index_bucket = unsafe { &mut *self.indices.as_ptr().add(value_index) };
                 // *index_bucket = Some(
@@ -461,17 +460,17 @@ where
                     value: bigint_to_be_bytes_array(value)?,
                     sequence_number: None,
                 });
-                // SAFETY: `next_value_index` is always initialized.
-                unsafe {
-                    *self.next_value_index = if *self.next_value_index < self.capacity_values {
-                        *self.next_value_index + 1
-                    } else {
-                        // TODO: Write a test to trigger this error.
-                        // (Blocked by investigation of filling the complete value array.)
-                        // This should never happen.
-                        return Err(HashSetError::Full);
-                    };
-                }
+                // // SAFETY: `next_value_index` is always initialized.
+                // unsafe {
+                //     *self.next_value_index = if *self.next_value_index < self.capacity_values {
+                //         *self.next_value_index + 1
+                //     } else {
+                //         // TODO: Write a test to trigger this error.
+                //         // (Blocked by investigation of filling the complete value array.)
+                //         // This should never happen.
+                //         return Err(HashSetError::Full);
+                //     };
+                // }
                 return Ok(());
             }
         }
@@ -1057,13 +1056,14 @@ mod test {
     #[test]
     fn test_hash_set_full_onchain() {
         let mut res_vec = Vec::new();
-        for _ in 0..1000 {
-            let mut hs = HashSet::<u16>::new(6857, 4800, 2400).unwrap();
+        let iters = 100000;
+        for _ in 0..iters {
+            let mut hs = HashSet::<u16>::new(6857, 6857, 2400).unwrap();
 
             let mut rng = thread_rng(); //StdRng::seed_from_u64(1);
                                         // We only fill each hash set to 80% because with much more we get conflicts.
                                         // TODO: investigate why even a 0.1 loadfactor does not enable a full value array.
-            for i in 0..4800 {
+            for i in 0..6857 {
                 // println!("Inserting {}", i);
                 let value = BigUint::from(Fr::rand(&mut rng));
                 let res = hs.insert(&value, 0);
@@ -1092,8 +1092,9 @@ mod test {
             res_vec.iter().sum::<usize>() / res_vec.len()
         );
         res_vec.sort();
-        for (i, elements) in res_vec.chunks(100).enumerate() {
-            println!("\nruns {:?} - {:?}", i * 100, i * 100 + 100);
+        let step = iters / 10;
+        for (i, elements) in res_vec.chunks(step).enumerate() {
+            println!("\nruns {:?} - {:?}", i * step, i * step + step);
             println!(
                 "average {:?}",
                 elements.iter().sum::<usize>() / elements.len()
