@@ -923,6 +923,7 @@ async fn test_nullify_leaves() {
             .unwrap();
         index
     };
+    println!("leaf_queue_index: {leaf_queue_index:?}");
     let element_index = reference_merkle_tree
         .get_leaf_index(&elements[0].1)
         .unwrap() as u64;
@@ -933,7 +934,7 @@ async fn test_nullify_leaves() {
         &mut reference_merkle_tree,
         &elements[0].1,
         2,
-        0,
+        leaf_queue_index as u16,
         element_index,
     )
     .await
@@ -942,7 +943,20 @@ async fn test_nullify_leaves() {
     // nullify with invalid leaf index
     let invalid_element_index = 0;
     let valid_changelog_index = 3;
-    let valid_leaf_queue_index = 1;
+    let valid_leaf_queue_index = {
+        let account = context
+            .get_account(nullifier_queue_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut data = account.data.clone();
+        let nullifier_queue = &mut unsafe { queue_from_bytes_copy(&mut data).unwrap() };
+        let (_, index) = nullifier_queue
+            .find_element(&BigUint::from_bytes_be(&elements[1].1), None)
+            .unwrap()
+            .unwrap();
+        index as u16
+    };
     nullify(
         &mut context,
         &merkle_tree_pubkey,
@@ -1524,7 +1538,6 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
         .unwrap();
     let mut data = account.data.clone();
     let capacity;
-    let mut inserted = 0;
     {
         let hash_set = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
         capacity = hash_set.hash_set.capacity - left_over_indices;
@@ -1548,9 +1561,6 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
     let mut data = account.data.clone();
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
     for i in 0..capacity {
-        let bucket = nullifier_queue.get_bucket(i).unwrap();
-    }
-    for i in 0..inserted {
         assert!(nullifier_queue
             .contains(&(i).to_biguint().unwrap(), None)
             .unwrap());

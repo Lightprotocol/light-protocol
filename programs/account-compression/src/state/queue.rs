@@ -7,7 +7,7 @@ use crate::{
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
-use std::{cell::RefMut, mem};
+use std::mem;
 
 #[account(zero_copy)]
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]

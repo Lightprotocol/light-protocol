@@ -576,7 +576,7 @@ mod test {
     use super::*;
     use ark_bn254::Fr;
     use ark_ff::UniformRand;
-    use rand::{thread_rng, Rng, SeedableRng};
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn test_is_valid() {

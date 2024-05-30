@@ -236,7 +236,7 @@ mod test {
                 unsafe { HashSetZeroCopy::from_bytes_zero_copy_mut(bytes.as_mut_slice()).unwrap() };
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                assert_eq!(hs.contains(nullifier, seq).unwrap(), true);
+                assert_eq!(hs.contains(nullifier, Some(seq)).unwrap(), true);
             }
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {

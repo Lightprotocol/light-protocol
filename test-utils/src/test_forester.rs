@@ -127,7 +127,6 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             rpc,
             state_tree_bundle,
             index_in_nullifier_queue,
-            &onchain_merkle_tree,
             compressed_account,
         )
         .await;
@@ -160,7 +159,6 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
     rpc: &mut R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,
-    onchain_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<'a, Poseidon, 26>,
     compressed_account: &[u8; 32],
 ) {
     let nullifier_queue = unsafe {
