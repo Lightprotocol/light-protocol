@@ -191,7 +191,7 @@ pub struct InvalidateNotOwnedCompressedAccount<'info> {
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK:
     pub noop_program: AccountInfo<'info>,
-    pub self_program: Program<'info, crate::program::TestCpiSystem>,
+    pub self_program: Program<'info, crate::program::SystemCpiTest>,
     /// CHECK:
     pub cpi_signer: AccountInfo<'info>,
     pub system_program: Program<'info, System>,

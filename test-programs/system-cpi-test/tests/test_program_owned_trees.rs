@@ -17,8 +17,8 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(
-        String::from("test_cpi_system"),
-        test_cpi_system::ID,
+        String::from("system_cpi_test"),
+        system_cpi_test::ID,
     )]))
     .await;
     let payer = rpc.get_payer().insecure_clone();

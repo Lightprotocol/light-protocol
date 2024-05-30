@@ -19,12 +19,12 @@ use light_test_utils::test_indexer::{create_mint_helper, TestIndexer, TokenDataW
 use light_utils::hash_to_bn254_field_size_be;
 use solana_sdk::signature::Keypair;
 use solana_sdk::{pubkey::Pubkey, signer::Signer, transaction::Transaction};
-use test_cpi_system::sdk::{
+use system_cpi_test::sdk::{
     create_invalidate_not_owned_account_instruction, create_pda_instruction,
     CreateCompressedPdaInstructionInputs, InvalidateNotOwnedCompressedAccountInstructionInputs,
 };
-use test_cpi_system::{self, RegisteredUser, TokenTransferData, WithInputAccountsMode};
-use test_cpi_system::{CreatePdaMode, ID};
+use system_cpi_test::{self, RegisteredUser, TokenTransferData, WithInputAccountsMode};
+use system_cpi_test::{CreatePdaMode, ID};
 
 /// Test:
 /// Functional:
@@ -45,7 +45,7 @@ use test_cpi_system::{CreatePdaMode, ID};
 #[tokio::test]
 async fn only_test_create_pda() {
     let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![(String::from("test_cpi_system"), ID)])).await;
+        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
         &payer,
@@ -169,7 +169,7 @@ async fn only_test_create_pda() {
     .await
     .unwrap();
     let compressed_account =
-        test_indexer.get_compressed_accounts_by_owner(&test_cpi_system::ID)[0].clone();
+        test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
     // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
     perform_with_input_accounts(
         &mut test_indexer,
@@ -265,7 +265,7 @@ async fn only_test_create_pda() {
 #[tokio::test]
 async fn test_create_pda_in_program_owned_merkle_trees() {
     let (mut rpc, env) =
-        setup_test_programs_with_accounts(Some(vec![(String::from("test_cpi_system"), ID)])).await;
+        setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
 
     let payer = rpc.get_payer().insecure_clone();
     let mut test_indexer = TestIndexer::init_from_env(
