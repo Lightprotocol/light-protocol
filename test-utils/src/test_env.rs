@@ -55,7 +55,7 @@ pub async fn setup_test_programs(
     program_test.set_compute_max_units(1_400_000u64);
     program_test.start_with_context().await
 }
-
+#[derive(Debug)]
 pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
     pub nullifier_queue_pubkey: Pubkey,

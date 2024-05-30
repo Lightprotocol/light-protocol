@@ -868,6 +868,11 @@ export type LightSystemProgram = {
             name: 'ProofIsSome';
             msg: 'ProofIsSome';
         },
+        {
+            code: 6036;
+            name: 'EmptyInputs';
+            msg: 'EmptyInputs';
+        },
     ];
 };
 
@@ -1745,6 +1750,11 @@ export const IDL: LightSystemProgram = {
             code: 6035,
             name: 'ProofIsSome',
             msg: 'ProofIsSome',
+        },
+        {
+            code: 6036,
+            name: 'EmptyInputs',
+            msg: 'EmptyInputs',
         },
     ],
 };

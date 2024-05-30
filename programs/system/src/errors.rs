@@ -74,4 +74,6 @@ pub enum CompressedPdaError {
     InvalidMerkleTreeIndex,
     #[msg("ProofIsSome")]
     ProofIsSome,
+    #[msg("EmptyInputs")]
+    EmptyInputs,
 }
