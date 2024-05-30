@@ -179,7 +179,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 ) -> Result<()> {
     light_heap::bench_sbf_start!("tm_cpi");
 
-    // TODO: confirm that it's better to get the vec outside instead of inside serialize fn
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
 
