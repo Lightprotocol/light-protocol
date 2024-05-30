@@ -340,8 +340,6 @@ pub struct MintToInstruction<'info> {
     pub fee_payer: Signer<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    // This is the cpi signer.
-    // TODO: double check security
     /// CHECK: that mint authority is derived from signer
     #[account(seeds = [b"cpi_authority"], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
