@@ -76,4 +76,8 @@ pub enum CompressedPdaError {
     ProofIsSome,
     #[msg("EmptyInputs")]
     EmptyInputs,
+    #[msg("CpiContextMismatch")]
+    CpiContextProofMismatch,
+    #[msg("CpiContextEmpty")]
+    CpiContextEmpty,
 }

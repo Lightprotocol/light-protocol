@@ -51,7 +51,9 @@ use {
     std::{thread, time::Duration},
 };
 
-use crate::rpc::rpc_connection::RpcConnection;
+use crate::{
+    rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
+};
 
 #[derive(Debug)]
 pub struct ProofRpcResult {
@@ -183,7 +185,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
 
         let mut address_merkle_trees = Vec::new();
         for address_merkle_tree_account in address_merkle_tree_accounts {
-            address_merkle_trees.push(Self::add_address_merkle_tree(address_merkle_tree_account));
+            address_merkle_trees.push(Self::add_address_merkle_tree_bundle(
+                address_merkle_tree_account,
+            ));
         }
         Self {
             state_merkle_trees,
@@ -200,7 +204,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         }
     }
 
-    pub fn add_address_merkle_tree(
+    pub fn add_address_merkle_tree_bundle(
         address_merkle_tree_accounts: AddressMerkleTreeAccounts,
     ) -> AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE> {
         let mut merkle_tree = Box::new(
@@ -218,6 +222,33 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             indexed_array,
             accounts: address_merkle_tree_accounts,
         }
+    }
+
+    pub async fn add_address_merkle_tree(
+        &mut self,
+        rpc: &mut R,
+        merkle_tree_keypair: &Keypair,
+        queue_keypair: &Keypair,
+        owning_program_id: Option<Pubkey>,
+    ) -> AddressMerkleTreeAccounts {
+        create_address_merkle_tree_and_queue_account(
+            &self.payer,
+            rpc,
+            merkle_tree_keypair,
+            queue_keypair,
+            owning_program_id,
+            self.address_merkle_trees.len() as u64,
+        )
+        .await;
+        let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
+            merkle_tree: merkle_tree_keypair.pubkey(),
+            queue: queue_keypair.pubkey(),
+        };
+        self.address_merkle_trees
+            .push(Self::add_address_merkle_tree_bundle(
+                address_merkle_tree_accounts,
+            ));
+        address_merkle_tree_accounts
     }
 
     pub async fn add_state_merkle_tree(
@@ -489,7 +520,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 &address_tree.merkle_tree,
                 &address_tree.indexed_array,
             );
-            println!("proof_inputs {:?}", proof_inputs);
             non_inclusion_proofs.push(proof_inputs);
             let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
                 rpc,

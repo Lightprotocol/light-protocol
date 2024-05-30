@@ -58,9 +58,9 @@ jobs:
             sub-tests: '[
               "cargo-test-sbf -p token-escrow -- --test-threads=1"
             ]'
-          - program: program-owned-account-test
+          - program: system-cpi-test
             sub-tests: '[
-              "cargo-test-sbf -p program-owned-account-test -- --test-threads=1"
+              "cargo-test-sbf -p system-cpi-test -- --test-threads=1"
             ]'
           - program: random-e2e-test
             sub-tests: '[

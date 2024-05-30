@@ -1,5 +1,5 @@
 [package]
-name = "program-owned-account-test"
+name = "system-cpi-test"
 version = "0.1.4"
 description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "program_owned_account_test"
+name = "system_cpi_test"
 
 [features]
 no-entrypoint = []

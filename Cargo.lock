@@ -3908,28 +3908,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "program-owned-account-test"
-version = "0.1.4"
-dependencies = [
- "account-compression",
- "anchor-lang",
- "anchor-spl",
- "light-circuitlib-rs",
- "light-compressed-token",
- "light-hasher",
- "light-system-program",
- "light-test-utils",
- "light-utils",
- "num-bigint 0.4.4",
- "num-traits",
- "reqwest 0.11.26",
- "solana-program-test",
- "solana-sdk",
- "spl-token 3.5.0",
- "tokio",
-]
-
-[[package]]
 name = "qstring"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6871,6 +6849,28 @@ checksum = "a75fb188eb626b924683e3b95e3a48e63551fcfb51949de2f06a9d91dbee93c9"
 dependencies = [
  "core-foundation-sys",
  "libc",
+]
+
+[[package]]
+name = "system-cpi-test"
+version = "0.1.4"
+dependencies = [
+ "account-compression",
+ "anchor-lang",
+ "anchor-spl",
+ "light-circuitlib-rs",
+ "light-compressed-token",
+ "light-hasher",
+ "light-system-program",
+ "light-test-utils",
+ "light-utils",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "reqwest 0.11.26",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token 3.5.0",
+ "tokio",
 ]
 
 [[package]]

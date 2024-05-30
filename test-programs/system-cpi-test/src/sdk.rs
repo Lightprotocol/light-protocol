@@ -81,20 +81,32 @@ pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub signer: &'a Pubkey,
     pub proof: &'a CompressedProof,
     pub input_merkle_tree_pubkey: &'a Pubkey,
+    pub input_nullifier_pubkey: &'a Pubkey,
+    pub cpi_context_account: &'a Pubkey,
     pub compressed_account: &'a PackedCompressedAccountWithMerkleContext,
+    pub token_transfer_data: Option<crate::TokenTransferData>,
+    pub cpi_context: Option<crate::CompressedCpiContext>,
 }
 pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
+    mode: crate::WithInputAccountsMode,
 ) -> Instruction {
     let (cpi_signer, bump) =
         Pubkey::find_program_address(&[b"cpi_signer".as_slice()], &crate::id());
+    let cpi_context = input_params.cpi_context;
+
     let mut remaining_accounts = HashMap::new();
     remaining_accounts.insert(*input_params.input_merkle_tree_pubkey, 0);
+    remaining_accounts.insert(*input_params.input_nullifier_pubkey, 1);
+    remaining_accounts.insert(*input_params.cpi_context_account, 2);
 
-    let instruction_data = crate::instruction::InvalidateNotOwnedAccount {
+    let instruction_data = crate::instruction::WithInputAccounts {
         proof: Some(input_params.proof.clone()),
         compressed_account: input_params.compressed_account.clone(),
         bump,
+        mode,
+        cpi_context,
+        token_transfer_data: input_params.token_transfer_data.clone(),
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -117,13 +129,13 @@ pub fn create_invalidate_not_owned_account_instruction(
         self_program: crate::ID,
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
+        compressed_token_program: light_compressed_token::ID,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 
     Instruction {
         program_id: crate::ID,
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
-
         data: instruction_data.data(),
     }
 }

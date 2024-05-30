@@ -14,9 +14,7 @@ use light_system_program::sdk::CompressedCpiContext;
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
-pub mod program_owned_account_test {
-
-    use self::invalidate_not_owned_account::process_invalidate_not_owned_compressed_account;
+pub mod system_cpi_test {
 
     use super::*;
 
@@ -42,12 +40,23 @@ pub mod program_owned_account_test {
         )
     }
 
-    pub fn invalidate_not_owned_account<'info>(
+    pub fn with_input_accounts<'info>(
         ctx: Context<'_, '_, '_, 'info, InvalidateNotOwnedCompressedAccount<'info>>,
         compressed_account: PackedCompressedAccountWithMerkleContext,
         proof: Option<CompressedProof>,
         bump: u8,
+        mode: WithInputAccountsMode,
+        cpi_context: Option<CompressedCpiContext>,
+        token_transfer_data: Option<TokenTransferData>,
     ) -> Result<()> {
-        process_invalidate_not_owned_compressed_account(ctx, compressed_account, proof, bump)
+        process_with_input_accounts(
+            ctx,
+            compressed_account,
+            proof,
+            bump,
+            mode,
+            cpi_context,
+            token_transfer_data,
+        )
     }
 }
