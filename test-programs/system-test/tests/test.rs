@@ -63,7 +63,7 @@ use tokio::fs::write as async_write;
 /// 4.1 invalid account data lamports (ProofVerificationFailed)
 /// 4.2 invalid account data address (ProofVerificationFailed)
 /// 4.3 invalid account data owner (SignerCheckFailed)
-/// - invalid data is not tested because a compressed account that is not program owned cannot have data
+/// - invalid data is not tested because a compressed account that is not program-owned cannot have data
 /// 5. invalid Merkle tree account (AccountDiscriminatorMismatch)
 /// 6.1 invalid queue account (InvalidQueueType)
 /// 6.2 invalid queue account (AccountDiscriminatorMismatch)
@@ -108,7 +108,7 @@ async fn invoke_failing_test() {
 
     for mut num_addresses in 0..=2 {
         for j in 0..6 {
-            // there is not combined circuit instantiation for 8 inputs and addresses
+            // there is no combined circuit instantiation for 8 inputs and addresses
             if j == 5 {
                 num_addresses = 0;
             }
@@ -131,7 +131,7 @@ async fn invoke_failing_test() {
     }
     for mut num_addresses in 0..=2 {
         for j in 0..6 {
-            // there is not combined circuit instantiation for 8 inputs and addresses
+            // there is no combined circuit instantiation for 8 inputs and addresses
             if j == 5 {
                 num_addresses = 0;
             }
@@ -557,42 +557,11 @@ fn create_address_test_inputs(
 
 pub async fn failing_transaction_address(
     context: &mut ProgramTestRpcConnection,
-    // test_indexer: &mut TestIndexer<200, ProgramTestRpcConnection>,
     payer: &Keypair,
     env: &EnvAccounts,
-    // num_addresses: usize,
     inputs_struct: &InstructionDataInvoke,
     remaining_accounts: Vec<AccountMeta>,
 ) -> Result<(), RpcError> {
-    // if num_addresses > 2 {
-    //     panic!("num_output_compressed_accounts should be less than 8");
-    // }
-    // let (mut new_address_params, derived_addresses) =
-    //     create_address_test_inputs(env, num_addresses);
-
-    // let proof_rpc_res = test_indexer
-    //     .create_proof_for_compressed_accounts(
-    //         None,
-    //         None,
-    //         Some(derived_addresses.as_slice()),
-    //         Some(vec![env.address_merkle_tree_pubkey; num_addresses]),
-    //         context,
-    //     )
-    //     .await;
-    // for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
-    //     new_address_params[i as usize].address_merkle_tree_root_index = *root_index;
-    // }
-    // let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
-    //     &new_address_params,
-    //     &[],
-    //     &[],
-    //     &[],
-    //     &[],
-    //     &[],
-    //     Some(proof_rpc_res.proof),
-    //     None,
-    //     false,
-    // );
     // inconsistent seed
     {
         let mut inputs_struct = inputs_struct.clone();
@@ -743,8 +712,6 @@ pub async fn failing_transaction_output(
     }
     // Data but signer is not a program
     {
-        // let mut output_compressed_accounts = vec![];
-        // let mut output_merkle_tree_pubkeys = vec![];
         let mut inputs_struct = inputs_struct.clone();
 
         for (i, account) in inputs_struct
