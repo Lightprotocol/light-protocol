@@ -76,7 +76,7 @@ impl HashSetCell {
 
     /// Checks whether the value is marked with a sequence number.
     pub fn is_marked(&self) -> bool {
-        !self.sequence_number.is_none()
+        self.sequence_number.is_some()
     }
 
     /// Checks whether the value is valid according to the provided
@@ -251,10 +251,8 @@ impl HashSet {
     pub fn get_unmarked_bucket(&self, index: usize) -> Option<&Option<HashSetCell>> {
         let bucket = self.get_bucket(index);
         let is_unmarked = match bucket {
-            Some(bucket) => match bucket {
-                Some(bucket) => !bucket.is_marked(),
-                None => false,
-            },
+            Some(Some(bucket)) => !bucket.is_marked(),
+            Some(None) => false,
             None => false,
         };
         if is_unmarked {
@@ -326,11 +324,7 @@ impl HashSet {
         match is_new {
             // The visited hash set cell points to a value in the array.
             false => {
-                if self.insert_into_occupied_cell(
-                    usize::try_from(index).map_err(|_| HashSetError::IntegerOverflow)?,
-                    value,
-                    current_sequence_number,
-                )? {
+                if self.insert_into_occupied_cell(index, value, current_sequence_number)? {
                     return Ok(());
                 }
             }
