@@ -41,9 +41,8 @@ pub mod light_compressed_token {
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         public_keys: Vec<Pubkey>,
         amounts: Vec<u64>,
-        // bump: u8,
     ) -> Result<()> {
-        process_mint_to(ctx, public_keys, amounts)//, bump)
+        process_mint_to(ctx, public_keys, amounts)
     }
 
     pub fn transfer<'info>(

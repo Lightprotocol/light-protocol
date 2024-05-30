@@ -117,13 +117,13 @@ describe('registerMint', () => {
             createMint(
                 rpc,
                 payer,
-                mintAuthority,
+                mintAuthority.publicKey,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             ),
         ).rejects.toThrow();
 
-        await registerMint(rpc, payer, mintAuthority, mint);
+        await registerMint(rpc, payer, mint);
 
         await assertRegisterMint(
             mint,
@@ -134,9 +134,7 @@ describe('registerMint', () => {
         );
 
         /// Mint already registered
-        await expect(
-            registerMint(rpc, payer, mintAuthority, mint),
-        ).rejects.toThrow();
+        await expect(registerMint(rpc, payer, mint)).rejects.toThrow();
     });
 
     it('should create mint with payer as authority', async () => {
@@ -144,7 +142,7 @@ describe('registerMint', () => {
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
         await createTestSplMint(rpc, payer, mintKeypair, payer as Keypair);
-        await registerMint(rpc, payer, payer, mint);
+        await registerMint(rpc, payer, mint);
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);
         await assertRegisterMint(

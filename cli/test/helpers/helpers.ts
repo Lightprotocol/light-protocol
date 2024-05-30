@@ -37,7 +37,7 @@ export async function createTestMint(mintKeypair: Keypair) {
   const { mint, transactionSignature } = await createMint(
     rpc,
     await getPayer(),
-    await getPayer(),
+    (await getPayer()).publicKey,
     9,
     mintKeypair,
   );

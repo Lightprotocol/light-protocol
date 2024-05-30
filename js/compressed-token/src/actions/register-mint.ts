@@ -26,21 +26,17 @@ import {
 export async function registerMint(
     rpc: Rpc,
     payer: Signer,
-    mintAuthority: Signer,
     mintAddress: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const ixs = await CompressedTokenProgram.registerMint({
+    const ix = await CompressedTokenProgram.registerMint({
         feePayer: payer.publicKey,
         mint: mintAddress,
-        authority: mintAuthority.publicKey,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    const additionalSigners = dedupeSigner(payer, [mintAuthority]);
-
-    const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
+    const tx = buildAndSignTx([ix], payer, blockhash);
 
     const txId = await sendAndConfirmTx(rpc, tx, confirmOptions);
 

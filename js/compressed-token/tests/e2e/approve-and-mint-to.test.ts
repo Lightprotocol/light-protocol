@@ -74,7 +74,7 @@ describe('approveAndMintTo', () => {
         await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
         /// Register mint
-        await registerMint(rpc, payer, mintAuthority, mint);
+        await registerMint(rpc, payer, mint);
     });
 
     it('should mintTo compressed account with external spl mint', async () => {

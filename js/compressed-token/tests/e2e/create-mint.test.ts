@@ -24,14 +24,7 @@ async function assertCreateMint(
     const mintAcc = await rpc.getAccountInfo(mint);
     const unpackedMint = unpackMint(mint, mintAcc);
 
-    const [mintAuthority] = CompressedTokenProgram.deriveMintAuthorityPda(
-        authority,
-        mint,
-    );
-
-    expect(unpackedMint.mintAuthority?.toString()).toBe(
-        mintAuthority.toString(),
-    );
+    expect(unpackedMint.mintAuthority?.toString()).toBe(authority.toString());
     expect(unpackedMint.supply).toBe(0n);
     expect(unpackedMint.decimals).toBe(decimals);
     expect(unpackedMint.isInitialized).toBe(true);
@@ -72,7 +65,7 @@ describe('createMint', () => {
             await createMint(
                 rpc,
                 payer,
-                mintAuthority,
+                mintAuthority.publicKey,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -94,7 +87,7 @@ describe('createMint', () => {
             createMint(
                 rpc,
                 payer,
-                mintAuthority,
+                mintAuthority.publicKey,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             ),
@@ -102,7 +95,9 @@ describe('createMint', () => {
     });
 
     it('should create mint with payer as authority', async () => {
-        mint = (await createMint(rpc, payer, payer, TEST_TOKEN_DECIMALS)).mint;
+        mint = (
+            await createMint(rpc, payer, payer.publicKey, TEST_TOKEN_DECIMALS)
+        ).mint;
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);
 

@@ -5,9 +5,7 @@ use crate::{
     },
     test_indexer::{TestIndexer, TokenDataWithContext},
 };
-use light_compressed_token::{
-    get_cpi_authority_pda, get_token_pool_pda, TokenTransferOutputData,
-};
+use light_compressed_token::{get_cpi_authority_pda, get_token_pool_pda, TokenTransferOutputData};
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };
@@ -229,7 +227,6 @@ pub async fn assert_create_mint<R: RpcConnection>(
     let mint_account: spl_token::state::Mint =
         spl_token::state::Mint::unpack(&context.get_account(*mint).await.unwrap().unwrap().data)
             .unwrap();
-    // let mint_authority = get_token_authority_pda(authority, mint).0;
     assert_eq!(mint_account.supply, 0);
     assert_eq!(mint_account.decimals, 2);
     assert_eq!(mint_account.mint_authority.unwrap(), *authority);

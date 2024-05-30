@@ -30,8 +30,8 @@ use {
         },
     },
     light_compressed_token::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-        get_token_pool_pda, mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
+        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_pool_pda,
+        mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
     },
     light_hasher::Poseidon,
     light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
@@ -739,11 +739,10 @@ pub fn create_initialize_mint_instructions(
     );
 
     let mint_pubkey = mint_keypair.pubkey();
-    // let mint_authority = get_token_authority_pda(authority, &mint_pubkey);
     let create_mint_instruction = initialize_mint(
         &anchor_spl::token::ID,
         &mint_keypair.pubkey(),
-        &authority,
+        authority,
         None,
         decimals,
     )
@@ -751,7 +750,7 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_initialize_mint_instruction(payer, authority, &mint_pubkey);
+    let instruction = create_initialize_mint_instruction(payer, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [

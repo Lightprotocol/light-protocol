@@ -10,10 +10,12 @@ describe("create-mint", () => {
     await requestAirdrop(mintAuthority.publicKey);
   });
 
-  /// TODO: add flags once the command is being executed
   test
     .stdout({ print: true })
-    .command(["create-mint"])
+    .command([
+      "create-mint",
+      `--mint-authority=${mintAuthority.publicKey.toBase58()}`,
+    ])
     .it(
       `create mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`,
       (ctx: any) => {

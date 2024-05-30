@@ -1,8 +1,9 @@
-use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, token_data::{AccountState, TokenData}
-};
 #[cfg(target_os = "solana")]
 use crate::get_cpi_signer_seeds;
+use crate::{
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    token_data::{AccountState, TokenData},
+};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use light_hasher::Poseidon;
@@ -22,8 +23,6 @@ pub const POOL_SEED: &[u8] = b"pool";
 pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(mut)]
-    pub authority: Signer<'info>,
     #[account(init,
               seeds = [
                 POOL_SEED, &mint.key().to_bytes(),
@@ -49,7 +48,6 @@ pub fn process_mint_to<'info>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     compression_public_keys: Vec<Pubkey>,
     amounts: Vec<u64>,
-    // bump: u8,
 ) -> Result<()> {
     if compression_public_keys.len() != amounts.len() {
         msg!(
@@ -76,19 +74,10 @@ pub fn process_mint_to<'info>(
         // All heap memory from this point on is freed prior to the cpi call.
         let pre_compressed_acounts_pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
         bench_sbf_start!("tm_mint_spl_to_pool_pda");
-        let authority_bytes = ctx.accounts.authority.key().to_bytes();
-        let mint_bytes = ctx.accounts.mint.key().to_bytes();
 
-        // let bump = &[bump];
-        // let seeds = [
-        //     MINT_AUTHORITY_SEED,
-        //     authority_bytes.as_slice(),
-        //     mint_bytes.as_slice(),
-        //     bump,
-        // ];
-        // let signer_seeds = &[&seeds[..]];
         // 7,912 CU
-        mint_spl_to_pool_pda(&ctx, &amounts)?; // signer_seeds
+        mint_spl_to_pool_pda(&ctx, &amounts)?;
+
         bench_sbf_end!("tm_mint_spl_to_pool_pda");
         let hashed_mint =
             hash_to_bn254_field_size_be(ctx.accounts.mint.to_account_info().key().as_ref())
@@ -116,7 +105,6 @@ pub fn process_mint_to<'info>(
             output_compressed_accounts,
             &mut inputs,
             pre_compressed_acounts_pos,
-            // signer_seeds,
         )?;
     }
     Ok(())
@@ -189,7 +177,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     inputs: &mut Vec<u8>,
     pre_compressed_acounts_pos: usize,
-    // signer_seeds: &[&[&[u8]]],
 ) -> Result<()> {
     light_heap::bench_sbf_start!("tm_cpi");
 
@@ -200,7 +187,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     // 4300 CU for 10 accounts
     // 6700 CU for 20 accounts
     // 7,978 CU for 25 accounts
-    serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec); // ,signer_seeds);
+    serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec);
 
     light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
 
@@ -214,8 +201,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     // 1300 CU
     let account_infos = vec![
         ctx.accounts.fee_payer.to_account_info(),
-        ctx.accounts.authority.to_account_info(), // 
-        // ctx.accounts.mint_authority_pda.to_account_info(),
+        ctx.accounts.cpi_authority_pda.to_account_info(),
         ctx.accounts.registered_program_pda.to_account_info(),
         ctx.accounts.noop_program.to_account_info(),
         ctx.accounts.account_compression_authority.to_account_info(),
@@ -287,8 +273,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
             is_writable: true,
         },
     ];
-   
-    // let signer_seeds_ref = &[&signer_seeds[..]];
 
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: light_system_program::ID,
@@ -299,7 +283,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 
     light_heap::bench_sbf_end!("tm_cpi");
     light_heap::bench_sbf_start!("tm_invoke");
-    anchor_lang::solana_program::program::invoke_signed( // invoke_signed
+    anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         account_infos.as_slice(),
         &[&signer_seeds[..]],
@@ -311,9 +295,8 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
 #[inline(never)]
 pub fn serialize_mint_to_cpi_instruction_data(
     inputs: &mut Vec<u8>,
-    output_compressed_accounts: &Vec<OutputCompressedAccountWithPackedContext>,
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     seeds: &Vec<Vec<u8>>,
-    // seeds: &[&[&[u8]]],
 ) {
     let len = output_compressed_accounts.len();
     // proof (option None)
@@ -328,8 +311,6 @@ pub fn serialize_mint_to_cpi_instruction_data(
     // relay_fee and compression lamports, is compress bool
     inputs.extend_from_slice(&[0u8; 3]);
     // seeds
-    // let seeds: Vec<Vec<u8>> = seeds[0].iter().map(|seed| seed.to_vec()).collect();
-
     seeds.serialize(inputs).unwrap();
     inputs.extend_from_slice(&[0u8]);
 }
@@ -338,7 +319,6 @@ pub fn serialize_mint_to_cpi_instruction_data(
 pub fn mint_spl_to_pool_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
     amounts: &[u64],
-    // signer_seeds: &[&[&[u8]]],
 ) -> Result<()> {
     let mut mint_amount: u64 = 0;
     for amount in amounts.iter() {
@@ -350,11 +330,7 @@ pub fn mint_spl_to_pool_pda<'info>(
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new(
-        ctx.accounts.token_program.to_account_info(),
-        cpi_accounts,
-        // signer_seeds,
-    );
+    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
     anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
     Ok(())
@@ -366,10 +342,11 @@ pub struct MintToInstruction<'info> {
     pub fee_payer: Signer<'info>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    // This is the cpi signer
-    // /// CHECK: that mint authority is derived from signer
-    // #[account(mut)]
-    // pub mint_authority_pda: UncheckedAccount<'info>,
+    // This is the cpi signer.
+    // TODO: double check security
+    /// CHECK: that mint authority is derived from signer
+    #[account(seeds = [b"cpi_authority"], bump,)]
+    pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
     #[account(mut, constraint = mint.mint_authority.unwrap() == authority.key())]
     pub mint: Account<'info, Mint>,
@@ -396,17 +373,6 @@ pub struct MintToInstruction<'info> {
     pub system_program: Program<'info, System>,
 }
 
-// pub fn get_token_authority_pda(signer: &Pubkey, mint: &Pubkey) -> (Pubkey, u8) {
-//     let signer_seed = signer.to_bytes();
-//     let mint_seed = mint.to_bytes();
-//     let seeds = &[
-//         MINT_AUTHORITY_SEED,
-//         signer_seed.as_slice(),
-//         mint_seed.as_slice(),
-//     ];
-//     Pubkey::find_program_address(seeds, &crate::ID)
-// }
-
 pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
     let seeds = &[POOL_SEED, mint.as_ref()];
     let (address, _) = Pubkey::find_program_address(seeds, &crate::ID);
@@ -420,22 +386,15 @@ pub mod mint_sdk {
     use anchor_spl;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    pub fn create_initialize_mint_instruction(
-        fee_payer: &Pubkey,
-        authority: &Pubkey,
-        mint: &Pubkey,
-    ) -> Instruction {
+    pub fn create_initialize_mint_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
-        // let mint_authority_pda = get_token_authority_pda(authority, mint).0;
         let instruction_data = crate::instruction::CreateMint {};
 
         let accounts = crate::accounts::CreateMintInstruction {
             fee_payer: *fee_payer,
-            authority: *authority,
             token_pool_pda,
             system_program: system_program::ID,
             mint: *mint,
-            // mint_authority_pda,
             token_program: anchor_spl::token::ID,
             cpi_authority_pda: get_cpi_authority_pda().0,
         };
@@ -456,17 +415,16 @@ pub mod mint_sdk {
         public_keys: Vec<Pubkey>,
     ) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
-        // let (mint_authority_pda, bump) = get_token_authority_pda(authority, mint);
+
         let instruction_data = crate::instruction::MintTo {
             amounts,
             public_keys,
-            // bump,
         };
 
         let accounts = crate::accounts::MintToInstruction {
             fee_payer: *fee_payer,
             authority: *authority,
-            // mint_authority_pda,
+            cpi_authority_pda: get_cpi_authority_pda().0,
             mint: *mint,
             token_pool_pda,
             token_program: anchor_spl::token::ID,
@@ -496,7 +454,7 @@ pub mod mint_sdk {
 
 #[test]
 fn test_manual_ix_data_serialization_borsh_compat() {
-    use crate:: get_cpi_signer_seeds;
+    use crate::get_cpi_signer_seeds;
     let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
     let amounts = vec![1, 2];
     let mint_pubkey = Pubkey::new_unique();
@@ -534,21 +492,16 @@ fn test_manual_ix_data_serialization_borsh_compat() {
             merkle_tree_index: 0,
         };
     }
-    // let authority_bytes = Pubkey::new_unique().to_bytes();
-    // let mint_bytes = Pubkey::new_unique().to_bytes();
-    // let bump = &[255];
-    // let seeds = [
-    //     MINT_AUTHORITY_SEED,
-    //     authority_bytes.as_slice(),
-    //     mint_bytes.as_slice(),
-    //     bump,
-    // ];
-    // TODO: check if cpi ??
+
     let signer_seeds = get_cpi_signer_seeds();
 
     let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
     let mut inputs = Vec::<u8>::new();
-    serialize_mint_to_cpi_instruction_data(&mut inputs, &output_compressed_accounts, &signer_seeds_vec);//, &[&seeds]);
+    serialize_mint_to_cpi_instruction_data(
+        &mut inputs,
+        &output_compressed_accounts,
+        &signer_seeds_vec,
+    );
 
     let inputs_struct = light_system_program::InstructionDataInvokeCpi {
         relay_fee: None,
@@ -558,12 +511,12 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         new_address_params: Vec::with_capacity(0),
         compression_lamports: None,
         is_compress: false,
-        signer_seeds: signer_seeds_vec, //signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
+        signer_seeds: signer_seeds_vec,
         cpi_context: None,
     };
     let mut reference = Vec::<u8>::new();
     inputs_struct.serialize(&mut reference).unwrap();
-  
+
     assert_eq!(inputs.len(), reference.len());
     for (j, i) in inputs.iter().zip(reference.iter()).enumerate() {
         println!("j: {} i: {} {}", j, i.0, i.1);

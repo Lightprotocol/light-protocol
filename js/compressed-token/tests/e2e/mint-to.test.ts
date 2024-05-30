@@ -60,7 +60,7 @@ describe('mintTo', () => {
             await createMint(
                 rpc,
                 payer,
-                mintAuthority,
+                mintAuthority.publicKey,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

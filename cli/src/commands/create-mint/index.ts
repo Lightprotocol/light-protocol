@@ -4,10 +4,9 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getSolanaRpcUrl,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import { getTestRpc } from "@lightprotocol/stateless.js";
 import { WasmFactory } from "@lightprotocol/hasher.rs";
 
@@ -25,8 +24,7 @@ class CreateMintCommand extends Command {
       required: false,
     }),
     "mint-authority": Flags.string({
-      description:
-        "Specify a path to the mint authority keypair file. Defaults to your default local solana wallet file path",
+      description: "Address of the mint authority. Defaults to the fee payer",
       required: false,
     }),
     "mint-decimals": Flags.integer({
@@ -47,7 +45,7 @@ class CreateMintCommand extends Command {
       const payer = defaultSolanaWalletKeypair();
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = await this.getMintKeypair(flags);
-      const mintAuthority = await this.getMintAuthority(flags, payer);
+      const mintAuthority = await this.getMintAuthority(flags, payer.publicKey);
       const lightWasm = await WasmFactory.getInstance();
       const rpc = await getTestRpc(lightWasm);
       const { mint, transactionSignature } = await createMint(
@@ -82,10 +80,10 @@ class CreateMintCommand extends Command {
     return keypair;
   }
 
-  async getMintAuthority(flags: any, payer: Keypair): Promise<Keypair> {
+  async getMintAuthority(flags: any, feePayer: PublicKey): Promise<PublicKey> {
     return flags["mint-authority"]
-      ? await getKeypairFromFile(flags["mint-authority"])
-      : payer;
+      ? new PublicKey(flags["mint-authority"])
+      : feePayer;
   }
 }
 
