@@ -28,14 +28,9 @@ export type AccountCompression = {
             value: '10';
         },
         {
-            name: 'STATE_NULLIFIER_QUEUE_INDICES';
-            type: 'u16';
-            value: '6857';
-        },
-        {
             name: 'STATE_NULLIFIER_QUEUE_VALUES';
             type: 'u16';
-            value: '4800';
+            value: '6857';
         },
         {
             name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD';
@@ -68,14 +63,9 @@ export type AccountCompression = {
             value: '256';
         },
         {
-            name: 'ADDRESS_QUEUE_INDICES';
-            type: 'u16';
-            value: '6857';
-        },
-        {
             name: 'ADDRESS_QUEUE_VALUES';
             type: 'u16';
-            value: '4800';
+            value: '6857';
         },
         {
             name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD';
@@ -988,11 +978,7 @@ export type AccountCompression = {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'capacityIndices';
-                        type: 'u16';
-                    },
-                    {
-                        name: 'capacityValues';
+                        name: 'capacity';
                         type: 'u16';
                     },
                     {
@@ -1206,14 +1192,9 @@ export const IDL: AccountCompression = {
             value: '10',
         },
         {
-            name: 'STATE_NULLIFIER_QUEUE_INDICES',
-            type: 'u16',
-            value: '6857',
-        },
-        {
             name: 'STATE_NULLIFIER_QUEUE_VALUES',
             type: 'u16',
-            value: '4800',
+            value: '6857',
         },
         {
             name: 'STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD',
@@ -1246,14 +1227,9 @@ export const IDL: AccountCompression = {
             value: '256',
         },
         {
-            name: 'ADDRESS_QUEUE_INDICES',
-            type: 'u16',
-            value: '6857',
-        },
-        {
             name: 'ADDRESS_QUEUE_VALUES',
             type: 'u16',
-            value: '4800',
+            value: '6857',
         },
         {
             name: 'ADDRESS_QUEUE_SEQUENCE_THRESHOLD',
@@ -2166,11 +2142,7 @@ export const IDL: AccountCompression = {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'capacityIndices',
-                        type: 'u16',
-                    },
-                    {
-                        name: 'capacityValues',
+                        name: 'capacity',
                         type: 'u16',
                     },
                     {
