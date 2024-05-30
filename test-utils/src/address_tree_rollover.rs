@@ -236,9 +236,9 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     {
         let old_address_queue =
-            unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *old_queue_pubkey).await };
+            unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_queue_pubkey).await };
         let new_address_queue =
-            unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *new_queue_pubkey).await };
+            unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_queue_pubkey).await };
 
         assert_eq!(old_address_queue.capacity, new_address_queue.capacity);
 

@@ -63,11 +63,8 @@ async fn test_address_queue_and_tree_functional() {
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(
-            &mut context,
-            address_queue_pubkey,
-        )
-        .await
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
+            .await
     };
 
     assert!(address_queue.contains(&address1, None).unwrap());
@@ -89,11 +86,8 @@ async fn test_address_queue_and_tree_functional() {
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(
-            &mut context,
-            address_queue_pubkey,
-        )
-        .await
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
+            .await
     };
     address_queue
         .find_element(&address3, None)
@@ -192,11 +186,8 @@ async fn update_address_merkle_tree_failing_tests() {
     .await
     .unwrap();
     let address_queue = unsafe {
-        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(
-            &mut context,
-            address_queue_pubkey,
-        )
-        .await
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(&mut context, address_queue_pubkey)
+            .await
     };
     // CHECK: 2.1 cannot insert an address with an invalid low address
     test_with_invalid_low_element(
@@ -755,7 +746,7 @@ pub async fn test_with_invalid_low_element(
     context: &mut ProgramTestRpcConnection,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
-    address_queue: &HashSet<u16>,
+    address_queue: &HashSet,
     address_merkle_tree_bundle: &AddressMerkleTreeBundle<200>,
     index: usize,
     expected_error: u32,

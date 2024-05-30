@@ -144,8 +144,12 @@ impl<'a> HashSetZeroCopy<'a> {
     }
 
     /// Check if the hash set contains a value.
-    pub fn contains(&self, value: &BigUint, sequence_number: usize) -> Result<bool, HashSetError> {
-        self.hash_set.contains(value, Some(sequence_number))
+    pub fn contains(
+        &self,
+        value: &BigUint,
+        sequence_number: Option<usize>,
+    ) -> Result<bool, HashSetError> {
+        self.hash_set.contains(value, sequence_number)
     }
 
     /// Marks the given element with a given sequence number.
