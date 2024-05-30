@@ -244,7 +244,7 @@ async fn test_full_nullifier_queue() {
     )
     .await;
 
-    let initial_value = 6005;
+    let initial_value = 9005;
     let element: [u8; 32] = bigint_to_be_bytes_array(&initial_value.to_biguint().unwrap()).unwrap();
     // CHECK 1
     fail_insert_into_full_queue(
@@ -1484,7 +1484,7 @@ pub async fn nullify<R: RpcConnection>(
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
 
     let array_element = nullifier_queue
-        .get_unmarked_bucket(leaf_queue_index.into())
+        .get_bucket(leaf_queue_index.into())
         .unwrap()
         .unwrap();
     assert_eq!(&array_element.value_bytes(), element);
@@ -1527,15 +1527,12 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
     let mut inserted = 0;
     {
         let hash_set = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
-        // current_index = unsafe { *hash_set.hash_set.next_value_index };
         capacity = hash_set.hash_set.capacity - left_over_indices;
         let arbitrary_sequence_number = 0;
         for i in 0..capacity {
-            if let Err(e) = hash_set.insert(&(i).to_biguint().unwrap(), arbitrary_sequence_number) {
-                println!("insertions: {i}: failed, stopping");
-                inserted = i;
-                break;
-            }
+            hash_set
+                .insert(&(i).to_biguint().unwrap(), arbitrary_sequence_number)
+                .unwrap();
         }
     }
     assert_ne!(account.data, data);
@@ -1550,6 +1547,9 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
         .unwrap();
     let mut data = account.data.clone();
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
+    for i in 0..capacity {
+        let bucket = nullifier_queue.get_bucket(i).unwrap();
+    }
     for i in 0..inserted {
         assert!(nullifier_queue
             .contains(&(i).to_biguint().unwrap(), None)
