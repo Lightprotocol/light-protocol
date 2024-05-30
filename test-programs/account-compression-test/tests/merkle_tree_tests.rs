@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use account_compression::{
     self,
     errors::AccountCompressionErrorCode,
+    queue_from_bytes_copy,
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{
@@ -908,6 +909,20 @@ async fn test_nullify_leaves() {
     reference_merkle_tree.append(&elements[0].1).unwrap();
     reference_merkle_tree.append(&elements[1].1).unwrap();
 
+    let leaf_queue_index = {
+        let account = context
+            .get_account(nullifier_queue_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut data = account.data.clone();
+        let nullifier_queue = &mut unsafe { queue_from_bytes_copy(&mut data).unwrap() };
+        let (_, index) = nullifier_queue
+            .find_element(&BigUint::from_bytes_be(&elements[0].1), None)
+            .unwrap()
+            .unwrap();
+        index
+    };
     let element_index = reference_merkle_tree
         .get_leaf_index(&elements[0].1)
         .unwrap() as u64;

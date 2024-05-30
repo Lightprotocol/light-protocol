@@ -382,7 +382,7 @@ async fn update_address_merkle_tree_failing_tests() {
         .unwrap();
     let changelog_index = address_merkle_tree.merkle_tree.changelog_index();
     // CHECK: 9 invalid changelog index
-    let invalid_changelog_index_low = changelog_index - 1;
+    let invalid_changelog_index_low = changelog_index - 2;
     let error_invalid_changelog_index_low = update_merkle_tree(
         &mut context,
         address_queue_pubkey,

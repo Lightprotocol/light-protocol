@@ -123,7 +123,7 @@ impl QueueAccount {
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn nullifier_queue_from_bytes_copy(mut data: RefMut<'_, &mut [u8]>) -> Result<HashSet> {
+pub unsafe fn queue_from_bytes_copy(data: &mut [u8]) -> Result<HashSet> {
     let data = &mut data[8 + mem::size_of::<QueueAccount>()..];
     let queue = HashSet::from_bytes_copy(data).map_err(ProgramError::from)?;
     Ok(queue)
