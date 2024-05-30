@@ -13,7 +13,7 @@ use light_merkle_tree_reference::store::Store;
 use light_utils::rand::gen_range_exclude;
 use num_bigint::BigUint;
 use num_traits::FromBytes;
-use rand::{rngs::ThreadRng, thread_rng, Rng};
+use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use solana_program::pubkey::Pubkey;
 
 /// Tests whether append operations work as expected.
@@ -2206,6 +2206,7 @@ pub fn test_100_nullify_mt() {
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
 
         let mut queue = HashSet::new(6857, 2400).unwrap();
+        let mut queue_indices = Vec::new();
         for i in 1..1 + iterations {
             let mut leaf = [0; 32];
             leaf[31] = i as u8;
@@ -2213,18 +2214,20 @@ pub fn test_100_nullify_mt() {
             onchain_merkle_tree.append(&leaf).unwrap();
             crank_merkle_tree.append(&leaf).unwrap();
             // onchain the equivalent is nullify state (compressed pda program)
-            queue.insert(&BigUint::from_be_bytes(&leaf), 1).unwrap();
+            let leaf_bn = BigUint::from_be_bytes(&leaf);
+            queue.insert(&leaf_bn, 1).unwrap();
+            let (_, index) = queue.find_element(&leaf_bn, None).unwrap().unwrap();
+            queue_indices.push(index);
         }
         assert_eq!(onchain_merkle_tree.root(), crank_merkle_tree.root());
 
         let mut rng = rand::thread_rng();
 
         // Pick random queue indices to nullify.
-        let mut queue_indices = std::collections::HashSet::new();
-        while queue_indices.len() < cmp::min(9, iterations) {
-            let index = rng.gen_range(0..iterations);
-            queue_indices.insert(index);
-        }
+        let queue_indices = queue_indices
+            .choose_multiple(&mut rng, cmp::min(9, iterations))
+            .cloned()
+            .collect::<Vec<_>>();
 
         let change_log_index = onchain_merkle_tree.changelog_index();
 
