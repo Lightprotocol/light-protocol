@@ -9,7 +9,6 @@ import {
     Rpc,
     buildAndSignTx,
     sendAndConfirmTx,
-    dedupeSigner,
 } from '@lightprotocol/stateless.js';
 
 /**

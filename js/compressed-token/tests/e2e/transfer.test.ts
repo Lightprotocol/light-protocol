@@ -102,15 +102,7 @@ describe('transfer', () => {
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
 
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1000),
-            merkleTree,
-        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
     });
 
     it('should transfer from bob -> charlie', async () => {
@@ -203,15 +195,7 @@ describe('transfer', () => {
             await rpc.getCompressedTokenAccountsByOwner(charlie.publicKey, {
                 mint,
             });
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            charlie,
-            bob.publicKey,
-            merkleTree,
-        );
+        await transfer(rpc, payer, mint, bn(700), charlie, bob.publicKey);
 
         await assertTransfer(
             rpc,

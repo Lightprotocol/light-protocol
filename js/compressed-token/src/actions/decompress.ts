@@ -7,7 +7,6 @@ import {
 } from '@solana/web3.js';
 import {
     bn,
-    defaultTestStateTreeAccounts,
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
@@ -45,7 +44,7 @@ export async function decompress(
     owner: Signer,
     toAddress: PublicKey,
     /// TODO: allow multiple
-    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
+    merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);

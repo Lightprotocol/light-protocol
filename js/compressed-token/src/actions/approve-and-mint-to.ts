@@ -7,7 +7,6 @@ import {
 } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
-    defaultTestStateTreeAccounts,
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
@@ -38,7 +37,7 @@ export async function approveAndMintTo(
     destination: PublicKey,
     authority: Signer,
     amount: number | BN,
-    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
+    merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const authorityTokenAccount = await getOrCreateAssociatedTokenAccount(

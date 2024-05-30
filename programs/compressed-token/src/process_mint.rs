@@ -341,7 +341,7 @@ pub struct MintToInstruction<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: that mint authority is derived from signer
-    #[account(seeds = [b"cpi_authority"], bump,)]
+    #[account(seeds = [b"cpi_authority"], bump)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     /// CHECK: that authority is mint authority
     #[account(mut, constraint = mint.mint_authority.unwrap() == authority.key())]
@@ -357,7 +357,7 @@ pub struct MintToInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(mut, seeds = [b"cpi_authority"], bump, seeds::program = light_system_program::ID,)]
+    #[account(mut, seeds = [b"cpi_authority"], bump, seeds::program = light_system_program::ID)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:

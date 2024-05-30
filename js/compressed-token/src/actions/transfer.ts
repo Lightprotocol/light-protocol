@@ -7,7 +7,6 @@ import {
 } from '@solana/web3.js';
 import {
     bn,
-    defaultTestStateTreeAccounts,
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
@@ -29,7 +28,8 @@ import { CompressedTokenProgram } from '../program';
  * @param owner          Owner of the compressed tokens
  * @param toAddress      Destination address of the recipient
  * @param merkleTree     State tree account that the compressed tokens should be
- *                       inserted into. Defaults to the default state tree account.
+ *                       inserted into. Defaults to the default state tree
+ *                       account.
  * @param confirmOptions Options for confirming the transaction
  *
  *
@@ -43,7 +43,7 @@ export async function transfer(
     owner: Signer,
     toAddress: PublicKey,
     /// TODO: allow multiple
-    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree,
+    merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     amount = bn(amount);

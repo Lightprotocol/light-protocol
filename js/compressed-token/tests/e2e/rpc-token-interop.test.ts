@@ -22,7 +22,6 @@ describe('rpc-interop token', () => {
     let charlie: Signer;
     let mint: PublicKey;
     let mintAuthority: Keypair;
-    const { merkleTree } = defaultTestStateTreeAccounts();
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
@@ -45,25 +44,9 @@ describe('rpc-interop token', () => {
         bob = await newAccountWithLamports(rpc, 1e9, 256);
         charlie = await newAccountWithLamports(rpc, 1e9, 256);
 
-        await mintTo(
-            rpc,
-            payer,
-            mint,
-            bob.publicKey,
-            mintAuthority,
-            bn(1000),
-            merkleTree,
-        );
+        await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
 
-        await transfer(
-            rpc,
-            payer,
-            mint,
-            bn(700),
-            bob,
-            charlie.publicKey,
-            merkleTree,
-        );
+        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
     });
 
     it('getCompressedTokenAccountsByOwner should match', async () => {

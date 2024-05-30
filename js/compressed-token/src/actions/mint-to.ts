@@ -7,7 +7,6 @@ import {
 } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import {
-    defaultTestStateTreeAccounts,
     sendAndConfirmTx,
     buildAndSignTx,
     Rpc,
@@ -37,7 +36,7 @@ export async function mintTo(
     destination: PublicKey,
     authority: Signer,
     amount: number | BN,
-    merkleTree: PublicKey = defaultTestStateTreeAccounts().merkleTree, // DEFAULT IF NOT PROVIDED
+    merkleTree?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const additionalSigners = dedupeSigner(payer, [authority]);

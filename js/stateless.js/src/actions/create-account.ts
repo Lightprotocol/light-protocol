@@ -73,9 +73,7 @@ export async function createAccount(
         newAddress: Array.from(address.toBytes()),
         recentValidityProof: proof.compressedProof,
         programId,
-        outputStateTree: outputStateTree
-            ? outputStateTree
-            : defaultTestStateTreeAccounts().merkleTree, // TODO: should fetch the current shared state tree
+        outputStateTree,
     });
 
     const tx = buildAndSignTx(
@@ -166,9 +164,7 @@ export async function createAccountWithLamports(
         inputCompressedAccounts: inputAccounts,
         inputStateRootIndices: proof.rootIndices,
         programId,
-        outputStateTree: outputStateTree
-            ? outputStateTree
-            : defaultTestStateTreeAccounts().merkleTree, // TODO: should fetch the current shared state tree
+        outputStateTree,
     });
 
     const tx = buildAndSignTx(
