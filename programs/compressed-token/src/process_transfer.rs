@@ -191,7 +191,7 @@ pub fn add_token_data_to_input_compressed_accounts(
     Ok(())
 }
 
-// TODO: consider to helpers
+// TODO: consider moving this function to helpers
 /// Get static cpi signer seeds
 pub fn get_cpi_signer_seeds() -> [&'static [u8]; 2] {
     let bump: &[u8; 1] = &[255];

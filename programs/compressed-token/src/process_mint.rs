@@ -16,7 +16,6 @@ use light_utils::hash_to_bn254_field_size_be;
 
 use std::mem;
 pub const POOL_SEED: &[u8] = b"pool";
-// pub const MINT_AUTHORITY_SEED: &[u8] = b"mint_authority_pda";
 
 /// creates a token pool account which is owned by the token authority pda
 #[derive(Accounts)]
@@ -326,9 +325,9 @@ pub fn mint_spl_to_pool_pda<'info>(
     }
 
     let cpi_accounts = anchor_spl::token::MintTo {
-        authority: ctx.accounts.authority.to_account_info(),
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
+        authority: ctx.accounts.authority.to_account_info(),
     };
     let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 

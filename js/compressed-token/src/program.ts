@@ -29,14 +29,8 @@ import {
     createInitializeMint2Instruction,
     createMintToInstruction,
 } from '@solana/spl-token';
-import {
-    CPI_AUTHORITY_SEED,
-    MINT_AUTHORITY_SEED,
-    POOL_SEED,
-} from './constants';
-import { Buffer } from 'buffer';
+import { CPI_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
-import { PackedTokenTransferOutputData } from './types';
 
 type CompressParams = {
     /**
