@@ -24,11 +24,6 @@ export type LightCompressedToken = {
                     isSigner: true;
                 },
                 {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
                     name: 'tokenPoolPda';
                     isMut: true;
                     isSigner: false;
@@ -40,11 +35,6 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'mint';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'mintAuthorityPda';
                     isMut: true;
                     isSigner: false;
                 },
@@ -75,8 +65,8 @@ export type LightCompressedToken = {
                     isSigner: true;
                 },
                 {
-                    name: 'mintAuthorityPda';
-                    isMut: true;
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -147,10 +137,6 @@ export type LightCompressedToken = {
                     type: {
                         vec: 'u64';
                     };
-                },
-                {
-                    name: 'bump';
-                    type: 'u8';
                 },
             ];
         },
@@ -1038,11 +1024,6 @@ export const IDL: LightCompressedToken = {
                     isSigner: true,
                 },
                 {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
                     name: 'tokenPoolPda',
                     isMut: true,
                     isSigner: false,
@@ -1054,11 +1035,6 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'mintAuthorityPda',
                     isMut: true,
                     isSigner: false,
                 },
@@ -1089,8 +1065,8 @@ export const IDL: LightCompressedToken = {
                     isSigner: true,
                 },
                 {
-                    name: 'mintAuthorityPda',
-                    isMut: true,
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
                     isSigner: false,
                 },
                 {
@@ -1161,10 +1137,6 @@ export const IDL: LightCompressedToken = {
                     type: {
                         vec: 'u64',
                     },
-                },
-                {
-                    name: 'bump',
-                    type: 'u8',
                 },
             ],
         },

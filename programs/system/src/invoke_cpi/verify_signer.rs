@@ -45,7 +45,7 @@ pub fn cpi_signer_check(
     if derived_signer != *signer {
         msg!(
                     "Signer/Program cannot write into an account it doesn't own. Write access check failed derived cpi signer {} !=  signer {}",
-                    signer,
+                    derived_signer,
                     signer
                 );
         msg!("seeds: {:?}", seeds);

@@ -191,6 +191,14 @@ pub fn add_token_data_to_input_compressed_accounts(
     Ok(())
 }
 
+// TODO: consider moving this function to helpers
+/// Get static cpi signer seeds
+pub fn get_cpi_signer_seeds() -> [&'static [u8]; 2] {
+    let bump: &[u8; 1] = &[255];
+    let seeds: [&'static [u8]; 2] = [b"cpi_authority", bump];
+    seeds
+}
+
 #[inline(never)]
 pub fn cpi_execute_compressed_transaction_transfer<'info>(
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
@@ -201,10 +209,9 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
 ) -> Result<()> {
     bench_sbf_start!("t_cpi_prep");
 
-    let bump = &[255];
-    let seeds: [&[u8]; 2] = [b"cpi_authority".as_slice(), bump];
+    let signer_seeds = get_cpi_signer_seeds();
+    let signer_seeds_ref = &[&signer_seeds[..]];
 
-    let signer_seeds = &[&seeds[..]];
     let cpi_context_account = cpi_context.map(|cpi_context| {
         ctx.remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });
@@ -216,7 +223,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         new_address_params: Vec::new(),
         compression_lamports: None,
         is_compress: false,
-        signer_seeds: seeds.iter().map(|seed| seed.to_vec()).collect(),
+        signer_seeds: signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context,
     };
     let mut inputs = Vec::new();
@@ -238,7 +245,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
     let mut cpi_ctx = CpiContext::new_with_signer(
         ctx.accounts.light_system_program.to_account_info(),
         cpi_accounts,
-        signer_seeds,
+        signer_seeds_ref,
     );
 
     cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();

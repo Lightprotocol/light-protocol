@@ -29,14 +29,8 @@ import {
     createInitializeMint2Instruction,
     createMintToInstruction,
 } from '@solana/spl-token';
-import {
-    CPI_AUTHORITY_SEED,
-    MINT_AUTHORITY_SEED,
-    POOL_SEED,
-} from './constants';
-import { Buffer } from 'buffer';
+import { CPI_AUTHORITY_SEED, POOL_SEED } from './constants';
 import { packCompressedTokenAccounts } from './instructions/pack-compressed-token-accounts';
-import { PackedTokenTransferOutputData } from './types';
 
 type CompressParams = {
     /**
@@ -181,8 +175,6 @@ export type MintToParams = {
 export type RegisterMintParams = {
     /** Tx feepayer */
     feePayer: PublicKey;
-    /** Mint authority */
-    authority: PublicKey;
     /** Mint public key */
     mint: PublicKey;
 };
@@ -384,17 +376,6 @@ export class CompressedTokenProgram {
     }
 
     /** @internal */
-    static deriveMintAuthorityPda = (
-        authority: PublicKey,
-        mint: PublicKey,
-    ): [PublicKey, number] => {
-        return PublicKey.findProgramAddressSync(
-            [MINT_AUTHORITY_SEED, authority.toBuffer(), mint.toBuffer()],
-            this.programId,
-        );
-    };
-
-    /** @internal */
     static deriveTokenPoolPda(mint: PublicKey): PublicKey {
         const seeds = [POOL_SEED, mint.toBuffer()];
         const [address, _] = PublicKey.findProgramAddressSync(
@@ -430,47 +411,20 @@ export class CompressedTokenProgram {
             space: MINT_SIZE,
         });
 
-        const [mintAuthorityPda] = this.deriveMintAuthorityPda(authority, mint);
-
         const initializeMintInstruction = createInitializeMint2Instruction(
             mint,
             params.decimals,
-            mintAuthorityPda,
+            authority,
             params.freezeAuthority,
             TOKEN_PROGRAM_ID,
         );
 
-        /// Fund the mint authority PDA. The authority is system-owned in order
-        /// to natively mint compressed tokens.
-        const fundAuthorityPdaInstruction = SystemProgram.transfer({
-            fromPubkey: feePayer,
-            toPubkey: mintAuthorityPda,
-            lamports: rentExemptBalance,
+        const ix = await this.registerMint({
+            feePayer,
+            mint,
         });
 
-        const tokenPoolPda = this.deriveTokenPoolPda(mint);
-
-        /// Create omnibus compressed mint account
-        const ix = await this.program.methods
-            .createMint()
-            .accounts({
-                mint,
-                feePayer,
-                authority,
-                tokenPoolPda,
-                systemProgram: SystemProgram.programId,
-                mintAuthorityPda,
-                tokenProgram: TOKEN_PROGRAM_ID,
-                cpiAuthorityPda: this.deriveCpiAuthorityPda,
-            })
-            .instruction();
-
-        return [
-            createMintAccountInstruction,
-            initializeMintInstruction,
-            fundAuthorityPdaInstruction,
-            ix,
-        ];
+        return [createMintAccountInstruction, initializeMintInstruction, ix];
     }
 
     /**
@@ -479,10 +433,8 @@ export class CompressedTokenProgram {
      */
     static async registerMint(
         params: RegisterMintParams,
-    ): Promise<TransactionInstruction[]> {
-        const { mint, authority, feePayer } = params;
-
-        const [mintAuthorityPda] = this.deriveMintAuthorityPda(authority, mint);
+    ): Promise<TransactionInstruction> {
+        const { mint, feePayer } = params;
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
@@ -491,16 +443,14 @@ export class CompressedTokenProgram {
             .accounts({
                 mint,
                 feePayer,
-                authority,
                 tokenPoolPda,
                 systemProgram: SystemProgram.programId,
-                mintAuthorityPda,
                 tokenProgram: TOKEN_PROGRAM_ID,
                 cpiAuthorityPda: this.deriveCpiAuthorityPda,
             })
             .instruction();
 
-        return [ix];
+        return ix;
     }
 
     /**
@@ -513,20 +463,16 @@ export class CompressedTokenProgram {
             params;
 
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
-        const [mintAuthorityPda, bump] = this.deriveMintAuthorityPda(
-            authority,
-            mint,
-        );
 
         const amounts = toArray<BN | number>(amount).map(amount => bn(amount));
 
         const toPubkeys = toArray(toPubkey);
         const instruction = await this.program.methods
-            .mintTo(toPubkeys, amounts, bump)
+            .mintTo(toPubkeys, amounts)
             .accounts({
                 feePayer,
                 authority,
-                mintAuthorityPda,
+                cpiAuthorityPda: this.deriveCpiAuthorityPda,
                 mint,
                 tokenPoolPda,
                 tokenProgram: TOKEN_PROGRAM_ID,
@@ -559,7 +505,7 @@ export class CompressedTokenProgram {
 
         const amount: bigint = BigInt(params.amount.toString());
 
-        /// 1. Mint to mint authority ATA
+        /// 1. Mint to existing ATA of mintAuthority.
         const splMintToInstruction = createMintToInstruction(
             mint,
             authorityTokenAccount,
@@ -567,26 +513,18 @@ export class CompressedTokenProgram {
             amount,
         );
 
-        /// 2. Compressed token program mintTo
-        const approveInstruction = createApproveInstruction(
-            authorityTokenAccount,
-            this.deriveCpiAuthorityPda,
-            authority,
-            amount,
-        );
-
-        /// 3. Compress from mint authority ATA to recipient compressed account
-        const ixs = await this.compress({
+        /// 2. Compress from mint authority ATA to recipient compressed account
+        const [approveInstruction, compressInstruction] = await this.compress({
             payer: feePayer,
             owner: authority,
             source: authorityTokenAccount,
             toAddress: toPubkey,
             mint,
-            amount: bn(amount.toString()),
+            amount: params.amount,
             outputStateTree: merkleTree,
         });
 
-        return [splMintToInstruction, approveInstruction, ...ixs];
+        return [splMintToInstruction, approveInstruction, compressInstruction];
     }
     /**
      * Construct transfer instruction for compressed tokens

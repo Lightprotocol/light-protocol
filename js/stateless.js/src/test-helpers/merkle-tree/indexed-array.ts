@@ -1,7 +1,4 @@
 import { LightWasm } from '../test-rpc/test-rpc';
-// TODO: remove import
-// import { WasmFactory } from '@lightprotocol/hasher.rs';
-
 import { BN } from '@coral-xyz/anchor';
 import { bn } from '../../state';
 import { MerkleTree } from './merkle-tree';
@@ -37,15 +34,8 @@ export class IndexedElement {
                 bn(nextValue.toArray('be', 32)).toString(),
             ]);
             return hash;
-            // const hash = H.hashv([
-            //     bigintToBeBytesArray<32>(this.value),
-            //     this.nextIndex.toBytes(),
-            //     bigintToBeBytesArray<32>(nextValue),
-            // ]);
-            // return [hash, undefined];
         } catch (error) {
             throw new Error('Hashing failed');
-            // return [0, new IndexedMerkleTreeError('Hashing failed')];
         }
     }
 }
@@ -189,15 +179,7 @@ export class IndexedArray {
             bn(element.value.toArray('be', 32)).toString(),
             bn(element.nextIndex).toString(),
             bn(nextElement.value.toArray('be', 32)).toString(),
-            // bigintToBeBytesArray<32>(element.value),
-            // bigintToBeBytesArray<32>(element.nextIndex),
-            // bigintToBeBytesArray<32>(nextElement.value),
         ]);
-        // const hash = this.hasher.hashv([
-        //     element.value.toBuffer(),
-        //     new Uint8Array(new Uint32Array([element.nextIndex]).buffer),
-        //     nextElement.value.toBuffer(),
-        // ]);
 
         return hash;
     }

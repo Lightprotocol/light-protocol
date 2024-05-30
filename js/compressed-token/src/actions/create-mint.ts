@@ -19,7 +19,7 @@ import {
  *
  * @param rpc             RPC to use
  * @param payer           Payer of the transaction and initialization fees
- * @param mintAuthority   Account or multisig that will control minting. Is signer.
+ * @param mintAuthority   Account or multisig that will control minting
  * @param decimals        Location of the decimal place
  * @param keypair         Optional keypair, defaulting to a new random one
  * @param confirmOptions  Options for confirming the transaction
@@ -29,7 +29,7 @@ import {
 export async function createMint(
     rpc: Rpc,
     payer: Signer,
-    mintAuthority: Signer,
+    mintAuthority: PublicKey,
     decimals: number,
     keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
@@ -41,14 +41,14 @@ export async function createMint(
         feePayer: payer.publicKey,
         mint: keypair.publicKey,
         decimals,
-        authority: mintAuthority.publicKey,
+        authority: mintAuthority,
         freezeAuthority: null, // TODO: add feature
         rentExemptBalance,
     });
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    const additionalSigners = dedupeSigner(payer, [mintAuthority, keypair]);
+    const additionalSigners = dedupeSigner(payer, [keypair]);
 
     const tx = buildAndSignTx(ixs, payer, blockhash, additionalSigners);
 

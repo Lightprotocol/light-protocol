@@ -9,7 +9,7 @@ use crate::{
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 use light_compressed_token::{
-    get_cpi_authority_pda, get_token_authority_pda, get_token_pool_pda,
+    get_cpi_authority_pda, get_token_pool_pda,
     mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
     transfer_sdk::create_transfer_instruction,
     TokenTransferOutputData,
@@ -163,11 +163,10 @@ pub fn create_initialize_mint_instructions(
     );
 
     let mint_pubkey = mint_keypair.pubkey();
-    let mint_authority = get_token_authority_pda(authority, &mint_pubkey).0;
     let create_mint_instruction = initialize_mint(
         &anchor_spl::token::ID,
         &mint_keypair.pubkey(),
-        &mint_authority,
+        authority,
         None,
         decimals,
     )
@@ -175,7 +174,7 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_initialize_mint_instruction(payer, authority, &mint_pubkey);
+    let instruction = create_initialize_mint_instruction(payer, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [
