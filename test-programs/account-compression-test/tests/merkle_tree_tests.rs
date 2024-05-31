@@ -923,7 +923,7 @@ async fn test_nullify_leaves() {
             .unwrap();
         index
     };
-    println!("leaf_queue_index: {leaf_queue_index:?}");
+
     let element_index = reference_merkle_tree
         .get_leaf_index(&elements[0].1)
         .unwrap() as u64;

@@ -261,8 +261,6 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
 
     assert_eq!(old_address_queue.capacity, new_address_queue.capacity);
 
-    assert_eq!(old_address_queue.capacity, new_address_queue.capacity);
-
     assert_eq!(
         old_address_queue.sequence_threshold,
         new_address_queue.sequence_threshold,
