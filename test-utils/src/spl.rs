@@ -396,15 +396,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     };
     let input_compressed_account_hashes = input_compressed_accounts
         .iter()
-        .map(|x| {
-            x.compressed_account
-                .compressed_account
-                .hash::<Poseidon>(
-                    &x.compressed_account.merkle_context.merkle_tree_pubkey,
-                    &x.compressed_account.merkle_context.leaf_index,
-                )
-                .unwrap()
-        })
+        .map(|x| x.compressed_account.hash().unwrap())
         .collect::<Vec<_>>();
     let input_merkle_tree_pubkeys = input_compressed_accounts
         .iter()

@@ -150,7 +150,10 @@ pub fn assert_custom_error_or_program_error(
     if !is_accepted {
         println!("result {:?}", result);
         println!("error_code {:?}", error_code);
-        return Err(result.unwrap_err());
+        return Err(RpcError::AssertRpcError(format!(
+            "Expected error code {} or program error, got {:?}",
+            error_code, result
+        )));
     }
 
     Ok(())

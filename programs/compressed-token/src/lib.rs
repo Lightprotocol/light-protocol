@@ -224,4 +224,6 @@ pub enum ErrorCode {
     DeCompressAmountUndefinedForCompress,
     #[msg("DelegateUndefined while delegated amount is defined")]
     DelegateUndefined,
+    #[msg("DelegateSignerCheckFailed")]
+    DelegateSignerCheckFailed,
 }

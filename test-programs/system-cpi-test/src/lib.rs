@@ -14,6 +14,7 @@ use light_system_program::sdk::CompressedCpiContext;
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[program]
+
 pub mod system_cpi_test {
 
     use super::*;
