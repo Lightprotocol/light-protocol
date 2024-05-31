@@ -49,6 +49,7 @@
     "which": "^4.0.0"
   },
   "devDependencies": {
+    "@lightprotocol/programs": "workspace:*",
     "@oclif/test": "2.3.9",
     "@solana/spl-token": "^0.3.11",
     "@types/bn.js": "^5.1.5",
