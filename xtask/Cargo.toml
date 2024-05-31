@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 account-compression = { path = "../programs/account-compression", version = "0.3.5" }
 anyhow = "1.0"
+ark-bn254 = "0.4"
 ark-ff = "0.4"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = "0.0.3"
@@ -14,6 +15,8 @@ light-hash-set = { path = "../merkle-tree/hash-set", version = "0.1.4" }
 light-hasher = { path = "../merkle-tree/hasher", version = "0.1.4" }
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed", version = "0.1.4" }
 light-utils = { path = "../utils", version = "0.1.4" }
+num-bigint = "0.4"
+rand = "0.8"
 quote = "1.0"
 sha2 = "0.10"
 solana-program = "1.18.11"

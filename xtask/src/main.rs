@@ -3,6 +3,7 @@ use clap::{Parser, ValueEnum};
 mod bench;
 mod create_vkeyrs_from_gnark_key;
 mod fee;
+mod hash_set;
 mod type_sizes;
 mod zero_bytes;
 mod zero_indexed_leaf;
@@ -35,6 +36,8 @@ enum Command {
     Bench(bench::Options),
     /// Prints fees for different accounts.
     Fee,
+    /// Hash set utilities.
+    HashSet(hash_set::HashSetOptions),
 }
 
 fn main() -> Result<(), anyhow::Error> {
@@ -51,5 +54,6 @@ fn main() -> Result<(), anyhow::Error> {
         }
         Command::Bench(opts) => bench::bench(opts),
         Command::Fee => fee::fees(),
+        Command::HashSet(opts) => hash_set::hash_set(opts),
     }
 }
