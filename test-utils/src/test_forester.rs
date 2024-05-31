@@ -413,16 +413,18 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index as usize,
         None => {
-            // TODO: figure out why I get an invalid memory reference error here when I try to replace 183-190 with this
             let address_merkle_tree =
                 AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey)
                     .await;
 
             let address_merkle_tree = &address_merkle_tree
                 .deserialized()
-                .load_merkle_tree()
+                .copy_merkle_tree()
                 .unwrap();
-            address_merkle_tree.merkle_tree.changelog_index()
+            address_merkle_tree
+                .indexed_merkle_tree()
+                .merkle_tree
+                .changelog_index()
         }
     };
 
