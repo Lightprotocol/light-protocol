@@ -47,6 +47,7 @@
     "devDependencies": {
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/hasher.rs": "workspace:*",
+        "@lightprotocol/programs": "workspace:*",
         "@playwright/test": "^1.43.1",
         "@rollup/plugin-babel": "^6.0.4",
         "@rollup/plugin-commonjs": "^25.0.7",
