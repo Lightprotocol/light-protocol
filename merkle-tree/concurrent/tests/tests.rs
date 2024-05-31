@@ -2788,6 +2788,12 @@ where
     let changelog_entries = merkle_tree.changelog_entries(1).collect::<Vec<_>>();
     assert!(changelog_entries.is_empty());
 
+    // Try getting changelog entries out of bounds.
+    for start in merkle_tree.changelog.len()..1000 {
+        let changelog_entries = merkle_tree.changelog_entries(start).collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+    }
+
     merkle_tree
         .append(&[
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2818,6 +2824,12 @@ where
             ]
         ]
     );
+
+    // Try getting changelog entries out of bounds.
+    for start in merkle_tree.changelog.len()..1000 {
+        let changelog_entries = merkle_tree.changelog_entries(start).collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+    }
 
     for i in 4_u8..16_u8 {
         merkle_tree
@@ -2861,6 +2873,12 @@ where
             ]
         ]
     );
+
+    // Try getting changelog entries out of bounds.
+    for start in merkle_tree.changelog.len()..1000 {
+        let changelog_entries = merkle_tree.changelog_entries(start).collect::<Vec<_>>();
+        assert!(changelog_entries.is_empty());
+    }
 }
 
 #[test]

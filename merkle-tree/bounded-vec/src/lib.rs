@@ -838,7 +838,7 @@ mod test {
     ///
     /// Should iterate over elements 6..7 and 8..11 - 6 iterations.
     #[test]
-    fn test_cyclic_bounded_vec_iter_reset() {
+    fn test_cyclic_bounded_vec_iter_from_reset() {
         let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
 
         for i in 0..12 {
@@ -853,6 +853,46 @@ mod test {
         let elements = cyclic_bounded_vec.iter_from(6).collect::<Vec<_>>();
         assert_eq!(elements.len(), 6);
         assert_eq!(elements.as_slice(), &[&6, &7, &8, &9, &10, &11]);
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_iter_from_out_of_bounds_not_full() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
+
+        for i in 0..4 {
+            cyclic_bounded_vec.push(i);
+        }
+
+        // Try `start` values in bounds.
+        for i in 0..4 {
+            let elements = cyclic_bounded_vec.iter_from(i).collect::<Vec<_>>();
+            assert_eq!(elements.len(), 4 - i);
+            let expected = (i..4).collect::<Vec<_>>();
+            // Just to coerce it to have references...
+            let expected = expected.iter().collect::<Vec<_>>();
+            assert_eq!(elements.as_slice(), expected.as_slice());
+        }
+
+        // Try `start` values out of bounds.
+        for i in 4..1000 {
+            let elements = cyclic_bounded_vec.iter_from(i).collect::<Vec<_>>();
+            assert!(elements.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_iter_from_out_of_bounds_full() {
+        let mut cyclic_bounded_vec = CyclicBoundedVec::with_capacity(8);
+
+        for i in 0..12 {
+            cyclic_bounded_vec.push(i);
+        }
+
+        // Try different `start` values which are out of bounds.
+        for start in 8..1000 {
+            let elements = cyclic_bounded_vec.iter_from(start).collect::<Vec<_>>();
+            assert!(elements.is_empty());
+        }
     }
 
     #[test]
