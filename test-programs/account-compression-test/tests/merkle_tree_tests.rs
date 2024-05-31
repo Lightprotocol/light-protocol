@@ -4,11 +4,12 @@ use std::collections::HashMap;
 use account_compression::{
     self,
     errors::AccountCompressionErrorCode,
+    queue_from_bytes_copy,
     sdk::{create_initialize_merkle_tree_instruction, create_insert_leaves_instruction},
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
+        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_VALUES,
     },
     NullifierQueueConfig, QueueType, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
@@ -37,7 +38,7 @@ use light_test_utils::{
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use memoffset::offset_of;
-use num_bigint::ToBigUint;
+use num_bigint::{BigUint, ToBigUint};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     account::AccountSharedData,
@@ -243,7 +244,7 @@ async fn test_full_nullifier_queue() {
     )
     .await;
 
-    let initial_value = 6005;
+    let initial_value = 9005;
     let element: [u8; 32] = bigint_to_be_bytes_array(&initial_value.to_biguint().unwrap()).unwrap();
     // CHECK 1
     fail_insert_into_full_queue(
@@ -309,7 +310,7 @@ async fn test_full_nullifier_queue() {
     let replacement_value = find_overlapping_probe_index(
         1,
         replacement_start_value,
-        nullifier_queue.hash_set.capacity_values,
+        nullifier_queue.hash_set.capacity,
     );
     // CHECK: 5
     let element: [u8; 32] =
@@ -908,6 +909,21 @@ async fn test_nullify_leaves() {
     reference_merkle_tree.append(&elements[0].1).unwrap();
     reference_merkle_tree.append(&elements[1].1).unwrap();
 
+    let leaf_queue_index = {
+        let account = context
+            .get_account(nullifier_queue_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut data = account.data.clone();
+        let nullifier_queue = &mut unsafe { queue_from_bytes_copy(&mut data).unwrap() };
+        let (_, index) = nullifier_queue
+            .find_element(&BigUint::from_bytes_be(&elements[0].1), None)
+            .unwrap()
+            .unwrap();
+        index
+    };
+
     let element_index = reference_merkle_tree
         .get_leaf_index(&elements[0].1)
         .unwrap() as u64;
@@ -918,7 +934,7 @@ async fn test_nullify_leaves() {
         &mut reference_merkle_tree,
         &elements[0].1,
         2,
-        0,
+        leaf_queue_index as u16,
         element_index,
     )
     .await
@@ -927,7 +943,20 @@ async fn test_nullify_leaves() {
     // nullify with invalid leaf index
     let invalid_element_index = 0;
     let valid_changelog_index = 3;
-    let valid_leaf_queue_index = 1;
+    let valid_leaf_queue_index = {
+        let account = context
+            .get_account(nullifier_queue_pubkey)
+            .await
+            .unwrap()
+            .unwrap();
+        let mut data = account.data.clone();
+        let nullifier_queue = &mut unsafe { queue_from_bytes_copy(&mut data).unwrap() };
+        let (_, index) = nullifier_queue
+            .find_element(&BigUint::from_bytes_be(&elements[1].1), None)
+            .unwrap()
+            .unwrap();
+        index as u16
+    };
     nullify(
         &mut context,
         &merkle_tree_pubkey,
@@ -998,11 +1027,13 @@ async fn functional_2_test_insert_into_nullifier_queues<R: RpcConnection>(
     )
     .await
     .unwrap();
-    let array = unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
-    let array_element_0 = array.by_value_index(0, None).unwrap();
+    let array = unsafe { get_hash_set::<QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
+    let element_0 = BigUint::from_bytes_be(&elements[0]);
+    let (array_element_0, _) = array.find_element(&element_0, None).unwrap().unwrap();
     assert_eq!(array_element_0.value_bytes(), [1u8; 32]);
     assert_eq!(array_element_0.sequence_number(), None);
-    let array_element_1 = array.by_value_index(1, None).unwrap();
+    let element_1 = BigUint::from_bytes_be(&elements[1]);
+    let (array_element_1, _) = array.find_element(&element_1, None).unwrap().unwrap();
     assert_eq!(array_element_1.value_bytes(), [2u8; 32]);
     assert_eq!(array_element_1.sequence_number(), None);
 }
@@ -1067,9 +1098,9 @@ async fn functional_5_test_insert_into_nullifier_queue<R: RpcConnection>(
     )
     .await
     .unwrap();
-    let array = unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
+    let array = unsafe { get_hash_set::<QueueAccount, R>(rpc, *nullifier_queue_pubkey).await };
 
-    let array_element = array.by_value_index(2, None).unwrap();
+    let (array_element, _) = array.find_element(&element, None).unwrap().unwrap();
     assert_eq!(array_element.value_biguint(), element);
     assert_eq!(array_element.sequence_number(), None);
 }
@@ -1176,11 +1207,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         Some(merkle_tree_keypair),
     );
 
-    let size = QueueAccount::size(
-        STATE_NULLIFIER_QUEUE_INDICES as usize,
-        STATE_NULLIFIER_QUEUE_VALUES as usize,
-    )
-    .unwrap();
+    let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
     let nullifier_queue_account_create_ix = create_account_instruction(
         payer_pubkey,
         size,
@@ -1471,16 +1498,8 @@ pub async fn nullify<R: RpcConnection>(
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
 
     let array_element = nullifier_queue
-        .by_value_index(
-            leaf_queue_index.into(),
-            Some(
-                merkle_tree
-                    .deserialized()
-                    .copy_merkle_tree()
-                    .unwrap()
-                    .sequence_number,
-            ),
-        )
+        .get_bucket(leaf_queue_index.into())
+        .unwrap()
         .unwrap();
     assert_eq!(&array_element.value_bytes(), element);
     assert_eq!(
@@ -1518,15 +1537,12 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
         .unwrap()
         .unwrap();
     let mut data = account.data.clone();
-    let current_index;
     let capacity;
     {
         let hash_set = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
-        current_index = unsafe { *hash_set.hash_set.next_value_index };
-        println!("starting current index {}", current_index);
-        capacity = hash_set.hash_set.capacity_values - left_over_indices;
+        capacity = hash_set.hash_set.capacity - left_over_indices;
         let arbitrary_sequence_number = 0;
-        for i in current_index..capacity {
+        for i in 0..capacity {
             hash_set
                 .insert(&(i).to_biguint().unwrap(), arbitrary_sequence_number)
                 .unwrap();
@@ -1544,9 +1560,10 @@ pub async fn set_nullifier_queue_to_full<R: RpcConnection>(
         .unwrap();
     let mut data = account.data.clone();
     let nullifier_queue = &mut unsafe { queue_from_bytes_zero_copy_mut(&mut data).unwrap() };
-    for i in current_index..capacity {
-        let array_element = nullifier_queue.by_value_index(i, None).unwrap();
-        assert_eq!(array_element.value_biguint(), i.to_biguint().unwrap());
+    for i in 0..capacity {
+        assert!(nullifier_queue
+            .contains(&(i).to_biguint().unwrap(), None)
+            .unwrap());
     }
 }
 
@@ -1621,18 +1638,16 @@ pub async fn set_state_merkle_tree_sequence<R: RpcConnection>(
     assert_eq!(data_in_offset, sequence_number);
 }
 
-pub async fn assert_element_inserted_in_nullifier_queue_with_index(
+pub async fn assert_element_inserted_in_nullifier_queue(
     rpc: &mut ProgramTestRpcConnection,
     nullifier_queue_pubkey: &Pubkey,
     nullifier: [u8; 32],
-    num_insertions: usize,
 ) {
     let array = unsafe {
-        get_hash_set::<u16, QueueAccount, ProgramTestRpcConnection>(rpc, *nullifier_queue_pubkey)
-            .await
+        get_hash_set::<QueueAccount, ProgramTestRpcConnection>(rpc, *nullifier_queue_pubkey).await
     };
-    let array_index = unsafe { (*array.next_value_index).clone() - num_insertions };
-    let array_element = array.by_value_index(array_index, None).unwrap();
+    let nullifier_bn = BigUint::from_bytes_be(&nullifier);
+    let (array_element, _) = array.find_element(&nullifier_bn, None).unwrap().unwrap();
     assert_eq!(array_element.value_bytes(), nullifier);
     assert_eq!(array_element.sequence_number(), None);
 }
@@ -1646,20 +1661,8 @@ async fn functional_6_test_insert_into_two_nullifier_queues(
     insert_into_nullifier_queues(nullifiers, &payer, &payer, &queue_tree_pairs, rpc)
         .await
         .unwrap();
-    assert_element_inserted_in_nullifier_queue_with_index(
-        rpc,
-        &queue_tree_pairs[0].0,
-        nullifiers[0],
-        1,
-    )
-    .await;
-    assert_element_inserted_in_nullifier_queue_with_index(
-        rpc,
-        &queue_tree_pairs[1].0,
-        nullifiers[1],
-        1,
-    )
-    .await;
+    assert_element_inserted_in_nullifier_queue(rpc, &queue_tree_pairs[0].0, nullifiers[0]).await;
+    assert_element_inserted_in_nullifier_queue(rpc, &queue_tree_pairs[1].0, nullifiers[1]).await;
 }
 
 async fn functional_7_test_insert_into_two_nullifier_queues_not_ordered(
@@ -1671,32 +1674,8 @@ async fn functional_7_test_insert_into_two_nullifier_queues_not_ordered(
     insert_into_nullifier_queues(nullifiers, &payer, &payer, &queue_tree_pairs, rpc)
         .await
         .unwrap();
-    assert_element_inserted_in_nullifier_queue_with_index(
-        rpc,
-        &queue_tree_pairs[0].0,
-        nullifiers[0],
-        2,
-    )
-    .await;
-    assert_element_inserted_in_nullifier_queue_with_index(
-        rpc,
-        &queue_tree_pairs[0].0,
-        nullifiers[2],
-        1,
-    )
-    .await;
-    assert_element_inserted_in_nullifier_queue_with_index(
-        rpc,
-        &queue_tree_pairs[1].0,
-        nullifiers[1],
-        2,
-    )
-    .await;
-    assert_element_inserted_in_nullifier_queue_with_index(
-        rpc,
-        &queue_tree_pairs[1].0,
-        nullifiers[3],
-        1,
-    )
-    .await;
+    assert_element_inserted_in_nullifier_queue(rpc, &queue_tree_pairs[0].0, nullifiers[0]).await;
+    assert_element_inserted_in_nullifier_queue(rpc, &queue_tree_pairs[0].0, nullifiers[2]).await;
+    assert_element_inserted_in_nullifier_queue(rpc, &queue_tree_pairs[1].0, nullifiers[1]).await;
+    assert_element_inserted_in_nullifier_queue(rpc, &queue_tree_pairs[1].0, nullifiers[3]).await;
 }

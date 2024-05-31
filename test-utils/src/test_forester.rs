@@ -41,7 +41,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     state_tree_bundle: &mut StateMerkleTreeBundle,
 ) {
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
+        get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
     let merkle_tree_account =
         AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
@@ -127,7 +127,6 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             rpc,
             state_tree_bundle,
             index_in_nullifier_queue,
-            &onchain_merkle_tree,
             compressed_account,
         )
         .await;
@@ -160,17 +159,14 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
     rpc: &mut R,
     state_tree_bundle: &mut StateMerkleTreeBundle,
     index_in_nullifier_queue: &usize,
-    onchain_merkle_tree: &light_concurrent_merkle_tree::ConcurrentMerkleTree<'a, Poseidon, 26>,
     compressed_account: &[u8; 32],
 ) {
     let nullifier_queue = unsafe {
-        get_hash_set::<u16, QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
+        get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
     let array_element = nullifier_queue
-        .by_value_index(
-            *index_in_nullifier_queue,
-            Some(onchain_merkle_tree.sequence_number),
-        )
+        .get_bucket(*index_in_nullifier_queue)
+        .unwrap()
         .unwrap();
     assert_eq!(&array_element.value_bytes(), compressed_account);
     let merkle_tree_account =
@@ -217,7 +213,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             address_merkle_tree.indexed_merkle_tree().root(),
         );
         let address_queue =
-            unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, address_queue_pubkey).await };
+            unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
         let address = address_queue.first_no_seq().unwrap();
         if address.is_none() {
@@ -346,11 +342,12 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 .copy_merkle_tree()
                 .unwrap();
             let address_queue =
-                unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, address_queue_pubkey).await };
+                unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
             assert_eq!(
                 address_queue
-                    .by_value_index(address_hashset_index as usize, Some(0))
+                    .get_bucket(address_hashset_index as usize)
+                    .unwrap()
                     .unwrap()
                     .sequence_number()
                     .unwrap(),

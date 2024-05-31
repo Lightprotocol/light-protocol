@@ -99,8 +99,8 @@ fn insert_nullifier(
     let seq = (merkle_tree.sequence_number + 1) as u64;
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
         let leaf_cell = nullifier_queue
-            .by_value_index(*leaf_queue_index as usize, None)
-            .cloned()
+            .get_unmarked_bucket(*leaf_queue_index as usize)
+            .ok_or(AccountCompressionErrorCode::LeafNotFound)?
             .ok_or(AccountCompressionErrorCode::LeafNotFound)?;
 
         let mut proof =

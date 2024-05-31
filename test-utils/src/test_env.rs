@@ -295,7 +295,6 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         Some(merkle_tree_keypair),
     );
     let size = account_compression::state::queue::QueueAccount::size(
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_INDICES as usize,
         account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
     .unwrap();
@@ -348,7 +347,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     };
 
     let size = account_compression::state::QueueAccount::size(
-        account_compression::utils::constants::ADDRESS_QUEUE_INDICES as usize,
         account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
     )
     .unwrap();

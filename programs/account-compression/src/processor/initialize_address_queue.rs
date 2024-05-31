@@ -21,8 +21,7 @@ pub fn process_initialize_address_queue<'info>(
     owner: Pubkey,
     delegate: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
-    capacity_indices: u16,
-    capacity_values: u16,
+    capacity: u16,
     sequence_threshold: u64,
     network_fee: u64,
     rollover_threshold: Option<u64>,
@@ -64,8 +63,7 @@ pub fn process_initialize_address_queue<'info>(
     let _ = unsafe {
         queue_from_bytes_zero_copy_init(
             &mut queue_account_info.try_borrow_mut_data()?,
-            capacity_indices as usize,
-            capacity_values as usize,
+            capacity as usize,
             sequence_threshold as usize,
         )
         .unwrap()

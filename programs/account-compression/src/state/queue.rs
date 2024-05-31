@@ -7,7 +7,7 @@ use crate::{
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
-use std::{cell::RefMut, mem};
+use std::mem;
 
 #[account(zero_copy)]
 #[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
@@ -111,10 +111,9 @@ impl<'info> GroupAccounts<'info> for InsertIntoQueues<'info> {
 }
 
 impl QueueAccount {
-    pub fn size(capacity_indices: usize, capacity_values: usize) -> Result<usize> {
+    pub fn size(capacity: usize) -> Result<usize> {
         Ok(8 + mem::size_of::<Self>()
-            + HashSet::<u16>::size_in_account(capacity_indices, capacity_values)
-                .map_err(ProgramError::from)?)
+            + HashSet::size_in_account(capacity).map_err(ProgramError::from)?)
     }
 }
 
@@ -124,11 +123,9 @@ impl QueueAccount {
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn nullifier_queue_from_bytes_copy(
-    mut data: RefMut<'_, &mut [u8]>,
-) -> Result<HashSet<u16>> {
+pub unsafe fn queue_from_bytes_copy(data: &mut [u8]) -> Result<HashSet> {
     let data = &mut data[8 + mem::size_of::<QueueAccount>()..];
-    let queue = HashSet::<u16>::from_bytes_copy(data).map_err(ProgramError::from)?;
+    let queue = HashSet::from_bytes_copy(data).map_err(ProgramError::from)?;
     Ok(queue)
 }
 
@@ -138,10 +135,9 @@ pub unsafe fn nullifier_queue_from_bytes_copy(
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn queue_from_bytes_zero_copy_mut(data: &mut [u8]) -> Result<HashSetZeroCopy<u16>> {
+pub unsafe fn queue_from_bytes_zero_copy_mut(data: &mut [u8]) -> Result<HashSetZeroCopy> {
     let data = &mut data[8 + mem::size_of::<QueueAccount>()..];
-    let queue =
-        HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
+    let queue = HashSetZeroCopy::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
     Ok(queue)
 }
 /// Casts the given account data to an `IndexedArrayZeroCopy` instance.
@@ -152,17 +148,11 @@ pub unsafe fn queue_from_bytes_zero_copy_mut(data: &mut [u8]) -> Result<HashSetZ
 /// the provided account data have correct size and alignment.
 pub unsafe fn queue_from_bytes_zero_copy_init(
     data: &mut [u8],
-    capacity_indices: usize,
-    capacity_values: usize,
+    capacity: usize,
     sequence_threshold: usize,
-) -> Result<HashSetZeroCopy<u16>> {
+) -> Result<HashSetZeroCopy> {
     let data = &mut data[8 + mem::size_of::<QueueAccount>()..];
-    let queue = HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
-        data,
-        capacity_indices,
-        capacity_values,
-        sequence_threshold,
-    )
-    .map_err(ProgramError::from)?;
+    let queue = HashSetZeroCopy::from_bytes_zero_copy_init(data, capacity, sequence_threshold)
+        .map_err(ProgramError::from)?;
     Ok(queue)
 }

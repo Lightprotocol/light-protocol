@@ -4,8 +4,8 @@ use crate::{
     state::{QueueAccount, StateMerkleTreeAccount},
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_INDICES,
-        STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD, STATE_NULLIFIER_QUEUE_VALUES,
+        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+        STATE_NULLIFIER_QUEUE_VALUES,
     },
 };
 use anchor_lang::prelude::*;
@@ -49,8 +49,7 @@ impl default::Default for StateMerkleTreeConfig {
 
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct NullifierQueueConfig {
-    pub capacity_indices: u16,
-    pub capacity_values: u16,
+    pub capacity: u16,
     pub sequence_threshold: u64,
     pub network_fee: Option<u64>,
 }
@@ -58,8 +57,7 @@ pub struct NullifierQueueConfig {
 impl default::Default for NullifierQueueConfig {
     fn default() -> Self {
         Self {
-            capacity_indices: STATE_NULLIFIER_QUEUE_INDICES,
-            capacity_values: STATE_NULLIFIER_QUEUE_VALUES,
+            capacity: STATE_NULLIFIER_QUEUE_VALUES,
             sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
             network_fee: Some(1),
         }
@@ -114,8 +112,7 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
         owner,
         delegate,
         ctx.accounts.merkle_tree.key(),
-        nullifier_queue_config.capacity_indices,
-        nullifier_queue_config.capacity_values,
+        nullifier_queue_config.capacity,
         nullifier_queue_config.sequence_threshold,
         state_merkle_tree_config.rollover_threshold,
         state_merkle_tree_config.close_threshold,

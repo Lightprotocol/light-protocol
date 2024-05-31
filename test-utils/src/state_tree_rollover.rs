@@ -14,9 +14,7 @@ use account_compression::{
     self,
     initialize_address_merkle_tree::AccountLoader,
     state::QueueAccount,
-    utils::constants::{
-        STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_INDICES, STATE_NULLIFIER_QUEUE_VALUES,
-    },
+    utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_VALUES},
     StateMerkleTreeAccount, ID,
 };
 use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
@@ -40,11 +38,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
 ) -> Result<(), RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
-    let size = QueueAccount::size(
-        STATE_NULLIFIER_QUEUE_INDICES as usize,
-        STATE_NULLIFIER_QUEUE_VALUES as usize,
-    )
-    .unwrap();
+    let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
     let create_nullifier_queue_instruction = create_account_instruction(
         &payer_pubkey,
         size,
@@ -261,19 +255,11 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
     // rent is reimbursed, 3 signatures cost 3 x 5000 lamports
     assert_eq!(*fee_payer_prior_balance, fee_payer_post_balance + 15000);
     let old_address_queue =
-        unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await };
+        unsafe { get_hash_set::<QueueAccount, R>(rpc, *old_nullifier_queue_pubkey).await };
     let new_address_queue =
-        unsafe { get_hash_set::<u16, QueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await };
+        unsafe { get_hash_set::<QueueAccount, R>(rpc, *new_nullifier_queue_pubkey).await };
 
-    assert_eq!(
-        old_address_queue.capacity_indices,
-        new_address_queue.capacity_indices,
-    );
-
-    assert_eq!(
-        old_address_queue.capacity_values,
-        new_address_queue.capacity_values,
-    );
+    assert_eq!(old_address_queue.capacity, new_address_queue.capacity);
 
     assert_eq!(
         old_address_queue.sequence_threshold,

@@ -1,54 +1,18 @@
-use std::{fmt, marker::PhantomData, mem, ptr::NonNull};
+use std::{marker::PhantomData, mem, ptr::NonNull};
 
-use num_bigint::{BigUint, ToBigUint};
-use num_traits::{Bounded, CheckedAdd, CheckedSub, Unsigned};
+use num_bigint::BigUint;
 
 use crate::{HashSet, HashSetCell, HashSetError, HashSetIterator};
 
 /// A `HashSet` wrapper which can be instantiated from Solana account bytes
 /// without copying them.
 #[derive(Debug)]
-pub struct HashSetZeroCopy<'a, I>
-where
-    I: Bounded
-        + CheckedAdd
-        + CheckedSub
-        + Clone
-        + Copy
-        + fmt::Display
-        + From<u8>
-        + PartialEq
-        + PartialOrd
-        + ToBigUint
-        + TryFrom<u64>
-        + TryFrom<usize>
-        + Unsigned,
-    usize: TryFrom<I>,
-    <usize as TryFrom<I>>::Error: fmt::Debug,
-{
-    pub hash_set: mem::ManuallyDrop<HashSet<I>>,
+pub struct HashSetZeroCopy<'a> {
+    pub hash_set: mem::ManuallyDrop<HashSet>,
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a, I> HashSetZeroCopy<'a, I>
-where
-    I: Bounded
-        + CheckedAdd
-        + CheckedSub
-        + Clone
-        + Copy
-        + fmt::Display
-        + From<u8>
-        + PartialEq
-        + PartialOrd
-        + ToBigUint
-        + TryFrom<u64>
-        + TryFrom<usize>
-        + Unsigned,
-    u64: TryFrom<I>,
-    usize: TryFrom<I>,
-    <usize as TryFrom<I>>::Error: fmt::Debug,
-{
+impl<'a> HashSetZeroCopy<'a> {
     // TODO(vadorovsky): Add a non-mut method: `from_bytes_zero_copy`.
 
     /// Casts a byte slice into `HashSet`.
@@ -66,51 +30,33 @@ where
     /// Calling it in async context (or anyhwere where the underlying data can
     /// be moved in the memory) is certainly going to cause undefined behavior.
     pub unsafe fn from_bytes_zero_copy_mut(bytes: &'a mut [u8]) -> Result<Self, HashSetError> {
-        if bytes.len() < HashSet::<I>::non_dyn_fields_size() {
+        if bytes.len() < HashSet::non_dyn_fields_size() {
             return Err(HashSetError::BufferSize(
-                HashSet::<I>::non_dyn_fields_size(),
+                HashSet::non_dyn_fields_size(),
                 bytes.len(),
             ));
         }
 
-        let capacity_indices = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
-        let capacity_values = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
-        let sequence_threshold = usize::from_ne_bytes(bytes[16..24].try_into().unwrap());
-
-        let next_value_index = bytes.as_mut_ptr().add(24) as *mut usize;
+        let capacity_values = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
+        let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
 
         let offset = HashSet::non_dyn_fields_size() + mem::size_of::<usize>();
-        let indices_size_unaligned = mem::size_of::<Option<I>>() * capacity_indices;
-        // Make sure that alignment of `indices` matches the alignment of `usize`.
-        let indices_size = indices_size_unaligned + mem::align_of::<usize>()
-            - (indices_size_unaligned % mem::align_of::<usize>());
-
-        let expected_size = HashSet::<I>::non_dyn_fields_size() + indices_size;
-        if bytes.len() < expected_size {
-            return Err(HashSetError::BufferSize(expected_size, bytes.len()));
-        }
-
-        let indices = NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<I>).unwrap();
 
         let values_size = mem::size_of::<Option<HashSetCell>>() * capacity_values;
 
-        let expected_size = HashSet::<I>::non_dyn_fields_size() + indices_size + values_size;
+        let expected_size = HashSet::non_dyn_fields_size() + values_size;
         if bytes.len() < expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
 
-        let offset = offset + indices_size;
-        let values =
+        let buckets =
             NonNull::new(bytes.as_mut_ptr().add(offset) as *mut Option<HashSetCell>).unwrap();
 
         Ok(Self {
             hash_set: mem::ManuallyDrop::new(HashSet {
-                capacity_indices,
-                capacity_values,
-                next_value_index,
+                capacity: capacity_values,
                 sequence_threshold,
-                indices,
-                values,
+                buckets,
             }),
             _marker: PhantomData,
         })
@@ -146,32 +92,45 @@ where
     /// be moved in memory) is certainly going to cause undefined behavior.
     pub unsafe fn from_bytes_zero_copy_init(
         bytes: &'a mut [u8],
-        capacity_indices: usize,
         capacity_values: usize,
         sequence_threshold: usize,
     ) -> Result<Self, HashSetError> {
-        if bytes.len() < HashSet::<I>::non_dyn_fields_size() {
+        if bytes.len() < HashSet::non_dyn_fields_size() {
             return Err(HashSetError::BufferSize(
-                HashSet::<I>::non_dyn_fields_size(),
+                HashSet::non_dyn_fields_size(),
                 bytes.len(),
             ));
         }
 
-        bytes[0..8].copy_from_slice(&capacity_indices.to_ne_bytes());
-        bytes[8..16].copy_from_slice(&capacity_values.to_ne_bytes());
-        bytes[16..24].copy_from_slice(&sequence_threshold.to_ne_bytes());
-        bytes[24..32].copy_from_slice(&0_usize.to_ne_bytes());
+        bytes[0..8].copy_from_slice(&capacity_values.to_ne_bytes());
+        bytes[8..16].copy_from_slice(&sequence_threshold.to_ne_bytes());
+        bytes[16..24].copy_from_slice(&0_usize.to_ne_bytes());
 
         let hash_set = Self::from_bytes_zero_copy_mut(bytes)?;
 
-        for i in 0..capacity_indices {
-            std::ptr::write(hash_set.hash_set.indices.as_ptr().add(i), None);
-        }
         for i in 0..capacity_values {
-            std::ptr::write(hash_set.hash_set.values.as_ptr().add(i), None);
+            std::ptr::write(hash_set.hash_set.buckets.as_ptr().add(i), None);
         }
 
         Ok(hash_set)
+    }
+
+    /// Returns a reference to a bucket under the given `index`. Does not check
+    /// the validity.
+    pub fn get_bucket(&self, index: usize) -> Option<&Option<HashSetCell>> {
+        self.hash_set.get_bucket(index)
+    }
+
+    /// Returns a mutable reference to a bucket under the given `index`. Does
+    /// not check the validity.
+    pub fn get_bucket_mut(&mut self, index: usize) -> Option<&mut Option<HashSetCell>> {
+        self.hash_set.get_bucket_mut(index)
+    }
+
+    /// Returns a reference to an unmarked bucket under the given index. If the
+    /// bucket is marked, returns `None`.
+    pub fn get_unmarked_bucket(&self, index: usize) -> Option<&Option<HashSetCell>> {
+        self.hash_set.get_unmarked_bucket(index)
     }
 
     /// Inserts a value into the hash set.
@@ -180,22 +139,17 @@ where
     }
 
     /// Returns a first available element.
-    pub fn first(&self, sequence_number: usize) -> Result<Option<&mut HashSetCell>, HashSetError> {
+    pub fn first(&self, sequence_number: usize) -> Result<Option<&HashSetCell>, HashSetError> {
         self.hash_set.first(sequence_number)
     }
 
-    pub fn by_value_index(
-        &self,
-        value_index: usize,
-        current_sequence_number: Option<usize>,
-    ) -> Option<&mut HashSetCell> {
-        self.hash_set
-            .by_value_index(value_index, current_sequence_number)
-    }
-
     /// Check if the hash set contains a value.
-    pub fn contains(&self, value: &BigUint, sequence_number: usize) -> Result<bool, HashSetError> {
-        self.hash_set.contains(value, Some(sequence_number))
+    pub fn contains(
+        &self,
+        value: &BigUint,
+        sequence_number: Option<usize>,
+    ) -> Result<bool, HashSetError> {
+        self.hash_set.contains(value, sequence_number)
     }
 
     /// Marks the given element with a given sequence number.
@@ -208,29 +162,12 @@ where
             .mark_with_sequence_number(value, sequence_number)
     }
 
-    pub fn iter(&self) -> HashSetIterator<I> {
+    pub fn iter(&self) -> HashSetIterator {
         self.hash_set.iter()
     }
 }
 
-impl<'a, I> Drop for HashSetZeroCopy<'a, I>
-where
-    I: Bounded
-        + CheckedAdd
-        + CheckedSub
-        + Clone
-        + Copy
-        + fmt::Display
-        + From<u8>
-        + PartialEq
-        + PartialOrd
-        + ToBigUint
-        + TryFrom<u64>
-        + TryFrom<usize>
-        + Unsigned,
-    usize: TryFrom<I>,
-    <usize as TryFrom<I>>::Error: fmt::Debug,
-{
+impl<'a> Drop for HashSetZeroCopy<'a> {
     fn drop(&mut self) {
         // SAFETY: Don't do anything here! Why?
         //
@@ -255,12 +192,11 @@ mod test {
 
     #[test]
     fn test_load_from_bytes() {
-        const INDICES: usize = 6857;
         const VALUES: usize = 4800;
         const SEQUENCE_THRESHOLD: usize = 2400;
 
         // Create a buffer with random bytes.
-        let mut bytes = vec![0u8; HashSet::<u16>::size_in_account(INDICES, VALUES).unwrap()];
+        let mut bytes = vec![0u8; HashSet::size_in_account(VALUES).unwrap()];
         thread_rng().fill(bytes.as_mut_slice());
 
         // Create random nullifiers.
@@ -271,9 +207,8 @@ mod test {
         // Initialize a hash set on top of a byte slice.
         {
             let mut hs = unsafe {
-                HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
+                HashSetZeroCopy::from_bytes_zero_copy_init(
                     bytes.as_mut_slice(),
-                    INDICES,
                     VALUES,
                     SEQUENCE_THRESHOLD,
                 )
@@ -281,17 +216,12 @@ mod test {
             };
 
             // Ensure that the underlying data were properly initialized.
-            assert_eq!(hs.hash_set.capacity_indices, INDICES);
-            assert_eq!(hs.hash_set.capacity_values, VALUES);
+            assert_eq!(hs.hash_set.capacity, VALUES);
             assert_eq!(hs.hash_set.sequence_threshold, SEQUENCE_THRESHOLD);
-            assert_eq!(unsafe { *hs.hash_set.next_value_index }, 0);
             let mut iterator = hs.iter();
             assert_eq!(iterator.next(), None);
-            for i in 0..INDICES {
-                assert!(unsafe { &*hs.hash_set.indices.as_ptr().add(i) }.is_none());
-            }
             for i in 0..VALUES {
-                assert!(unsafe { &*hs.hash_set.values.as_ptr().add(i) }.is_none());
+                assert!(unsafe { &*hs.hash_set.buckets.as_ptr().add(i) }.is_none());
             }
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
@@ -302,12 +232,11 @@ mod test {
 
         // Read the hash set from buffers again.
         {
-            let mut hs = unsafe {
-                HashSetZeroCopy::<u16>::from_bytes_zero_copy_mut(bytes.as_mut_slice()).unwrap()
-            };
+            let mut hs =
+                unsafe { HashSetZeroCopy::from_bytes_zero_copy_mut(bytes.as_mut_slice()).unwrap() };
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
-                assert_eq!(hs.contains(nullifier, seq).unwrap(), true);
+                assert_eq!(hs.contains(nullifier, Some(seq)).unwrap(), true);
             }
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
@@ -318,7 +247,7 @@ mod test {
 
         // Make a copy of hash set from the same buffers.
         {
-            let hs = unsafe { HashSet::<u16>::from_bytes_copy(bytes.as_mut_slice()).unwrap() };
+            let hs = unsafe { HashSet::from_bytes_copy(bytes.as_mut_slice()).unwrap() };
 
             for (seq, nullifier) in nullifiers.iter().enumerate() {
                 assert_eq!(
@@ -331,16 +260,14 @@ mod test {
 
     #[test]
     fn test_buffer_size_error() {
-        const INDICES: usize = 6857;
         const VALUES: usize = 4800;
         const SEQUENCE_THRESHOLD: usize = 2400;
 
         let mut invalid_bytes = vec![0_u8; 256];
 
         let res = unsafe {
-            HashSetZeroCopy::<u16>::from_bytes_zero_copy_init(
+            HashSetZeroCopy::from_bytes_zero_copy_init(
                 invalid_bytes.as_mut_slice(),
-                INDICES,
                 VALUES,
                 SEQUENCE_THRESHOLD,
             )
