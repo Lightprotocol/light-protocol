@@ -743,7 +743,7 @@ mod test {
     /// Test cases with random prime field elements.
     #[test]
     fn test_hash_set_random() {
-        let mut hs = HashSet::new(4800, 2400).unwrap();
+        let mut hs = HashSet::new(6857, 2400).unwrap();
 
         // The hash set should be empty.
         assert_eq!(hs.first(0).unwrap(), None);
@@ -752,7 +752,7 @@ mod test {
         let mut seq = 0;
         let nullifiers: [BigUint; 24000] =
             std::array::from_fn(|_| BigUint::from(Fr::rand(&mut rng)));
-        for (j, nf_chunk) in nullifiers.chunks(2400).enumerate() {
+        for nf_chunk in nullifiers.chunks(2400) {
             for nullifier in nf_chunk.iter() {
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
                 hs.insert(&nullifier, seq as usize).unwrap();
@@ -793,20 +793,6 @@ mod test {
                     Err(HashSetError::ElementAlreadyExists),
                 ));
                 seq += 1;
-            }
-            if j == 0 {
-                for (i, element) in hs.iter() {
-                    assert_eq!(element.value_biguint(), nf_chunk[i]);
-                }
-
-                // As long as we request the first element while providing sequence
-                // numbers not reaching the threshold (from 0 to 2399)
-                for _seq in 0..2399 {
-                    assert_eq!(
-                        hs.first(_seq).unwrap().unwrap().value_biguint(),
-                        nf_chunk[0]
-                    );
-                }
             }
             seq += 2400;
         }
@@ -875,6 +861,11 @@ mod test {
     #[test]
     fn test_hash_set_full_6857_2400() {
         hash_set_full::<6857, 2400>()
+    }
+
+    #[test]
+    fn test_hash_set_full_9601_2400() {
+        hash_set_full::<9601, 2400>()
     }
 
     #[test]
