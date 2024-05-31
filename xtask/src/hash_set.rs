@@ -70,7 +70,7 @@ fn bench(opts: BenchOptions) -> anyhow::Result<()> {
 
             for element_i in 0..capacity_with_load_factor {
                 let value = BigUint::from(Fr::rand(&mut rng));
-                if let Err(_) = hs.insert(&value, sequence_number) {
+                if hs.insert(&value, sequence_number).is_err() {
                     successful_insertions = element_i;
                     break;
                 }
