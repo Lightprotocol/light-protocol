@@ -104,7 +104,7 @@ export function packCompressedTokenAccounts(
         packedOutputTokenData.push({
             owner: tokenTransferOutputs[index].owner,
             amount: tokenTransferOutputs[index].amount,
-            lamports: tokenTransferOutputs[index].lamports,
+            lamports: tokenTransferOutputs[index].lamports?.eq(bn(0)) ? null : tokenTransferOutputs[index].lamports,
             merkleTreeIndex,
         });
     });
