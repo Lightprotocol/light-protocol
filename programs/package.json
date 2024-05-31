@@ -3,7 +3,8 @@
   "version": "0.3.0",
   "license": "GPL-3.0",
   "scripts": {
-    "build": "anchor build",
+    "push-idls": "../scripts/push-stateless-js-idls.sh && ../scripts/push-compressed-token-idl.sh",
+    "build": "anchor build && pnpm push-idls",
     "test": "pnpm test-account-compression && pnpm test-system && pnpm test-compressed-token && pnpm test-registry",
     "test-account-compression": "cargo-test-sbf -p account-compression-test -- --test-threads=1",
     "test-system": "cargo test-sbf -p system-test -- --test-threads=1",

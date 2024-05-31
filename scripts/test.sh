@@ -4,6 +4,4 @@
 
 set -eux
 
-npx nx run-many --target=test --all --parallel=false \
-  --exclude cli \
-  --exclude web-wallet
+npx nx run-many --target=test --all --parallel=false
