@@ -7,7 +7,7 @@ use anchor_lang::{
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::COMPRESSED_SOL_PDA_SEED},
     sdk::{
-        accounts::{InvokeAccounts, InvokeCpiAccounts, SignerAccounts},
+        accounts::{InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, InvokeCpiContextAccountMut, SignerAccounts},
         compressed_account::PackedCompressedAccountWithMerkleContext,
         CompressedCpiContext,
     },
@@ -51,12 +51,23 @@ pub struct InvokeCpiInstruction<'info> {
     pub cpi_context_account: Option<Account<'info, CpiContextAccount>>,
 }
 
-impl<'info> InvokeCpiAccounts<'info> for InvokeCpiInstruction<'info> {
-    fn get_invoking_program(&self) -> &UncheckedAccount<'info> {
-        &self.invoking_program
-    }
-    fn get_cpi_context_account(&mut self) -> &mut Option<Account<'info, CpiContextAccount>> {
+impl<'info> InvokeCpiContextAccountMut<'info> for InvokeCpiInstruction<'info> {
+    fn get_cpi_context_account_mut(&mut self) -> &mut Option<Account<'info, CpiContextAccount>> {
         &mut self.cpi_context_account
+    }
+}
+
+// TODO: Add error code! TODO: verify that this is only ever needed when caller
+// has some()
+impl<'info> InvokeCpiContextAccount<'info> for InvokeCpiInstruction<'info> {
+    fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
+        self.cpi_context_account.as_ref()
+    }
+}
+
+impl<'info> InvokeCpiAccounts<'info> for InvokeCpiInstruction<'info> {
+    fn get_invoking_program(&self) -> &AccountInfo<'info> {
+        &self.invoking_program
     }
 }
 
@@ -65,7 +76,7 @@ impl<'info> SignerAccounts<'info> for InvokeCpiInstruction<'info> {
         &self.fee_payer
     }
 
-    fn get_authority(&self) -> &Signer<'info> {
+    fn get_authority(&self) -> &AccountInfo<'info> {
         &self.authority
     }
 }
@@ -78,11 +89,11 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
         &self.registered_program_pda
     }
 
-    fn get_noop_program(&self) -> &UncheckedAccount<'info> {
+    fn get_noop_program(&self) -> &AccountInfo<'info> {
         &self.noop_program
     }
 
-    fn get_account_compression_authority(&self) -> &UncheckedAccount<'info> {
+    fn get_account_compression_authority(&self) -> &AccountInfo<'info> {
         &self.account_compression_authority
     }
 

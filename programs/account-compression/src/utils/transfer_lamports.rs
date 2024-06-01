@@ -21,6 +21,7 @@ pub fn transfer_lamports<'info>(
     Ok(())
 }
 
+// TODO: CHECK ok if from is not checked as Signer in trait
 pub fn transfer_lamports_cpi<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,

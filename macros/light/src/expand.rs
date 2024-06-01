@@ -6,9 +6,136 @@ use syn::{
     Field, Fields, FieldsNamed, GenericParam, ItemStruct, LifetimeDef, LitStr, Result, Token,
     TypeParam,
 };
+use light_traits::{LightTraitsFeePayer, LightTraitsAuthority, LightTraitsRegisteredProgramPda, LightTraitsNoopProgram, LightTraitsLightSystemProgram};
+
 
 const PUBKEY_LEN: usize = 32;
 
+
+
+pub(crate) struct LightTraitsArgs {
+    pub fee_payer: Option<Ident>,
+    pub authority: Option<Ident>,
+    pub invoking_program: Option<Ident>,
+}
+
+
+impl Parse for LightTraitsArgs {
+    fn parse(input: syn::parse::ParseStream) -> Result<Self> {
+        let mut fee_payer = None;
+        let mut authority = None;
+        let mut invoking_program = None;
+
+        while !input.is_empty() {
+            let ident: Ident = input.parse()?;
+            let _eq_token: syn::Token![=] = input.parse()?;
+            let field_ident: Ident = input.parse()?;
+
+            match ident.to_string().as_str() {
+                "fee_payer" => fee_payer = Some(field_ident),
+                "authority" => authority = Some(field_ident),
+                "invoking_program" => invoking_program = Some(field_ident),
+                _ => return Err(input.error("Unexpected identifier")),
+            }
+
+            if input.peek(syn::token::Comma) {
+                let _ = input.parse::<syn::token::Comma>();
+            } else {
+                break;
+            }
+        }
+
+        Ok(Self {
+            fee_payer,
+            authority,
+            invoking_program,
+        })
+    }
+}
+
+
+pub(crate) fn light_traits(args: LightTraitsArgs, strct: ItemStruct) -> Result<TokenStream> {
+    let ident = &strct.ident;
+
+    let fee_payer_impl = args.fee_payer.map_or_else(
+        || quote! {},
+        |field| quote! {
+            impl<'info> LightTraitsFeePayer<'info> for #ident {
+                fn get_light_traits_fee_payer(&self) -> AccountInfo<'info> {
+                    self.#field.to_account_info()
+                }
+            }
+        }
+    );
+
+    let authority_impl = args.authority.map_or_else(
+        || quote! {},
+        |field| quote! {
+            impl<'info> LightTraitsAuthority<'info> for #ident {
+                fn get_light_traits_authority(&self) -> AccountInfo<'info> {
+                    self.#field.to_account_info()
+                }
+            }
+        }
+    );
+
+    let invoking_program_impl = args.invoking_program.map_or_else(
+        || quote! {},
+        |field| quote! {
+            impl<'info> LightTraitsInvokingProgram<'info> for #ident {
+                fn get_light_traits_invoking_program(&self) -> AccountInfo<'info> {
+                    self.#field.to_account_info()
+                }
+            }
+        }
+    );
+
+    // Automatically implement traits for other fields with matching names
+    let other_impls = quote! {
+        impl<'info> LightTraitsRegisteredProgramPda<'info> for #ident {
+            fn get_light_traits_registered_program_pda(&self) -> AccountInfo<'info> {
+                self.registered_program_pda.clone()
+            }
+        }
+        impl<'info> LightTraitsNoopProgram<'info> for #ident {
+            fn get_light_traits_noop_program(&self) -> AccountInfo<'info> {
+                self.noop_program.clone()
+            }
+        }
+        impl<'info> LightTraitsLightSystemProgram<'info> for #ident {
+            fn get_light_traits_light_system_program(&self) -> AccountInfo<'info> {
+                self.light_system_program.to_account_info()
+            }
+        }
+        impl<'info> LightTraitsAccountCompressionAuthority<'info> for #ident {
+            fn get_light_traits_account_compression_authority(&self) -> AccountInfo<'info> {
+                self.account_compression_authority.clone()
+            }
+        }
+        impl<'info> LightTraitsAccountCompressionProgram<'info> for #ident {
+            fn get_light_traits_account_compression_program(&self) -> AccountInfo<'info> {
+                self.account_compression_program.to_account_info()
+            }
+        }
+        impl<'info> LightTraitsSystemProgram<'info> for #ident {
+            fn get_light_traits_system_program(&self) -> AccountInfo<'info> {
+                self.system_program.to_account_info()
+            }
+        }
+        impl<'info> LightTraitsCpiContextAccount<'info> for #ident {
+            fn get_light_traits_cpi_context_account(&self) -> Option<AccountInfo<'info>> {
+                Some(self.cpi_context_account.clone())
+            }
+        }
+    };
+
+    Ok(quote! {
+        #fee_payer_impl
+        #authority_impl
+        #invoking_program_impl
+        #other_impls
+    })
+}
 pub(crate) struct PubkeyArgs {
     pub(crate) pubkey: LitStr,
 }

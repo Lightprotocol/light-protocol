@@ -1,4 +1,4 @@
-use crate::{errors::CompressedPdaError, sdk::accounts::InvokeCpiAccounts};
+use crate::{errors::CompressedPdaError, sdk::accounts::InvokeCpiContextAccountMut};
 
 use super::{
     account::CpiContextAccount, instruction::InvokeCpiInstruction, InstructionDataInvokeCpi,
@@ -10,17 +10,17 @@ pub fn process_cpi_context<'info>(
     ctx: &mut Context<'_, '_, '_, 'info, InvokeCpiInstruction<'info>>,
 ) -> Result<Option<InstructionDataInvokeCpi>> {
     let cpi_context = &inputs.cpi_context;
-    if ctx.accounts.get_cpi_context_account().is_some() && cpi_context.is_none() {
+    if ctx.accounts.get_cpi_context_account_mut().is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
         return err!(CompressedPdaError::CpiContextMissing);
     }
-    if ctx.accounts.get_cpi_context_account().is_none() && cpi_context.is_some() {
+    if ctx.accounts.get_cpi_context_account_mut().is_none() && cpi_context.is_some() {
         msg!("cpi context account is none but cpi context is some");
         return err!(CompressedPdaError::CpiContextAccountUndefined);
     }
 
     if let Some(cpi_context) = cpi_context {
-        let cpi_context_account = match ctx.accounts.get_cpi_context_account() {
+        let cpi_context_account = match ctx.accounts.get_cpi_context_account_mut() {
             Some(cpi_context_account) => cpi_context_account,
             None => return err!(CompressedPdaError::CpiContextMissing),
         };

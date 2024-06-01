@@ -47,7 +47,8 @@ impl<'info> SignerAccounts<'info> for InvokeInstruction<'info> {
         &self.fee_payer
     }
 
-    fn get_authority(&self) -> &Signer<'info> {
+    // TODO CHECK if ok non Signer in trait
+    fn get_authority(&self) -> &AccountInfo<'info> {
         &self.authority
     }
 }
@@ -60,11 +61,11 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
         &self.registered_program_pda
     }
 
-    fn get_noop_program(&self) -> &UncheckedAccount<'info> {
+    fn get_noop_program(&self) -> &AccountInfo<'info> {
         &self.noop_program
     }
 
-    fn get_account_compression_authority(&self) -> &UncheckedAccount<'info> {
+    fn get_account_compression_authority(&self) -> &AccountInfo<'info> {
         &self.account_compression_authority
     }
 

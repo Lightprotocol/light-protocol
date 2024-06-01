@@ -1,19 +1,174 @@
-use crate::{create_change_output_compressed_token_account, EscrowError, EscrowTimeLock};
-use anchor_lang::prelude::*;
+use crate::{create_change_output_compressed_token_account, EscrowTimeLock};
+use account_compression::program::AccountCompression;
+use anchor_lang::{prelude::*, Bumps};
 use light_compressed_token::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
     PackedTokenTransferOutputData,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_macros::light_traits;
 use light_system_program::{
     invoke::processor::CompressedProof,
+    invoke_cpi::account::CpiContextAccount,
+    program::LightSystemProgram,
     sdk::{
+        accounts::{
+            InvokeAccounts, InvokeCpiAccounts, InvokeCpiContextAccount, LightSystemAccount,
+            SignerAccounts,
+        },
         address::derive_address,
         compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
+        invoke_cpi::get_compressed_cpi_context_account,
         CompressedCpiContext,
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
+use light_traits::*;
+
+#[inline(always)]
+fn setup_cpi_accounts<'info>(
+    ctx: &Context<
+        '_,
+        '_,
+        '_,
+        'info,
+        impl InvokeAccounts<'info>
+            + LightSystemAccount<'info>
+            + InvokeCpiAccounts<'info>
+            + SignerAccounts<'info>
+            + InvokeCpiContextAccount<'info>
+            + Bumps,
+    >,
+) -> light_system_program::cpi::accounts::InvokeCpiInstruction<'info> {
+    light_system_program::cpi::accounts::InvokeCpiInstruction {
+        fee_payer: ctx.accounts.get_fee_payer().to_account_info(),
+        authority: ctx.accounts.get_authority().to_account_info(),
+        registered_program_pda: ctx.accounts.get_registered_program_pda().to_account_info(),
+        noop_program: ctx.accounts.get_noop_program().to_account_info(),
+        account_compression_authority: ctx
+            .accounts
+            .get_account_compression_authority()
+            .to_account_info(),
+        account_compression_program: ctx
+            .accounts
+            .get_account_compression_program()
+            .to_account_info(),
+        invoking_program: ctx.accounts.get_invoking_program().to_account_info(),
+        compressed_sol_pda: None,
+        compression_recipient: None,
+        system_program: ctx.accounts.get_system_program().to_account_info(),
+        cpi_context_account: ctx
+            .accounts
+            .get_cpi_context_account()
+            .map(|acc| acc.to_account_info()),
+    }
+}
+
+#[inline(always)]
+fn invoke_cpi<'info, 'a, 'b, 'c>(
+    ctx: &Context<
+        '_,
+        '_,
+        '_,
+        'info,
+        impl InvokeAccounts<'info>
+            + LightSystemAccount<'info>
+            + InvokeCpiAccounts<'info>
+            + SignerAccounts<'info>
+            + InvokeCpiContextAccount<'info>
+            + Bumps,
+    >,
+    cpi_accounts: light_system_program::cpi::accounts::InvokeCpiInstruction<'info>,
+    inputs: Vec<u8>,
+    signer_seeds: &'a [&'b [&'c [u8]]],
+) -> Result<()> {
+    light_system_program::cpi::invoke_cpi(
+        CpiContext::new_with_signer(
+            ctx.accounts.get_light_system_program().to_account_info(),
+            cpi_accounts,
+            signer_seeds,
+        )
+        .with_remaining_accounts(ctx.remaining_accounts.to_vec()),
+        inputs,
+    )
+}
+
+// Invokes the light system program to transition the state to a compressed
+// form. Serializes CPI instruction data, configures necessary accounts, and
+// executes the CPI.
+fn exec_verify<'info, 'a, 'b, 'c>(
+    ctx: Context<
+        '_,
+        '_,
+        '_,
+        'info,
+        impl InvokeAccounts<'info>
+            + LightSystemAccount<'info>
+            + InvokeCpiAccounts<'info>
+            + SignerAccounts<'info>
+            + InvokeCpiContextAccount<'info>
+            + Bumps,
+    >,
+    inputs_struct: &InstructionDataInvokeCpi,
+    signer_seeds: &'a [&'b [&'c [u8]]],
+) -> Result<()> {
+    let mut inputs: Vec<u8> = Vec::new();
+    InstructionDataInvokeCpi::serialize(inputs_struct, &mut inputs).unwrap();
+
+    let cpi_accounts = setup_cpi_accounts(&ctx);
+    invoke_cpi(&ctx, cpi_accounts, inputs, signer_seeds)
+}
+
+// inline alternative
+fn _exec_verify_old<'info>(
+    ctx: Context<
+        '_,
+        '_,
+        '_,
+        'info,
+        impl InvokeAccounts<'info>
+            + LightSystemAccount<'info>
+            + InvokeCpiAccounts<'info>
+            + SignerAccounts<'info>
+            + InvokeCpiContextAccount<'info>
+            + Bumps,
+    >,
+    inputs: Vec<u8>,
+    seeds: [&[&[u8]]; 1],
+) -> Result<()> {
+    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
+        fee_payer: ctx.accounts.get_fee_payer().to_account_info(),
+        authority: ctx.accounts.get_authority().to_account_info(),
+        registered_program_pda: ctx.accounts.get_registered_program_pda().to_account_info(),
+        noop_program: ctx.accounts.get_noop_program().to_account_info(),
+        account_compression_authority: ctx
+            .accounts
+            .get_account_compression_authority()
+            .to_account_info(),
+        account_compression_program: ctx
+            .accounts
+            .get_account_compression_program()
+            .to_account_info(),
+        invoking_program: ctx.accounts.get_invoking_program().to_account_info(),
+        compressed_sol_pda: None,
+        compression_recipient: None,
+        system_program: ctx.accounts.get_system_program().to_account_info(),
+        cpi_context_account: ctx
+            .accounts
+            .get_cpi_context_account()
+            .map(|acc| acc.to_account_info()),
+    };
+
+    light_system_program::cpi::invoke_cpi(
+        CpiContext::new_with_signer(
+            ctx.accounts.get_light_system_program().to_account_info(),
+            cpi_accounts,
+            &seeds,
+        )
+        .with_remaining_accounts(ctx.remaining_accounts.to_vec()),
+        inputs,
+    )
+}
 
 /// create compressed pda data
 /// transfer tokens
@@ -57,7 +212,7 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
     )?;
     msg!("escrow compressed tokens with compressed pda");
     cpi_compressed_pda_transfer(
-        &ctx,
+        ctx,
         proof,
         new_address_params,
         compressed_pda,
@@ -67,18 +222,15 @@ pub fn process_escrow_compressed_tokens_with_compressed_pda<'info>(
     Ok(())
 }
 
-fn cpi_compressed_pda_transfer<'info>(
-    ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
+/// Helper function to create data for creating a PDA.
+fn create_cpi_inputs_for_new_address<'info>(
     proof: CompressedProof,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: CompressedCpiContext,
-    bump: u8,
-) -> Result<()> {
-    let bump = &[bump];
-    let signer_bytes = ctx.accounts.signer.key.to_bytes();
-    let seeds = [b"escrow".as_slice(), signer_bytes.as_slice(), bump];
-    let inputs_struct: InstructionDataInvokeCpi = InstructionDataInvokeCpi {
+    seeds: &[&[u8]],
+    cpi_context: Option<CompressedCpiContext>,
+) -> InstructionDataInvokeCpi {
+    InstructionDataInvokeCpi {
         relay_fee: None,
         input_compressed_accounts_with_merkle_context: Vec::new(),
         output_compressed_accounts: vec![compressed_pda],
@@ -87,43 +239,38 @@ fn cpi_compressed_pda_transfer<'info>(
         compression_lamports: None,
         is_compress: false,
         signer_seeds: seeds.iter().map(|x| x.to_vec()).collect::<Vec<Vec<u8>>>(),
-        cpi_context: Some(cpi_context),
-    };
+        cpi_context: cpi_context,
+    }
+}
 
-    let mut inputs: Vec<u8> = Vec::new();
-    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
-    let cpi_context_account = match Some(cpi_context) {
-        Some(cpi_context) => Some(
-            ctx.remaining_accounts
-                .get(cpi_context.cpi_context_account_index as usize)
-                .unwrap()
-                .to_account_info(),
-        ),
-        None => return err!(EscrowError::CpiContextAccountIndexNotFound),
-    };
-    let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
-        fee_payer: ctx.accounts.signer.to_account_info(),
-        authority: ctx.accounts.token_owner_pda.to_account_info(),
-        registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
-        noop_program: ctx.accounts.noop_program.to_account_info(),
-        account_compression_authority: ctx.accounts.account_compression_authority.to_account_info(),
-        account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
-        invoking_program: ctx.accounts.self_program.to_account_info(),
-        compressed_sol_pda: None,
-        compression_recipient: None,
-        system_program: ctx.accounts.system_program.to_account_info(),
-        cpi_context_account,
-    };
-    let seeds = [seeds.as_slice()];
-    let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
-        cpi_accounts,
-        &seeds,
+fn cpi_compressed_pda_transfer<'info>(
+    ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
+    proof: CompressedProof,
+    new_address_params: NewAddressParamsPacked,
+    compressed_pda: OutputCompressedAccountWithPackedContext,
+    cpi_context: CompressedCpiContext,
+    bump: u8,
+) -> Result<()> {
+    // Create CPI signer seed
+    let bump_seed = &[bump];
+    let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
+    let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
+
+    // Create inputs struct
+    let inputs_struct = create_cpi_inputs_for_new_address(
+        proof,
+        new_address_params,
+        compressed_pda,
+        &signer_seeds,
+        Some(cpi_context),
     );
 
-    cpi_ctx.remaining_accounts = ctx.remaining_accounts.to_vec();
+    // TODO: CHECK if unnecessary because require account in escrow. Either remove or
+    // replace with pure check. May be needed for cpi from another program.
+    get_compressed_cpi_context_account(&ctx, &cpi_context)?;
 
-    light_system_program::cpi::invoke_cpi(cpi_ctx, inputs)?;
+    exec_verify(ctx, &inputs_struct, &[&signer_seeds])?;
+
     Ok(())
 }
 
@@ -166,6 +313,7 @@ impl light_hasher::DataHasher for EscrowTimeLock {
     }
 }
 
+// TODO: can we turn more accounts into AccountInfos?
 #[derive(Accounts)]
 pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[account(mut)]
@@ -183,15 +331,80 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     /// CHECK:
     pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
     /// CHECK:
-    pub registered_program_pda: AccountInfo<'info>,
+    pub registered_program_pda:
+        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
     /// CHECK:
     pub noop_program: AccountInfo<'info>,
     pub self_program: Program<'info, crate::program::TokenEscrow>,
     pub system_program: Program<'info, System>,
     /// CHECK:
     #[account(mut)]
-    pub cpi_context_account: AccountInfo<'info>,
+    pub cpi_context_account: Account<'info, CpiContextAccount>,
 }
+
+impl<'info> InvokeAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+    fn get_registered_program_pda(
+        &self,
+    ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>
+    {
+        &self.registered_program_pda
+    }
+
+    fn get_noop_program(&self) -> &AccountInfo<'info> {
+        &self.noop_program
+    }
+
+    fn get_account_compression_authority(&self) -> &AccountInfo<'info> {
+        &self.account_compression_authority
+    }
+
+    fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
+        &self.account_compression_program
+    }
+
+    fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
+        None
+        // self.compressed_sol_pda.as_ref()
+    }
+
+    fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+        None
+        // self.compression_recipient.as_ref()
+    }
+
+    fn get_system_program(&self) -> &Program<'info, System> {
+        &self.system_program
+    }
+}
+
+impl<'info> InvokeCpiAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+    fn get_invoking_program(&self) -> &AccountInfo<'info> {
+        &self.self_program
+    }
+}
+
+impl<'info> InvokeCpiContextAccount<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+    fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
+        Some(&self.cpi_context_account)
+    }
+}
+
+impl<'info> LightSystemAccount<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+    fn get_light_system_program(&self) -> &Program<'info, LightSystemProgram> {
+        &self.light_system_program
+    }
+}
+
+impl<'info> SignerAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+    fn get_fee_payer(&self) -> &Signer<'info> {
+        &self.signer
+    }
+
+    fn get_authority(&self) -> &AccountInfo<'info> {
+        &self.token_owner_pda
+    }
+}
+
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedInputCompressedPda {
     pub old_lock_up_time: u64,
