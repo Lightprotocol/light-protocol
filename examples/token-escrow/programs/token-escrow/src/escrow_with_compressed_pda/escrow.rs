@@ -318,8 +318,10 @@ impl light_hasher::DataHasher for EscrowTimeLock {
 #[derive(Accounts, AutoTraits)]
 pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[account(mut)]
+    #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
+    #[authority]
     #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub token_owner_pda: AccountInfo<'info>,
     pub compressed_token_program:
@@ -336,7 +338,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
         Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
     /// CHECK:
     pub noop_program: AccountInfo<'info>,
-    #[invoke_cpi]
+    #[self_program]
     pub self_program: Program<'info, crate::program::TokenEscrow>,
     pub system_program: Program<'info, System>,
     /// CHECK:
@@ -403,15 +405,15 @@ impl<'info> LightSystemAccount<'info> for EscrowCompressedTokensWithCompressedPd
 }
 
 // both custom!! mapped
-impl<'info> SignerAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
-    fn get_fee_payer(&self) -> &Signer<'info> {
-        &self.signer
-    }
+// impl<'info> SignerAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+//     fn get_fee_payer(&self) -> &Signer<'info> {
+//         &self.signer
+//     }
 
-    fn get_authority(&self) -> &AccountInfo<'info> {
-        &self.token_owner_pda
-    }
-}
+//     fn get_authority(&self) -> &AccountInfo<'info> {
+//         &self.token_owner_pda
+//     }
+// }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedInputCompressedPda {
