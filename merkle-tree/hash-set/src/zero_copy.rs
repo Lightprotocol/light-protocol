@@ -2,7 +2,7 @@ use std::{marker::PhantomData, mem, ptr::NonNull};
 
 use num_bigint::BigUint;
 
-use crate::{HashSet, HashSetCell, HashSetError, HashSetIterator};
+use crate::{HashSet, HashSetCell, HashSetError};
 
 /// A `HashSet` wrapper which can be instantiated from Solana account bytes
 /// without copying them.
@@ -161,10 +161,6 @@ impl<'a> HashSetZeroCopy<'a> {
         self.hash_set
             .mark_with_sequence_number(value, sequence_number)
     }
-
-    pub fn iter(&self) -> HashSetIterator {
-        self.hash_set.iter()
-    }
 }
 
 impl<'a> Drop for HashSetZeroCopy<'a> {
@@ -218,8 +214,6 @@ mod test {
             // Ensure that the underlying data were properly initialized.
             assert_eq!(hs.hash_set.capacity, VALUES);
             assert_eq!(hs.hash_set.sequence_threshold, SEQUENCE_THRESHOLD);
-            let mut iterator = hs.iter();
-            assert_eq!(iterator.next(), None);
             for i in 0..VALUES {
                 assert!(unsafe { &*hs.hash_set.buckets.as_ptr().add(i) }.is_none());
             }
