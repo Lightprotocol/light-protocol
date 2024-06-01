@@ -33,3 +33,54 @@ fn test_compute_rollover_fee() {
     let fee = compute_rollover_fee(rollover_threshold, tree_height, rent).unwrap();
     assert!((fee + 1) * (total_number_of_leaves * 100 / rollover_threshold) > rent);
 }
+
+#[test]
+fn test_concurrent_tree_compute_rollover_fee() {
+    let merkle_tree_lamports = 9496836480;
+    let queue_lamports = 2293180800;
+    let cpi_context_lamports = 143487360;
+    let rollover_threshold = 95;
+    let height = 26;
+    let rollover_fee = compute_rollover_fee(
+        rollover_threshold,
+        height,
+        merkle_tree_lamports + cpi_context_lamports,
+    )
+    .unwrap()
+        + compute_rollover_fee(rollover_threshold, height, queue_lamports).unwrap();
+    let lifetime_lamports = rollover_fee * ((2u64.pow(height)) as f64 * 0.95) as u64;
+    println!("rollover_fee: {}", rollover_fee);
+    println!("lifetime_lamports: {}", lifetime_lamports);
+    println!(
+        "lifetime_lamports < total lamports: {}",
+        lifetime_lamports > merkle_tree_lamports + queue_lamports + cpi_context_lamports
+    );
+    println!(
+        "lifetime_lamports - total lamports: {}",
+        lifetime_lamports - (merkle_tree_lamports + queue_lamports + cpi_context_lamports)
+    );
+    assert!(lifetime_lamports > (merkle_tree_lamports + queue_lamports + cpi_context_lamports));
+}
+
+#[test]
+fn test_address_tree_compute_rollover_fee() {
+    let merkle_tree_lamports = 9639711360;
+    let queue_lamports = 2293180800;
+    let rollover_threshold = 95;
+    let height = 26;
+    let rollover_fee = compute_rollover_fee(rollover_threshold, height, merkle_tree_lamports)
+        .unwrap()
+        + compute_rollover_fee(rollover_threshold, height, queue_lamports).unwrap();
+    let lifetime_lamports = rollover_fee * ((2u64.pow(height)) as f64 * 0.95) as u64;
+    println!("rollover_fee: {}", rollover_fee);
+    println!("lifetime_lamports: {}", lifetime_lamports);
+    println!(
+        "lifetime_lamports < total lamports: {}",
+        lifetime_lamports > merkle_tree_lamports + queue_lamports
+    );
+    println!(
+        "lifetime_lamports - total lamports: {}",
+        lifetime_lamports - (merkle_tree_lamports + queue_lamports)
+    );
+    assert!(lifetime_lamports > (merkle_tree_lamports + queue_lamports));
+}
