@@ -28,6 +28,7 @@ light-hasher = { path = "../../../../merkle-tree/hasher", version = "0.1.4" }
 light-verifier = { path = "../../../../circuit-lib/verifier", version = "0.1.4" }
 light-macros = { path = "../../../../macros/light", version = "0.3.5" }
 light-traits = { path = "../../../../macros/light-traits", version = "0.1.0" }
+light-trait-macro = { path = "../../../../macros/trait-macro", version = "0.1.0" }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.18.11"

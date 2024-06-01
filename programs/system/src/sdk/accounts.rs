@@ -7,7 +7,6 @@ pub trait InvokeAccounts<'info> {
     fn get_registered_program_pda(
         &self,
     ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>;
-    // ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>;
     fn get_noop_program(&self) -> &AccountInfo<'info>;
     fn get_account_compression_authority(&self) -> &AccountInfo<'info>;
     fn get_account_compression_program(&self) -> &Program<'info, AccountCompression>;
@@ -33,7 +32,6 @@ pub trait InvokeCpiContextAccountMut<'info> {
 pub trait InvokeCpiContextAccount<'info> {
     fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>>;
 }
-
 
 
 pub trait InvokeCpiAccounts<'info> {

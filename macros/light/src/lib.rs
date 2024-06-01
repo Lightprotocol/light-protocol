@@ -4,36 +4,6 @@ use syn::{parse_macro_input, parse_quote, ItemFn, ItemStruct};
 
 mod expand;
 
-/// Implements light account traits with compile-time debugging of input and output
-#[proc_macro_attribute]
-pub fn light_traits(attr: TokenStream, item: TokenStream) -> TokenStream {
-    // Debugging: Output the incoming attribute TokenStream
-    eprintln!("Received attributes: {:?}", attr.to_string());
-
-    // Parse the attributes into LightTraitsArgs
-    let args = parse_macro_input!(attr as expand::LightTraitsArgs);
-
-    // Debugging: Output the cloned item TokenStream
-    eprintln!("Received item (struct): {:?}", item.to_string());
-
-    // Clone and parse the item TokenStream into an ItemStruct
-    let item_strct = item.clone();
-    let strct = parse_macro_input!(item_strct as ItemStruct);
-
-    // Process the macro expansion and handle errors
-    let expanded = expand::light_traits(args, strct)
-        .unwrap_or_else(|err| {
-            // Debugging: Output the error if the expansion fails
-            eprintln!("Error during macro expansion: {:?}", err);
-            err.to_compile_error()
-        });
-
-    // Debugging: Output the expanded TokenStream
-    eprintln!("Expanded output: {:?}", expanded.to_string());
-
-    // Convert the expanded result into a TokenStream and return
-    expanded.into()
-}
 
 /// Converts a base58 encoded public key into a byte array.
 #[proc_macro]

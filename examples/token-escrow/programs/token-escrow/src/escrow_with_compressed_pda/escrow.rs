@@ -6,7 +6,7 @@ use light_compressed_token::{
     PackedTokenTransferOutputData,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
-use light_macros::light_traits;
+// use light_macros::light_traits;
 use light_system_program::{
     invoke::processor::CompressedProof,
     invoke_cpi::account::CpiContextAccount,
@@ -23,7 +23,8 @@ use light_system_program::{
     },
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
-use light_traits::*;
+// use light_traits::*;
+use light_trait_macro::AutoTraits;
 
 #[inline(always)]
 fn setup_cpi_accounts<'info>(
@@ -314,7 +315,7 @@ impl light_hasher::DataHasher for EscrowTimeLock {
 }
 
 // TODO: can we turn more accounts into AccountInfos?
-#[derive(Accounts)]
+#[derive(Accounts, AutoTraits)]
 pub struct EscrowCompressedTokensWithCompressedPda<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
@@ -335,6 +336,7 @@ pub struct EscrowCompressedTokensWithCompressedPda<'info> {
         Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
     /// CHECK:
     pub noop_program: AccountInfo<'info>,
+    #[invoke_cpi]
     pub self_program: Program<'info, crate::program::TokenEscrow>,
     pub system_program: Program<'info, System>,
     /// CHECK:
@@ -363,11 +365,13 @@ impl<'info> InvokeAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'i
     }
 
     fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
+        // compressed_sol_pda doesnt exist... so return None
         None
         // self.compressed_sol_pda.as_ref()
     }
 
     fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+        // compression_recipient doesnt exist... so return None
         None
         // self.compression_recipient.as_ref()
     }
@@ -377,12 +381,15 @@ impl<'info> InvokeAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'i
     }
 }
 
-impl<'info> InvokeCpiAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
-    fn get_invoking_program(&self) -> &AccountInfo<'info> {
-        &self.self_program
-    }
-}
+// commented-out:
+// this is always custom, needs to be "mapped"
+// impl<'info> InvokeCpiAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
+//     fn get_invoking_program(&self) -> &AccountInfo<'info> {
+//         &self.self_program
+//     }
+// }
 
+// only if Some, else None
 impl<'info> InvokeCpiContextAccount<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
     fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
         Some(&self.cpi_context_account)
@@ -395,6 +402,7 @@ impl<'info> LightSystemAccount<'info> for EscrowCompressedTokensWithCompressedPd
     }
 }
 
+// both custom!! mapped
 impl<'info> SignerAccounts<'info> for EscrowCompressedTokensWithCompressedPda<'info> {
     fn get_fee_payer(&self) -> &Signer<'info> {
         &self.signer

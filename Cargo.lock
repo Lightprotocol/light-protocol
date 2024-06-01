@@ -3050,6 +3050,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-trait-macro"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "bs58 0.4.0",
+ "light-traits",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "light-traits"
 version = "0.1.0"
 dependencies = [
@@ -7170,6 +7183,7 @@ dependencies = [
  "light-macros",
  "light-system-program",
  "light-test-utils",
+ "light-trait-macro",
  "light-traits",
  "light-verifier",
  "num-bigint 0.4.4",

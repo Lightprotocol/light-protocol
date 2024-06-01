@@ -8,6 +8,7 @@ members = [
     "macros/aligned-sized",
     "macros/light",
     "macros/light-traits",
+    "macros/trait-macro",
     "merkle-tree/*",
     "programs/account-compression",
     "programs/system",
