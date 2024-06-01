@@ -2,7 +2,7 @@ use std::{cmp, mem};
 
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
+use light_bounded_vec::{BoundedVec, BoundedVecError, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
     ConcurrentMerkleTree,
@@ -1287,6 +1287,7 @@ where
 
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog.first_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
@@ -1335,6 +1336,7 @@ where
 
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog.first_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
@@ -1398,6 +1400,7 @@ where
 
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog.first_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
@@ -2786,8 +2789,22 @@ where
         ])
         .unwrap();
 
-    let changelog_entries = merkle_tree.changelog_entries(1).collect::<Vec<_>>();
+    let changelog_entries = merkle_tree
+        .changelog_entries(1)
+        .unwrap()
+        .collect::<Vec<_>>();
     assert!(changelog_entries.is_empty());
+
+    // Try getting changelog entries out of bounds.
+    for start in merkle_tree.changelog.len()..1000 {
+        let changelog_entries = merkle_tree.changelog_entries(start);
+        assert!(matches!(
+            changelog_entries,
+            Err(ConcurrentMerkleTreeError::BoundedVec(
+                BoundedVecError::IterFromOutOfBounds
+            ))
+        ));
+    }
 
     merkle_tree
         .append(&[
@@ -2804,6 +2821,7 @@ where
 
     let changelog_leaves = merkle_tree
         .changelog_entries(1)
+        .unwrap()
         .map(|changelog_entry| changelog_entry.path[0])
         .collect::<Vec<_>>();
     assert_eq!(
@@ -2820,6 +2838,17 @@ where
         ]
     );
 
+    // Try getting changelog entries out of bounds.
+    for start in merkle_tree.changelog.len()..1000 {
+        let changelog_entries = merkle_tree.changelog_entries(start);
+        assert!(matches!(
+            changelog_entries,
+            Err(ConcurrentMerkleTreeError::BoundedVec(
+                BoundedVecError::IterFromOutOfBounds
+            ))
+        ));
+    }
+
     for i in 4_u8..16_u8 {
         merkle_tree
             .append(&[
@@ -2831,6 +2860,7 @@ where
 
     let changelog_leaves = merkle_tree
         .changelog_entries(9)
+        .unwrap()
         .map(|changelog_entry| changelog_entry.path[0])
         .collect::<Vec<_>>();
     assert_eq!(
@@ -2862,6 +2892,17 @@ where
             ]
         ]
     );
+
+    // Try getting changelog entries out of bounds.
+    for start in merkle_tree.changelog.len()..1000 {
+        let changelog_entries = merkle_tree.changelog_entries(start);
+        assert!(matches!(
+            changelog_entries,
+            Err(ConcurrentMerkleTreeError::BoundedVec(
+                BoundedVecError::IterFromOutOfBounds
+            ))
+        ));
+    }
 }
 
 #[test]
@@ -2902,13 +2943,17 @@ where
 
     let mut rng = thread_rng();
 
-    let changelog_entries = merkle_tree.changelog_entries(0).collect::<Vec<_>>();
+    let changelog_entries = merkle_tree
+        .changelog_entries(0)
+        .unwrap()
+        .collect::<Vec<_>>();
     assert!(changelog_entries.is_empty());
 
     // Requesting changelog entries starting from the current `changelog_index()`
     // should always return an empty iterator.
     let changelog_entries = merkle_tree
         .changelog_entries(merkle_tree.changelog_index())
+        .unwrap()
         .collect::<Vec<_>>();
     assert!(changelog_entries.is_empty());
 
@@ -2944,6 +2989,7 @@ where
 
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog.first_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
@@ -2963,6 +3009,7 @@ where
         // should always return an empty iterator.
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert!(changelog_entries.is_empty());
 
@@ -2993,6 +3040,7 @@ where
 
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog.first_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert_eq!(changelog_entries.len(), merkle_paths.len() - 1);
 
@@ -3012,6 +3060,7 @@ where
         // should always return an empty iterator.
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog_index())
+            .unwrap()
             .collect::<Vec<_>>();
         assert!(changelog_entries.is_empty());
     }
@@ -3102,7 +3151,7 @@ where
     where
         H: Hasher,
     {
-        for changelog_entry in merkle_tree.changelog.iter_from(changelog_index) {
+        for changelog_entry in merkle_tree.changelog.iter_from(changelog_index).unwrap() {
             changelog_entry.update_proof(leaf_index, proof)?;
         }
 

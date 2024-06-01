@@ -405,27 +405,27 @@ async fn update_address_merkle_tree_failing_tests() {
     .unwrap();
 
     // TODO: enable once cyclic bounded vec iter_from is fixed
-    // let invalid_changelog_index_high = changelog_index + 2;
-    // let error_invalid_changelog_index_high = update_merkle_tree(
-    //     &mut context,
-    //     address_queue_pubkey,
-    //     address_merkle_tree_pubkey,
-    //     value_index,
-    //     low_element.index as u64,
-    //     bigint_to_be_bytes_array(&low_element.value).unwrap(),
-    //     low_element.next_index as u64,
-    //     bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
-    //     low_element_proof.to_array().unwrap(),
-    //     Some(invalid_changelog_index_high as u16),
-    // )
-    // .await
-    // .unwrap_err();
-    // assert_rpc_error(
-    //     Err(error_invalid_changelog_index_high),
-    //     0,
-    //     10008, // ConcurrentMerkleTreeError::InvalidProof
-    // )
-    // .unwrap();
+    let invalid_changelog_index_high = changelog_index + 2;
+    let error_invalid_changelog_index_high = update_merkle_tree(
+        &mut context,
+        address_queue_pubkey,
+        address_merkle_tree_pubkey,
+        value_index,
+        low_element.index as u64,
+        bigint_to_be_bytes_array(&low_element.value).unwrap(),
+        low_element.next_index as u64,
+        bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
+        low_element_proof.to_array().unwrap(),
+        Some(invalid_changelog_index_high as u16),
+    )
+    .await
+    .unwrap_err();
+    assert_rpc_error(
+        Err(error_invalid_changelog_index_high),
+        0,
+        8003, // BoundedVecError::IterFromOutOfBounds
+    )
+    .unwrap();
     // CHECK: 11 invalid queue account
     let invalid_queue = address_merkle_tree_pubkey;
     let error_invalid_queue = update_merkle_tree(
