@@ -775,7 +775,8 @@ where
     pub fn changelog_entries(
         &self,
         changelog_index: usize,
-    ) -> Skip<CyclicBoundedVecIterator<'_, ChangelogEntry<HEIGHT>>> {
+    ) -> Result<Skip<CyclicBoundedVecIterator<'_, ChangelogEntry<HEIGHT>>>, ConcurrentMerkleTreeError>
+    {
         // `CyclicBoundedVec::iter_from` returns an iterator which includes also
         // the element indicated by the provided index.
         //
@@ -787,7 +788,7 @@ where
         // `changelog_index + 1` would point to the **oldest** changelog entry.
         // That would result in iterating over the whole changelog - from the
         // oldest to the newest element.
-        self.changelog.iter_from(changelog_index).skip(1)
+        Ok(self.changelog.iter_from(changelog_index)?.skip(1))
     }
 
     /// Updates the given Merkle proof.
@@ -818,7 +819,7 @@ where
         //
         // Since we are interested only in subsequent, new changelog entries,
         // skip the first result.
-        for changelog_entry in self.changelog_entries(changelog_index) {
+        for changelog_entry in self.changelog_entries(changelog_index)? {
             changelog_entry.update_proof(leaf_index, proof)?;
         }
 
