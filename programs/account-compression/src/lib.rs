@@ -92,11 +92,14 @@ pub mod account_compression {
     /// initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,
-        _seed: [u8; 32],
         authority: Pubkey,
     ) -> Result<()> {
-        set_group_authority(&mut ctx.accounts.group_authority, authority)?;
-        ctx.accounts.group_authority.seed = _seed;
+        let seed_pubkey = ctx.accounts.seed.key();
+        set_group_authority(
+            &mut ctx.accounts.group_authority,
+            authority,
+            Some(seed_pubkey),
+        )?;
         Ok(())
     }
 
@@ -104,7 +107,7 @@ pub mod account_compression {
         ctx: Context<'_, '_, '_, 'info, UpdateGroupAuthority<'info>>,
         authority: Pubkey,
     ) -> Result<()> {
-        set_group_authority(&mut ctx.accounts.group_authority, authority)
+        set_group_authority(&mut ctx.accounts.group_authority, authority, None)
     }
 
     pub fn register_program_to_group<'info>(

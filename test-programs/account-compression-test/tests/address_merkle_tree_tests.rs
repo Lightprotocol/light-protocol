@@ -476,6 +476,7 @@ async fn update_address_merkle_tree_failing_tests() {
     let invalid_address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
+        &payer.pubkey(),
         &mut context,
         &invalid_address_merkle_tree_keypair,
         &invalid_address_queue_keypair,
@@ -524,6 +525,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     let address_queue_keypair_2 = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
+        &payer.pubkey(),
         &mut context,
         &address_merkle_tree_keypair_2,
         &address_queue_keypair_2,
@@ -699,6 +701,7 @@ pub async fn test_setup_with_address_merkle_tree() -> (
     let address_queue_keypair = Keypair::new();
     create_address_merkle_tree_and_queue_account(
         &payer,
+        &payer.pubkey(),
         &mut context,
         &address_merkle_tree_keypair,
         &address_queue_keypair,

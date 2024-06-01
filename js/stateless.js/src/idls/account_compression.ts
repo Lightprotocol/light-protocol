@@ -292,6 +292,14 @@ export type AccountCompression = {
                     isSigner: true;
                 },
                 {
+                    name: 'seed';
+                    isMut: false;
+                    isSigner: true;
+                    docs: [
+                        'Seed public key used to derive the group authority.',
+                    ];
+                },
+                {
                     name: 'groupAuthority';
                     isMut: true;
                     isSigner: false;
@@ -303,12 +311,6 @@ export type AccountCompression = {
                 },
             ];
             args: [
-                {
-                    name: 'seed';
-                    type: {
-                        array: ['u8', 32];
-                    };
-                },
                 {
                     name: 'authority';
                     type: 'publicKey';
@@ -351,7 +353,7 @@ export type AccountCompression = {
                 },
                 {
                     name: 'groupAuthorityPda';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -623,9 +625,7 @@ export type AccountCompression = {
                     },
                     {
                         name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
+                        type: 'publicKey';
                     },
                 ];
             };
@@ -637,6 +637,10 @@ export type AccountCompression = {
                 fields: [
                     {
                         name: 'pubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'groupPda';
                         type: 'publicKey';
                     },
                 ];
@@ -1456,6 +1460,14 @@ export const IDL: AccountCompression = {
                     isSigner: true,
                 },
                 {
+                    name: 'seed',
+                    isMut: false,
+                    isSigner: true,
+                    docs: [
+                        'Seed public key used to derive the group authority.',
+                    ],
+                },
+                {
                     name: 'groupAuthority',
                     isMut: true,
                     isSigner: false,
@@ -1467,12 +1479,6 @@ export const IDL: AccountCompression = {
                 },
             ],
             args: [
-                {
-                    name: 'seed',
-                    type: {
-                        array: ['u8', 32],
-                    },
-                },
                 {
                     name: 'authority',
                     type: 'publicKey',
@@ -1515,7 +1521,7 @@ export const IDL: AccountCompression = {
                 },
                 {
                     name: 'groupAuthorityPda',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {
@@ -1787,9 +1793,7 @@ export const IDL: AccountCompression = {
                     },
                     {
                         name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
+                        type: 'publicKey',
                     },
                 ],
             },
@@ -1801,6 +1805,10 @@ export const IDL: AccountCompression = {
                 fields: [
                     {
                         name: 'pubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'groupPda',
                         type: 'publicKey',
                     },
                 ],

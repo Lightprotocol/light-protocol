@@ -5,21 +5,20 @@ use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
+
 pub fn create_initialize_group_authority_instruction(
     signer_pubkey: Pubkey,
     group_accounts: Pubkey,
-    seed: [u8; 32],
+    seed_pubkey: Pubkey,
+    authority: Pubkey,
 ) -> Instruction {
-    let cpi_authority_pda = get_cpi_authority_pda();
-    let instruction_data = account_compression::instruction::InitializeGroupAuthority {
-        _seed: seed,
-        authority: cpi_authority_pda.0,
-    };
+    let instruction_data = account_compression::instruction::InitializeGroupAuthority { authority };
 
     Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(signer_pubkey, true),
+            AccountMeta::new(seed_pubkey, true),
             AccountMeta::new(group_accounts, false),
             AccountMeta::new_readonly(system_program::ID, false),
         ],
@@ -117,8 +116,10 @@ pub fn create_initialize_governance_authority_instruction(
         data: ix.data(),
     }
 }
-pub fn get_group_account() -> (Pubkey, [u8; 32]) {
-    let seed = [1u8; 32];
-    let group_account = Pubkey::find_program_address(&[GROUP_AUTHORITY_SEED, seed.as_slice()], &ID);
-    (group_account.0, seed)
+pub fn get_group_pda(seed: Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[GROUP_AUTHORITY_SEED, seed.to_bytes().as_slice()],
+        &account_compression::ID,
+    )
+    .0
 }

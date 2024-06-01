@@ -6,5 +6,5 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 #[derive(Debug)]
 pub struct GroupAuthority {
     pub authority: Pubkey,
-    pub seed: [u8; 32],
+    pub seed: Pubkey,
 }

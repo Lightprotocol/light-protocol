@@ -16,7 +16,11 @@ pub struct UpdateGroupAuthority<'info> {
 pub fn set_group_authority(
     group_authority: &mut Account<'_, GroupAuthority>,
     authority: Pubkey,
+    seed: Option<Pubkey>,
 ) -> Result<()> {
     group_authority.authority = authority;
+    if let Some(seed) = seed {
+        group_authority.seed = seed;
+    }
     Ok(())
 }

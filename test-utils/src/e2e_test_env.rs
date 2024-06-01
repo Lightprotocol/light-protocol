@@ -187,6 +187,7 @@ where
                 queue: env_accounts.address_merkle_tree_queue_pubkey,
             }],
             rpc.get_payer().insecure_clone(),
+            env_accounts.group_pda,
             inclusion,
             non_inclusion,
             prover_server_path,
@@ -319,6 +320,7 @@ where
         let cpi_context_keypair = Keypair::new();
         create_state_merkle_tree_and_queue_account(
             &self.payer,
+            &self.indexer.group_pda,
             &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
@@ -353,6 +355,7 @@ where
         let nullifier_queue_keypair = Keypair::new(); //from_seed(&[self.rng.gen_range(0..255); 32]).unwrap();
         create_address_merkle_tree_and_queue_account(
             &self.payer,
+            &self.indexer.group_pda,
             &mut self.rpc,
             &merkle_tree_keypair,
             &nullifier_queue_keypair,

@@ -13,7 +13,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     expected_roots_length: usize,
     expected_next_index: usize,
     expected_rightmost_leaf: &[u8; 32],
-    payer_pubkey: &Pubkey,
+    owner_pubkey: &Pubkey,
 ) {
     let merkle_tree = AccountZeroCopy::<account_compression::AddressMerkleTreeAccount>::new(
         rpc,
@@ -66,7 +66,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         Pubkey::default()
     );
     let expected_access_meta_data = account_compression::AccessMetadata {
-        owner: *payer_pubkey,
+        owner: *owner_pubkey,
         delegate: program_owner.unwrap_or_default(),
     };
     assert_eq!(

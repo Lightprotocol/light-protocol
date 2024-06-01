@@ -31,16 +31,9 @@ pub mod light_system_program {
         // check that merkle tree is initialized
         let merkle_tree_account = ctx.accounts.associated_merkle_tree.load()?;
         merkle_tree_account.load_merkle_tree()?;
-        if merkle_tree_account.metadata.access_metadata.owner != ctx.accounts.fee_payer.key() {
-            return Err(crate::errors::CompressedPdaError::InvalidMerkleTreeOwner.into());
-        }
         ctx.accounts
             .cpi_context_account
             .init(ctx.accounts.associated_merkle_tree.key());
-        msg!(
-            "initialized cpi signature account pubkey {:?}",
-            ctx.accounts.cpi_context_account.key()
-        );
         Ok(())
     }
 

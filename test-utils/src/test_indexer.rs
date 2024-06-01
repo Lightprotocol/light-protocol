@@ -94,6 +94,7 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub state_merkle_trees: Vec<StateMerkleTreeBundle>,
     pub address_merkle_trees: Vec<AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>>,
     pub payer: Keypair,
+    pub group_pda: Pubkey,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
     pub token_compressed_accounts: Vec<TokenDataWithContext>,
@@ -143,6 +144,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 queue: env.address_merkle_tree_queue_pubkey,
             }],
             payer.insecure_clone(),
+            env.group_pda,
             inclusion,
             non_inclusion,
             gnark_bin_path,
@@ -153,6 +155,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
         address_merkle_tree_accounts: Vec<AddressMerkleTreeAccounts>,
         payer: Keypair,
+        group_pda: Pubkey,
         inclusion: bool,
         non_inclusion: bool,
         gnark_bin_path: &str,
@@ -201,6 +204,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             path: String::from(gnark_bin_path),
             proof_types: vec_proof_types,
             phantom: Default::default(),
+            group_pda,
         }
     }
 
@@ -233,6 +237,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
     ) -> AddressMerkleTreeAccounts {
         create_address_merkle_tree_and_queue_account(
             &self.payer,
+            &self.group_pda,
             rpc,
             merkle_tree_keypair,
             queue_keypair,
@@ -261,6 +266,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
     ) {
         create_state_merkle_tree_and_queue_account(
             &self.payer,
+            &self.group_pda,
             rpc,
             merkle_tree_keypair,
             nullifier_queue_keypair,

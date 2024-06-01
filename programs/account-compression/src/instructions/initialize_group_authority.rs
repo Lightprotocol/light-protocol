@@ -3,14 +3,15 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 use crate::{config_accounts::GroupAuthority, utils::constants::GROUP_AUTHORITY_SEED};
 
 #[derive(Accounts)]
-#[instruction(seed: [u8; 32])]
 pub struct InitializeGroupAuthority<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    /// Seed public key used to derive the group authority.
+    pub seed: Signer<'info>,
     #[account(
         init,
         payer = authority,
-        seeds = [GROUP_AUTHORITY_SEED, seed.as_slice()],
+        seeds = [GROUP_AUTHORITY_SEED, seed.key().to_bytes().as_slice()],
         bump,
         space = GroupAuthority::LEN,
     )]
