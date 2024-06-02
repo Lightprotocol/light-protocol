@@ -143,17 +143,17 @@ fn create_compressed_pda_data(
             .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
-    let derive_address = derive_address(
+    let derived_address = derive_address(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
             .key(),
-        &new_address_params.seed,
+        &[&new_address_params.seed[..]],
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
             owner: crate::ID,
             lamports: 0,
-            address: Some(derive_address),
+            address: Some(derived_address),
             data: Some(compressed_account_data),
         },
         merkle_tree_index: 0,

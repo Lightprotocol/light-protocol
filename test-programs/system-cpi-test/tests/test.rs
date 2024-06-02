@@ -514,7 +514,7 @@ async fn perform_create_pda<R: RpcConnection>(
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
-    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &[&seed[..]]).unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -559,7 +559,7 @@ pub async fn assert_created_pda<R: RpcConnection>(
         .find(|x| x.compressed_account.owner == ID)
         .unwrap()
         .clone();
-    let address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &[&seed[..]]).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address

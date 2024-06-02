@@ -3,9 +3,20 @@ use light_utils::hash_to_bn254_field_size_be;
 use std::collections::HashMap;
 
 use crate::{errors::CompressedPdaError, NewAddressParams, NewAddressParamsPacked};
-pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
+pub fn derive_address(merkle_tree_pubkey: &Pubkey, seeds: &[&[u8]]) -> Result<[u8; 32]> {
+    
+    let pubkey_bytes = merkle_tree_pubkey.to_bytes();
+    let total_length = pubkey_bytes.len() + seeds.iter().map(|seed| seed.len()).sum::<usize>();
+    let mut bytes_to_hash = Vec::with_capacity(total_length);
+
+    bytes_to_hash.extend_from_slice(&pubkey_bytes);
+
+    for seed in seeds {
+        bytes_to_hash.extend_from_slice(seed);
+    }
+
     let hash = match hash_to_bn254_field_size_be(
-        [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
+        bytes_to_hash.as_slice(),
     ) {
         Some(hash) => Ok::<[u8; 32], CompressedPdaError>(hash.0),
         None => return Err(CompressedPdaError::DeriveAddressError.into()),

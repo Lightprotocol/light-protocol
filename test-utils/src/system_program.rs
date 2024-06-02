@@ -42,7 +42,7 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnec
     let mut derived_addresses = Vec::new();
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
-            derive_address(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
+            derive_address(&address_merkle_tree_pubkeys[i], &[&address_seed[..]]).unwrap();
         println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }

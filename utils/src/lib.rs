@@ -16,7 +16,6 @@ pub mod fee;
 pub mod prime;
 pub mod rand;
 
-const CHUNK_SIZE: usize = 32;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum UtilsError {
@@ -49,43 +48,6 @@ impl From<UtilsError> for solana_program::program_error::ProgramError {
     }
 }
 
-pub fn change_endianness<const SIZE: usize>(bytes: &[u8; SIZE]) -> [u8; SIZE] {
-    let mut arr = [0u8; SIZE];
-    for (i, b) in bytes.chunks(CHUNK_SIZE).enumerate() {
-        for (j, byte) in b.iter().rev().enumerate() {
-            arr[i * CHUNK_SIZE + j] = *byte;
-        }
-    }
-    arr
-}
-
-/// Truncates the given 32-byte array, replacing the least important element
-/// with 0, making it fit into Fr modulo field.
-///
-/// # Safety
-///
-/// This function is used mostly for truncating hashes (i.e. SHA-256) which are
-/// not constrainted by any modulo space. At the same time, we can't (yet) use
-/// any ZK-friendly function in one transaction. Truncating hashes to 31 should
-/// be generally safe, but please make sure that it's appropriate in your case.
-///
-/// # Examples
-///
-/// ```
-/// use light_utils::truncate_to_circuit;
-///
-/// let original: [u8; 32] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-///                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
-///                            29, 30, 31, 32];
-/// let truncated: [u8; 32] = truncate_to_circuit(&original);
-/// assert_eq!(truncated, [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-///                        18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
-/// ```
-pub fn truncate_to_circuit(bytes: &[u8; 32]) -> [u8; 32] {
-    let mut truncated = [0; 32];
-    truncated[1..].copy_from_slice(&bytes[1..]);
-    truncated
-}
 
 pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> Result<bool, UtilsError> {
     let bigint = BigUint::from_bytes_be(bytes);
@@ -98,12 +60,15 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> Result<bool, Uti
 
 pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
     let mut bump_seed = [std::u8::MAX];
-    // loop with decreasing bump seed to find a valid hash which is less than bn254 Fr modulo field size
+    // Loops with decreasing bump seed to find a valid hash which is less than
+    // bn254 Fr modulo field size.
     for _ in 0..std::u8::MAX {
         {
             let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
-            // TODO: revisit truncation (without truncation it takes up to 30 hashes to find a valid one, this is not acceptable onchain)
-            // truncate to 31 bytes so that value is less than bn254 Fr modulo field size
+            // TODO: revisit truncation (without truncation it takes up to 30
+            // hashes to find a valid one, this is not acceptable onchain)
+            // truncate to 31 bytes so that value is less than bn254 Fr modulo
+            // field size
             hashed_value[0] = 0;
             if let Ok(true) = is_smaller_than_bn254_field_size_be(&hashed_value) {
                 return Some((hashed_value, bump_seed[0]));
