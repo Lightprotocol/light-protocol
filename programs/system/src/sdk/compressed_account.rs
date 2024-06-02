@@ -96,6 +96,8 @@ pub struct CompressedAccountData {
     pub data_hash: [u8; 32],
 }
 
+/// Hashing scheme:
+/// H()
 impl CompressedAccount {
     pub fn hash_with_hashed_values<H: Hasher>(
         &self,

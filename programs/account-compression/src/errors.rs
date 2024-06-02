@@ -60,4 +60,6 @@ pub enum AccountCompressionErrorCode {
     InvalidQueueType,
     #[msg("InputElementsEmpty")]
     InputElementsEmpty,
+    #[msg("NoLeavesForMerkleTree")]
+    NoLeavesForMerkleTree,
 }

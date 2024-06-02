@@ -78,4 +78,6 @@ pub enum CompressedPdaError {
     CpiContextProofMismatch,
     #[msg("CpiContextEmpty")]
     CpiContextEmpty,
+    #[msg("HashedPubkeysCapacityMismatch")]
+    HashedPubkeysCapacityMismatch,
 }

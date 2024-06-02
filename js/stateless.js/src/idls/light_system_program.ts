@@ -174,8 +174,12 @@ export type LightSystemProgram = {
         {
             name: 'cpiContextAccount';
             docs: [
-                'collects invocations without proofs',
-                'invocations are collected and processed when an invocation with a proof is received',
+                'Collects instruction data without executing a compressed transaction.',
+                'Signer checks are performed on instruction data.',
+                'Collected instruction data is combined with the instruction data of the executing cpi,',
+                'and executed as a single transaction.',
+                'This enables to use input compressed accounts that are owned by multiple programs,',
+                'with one zero-knowledge proof.',
             ];
             type: {
                 kind: 'struct';
@@ -878,6 +882,11 @@ export type LightSystemProgram = {
             name: 'CpiContextEmpty';
             msg: 'CpiContextEmpty';
         },
+        {
+            code: 6038;
+            name: 'HashedPubkeysCapacityMismatch';
+            msg: 'HashedPubkeysCapacityMismatch';
+        },
     ];
 };
 
@@ -1057,8 +1066,12 @@ export const IDL: LightSystemProgram = {
         {
             name: 'cpiContextAccount',
             docs: [
-                'collects invocations without proofs',
-                'invocations are collected and processed when an invocation with a proof is received',
+                'Collects instruction data without executing a compressed transaction.',
+                'Signer checks are performed on instruction data.',
+                'Collected instruction data is combined with the instruction data of the executing cpi,',
+                'and executed as a single transaction.',
+                'This enables to use input compressed accounts that are owned by multiple programs,',
+                'with one zero-knowledge proof.',
             ],
             type: {
                 kind: 'struct',
@@ -1765,6 +1778,11 @@ export const IDL: LightSystemProgram = {
             code: 6037,
             name: 'CpiContextEmpty',
             msg: 'CpiContextEmpty',
+        },
+        {
+            code: 6038,
+            name: 'HashedPubkeysCapacityMismatch',
+            msg: 'HashedPubkeysCapacityMismatch',
         },
     ],
 };

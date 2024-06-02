@@ -1,7 +1,7 @@
 use crate::InsertIntoQueues;
 use crate::{errors::AccountCompressionErrorCode, AccessMetadata, RolloverMetadata};
 use crate::{
-    utils::check_registered_or_signer::{GroupAccess, GroupAccounts},
+    utils::check_signer_is_registered_or_authority::{GroupAccess, GroupAccounts},
     RegisteredProgram,
 };
 use aligned_sized::aligned_sized;
@@ -102,7 +102,7 @@ impl GroupAccess for QueueAccount {
 }
 
 impl<'info> GroupAccounts<'info> for InsertIntoQueues<'info> {
-    fn get_signing_address(&self) -> &Signer<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
     fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {

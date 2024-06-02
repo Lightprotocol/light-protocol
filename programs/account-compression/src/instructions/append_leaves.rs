@@ -1,7 +1,10 @@
 use crate::{
+    errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
     utils::{
-        check_registered_or_signer::{check_registered_or_signer, GroupAccess, GroupAccounts},
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
+        },
         transfer_lamports::transfer_lamports_cpi,
     },
     RegisteredProgram,
@@ -33,7 +36,7 @@ impl GroupAccess for StateMerkleTreeAccount {
 }
 
 impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
-    fn get_signing_address(&self) -> &Signer<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
     fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
@@ -60,13 +63,6 @@ pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     Ok(())
 }
 
-// TODO: refactor to
-// for every remaining account which is one Merkle tree
-// do function call to iterate over all remaining leaves until the mt index changes
-// then append the batch to the Merkle tree
-// free heap memory
-
-#[heap_neutral]
 #[inline(never)]
 fn process_batch<'a, 'c: 'info, 'info>(
     ctx: &Context<'a, '_, 'c, 'info, AppendLeaves<'info>>,
@@ -84,23 +80,28 @@ fn process_batch<'a, 'c: 'info, 'info>(
     let mut leaves_processed: usize = 0;
     let len = ctx.remaining_accounts.len();
     for i in 0..len {
-        let lamports = {
-            let start = leaves.iter().position(|x| x.0 as usize == i).unwrap();
+        let merkle_tree_acc_info = &ctx.remaining_accounts[i];
+        let lamports: u64 = {
+            let start = match leaves.iter().position(|x| x.0 as usize == i) {
+                Some(pos) => Ok(pos),
+                None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
+            }?;
             let end = match leaves[start..].iter().position(|x| x.0 as usize != i) {
                 Some(pos) => pos + start,
                 None => leaves.len(),
             };
-            leaves_processed += end - start;
-            let merkle_tree_acc_info = &ctx.remaining_accounts[i];
+            let batch_size = end - start;
+            leaves_processed += batch_size;
 
             let merkle_tree_account =
-                AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
+                AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
+                    .map_err(ProgramError::from)?;
 
             let mut merkle_tree_account = merkle_tree_account.load_mut()?;
             let lamports =
-                merkle_tree_account.metadata.rollover_metadata.rollover_fee * (end - start) as u64;
+                merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
 
-            check_registered_or_signer::<AppendLeaves, StateMerkleTreeAccount>(
+            check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
                 ctx,
                 &merkle_tree_account,
             )?;
@@ -117,11 +118,7 @@ fn process_batch<'a, 'c: 'info, 'info>(
                 .map_err(ProgramError::from)?;
             lamports
         };
-        transfer_lamports_cpi(
-            &ctx.accounts.fee_payer,
-            &ctx.remaining_accounts[i].to_account_info(),
-            lamports,
-        )?;
+        transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, lamports)?;
     }
     Ok(leaves_processed)
 }

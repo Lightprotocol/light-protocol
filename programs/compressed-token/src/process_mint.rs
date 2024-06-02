@@ -275,7 +275,6 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: light_system_program::ID,
         accounts,
-        // data: inputs.to_owned(),
         data: instructiondata.data(),
     };
 

@@ -348,7 +348,7 @@ pub(crate) fn light_verifier_accounts(
         #strct
 
         impl #impl_generics ::light_verifier_sdk::accounts::LightAccounts<'info> for #ident <#strct_generics> {
-            fn get_signing_address(&self) -> &Signer<'info> {
+            fn get_authority(&self) -> &Signer<'info> {
                 &self.signing_address
             }
 

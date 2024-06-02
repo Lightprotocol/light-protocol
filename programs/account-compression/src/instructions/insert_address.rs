@@ -6,7 +6,9 @@ use crate::{
     errors::AccountCompressionErrorCode,
     transfer_lamports_cpi,
     utils::{
-        check_registered_or_signer::{check_registered_or_signer, GroupAccounts},
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
         queue::{QueueBundle, QueueMap},
     },
     AddressMerkleTreeAccount, AddressQueueAccount, RegisteredProgram,
@@ -22,7 +24,7 @@ pub struct InsertAddresses<'info> {
 }
 
 impl<'info> GroupAccounts<'info> for InsertAddresses<'info> {
-    fn get_signing_address(&self) -> &Signer<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
 
@@ -74,7 +76,7 @@ pub fn process_insert_addresses<'a, 'b, 'c: 'info, 'info>(
         let address_queue = AccountLoader::<AddressQueueAccount>::try_from(queue_bundle.queue)?;
         {
             let address_queue = address_queue.load()?;
-            check_registered_or_signer::<InsertAddresses, AddressQueueAccount>(
+            check_signer_is_registered_or_authority::<InsertAddresses, AddressQueueAccount>(
                 &ctx,
                 &address_queue,
             )?;

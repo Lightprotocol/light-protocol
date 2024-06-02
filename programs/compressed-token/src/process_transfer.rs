@@ -33,8 +33,8 @@ use std::mem;
 ///     as the input compressed account.
 /// 3.  Check that compressed accounts are of same mint.
 /// 4.  Check that sum of input compressed accounts is equal to sum of output
-///     compressed accounts 5.1 create_output_compressed_accounts 5.2 create
-///     delegate change compressed_accounts.
+///     compressed accounts
+/// 5.  create_output_compressed_accounts
 /// 6.  Serialize and add token_data data to in compressed_accounts.
 /// 7.  Invoke light_system_program::execute_compressed_transaction.
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(

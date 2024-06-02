@@ -5,7 +5,10 @@ use crate::{
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    utils::{check_registered_or_signer::GroupAccounts, transfer_lamports::transfer_lamports},
+    utils::{
+        check_signer_is_registered_or_authority::GroupAccounts,
+        transfer_lamports::transfer_lamports,
+    },
     AddressMerkleTreeAccount, RegisteredProgram,
 };
 
@@ -27,7 +30,7 @@ pub struct RolloverAddressMerkleTreeAndQueue<'info> {
 }
 
 impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
-    fn get_signing_address(&self) -> &Signer<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
     fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
@@ -48,7 +51,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
     // TODO: revisit whether necessary
-    // check_registered_or_signer::<RolloverStateMerkleTreeAndNullifierQueue, AddressMerkleTreeAccount>(
+    // check_signer_is_registered_or_authority::<RolloverStateMerkleTreeAndNullifierQueue, AddressMerkleTreeAccount>(
     //     &ctx,
     //     &merkle_tree,
     // )?;

@@ -1,8 +1,3 @@
-use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
-use anchor_lang::{prelude::*, Bumps};
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_verifier::CompressedProof as CompressedVerifierProof;
-
 use crate::{
     errors::CompressedPdaError,
     invoke::{
@@ -19,6 +14,10 @@ use crate::{
     sdk::accounts::{InvokeAccounts, SignerAccounts},
     InstructionDataInvoke,
 };
+use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
+use anchor_lang::{prelude::*, Bumps};
+use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_verifier::CompressedProof as CompressedVerifierProof;
 
 // TODO: remove once upgraded to anchor 0.30.0 (right now it's required for idl generation)
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
@@ -38,6 +37,12 @@ impl Default for CompressedProof {
     }
 }
 
+/// 1. sum check
+/// 2. compression lamports
+/// 3. verify state inclusion & address non-inclusion proof
+/// 4. insert nullifiers
+/// 5. insert output compressed accounts into state Merkle tree
+/// 6. emit state transition event
 pub fn process<
     'a,
     'b,
@@ -72,17 +77,19 @@ pub fn process<
     }
     bench_sbf_end!("cpda_process_compression");
 
-    let mut input_compressed_account_hashes =
-        vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
-    let mut input_compressed_account_addresses: Vec<Option<[u8; 32]>> =
-        vec![None; inputs.input_compressed_accounts_with_merkle_context.len()];
+    // Allocate heap memory here so that we can free memory after function invocations.
+    let num_input_compressed_accounts = inputs.input_compressed_accounts_with_merkle_context.len();
+    let num_new_addresses = inputs.new_address_params.len();
+    let mut input_compressed_account_hashes = vec![[0u8; 32]; num_input_compressed_accounts];
 
+    let mut compressed_account_addresses: Vec<Option<[u8; 32]>> =
+        vec![None; num_input_compressed_accounts + num_new_addresses];
     let mut output_leaf_indices = vec![0u32; inputs.output_compressed_accounts.len()];
     let mut output_compressed_account_hashes =
         vec![[0u8; 32]; inputs.output_compressed_accounts.len()];
-    // Bench vs vector
-    let mut hashed_pubkeys =
-        Vec::<(Pubkey, [u8; 32])>::with_capacity(ctx.remaining_accounts.len() + 1);
+    let hashed_pubkeys_capacity =
+        ctx.remaining_accounts.len() + 1 + inputs.output_compressed_accounts.len();
+    let mut hashed_pubkeys = Vec::<(Pubkey, [u8; 32])>::with_capacity(hashed_pubkeys_capacity);
 
     // verify state and or address proof ---------------------------------------------------
     if !inputs
@@ -100,19 +107,22 @@ pub fn process<
                 ctx.remaining_accounts,
                 &inputs,
                 &mut input_compressed_account_hashes,
-                &mut input_compressed_account_addresses,
+                &mut compressed_account_addresses,
                 &mut hashed_pubkeys,
             )?;
+            if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
+                return err!(CompressedPdaError::HashedPubkeysCapacityMismatch);
+            }
         }
 
         bench_sbf_end!("cpda_hash_input_compressed_accounts");
-        let mut new_addresses = vec![[0u8; 32]; inputs.new_address_params.len()];
+        let mut new_addresses = vec![[0u8; 32]; num_new_addresses];
         // insert addresses into address merkle tree queue ---------------------------------------------------
         if !new_addresses.is_empty() {
             derive_new_addresses(
                 &inputs,
                 &ctx,
-                &mut input_compressed_account_addresses,
+                &mut compressed_account_addresses,
                 &mut new_addresses,
             );
             let network_fee_bundle = insert_addresses_into_address_merkle_tree_queue(
@@ -131,10 +141,10 @@ pub fn process<
             }
         }
         bench_sbf_start!("cpda_verify_state_proof");
+        // Allocate heap memory here because roots are only used for proof verification.
         let mut new_address_roots = vec![[0u8; 32]; inputs.new_address_params.len()];
-        // TODO: enable once address merkle tree init is debugged
-        fetch_roots_address_merkle_tree(&inputs.new_address_params, &ctx, &mut new_address_roots)?;
         let mut roots = vec![[0u8; 32]; inputs.input_compressed_accounts_with_merkle_context.len()];
+        fetch_roots_address_merkle_tree(&inputs.new_address_params, &ctx, &mut new_address_roots)?;
         fetch_roots(&inputs, &ctx, &mut roots)?;
         let proof = match &inputs.proof {
             Some(proof) => proof,
@@ -149,7 +159,7 @@ pub fn process<
             &roots,
             &input_compressed_account_hashes,
             &new_address_roots,
-            new_addresses.as_slice(),
+            &new_addresses,
             &compressed_verifier_proof,
         ) {
             Ok(_) => anchor_lang::Result::Ok(()),
@@ -209,11 +219,14 @@ pub fn process<
             &ctx,
             &mut output_leaf_indices,
             &mut output_compressed_account_hashes,
-            &mut input_compressed_account_addresses,
+            &mut compressed_account_addresses,
             &invoking_program,
             &mut hashed_pubkeys,
             &mut sequence_numbers,
         )?;
+        if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
+            return err!(CompressedPdaError::HashedPubkeysCapacityMismatch);
+        }
         bench_sbf_end!("cpda_append");
     }
     bench_sbf_start!("emit_state_transition_event");
