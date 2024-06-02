@@ -1,7 +1,0 @@
-[package]
-name = "light-traits"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-anchor-lang = "0.29"

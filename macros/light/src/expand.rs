@@ -7,13 +7,7 @@ use syn::{
     TypeParam,
 };
 
-
-// use light_system_program::accounts::{LightSystemAccount};
-
 const PUBKEY_LEN: usize = 32;
-
-
-
 
 pub(crate) struct PubkeyArgs {
     pub(crate) pubkey: LitStr,

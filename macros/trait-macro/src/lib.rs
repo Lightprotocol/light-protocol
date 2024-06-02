@@ -4,9 +4,57 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Data, Fields};
 
-// use light_traits::InvokeCpiAccounts;
-#[proc_macro_derive(AutoTraits, attributes(self_program, fee_payer, authority))]
-pub fn auto_traits_derive(input: TokenStream) -> TokenStream {
+/// Implements traits on the given struct required for invoking The Light system
+/// program via CPI.
+///
+/// ## Usage
+/// Add `#[derive(LightTraits)]` to your struct which specifies the accounts
+/// required for your Anchor program instruction. Specify the attributes
+/// `self_program`, `fee_payer`, `authority`, and optionally `cpi_context` to
+/// the relevant fields.
+///
+/// ### Attributes
+/// - `self_program`:   Marks the field that represents the program invoking the
+///                     light system program, i.e. your program. You need to
+///                     list your program as part of the struct.
+/// - `fee_payer`:      Marks the field that represents the account responsible
+///                     for paying transaction fees. (Signer)
+/// 
+/// - `authority`:      TODO: explain authority.
+/// - `cpi_context`:    TODO: explain cpi_context.
+///
+/// ### Required accounts (must specify exact name).
+/// 
+/// - `light_system_program`:           Light systemprogram. verifies & applies
+///                                     compression state transitions.
+/// - `registered_program_pda`:         Light Systemprogram PDA
+/// - `noop_program`:                   SPL noop program
+/// - `account_compression_authority`:  TODO: explain.
+/// - `account_compression_program`:    Account Compression program.
+/// - `system_program`:                 The Solana Systemprogram.
+///
+/// ### Example
+/// ```
+/// #[derive(Accounts, LightTraits)]
+/// pub struct ExampleInstruction<'info> {
+///     #[self_program]
+///     pub my_program: Program<'info, MyProgram>,
+///     #[fee_payer]
+///     pub payer: Signer<'info>,
+///     #[authority]
+///     pub user: AccountInfo<'info>,
+///     #[cpi_context]
+///     pub cpi_context_account: Account<'info, CpiContextAccount>,
+///     pub light_system_program: Program<'info, LightSystemProgram>,
+///     pub registered_program_pda: Account<'info, RegisteredProgram>,
+///     pub noop_program: AccountInfo<'info>,
+///     pub account_compression_authority: AccountInfo<'info>,
+///     pub account_compression_program: Program<'info, AccountCompression>,
+///     pub system_program: Program<'info, System>,
+/// }
+/// ```
+#[proc_macro_derive(LightTraits, attributes(self_program, fee_payer, authority, cpi_context))]
+pub fn light_traits_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = &input.ident;
 
@@ -17,6 +65,31 @@ pub fn auto_traits_derive(input: TokenStream) -> TokenStream {
                     let mut self_program_field = None;
                     let mut fee_payer_field = None;
                     let mut authority_field = None;
+                    let mut light_system_program_field = None;
+                    let mut cpi_context_account_field = None;
+
+                    // base impl
+                    let mut registered_program_pda_field = None;
+                    let mut noop_program_field = None;
+                    let mut account_compression_authority_field = None;
+                    let mut account_compression_program_field = None;
+                    let mut system_program_field = None;
+      
+                    let compressed_sol_pda_field = fields.named.iter().find_map(|f| {
+                        if f.ident.as_ref().map(|id| id == "compressed_sol_pda").unwrap_or(false) {
+                            Some(quote! { self.#f.ident.as_ref() })
+                        } else {
+                            None
+                        }
+                    }).unwrap_or(quote! { None });
+             
+                    let compression_recipient_field = fields.named.iter().find_map(|f| {
+                        if f.ident.as_ref().map(|id| id == "compression_recipient").unwrap_or(false) {
+                            Some(quote! { self.#f.ident.as_ref() })
+                        } else {
+                            None
+                        }
+                    }).unwrap_or(quote! { None });
 
                     for f in fields.named.iter() {
                         for attr in &f.attrs {
@@ -29,21 +102,59 @@ pub fn auto_traits_derive(input: TokenStream) -> TokenStream {
                             if attr.path.is_ident("authority") {
                                 authority_field = Some(f.ident.as_ref().unwrap());
                             }
+                            if attr.path.is_ident("cpi_context") {
+                                cpi_context_account_field = Some(f.ident.as_ref().unwrap());
+                            }
+                        }
+                        if f.ident.as_ref().map(|id| id == "light_system_program").unwrap_or(false) {
+                            light_system_program_field = Some(f.ident.as_ref().unwrap());
+                        }
+                        if f.ident.as_ref().map(|id| id == "registered_program_pda").unwrap_or(false) {
+                            registered_program_pda_field = Some(f.ident.as_ref().unwrap());
+                        }
+                        if f.ident.as_ref().map(|id| id == "noop_program").unwrap_or(false) {
+                            noop_program_field = Some(f.ident.as_ref().unwrap());
+                        }
+                        if f.ident.as_ref().map(|id| id == "account_compression_authority").unwrap_or(false) {
+                            account_compression_authority_field = Some(f.ident.as_ref().unwrap());
+                        }
+                        if f.ident.as_ref().map(|id| id == "account_compression_program").unwrap_or(false) {
+                            account_compression_program_field = Some(f.ident.as_ref().unwrap());
+                        }
+                        if f.ident.as_ref().map(|id| id == "system_program").unwrap_or(false) {
+                            system_program_field = Some(f.ident.as_ref().unwrap());
                         }
                     }
 
-                    if self_program_field.is_none() || fee_payer_field.is_none() || authority_field.is_none() {
-                        let missing_attrs = [
-                            if self_program_field.is_none() { "self_program" } else { "" },
-                            if fee_payer_field.is_none() { "fee_payer" } else { "" },
-                            if authority_field.is_none() { "authority" } else { "" },
-                        ].iter().filter(|&attr| !attr.is_empty()).cloned().collect::<Vec<_>>().join(", ");
-                        let error_message = format!("Error: Missing required attributes: {}", missing_attrs);
+                    // optional: compressed_sol_pda, compression_recipient,
+                    // cpi_context_account
+                    let missing_required_fields = [
+                        if light_system_program_field.is_none() { "light_system_program" } else { "" },
+                        if registered_program_pda_field.is_none() { "registered_program_pda" } else { "" },
+                        if noop_program_field.is_none() { "noop_program" } else { "" },
+                        if account_compression_authority_field.is_none() { "account_compression_authority" } else { "" },
+                        if account_compression_program_field.is_none() { "account_compression_program" } else { "" },
+                        if system_program_field.is_none() { "system_program" } else { "" },
+                       
+                    ].iter().filter(|&field| !field.is_empty()).cloned().collect::<Vec<_>>();
+
+                    let missing_required_attributes = [
+                        if self_program_field.is_none() { "self_program" } else { "" },
+                        if fee_payer_field.is_none() { "fee_payer" } else { "" },
+                        if authority_field.is_none() { "authority" } else { "" },
+                    ].iter().filter(|&attr| !attr.is_empty()).cloned().collect::<Vec<_>>();
+
+                    if !missing_required_fields.is_empty() || !missing_required_attributes.is_empty() {
+                        let error_message = format!(
+                            "Error: Missing required fields: [{}], Missing required attributes: [{}]",
+                            missing_required_fields.join(", "),
+                            missing_required_attributes.join(", ")
+                        );
                         quote! {
                             compile_error!(#error_message);
                         }
                     } else {
-                        quote! {
+                        let base_impls = quote! {
                             impl<'info> InvokeCpiAccounts<'info> for #name<'info> {
                                 fn get_invoking_program(&self) -> &AccountInfo<'info> {
                                     &self.#self_program_field
@@ -55,6 +166,57 @@ pub fn auto_traits_derive(input: TokenStream) -> TokenStream {
                                 }
                                 fn get_authority(&self) -> &AccountInfo<'info> {
                                     &self.#authority_field
+                                }
+                            }
+                            impl<'info> LightSystemAccount<'info> for #name<'info> {
+                                fn get_light_system_program(&self) -> &Program<'info, LightSystemProgram> {
+                                    &self.#light_system_program_field
+                                }
+                            }
+                        };
+                        let invoke_accounts_impl = quote! {
+                            impl<'info> InvokeAccounts<'info> for #name<'info> {
+                                fn get_registered_program_pda(&self) -> &Account<'info, RegisteredProgram> {
+                                    &self.#registered_program_pda_field
+                                }
+                                fn get_noop_program(&self) -> &AccountInfo<'info> {
+                                    &self.#noop_program_field
+                                }
+                                fn get_account_compression_authority(&self) -> &AccountInfo<'info> {
+                                    &self.#account_compression_authority_field
+                                }
+                                fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
+                                    &self.#account_compression_program_field
+                                }
+                                fn get_system_program(&self) -> &Program<'info, System> {
+                                    &self.#system_program_field
+                                }
+                                fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
+                                    #compressed_sol_pda_field
+                                }
+                                fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+                                    #compression_recipient_field
+                                }
+                            }
+                        };
+                        if cpi_context_account_field.is_none() {
+                            quote!{
+                                #base_impls
+                                #invoke_accounts_impl
+                                impl<'info> InvokeCpiContextAccount<'info> for #name<'info> {
+                                    fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
+                                        None
+                                    }
+                                }
+                            }
+                        } else {
+                            quote!{
+                                #base_impls
+                                #invoke_accounts_impl
+                                impl<'info> InvokeCpiContextAccount<'info> for #name<'info> {
+                                    fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
+                                        Some(&self.#cpi_context_account_field)
+                                    }
                                 }
                             }
                         }
@@ -70,180 +232,6 @@ pub fn auto_traits_derive(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #trait_impls
-    };
-
-    TokenStream::from(expanded)
-}
-
-#[proc_macro_derive(AutoTraits2, attributes(invoke_cpi, fee_payer, authority))]
-pub fn auto_traits_derive2(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    let name = &input.ident;
-
-    let mut invoke_accounts_impl = quote! {};
-    let mut invoke_cpi_accounts_impl = quote! {};
-    let mut signer_accounts_impl = quote! {};
-    let mut light_system_account_impl = quote! {};
-    let mut cpi_context_account_impl = quote! {};
-
-    let mut has_compressed_sol_pda = false;
-    let mut has_compression_recipient = false;
-    let mut has_light_system_program = false;
-    let mut has_cpi_context_account = false;
-    // required
-    let mut has_registered_program_pda = false;
-    let mut has_noop_program = false;
-    let mut has_account_compression_authority = false;
-    let mut has_account_compression_program = false;
-    let mut has_system_program = false;
-
-    if let Data::Struct(data_struct) = &input.data {
-        if let Fields::Named(fields) = &data_struct.fields {
-            for f in &fields.named {
-                let field_name = &f.ident;
-                let field_str = field_name.as_ref().unwrap().to_string();
-
-                // Check for special fields
-                match field_str.as_str() {
-                    "compressed_sol_pda" => has_compressed_sol_pda = true,
-                    "compression_recipient" => has_compression_recipient = true,
-                    "light_system_program" => has_light_system_program = true,
-                    "cpi_context_account" => has_cpi_context_account = true,
-                    "registered_program_pda" => has_registered_program_pda = true,
-                    "noop_program" => has_noop_program = true,
-                    "account_compression_authority" => has_account_compression_authority = true,
-                    "account_compression_program" => has_account_compression_program = true,
-                    "system_program" => has_system_program = true,
-                    _ => {}
-                }
-
-                // Generate implementations based on attributes
-                for attr in &f.attrs {
-                    if attr.path.is_ident("invoke_cpi") {
-                        invoke_cpi_accounts_impl = quote! {
-                            impl<'info> InvokeCpiAccounts<'info> for #name<'info> {
-                                fn get_invoking_program(&self) -> &AccountInfo<'info> {
-                                    &self.#field_name
-                                }
-                            }
-                        };
-                    } else if attr.path.is_ident("fee_payer") {
-                        signer_accounts_impl = quote! {
-                            impl<'info> SignerAccounts<'info> for #name<'info> {
-                                fn get_fee_payer(&self) -> &Signer<'info> {
-                                    &self.#field_name
-                                }
-                            }
-                        };
-                    } else if attr.path.is_ident("authority") {
-                        signer_accounts_impl.extend(quote! {
-                            impl<'info> SignerAccounts<'info> for #name<'info> {
-                                fn get_authority(&self) -> &AccountInfo<'info> {
-                                    &self.#field_name
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    // Implement InvokeAccounts with optional fields
-    invoke_accounts_impl = quote! {
-        impl<'info> InvokeAccounts<'info> for #name<'info> {
-            fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
-                if #has_compressed_sol_pda {
-                    Some(&self.compressed_sol_pda)
-                } else {
-                    None
-                }
-            }
-
-            fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
-                if #has_compression_recipient {
-                    Some(&self.compression_recipient)
-                } else {
-                    None
-                }
-            }
-
-            if #has_registered_program_pda {
-                fn get_registered_program_pda(&self) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram> {
-                    &self.registered_program_pda
-                }
-            } else {
-                panic!("registered_program_pda field is required but not provided!");
-            }
-
-            if #has_noop_program {
-                fn get_noop_program(&self) -> &AccountInfo<'info> {
-                    &self.noop_program
-                }
-            } else {
-                panic!("noop_program field is required but not provided!");
-            }
-
-            if #has_account_compression_authority {
-                fn get_account_compression_authority(&self) -> &AccountInfo<'info> {
-                    &self.account_compression_authority
-                }
-            } else {
-                panic!("account_compression_authority field is required but not provided!");
-            }
-
-
-            if #has_account_compression_program {
-                fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
-                    &self.account_compression_program
-                }
-            } else {
-                panic!("account_compression_program field is required but not provided!");
-            }
-
-            if #has_system_program {
-                fn get_system_program(&self) -> &Program<'info, System> {
-                    &self.system_program
-                }
-            } else {
-                panic!("system_program field is required but not provided!");
-            }
-        }
-    };
-    
-    // Required: LightSystemProgram
-    light_system_account_impl = if has_light_system_program {
-        quote! {
-            impl<'info> LightSystemAccount<'info> for #name<'info> {
-                fn get_light_system_program(&self) -> &Program<'info, LightSystemProgram> {
-                    &self.light_system_program
-                }
-            }
-        }
-    } else {
-        panic!("light_system_program field is required but not provided!");
-    };
-
-
-    // Optional: CpiContextAccount
-    cpi_context_account_impl = quote! {
-        impl<'info> InvokeCpiContextAccount<'info> for #name<'info> {
-            fn get_cpi_context_account(&self) -> Option<&Account<'info, CpiContextAccount>> {
-                if #has_cpi_context_account {
-                    Some(&self.cpi_context_account)
-                } else {
-                    None
-                }
-            }
-        }
-    };
-
-    let expanded = quote! {
-        #invoke_accounts_impl
-        #invoke_cpi_accounts_impl
-        #signer_accounts_impl
-        #light_system_account_impl
-        #cpi_context_account_impl
     };
 
     TokenStream::from(expanded)

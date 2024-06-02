@@ -7,11 +7,9 @@ license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-bs58 = "0.4"
 proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
-light-traits = { path = "../light-traits", version = "0.1.0" }
 anchor-lang = "0.29"
 
 
