@@ -190,7 +190,7 @@ async fn test_full_nullifier_queue() {
     let context = program_test.start_with_context().await;
     let mut rpc = ProgramTestRpcConnection { context };
     let payer_pubkey = rpc.get_payer().pubkey();
-    let tip = 123;
+    let network_fee = 123;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -198,7 +198,7 @@ async fn test_full_nullifier_queue() {
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        tip,
+        network_fee,
         rollover_threshold.clone(),
         close_threshold,
     )
@@ -540,7 +540,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
     let context = program_test.start_with_context().await;
     let mut context = ProgramTestRpcConnection { context };
     let payer_pubkey = context.get_payer().pubkey();
-    let tip = 123;
+    let network_fee = 123;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -548,7 +548,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        tip,
+        network_fee,
         rollover_threshold,
         close_threshold,
     )
@@ -562,7 +562,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &payer_pubkey,
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
-        tip,
+        network_fee,
         rollover_threshold,
         close_threshold,
     )
@@ -847,7 +847,7 @@ async fn test_nullify_leaves() {
     let mut context = ProgramTestRpcConnection { context };
     let payer = context.get_payer().insecure_clone();
     let payer_pubkey = context.get_payer().pubkey();
-    let tip = 123;
+    let network_fee = 123;
     let rollover_threshold = Some(95);
     let close_threshold = Some(100);
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -855,7 +855,7 @@ async fn test_nullify_leaves() {
         &payer_pubkey,
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
-        tip,
+        network_fee,
         rollover_threshold,
         close_threshold,
     )
@@ -869,7 +869,7 @@ async fn test_nullify_leaves() {
         &payer_pubkey,
         &other_merkle_tree_keypair,
         &invalid_nullifier_queue_keypair,
-        tip,
+        network_fee,
         rollover_threshold,
         close_threshold,
     )

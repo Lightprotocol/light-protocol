@@ -43,7 +43,7 @@ pub fn assert_rolledover_merkle_trees_metadata(
     // New Merkle tree
     // 1. index is equal to the old Merkle tree index
     // 2. rollover fee is equal to the old Merkle tree rollover fee (the fee is calculated onchain in case rent should change the fee might be different)
-    // 3. tip is equal to the old Merkle tree tip
+    // 3. network_fee is equal to the old Merkle tree network_fee
     // 4. rollover threshold is equal to the old Merkle tree rollover threshold
     // 5. rolled over slot is set to u64::MAX (not rolled over)
     // 6. close threshold is equal to the old Merkle tree close threshold
