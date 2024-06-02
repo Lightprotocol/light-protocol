@@ -187,7 +187,7 @@ pub fn add_token_data_to_input_compressed_accounts(
                     hashed_mint,
                     &hashed_owner,
                     &amount,
-                    input_token_data[i].is_native,
+                    &input_token_data[i].is_native,
                     &hashed_delegate,
                     &delegate_amount,
                 )
