@@ -1,4 +1,4 @@
-use super::{process_cpi_context::process_cpi_context, verify_signer::cpi_signer_checks};
+use super::verify_signer::cpi_signer_checks;
 use crate::{
     invoke::processor::process, invoke_cpi::instruction::InvokeCpiInstruction,
     sdk::accounts::SignerAccounts, InstructionDataInvoke, InstructionDataInvokeCpi,
@@ -10,6 +10,7 @@ use light_heap::{bench_sbf_end, bench_sbf_start};
 /// Checks:
 /// 1. signer checks (inputs), writeaccess (outputs) (cpi_signer_checks)
 /// 2. sets or gets cpi context (process_cpi_context)
+#[allow(unused_mut)]
 pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     mut ctx: Context<'a, 'b, 'c, 'info, InvokeCpiInstruction<'info>>,
     inputs: InstructionDataInvokeCpi,
@@ -23,11 +24,17 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
     )?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpda_process_cpi_context");
-    let inputs = match process_cpi_context(inputs, &mut ctx) {
+    #[cfg(feature = "cpi-context")]
+    let inputs = match crate::invoke_cpi::process_cpi_context::process_cpi_context(inputs, &mut ctx)
+    {
         Ok(Some(inputs)) => inputs,
         Ok(None) => return Ok(()),
         Err(err) => return Err(err),
     };
+    #[cfg(not(feature = "cpi-context"))]
+    if inputs.cpi_context.is_some() || ctx.accounts.cpi_context_account.is_some() {
+        unimplemented!("cpi-context feature is not enabled");
+    }
     bench_sbf_end!("cpda_process_cpi_context");
 
     let data = InstructionDataInvoke {
