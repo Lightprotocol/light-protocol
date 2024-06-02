@@ -382,6 +382,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         if new_addresses.is_some() && ![1usize, 2usize].contains(&new_addresses.unwrap().len()) {
             panic!("new_addresses must be of length 1, 2")
         }
+
+        println!("Testindexer new addresses: {:?}", new_addresses);
+        println!("Testindexer compressed accounts: {:?}", compressed_accounts);
         let client = Client::new();
         let (root_indices, address_root_indices, json_payload) =
             match (compressed_accounts, new_addresses) {

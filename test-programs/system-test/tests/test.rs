@@ -547,7 +547,8 @@ fn create_address_test_inputs(
             address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
             address_merkle_tree_root_index: 0,
         });
-        let derived_address = derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap();
+        let derived_address =
+            derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
     (new_address_params, derived_addresses)
@@ -1135,8 +1136,9 @@ async fn test_with_address() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
     let address_seed = vec![1u8; 32];
-    let derived_address =
-        derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
+
+    println!("client derived address: {:?}", derived_address);
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,

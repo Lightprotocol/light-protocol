@@ -42,7 +42,7 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnec
     let mut derived_addresses = Vec::new();
     for (i, address_seed) in address_seeds.iter().enumerate() {
         let derived_address =
-            derive_address(&address_merkle_tree_pubkeys[i], &address_seed).unwrap();
+            derive_address(&address_merkle_tree_pubkeys[i], address_seed).unwrap();
         println!("derived_address: {:?}", derived_address);
         derived_addresses.push(derived_address);
     }
@@ -99,6 +99,11 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnec
         created_addresses: Some(derived_addresses.as_slice()),
         recipient: None,
     };
+    println!("inputs: {:?}", inputs.input_compressed_accounts);
+    println!("outputs: {:?}", inputs.output_compressed_accounts);
+    println!("new_address_params: {:?}", inputs.new_address_params);
+    println!("created_addresses: {:?}", inputs.created_addresses);
+
     compressed_transaction_test(inputs).await?;
     Ok(())
 }
@@ -341,6 +346,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
                     .collect::<Vec<_>>(),
             )
         };
+        println!("test created addresses: {:?}", inputs.created_addresses);
         let proof_rpc_res = inputs
             .test_indexer
             .create_proof_for_compressed_accounts(
