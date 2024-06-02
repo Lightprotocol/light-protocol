@@ -4,11 +4,12 @@ use crate::{
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps, InstructionData};
 use light_macros::heap_neutral;
 
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
-/// 2. Checks that if nullifier queue has delegate it invoking_program is delegate.
+/// 2. Checks that if nullifier queue has program_owner it invoking_program is program_owner.
 /// 3. Inserts nullifiers into the queue.
 #[heap_neutral]
 pub fn insert_nullifiers<
@@ -93,7 +94,7 @@ pub fn insert_nullifiers<
     let data = instruction_data.data();
     light_heap::bench_sbf_end!("cpda_instruction_data");
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
+    let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: account_compression::ID,
         accounts,

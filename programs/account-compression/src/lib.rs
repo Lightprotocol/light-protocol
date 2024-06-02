@@ -16,6 +16,15 @@ declare_id!("CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK");
 #[constant]
 pub const PROGRAM_ID: &str = "CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK";
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "account-compression",
+    project_url: "lightprotocol.com",
+    contacts: "email:security@lightprotocol.com",
+    policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
+    source_code: "https://github.com/Lightprotocol/light-protocol"
+}
+
 #[program]
 pub mod account_compression {
 
@@ -30,7 +39,7 @@ pub mod account_compression {
         ctx: Context<'_, '_, '_, 'info, InitializeAddressMerkleTreeAndQueue<'info>>,
         index: u64,
         owner: Pubkey,
-        delegate: Option<Pubkey>,
+        program_owner: Option<Pubkey>,
         address_merkle_tree_config: AddressMerkleTreeConfig,
         address_queue_config: AddressQueueConfig,
     ) -> Result<()> {
@@ -38,7 +47,7 @@ pub mod account_compression {
             ctx,
             index,
             owner,
-            delegate,
+            program_owner,
             address_merkle_tree_config,
             address_queue_config,
         )
@@ -122,7 +131,7 @@ pub mod account_compression {
         ctx: Context<InitializeStateMerkleTreeAndNullifierQueue>,
         index: u64,
         owner: Pubkey,
-        delegate: Option<Pubkey>,
+        program_owner: Option<Pubkey>,
         state_merkle_tree_config: StateMerkleTreeConfig,
         nullifier_queue_config: NullifierQueueConfig,
         // additional rent for the cpi context account
@@ -133,7 +142,7 @@ pub mod account_compression {
             ctx,
             index,
             owner,
-            delegate,
+            program_owner,
             state_merkle_tree_config,
             nullifier_queue_config,
             additional_rent,

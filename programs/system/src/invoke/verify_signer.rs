@@ -1,5 +1,5 @@
 use crate::{
-    errors::CompressedPdaError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+    errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
     InstructionDataInvoke,
 };
 use anchor_lang::{
@@ -26,7 +26,7 @@ pub fn input_compressed_accounts_signer_check(
                         compressed_account_with_context.compressed_account.owner,
                         authority
                     );
-                    err!(CompressedPdaError::SignerCheckFailed)
+                    err!(SystemProgramError::SignerCheckFailed)
                 } else {
                     Ok(())
                 }

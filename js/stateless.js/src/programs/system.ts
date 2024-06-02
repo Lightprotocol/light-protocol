@@ -189,7 +189,7 @@ type DecompressParams = {
     outputStateTree?: PublicKey;
 };
 
-const COMPRESSED_SOL_PDA_SEED = Buffer.from('compressed_sol_pda');
+const SOL_POOL_PDA_SEED = Buffer.from('sol_pool_pda');
 
 export class LightSystemProgram {
     /**
@@ -220,7 +220,7 @@ export class LightSystemProgram {
      *
      */
     static deriveCompressedSolPda(): PublicKey {
-        const seeds = [COMPRESSED_SOL_PDA_SEED];
+        const seeds = [SOL_POOL_PDA_SEED];
         const [address, _] = PublicKey.findProgramAddressSync(
             seeds,
             this.programId,
@@ -381,7 +381,7 @@ export class LightSystemProgram {
             outputCompressedAccounts: packedOutputCompressedAccounts,
             relayFee: null,
             newAddressParams: newAddressParamsPacked,
-            compressionLamports: null,
+            compressOrDecompressLamports: null,
             isCompress: false,
         };
 
@@ -398,8 +398,8 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                compressedSolPda: null,
-                compressionRecipient: null,
+                solPoolPda: null,
+                decompressionRecipient: null,
                 systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(toAccountMetas(remainingAccounts))
@@ -447,7 +447,7 @@ export class LightSystemProgram {
             relayFee: null,
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
-            compressionLamports: null,
+            compressOrDecompressLamports: null,
             isCompress: false,
         });
 
@@ -458,8 +458,8 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                compressedSolPda: null,
-                compressionRecipient: null,
+                solPoolPda: null,
+                decompressionRecipient: null,
                 systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(toAccountMetas(remainingAccounts))
@@ -508,7 +508,7 @@ export class LightSystemProgram {
             relayFee: null,
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
-            compressionLamports: lamports,
+            compressOrDecompressLamports: lamports,
             isCompress: true,
         };
 
@@ -524,8 +524,8 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                compressedSolPda: this.deriveCompressedSolPda(),
-                compressionRecipient: null,
+                solPoolPda: this.deriveCompressedSolPda(),
+                decompressionRecipient: null,
                 systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(toAccountMetas(remainingAccounts))
@@ -575,7 +575,7 @@ export class LightSystemProgram {
             relayFee: null,
             /// TODO: here and on-chain: option<newAddressInputs> or similar.
             newAddressParams: [],
-            compressionLamports: lamports,
+            compressOrDecompressLamports: lamports,
             isCompress: false,
         });
 
@@ -586,8 +586,8 @@ export class LightSystemProgram {
                 ...defaultStaticAccountsStruct(),
                 feePayer: payer,
                 authority: payer,
-                compressedSolPda: this.deriveCompressedSolPda(),
-                compressionRecipient: toAddress,
+                solPoolPda: this.deriveCompressedSolPda(),
+                decompressionRecipient: toAddress,
                 systemProgram: SystemProgram.programId,
             })
             .remainingAccounts(toAccountMetas(remainingAccounts))

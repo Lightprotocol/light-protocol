@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, ItemFn, ItemStruct};
+use syn::{parse_macro_input, parse_quote, ItemFn};
 
 mod expand;
 
@@ -9,18 +9,6 @@ mod expand;
 pub fn pubkey(input: TokenStream) -> TokenStream {
     let args = parse_macro_input!(input as expand::PubkeyArgs);
     expand::pubkey(args)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-#[proc_macro_attribute]
-pub fn light_verifier_accounts(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(attr as expand::LightVerifierAccountsArgs);
-    #[allow(clippy::redundant_clone)]
-    let item_strct = item.clone();
-    let strct = parse_macro_input!(item_strct as ItemStruct);
-
-    expand::light_verifier_accounts(args, strct)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

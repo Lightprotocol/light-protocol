@@ -12,9 +12,5 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 
-[dev-dependencies]
-anchor-lang = "0.29"
-anchor-spl = "0.29"
-
 [lib]
 proc-macro = true

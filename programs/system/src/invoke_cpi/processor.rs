@@ -44,7 +44,7 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
         relay_fee: inputs.relay_fee,
         proof: inputs.proof,
         new_address_params: inputs.new_address_params,
-        compression_lamports: inputs.compression_lamports,
+        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
         is_compress: inputs.is_compress,
     };
     process(data, Some(ctx.accounts.invoking_program.key()), ctx)

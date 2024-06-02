@@ -8,7 +8,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
     nullifier_queue_account_loader: &'a AccountLoader<'info, QueueAccount>,
     index: u64,
     owner: Pubkey,
-    delegate: Option<Pubkey>,
+    program_owner: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
     capacity: u16,
     sequence_threshold: u64,
@@ -30,7 +30,7 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
         nullifier_queue.init(
             AccessMetadata {
                 owner,
-                delegate: delegate.unwrap_or_default(),
+                program_owner: program_owner.unwrap_or_default(),
             },
             rollover_meta_data,
             associated_merkle_tree,

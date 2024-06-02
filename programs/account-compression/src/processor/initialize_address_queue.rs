@@ -19,7 +19,7 @@ pub fn process_initialize_address_queue<'info>(
     queue_loader: &AccountLoader<'info, QueueAccount>,
     index: u64,
     owner: Pubkey,
-    delegate: Option<Pubkey>,
+    program_owner: Option<Pubkey>,
     associated_merkle_tree: Pubkey,
     capacity: u16,
     sequence_threshold: u64,
@@ -45,7 +45,7 @@ pub fn process_initialize_address_queue<'info>(
         };
 
         address_queue.init(
-            AccessMetadata::new(owner, delegate),
+            AccessMetadata::new(owner, program_owner),
             RolloverMetadata::new(
                 index,
                 rollover_fee,

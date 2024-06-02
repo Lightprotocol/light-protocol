@@ -1,5 +1,5 @@
 use crate::{
-    errors::CompressedPdaError,
+    errors::SystemProgramError,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
     InstructionDataInvoke,
 };
@@ -16,9 +16,9 @@ use anchor_lang::{
 pub struct CompressedSolPda {}
 
 #[constant]
-pub const COMPRESSED_SOL_PDA_SEED: &[u8] = b"compressed_sol_pda";
+pub const SOL_POOL_PDA_SEED: &[u8] = b"sol_pool_pda";
 
-pub fn compression_lamports<
+pub fn compress_or_decompress_lamports<
     'a,
     'b,
     'c: 'info,
@@ -30,7 +30,7 @@ pub fn compression_lamports<
 ) -> Result<()> {
     if inputs.is_compress {
         compress_lamports(inputs, ctx)
-    } else if inputs.compression_lamports.is_some() {
+    } else if inputs.compress_or_decompress_lamports.is_some() {
         decompress_lamports(inputs, ctx)
     } else {
         Ok(())
@@ -48,19 +48,19 @@ pub fn decompress_lamports<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.get_compression_recipient().as_ref() {
-        Some(compression_recipient) => compression_recipient.to_account_info(),
-        None => return err!(CompressedPdaError::DecompressRecipientUndefinedForDecompressSol),
+        Some(decompression_recipient) => decompression_recipient.to_account_info(),
+        None => return err!(SystemProgramError::DecompressRecipientUndefinedForDecompressSol),
     };
-    let compressed_sol_pda = match ctx.accounts.get_compressed_sol_pda().as_ref() {
-        Some(compressed_sol_pda) => compressed_sol_pda.to_account_info(),
-        None => return err!(CompressedPdaError::CompressedSolPdaUndefinedForDecompressSol),
+    let sol_pool_pda = match ctx.accounts.get_compressed_sol_pda().as_ref() {
+        Some(sol_pool_pda) => sol_pool_pda.to_account_info(),
+        None => return err!(SystemProgramError::CompressedSolPdaUndefinedForDecompressSol),
     };
-    let lamports = match inputs.compression_lamports {
+    let lamports = match inputs.compress_or_decompress_lamports {
         Some(lamports) => lamports,
-        None => return err!(CompressedPdaError::DeCompressLamportsUndefinedForDecompressSol),
+        None => return err!(SystemProgramError::DeCompressLamportsUndefinedForDecompressSol),
     };
 
-    transfer_lamports(&compressed_sol_pda, &recipient, lamports)?;
+    transfer_lamports(&sol_pool_pda, &recipient, lamports)?;
 
     Ok(())
 }
@@ -76,12 +76,12 @@ pub fn compress_lamports<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
     let recipient = match ctx.accounts.get_compressed_sol_pda().as_ref() {
-        Some(compressed_sol_pda) => compressed_sol_pda.to_account_info(),
-        None => return err!(CompressedPdaError::CompressedSolPdaUndefinedForCompressSol),
+        Some(sol_pool_pda) => sol_pool_pda.to_account_info(),
+        None => return err!(SystemProgramError::CompressedSolPdaUndefinedForCompressSol),
     };
-    let lamports = match inputs.compression_lamports {
+    let lamports = match inputs.compress_or_decompress_lamports {
         Some(lamports) => lamports,
-        None => return err!(CompressedPdaError::DeCompressLamportsUndefinedForCompressSol),
+        None => return err!(SystemProgramError::DeCompressLamportsUndefinedForCompressSol),
     };
 
     transfer_lamports_cpi(
@@ -99,9 +99,9 @@ pub fn transfer_lamports<'info>(
     let instruction =
         anchor_lang::solana_program::system_instruction::transfer(from.key, to.key, lamports);
     let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[COMPRESSED_SOL_PDA_SEED], &crate::ID);
+        anchor_lang::prelude::Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID);
     let bump = &[bump];
-    let seeds = &[&[COMPRESSED_SOL_PDA_SEED, bump][..]];
+    let seeds = &[&[SOL_POOL_PDA_SEED, bump][..]];
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         &[from.clone(), to.clone()],

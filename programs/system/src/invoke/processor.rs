@@ -1,11 +1,11 @@
 use crate::{
-    errors::CompressedPdaError,
+    errors::SystemProgramError,
     invoke::{
         address::{derive_new_addresses, insert_addresses_into_address_merkle_tree_queue},
         append_state::insert_output_compressed_accounts_into_state_merkle_tree,
         emit_event::emit_state_transition_event,
         nullify_state::insert_nullifiers,
-        sol_compression::compression_lamports,
+        sol_compression::compress_or_decompress_lamports,
         verify_state_proof::{
             fetch_roots, fetch_roots_address_merkle_tree, hash_input_compressed_accounts,
             sum_check, verify_state_proof,
@@ -66,14 +66,14 @@ pub fn process<
         &inputs.input_compressed_accounts_with_merkle_context,
         &inputs.output_compressed_accounts,
         &inputs.relay_fee,
-        &inputs.compression_lamports,
+        &inputs.compress_or_decompress_lamports,
         &inputs.is_compress,
     )?;
     bench_sbf_end!("cpda_sum_check");
     // compression lamports ---------------------------------------------------
     bench_sbf_start!("cpda_process_compression");
-    if inputs.compression_lamports.is_some() {
-        compression_lamports(&inputs, &ctx)?;
+    if inputs.compress_or_decompress_lamports.is_some() {
+        compress_or_decompress_lamports(&inputs, &ctx)?;
     }
     bench_sbf_end!("cpda_process_compression");
 
@@ -111,7 +111,7 @@ pub fn process<
                 &mut hashed_pubkeys,
             )?;
             if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-                return err!(CompressedPdaError::HashedPubkeysCapacityMismatch);
+                return err!(SystemProgramError::HashedPubkeysCapacityMismatch);
             }
         }
 
@@ -148,7 +148,7 @@ pub fn process<
         fetch_roots(&inputs, &ctx, &mut roots)?;
         let proof = match &inputs.proof {
             Some(proof) => proof,
-            None => return err!(CompressedPdaError::ProofIsNone),
+            None => return err!(SystemProgramError::ProofIsNone),
         };
         let compressed_verifier_proof = CompressedVerifierProof {
             a: proof.a,
@@ -196,14 +196,14 @@ pub fn process<
         bench_sbf_end!("cpda_nullifiers");
     } else if inputs.proof.is_some() {
         msg!("Proof is some but no input compressed accounts or new addresses provided.");
-        return err!(CompressedPdaError::ProofIsSome);
+        return err!(SystemProgramError::ProofIsSome);
     } else if inputs
         .input_compressed_accounts_with_merkle_context
         .is_empty()
         && inputs.new_address_params.is_empty()
         && inputs.output_compressed_accounts.is_empty()
     {
-        return err!(CompressedPdaError::EmptyInputs);
+        return err!(SystemProgramError::EmptyInputs);
     }
     bench_sbf_end!("cpda_nullifiers");
 
@@ -225,7 +225,7 @@ pub fn process<
             &mut sequence_numbers,
         )?;
         if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-            return err!(CompressedPdaError::HashedPubkeysCapacityMismatch);
+            return err!(SystemProgramError::HashedPubkeysCapacityMismatch);
         }
         bench_sbf_end!("cpda_append");
     }

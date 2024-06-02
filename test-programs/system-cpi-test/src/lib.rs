@@ -17,6 +17,8 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 pub mod system_cpi_test {
 
+    use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+
     use super::*;
 
     pub fn create_compressed_pda<'info>(
@@ -64,7 +66,7 @@ pub mod system_cpi_test {
     pub fn append_leaves_account_compression_program<'info>(
         ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
     ) -> Result<()> {
-        let (_, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
+        let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &ID);
         let accounts = account_compression::cpi::accounts::AppendLeaves {
             authority: ctx.accounts.cpi_signer.to_account_info(),
             fee_payer: ctx.accounts.signer.to_account_info(),
@@ -73,7 +75,7 @@ pub mod system_cpi_test {
             system_program: ctx.accounts.system_program.to_account_info(),
         };
         let bump = &[bump];
-        let seeds = [&[b"cpi_authority".as_slice(), bump][..]];
+        let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
         let mut cpi_context = CpiContext::new_with_signer(
             ctx.accounts.account_compression_program.to_account_info(),
             accounts,
@@ -88,7 +90,7 @@ pub mod system_cpi_test {
     pub fn insert_into_address_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
     ) -> Result<()> {
-        let (_, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
+        let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &ID);
         let accounts = account_compression::cpi::accounts::InsertIntoQueues {
             authority: ctx.accounts.cpi_signer.to_account_info(),
             fee_payer: ctx.accounts.signer.to_account_info(),
@@ -96,7 +98,7 @@ pub mod system_cpi_test {
             system_program: ctx.accounts.system_program.to_account_info(),
         };
         let bump = &[bump];
-        let seeds = [&[b"cpi_authority".as_slice(), bump][..]];
+        let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
         let mut cpi_context = CpiContext::new_with_signer(
             ctx.accounts.account_compression_program.to_account_info(),
             accounts,
@@ -115,7 +117,7 @@ pub mod system_cpi_test {
     pub fn insert_into_nullifier_queue<'info>(
         ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
     ) -> Result<()> {
-        let (_, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
+        let (_, bump) = Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &ID);
         let accounts = account_compression::cpi::accounts::InsertIntoQueues {
             authority: ctx.accounts.cpi_signer.to_account_info(),
             fee_payer: ctx.accounts.signer.to_account_info(),
@@ -123,7 +125,7 @@ pub mod system_cpi_test {
             system_program: ctx.accounts.system_program.to_account_info(),
         };
         let bump = &[bump];
-        let seeds = [&[b"cpi_authority".as_slice(), bump][..]];
+        let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
         let mut cpi_context = CpiContext::new_with_signer(
             ctx.accounts.account_compression_program.to_account_info(),
             accounts,

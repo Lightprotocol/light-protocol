@@ -55,7 +55,7 @@ export interface PublicTransactionEvent {
     outputLeafIndices: number[]; // Vec<u32>
     relayFee: BN | null; // Option<u64>
     isCompress: boolean; // bool
-    compressionLamports: BN | null; // Option<u64>
+    compressOrDecompressLamports: BN | null; // Option<u64>
     pubkeyArray: PublicKey[]; // Vec<PublicKey>
     message: Uint8Array | null; // Option<bytes>
 }
@@ -66,7 +66,7 @@ export interface InstructionDataInvoke {
     outputCompressedAccounts: OutputCompressedAccountWithPackedContext[];
     relayFee: BN | null; // Option<u64>
     newAddressParams: NewAddressParamsPacked[]; // Vec<NewAddressParamsPacked>
-    compressionLamports: BN | null; // Option<u64>
+    compressOrDecompressLamports: BN | null; // Option<u64>
     isCompress: boolean; // bool
 }
 

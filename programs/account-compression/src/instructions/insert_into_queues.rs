@@ -16,7 +16,7 @@ use num_bigint::BigUint;
 pub struct InsertIntoQueues<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    /// CHECK: should only be accessed by a registered program/owner/delegate.
+    /// CHECK: should only be accessed by a registered program/owner/program_owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
     pub system_program: Program<'info, System>,

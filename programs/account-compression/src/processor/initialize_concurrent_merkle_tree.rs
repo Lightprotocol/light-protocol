@@ -20,7 +20,7 @@ pub fn process_initialize_state_merkle_tree(
     merkle_tree_account_loader: &AccountLoader<'_, StateMerkleTreeAccount>,
     index: u64,
     owner: Pubkey,
-    delegate: Option<Pubkey>,
+    program_owner: Option<Pubkey>,
     height: &u32,
     changelog_size: &u64,
     roots_size: &u64,
@@ -45,7 +45,7 @@ pub fn process_initialize_state_merkle_tree(
     };
     msg!("rollover fee: {}", rollover_fee);
     merkle_tree.init(
-        AccessMetadata::new(owner, delegate),
+        AccessMetadata::new(owner, program_owner),
         RolloverMetadata::new(
             index,
             rollover_fee,
@@ -59,7 +59,7 @@ pub fn process_initialize_state_merkle_tree(
     // TODO: think about whether and if yes how to use the Merkle tree index in
     // the future. We could create a group which has ownership over a set of
     // Merkle trees; same registration process as for pool program this needs to
-    // be the delegate and or owner. If part of a group we can apply the same
+    // be the program_owner and or owner. If part of a group we can apply the same
     // registration model as for the pool program.
     merkle_tree
         .load_merkle_tree_init(

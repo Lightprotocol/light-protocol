@@ -129,8 +129,8 @@ pub fn assert_rolledover_queues_metadata(
     );
 
     assert_eq!(
-        old_queue_metadata.access_metadata.delegate,
-        new_queue_metadata.access_metadata.delegate
+        old_queue_metadata.access_metadata.program_owner,
+        new_queue_metadata.access_metadata.program_owner
     );
     assert_eq!(
         new_queue_metadata.associated_merkle_tree,

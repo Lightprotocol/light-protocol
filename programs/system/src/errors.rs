@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[error_code]
-pub enum CompressedPdaError {
+pub enum SystemProgramError {
     #[msg("Sum check failed")]
     SumCheckFailed,
     #[msg("Signer check failed")]

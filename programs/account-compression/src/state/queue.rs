@@ -97,7 +97,7 @@ impl GroupAccess for QueueAccount {
     }
 
     fn get_delegate(&self) -> &Pubkey {
-        &self.metadata.access_metadata.delegate
+        &self.metadata.access_metadata.program_owner
     }
 }
 

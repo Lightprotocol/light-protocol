@@ -229,7 +229,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         output_compressed_accounts: output_compressed_accounts.to_vec(),
         proof,
         new_address_params: Vec::new(),
-        compression_lamports: None,
+        compress_or_decompress_lamports: None,
         is_compress: false,
         signer_seeds: signer_seeds.iter().map(|seed| seed.to_vec()).collect(),
         cpi_context,
@@ -246,8 +246,8 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
         account_compression_program: ctx.accounts.account_compression_program.to_account_info(),
         invoking_program: ctx.accounts.self_program.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
-        compressed_sol_pda: None,
-        compression_recipient: None,
+        sol_pool_pda: None,
+        decompression_recipient: None,
         cpi_context_account,
     };
     let mut cpi_ctx = CpiContext::new_with_signer(

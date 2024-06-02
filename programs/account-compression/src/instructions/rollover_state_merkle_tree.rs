@@ -23,7 +23,7 @@ use crate::{
 pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {
     /// Signer used to pay rollover and protocol fees.
     pub fee_payer: Signer<'info>,
-    /// CHECK: should only be accessed by a registered program/owner/delegate.
+    /// CHECK: should only be accessed by a registered program/owner/program_owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     #[account(zero)]
@@ -89,7 +89,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             &ctx.accounts.new_state_merkle_tree,
             merkle_tree_metadata.rollover_metadata.index,
             merkle_tree_metadata.access_metadata.owner,
-            Some(merkle_tree_metadata.access_metadata.delegate),
+            Some(merkle_tree_metadata.access_metadata.program_owner),
             &(merkle_tree.height as u32),
             &(merkle_tree.changelog_capacity as u64),
             &(merkle_tree.roots_capacity as u64),
@@ -113,7 +113,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             &ctx.accounts.new_nullifier_queue,
             queue_metadata.rollover_metadata.index,
             queue_metadata.access_metadata.owner,
-            Some(queue_metadata.access_metadata.delegate),
+            Some(queue_metadata.access_metadata.program_owner),
             ctx.accounts.new_state_merkle_tree.key(),
             nullifier_queue.hash_set.capacity as u16,
             nullifier_queue.hash_set.sequence_threshold as u64,

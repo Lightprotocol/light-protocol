@@ -25,8 +25,6 @@ bench-sbf = []
 [dependencies]
 aligned-sized = { version = "0.1.4", path = "../../macros/aligned-sized" }
 anchor-lang = "0.29.0"
-ark-ff = "0.4.0"
-borsh = "0.10.3"
 bytemuck = { version = "1.14", features = ["min_const_generics"] }
 light-bounded-vec = { version = "0.1.4", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
 light-hash-set = { version = "0.1.4", path = "../../merkle-tree/hash-set", features = ["solana"] }
@@ -37,21 +35,8 @@ light-indexed-merkle-tree = { version = "0.1.4", path = "../../merkle-tree/index
 light-utils = { version = "0.1.4", path = "../../utils" }
 light-macros = { version = "0.3.5", path = "../../macros/light/" }
 num-bigint = "0.4"
-light-verifier = { path = "../../circuit-lib/verifier", version = "0.1.4", features = ["solana"] }
-
-ark-serialize = "^0.4.0"
 num-traits = "0.2.18"
+solana-security-txt = "1.1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = "1.18.11"
-
-[dev-dependencies]
-log = "0.4"
-memoffset = "0.9"
-solana-program-test = "1.18.11"
-solana-sdk = "1.18.11"
-thiserror = "1.0"
-tokio = "1.35"
-spl-account-compression = {version="0.3.0", features=["cpi"]}
-spl-concurrent-merkle-tree = "0.2.0"
-light-merkle-tree-reference = { version = "0.1.4", path = "../../merkle-tree/reference" }
