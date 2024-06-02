@@ -9,8 +9,8 @@ use light_test_utils::test_env::{
 #[tokio::test]
 async fn test_e2e() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
-    let random_program_id = Keypair::new();
-    register_program_with_registry_program(&mut rpc, &env, &random_program_id)
+    let random_program_keypair = Keypair::new();
+    register_program_with_registry_program(&mut rpc, &env, &random_program_keypair)
         .await
         .unwrap();
 }

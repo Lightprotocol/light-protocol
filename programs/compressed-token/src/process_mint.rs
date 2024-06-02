@@ -334,7 +334,7 @@ pub fn mint_spl_to_pool_pda<'info>(
         &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
     )?
     .amount;
-    // Guard against unexpected behavior of the token program.
+    // Guard against unexpected behavior of the SPL token program.
     if post_token_balance != token_balance + mint_amount {
         msg!(
             "post_token_balance {} != token_balance {} + mint_amount {}",
