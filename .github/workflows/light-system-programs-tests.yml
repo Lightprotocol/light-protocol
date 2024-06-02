@@ -90,6 +90,7 @@ jobs:
           do
             if [ "$subtest" == "cargo-test-sbf -p token-escrow -- --test-threads=1" ]; then
               anchor build --program-name light_system_program -- --features cpi-context
+              anchor build --program-name light_compressed_token -- --features cpi-context
             fi
             echo "$subtest"
             eval "RUSTFLAGS=\"-D warnings\" $subtest"
