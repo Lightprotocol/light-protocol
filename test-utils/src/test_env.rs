@@ -205,6 +205,7 @@ pub async fn setup_test_programs_with_accounts(
     .await;
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
 
+    #[cfg(feature = "cpi_context")]
     init_cpi_context_account(
         &mut context,
         &merkle_tree_pubkey,

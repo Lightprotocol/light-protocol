@@ -53,12 +53,14 @@ pub struct NullifierQueueConfig {
     pub sequence_threshold: u64,
     pub network_fee: Option<u64>,
 }
+// Arbitrary safety margin.
+pub const SAFETY_MARGIN: u64 = 10;
 
 impl default::Default for NullifierQueueConfig {
     fn default() -> Self {
         Self {
             capacity: STATE_NULLIFIER_QUEUE_VALUES,
-            sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
+            sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD + SAFETY_MARGIN,
             network_fee: None,
         }
     }
