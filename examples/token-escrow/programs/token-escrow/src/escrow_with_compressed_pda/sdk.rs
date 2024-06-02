@@ -75,7 +75,7 @@ pub fn create_escrow_instruction(
         signer_is_delegate: false,
         input_token_data_with_context: inputs.input_token_data_with_context,
         output_state_merkle_tree_account_indices: merkle_tree_indices,
-        new_address_params: new_address_params[0],
+        new_address_params: new_address_params[0].clone(),
         cpi_context: CompressedCpiContext {
             set_context: false,
             cpi_context_account_index,

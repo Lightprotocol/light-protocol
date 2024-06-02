@@ -107,9 +107,9 @@ pub struct OutputCompressedAccountWithPackedContext {
     pub merkle_tree_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct NewAddressParamsPacked {
-    pub seed: [u8; 32],
+    pub seed: Vec<u8>,
     pub address_queue_account_index: u8,
     pub address_merkle_tree_account_index: u8,
     pub address_merkle_tree_root_index: u16,
@@ -117,7 +117,7 @@ pub struct NewAddressParamsPacked {
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct NewAddressParams {
-    pub seed: [u8; 32],
+    pub seed: Vec<u8>,
     pub address_queue_pubkey: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_root_index: u16,

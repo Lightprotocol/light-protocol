@@ -232,7 +232,7 @@ fn create_compressed_pda_data(
     let derived_address = derive_address(
         &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
             .key(),
-        &[&new_address_params.seed[..]],
+        &new_address_params.seed,
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(OutputCompressedAccountWithPackedContext {

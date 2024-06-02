@@ -39,7 +39,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
     let instruction_data = crate::instruction::CreateCompressedPda {
         data: input_params.data,
         proof: Some(input_params.proof.clone()),
-        new_address_parameters: new_address_params[0],
+        new_address_parameters: new_address_params[0].clone(),
         owner_program: *input_params.owner_program,
         bump,
         signer_is_program: input_params.signer_is_program,

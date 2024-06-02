@@ -1136,7 +1136,8 @@ async fn test_with_address() {
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
     let address_seed = [1u8; 32];
-    let derived_address = derive_address(&env.address_merkle_tree_pubkey, &[&address_seed[..]]).unwrap();
+    let derived_address =
+        derive_address(&env.address_merkle_tree_pubkey, &[&address_seed[..]]).unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,

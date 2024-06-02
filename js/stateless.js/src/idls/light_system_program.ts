@@ -300,9 +300,7 @@ export type LightSystemProgram = {
                 fields: [
                     {
                         name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
+                        type: 'bytes';
                     },
                     {
                         name: 'addressQueueAccountIndex';
@@ -326,9 +324,7 @@ export type LightSystemProgram = {
                 fields: [
                     {
                         name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
+                        type: 'bytes';
                     },
                     {
                         name: 'addressQueuePubkey';
@@ -1194,9 +1190,7 @@ export const IDL: LightSystemProgram = {
                 fields: [
                     {
                         name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
+                        type: 'bytes',
                     },
                     {
                         name: 'addressQueueAccountIndex',
@@ -1220,9 +1214,7 @@ export const IDL: LightSystemProgram = {
                 fields: [
                     {
                         name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
+                        type: 'bytes',
                     },
                     {
                         name: 'addressQueuePubkey',

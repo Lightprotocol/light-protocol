@@ -93,7 +93,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     let mut new_address_params_packed = new_address_params
         .iter()
         .map(|x| NewAddressParamsPacked {
-            seed: x.seed,
+            seed: x.seed.clone(),
             address_merkle_tree_root_index: x.address_merkle_tree_root_index,
             address_merkle_tree_account_index: 0, // will be assigned later
             address_queue_account_index: 0,       // will be assigned later

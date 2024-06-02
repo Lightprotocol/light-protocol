@@ -320,9 +320,7 @@ export type LightCompressedToken = {
                 fields: [
                     {
                         name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
+                        type: 'bytes';
                     },
                     {
                         name: 'addressQueueAccountIndex';
@@ -346,9 +344,7 @@ export type LightCompressedToken = {
                 fields: [
                     {
                         name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
+                        type: 'bytes';
                     },
                     {
                         name: 'addressQueuePubkey';
@@ -1325,9 +1321,7 @@ export const IDL: LightCompressedToken = {
                 fields: [
                     {
                         name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
+                        type: 'bytes',
                     },
                     {
                         name: 'addressQueueAccountIndex',
@@ -1351,9 +1345,7 @@ export const IDL: LightCompressedToken = {
                 fields: [
                     {
                         name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
+                        type: 'bytes',
                     },
                     {
                         name: 'addressQueuePubkey',

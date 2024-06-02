@@ -23,7 +23,7 @@ pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'in
                 &ctx.remaining_accounts
                     [new_address_params.address_merkle_tree_account_index as usize]
                     .key(),
-                &[&new_address_params.seed[..]],
+                &new_address_params.seed[..],
             )
             .unwrap();
             // We are inserting addresses into two vectors to avoid unwrapping the option,

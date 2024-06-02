@@ -16,7 +16,6 @@ pub mod fee;
 pub mod prime;
 pub mod rand;
 
-
 #[derive(Debug, Error, PartialEq)]
 pub enum UtilsError {
     #[error("Invalid input size, expected at most {0}")]
@@ -47,7 +46,6 @@ impl From<UtilsError> for solana_program::program_error::ProgramError {
         solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
-
 
 pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> Result<bool, UtilsError> {
     let bigint = BigUint::from_bytes_be(bytes);

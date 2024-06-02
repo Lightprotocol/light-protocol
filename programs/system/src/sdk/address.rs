@@ -3,21 +3,15 @@ use light_utils::hash_to_bn254_field_size_be;
 use std::collections::HashMap;
 
 use crate::{errors::CompressedPdaError, NewAddressParams, NewAddressParamsPacked};
-pub fn derive_address(merkle_tree_pubkey: &Pubkey, seeds: &[&[u8]]) -> Result<[u8; 32]> {
-    
+pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8]) -> Result<[u8; 32]> {
     let pubkey_bytes = merkle_tree_pubkey.to_bytes();
-    let total_length = pubkey_bytes.len() + seeds.iter().map(|seed| seed.len()).sum::<usize>();
+    let total_length = pubkey_bytes.len() + seed.len();
     let mut bytes_to_hash = Vec::with_capacity(total_length);
 
     bytes_to_hash.extend_from_slice(&pubkey_bytes);
+    bytes_to_hash.extend_from_slice(seed);
 
-    for seed in seeds {
-        bytes_to_hash.extend_from_slice(seed);
-    }
-
-    let hash = match hash_to_bn254_field_size_be(
-        bytes_to_hash.as_slice(),
-    ) {
+    let hash = match hash_to_bn254_field_size_be(bytes_to_hash.as_slice()) {
         Some(hash) => Ok::<[u8; 32], CompressedPdaError>(hash.0),
         None => return Err(CompressedPdaError::DeriveAddressError.into()),
     }?;
@@ -42,7 +36,6 @@ pub fn add_and_get_remaining_account_indices(
     indices
 }
 
-
 // TODO: Remove from System Program. It is not used in the System Program.
 // Helper function to pack new address params for instruction data in rust
 pub fn pack_new_address_params(
@@ -52,7 +45,7 @@ pub fn pack_new_address_params(
     let mut new_address_params_packed = new_address_params
         .iter()
         .map(|x| NewAddressParamsPacked {
-            seed: x.seed,
+            seed: x.seed.clone(),
             address_merkle_tree_root_index: x.address_merkle_tree_root_index,
             address_merkle_tree_account_index: 0, // will be assigned later
             address_queue_account_index: 0,       // will be assigned later
@@ -88,7 +81,6 @@ pub fn pack_new_address_params(
     new_address_params_packed
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,39 +89,42 @@ mod tests {
     #[test]
     fn test_derive_address_with_valid_input() {
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let result = derive_address(&merkle_tree_pubkey, &[b"seed1", b"seed2"]);
-        let result_2 = derive_address(&merkle_tree_pubkey, &[b"seed1", b"seed2"]);
+        let seeds = [&b"seed1"[..], &b"seed2"[..]];
+        let result = derive_address(&merkle_tree_pubkey, &seeds.concat());
+        let result_2 = derive_address(&merkle_tree_pubkey, &seeds.concat());
         assert_eq!(result, result_2);
     }
 
     #[test]
     fn test_derive_address_with_empty_seeds() {
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let seeds: [&[u8]; 0] = [];
+        let seeds: Vec<u8> = vec![];
         let result = derive_address(&merkle_tree_pubkey, &seeds);
         let result_2 = derive_address(&merkle_tree_pubkey, &seeds);
 
         assert_eq!(result, result_2);
-      
     }
 
     #[test]
     fn test_derive_address_no_collision_same_seeds_diff_order() {
         let merkle_tree_pubkey = Pubkey::new_unique();
-        let result = derive_address(&merkle_tree_pubkey, &[b"seed1", b"seed2"]);
-        let result_2 = derive_address(&merkle_tree_pubkey, &[b"seed2", b"seed1"]);
+        let seeds = [&b"seed1"[..], &b"seed2"[..]];
+        let seeds_2 = [&b"seed2"[..], &b"seed1"[..]];
+
+        let result = derive_address(&merkle_tree_pubkey, &seeds.concat());
+        let result_2 = derive_address(&merkle_tree_pubkey, &seeds_2.concat());
         assert_ne!(result, result_2);
     }
-
     #[test]
     fn test_derive_address_no_collision_same_seeds_diff_pubkey() {
         let merkle_tree_pubkey = Pubkey::new_unique();
         let merkle_tree_pubkey_2 = Pubkey::new_unique();
-        let result = derive_address(&merkle_tree_pubkey, &[b"seed1", b"seed2"]);
-        let result_2 = derive_address(&merkle_tree_pubkey_2, &[b"seed1", b"seed2"]);
+        let seeds = [&b"seed1"[..], &b"seed2"[..]];
+
+        let result = derive_address(&merkle_tree_pubkey, &seeds.concat());
+        let result_2 = derive_address(&merkle_tree_pubkey_2, &seeds.concat());
         assert_ne!(result, result_2);
     }
-
 
     #[test]
     fn test_add_and_get_remaining_account_indices_empty() {
@@ -186,5 +181,4 @@ mod tests {
         assert_eq!(remaining_accounts.get(&pubkey3), Some(&2));
         assert_eq!(remaining_accounts.len(), 3);
     }
-  
 }
