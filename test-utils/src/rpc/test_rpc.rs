@@ -115,8 +115,14 @@ impl RpcConnection for ProgramTestRpcConnection {
                     "diff post_balance: {}",
                     post_balance as i64 - expected_post_balance
                 );
-                println!("rollover fee: {}", transaction_params.fee_config.state_merkle_tree_rollover);
-                println!("address_network_fee: {}", transaction_params.fee_config.address_network_fee);
+                println!(
+                    "rollover fee: {}",
+                    transaction_params.fee_config.state_merkle_tree_rollover
+                );
+                println!(
+                    "address_network_fee: {}",
+                    transaction_params.fee_config.address_network_fee
+                );
                 println!("network_fee: {}", network_fee);
                 return Err(RpcError::from(BanksClientError::TransactionError(
                     TransactionError::InstructionError(0, InstructionError::Custom(11111)),
