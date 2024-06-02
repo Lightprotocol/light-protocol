@@ -535,20 +535,19 @@ fn create_address_test_inputs(
 ) -> (Vec<NewAddressParams>, Vec<[u8; 32]>) {
     let mut address_seeds = vec![];
     for i in 1..=num_addresses {
-        address_seeds.push([i as u8; 32]);
+        address_seeds.push(vec![i as u8; 32]);
     }
 
     let mut new_address_params = vec![];
     let mut derived_addresses = Vec::new();
     for (_, address_seed) in address_seeds.iter().enumerate() {
         new_address_params.push(NewAddressParams {
-            seed: *address_seed,
+            seed: address_seed.to_vec(),
             address_queue_pubkey: env.address_merkle_tree_queue_pubkey,
             address_merkle_tree_pubkey: env.address_merkle_tree_pubkey,
             address_merkle_tree_root_index: 0,
         });
-        let derived_address =
-            derive_address(&env.address_merkle_tree_pubkey, &[&address_seed[..]]).unwrap();
+        let derived_address = derive_address(&env.address_merkle_tree_pubkey, address_seed).unwrap();
         derived_addresses.push(derived_address);
     }
     (new_address_params, derived_addresses)
@@ -564,7 +563,7 @@ pub async fn failing_transaction_address(
     // inconsistent seed
     {
         let mut inputs_struct = inputs_struct.clone();
-        inputs_struct.new_address_params[0].seed = [100u8; 32];
+        inputs_struct.new_address_params[0].seed = vec![100u8; 32];
         create_instruction_and_failing_transaction(
             context,
             payer,
@@ -1135,9 +1134,9 @@ async fn test_with_address() {
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
 
-    let address_seed = [1u8; 32];
+    let address_seed = vec![1u8; 32];
     let derived_address =
-        derive_address(&env.address_merkle_tree_pubkey, &[&address_seed[..]]).unwrap();
+        derive_address(&env.address_merkle_tree_pubkey, &address_seed).unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: payer_pubkey,
@@ -1214,7 +1213,7 @@ async fn test_with_address() {
         recipient_pubkey
     );
 
-    let address_seed_2 = [2u8; 32];
+    let address_seed_2 = vec![2u8; 32];
 
     let event = create_addresses_test(
         &mut context,
@@ -1228,7 +1227,7 @@ async fn test_with_address() {
             env.address_merkle_tree_queue_pubkey,
         ],
         vec![env.merkle_tree_pubkey, env.merkle_tree_pubkey],
-        &[address_seed_2, address_seed_2],
+        &[address_seed_2.clone(), address_seed_2.clone()],
         &Vec::new(),
         false,
         None,
@@ -1245,7 +1244,7 @@ async fn test_with_address() {
 
     println!("test 2in -------------------------");
 
-    let address_seed_3 = [3u8; 32];
+    let address_seed_3 = vec![3u8; 32];
     create_addresses_test(
         &mut context,
         &mut test_indexer,
@@ -1287,7 +1286,7 @@ async fn test_with_address() {
         for j in 0..n_new_addresses {
             let mut address_seed = [n_input_compressed_accounts as u8; 32];
             address_seed[j + (n_new_addresses * 2)] = 0_u8;
-            address_vec.push(address_seed);
+            address_vec.push(address_seed.to_vec());
         }
 
         create_addresses_test(

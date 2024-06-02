@@ -646,7 +646,7 @@ where
         for _ in 0..num_addresses {
             let address_seed: [u8; 32] =
                 bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
-            address_seeds.push(address_seed)
+            address_seeds.push(address_seed.to_vec());
         }
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
 
@@ -658,7 +658,7 @@ where
             address_merkle_tree_pubkeys.as_slice(),
             address_queue_pubkeys.as_slice(),
             output_compressed_accounts,
-            address_seeds.as_slice(),
+            &address_seeds,
             &Vec::new(),
             false,
             Some(TransactionParams {

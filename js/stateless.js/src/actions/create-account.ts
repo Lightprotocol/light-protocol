@@ -40,7 +40,7 @@ import { BN } from '@coral-xyz/anchor';
 export async function createAccount(
     rpc: Rpc,
     payer: Signer,
-    seed: Uint8Array,
+    seed: Buffer,
     programId: PublicKey,
     addressTree?: PublicKey,
     addressQueue?: PublicKey,
@@ -147,7 +147,7 @@ export async function createAccountWithLamports(
     /// Currently expects address roots to be consistent with one another and
     /// static. See test-rpc.ts for more details.
     const params: NewAddressParams = {
-        seed: seed,
+        seed: Buffer.from(seed),
         addressMerkleTreeRootIndex:
             proof.rootIndices[proof.rootIndices.length - 1],
         addressMerkleTreePubkey:

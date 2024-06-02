@@ -32,7 +32,7 @@ export interface NewAddressParams {
      * Seed for the compressed account. Must be seed used to derive
      * newAccountAddress
      */
-    seed: Uint8Array;
+    seed: Buffer;
     /**
      * Recent state root index of the address tree. The expiry is tied to the
      * validity proof.
@@ -53,7 +53,7 @@ export interface NewAddressParamsPacked {
      * Seed for the compressed account. Must be seed used to derive
      * newAccountAddress
      */
-    seed: number[];
+    seed: Buffer;
     /**
      * Recent state root index of the address tree. The expiry is tied to the
      * validity proof.
@@ -87,7 +87,7 @@ export function packNewAddressParams(
 
     const newAddressParamsPacked: NewAddressParamsPacked[] =
         newAddressParams.map(x => ({
-            seed: Array.from(x.seed),
+            seed: Buffer.from(x.seed),
             addressMerkleTreeRootIndex: x.addressMerkleTreeRootIndex,
             addressMerkleTreeAccountIndex: 0, // will be assigned later
             addressQueueAccountIndex: 0, // will be assigned later
@@ -130,7 +130,7 @@ if (import.meta.vitest) {
         it('should pack new address params correctly', () => {
             const newAddressParams = [
                 {
-                    seed: new Uint8Array([1, 2, 3, 4]),
+                    seed: Buffer.from([1, 2, 3, 4]),
                     addressMerkleTreeRootIndex: 0,
                     addressMerkleTreePubkey: new PublicKey(
                         '11111111111111111111111111111111',
