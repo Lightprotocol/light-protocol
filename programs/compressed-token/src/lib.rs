@@ -8,7 +8,7 @@ pub use process_mint::*;
 pub use process_transfer::*;
 pub mod token_data;
 
-declare_id!("9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE");
+declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -20,7 +20,7 @@ solana_security_txt::security_txt! {
 }
 
 #[constant]
-pub const PROGRAM_ID: &str = "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE";
+pub const PROGRAM_ID: &str = "HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN";
 
 #[program]
 pub mod light_compressed_token {
@@ -226,4 +226,6 @@ pub enum ErrorCode {
     DelegateUndefined,
     #[msg("DelegateSignerCheckFailed")]
     DelegateSignerCheckFailed,
+    #[msg("SplTokenSupplyMismatch")]
+    SplTokenSupplyMismatch,
 }

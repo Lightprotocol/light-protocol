@@ -145,22 +145,22 @@ export async function getSolanaArgs({
       tag: SPL_NOOP_PROGRAM_TAG,
     },
     {
-      id: "6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ",
+      id: "H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN",
       name: "light_system_program.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
-      id: "9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE",
+      id: "HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN",
       name: "light_compressed_token.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
-      id: "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN",
+      id: "CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK",
       name: "account_compression.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },
     {
-      id: "5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP",
+      id: "7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1",
       name: "light_registry.so",
       tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
     },

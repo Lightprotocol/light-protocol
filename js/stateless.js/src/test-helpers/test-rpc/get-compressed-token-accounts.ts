@@ -16,7 +16,7 @@ import {
 
 const tokenProgramId: PublicKey = new PublicKey(
     // TODO: can add check to ensure its consistent with the idl
-    '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
+    'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN',
 );
 
 type TokenData = {

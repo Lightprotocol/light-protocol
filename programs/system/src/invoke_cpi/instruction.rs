@@ -1,9 +1,3 @@
-use account_compression::program::AccountCompression;
-use anchor_lang::{
-    prelude::*, solana_program::pubkey::Pubkey, system_program::System, AnchorDeserialize,
-    AnchorSerialize,
-};
-
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::COMPRESSED_SOL_PDA_SEED},
     sdk::{
@@ -12,6 +6,11 @@ use crate::{
         CompressedCpiContext,
     },
     NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+};
+use account_compression::program::AccountCompression;
+use anchor_lang::{
+    prelude::*, solana_program::pubkey::Pubkey, system_program::System, AnchorDeserialize,
+    AnchorSerialize,
 };
 
 use super::account::CpiContextAccount;

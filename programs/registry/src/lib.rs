@@ -1,9 +1,12 @@
+#![allow(clippy::too_many_arguments)]
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use account_compression::{config_accounts::GroupAuthority, program::AccountCompression};
 use anchor_lang::prelude::*;
+
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
 
-declare_id!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
+declare_id!("7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1");
 
 #[error_code]
 pub enum ErrorCode {
@@ -13,9 +16,6 @@ pub enum ErrorCode {
 
 #[constant]
 pub const AUTHORITY_PDA_SEED: &[u8] = b"authority";
-
-#[constant]
-pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
 
 #[program]
 pub mod light_registry {
@@ -59,18 +59,14 @@ pub mod light_registry {
         Ok(())
     }
 
-    pub fn register_system_program(
-        ctx: Context<RegisteredProgram>,
-        bump: u8,
-        program_id: Pubkey,
-    ) -> Result<()> {
-        let program_id_seed = ctx.program_id.to_bytes();
+    pub fn register_system_program(ctx: Context<RegisteredProgram>, bump: u8) -> Result<()> {
         let bump = &[bump];
-        let seeds = [CPI_AUTHORITY_PDA_SEED, program_id_seed.as_slice(), bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
         let signer_seeds = &[&seeds[..]];
 
         let accounts = account_compression::cpi::accounts::RegisterProgramToGroup {
             authority: ctx.accounts.cpi_authority.to_account_info(),
+            program_to_be_registered: ctx.accounts.program_to_be_registered.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
             group_authority_pda: ctx.accounts.group_pda.to_account_info(),
@@ -82,7 +78,137 @@ pub mod light_registry {
             signer_seeds,
         );
 
-        account_compression::cpi::register_program_to_group(cpi_ctx, program_id)
+        account_compression::cpi::register_program_to_group(cpi_ctx)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn nullify(
+        ctx: Context<NullifyLeaves>,
+        bump: u8,
+        change_log_indices: Vec<u64>,
+        leaves_queue_indices: Vec<u16>,
+        indices: Vec<u64>,
+        proofs: Vec<Vec<[u8; 32]>>,
+    ) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+        let accounts = account_compression::cpi::accounts::NullifyLeaves {
+            authority: ctx.accounts.cpi_authority.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+            log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+            nullifier_queue: ctx.accounts.nullifier_queue.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::nullify_leaves(
+            cpi_ctx,
+            change_log_indices,
+            leaves_queue_indices,
+            indices,
+            proofs,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_address_merkle_tree(
+        ctx: Context<UpdateMerkleTree>,
+        bump: u8,
+        changelog_index: u16,
+        value: u16,
+        low_address_index: u64,
+        low_address_value: [u8; 32],
+        low_address_next_index: u64,
+        low_address_next_value: [u8; 32],
+        low_address_proof: [[u8; 32]; 16],
+    ) -> Result<()> {
+        let bump = &[bump];
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+
+        let accounts = account_compression::cpi::accounts::UpdateMerkleTree {
+            authority: ctx.accounts.cpi_authority.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+            log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
+            queue: ctx.accounts.queue.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::update_address_merkle_tree(
+            cpi_ctx,
+            changelog_index,
+            value,
+            low_address_index,
+            low_address_value,
+            low_address_next_index,
+            low_address_next_value,
+            low_address_proof,
+        )
+    }
+
+    pub fn rollover_address_merkle_tree_and_queue(
+        ctx: Context<RolloverMerkleTreeAndQueue>,
+        bump: u8,
+    ) -> Result<()> {
+        let bump = &[bump];
+
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+
+        let accounts = account_compression::cpi::accounts::RolloverAddressMerkleTreeAndQueue {
+            fee_payer: ctx.accounts.authority.to_account_info(),
+            authority: ctx.accounts.cpi_authority.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+            new_address_merkle_tree: ctx.accounts.new_merkle_tree.to_account_info(),
+            new_queue: ctx.accounts.new_queue.to_account_info(),
+            old_address_merkle_tree: ctx.accounts.old_merkle_tree.to_account_info(),
+            old_queue: ctx.accounts.old_queue.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::rollover_address_merkle_tree_and_queue(cpi_ctx)
+    }
+
+    pub fn rollover_state_merkle_tree_and_queue(
+        ctx: Context<RolloverMerkleTreeAndQueue>,
+        bump: u8,
+    ) -> Result<()> {
+        let bump = &[bump];
+
+        let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
+        let signer_seeds = &[&seeds[..]];
+
+        let accounts =
+            account_compression::cpi::accounts::RolloverStateMerkleTreeAndNullifierQueue {
+                fee_payer: ctx.accounts.authority.to_account_info(),
+                authority: ctx.accounts.cpi_authority.to_account_info(),
+                registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+                new_state_merkle_tree: ctx.accounts.new_merkle_tree.to_account_info(),
+                new_nullifier_queue: ctx.accounts.new_queue.to_account_info(),
+                old_state_merkle_tree: ctx.accounts.old_merkle_tree.to_account_info(),
+                old_nullifier_queue: ctx.accounts.old_queue.to_account_info(),
+            };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            signer_seeds,
+        );
+
+        account_compression::cpi::rollover_state_merkle_tree_and_nullifier_queue(cpi_ctx)
     }
 
     // TODO: update rewards field
@@ -136,7 +262,7 @@ pub struct InitializeAuthority<'info> {
     #[account(mut)]
     authority: Signer<'info>,
     /// CHECK:
-    #[account(init, seeds = [AUTHORITY_PDA_SEED, __program_id.to_bytes().as_slice()], bump, space = 8 + 32 + 8 + 8 * 8, payer = authority)]
+    #[account(init, seeds = [AUTHORITY_PDA_SEED], bump, space = 8 + 32 + 8 + 8 * 8, payer = authority)]
     authority_pda: Account<'info, LightGovernanceAuthority>,
     system_program: Program<'info, System>,
 }
@@ -147,7 +273,7 @@ pub struct UpdateAuthority<'info> {
     #[account(mut, constraint = authority.key() == authority_pda.authority)]
     authority: Signer<'info>,
     /// CHECK:
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED, __program_id.to_bytes().as_slice()], bump)]
+    #[account(mut, seeds = [AUTHORITY_PDA_SEED], bump)]
     authority_pda: Account<'info, LightGovernanceAuthority>,
 }
 
@@ -156,10 +282,10 @@ pub struct RegisteredProgram<'info> {
     #[account(mut, constraint = authority.key() == authority_pda.authority)]
     authority: Signer<'info>,
     /// CHECK:
-    #[account(mut, seeds = [AUTHORITY_PDA_SEED, __program_id.to_bytes().as_slice()], bump)]
+    #[account(mut, seeds = [AUTHORITY_PDA_SEED], bump)]
     authority_pda: Account<'info, LightGovernanceAuthority>,
     /// CHECK: this is
-    #[account(mut, seeds = [CPI_AUTHORITY_PDA_SEED, __program_id.to_bytes().as_slice()], bump)]
+    #[account(mut, seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     cpi_authority: AccountInfo<'info>,
     #[account(mut)]
     group_pda: Account<'info, GroupAuthority>,
@@ -167,4 +293,82 @@ pub struct RegisteredProgram<'info> {
     system_program: Program<'info, System>,
     /// CHECK:
     registered_program_pda: AccountInfo<'info>,
+    /// CHECK: is checked in the account compression program.
+    program_to_be_registered: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct NullifyLeaves<'info> {
+    /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    /// CHECK:
+    #[account(
+        seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
+        )]
+    pub registered_program_pda:
+        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    pub account_compression_program: Program<'info, AccountCompression>,
+    /// CHECK: in event emitting
+    pub log_wrapper: UncheckedAccount<'info>,
+    /// CHECK: in account compression program
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    /// CHECK: in account compression program
+    #[account(mut)]
+    pub nullifier_queue: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct RolloverMerkleTreeAndQueue<'info> {
+    /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    /// CHECK:
+    #[account(
+        seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
+        )]
+    pub registered_program_pda:
+        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    pub account_compression_program: Program<'info, AccountCompression>,
+    /// CHECK:
+    #[account(zero)]
+    pub new_merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(zero)]
+    pub new_queue: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub old_merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub old_queue: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateMerkleTree<'info> {
+    /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
+    pub authority: Signer<'info>,
+    /// CHECK:
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
+    cpi_authority: AccountInfo<'info>,
+    /// CHECK:
+    #[account(
+        seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
+        )]
+    pub registered_program_pda:
+        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
+    pub account_compression_program: Program<'info, AccountCompression>,
+    /// CHECK: in account compression program
+    #[account(mut)]
+    pub queue: AccountInfo<'info>,
+    /// CHECK: in account compression program
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    /// CHECK: in event emitting
+    pub log_wrapper: UncheckedAccount<'info>,
 }

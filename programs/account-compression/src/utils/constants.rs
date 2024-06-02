@@ -2,6 +2,9 @@
 use anchor_lang::constant;
 
 #[constant]
+pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
+
+#[constant]
 pub const GROUP_AUTHORITY_SEED: &[u8] = b"group_authority";
 
 #[constant]

@@ -8,19 +8,19 @@ export const FIELD_SIZE = new BN(
 
 // TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
-export const lightProgram = '5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP';
+export const lightProgram = 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
 export const accountCompressionProgram = // also: merkletree program
-    '5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN';
+    'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
 
 export const getRegisteredProgramPda = () =>
-    new PublicKey('ytwwVWhQUMoTKdirKmvEW5xCRVr4B2dJZnToiHtE2L2'); // TODO: better labelling. gov authority pda
+    new PublicKey('ApB3ASTFzS1RrccrB1cnNDPAAWrm1X4KSeNh2G3qSaxx'); // TODO: better labelling. gov authority pda
 
 export const getAccountCompressionAuthority = () =>
     PublicKey.findProgramAddressSync(
         [Buffer.from('cpi_authority')],
         new PublicKey(
             // TODO: can add check to ensure its consistent with the idl
-            '6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ',
+            lightProgram,
         ),
     )[0];
 

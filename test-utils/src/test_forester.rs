@@ -12,6 +12,8 @@ use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
+use light_registry::sdk::get_cpi_authority_pda;
+use light_system_program::utils::get_registered_program_pda;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -39,6 +41,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     rpc: &mut R,
     payer: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
+    registered_program: Option<Pubkey>,
 ) {
     let nullifier_queue = unsafe {
         get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
@@ -94,9 +97,33 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .to_array::<16>()
             .unwrap()
             .to_vec();
-
-        let instructions = [
-            account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
+        let ix = match registered_program {
+            Some(registered_program) => {
+                let register_program_pda = get_registered_program_pda(&registered_program);
+                let (cpi_authority, bump) = get_cpi_authority_pda();
+                let instruction_data = light_registry::instruction::Nullify {
+                    bump,
+                    change_log_indices: vec![change_log_index],
+                    leaves_queue_indices: vec![*index_in_nullifier_queue as u16],
+                    indices: vec![leaf_index as u64],
+                    proofs: vec![proof],
+                };
+                let accounts = light_registry::accounts::NullifyLeaves {
+                    authority: rpc.get_payer().pubkey(),
+                    registered_program_pda: register_program_pda,
+                    nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
+                    merkle_tree: state_tree_bundle.accounts.merkle_tree,
+                    log_wrapper: NOOP_PROGRAM_ID,
+                    cpi_authority,
+                    account_compression_program: ID,
+                };
+                Instruction {
+                    program_id: registered_program,
+                    accounts: accounts.to_account_metas(Some(true)),
+                    data: instruction_data.data(),
+                }
+            }
+            None => account_compression::nullify_leaves::sdk_nullify::create_nullify_instruction(
                 vec![change_log_index].as_slice(),
                 vec![(*index_in_nullifier_queue) as u16].as_slice(),
                 vec![leaf_index as u64].as_slice(),
@@ -105,7 +132,9 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
                 &state_tree_bundle.accounts.merkle_tree,
                 &state_tree_bundle.accounts.nullifier_queue,
             ),
-        ];
+        };
+
+        let instructions = [ix];
 
         let event = rpc
             .create_and_send_transaction_with_event::<MerkleTreeEvent>(
@@ -218,6 +247,7 @@ pub enum RelayerUpdateError {}
 pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     rpc: &mut R,
     address_tree_bundle: &mut AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE>,
+    register_program_pda: Option<Pubkey>,
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
@@ -272,6 +302,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap(),
             low_address_proof.to_array().unwrap(),
             None,
+            register_program_pda,
         )
         .await
         {
@@ -428,6 +459,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
     changelog_index: Option<u16>,
+    registered_program: Option<Pubkey>,
 ) -> Result<Option<MerkleTreeEvent>, RpcError> {
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index as usize,
@@ -447,25 +479,59 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         }
     };
 
-    let instruction_data = UpdateAddressMerkleTree {
-        changelog_index: changelog_index as u16,
-        value,
-        low_address_index,
-        low_address_value,
-        low_address_next_index,
-        low_address_next_value,
-        low_address_proof,
+    let update_ix = match registered_program {
+        Some(registered_program) => {
+            let register_program_pda = get_registered_program_pda(&registered_program);
+            let (cpi_authority, bump) = get_cpi_authority_pda();
+            let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
+                bump,
+                changelog_index: changelog_index as u16,
+                value,
+                low_address_index,
+                low_address_value,
+                low_address_next_index,
+                low_address_next_value,
+                low_address_proof,
+            };
+            let accounts = light_registry::accounts::UpdateMerkleTree {
+                authority: rpc.get_payer().pubkey(),
+                registered_program_pda: register_program_pda,
+                queue: address_queue_pubkey,
+                merkle_tree: address_merkle_tree_pubkey,
+                log_wrapper: NOOP_PROGRAM_ID,
+                cpi_authority,
+                account_compression_program: ID,
+            };
+            Instruction {
+                program_id: registered_program,
+                accounts: accounts.to_account_metas(Some(true)),
+                data: instruction_data.data(),
+            }
+        }
+        None => {
+            let instruction_data = UpdateAddressMerkleTree {
+                changelog_index: changelog_index as u16,
+                value,
+                low_address_index,
+                low_address_value,
+                low_address_next_index,
+                low_address_next_value,
+                low_address_proof,
+            };
+            Instruction {
+                program_id: ID,
+                accounts: vec![
+                    AccountMeta::new(rpc.get_payer().pubkey(), true),
+                    AccountMeta::new(account_compression::ID, false),
+                    AccountMeta::new(address_queue_pubkey, false),
+                    AccountMeta::new(address_merkle_tree_pubkey, false),
+                    AccountMeta::new(NOOP_PROGRAM_ID, false),
+                ],
+                data: instruction_data.data(),
+            }
+        }
     };
-    let update_ix = Instruction {
-        program_id: ID,
-        accounts: vec![
-            AccountMeta::new(rpc.get_payer().pubkey(), true),
-            AccountMeta::new(address_queue_pubkey, false),
-            AccountMeta::new(address_merkle_tree_pubkey, false),
-            AccountMeta::new(NOOP_PROGRAM_ID, false),
-        ],
-        data: instruction_data.data(),
-    };
+
     let payer = rpc.get_payer().insecure_clone();
     rpc.create_and_send_transaction_with_event::<MerkleTreeEvent>(
         &[update_ix],

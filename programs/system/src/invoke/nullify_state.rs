@@ -1,4 +1,5 @@
 use crate::{
+    constants::CPI_AUTHORITY_PDA_BUMP,
     invoke::InstructionDataInvoke,
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
@@ -91,8 +92,7 @@ pub fn insert_nullifiers<
 
     let data = instruction_data.data();
     light_heap::bench_sbf_end!("cpda_instruction_data");
-
-    let bump = &[254];
+    let bump = &[CPI_AUTHORITY_PDA_BUMP];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: account_compression::ID,

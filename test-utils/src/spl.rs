@@ -2,7 +2,6 @@ use crate::{
     assert_compressed_tx::get_merkle_tree_snapshots,
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
     create_account_instruction,
-    test_env::COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
     test_indexer::{TestIndexer, TokenDataWithContext},
 };
 
@@ -108,7 +107,7 @@ pub async fn create_mint<R: RpcConnection>(
         &payer.pubkey(),
         Mint::LEN,
         mint_rent,
-        &COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
+        &light_compressed_token::ID,
         Some(mint_keypair),
     );
 

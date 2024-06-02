@@ -1,6 +1,8 @@
 use crate::{errors::AccountCompressionErrorCode, RegisteredProgram};
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
+use super::constants::CPI_AUTHORITY_PDA_SEED;
+
 pub trait GroupAccess {
     fn get_owner(&self) -> &Pubkey;
     fn get_delegate(&self) -> &Pubkey;
@@ -27,7 +29,7 @@ pub fn check_signer_is_registered_or_authority<
     match ctx.accounts.get_registered_program_pda() {
         Some(registered_program_pda) => {
             let derived_address = Pubkey::find_program_address(
-                &[b"cpi_authority"],
+                &[CPI_AUTHORITY_PDA_SEED],
                 &registered_program_pda.registered_program_id,
             )
             .0;
@@ -40,6 +42,10 @@ pub fn check_signer_is_registered_or_authority<
                 msg!("owner address: {:?}", checked_account.get_owner());
                 msg!("derived_address: {:?}", derived_address);
                 msg!("signing_address: {:?}", ctx.accounts.get_authority().key());
+                msg!(
+                    "registered pda program id: {:?}",
+                    registered_program_pda.registered_program_id
+                );
                 Err(AccountCompressionErrorCode::InvalidAuthority.into())
             }
         }

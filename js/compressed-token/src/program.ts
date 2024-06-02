@@ -381,7 +381,7 @@ export class CompressedTokenProgram {
      * Public key that identifies the CompressedPda program
      */
     static programId: PublicKey = new PublicKey(
-        '9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE',
+        'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN',
     );
 
     private static _program: Program<LightCompressedToken> | null = null;

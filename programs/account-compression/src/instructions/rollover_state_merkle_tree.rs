@@ -11,7 +11,9 @@ use crate::{
         StateMerkleTreeAccount,
     },
     utils::{
-        check_signer_is_registered_or_authority::GroupAccounts,
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
         transfer_lamports::transfer_lamports,
     },
     RegisteredProgram,
@@ -54,15 +56,13 @@ impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'i
 pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
 ) -> Result<()> {
-    // TODO: revisit whether necessary
-    // check_signer_is_registered_or_authority::<RolloverStateMerkleTreeAndNullifierQueue, StateMerkleTreeAccount>(
-    //     &ctx,
-    //     &merkle_tree,
-    // )?;
     let queue_metadata = {
         let mut merkle_tree_account_loaded = ctx.accounts.old_state_merkle_tree.load_mut()?;
         let mut queue_account_loaded = ctx.accounts.old_nullifier_queue.load_mut()?;
-
+        check_signer_is_registered_or_authority::<
+            RolloverStateMerkleTreeAndNullifierQueue,
+            StateMerkleTreeAccount,
+        >(&ctx, &merkle_tree_account_loaded)?;
         merkle_tree_account_loaded.metadata.rollover(
             ctx.accounts.old_nullifier_queue.key(),
             ctx.accounts.new_state_merkle_tree.key(),

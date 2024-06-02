@@ -8,19 +8,31 @@ use crate::{
     errors::AccountCompressionErrorCode,
     from_vec,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    AddressMerkleTreeAccount,
+    utils::check_signer_is_registered_or_authority::{
+        check_signer_is_registered_or_authority, GroupAccounts,
+    },
+    AddressMerkleTreeAccount, RegisteredProgram,
 };
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
-    #[account(mut)]
     pub authority: Signer<'info>,
+    pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     #[account(mut)]
     pub queue: AccountLoader<'info, QueueAccount>,
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
     /// CHECK: in event emitting
     pub log_wrapper: UncheckedAccount<'info>,
+}
+
+impl<'info> GroupAccounts<'info> for UpdateMerkleTree<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -52,6 +64,10 @@ pub fn process_update_address_merkle_tree<'info>(
         );
         return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
+    check_signer_is_registered_or_authority::<UpdateMerkleTree, AddressMerkleTreeAccount>(
+        &ctx,
+        &merkle_tree,
+    )?;
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
     let sequence_number = merkle_tree.merkle_tree.merkle_tree.sequence_number;
