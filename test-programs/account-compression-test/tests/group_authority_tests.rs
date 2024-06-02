@@ -6,9 +6,9 @@ use account_compression::{
     self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
 };
 use anchor_lang::{system_program, InstructionData};
-use light_test_utils::airdrop_lamports;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
+use light_test_utils::{airdrop_lamports, test_env::SYSTEM_PROGRAM_ID_TEST_KEYPAIR};
 use solana_program_test::ProgramTest;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
@@ -27,9 +27,9 @@ use solana_sdk::{
 async fn test_create_and_update_group() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
-    let compressed_pda_id =
+    let system_program_id =
         Pubkey::from_str("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ").unwrap();
-    program_test.add_program("light_system_program", compressed_pda_id, None);
+    program_test.add_program("light_system_program", system_program_id, None);
 
     program_test.set_compute_max_units(1_400_000u64);
     let context = program_test.start_with_context().await;
@@ -130,17 +130,20 @@ async fn test_create_and_update_group() {
     airdrop_lamports(&mut context, &updated_keypair.pubkey(), 1_000_000_000)
         .await
         .unwrap();
+    let system_program_id_keypair = Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
     // add new program to group
-    let registered_program_pda =
-        Pubkey::find_program_address(&[compressed_pda_id.to_bytes().as_slice()], &ID).0;
+    let registered_program_pda = Pubkey::find_program_address(
+        &[system_program_id_keypair.pubkey().to_bytes().as_slice()],
+        &ID,
+    )
+    .0;
 
-    let register_program_ix = account_compression::instruction::RegisterProgramToGroup {
-        program_id: compressed_pda_id,
-    };
+    let register_program_ix = account_compression::instruction::RegisterProgramToGroup {};
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(updated_keypair.pubkey(), true),
+            AccountMeta::new(system_program_id_keypair.pubkey(), true),
             AccountMeta::new(registered_program_pda, false),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
@@ -151,7 +154,7 @@ async fn test_create_and_update_group() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&updated_keypair.pubkey()),
-        &vec![&updated_keypair],
+        &vec![&updated_keypair, &system_program_id_keypair],
         context.get_latest_blockhash().await.unwrap(),
     );
     context.process_transaction(transaction).await.unwrap();
@@ -160,24 +163,23 @@ async fn test_create_and_update_group() {
         .await;
     assert_eq!(
         registerd_program_account.registered_program_id,
-        compressed_pda_id
+        system_program_id_keypair.pubkey()
     );
     assert_eq!(
         registerd_program_account.group_authority_pda,
         group_accounts.0
     );
     // add new program to group with invalid authority
-    let other_program_id = Pubkey::new_unique();
+    let other_program_id = Keypair::new();
     let registered_program_pda =
-        Pubkey::find_program_address(&[other_program_id.to_bytes().as_slice()], &ID).0;
+        Pubkey::find_program_address(&[other_program_id.pubkey().to_bytes().as_slice()], &ID).0;
 
-    let register_program_ix = account_compression::instruction::RegisterProgramToGroup {
-        program_id: other_program_id,
-    };
+    let register_program_ix = account_compression::instruction::RegisterProgramToGroup {};
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(context.get_payer().pubkey(), true),
+            AccountMeta::new(other_program_id.pubkey(), true),
             AccountMeta::new(registered_program_pda, false),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
@@ -189,7 +191,7 @@ async fn test_create_and_update_group() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer()],
+        &vec![&context.get_payer(), &other_program_id],
         latest_blockhash,
     );
     context.process_transaction(transaction).await.unwrap_err();

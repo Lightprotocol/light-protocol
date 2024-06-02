@@ -12,9 +12,9 @@ pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
 
-declare_id!("5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN");
+declare_id!("CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK");
 #[constant]
-pub const PROGRAM_ID: &str = "5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN";
+pub const PROGRAM_ID: &str = "CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK";
 
 #[program]
 pub mod account_compression {
@@ -112,9 +112,8 @@ pub mod account_compression {
 
     pub fn register_program_to_group<'info>(
         ctx: Context<'_, '_, '_, 'info, RegisterProgramToGroup<'info>>,
-        program_id: Pubkey,
     ) -> Result<()> {
-        process_register_program(ctx, program_id)
+        process_register_program(ctx)
     }
 
     /// Initializes a new Merkle tree from config bytes.

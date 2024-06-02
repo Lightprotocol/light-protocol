@@ -1,4 +1,5 @@
 use crate::{
+    constants::CPI_AUTHORITY_PDA_BUMP,
     invoke_cpi::verify_signer::check_program_owner_address_merkle_tree,
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
@@ -68,7 +69,6 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
     })?;
 
     insert_addresses_cpi(
-        ctx.program_id,
         ctx.accounts.get_account_compression_program(),
         &ctx.accounts.get_fee_payer().to_account_info(),
         ctx.accounts.get_account_compression_authority(),
@@ -82,7 +82,6 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
 
 #[allow(clippy::too_many_arguments)]
 pub fn insert_addresses_cpi<'a, 'b>(
-    program_id: &Pubkey,
     account_compression_program_id: &'b AccountInfo<'a>,
     fee_payer: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
@@ -91,9 +90,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
     remaining_accounts: Vec<AccountInfo<'a>>,
     addresses: Vec<[u8; 32]>,
 ) -> Result<()> {
-    let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], program_id);
-    let bump = &[bump];
+    let bump = &[CPI_AUTHORITY_PDA_BUMP];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let accounts = account_compression::cpi::accounts::InsertIntoQueues {
         fee_payer: fee_payer.to_account_info(),

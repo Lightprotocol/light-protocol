@@ -1,8 +1,13 @@
 use crate::{
     emit_indexer_event,
     errors::AccountCompressionErrorCode,
-    state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
-    state::StateMerkleTreeAccount,
+    state::{
+        queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
+        StateMerkleTreeAccount,
+    },
+    utils::check_signer_is_registered_or_authority::{
+        check_signer_is_registered_or_authority, GroupAccounts,
+    },
     RegisteredProgram,
 };
 use anchor_lang::prelude::*;
@@ -23,6 +28,15 @@ pub struct NullifyLeaves<'info> {
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]
     pub nullifier_queue: AccountLoader<'info, QueueAccount>,
+}
+
+impl<'info> GroupAccounts<'info> for NullifyLeaves<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
+        &self.authority
+    }
+    fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
+        &self.registered_program_pda
+    }
 }
 
 // TODO: implement for multiple nullifiers got a stack frame error with a loop
@@ -63,14 +77,15 @@ pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
 }
 
 #[inline(never)]
-fn insert_nullifier(
+fn insert_nullifier<'a, 'c: 'info, 'info>(
     proofs: &[Vec<[u8; 32]>],
     change_log_indices: &[u64],
     leaves_queue_indices: &[u16],
     indices: &[u64],
-    ctx: &Context<'_, '_, '_, '_, NullifyLeaves<'_>>,
+    ctx: &Context<'a, '_, 'c, 'info, NullifyLeaves<'info>>,
 ) -> Result<()> {
     let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+
     if merkle_tree.metadata.associated_queue != ctx.accounts.nullifier_queue.key() {
         msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
@@ -79,6 +94,10 @@ fn insert_nullifier(
         );
         return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
+    check_signer_is_registered_or_authority::<NullifyLeaves, StateMerkleTreeAccount>(
+        ctx,
+        &merkle_tree,
+    )?;
     let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
     let nullifier_queue = ctx.accounts.nullifier_queue.to_account_info();

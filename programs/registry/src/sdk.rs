@@ -59,7 +59,6 @@ pub fn create_register_program_instruction(
 
     let register_program_ix = crate::instruction::RegisterSystemProgram {
         bump: cpi_authority_pda.1,
-        program_id: program_id_to_be_registered,
     };
 
     let instruction = Instruction {
@@ -72,6 +71,7 @@ pub fn create_register_program_instruction(
             AccountMeta::new_readonly(ID, false),
             AccountMeta::new_readonly(system_program::ID, false),
             AccountMeta::new(registered_program_pda, false),
+            AccountMeta::new(program_id_to_be_registered, true),
         ],
         data: register_program_ix.data(),
     };
@@ -79,20 +79,11 @@ pub fn create_register_program_instruction(
 }
 
 pub fn get_governance_authority_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[crate::AUTHORITY_PDA_SEED, crate::ID.to_bytes().as_slice()],
-        &crate::ID,
-    )
+    Pubkey::find_program_address(&[crate::AUTHORITY_PDA_SEED], &crate::ID)
 }
 
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            crate::CPI_AUTHORITY_PDA_SEED,
-            crate::ID.to_bytes().as_slice(),
-        ],
-        &crate::ID,
-    )
+    Pubkey::find_program_address(&[crate::CPI_AUTHORITY_PDA_SEED], &crate::ID)
 }
 
 pub fn create_initialize_governance_authority_instruction(

@@ -1494,6 +1494,10 @@ async fn regenerate_accounts() {
             env.address_merkle_tree_queue_pubkey,
         ),
         ("cpi_context", env.cpi_context_account_pubkey),
+        (
+            "registered_registry_program_pda",
+            env.registered_registry_program_pda,
+        ),
     ];
 
     for (name, pubkey) in pubkeys {

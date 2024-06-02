@@ -71,7 +71,7 @@ async fn test_address_queue_and_tree_functional() {
     assert!(address_queue.contains(&address2, None).unwrap());
 
     // CHECK: 3 inserts two addresses into the address Merkle tree
-    empty_address_queue_test(&mut context, &mut address_merkle_tree_bundle)
+    empty_address_queue_test(&mut context, &mut address_merkle_tree_bundle, None)
         .await
         .unwrap();
 
@@ -94,7 +94,7 @@ async fn test_address_queue_and_tree_functional() {
         .unwrap()
         .unwrap();
     // CHECK: 4 insert third address which is inbetween the first two addresses
-    empty_address_queue_test(&mut context, &mut address_merkle_tree_bundle)
+    empty_address_queue_test(&mut context, &mut address_merkle_tree_bundle, None)
         .await
         .unwrap();
 }
@@ -143,7 +143,7 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .await
     .unwrap();
-    empty_address_queue_test(&mut context, &mut address_merkle_tree_bundle)
+    empty_address_queue_test(&mut context, &mut address_merkle_tree_bundle, None)
         .await
         .unwrap();
     // CHECK: 1 cannot insert the same address twice
@@ -238,6 +238,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
     )
     .await
     .unwrap_err();
@@ -255,6 +256,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
     )
     .await
     .unwrap_err();
@@ -270,6 +272,7 @@ async fn update_address_merkle_tree_failing_tests() {
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
     )
     .await
@@ -294,6 +297,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
     )
     .await
     .unwrap_err();
@@ -316,6 +320,7 @@ async fn update_address_merkle_tree_failing_tests() {
         invalid_low_element_next_index,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
     )
     .await
@@ -340,6 +345,7 @@ async fn update_address_merkle_tree_failing_tests() {
         invalid_low_element_next_value,
         low_element_proof.to_array().unwrap(),
         None,
+        None,
     )
     .await
     .unwrap_err();
@@ -363,6 +369,7 @@ async fn update_address_merkle_tree_failing_tests() {
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         invalid_low_element_proof,
+        None,
         None,
     )
     .await
@@ -394,6 +401,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(invalid_changelog_index_low as u16),
+        None,
     )
     .await
     .unwrap_err();
@@ -417,6 +425,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(invalid_changelog_index_high as u16),
+        None,
     )
     .await
     .unwrap_err();
@@ -438,6 +447,7 @@ async fn update_address_merkle_tree_failing_tests() {
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
     )
     .await
@@ -462,6 +472,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(changelog_index as u16),
+        None,
     )
     .await
     .unwrap_err();
@@ -498,6 +509,7 @@ async fn update_address_merkle_tree_failing_tests() {
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(changelog_index as u16),
+        None,
     )
     .await
     .unwrap_err();
@@ -780,6 +792,7 @@ pub async fn test_with_invalid_low_element(
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
     )
     .await

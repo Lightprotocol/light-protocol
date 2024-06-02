@@ -1,4 +1,7 @@
-use crate::{AccessMetadata, MerkleTreeMetadata, RolloverMetadata, SequenceNumber};
+use crate::{
+    utils::check_signer_is_registered_or_authority::GroupAccess, AccessMetadata,
+    MerkleTreeMetadata, RolloverMetadata, SequenceNumber,
+};
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -23,6 +26,15 @@ pub struct AddressMerkleTreeAccount {
     pub address_changelog: [u8; 20480],
 }
 
+impl GroupAccess for AddressMerkleTreeAccount {
+    fn get_owner(&self) -> &Pubkey {
+        &self.metadata.access_metadata.owner
+    }
+
+    fn get_delegate(&self) -> &Pubkey {
+        &self.metadata.access_metadata.delegate
+    }
+}
 impl SequenceNumber for AddressMerkleTreeAccount {
     fn get_sequence_number(&self) -> Result<usize> {
         let tree = unsafe {

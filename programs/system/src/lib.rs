@@ -8,12 +8,7 @@ pub mod constants;
 pub mod errors;
 pub mod sdk;
 pub mod utils;
-declare_id!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
-
-// TODO(vadorovsky): Come up with some less glass chewy way of reusing our
-// light-heap allocator if it's already used in some dependency.
-// #[cfg(all(feature = "custom-heap", target_os = "solana"))] pub use
-// account_compression::GLOBAL_ALLOCATOR;
+declare_id!("H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN");
 
 #[program]
 pub mod light_system_program {

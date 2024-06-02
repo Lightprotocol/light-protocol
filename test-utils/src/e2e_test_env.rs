@@ -297,7 +297,13 @@ where
                 .unwrap_or_default(),
         ) {
             for state_tree_bundle in self.indexer.state_merkle_trees.iter_mut() {
-                nullify_compressed_accounts(&mut self.rpc, &self.payer, state_tree_bundle).await;
+                nullify_compressed_accounts(
+                    &mut self.rpc,
+                    &self.payer,
+                    state_tree_bundle,
+                    Some(light_registry::ID),
+                )
+                .await;
             }
         }
 
@@ -307,9 +313,13 @@ where
                 .unwrap_or_default(),
         ) {
             for address_merkle_tree_bundle in self.indexer.address_merkle_trees.iter_mut() {
-                empty_address_queue_test(&mut self.rpc, address_merkle_tree_bundle)
-                    .await
-                    .unwrap();
+                empty_address_queue_test(
+                    &mut self.rpc,
+                    address_merkle_tree_bundle,
+                    Some(light_registry::ID),
+                )
+                .await
+                .unwrap();
             }
         }
     }

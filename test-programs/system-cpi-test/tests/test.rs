@@ -298,6 +298,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         governance_authority_pda: env.governance_authority_pda,
         group_pda: env.group_pda,
         registered_program_pda: env.registered_program_pda,
+        registered_registry_program_pda: env.registered_registry_program_pda,
     };
 
     perform_create_pda_failing(
@@ -338,6 +339,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         governance_authority_pda: env.governance_authority_pda,
         group_pda: env.group_pda,
         registered_program_pda: env.registered_program_pda,
+        registered_registry_program_pda: env.registered_registry_program_pda,
     };
     perform_create_pda_failing(
         &mut test_indexer,
@@ -388,6 +390,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         governance_authority_pda: env.governance_authority_pda,
         group_pda: env.group_pda,
         registered_program_pda: env.registered_program_pda,
+        registered_registry_program_pda: env.registered_registry_program_pda,
     };
     let seed = [4u8; 32];
     let data = [5u8; 31];

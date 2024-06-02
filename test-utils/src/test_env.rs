@@ -16,6 +16,7 @@ use light_registry::sdk::{
     create_initialize_group_authority_instruction, create_register_program_instruction,
     get_cpi_authority_pda, get_governance_authority_pda, get_group_pda,
 };
+use light_system_program::utils::get_registered_program_pda;
 use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::{
     pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
@@ -23,11 +24,6 @@ use solana_sdk::{
 };
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
-pub const LIGHT_ID: Pubkey = pubkey!("5WzvRtu7LABotw1SUEpguJiKU27LRGsiCnF5FH6VV7yP");
-pub const ACCOUNT_COMPRESSION_ID: Pubkey = pubkey!("5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN");
-pub const PDA_PROGRAM_ID: Pubkey = pubkey!("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ");
-pub const COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID: Pubkey =
-    pubkey!("9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE");
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 /// Setup test programs
 /// deploys:
@@ -39,14 +35,10 @@ pub async fn setup_test_programs(
     additional_programs: Option<Vec<(String, Pubkey)>>,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::default();
-    program_test.add_program("light_registry", LIGHT_ID, None);
-    program_test.add_program("account_compression", ACCOUNT_COMPRESSION_ID, None);
-    program_test.add_program(
-        "light_compressed_token",
-        COMPRESSED_TOKEN_PROGRAM_PROGRAM_ID,
-        None,
-    );
-    program_test.add_program("light_system_program", PDA_PROGRAM_ID, None);
+    program_test.add_program("light_registry", light_registry::ID, None);
+    program_test.add_program("account_compression", account_compression::ID, None);
+    program_test.add_program("light_compressed_token", light_compressed_token::ID, None);
+    program_test.add_program("light_system_program", light_system_program::ID, None);
     program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
     if let Some(programs) = additional_programs {
         for (name, id) in programs {
@@ -64,6 +56,7 @@ pub struct EnvAccounts {
     pub governance_authority_pda: Pubkey,
     pub group_pda: Pubkey,
     pub registered_program_pda: Pubkey,
+    pub registered_registry_program_pda: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_queue_pubkey: Pubkey,
     pub cpi_context_account_pubkey: Pubkey,
@@ -115,6 +108,23 @@ pub const GROUP_PDA_SEED_TEST_KEYPAIR: [u8; 64] = [
     221, 137, 26, 136, 52, 144, 74, 212, 215, 155, 216, 47, 98, 199, 9, 61, 213, 72, 205, 237, 76,
     74, 119, 253, 96, 1, 140, 92, 149, 148, 250, 32, 53, 54, 186, 15, 48, 130, 222, 205, 3, 98,
 ];
+// The test program id keypairs are necessary because the program id keypair needs to sign
+// to register the program to the security group.
+// The programids should only be used for localnet testing.
+// Pubkey: H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN
+pub const SYSTEM_PROGRAM_ID_TEST_KEYPAIR: [u8; 64] = [
+    10, 62, 81, 156, 201, 11, 242, 85, 89, 182, 145, 223, 214, 144, 53, 147, 242, 197, 41, 55, 203,
+    212, 70, 178, 225, 209, 4, 211, 43, 153, 222, 21, 238, 250, 35, 216, 163, 90, 82, 72, 167, 209,
+    196, 227, 210, 173, 89, 255, 142, 20, 199, 150, 144, 215, 61, 164, 34, 47, 181, 228, 226, 153,
+    208, 17,
+];
+// Pubkey: 7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1
+pub const REGISTRY_ID_TEST_KEYPAIR: [u8; 64] = [
+    43, 149, 192, 218, 153, 35, 206, 182, 230, 102, 193, 208, 163, 11, 195, 46, 228, 116, 113, 62,
+    161, 102, 207, 139, 128, 8, 120, 150, 30, 119, 150, 140, 97, 98, 96, 14, 138, 90, 82, 76, 254,
+    197, 232, 33, 204, 67, 237, 139, 100, 115, 187, 164, 115, 31, 164, 21, 246, 9, 162, 211, 227,
+    20, 96, 192,
+];
 
 /// Setup test programs with accounts
 /// deploys:
@@ -160,31 +170,7 @@ pub async fn setup_test_programs_with_accounts(
         .get_anchor_account::<GroupAuthority>(&authority_pda.0)
         .await;
     assert_eq!(gov_authority.authority, payer.pubkey());
-    println!("gov authority: {:?}", gov_authority);
-    let (instruction, registered_program_pda) = create_register_program_instruction(
-        payer.pubkey(),
-        authority_pda,
-        group_pda,
-        PDA_PROGRAM_ID,
-    );
 
-    let transfer_instruction = system_instruction::transfer(
-        &payer.pubkey(),
-        &cpi_authority_pda.0,
-        context
-            .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
-            .await
-            .unwrap(),
-    );
-
-    context
-        .create_and_send_transaction(
-            &[transfer_instruction, instruction],
-            &payer.pubkey(),
-            &[&payer],
-        )
-        .await
-        .unwrap();
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
@@ -226,20 +212,34 @@ pub async fn setup_test_programs_with_accounts(
         &payer,
     )
     .await;
-    (
-        context,
-        EnvAccounts {
-            merkle_tree_pubkey,
-            nullifier_queue_pubkey,
-            group_pda,
-            governance_authority: payer,
-            governance_authority_pda: authority_pda.0,
-            registered_program_pda,
-            address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
-            address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
-            cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
-        },
+    let registered_system_program_pda = get_registered_program_pda(&light_system_program::ID);
+    let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
+    let env_accounts = EnvAccounts {
+        merkle_tree_pubkey,
+        nullifier_queue_pubkey,
+        group_pda,
+        governance_authority: payer,
+        governance_authority_pda: authority_pda.0,
+        registered_program_pda: registered_system_program_pda,
+        address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
+        address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
+        cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
+        registered_registry_program_pda,
+    };
+    let system_program_id_test_keypair =
+        Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
+    register_program_with_registry_program(
+        &mut context,
+        &env_accounts,
+        &system_program_id_test_keypair,
     )
+    .await
+    .unwrap();
+    let registry_id_test_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
+    register_program_with_registry_program(&mut context, &env_accounts, &registry_id_test_keypair)
+        .await
+        .unwrap();
+    (context, env_accounts)
 }
 
 pub async fn initialize_new_group(
@@ -294,7 +294,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         payer.pubkey(),
         authority_pda,
         group_pda,
-        PDA_PROGRAM_ID,
+        light_system_program::ID,
     );
 
     let address_merkle_tree_keypair =
@@ -304,6 +304,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         Keypair::from_bytes(&ADDRESS_MERKLE_TREE_QUEUE_TEST_KEYPAIR).unwrap();
 
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
+    let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
 
     EnvAccounts {
         merkle_tree_pubkey,
@@ -315,6 +316,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
         cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
+        registered_registry_program_pda,
     }
 }
 
@@ -335,7 +337,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         )
         .await
         .unwrap(),
-        &ACCOUNT_COMPRESSION_ID,
+        &account_compression::ID,
         Some(merkle_tree_keypair),
     );
     let size = account_compression::state::queue::QueueAccount::size(
@@ -348,7 +350,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         rpc.get_minimum_balance_for_rent_exemption(size)
             .await
             .unwrap(),
-        &ACCOUNT_COMPRESSION_ID,
+        &account_compression::ID,
         Some(nullifier_queue_keypair),
     );
 
@@ -403,7 +405,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
             .get_minimum_balance_for_rent_exemption(size)
             .await
             .unwrap(),
-        &ACCOUNT_COMPRESSION_ID,
+        &account_compression::ID,
         Some(address_queue_keypair),
     );
 
@@ -416,7 +418,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
             )
             .await
             .unwrap(),
-        &ACCOUNT_COMPRESSION_ID,
+        &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
     let tree_config = AddressMerkleTreeConfig::default();
@@ -527,7 +529,7 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
 pub async fn register_program_with_registry_program(
     rpc: &mut ProgramTestRpcConnection,
     env: &EnvAccounts,
-    program_id: &Pubkey,
+    program_id_keypair: &Keypair,
 ) -> Result<Pubkey, crate::rpc::errors::RpcError> {
     let governance_authority_pda = get_governance_authority_pda();
     let (instruction, token_program_registered_program_pda) =
@@ -535,7 +537,7 @@ pub async fn register_program_with_registry_program(
             env.governance_authority.pubkey(),
             governance_authority_pda,
             env.group_pda,
-            *program_id,
+            program_id_keypair.pubkey(),
         );
     let cpi_authority_pda = get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
@@ -549,7 +551,7 @@ pub async fn register_program_with_registry_program(
     rpc.create_and_send_transaction(
         &[transfer_instruction, instruction],
         &env.governance_authority.pubkey(),
-        &[&env.governance_authority],
+        &[&env.governance_authority, program_id_keypair],
     )
     .await?;
     Ok(token_program_registered_program_pda)

@@ -6,7 +6,9 @@ use crate::{
     initialize_address_queue::process_initialize_address_queue,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::{
-        check_signer_is_registered_or_authority::GroupAccounts,
+        check_signer_is_registered_or_authority::{
+            check_signer_is_registered_or_authority, GroupAccounts,
+        },
         transfer_lamports::transfer_lamports,
     },
     AddressMerkleTreeAccount, RegisteredProgram,
@@ -14,7 +16,7 @@ use crate::{
 
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
-    /// Signer used to pay rollover and protocol fees.
+    /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
     /// CHECK: should only be accessed by a registered program/owner/delegate.
     pub authority: Signer<'info>,
@@ -50,15 +52,13 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
-    // TODO: revisit whether necessary
-    // check_signer_is_registered_or_authority::<RolloverStateMerkleTreeAndNullifierQueue, AddressMerkleTreeAccount>(
-    //     &ctx,
-    //     &merkle_tree,
-    // )?;
     let (queue_metadata, height) = {
         let mut merkle_tree_account_loaded = ctx.accounts.old_address_merkle_tree.load_mut()?;
         let mut queue_account_loaded = ctx.accounts.old_queue.load_mut()?;
-
+        check_signer_is_registered_or_authority::<
+            RolloverAddressMerkleTreeAndQueue,
+            AddressMerkleTreeAccount,
+        >(&ctx, &merkle_tree_account_loaded)?;
         merkle_tree_account_loaded.metadata.rollover(
             ctx.accounts.old_queue.key(),
             ctx.accounts.new_address_merkle_tree.key(),

@@ -321,7 +321,7 @@ pub fn mint_spl_to_pool_pda<'info>(
     for amount in amounts.iter() {
         mint_amount = mint_amount.saturating_add(*amount);
     }
-
+    let token_balance = ctx.accounts.token_pool_pda.amount;
     let cpi_accounts = anchor_spl::token::MintTo {
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
@@ -330,6 +330,20 @@ pub fn mint_spl_to_pool_pda<'info>(
     let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
     anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
+    let post_token_balance = TokenAccount::try_deserialize(
+        &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
+    )?
+    .amount;
+    // Guard against unexpected behavior of the token program.
+    if post_token_balance != token_balance + mint_amount {
+        msg!(
+            "post_token_balance {} != token_balance {} + mint_amount {}",
+            post_token_balance,
+            token_balance,
+            mint_amount
+        );
+        return err!(crate::ErrorCode::SplTokenSupplyMismatch);
+    }
     Ok(())
 }
 

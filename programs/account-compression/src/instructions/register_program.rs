@@ -12,15 +12,15 @@ pub struct RegisteredProgram {
 }
 
 #[derive(Accounts)]
-#[instruction(verifier_pubkey: Pubkey)]
 pub struct RegisterProgramToGroup<'info> {
     /// CHECK:` Signer is checked according to authority pda in instruction
     #[account(mut, address=group_authority_pda.authority @AccountCompressionErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
+    pub program_to_be_registered: Signer<'info>,
     #[account(
         init,
         payer = authority,
-        seeds = [&verifier_pubkey.to_bytes()],
+        seeds = [&program_to_be_registered.key().to_bytes()],
         bump,
         space = RegisteredProgram::LEN,
     )]
@@ -29,11 +29,9 @@ pub struct RegisterProgramToGroup<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn process_register_program(
-    ctx: Context<RegisterProgramToGroup>,
-    verifier_pubkey: Pubkey,
-) -> Result<()> {
-    ctx.accounts.registered_program_pda.registered_program_id = verifier_pubkey;
+pub fn process_register_program(ctx: Context<RegisterProgramToGroup>) -> Result<()> {
+    ctx.accounts.registered_program_pda.registered_program_id =
+        ctx.accounts.program_to_be_registered.key();
     ctx.accounts.registered_program_pda.group_authority_pda =
         ctx.accounts.group_authority_pda.key();
     Ok(())

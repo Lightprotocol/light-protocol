@@ -1,4 +1,5 @@
 use crate::{
+    constants::CPI_AUTHORITY_PDA_BUMP,
     errors::CompressedPdaError,
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
     sdk::{
@@ -194,7 +195,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
 
-    let bump = &[254];
+    let bump = &[CPI_AUTHORITY_PDA_BUMP];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: account_compression::ID,

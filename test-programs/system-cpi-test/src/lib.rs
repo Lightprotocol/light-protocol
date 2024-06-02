@@ -64,9 +64,7 @@ pub mod system_cpi_test {
     pub fn append_leaves_account_compression_program<'info>(
         ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
     ) -> Result<()> {
-        msg!("ID {:?}", ID);
-        let (pubkey, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
-        msg!("pubkey {:?}", pubkey);
+        let (_, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
         let accounts = account_compression::cpi::accounts::AppendLeaves {
             authority: ctx.accounts.cpi_signer.to_account_info(),
             fee_payer: ctx.accounts.signer.to_account_info(),
@@ -84,6 +82,59 @@ pub mod system_cpi_test {
         cpi_context.remaining_accounts = vec![ctx.accounts.merkle_tree.to_account_info()];
 
         account_compression::cpi::append_leaves_to_merkle_trees(cpi_context, vec![(0, [1u8; 32])])?;
+
+        Ok(())
+    }
+    pub fn insert_into_address_queue<'info>(
+        ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
+    ) -> Result<()> {
+        let (_, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
+        let accounts = account_compression::cpi::accounts::InsertIntoQueues {
+            authority: ctx.accounts.cpi_signer.to_account_info(),
+            fee_payer: ctx.accounts.signer.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+            system_program: ctx.accounts.system_program.to_account_info(),
+        };
+        let bump = &[bump];
+        let seeds = [&[b"cpi_authority".as_slice(), bump][..]];
+        let mut cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            &seeds,
+        );
+        cpi_context.remaining_accounts = vec![
+            ctx.accounts.queue.to_account_info(),
+            ctx.accounts.merkle_tree.to_account_info(),
+        ];
+
+        account_compression::cpi::insert_addresses(cpi_context, vec![[1u8; 32]])?;
+
+        Ok(())
+    }
+
+    pub fn insert_into_nullifier_queue<'info>(
+        ctx: Context<'_, '_, '_, 'info, AppendLeavesAccountCompressionProgram<'info>>,
+    ) -> Result<()> {
+        let (_, bump) = Pubkey::find_program_address(&[b"cpi_authority"], &ID);
+        let accounts = account_compression::cpi::accounts::InsertIntoQueues {
+            authority: ctx.accounts.cpi_signer.to_account_info(),
+            fee_payer: ctx.accounts.signer.to_account_info(),
+            registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
+            system_program: ctx.accounts.system_program.to_account_info(),
+        };
+        let bump = &[bump];
+        let seeds = [&[b"cpi_authority".as_slice(), bump][..]];
+        let mut cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.account_compression_program.to_account_info(),
+            accounts,
+            &seeds,
+        );
+        cpi_context.remaining_accounts = vec![
+            ctx.accounts.queue.to_account_info(),
+            ctx.accounts.merkle_tree.to_account_info(),
+        ];
+
+        account_compression::cpi::insert_into_nullifier_queues(cpi_context, vec![[1u8; 32]])?;
 
         Ok(())
     }
@@ -105,4 +156,7 @@ pub struct AppendLeavesAccountCompressionProgram<'info> {
     /// CHECK:
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub queue: AccountInfo<'info>,
 }
