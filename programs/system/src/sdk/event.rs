@@ -154,7 +154,7 @@ pub mod test {
             output_leaf_indices: vec![4, 5, 6],
             relay_fee: Some(1000),
             is_compress: true,
-            compression_lamports: Some(5000),
+            compress_or_decompress_lamports: Some(5000),
             pubkey_array: vec![Keypair::new().pubkey(), Keypair::new().pubkey()],
             message: Some(vec![8, 9, 10]),
         };
