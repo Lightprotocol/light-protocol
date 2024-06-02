@@ -21,7 +21,6 @@ pub struct PublicTransactionEvent {
     pub is_compress: bool,
     pub compress_or_decompress_lamports: Option<u64>,
     pub pubkey_array: Vec<Pubkey>,
-    // TODO: remove(data can just be written into a compressed account)
     pub message: Option<Vec<u8>>,
 }
 

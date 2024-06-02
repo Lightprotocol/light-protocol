@@ -21,7 +21,7 @@ pub struct InsertIntoQueues<'info> {
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
     pub system_program: Program<'info, System>,
 }
-// TODO: add test that the first two elements of the queue cannot be inserted into the tree and removed from the queue
+
 /// Inserts every element into the indexed array.
 /// Throws an error if the element already exists.
 /// Expects an indexed queue account as for every index as remaining account.

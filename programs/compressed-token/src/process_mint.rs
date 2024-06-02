@@ -37,7 +37,7 @@ pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
-    /// CHECK: TODO
+    /// CHECK:
     #[account(seeds = [b"cpi_authority"], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
 }

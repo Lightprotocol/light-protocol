@@ -18,8 +18,6 @@ pub enum VerifierError {
     CreateGroth16VerifierFailed,
     #[error("ProofVerificationFailed")]
     ProofVerificationFailed,
-    // TODO: make Groth16Error public
-    // Groth16Error(#[from] groth16_solana::groth16::Groth16Error),
 }
 
 #[cfg(feature = "solana")]
@@ -220,7 +218,6 @@ pub fn verify_merkle_proof_zkp(
     }
 }
 
-// TODO: remove const generics from groth16 solana
 #[inline(never)]
 fn verify<const N: usize>(
     public_inputs: &[[u8; 32]; N],

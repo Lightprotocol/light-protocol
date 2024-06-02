@@ -724,168 +724,98 @@ export type LightSystemProgram = {
         },
         {
             code: 6006;
-            name: 'InUtxosAlreadyAdded';
-            msg: 'InUtxosAlreadyAdded';
-        },
-        {
-            code: 6007;
-            name: 'NumberOfLeavesMismatch';
-            msg: 'NumberOfLeavesMismatch';
-        },
-        {
-            code: 6008;
-            name: 'MerkleTreePubkeysMismatch';
-            msg: 'MerkleTreePubkeysMismatch';
-        },
-        {
-            code: 6009;
-            name: 'NullifierArrayPubkeysMismatch';
-            msg: 'NullifierArrayPubkeysMismatch';
-        },
-        {
-            code: 6010;
             name: 'InvalidNoopPubkey';
             msg: 'InvalidNoopPubkey';
         },
         {
-            code: 6011;
-            name: 'ProofVerificationFailed';
-            msg: 'ProofVerificationFailed';
-        },
-        {
-            code: 6012;
-            name: 'CompressedAccountHashError';
-            msg: 'CompressedAccountHashError';
-        },
-        {
-            code: 6013;
+            code: 6007;
             name: 'InvalidAddress';
             msg: 'InvalidAddress';
         },
         {
-            code: 6014;
-            name: 'InvalidAddressQueue';
-            msg: 'InvalidAddressQueue';
-        },
-        {
-            code: 6015;
-            name: 'InvalidQueue';
-            msg: 'InvalidQueue';
-        },
-        {
-            code: 6016;
+            code: 6008;
             name: 'DeriveAddressError';
             msg: 'DeriveAddressError';
         },
         {
-            code: 6017;
-            name: 'CompressSolTransferFailed';
-            msg: 'CompressSolTransferFailed';
-        },
-        {
-            code: 6018;
+            code: 6009;
             name: 'CompressedSolPdaUndefinedForCompressSol';
             msg: 'CompressedSolPdaUndefinedForCompressSol';
         },
         {
-            code: 6019;
+            code: 6010;
             name: 'DeCompressLamportsUndefinedForCompressSol';
             msg: 'DeCompressLamportsUndefinedForCompressSol';
         },
         {
-            code: 6020;
+            code: 6011;
             name: 'CompressedSolPdaUndefinedForDecompressSol';
             msg: 'CompressedSolPdaUndefinedForDecompressSol';
         },
         {
-            code: 6021;
+            code: 6012;
             name: 'DeCompressLamportsUndefinedForDecompressSol';
             msg: 'DeCompressLamportsUndefinedForDecompressSol';
         },
         {
-            code: 6022;
+            code: 6013;
             name: 'DecompressRecipientUndefinedForDecompressSol';
             msg: 'DecompressRecipientUndefinedForDecompressSol';
         },
         {
-            code: 6023;
-            name: 'LengthMismatch';
-            msg: 'LengthMismatch';
-        },
-        {
-            code: 6024;
-            name: 'CpiContextAccountUndefined';
-            msg: 'CpiContextAccountUndefined';
-        },
-        {
-            code: 6025;
+            code: 6014;
             name: 'WriteAccessCheckFailed';
             msg: 'WriteAccessCheckFailed';
         },
         {
-            code: 6026;
+            code: 6015;
             name: 'InvokingProgramNotProvided';
             msg: 'InvokingProgramNotProvided';
         },
         {
-            code: 6027;
-            name: 'SignerSeedsNotProvided';
-            msg: 'SignerSeedsNotProvided';
+            code: 6016;
+            name: 'HashedPubkeysCapacityMismatch';
+            msg: 'HashedPubkeysCapacityMismatch';
         },
         {
-            code: 6028;
-            name: 'AdditionOverflowForDecompressSol';
-            msg: 'AdditionOverflowForDecompressSol';
-        },
-        {
-            code: 6029;
-            name: 'InsufficientLamportsForDecompressSol';
-            msg: 'InsufficientLamportsForDecompressSol';
-        },
-        {
-            code: 6030;
-            name: 'CpiContextMissing';
-            msg: 'InsufficientLamportsForCompressSol';
-        },
-        {
-            code: 6031;
+            code: 6017;
             name: 'InvalidMerkleTreeOwner';
             msg: 'InvalidMerkleTreeOwner';
         },
         {
-            code: 6032;
+            code: 6018;
             name: 'ProofIsNone';
             msg: 'ProofIsNone';
         },
         {
-            code: 6033;
-            name: 'InvalidMerkleTreeIndex';
-            msg: 'InvalidMerkleTreeIndex';
-        },
-        {
-            code: 6034;
+            code: 6019;
             name: 'ProofIsSome';
             msg: 'ProofIsSome';
         },
         {
-            code: 6035;
+            code: 6020;
             name: 'EmptyInputs';
             msg: 'EmptyInputs';
         },
         {
-            code: 6036;
+            code: 6021;
+            name: 'CpiContextAccountUndefined';
+            msg: 'CpiContextAccountUndefined';
+        },
+        {
+            code: 6022;
             name: 'CpiContextProofMismatch';
             msg: 'CpiContextMismatch';
         },
         {
-            code: 6037;
+            code: 6023;
             name: 'CpiContextEmpty';
             msg: 'CpiContextEmpty';
         },
         {
-            code: 6038;
-            name: 'HashedPubkeysCapacityMismatch';
-            msg: 'HashedPubkeysCapacityMismatch';
+            code: 6024;
+            name: 'CpiContextMissing';
+            msg: 'CpiContextMissing';
         },
     ];
 };
@@ -1621,168 +1551,98 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6006,
-            name: 'InUtxosAlreadyAdded',
-            msg: 'InUtxosAlreadyAdded',
-        },
-        {
-            code: 6007,
-            name: 'NumberOfLeavesMismatch',
-            msg: 'NumberOfLeavesMismatch',
-        },
-        {
-            code: 6008,
-            name: 'MerkleTreePubkeysMismatch',
-            msg: 'MerkleTreePubkeysMismatch',
-        },
-        {
-            code: 6009,
-            name: 'NullifierArrayPubkeysMismatch',
-            msg: 'NullifierArrayPubkeysMismatch',
-        },
-        {
-            code: 6010,
             name: 'InvalidNoopPubkey',
             msg: 'InvalidNoopPubkey',
         },
         {
-            code: 6011,
-            name: 'ProofVerificationFailed',
-            msg: 'ProofVerificationFailed',
-        },
-        {
-            code: 6012,
-            name: 'CompressedAccountHashError',
-            msg: 'CompressedAccountHashError',
-        },
-        {
-            code: 6013,
+            code: 6007,
             name: 'InvalidAddress',
             msg: 'InvalidAddress',
         },
         {
-            code: 6014,
-            name: 'InvalidAddressQueue',
-            msg: 'InvalidAddressQueue',
-        },
-        {
-            code: 6015,
-            name: 'InvalidQueue',
-            msg: 'InvalidQueue',
-        },
-        {
-            code: 6016,
+            code: 6008,
             name: 'DeriveAddressError',
             msg: 'DeriveAddressError',
         },
         {
-            code: 6017,
-            name: 'CompressSolTransferFailed',
-            msg: 'CompressSolTransferFailed',
-        },
-        {
-            code: 6018,
+            code: 6009,
             name: 'CompressedSolPdaUndefinedForCompressSol',
             msg: 'CompressedSolPdaUndefinedForCompressSol',
         },
         {
-            code: 6019,
+            code: 6010,
             name: 'DeCompressLamportsUndefinedForCompressSol',
             msg: 'DeCompressLamportsUndefinedForCompressSol',
         },
         {
-            code: 6020,
+            code: 6011,
             name: 'CompressedSolPdaUndefinedForDecompressSol',
             msg: 'CompressedSolPdaUndefinedForDecompressSol',
         },
         {
-            code: 6021,
+            code: 6012,
             name: 'DeCompressLamportsUndefinedForDecompressSol',
             msg: 'DeCompressLamportsUndefinedForDecompressSol',
         },
         {
-            code: 6022,
+            code: 6013,
             name: 'DecompressRecipientUndefinedForDecompressSol',
             msg: 'DecompressRecipientUndefinedForDecompressSol',
         },
         {
-            code: 6023,
-            name: 'LengthMismatch',
-            msg: 'LengthMismatch',
-        },
-        {
-            code: 6024,
-            name: 'CpiContextAccountUndefined',
-            msg: 'CpiContextAccountUndefined',
-        },
-        {
-            code: 6025,
+            code: 6014,
             name: 'WriteAccessCheckFailed',
             msg: 'WriteAccessCheckFailed',
         },
         {
-            code: 6026,
+            code: 6015,
             name: 'InvokingProgramNotProvided',
             msg: 'InvokingProgramNotProvided',
         },
         {
-            code: 6027,
-            name: 'SignerSeedsNotProvided',
-            msg: 'SignerSeedsNotProvided',
+            code: 6016,
+            name: 'HashedPubkeysCapacityMismatch',
+            msg: 'HashedPubkeysCapacityMismatch',
         },
         {
-            code: 6028,
-            name: 'AdditionOverflowForDecompressSol',
-            msg: 'AdditionOverflowForDecompressSol',
-        },
-        {
-            code: 6029,
-            name: 'InsufficientLamportsForDecompressSol',
-            msg: 'InsufficientLamportsForDecompressSol',
-        },
-        {
-            code: 6030,
-            name: 'CpiContextMissing',
-            msg: 'InsufficientLamportsForCompressSol',
-        },
-        {
-            code: 6031,
+            code: 6017,
             name: 'InvalidMerkleTreeOwner',
             msg: 'InvalidMerkleTreeOwner',
         },
         {
-            code: 6032,
+            code: 6018,
             name: 'ProofIsNone',
             msg: 'ProofIsNone',
         },
         {
-            code: 6033,
-            name: 'InvalidMerkleTreeIndex',
-            msg: 'InvalidMerkleTreeIndex',
-        },
-        {
-            code: 6034,
+            code: 6019,
             name: 'ProofIsSome',
             msg: 'ProofIsSome',
         },
         {
-            code: 6035,
+            code: 6020,
             name: 'EmptyInputs',
             msg: 'EmptyInputs',
         },
         {
-            code: 6036,
+            code: 6021,
+            name: 'CpiContextAccountUndefined',
+            msg: 'CpiContextAccountUndefined',
+        },
+        {
+            code: 6022,
             name: 'CpiContextProofMismatch',
             msg: 'CpiContextMismatch',
         },
         {
-            code: 6037,
+            code: 6023,
             name: 'CpiContextEmpty',
             msg: 'CpiContextEmpty',
         },
         {
-            code: 6038,
-            name: 'HashedPubkeysCapacityMismatch',
-            msg: 'HashedPubkeysCapacityMismatch',
+            code: 6024,
+            name: 'CpiContextMissing',
+            msg: 'CpiContextMissing',
         },
     ],
 };

@@ -1038,146 +1038,96 @@ export type AccountCompression = {
     errors: [
         {
             code: 6000;
-            name: 'AddressQueueInsert';
-            msg: 'Failed to insert an element into indexing queue';
-        },
-        {
-            code: 6001;
-            name: 'AddressQueueDequeue';
-            msg: 'Failed to dequeue an element from indexing queue';
-        },
-        {
-            code: 6002;
-            name: 'AddressMerkleTreeInitialize';
-            msg: 'Failed to initialize address Merkle tree';
-        },
-        {
-            code: 6003;
-            name: 'AddressMerkleTreeUpdate';
-            msg: 'Failed to update the address Merkle tree';
-        },
-        {
-            code: 6004;
-            name: 'InvalidIndex';
-            msg: 'No element found under the given index in the queue';
-        },
-        {
-            code: 6005;
-            name: 'BytesToBigint';
-            msg: 'Failed to convert bytes to big integer';
-        },
-        {
-            code: 6006;
             name: 'IntegerOverflow';
             msg: 'Integer overflow';
         },
         {
-            code: 6007;
+            code: 6001;
             name: 'InvalidAuthority';
             msg: 'InvalidAuthority';
         },
         {
-            code: 6008;
+            code: 6002;
             name: 'InvalidVerifier';
             msg: 'InvalidVerifier';
         },
         {
-            code: 6009;
+            code: 6003;
             name: 'NumberOfLeavesMismatch';
             msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.';
         },
         {
-            code: 6010;
+            code: 6004;
             name: 'InvalidNoopPubkey';
             msg: 'Provided noop program public key is invalid';
         },
         {
-            code: 6011;
-            name: 'EventNoChangelogEntry';
-            msg: 'Emitting an event requires at least one changelog entry';
-        },
-        {
-            code: 6012;
+            code: 6005;
             name: 'NumberOfChangeLogIndicesMismatch';
             msg: 'Number of change log indices mismatch';
         },
         {
-            code: 6013;
+            code: 6006;
             name: 'NumberOfIndicesMismatch';
             msg: 'Number of indices mismatch';
         },
         {
-            code: 6014;
-            name: 'IndexOutOfBounds';
-            msg: 'IndexOutOfBounds';
-        },
-        {
-            code: 6015;
+            code: 6007;
             name: 'NumberOfProofsMismatch';
             msg: 'NumberOfProofsMismatch';
         },
         {
-            code: 6016;
+            code: 6008;
             name: 'InvalidMerkleProof';
             msg: 'InvalidMerkleProof';
         },
         {
-            code: 6017;
-            name: 'InvalidQueue';
-            msg: 'InvalidQueue';
-        },
-        {
-            code: 6018;
+            code: 6009;
             name: 'InvalidMerkleTree';
             msg: 'InvalidMerkleTree';
         },
         {
-            code: 6019;
+            code: 6010;
             name: 'LeafNotFound';
             msg: 'Could not find the leaf in the queue';
         },
         {
-            code: 6020;
-            name: 'RolloverThresholdTooHigh';
-            msg: 'RolloverThresholdTooHigh';
-        },
-        {
-            code: 6021;
+            code: 6011;
             name: 'MerkleTreeAndQueueNotAssociated';
             msg: 'MerkleTreeAndQueueNotAssociated';
         },
         {
-            code: 6022;
+            code: 6012;
             name: 'MerkleTreeAlreadyRolledOver';
             msg: 'MerkleTreeAlreadyRolledOver';
         },
         {
-            code: 6023;
+            code: 6013;
             name: 'NotReadyForRollover';
             msg: 'NotReadyForRollover';
         },
         {
-            code: 6024;
+            code: 6014;
             name: 'RolloverNotConfigured';
             msg: 'RolloverNotConfigured';
         },
         {
-            code: 6025;
+            code: 6015;
             name: 'NotAllLeavesProcessed';
             msg: 'NotAllLeavesProcessed';
         },
         {
-            code: 6026;
+            code: 6016;
             name: 'InvalidQueueType';
             msg: 'InvalidQueueType';
         },
         {
-            code: 6027;
+            code: 6017;
             name: 'InputElementsEmpty';
             msg: 'InputElementsEmpty';
         },
         {
-            code: 6028;
+            code: 6018;
             name: 'NoLeavesForMerkleTree';
             msg: 'NoLeavesForMerkleTree';
         },
@@ -2224,146 +2174,96 @@ export const IDL: AccountCompression = {
     errors: [
         {
             code: 6000,
-            name: 'AddressQueueInsert',
-            msg: 'Failed to insert an element into indexing queue',
-        },
-        {
-            code: 6001,
-            name: 'AddressQueueDequeue',
-            msg: 'Failed to dequeue an element from indexing queue',
-        },
-        {
-            code: 6002,
-            name: 'AddressMerkleTreeInitialize',
-            msg: 'Failed to initialize address Merkle tree',
-        },
-        {
-            code: 6003,
-            name: 'AddressMerkleTreeUpdate',
-            msg: 'Failed to update the address Merkle tree',
-        },
-        {
-            code: 6004,
-            name: 'InvalidIndex',
-            msg: 'No element found under the given index in the queue',
-        },
-        {
-            code: 6005,
-            name: 'BytesToBigint',
-            msg: 'Failed to convert bytes to big integer',
-        },
-        {
-            code: 6006,
             name: 'IntegerOverflow',
             msg: 'Integer overflow',
         },
         {
-            code: 6007,
+            code: 6001,
             name: 'InvalidAuthority',
             msg: 'InvalidAuthority',
         },
         {
-            code: 6008,
+            code: 6002,
             name: 'InvalidVerifier',
             msg: 'InvalidVerifier',
         },
         {
-            code: 6009,
+            code: 6003,
             name: 'NumberOfLeavesMismatch',
             msg: 'Leaves <> remaining accounts mismatch. The number of remaining accounts must match the number of leaves.',
         },
         {
-            code: 6010,
+            code: 6004,
             name: 'InvalidNoopPubkey',
             msg: 'Provided noop program public key is invalid',
         },
         {
-            code: 6011,
-            name: 'EventNoChangelogEntry',
-            msg: 'Emitting an event requires at least one changelog entry',
-        },
-        {
-            code: 6012,
+            code: 6005,
             name: 'NumberOfChangeLogIndicesMismatch',
             msg: 'Number of change log indices mismatch',
         },
         {
-            code: 6013,
+            code: 6006,
             name: 'NumberOfIndicesMismatch',
             msg: 'Number of indices mismatch',
         },
         {
-            code: 6014,
-            name: 'IndexOutOfBounds',
-            msg: 'IndexOutOfBounds',
-        },
-        {
-            code: 6015,
+            code: 6007,
             name: 'NumberOfProofsMismatch',
             msg: 'NumberOfProofsMismatch',
         },
         {
-            code: 6016,
+            code: 6008,
             name: 'InvalidMerkleProof',
             msg: 'InvalidMerkleProof',
         },
         {
-            code: 6017,
-            name: 'InvalidQueue',
-            msg: 'InvalidQueue',
-        },
-        {
-            code: 6018,
+            code: 6009,
             name: 'InvalidMerkleTree',
             msg: 'InvalidMerkleTree',
         },
         {
-            code: 6019,
+            code: 6010,
             name: 'LeafNotFound',
             msg: 'Could not find the leaf in the queue',
         },
         {
-            code: 6020,
-            name: 'RolloverThresholdTooHigh',
-            msg: 'RolloverThresholdTooHigh',
-        },
-        {
-            code: 6021,
+            code: 6011,
             name: 'MerkleTreeAndQueueNotAssociated',
             msg: 'MerkleTreeAndQueueNotAssociated',
         },
         {
-            code: 6022,
+            code: 6012,
             name: 'MerkleTreeAlreadyRolledOver',
             msg: 'MerkleTreeAlreadyRolledOver',
         },
         {
-            code: 6023,
+            code: 6013,
             name: 'NotReadyForRollover',
             msg: 'NotReadyForRollover',
         },
         {
-            code: 6024,
+            code: 6014,
             name: 'RolloverNotConfigured',
             msg: 'RolloverNotConfigured',
         },
         {
-            code: 6025,
+            code: 6015,
             name: 'NotAllLeavesProcessed',
             msg: 'NotAllLeavesProcessed',
         },
         {
-            code: 6026,
+            code: 6016,
             name: 'InvalidQueueType',
             msg: 'InvalidQueueType',
         },
         {
-            code: 6027,
+            code: 6017,
             name: 'InputElementsEmpty',
             msg: 'InputElementsEmpty',
         },
         {
-            code: 6028,
+            code: 6018,
             name: 'NoLeavesForMerkleTree',
             msg: 'NoLeavesForMerkleTree',
         },

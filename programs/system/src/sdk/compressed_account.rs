@@ -90,7 +90,6 @@ pub struct CompressedAccount {
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
-    // TODO: switch with data_hash
     pub data: Vec<u8>,
     pub data_hash: [u8; 32],
 }

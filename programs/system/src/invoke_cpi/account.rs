@@ -16,7 +16,6 @@ pub struct CpiContextAccount {
     pub context: Vec<InstructionDataInvokeCpi>,
 }
 
-// TODO: feature gate and make non-default feature
 // this is not secure
 impl CpiContextAccount {
     pub fn init(&mut self, associated_merkle_tree: Pubkey) {

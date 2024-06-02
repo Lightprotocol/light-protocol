@@ -933,7 +933,6 @@ async fn invoke_test() {
         data: None,
         address: None,
     }];
-    // TODO: assert all compressed account properties
     // check invalid proof
     let instruction = create_invoke_instruction(
         &payer_pubkey,

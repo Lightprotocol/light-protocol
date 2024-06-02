@@ -28,15 +28,12 @@ use std::mem;
 /// 1.  Unpack compressed input accounts and input token data, this uses
 ///     standardized signer / delegate and will fail in proof verification in
 ///     case either is invalid.
-/// 2.  TODO: if is delegate check delegated amount and decrease it, there needs
-///     to be an output compressed account with the same compressed account data
-///     as the input compressed account.
-/// 3.  Check that compressed accounts are of same mint.
-/// 4.  Check that sum of input compressed accounts is equal to sum of output
+/// 2.  Check that compressed accounts are of same mint.
+/// 3.  Check that sum of input compressed accounts is equal to sum of output
 ///     compressed accounts
-/// 5.  create_output_compressed_accounts
-/// 6.  Serialize and add token_data data to in compressed_accounts.
-/// 7.  Invoke light_system_program::execute_compressed_transaction.
+/// 4.  create_output_compressed_accounts
+/// 5.  Serialize and add token_data data to in compressed_accounts.
+/// 6.  Invoke light_system_program::execute_compressed_transaction.
 pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
     inputs: Vec<u8>,
@@ -199,7 +196,6 @@ pub fn add_token_data_to_input_compressed_accounts(
     Ok(())
 }
 
-// TODO: consider moving this function to helpers
 /// Get static cpi signer seeds
 pub fn get_cpi_signer_seeds() -> [&'static [u8]; 2] {
     let bump: &[u8; 1] = &[254];
@@ -353,29 +349,13 @@ pub struct InputTokenDataWithContext {
     pub root_index: u16,
 }
 
-/*
-* Assume:
-* - all input compressed accounts have the same owner (the token program) no need to send
-* - all input compressed token data has the same owner, get the owner from signer pubkey
-* Instruction data:
-* - mint
-* - signer_is_delegate: bool
-* - owner: is either signer or first place in pubkey array if signer_is_delegate
-*/
-// TODO: enable delegation fully by preserving delegation for every input utxo
-// with a delegate create one output utxo with that delegate, take funds from
-// utxos in reverse input order
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataTransfer {
     pub proof: Option<CompressedProof>,
-    // TODO: add root index to InputTokenDataWithContext
-    // pub root_indices: Vec<u16>,
-    pub mint: Pubkey, // TODO: truncate mint pubkey offchain
+    pub mint: Pubkey,
     pub signer_is_delegate: bool,
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
     pub output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
-    // TODO: add output state merkle tree account indices to output compressed accounts
-    // pub output_state_merkle_tree_account_indices: Vec<u8>,
     pub is_compress: bool,
     pub compression_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
@@ -699,7 +679,6 @@ pub mod transfer_sdk {
             output_compressed_accounts: _output_compressed_accounts.to_vec(),
             proof: proof.clone(),
             input_token_data_with_context,
-            // TODO: support multiple output state merkle trees
             signer_is_delegate: owner_if_delegate_is_signer.is_some(),
             mint,
             is_compress,
