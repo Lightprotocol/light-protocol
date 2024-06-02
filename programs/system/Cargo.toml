@@ -20,6 +20,8 @@ mem-profiling = []
 default = ["custom-heap"]
 test-sbf = []
 bench-sbf = []
+# This feature is not secure yet.
+cpi-context = []
 
 [dependencies]
 aligned-sized = { version = "0.1.4", path = "../../macros/aligned-sized" }

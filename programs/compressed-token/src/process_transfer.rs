@@ -727,3 +727,76 @@ pub mod transfer_sdk {
         remaining_accounts
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_sum_check() {
+        // SUCCEED: no relay fee, compression
+        sum_check_test(&[100, 50], &[150], None, false).unwrap();
+        sum_check_test(&[75, 25, 25], &[25, 25, 25, 25, 12, 13], None, false).unwrap();
+
+        // FAIL: no relay fee, compression
+        sum_check_test(&[100, 50], &[150 + 1], None, false).unwrap_err();
+        sum_check_test(&[100, 50], &[150 - 1], None, false).unwrap_err();
+        sum_check_test(&[100, 50], &[], None, false).unwrap_err();
+        sum_check_test(&[], &[100, 50], None, false).unwrap_err();
+
+        // SUCCEED: empty
+        sum_check_test(&[], &[], None, true).unwrap();
+        sum_check_test(&[], &[], None, false).unwrap();
+        // FAIL: empty
+        sum_check_test(&[], &[], Some(1), false).unwrap_err();
+        sum_check_test(&[], &[], Some(1), true).unwrap_err();
+
+        // SUCCEED: with compress
+        sum_check_test(&[100], &[123], Some(23), true).unwrap();
+        sum_check_test(&[], &[150], Some(150), true).unwrap();
+        // FAIL: compress
+        sum_check_test(&[], &[150], Some(150 - 1), true).unwrap_err();
+        sum_check_test(&[], &[150], Some(150 + 1), true).unwrap_err();
+
+        // SUCCEED: with decompress
+        sum_check_test(&[100, 50], &[100], Some(50), false).unwrap();
+        sum_check_test(&[100, 50], &[], Some(150), false).unwrap();
+        // FAIL: decompress
+        sum_check_test(&[100, 50], &[], Some(150 - 1), false).unwrap_err();
+        sum_check_test(&[100, 50], &[], Some(150 + 1), false).unwrap_err();
+    }
+
+    fn sum_check_test(
+        input_amounts: &[u64],
+        output_amounts: &[u64],
+        compression_amount: Option<u64>,
+        is_compress: bool,
+    ) -> Result<()> {
+        let mut inputs = Vec::new();
+        for i in input_amounts.iter() {
+            inputs.push(TokenData {
+                mint: Pubkey::new_unique(),
+                owner: Pubkey::new_unique(),
+                delegate: None,
+                state: AccountState::Initialized,
+                amount: *i,
+                is_native: None,
+                delegated_amount: 0,
+            });
+        }
+        let ref_amount;
+        let compression_amount = match compression_amount {
+            Some(amount) => {
+                ref_amount = amount;
+                Some(&ref_amount)
+            }
+            None => None,
+        };
+        sum_check(
+            inputs.as_slice(),
+            &output_amounts,
+            compression_amount,
+            is_compress,
+        )
+    }
+}
