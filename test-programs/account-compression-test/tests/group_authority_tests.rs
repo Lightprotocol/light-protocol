@@ -170,16 +170,17 @@ async fn test_create_and_update_group() {
         group_accounts.0
     );
     // add new program to group with invalid authority
-    let other_program_id = Keypair::new();
+    let other_program_keypair = Keypair::new();
+    let other_program_id = other_program_keypair.pubkey();
     let registered_program_pda =
-        Pubkey::find_program_address(&[other_program_id.pubkey().to_bytes().as_slice()], &ID).0;
+        Pubkey::find_program_address(&[other_program_id.to_bytes().as_slice()], &ID).0;
 
     let register_program_ix = account_compression::instruction::RegisterProgramToGroup {};
     let instruction = Instruction {
         program_id: ID,
         accounts: vec![
             AccountMeta::new(context.get_payer().pubkey(), true),
-            AccountMeta::new(other_program_id.pubkey(), true),
+            AccountMeta::new(other_program_id, true),
             AccountMeta::new(registered_program_pda, false),
             AccountMeta::new(group_accounts.0, false),
             AccountMeta::new_readonly(system_program::ID, false),
@@ -191,7 +192,7 @@ async fn test_create_and_update_group() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.get_payer().pubkey()),
-        &vec![&context.get_payer(), &other_program_id],
+        &vec![&context.get_payer(), &other_program_keypair],
         latest_blockhash,
     );
     context.process_transaction(transaction).await.unwrap_err();

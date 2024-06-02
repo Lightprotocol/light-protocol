@@ -119,7 +119,7 @@ async fn test_program_owned_merkle_tree() {
             &invalid_program_owned_merkle_tree_keypair,
             &invalid_program_owned_nullifier_queue_keypair,
             &cpi_signature_keypair,
-            Some(Pubkey::new_unique()),
+            Some(Keypair::new().pubkey()),
         )
         .await;
     let recipient_keypair = Keypair::new();

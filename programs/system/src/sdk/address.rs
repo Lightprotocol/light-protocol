@@ -75,3 +75,85 @@ pub fn pack_new_address_params(
     }
     new_address_params_packed
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use solana_sdk::{signature::Keypair, signer::Signer};
+
+    #[test]
+    fn test_derive_address_with_valid_input() {
+        let merkle_tree_pubkey = Keypair::new().pubkey();
+        let seeds = [1u8; 32];
+        let result = derive_address(&merkle_tree_pubkey, &seeds);
+        let result_2 = derive_address(&merkle_tree_pubkey, &seeds);
+        assert_eq!(result, result_2);
+    }
+
+    #[test]
+    fn test_derive_address_no_collision_same_seeds_diff_pubkey() {
+        let merkle_tree_pubkey = Keypair::new().pubkey();
+        let merkle_tree_pubkey_2 = Keypair::new().pubkey();
+        let seed = [2u8; 32];
+
+        let result = derive_address(&merkle_tree_pubkey, &seed);
+        let result_2 = derive_address(&merkle_tree_pubkey_2, &seed);
+        assert_ne!(result, result_2);
+    }
+
+    #[test]
+    fn test_add_and_get_remaining_account_indices_empty() {
+        let pubkeys = vec![];
+        let mut remaining_accounts = HashMap::new();
+        let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_add_and_get_remaining_account_indices_single() {
+        let pubkey = Keypair::new().pubkey();
+        let pubkeys = vec![pubkey];
+        let mut remaining_accounts = HashMap::new();
+        let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
+        assert_eq!(result, vec![0]);
+        assert_eq!(remaining_accounts.get(&pubkey), Some(&0));
+    }
+
+    #[test]
+    fn test_add_and_get_remaining_account_indices_multiple() {
+        let pubkey1 = Keypair::new().pubkey();
+        let pubkey2 = Keypair::new().pubkey();
+        let pubkeys = vec![pubkey1, pubkey2];
+        let mut remaining_accounts = HashMap::new();
+        let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
+        assert_eq!(result, vec![0, 1]);
+        assert_eq!(remaining_accounts.get(&pubkey1), Some(&0));
+        assert_eq!(remaining_accounts.get(&pubkey2), Some(&1));
+    }
+
+    #[test]
+    fn test_add_and_get_remaining_account_indices_duplicates() {
+        let pubkey = Keypair::new().pubkey();
+        let pubkeys = vec![pubkey, pubkey];
+        let mut remaining_accounts = HashMap::new();
+        let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
+        assert_eq!(result, vec![0, 0]);
+        assert_eq!(remaining_accounts.get(&pubkey), Some(&0));
+        assert_eq!(remaining_accounts.len(), 1);
+    }
+
+    #[test]
+    fn test_add_and_get_remaining_account_indices_multiple_duplicates() {
+        let pubkey1 = Keypair::new().pubkey();
+        let pubkey2 = Keypair::new().pubkey();
+        let pubkey3 = Keypair::new().pubkey();
+        let pubkeys = vec![pubkey1, pubkey2, pubkey1, pubkey3, pubkey2, pubkey1];
+        let mut remaining_accounts = HashMap::new();
+        let result = add_and_get_remaining_account_indices(&pubkeys, &mut remaining_accounts);
+        assert_eq!(result, vec![0, 1, 0, 2, 1, 0]);
+        assert_eq!(remaining_accounts.get(&pubkey1), Some(&0));
+        assert_eq!(remaining_accounts.get(&pubkey2), Some(&1));
+        assert_eq!(remaining_accounts.get(&pubkey3), Some(&2));
+        assert_eq!(remaining_accounts.len(), 3);
+    }
+}
