@@ -3,7 +3,7 @@ use crate::{
     errors::AccountCompressionErrorCode,
     state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::{
-        check_registered_or_signer::check_registered_or_signer,
+        check_signer_is_registered_or_authority::check_signer_is_registered_or_authority,
         queue::{QueueBundle, QueueMap},
         transfer_lamports::transfer_lamports_cpi,
     },
@@ -84,7 +84,10 @@ pub fn process_insert_into_queues<
         light_heap::bench_sbf_start!("acp_prep_insertion");
         {
             let indexed_array = indexed_array.load()?;
-            check_registered_or_signer::<InsertIntoQueues, QueueAccount>(&ctx, &indexed_array)?;
+            check_signer_is_registered_or_authority::<InsertIntoQueues, QueueAccount>(
+                &ctx,
+                &indexed_array,
+            )?;
             if queue_bundle.merkle_tree.key() != indexed_array.metadata.associated_merkle_tree {
                 return err!(AccountCompressionErrorCode::InvalidMerkleTree);
             }

@@ -27,7 +27,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
-    addresses: &'a mut Vec<Option<[u8; 32]>>,
+    compressed_account_addresses: &'a mut Vec<Option<[u8; 32]>>,
     invoking_program: &Option<Pubkey>,
     hashed_pubkeys: &'a mut Vec<(Pubkey, [u8; 32])>,
     sequence_numbers: &'a mut Vec<MerkleTreeSequenceNumber>,
@@ -70,7 +70,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     let num_leaves = output_compressed_account_hashes.len();
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
-    let mut instruction_data = Vec::<u8>::with_capacity(12 + 32 * num_leaves);
+    let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
     // anchor instruction signature
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
@@ -110,11 +110,10 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
 
     for (j, account) in inputs.output_compressed_accounts.iter().enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
-        // if mt index > current index, Merkle tree account info is new, add it.
-        // else Merkle tree index is out of order throw error.
+        // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
         if account.merkle_tree_index == current_index {
-            // do nothing, but is the most common case.
+            // Do nothing, but is the most common case assuming ordered Merkle trees.
         } else if account.merkle_tree_index != current_index {
             current_index = account.merkle_tree_index;
             let seq;
@@ -136,8 +135,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             hashed_merkle_tree = match hashed_pubkeys.iter().find(|x| x.0 == account_info.key()) {
                 Some(hashed_merkle_tree) => hashed_merkle_tree.1,
                 None => {
-                    // TODO: make sure there is never more memory allocated than provided at first.
-                    // we do not insert here because Merkle trees are ordered and will not repeat.
                     hash_to_bn254_field_size_be(&account_info.key().to_bytes())
                         .unwrap()
                         .0
@@ -147,62 +144,46 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             num_leaves_in_tree = 0;
         }
 
-        // Address has to be created or a compressed account with this address has to be provided as transaction input.
-        if let Some(address) = inputs.output_compressed_accounts[j]
-            .compressed_account
-            .address
-        {
-            if let Some(position) = addresses
+        if let Some(address) = account.compressed_account.address {
+            if let Some(position) = compressed_account_addresses
                 .iter()
                 .filter(|x| x.is_some())
                 .position(|&x| x.unwrap() == address)
             {
-                addresses.remove(position);
+                compressed_account_addresses.remove(position);
             } else {
-                msg!("Address {:?}, has not been created and no compressed account with this address was provided as transaction input", address);
-                msg!("Remaining addresses: {:?}", addresses);
+                msg!("Address {:?}, is no new address and does not exist in input compressed accounts.", address);
+                msg!(
+                    "Remaining compressed_account_addresses: {:?}",
+                    compressed_account_addresses
+                );
                 return Err(CompressedPdaError::InvalidAddress.into());
             }
         }
 
         output_compressed_account_indices[j] = mt_next_index + num_leaves_in_tree;
         num_leaves_in_tree += 1;
-        if inputs.output_compressed_accounts[j]
-            .compressed_account
-            .data
-            .is_some()
-            && invoking_program.is_none()
-        {
-            msg!("Invoking program not provided");
+        if account.compressed_account.data.is_some() && invoking_program.is_none() {
+            msg!("Invoking program is not provided.");
             msg!("Only program owned compressed accounts can have data.");
             return err!(CompressedPdaError::InvokingProgramNotProvided);
         }
-        let hashed_owner = match hashed_pubkeys.iter().find(|x| {
-            x.0 == inputs.output_compressed_accounts[j]
-                .compressed_account
-                .owner
-        }) {
+        let hashed_owner = match hashed_pubkeys
+            .iter()
+            .find(|x| x.0 == account.compressed_account.owner)
+        {
             Some(hashed_owner) => hashed_owner.1,
             None => {
-                let hashed_owner = hash_to_bn254_field_size_be(
-                    &inputs.output_compressed_accounts[j]
-                        .compressed_account
-                        .owner
-                        .to_bytes(),
-                )
-                .unwrap()
-                .0;
-                hashed_pubkeys.push((
-                    inputs.output_compressed_accounts[j]
-                        .compressed_account
-                        .owner,
-                    hashed_owner,
-                ));
+                let hashed_owner =
+                    hash_to_bn254_field_size_be(&account.compressed_account.owner.to_bytes())
+                        .unwrap()
+                        .0;
+                hashed_pubkeys.push((account.compressed_account.owner, hashed_owner));
                 hashed_owner
             }
         };
         // Compute output compressed account hash.
-        output_compressed_account_hashes[j] = inputs.output_compressed_accounts[j]
+        output_compressed_account_hashes[j] = account
             .compressed_account
             .hash_with_hashed_values::<Poseidon>(
                 &hashed_owner,

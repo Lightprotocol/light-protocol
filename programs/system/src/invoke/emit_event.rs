@@ -1,10 +1,3 @@
-use account_compression::utils::constants::NOOP_PUBKEY;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{instruction::Instruction, program::invoke},
-    Bumps,
-};
-
 use crate::{
     errors::CompressedPdaError,
     sdk::{
@@ -13,6 +6,13 @@ use crate::{
     },
     InstructionDataInvoke,
 };
+use account_compression::utils::constants::NOOP_PUBKEY;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{instruction::Instruction, program::invoke},
+    Bumps,
+};
+
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
     inputs: InstructionDataInvoke,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
@@ -21,7 +21,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     output_leaf_indices: Vec<u32>,
     sequence_numbers: Vec<MerkleTreeSequenceNumber>,
 ) -> Result<()> {
-    // TODO: add message and compression_lamports
+    // Note: message is unimplemented
     let event = PublicTransactionEvent {
         input_compressed_account_hashes,
         output_compressed_account_hashes,
@@ -35,11 +35,12 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         is_compress: inputs.is_compress,
     };
 
-    if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY) {
+    if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY)
+        && !ctx.accounts.get_noop_program().executable
+    {
         return err!(CompressedPdaError::InvalidNoopPubkey);
     }
     let mut data = Vec::with_capacity(event.event_size());
-    // TODO: add compression lamports
     event.man_serialize(&mut data)?;
     let instruction = Instruction {
         program_id: ctx.accounts.get_noop_program().key(),

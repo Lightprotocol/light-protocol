@@ -10,7 +10,10 @@ use crate::{
         queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
         StateMerkleTreeAccount,
     },
-    utils::{check_registered_or_signer::GroupAccounts, transfer_lamports::transfer_lamports},
+    utils::{
+        check_signer_is_registered_or_authority::GroupAccounts,
+        transfer_lamports::transfer_lamports,
+    },
     RegisteredProgram,
 };
 
@@ -32,7 +35,7 @@ pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {
 }
 
 impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'info> {
-    fn get_signing_address(&self) -> &Signer<'info> {
+    fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
     fn get_registered_program_pda(&self) -> &Option<Account<'info, RegisteredProgram>> {
@@ -52,7 +55,7 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
     ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
 ) -> Result<()> {
     // TODO: revisit whether necessary
-    // check_registered_or_signer::<RolloverStateMerkleTreeAndNullifierQueue, StateMerkleTreeAccount>(
+    // check_signer_is_registered_or_authority::<RolloverStateMerkleTreeAndNullifierQueue, StateMerkleTreeAccount>(
     //     &ctx,
     //     &merkle_tree,
     // )?;

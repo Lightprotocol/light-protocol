@@ -283,7 +283,7 @@ export type AccountCompression = {
         {
             name: 'initializeGroupAuthority';
             docs: [
-                'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
             ];
             accounts: [
                 {
@@ -636,11 +636,11 @@ export type AccountCompression = {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'pubkey';
+                        name: 'registeredProgramId';
                         type: 'publicKey';
                     },
                     {
-                        name: 'groupPda';
+                        name: 'groupAuthorityPda';
                         type: 'publicKey';
                     },
                 ];
@@ -1163,6 +1163,11 @@ export type AccountCompression = {
             name: 'InputElementsEmpty';
             msg: 'InputElementsEmpty';
         },
+        {
+            code: 6028;
+            name: 'NoLeavesForMerkleTree';
+            msg: 'NoLeavesForMerkleTree';
+        },
     ];
 };
 
@@ -1451,7 +1456,7 @@ export const IDL: AccountCompression = {
         {
             name: 'initializeGroupAuthority',
             docs: [
-                'initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)',
+                'initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)',
             ],
             accounts: [
                 {
@@ -1804,11 +1809,11 @@ export const IDL: AccountCompression = {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'pubkey',
+                        name: 'registeredProgramId',
                         type: 'publicKey',
                     },
                     {
-                        name: 'groupPda',
+                        name: 'groupAuthorityPda',
                         type: 'publicKey',
                     },
                 ],
@@ -2330,6 +2335,11 @@ export const IDL: AccountCompression = {
             code: 6027,
             name: 'InputElementsEmpty',
             msg: 'InputElementsEmpty',
+        },
+        {
+            code: 6028,
+            name: 'NoLeavesForMerkleTree',
+            msg: 'NoLeavesForMerkleTree',
         },
     ],
 };

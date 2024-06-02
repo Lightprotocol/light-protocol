@@ -13,18 +13,18 @@ use light_macros::heap_neutral;
 #[heap_neutral]
 pub fn input_compressed_accounts_signer_check(
     inputs: &InstructionDataInvoke,
-    signer: &Pubkey,
+    authority: &Pubkey,
 ) -> Result<()> {
     inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
         .try_for_each(
             |compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-                if compressed_account_with_context.compressed_account.owner != *signer {
+                if compressed_account_with_context.compressed_account.owner != *authority {
                     msg!(
-                        "signer check failed compressed account owner {} !=  signer {}",
+                        "signer check failed compressed account owner {} != authority {}",
                         compressed_account_with_context.compressed_account.owner,
-                        signer
+                        authority
                     );
                     err!(CompressedPdaError::SignerCheckFailed)
                 } else {

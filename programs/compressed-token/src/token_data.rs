@@ -40,16 +40,16 @@ pub struct TokenData {
 ///
 /// delegate, delegated_amount, is_native and state have dynamic positions.
 /// Always hash mint, owner and amount If delegate hash delegate and
-/// delegated_amount together. If is native hash is_native. If frozen hash is
-/// frozen.
+/// delegated_amount together. If is native hash is_native else is omitted.
+/// If frozen hash AccountState::Frozen else is omitted.
 ///
 /// Security: to prevent the possibility that different fields with the same
-/// value result in the same hash we add a prefix to the delegated amount, is
+/// value to result in the same hash we add a prefix to the delegated amount, is
 /// native and state fields. This way we can have a dynamic hashing schema and
 /// hash only used values.
 impl TokenData {
     /// We should not hash pubkeys multiple times. For all we can assume mints
-    /// are equal. For all input compressed accounts we can assume owners are
+    /// are equal. For all input compressed accounts we assume owners are
     /// equal.
     pub fn hash_with_hashed_values<H: light_hasher::Hasher>(
         mint: &[u8; 32],
@@ -61,6 +61,9 @@ impl TokenData {
         hash_inputs.push(mint.as_slice());
         hash_inputs.push(owner.as_slice());
         hash_inputs.push(amount_bytes.as_slice());
+        // First byte is prefix.
+        // Second byte is option.
+        // Next 8 bytes are the value.
         let mut native_amount_bytes: [u8; 10] = [2, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         if native_amount.is_some() {
             native_amount_bytes[1] = match native_amount {
@@ -88,9 +91,14 @@ impl TokenData {
             amount_bytes.as_slice(),
             hashed_delegate.as_slice(),
         ];
+        // First byte is prefix.
+        // Next 8 bytes are the value.
         let mut prefixed_delegated_amount: [u8; 9] = [1, 0, 0, 0, 0, 0, 0, 0, 0];
         prefixed_delegated_amount[1..].copy_from_slice(delegated_amount.as_slice());
         hash_inputs.push(prefixed_delegated_amount.as_slice());
+        // First byte is prefix.
+        // Second byte is option.
+        // Next 8 bytes are the value.
         let mut native_amount_bytes: [u8; 10] = [2, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         if native_amount.is_some() {
             native_amount_bytes[1] = match native_amount {
@@ -143,11 +151,6 @@ impl DataHasher for TokenData {
         if self.state != AccountState::Initialized {
             hash_inputs.push(&state_bytes[..]);
         }
-        // TODO: Implement close_authority
-        // let close_authority = match self.close_authority {
-        // Some(close_authority) => {
-        //     hash_to_bn254_field_size_be(close_authority.to_bytes().as_slice())
-        //         .unwrap() .0 } None => [0u8; 32], };
         // TODO: implement a trait hash_default value for Option<u64> and use it
         // for other optional values
         H::hashv(hash_inputs.as_slice())

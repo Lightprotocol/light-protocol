@@ -89,7 +89,7 @@ pub mod account_compression {
         process_rollover_address_merkle_tree_and_queue(ctx)
     }
 
-    /// initialize group (a group can be used to give multiple programs acess to the same Merkle trees by registering the programs to the group)
+    /// initialize group (a group can be used to give multiple programs access to the same Merkle trees by registering the programs to the group)
     pub fn initialize_group_authority<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeGroupAuthority<'info>>,
         authority: Pubkey,

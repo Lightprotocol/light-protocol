@@ -6,8 +6,6 @@ use crate::{
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps, InstructionData};
 use light_macros::heap_neutral;
 
-// TODO: add a check in account compression program that only the owning program can create a Merkle tree.
-// TODO: add failing test for 2
 /// 1. Checks that the nullifier queue account is associated with a state Merkle tree account.
 /// 2. Checks that if nullifier queue has delegate it invoking_program is delegate.
 /// 3. Inserts nullifiers into the queue.
@@ -94,7 +92,6 @@ pub fn insert_nullifiers<
     let data = instruction_data.data();
     light_heap::bench_sbf_end!("cpda_instruction_data");
 
-    // [91, 101, 183, 28, 35, 25, 67, 221]
     let bump = &[254];
     let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
     let instruction = anchor_lang::solana_program::instruction::Instruction {

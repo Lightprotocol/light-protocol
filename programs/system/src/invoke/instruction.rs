@@ -83,7 +83,6 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     }
 }
 
-// TODO: add checks for lengths of vectors
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,

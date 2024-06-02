@@ -36,7 +36,6 @@ pub mod light_registry {
         Ok(())
     }
 
-    // TODO: add test
     pub fn update_governance_authority_reward(
         ctx: Context<UpdateAuthority>,
         reward: u64,

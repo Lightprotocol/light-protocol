@@ -34,11 +34,13 @@ pub fn process_cpi_context<'info>(
                 return err!(CompressedPdaError::CpiContextEmpty);
             }
             inputs.combine(&cpi_context_account.context);
+            cpi_context_account.context = Vec::new();
         }
     }
     Ok(Some(inputs))
 }
-
+// TODO: add wipe parameter if wipe cpi_context_account.context = vec![inputs];
+// TODO: think about adding the fee payer and requiring fee payer to sign the executing tx
 pub fn set_cpi_context(
     cpi_context_account: &mut CpiContextAccount,
     inputs: InstructionDataInvokeCpi,

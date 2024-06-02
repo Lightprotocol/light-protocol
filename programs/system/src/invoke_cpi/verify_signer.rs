@@ -22,7 +22,7 @@ pub fn cpi_signer_checks(
     cpi_signer_check(signer_seeds, invoking_programid, authority)?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpd_input_checks");
-    input_compressed_accounts_signer_check(inputs, invoking_programid, authority)?;
+    input_compressed_accounts_signer_check(inputs, invoking_programid)?;
     bench_sbf_end!("cpd_input_checks");
     bench_sbf_start!("cpda_cpi_write_checks");
     output_compressed_accounts_write_access_check(inputs, invoking_programid)?;
@@ -30,9 +30,8 @@ pub fn cpi_signer_checks(
     Ok(())
 }
 
-/// - If signer seeds are not provided, invoking program is required.
-/// - If invoking program is provided signer seeds are required.
-/// - If signer seeds are provided, the derived signer has to match the signer.
+/// Cpi signer check, validates that the provided invoking program
+/// is the invoking program.
 #[inline(never)]
 #[heap_neutral]
 pub fn cpi_signer_check(
@@ -60,7 +59,6 @@ pub fn cpi_signer_check(
 
 /// Checks the signer for input compressed accounts.
 /// 1. If a compressed account has data the owner has to be the invokinging program.
-/// 2. If a compressed account has data no data the owner has to be authority.
 /// (Compressed accounts can be either owned by the program or
 /// the authority (which can be a pda) if the compressed account has no data.)
 #[inline(never)]
@@ -68,38 +66,22 @@ pub fn cpi_signer_check(
 pub fn input_compressed_accounts_signer_check(
     inputs: &InstructionDataInvokeCpi,
     invoking_program_id: &Pubkey,
-    authority: &Pubkey,
 ) -> Result<()> {
     inputs
     .input_compressed_accounts_with_merkle_context
     .iter()
         .try_for_each(|compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-
-            if compressed_account_with_context.compressed_account.data.is_some()
-            {
-                // CHECK 1
-                let invoking_program_id =invoking_program_id.key();
-                if invoking_program_id != compressed_account_with_context.compressed_account.owner {
-                msg!(
-                        "Signer/Program cannot read from an account it doesn't own. Read access check failed compressed account owner {} !=  invoking_program_id {}",
-                        compressed_account_with_context.compressed_account.owner,
-                    invoking_program_id
-                );
-                    err!(CompressedPdaError::SignerCheckFailed)
-                } else {
-                    Ok(())
-                }
-            }
-            // CHECK 2
-            else if compressed_account_with_context.compressed_account.owner != *authority {
+        // CHECK 1
+        let invoking_program_id =invoking_program_id.key();
+        if invoking_program_id == compressed_account_with_context.compressed_account.owner {
+            Ok(())
+        } else {
             msg!(
-                "signer check failed compressed account owner {} !=  authority {}",
-                    compressed_account_with_context.compressed_account.owner,
-                    authority
-            );
+                "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {} !=  invoking_program_id {}",
+                compressed_account_with_context.compressed_account.owner,
+            invoking_program_id
+        );
             err!(CompressedPdaError::SignerCheckFailed)
-            } else {
-                Ok(())
         }
     })?;
     Ok(())
@@ -145,7 +127,6 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     } else {
         None
     };
-    // TODO: rename delegate to program_owner
     if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
@@ -174,7 +155,6 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
     } else {
         None
     };
-    // TODO: rename delegate to program_owner
     if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
             if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {

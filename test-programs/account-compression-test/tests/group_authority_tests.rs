@@ -158,8 +158,14 @@ async fn test_create_and_update_group() {
     let registerd_program_account = context
         .get_anchor_account::<RegisteredProgram>(&registered_program_pda)
         .await;
-    assert_eq!(registerd_program_account.pubkey, compressed_pda_id);
-    assert_eq!(registerd_program_account.group_pda, group_accounts.0);
+    assert_eq!(
+        registerd_program_account.registered_program_id,
+        compressed_pda_id
+    );
+    assert_eq!(
+        registerd_program_account.group_authority_pda,
+        group_accounts.0
+    );
     // add new program to group with invalid authority
     let other_program_id = Pubkey::new_unique();
     let registered_program_pda =

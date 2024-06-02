@@ -8,11 +8,10 @@ use crate::{
 };
 use anchor_lang::{prelude::*, Bumps};
 
-// DO NOT MAKE HEAP NEUTRAL: this function allocates new heap memory
 pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps>(
     inputs: &InstructionDataInvoke,
     ctx: &Context<'_, '_, '_, '_, A>,
-    input_compressed_account_addresses: &mut Vec<Option<[u8; 32]>>,
+    compressed_account_addresses: &mut [Option<[u8; 32]>],
     new_addresses: &mut [[u8; 32]],
 ) {
     inputs
@@ -27,7 +26,11 @@ pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'in
                 &new_address_params.seed,
             )
             .unwrap();
-            input_compressed_account_addresses.push(Some(address));
+            // We are inserting addresses into two vectors to avoid unwrapping the option,
+            // and searching two vectors when hashing output compressed accounts
+            // in insert output compressed accounts into state merkle tree.
+            compressed_account_addresses
+                [i + inputs.input_compressed_accounts_with_merkle_context.len()] = Some(address);
             new_addresses[i] = address;
         });
 }

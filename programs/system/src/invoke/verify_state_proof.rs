@@ -1,19 +1,17 @@
-use anchor_lang::{prelude::*, Bumps};
-
+use crate::{
+    errors::CompressedPdaError,
+    invoke::InstructionDataInvoke,
+    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+};
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
+use anchor_lang::{prelude::*, Bumps};
 use light_hasher::Poseidon;
 use light_macros::heap_neutral;
 use light_utils::hash_to_bn254_field_size_be;
 use light_verifier::{
     verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
     verify_merkle_proof_zkp, CompressedProof,
-};
-
-use crate::{
-    errors::CompressedPdaError,
-    invoke::InstructionDataInvoke,
-    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
 #[inline(never)]
@@ -43,7 +41,6 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
     Ok(())
 }
 
-// TODO: unify fetch roots and fetch_roots_address_merkle_tree
 #[inline(never)]
 pub fn fetch_roots_address_merkle_tree<
     'a,
@@ -86,28 +83,20 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         .0;
     hashed_pubkeys.push((owner_pubkey, hashed_owner));
     let mut current_hashed_mt = [0u8; 32];
-    // TODO: bench whether it cheaper to keep the counter or just use the hash table
-    let mut none_counter = 0;
+
     let mut current_mt_index: i16 = -1;
-    // let mut current_hashed_mt = [0u8; 32];
     for (j, input_compressed_account_with_context) in inputs
         .input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
     {
-        // TODO: revisit whether we can find a prettier solution
         // For heap neutrality we cannot allocate new heap memory in this function.
-        // For efficiency we want to remove None elements from the addresses vector.
         match &input_compressed_account_with_context
             .compressed_account
             .address
         {
-            Some(address) => addresses[j - none_counter] = Some(*address),
-            None => {
-                none_counter += 1;
-                // TODO: debug
-                // Vec::remove(addresses, j);
-            }
+            Some(address) => addresses[j] = Some(*address),
+            None => {}
         };
         if current_mt_index
             != input_compressed_account_with_context
@@ -257,77 +246,66 @@ pub fn sum_check(
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
 
-    use super::*;
-
     #[test]
-    fn test_sum_check_passes() {
-        let input_compressed_accounts_with_merkle_context: Vec<
-            PackedCompressedAccountWithMerkleContext,
-        > = vec![
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 100,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 0,
-                },
-                root_index: 1,
-            },
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 50,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 1,
-                },
-                root_index: 1,
-            },
-        ];
+    fn test_sum_check() {
+        // SUCCEED: no relay fee, compression
+        sum_check_test(&[100, 50], &[150], None, None, false).unwrap();
+        sum_check_test(&[75, 25, 25], &[25, 25, 25, 25, 12, 13], None, None, false).unwrap();
 
-        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
-            vec![OutputCompressedAccountWithPackedContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 150,
-                    address: None,
-                    data: None,
-                },
-                merkle_tree_index: 0,
-            }];
+        // FAIL: no relay fee, compression
+        sum_check_test(&[100, 50], &[150 + 1], None, None, false).unwrap_err();
+        sum_check_test(&[100, 50], &[150 - 1], None, None, false).unwrap_err();
+        sum_check_test(&[100, 50], &[], None, None, false).unwrap_err();
+        sum_check_test(&[], &[100, 50], None, None, false).unwrap_err();
 
-        let relay_fee = None; // No RPC fee
+        // SUCCEED: empty
+        sum_check_test(&[], &[], None, None, true).unwrap();
+        sum_check_test(&[], &[], None, None, false).unwrap();
+        // FAIL: empty
+        sum_check_test(&[], &[], Some(1), None, false).unwrap_err();
+        sum_check_test(&[], &[], None, Some(1), false).unwrap_err();
+        sum_check_test(&[], &[], None, Some(1), true).unwrap_err();
 
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &None,
-            &false,
-        );
-        assert!(result.is_ok());
+        // SUCCEED: with compress
+        sum_check_test(&[100], &[123], None, Some(23), true).unwrap();
+        sum_check_test(&[], &[150], None, Some(150), true).unwrap();
+        // FAIL: compress
+        sum_check_test(&[], &[150], None, Some(150 - 1), true).unwrap_err();
+        sum_check_test(&[], &[150], None, Some(150 + 1), true).unwrap_err();
+
+        // SUCCEED: with decompress
+        sum_check_test(&[100, 50], &[100], None, Some(50), false).unwrap();
+        sum_check_test(&[100, 50], &[], None, Some(150), false).unwrap();
+        // FAIL: decompress
+        sum_check_test(&[100, 50], &[], None, Some(150 - 1), false).unwrap_err();
+        sum_check_test(&[100, 50], &[], None, Some(150 + 1), false).unwrap_err();
+
+        // SUCCEED: with relay fee
+        sum_check_test(&[100, 50], &[125], Some(25), None, false).unwrap();
+        sum_check_test(&[100, 50], &[150], Some(25), Some(25), true).unwrap();
+        sum_check_test(&[100, 50], &[100], Some(25), Some(25), false).unwrap();
+
+        // FAIL: relay fee
+        sum_check_test(&[100, 50], &[2125], Some(25 - 1), None, false).unwrap_err();
+        sum_check_test(&[100, 50], &[2125], Some(25 + 1), None, false).unwrap_err();
     }
 
-    #[test]
-    fn test_sum_check_with_compress_passes() {
-        let input_compressed_accounts_with_merkle_context: Vec<
-            PackedCompressedAccountWithMerkleContext,
-        > = vec![
-            PackedCompressedAccountWithMerkleContext {
+    fn sum_check_test(
+        input_amounts: &[u64],
+        output_amounts: &[u64],
+        relay_fee: Option<u64>,
+        compression_lamports: Option<u64>,
+        is_compress: bool,
+    ) -> Result<()> {
+        let mut inputs = Vec::new();
+        for i in input_amounts.iter() {
+            inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
-                    lamports: 50,
+                    lamports: *i,
                     address: None,
                     data: None,
                 },
@@ -337,192 +315,27 @@ mod test {
                     leaf_index: 0,
                 },
                 root_index: 1,
-            },
-            PackedCompressedAccountWithMerkleContext {
+            });
+        }
+        let mut outputs = Vec::new();
+        for amount in output_amounts.iter() {
+            outputs.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
                     owner: Pubkey::new_unique(),
-                    lamports: 50,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 1,
-                },
-                root_index: 1,
-            },
-        ];
-
-        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
-            vec![OutputCompressedAccountWithPackedContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 150,
+                    lamports: *amount,
                     address: None,
                     data: None,
                 },
                 merkle_tree_index: 0,
-            }];
+            });
+        }
 
-        let relay_fee = None; // No RPC fee
-
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
+        sum_check(
+            &inputs,
+            &outputs,
             &relay_fee,
-            &Some(50),
-            &true,
-        );
-        println!("{:?}", result);
-        assert!(result.is_ok());
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &Some(49),
-            &true,
-        );
-        assert!(result.is_err());
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &Some(50),
-            &false,
-        );
-        assert!(result.is_err());
-    }
-    #[test]
-    fn test_sum_check_with_decompress_passes() {
-        let input_compressed_accounts_with_merkle_context: Vec<
-            PackedCompressedAccountWithMerkleContext,
-        > = vec![
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 100,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 0,
-                },
-                root_index: 1,
-            },
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 50,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 1,
-                },
-                root_index: 1,
-            },
-        ];
-
-        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
-            vec![OutputCompressedAccountWithPackedContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 100,
-                    address: None,
-                    data: None,
-                },
-                merkle_tree_index: 0,
-            }];
-
-        let relay_fee = None; // No RPC fee
-
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &Some(50),
-            &false,
-        );
-        println!("{:?}", result);
-        assert!(result.is_ok());
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &Some(49),
-            &false,
-        );
-        assert!(result.is_err());
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &Some(50),
-            &true,
-        );
-        assert!(result.is_err());
-    }
-    // TODO: add test for relay fee
-    #[test]
-    fn test_sum_check_fails() {
-        let input_compressed_accounts_with_merkle_context: Vec<
-            PackedCompressedAccountWithMerkleContext,
-        > = vec![
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 100,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 0,
-                },
-                root_index: 1,
-            },
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 50,
-                    address: None,
-                    data: None,
-                },
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: 0,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: 1,
-                },
-                root_index: 1,
-            },
-        ];
-
-        let output_compressed_account: Vec<OutputCompressedAccountWithPackedContext> =
-            vec![OutputCompressedAccountWithPackedContext {
-                compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
-                    lamports: 25,
-                    address: None,
-                    data: None,
-                },
-                merkle_tree_index: 0,
-            }];
-
-        let relay_fee = Some(50); // Adding an RPC fee to ensure the sums don't match
-
-        let result = sum_check(
-            &input_compressed_accounts_with_merkle_context,
-            &output_compressed_account,
-            &relay_fee,
-            &None,
-            &false,
-        );
-        assert!(result.is_err());
+            &compression_lamports,
+            &is_compress,
+        )
     }
 }
