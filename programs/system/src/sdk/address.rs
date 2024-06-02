@@ -79,7 +79,6 @@ pub fn pack_new_address_params(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anchor_lang::solana_program::pubkey::Pubkey;
     use solana_sdk::{signature::Keypair, signer::Signer};
 
     #[test]
