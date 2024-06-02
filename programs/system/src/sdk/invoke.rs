@@ -208,13 +208,14 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
 #[cfg(test)]
 mod test {
     use anchor_lang::AnchorDeserialize;
+    use solana_sdk::{signature::Keypair, signer::Signer};
 
     use super::*;
 
     #[test]
     fn test_create_execute_compressed_transaction() {
-        let payer = Pubkey::new_unique();
-        let recipient = Pubkey::new_unique();
+        let payer = Keypair::new().pubkey();
+        let recipient = Keypair::new().pubkey();
         let input_compressed_accounts = vec![
             CompressedAccount {
                 lamports: 100,
@@ -244,10 +245,10 @@ mod test {
             },
         ];
         let merkle_tree_indices = vec![0, 2];
-        let merkle_tree_pubkey = Pubkey::new_unique();
-        let merkle_tree_pubkey_1 = Pubkey::new_unique();
+        let merkle_tree_pubkey = Keypair::new().pubkey();
+        let merkle_tree_pubkey_1 = Keypair::new().pubkey();
 
-        let nullifier_array_pubkey = Pubkey::new_unique();
+        let nullifier_array_pubkey = Keypair::new().pubkey();
         let input_merkle_context = vec![
             MerkleContext {
                 merkle_tree_pubkey,

@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
+use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {
@@ -160,15 +159,15 @@ impl CompressedAccount {
 
 #[cfg(test)]
 mod tests {
-    use anchor_lang::solana_program::pubkey::Pubkey;
     use light_hasher::Poseidon;
-
+    use solana_sdk::signature::{Keypair, Signer};
+    
     use super::*;
 
     #[test]
     fn test_compressed_account_hash() {
-        let owner = Pubkey::new_unique();
-        let address = [1u8; 32];
+        let owner = Keypair::new().pubkey();
+        let address = Keypair::new().pubkey().to_bytes();
         let data = CompressedAccountData {
             discriminator: [1u8; 8],
             data: vec![2u8; 32],
@@ -181,7 +180,7 @@ mod tests {
             address: Some(address),
             data: Some(data.clone()),
         };
-        let merkle_tree_pubkey = Pubkey::new_unique();
+        let merkle_tree_pubkey = Keypair::new().pubkey();
         let leaf_index = 1;
         let hash = compressed_account
             .hash::<Poseidon>(&merkle_tree_pubkey, &leaf_index)

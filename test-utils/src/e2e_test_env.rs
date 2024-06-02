@@ -353,7 +353,7 @@ where
             accounts: StateMerkleTreeAccounts {
                 merkle_tree: merkle_tree_keypair.pubkey(),
                 nullifier_queue: nullifier_queue_keypair.pubkey(),
-                cpi_context: Pubkey::new_unique(),
+                cpi_context: Keypair::new().pubkey(),
             },
             merkle_tree,
         });

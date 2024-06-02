@@ -427,7 +427,7 @@ pub async fn failing_transaction_inputs_inner(
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
             .compressed_account
-            .owner = Pubkey::new_unique();
+            .owner = Keypair::new().pubkey();
 
         create_instruction_and_failing_transaction(
             context,
@@ -762,7 +762,7 @@ pub async fn failing_transaction_output(
 
         for account in inputs_struct.output_compressed_accounts.iter_mut() {
             let address = Some(
-                hash_to_bn254_field_size_be(Pubkey::new_unique().to_bytes().as_slice())
+                hash_to_bn254_field_size_be(Keypair::new().pubkey().to_bytes().as_slice())
                     .unwrap()
                     .0,
             );
@@ -962,7 +962,7 @@ async fn invoke_test() {
     // check invalid signer for in compressed_account
     let invalid_signer_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
-        owner: Pubkey::new_unique(),
+        owner: Keypair::new().pubkey(),
         data: None,
         address: None,
     }];
@@ -1054,7 +1054,7 @@ async fn invoke_test() {
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
-        owner: Pubkey::new_unique(),
+        owner: Keypair::new().pubkey(),
         data: None,
         address: None,
     }];
@@ -1083,7 +1083,7 @@ async fn invoke_test() {
     assert!(res.is_err());
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
-        owner: Pubkey::new_unique(),
+        owner: Keypair::new().pubkey(),
         data: None,
         address: None,
     }];
@@ -1186,7 +1186,7 @@ async fn test_with_address() {
     println!("transfer with address-------------------------");
 
     let compressed_account_with_context = test_indexer.compressed_accounts[0].clone();
-    let recipient_pubkey = Pubkey::new_unique();
+    let recipient_pubkey = Keypair::new().pubkey();
     transfer_compressed_sol_test(
         &mut context,
         &mut test_indexer,
@@ -1421,14 +1421,14 @@ async fn test_with_compression() {
         .await;
     let input_compressed_accounts =
         vec![compressed_account_with_context.clone().compressed_account];
-    let recipient_pubkey = Pubkey::new_unique();
+    let recipient_pubkey = Keypair::new().pubkey();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: 0,
         owner: recipient_pubkey,
         data: None,
         address: None,
     }];
-    let recipient = Pubkey::new_unique();
+    let recipient = Keypair::new().pubkey();
     let instruction = create_invoke_instruction(
         &payer_pubkey,
         &payer_pubkey,

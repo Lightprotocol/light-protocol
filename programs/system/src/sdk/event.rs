@@ -128,7 +128,7 @@ pub mod test {
             output_compressed_account_hashes: vec![[2u8; 32], [3u8; 32]],
             output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
+                    owner: Keypair::new().pubkey(),
                     lamports: 100,
                     address: Some([5u8; 32]),
                     data: Some(CompressedAccountData {
@@ -153,7 +153,7 @@ pub mod test {
             relay_fee: Some(1000),
             is_compress: true,
             compression_lamports: Some(5000),
-            pubkey_array: vec![Pubkey::new_unique(), Pubkey::new_unique()],
+            pubkey_array: vec![Keypair::new().pubkey(), Keypair::new().pubkey()],
             message: Some(vec![8, 9, 10]),
         };
 
@@ -184,7 +184,7 @@ pub mod test {
                 .gen_range(1..10))
                 .map(|_| OutputCompressedAccountWithPackedContext {
                     compressed_account: CompressedAccount {
-                        owner: Pubkey::new_unique(),
+                        owner: Keypair::new().pubkey(),
                         lamports: rng.gen(),
                         address: Some(rng.gen()),
                         data: None,
@@ -194,7 +194,7 @@ pub mod test {
                 .collect();
             let leaf_indices: Vec<u32> = (0..rng.gen_range(1..10)).map(|_| rng.gen()).collect();
             let pubkeys: Vec<Pubkey> = (0..rng.gen_range(1..10))
-                .map(|_| Pubkey::new_unique())
+                .map(|_| Keypair::new().pubkey())
                 .collect();
             let message: Option<Vec<u8>> = if rng.gen() {
                 Some((0..rng.gen_range(1..100)).map(|_| rng.gen()).collect())

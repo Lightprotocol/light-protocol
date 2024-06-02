@@ -246,6 +246,8 @@ pub fn sum_check(
 
 #[cfg(test)]
 mod test {
+    use solana_sdk::{signature::Keypair, signer::Signer};
+
     use super::*;
     use crate::sdk::compressed_account::{CompressedAccount, PackedMerkleContext};
 
@@ -304,7 +306,7 @@ mod test {
         for i in input_amounts.iter() {
             inputs.push(PackedCompressedAccountWithMerkleContext {
                 compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
+                    owner: Keypair::new().pubkey(),
                     lamports: *i,
                     address: None,
                     data: None,
@@ -321,7 +323,7 @@ mod test {
         for amount in output_amounts.iter() {
             outputs.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
-                    owner: Pubkey::new_unique(),
+                    owner: Keypair::new().pubkey(),
                     lamports: *amount,
                     address: None,
                     data: None,
