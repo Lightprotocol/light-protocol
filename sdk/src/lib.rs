@@ -87,7 +87,7 @@ pub fn get_compressed_cpi_context_account<'info>(
 
 
 #[inline(always)]
-fn setup_cpi_accounts<'info>(
+pub fn setup_cpi_accounts<'info>(
     ctx: &Context<
         '_,
         '_,
@@ -126,7 +126,7 @@ fn setup_cpi_accounts<'info>(
 }
 
 #[inline(always)]
-fn invoke_cpi<'info, 'a, 'b, 'c>(
+pub fn invoke_cpi<'info, 'a, 'b, 'c>(
     ctx: &Context<
         '_,
         '_,
@@ -157,7 +157,7 @@ fn invoke_cpi<'info, 'a, 'b, 'c>(
 // Invokes the light system program to transition the state to a compressed
 // form. Serializes CPI instruction data, configures necessary accounts, and
 // executes the CPI.
-fn exec_verify<'info, 'a, 'b, 'c>(
+pub fn exec_verify<'info, 'a, 'b, 'c>(
     ctx: Context<
         '_,
         '_,

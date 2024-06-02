@@ -2981,6 +2981,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-sdk"
+version = "0.1.0"
+dependencies = [
+ "account-compression",
+ "aligned-sized",
+ "anchor-lang",
+ "borsh 0.10.3",
+ "bytemuck",
+ "groth16-solana",
+ "lazy_static",
+ "light-circuitlib-rs",
+ "light-concurrent-merkle-tree",
+ "light-hash-set",
+ "light-hasher",
+ "light-heap",
+ "light-indexed-merkle-tree",
+ "light-merkle-tree-reference",
+ "light-utils",
+ "light-verifier",
+ "num-bigint 0.4.4",
+ "num-traits",
+ "rand 0.8.5",
+ "reqwest 0.12.4",
+ "serde_json",
+ "solana-banks-interface",
+ "solana-cli-output",
+ "solana-program-test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "light-system-program"
 version = "0.3.4"
 dependencies = [
