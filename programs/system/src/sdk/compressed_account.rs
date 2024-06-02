@@ -167,7 +167,7 @@ mod tests {
     #[test]
     fn test_compressed_account_hash() {
         let owner = Keypair::new().pubkey();
-        let address = Keypair::new().pubkey().to_bytes();
+        let address = [1u8; 32];
         let data = CompressedAccountData {
             discriminator: [1u8; 8],
             data: vec![2u8; 32],

@@ -58,15 +58,13 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> Result<bool, Uti
 
 pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
     let mut bump_seed = [std::u8::MAX];
-    // loop with decreasing bump seed to find a valid hash which is less than
-    // bn254 Fr modulo field size
+    // Loops with decreasing bump seed to find a valid hash which is less than
+    // bn254 Fr modulo field size.
     for _ in 0..std::u8::MAX {
         {
             let mut hashed_value: [u8; 32] = hashv(&[bytes, bump_seed.as_ref()]).to_bytes();
-            // TODO: revisit truncation (without truncation it takes up to 30
-            // hashes to find a valid one, this is not acceptable onchain)
-            // truncate to 31 bytes so that value is less than bn254 Fr modulo
-            // field size
+            // Truncates to 31 bytes so that value is less than bn254 Fr modulo
+            // field size.
             hashed_value[0] = 0;
             if let Ok(true) = is_smaller_than_bn254_field_size_be(&hashed_value) {
                 return Some((hashed_value, bump_seed[0]));
