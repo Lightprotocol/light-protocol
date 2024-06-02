@@ -1,6 +1,3 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_macros::heap_neutral;
-
 use crate::{
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
@@ -18,6 +15,7 @@ use crate::{
     },
     RegisteredProgram,
 };
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverStateMerkleTreeAndNullifierQueue<'info> {
@@ -52,7 +50,6 @@ impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'i
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and nullifier queue with the same parameters
-#[heap_neutral]
 pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
 ) -> Result<()> {

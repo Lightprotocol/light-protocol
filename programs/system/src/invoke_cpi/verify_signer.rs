@@ -32,8 +32,6 @@ pub fn cpi_signer_checks(
 
 /// Cpi signer check, validates that the provided invoking program
 /// is the invoking program.
-#[inline(never)]
-#[heap_neutral]
 pub fn cpi_signer_check(
     signer_seeds: &[Vec<u8>],
     invoking_program: &Pubkey,
@@ -61,8 +59,6 @@ pub fn cpi_signer_check(
 /// 1. If a compressed account has data the owner has to be the invokinging program.
 /// (Compressed accounts can be either owned by the program or
 /// the authority (which can be a pda) if the compressed account has no data.)
-#[inline(never)]
-#[heap_neutral]
 pub fn input_compressed_accounts_signer_check(
     inputs: &InstructionDataInvokeCpi,
     invoking_program_id: &Pubkey,

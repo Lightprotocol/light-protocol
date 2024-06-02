@@ -1,6 +1,3 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_macros::heap_neutral;
-
 use crate::{
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
@@ -13,6 +10,7 @@ use crate::{
     },
     AddressMerkleTreeAccount, RegisteredProgram,
 };
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
@@ -48,7 +46,6 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and nullifier queue with the same parameters
-#[heap_neutral]
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {

@@ -14,6 +14,12 @@ pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator {
     len: HEAP_LENGTH,
 };
 
+#[cfg(target_os = "solana")]
+#[error_code]
+pub enum HeapError {
+    #[msg("The provided position to free is invalid.")]
+    InvalidHeapPos,
+}
 pub struct BumpAllocator {
     pub start: usize,
     pub len: usize,
@@ -67,8 +73,13 @@ impl BumpAllocator {
     }
 
     #[cfg(target_os = "solana")]
-    pub fn free_heap(&self, pos: usize) {
+    pub fn free_heap(&self, pos: usize) -> Result<()> {
+        if pos < self.start + BumpAllocator::RESERVED_MEM || pos > self.start + self.len {
+            return err!(HeapError::InvalidHeapPos);
+        }
+
         unsafe { self.move_cursor(pos) };
+        Ok(())
     }
 }
 

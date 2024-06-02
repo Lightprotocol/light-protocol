@@ -49,7 +49,7 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
     new_address_params: &'a [NewAddressParamsPacked],
     invoking_program: &Option<Pubkey>,
 ) -> anchor_lang::Result<Option<(u8, u64)>> {
-    let mut remaining_accounts = Vec::<AccountInfo>::with_capacity(addresses.len() * 2);
+    let mut remaining_accounts = Vec::<AccountInfo>::with_capacity(new_address_params.len() * 2);
     let mut network_fee_bundle = None;
 
     new_address_params.iter().try_for_each(|params| {

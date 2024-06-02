@@ -72,7 +72,8 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     let num_leaves = output_compressed_account_hashes.len();
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
-    let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
+    let vec_capacity = 12 + 33 * num_leaves;
+    let mut instruction_data = Vec::<u8>::with_capacity(vec_capacity);
     let mut hashed_merkle_tree = [0u8; 32];
     // anchor instruction signature
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);

@@ -110,8 +110,15 @@ pub fn process<
                 &mut compressed_account_addresses,
                 &mut hashed_pubkeys,
             )?;
+            // # Safety this is a safeguard for memory safety.
+            // This error should never be triggered.
             if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-                return err!(SystemProgramError::HashedPubkeysCapacityMismatch);
+                msg!(
+                    "hashed_pubkeys exceeded capacity. Used {}, allocated {}.",
+                    hashed_pubkeys.capacity(),
+                    hashed_pubkeys_capacity
+                );
+                return err!(SystemProgramError::InvalidCapacity);
             }
         }
 
@@ -224,8 +231,15 @@ pub fn process<
             &mut hashed_pubkeys,
             &mut sequence_numbers,
         )?;
+        // # Safety this is a safeguard for memory safety.
+        // This error should never be triggered.
         if hashed_pubkeys.capacity() != hashed_pubkeys_capacity {
-            return err!(SystemProgramError::HashedPubkeysCapacityMismatch);
+            msg!(
+                "hashed_pubkeys exceeded capacity. Used {}, allocated {}.",
+                hashed_pubkeys.capacity(),
+                hashed_pubkeys_capacity
+            );
+            return err!(SystemProgramError::InvalidCapacity);
         }
         bench_sbf_end!("cpda_append");
     }

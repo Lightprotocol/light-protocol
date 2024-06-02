@@ -7,10 +7,7 @@ use anchor_lang::{
     solana_program::{msg, pubkey::Pubkey},
     Result,
 };
-use light_macros::heap_neutral;
 
-#[inline(never)]
-#[heap_neutral]
 pub fn input_compressed_accounts_signer_check(
     inputs: &InstructionDataInvoke,
     authority: &Pubkey,

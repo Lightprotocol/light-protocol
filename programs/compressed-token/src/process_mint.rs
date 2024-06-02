@@ -14,7 +14,6 @@ use light_system_program::{
 };
 use light_utils::hash_to_bn254_field_size_be;
 
-use std::mem;
 pub const POOL_SEED: &[u8] = b"pool";
 
 /// creates a token pool account which is owned by the token authority pda
@@ -42,6 +41,15 @@ pub struct CreateMintInstruction<'info> {
     pub cpi_authority_pda: AccountInfo<'info>,
 }
 
+/// Steps:
+/// 1. Allocate memory for cpi instruction data. We allocate memory in the
+///    beginning so that we can free all memory the allocation prior to the cpi
+///    in cpi_execute_compressed_transaction_mint_to.
+/// 2. Mint SPL tokens to pool account.
+/// 3. Create output compressed accounts, one for every pubkey and amount pair.
+/// 4. Serialize cpi instruction data and free memory up to
+///    pre_compressed_acounts_pos.
+/// 5. Invoke system program to execute the compressed transaction.
 #[allow(unused_variables)]
 pub fn process_mint_to<'info>(
     ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
@@ -59,13 +67,11 @@ pub fn process_mint_to<'info>(
 
     #[cfg(target_os = "solana")]
     {
-        let inputs_len =
-    // struct
-    mem::size_of::<light_system_program::InstructionDataInvokeCpi>()
-    // `output_compressed_accounts`
-    + mem::size_of::<CompressedAccount>() * amounts.len()
-    // `output_state_merkle_tree_account_indices`
-    + amounts.len() + mem::size_of::<Option::<light_system_program::sdk::CompressedCpiContext>>()+ 8;
+        let inputs_len = 1 + 4 + 4 + 4 + amounts.len() * 170 + 1 + 1 + 1 + 26 + 1;
+        // inputs_len = Option<Proof> + Vec::new() + Vec::new() +
+        // Vec<OutputCompressedAccountWithPackedContext> + Option<relay_fee> +
+        // compression_lamports + is_compress + seeds +
+        // Option<CpiContextAccount>
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
@@ -103,10 +109,28 @@ pub fn process_mint_to<'info>(
             &mut inputs,
             pre_compressed_acounts_pos,
         )?;
+
+        // # SAFETY: the inputs vector needs to be allocated before this point.
+        // This error should never be triggered.
+        if inputs.capacity() != inputs_len {
+            msg!(
+                "Used memory {} exceeds allocated {} memory",
+                inputs.len(),
+                inputs_len
+            );
+            return err!(crate::ErrorCode::HeapMemoryCheckFailed);
+        }
     }
     Ok(())
 }
 
+/// Creates output compressed accounts.
+/// Steps:
+/// 1. Allocate memory for token data.
+/// 2. Create, hash and serialize token data.  
+/// 3. Create compressed account data.
+/// 4. Free memory.
+/// 5. Repeat for every pubkey.
 pub fn create_output_compressed_accounts(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
     mint_pubkey: Pubkey,
@@ -117,8 +141,9 @@ pub fn create_output_compressed_accounts(
     merkle_tree_indices: &[u8],
 ) -> Result<()> {
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
-        // 1,147 CU
-        let mut token_data_bytes = Vec::with_capacity(mem::size_of::<TokenData>());
+        let mut token_data_bytes = Vec::with_capacity(83);
+        // We free heap memory every after this point to avoid freeing
+        // token_data_bytes.
         #[cfg(target_os = "solana")]
         let pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
 
@@ -136,7 +161,7 @@ pub fn create_output_compressed_accounts(
         bench_sbf_start!("token_data_hash");
         let pubkey_hashed = hash_to_bn254_field_size_be(pubkey.as_ref()).unwrap().0;
         let amount_bytes = amount.to_le_bytes();
-        // 7,200 CU
+
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
             data: token_data_bytes,
@@ -150,7 +175,7 @@ pub fn create_output_compressed_accounts(
         };
         bench_sbf_end!("token_data_hash");
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
-        // 1k CU
+
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
@@ -162,7 +187,7 @@ pub fn create_output_compressed_accounts(
         };
 
         #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
+        light_heap::GLOBAL_ALLOCATOR.free_heap(pos)?;
     }
     Ok(())
 }
@@ -185,7 +210,7 @@ pub fn cpi_execute_compressed_transaction_mint_to<'info>(
     // 7,978 CU for 25 accounts
     serialize_mint_to_cpi_instruction_data(inputs, &output_compressed_accounts, &signer_seeds_vec);
 
-    light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos);
+    light_heap::GLOBAL_ALLOCATOR.free_heap(pre_compressed_acounts_pos)?;
 
     use anchor_lang::InstructionData;
 
@@ -468,7 +493,7 @@ fn test_manual_ix_data_serialization_borsh_compat() {
     let mut output_compressed_accounts =
         vec![OutputCompressedAccountWithPackedContext::default(); pubkeys.len()];
     for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
-        let mut token_data_bytes = Vec::with_capacity(mem::size_of::<TokenData>());
+        let mut token_data_bytes = Vec::with_capacity(std::mem::size_of::<TokenData>());
         let token_data = TokenData {
             mint: mint_pubkey,
             owner: *pubkey,

@@ -53,6 +53,12 @@ export type LightCompressedToken = {
         },
         {
             name: 'mintTo';
+            docs: [
+                'Mints tokens from an spl token mint to a list of compressed accounts.',
+                'Minted tokens are transferred to a pool account owned by the compressed',
+                'token program. The instruction creates one compressed output account for',
+                'every amount and pubkey input pair one output compressed account.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -981,6 +987,9 @@ export type LightCompressedToken = {
                     {
                         name: 'SplTokenSupplyMismatch';
                     },
+                    {
+                        name: 'HeapMemoryCheckFailed';
+                    },
                 ];
             };
         },
@@ -1053,6 +1062,12 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'mintTo',
+            docs: [
+                'Mints tokens from an spl token mint to a list of compressed accounts.',
+                'Minted tokens are transferred to a pool account owned by the compressed',
+                'token program. The instruction creates one compressed output account for',
+                'every amount and pubkey input pair one output compressed account.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1985,6 +2000,9 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'SplTokenSupplyMismatch',
+                    },
+                    {
+                        name: 'HeapMemoryCheckFailed',
                     },
                 ],
             },

@@ -21,7 +21,6 @@ default = ["custom-heap"]
 test-sbf = []
 bench-sbf = []
 
-
 [dependencies]
 aligned-sized = { version = "0.1.4", path = "../../macros/aligned-sized" }
 anchor-lang = "0.29.0"
@@ -33,7 +32,6 @@ light-heap = { version = "0.1.5", path = "../../heap", optional = true }
 light-concurrent-merkle-tree = { version = "0.1.4", path = "../../merkle-tree/concurrent", features = ["solana"] }
 light-indexed-merkle-tree = { version = "0.1.4", path = "../../merkle-tree/indexed", features = ["solana"] }
 light-utils = { version = "0.1.4", path = "../../utils" }
-light-macros = { version = "0.3.5", path = "../../macros/light/" }
 num-bigint = "0.4"
 num-traits = "0.2.18"
 solana-security-txt = "1.1.0"

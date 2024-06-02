@@ -37,6 +37,10 @@ pub mod light_compressed_token {
         Ok(())
     }
 
+    /// Mints tokens from an spl token mint to a list of compressed accounts.
+    /// Minted tokens are transferred to a pool account owned by the compressed
+    /// token program. The instruction creates one compressed output account for
+    /// every amount and pubkey input pair one output compressed account.
     pub fn mint_to<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         public_keys: Vec<Pubkey>,
@@ -85,4 +89,6 @@ pub enum ErrorCode {
     DelegateSignerCheckFailed,
     #[msg("SplTokenSupplyMismatch")]
     SplTokenSupplyMismatch,
+    #[msg("HeapMemoryCheckFailed")]
+    HeapMemoryCheckFailed,
 }

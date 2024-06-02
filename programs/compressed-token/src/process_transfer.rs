@@ -21,7 +21,6 @@ use light_system_program::{
     InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
-use std::mem;
 
 /// Process a token transfer instruction
 /// build inputs -> sum check -> build outputs -> add token data to inputs -> invoke cpi
@@ -152,7 +151,7 @@ pub fn add_token_data_to_input_compressed_accounts(
         .iter_mut()
         .enumerate()
     {
-        let mut data = Vec::with_capacity(mem::size_of::<TokenData>());
+        let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
         if input_token_data[i].delegate.is_none() && input_token_data[i].delegated_amount == 0 {
@@ -372,8 +371,11 @@ impl CompressedTokenInstructionDataTransfer {
     )> {
         let mut input_compressed_accounts_with_merkle_context: Vec<
             PackedCompressedAccountWithMerkleContext,
-        > = Vec::<PackedCompressedAccountWithMerkleContext>::new();
-        let mut input_token_data_vec: Vec<TokenData> = Vec::new();
+        > = Vec::<PackedCompressedAccountWithMerkleContext>::with_capacity(
+            self.input_token_data_with_context.len(),
+        );
+        let mut input_token_data_vec: Vec<TokenData> =
+            Vec::with_capacity(self.input_token_data_with_context.len());
         let owner = if self.signer_is_delegate {
             remaining_accounts[0].key()
         } else {

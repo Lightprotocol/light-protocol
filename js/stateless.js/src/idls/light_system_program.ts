@@ -774,8 +774,8 @@ export type LightSystemProgram = {
         },
         {
             code: 6016;
-            name: 'HashedPubkeysCapacityMismatch';
-            msg: 'HashedPubkeysCapacityMismatch';
+            name: 'InvalidCapacity';
+            msg: 'InvalidCapacity';
         },
         {
             code: 6017;
@@ -1601,8 +1601,8 @@ export const IDL: LightSystemProgram = {
         },
         {
             code: 6016,
-            name: 'HashedPubkeysCapacityMismatch',
-            msg: 'HashedPubkeysCapacityMismatch',
+            name: 'InvalidCapacity',
+            msg: 'InvalidCapacity',
         },
         {
             code: 6017,
