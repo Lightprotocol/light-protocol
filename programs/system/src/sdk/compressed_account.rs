@@ -161,7 +161,7 @@ impl CompressedAccount {
 mod tests {
     use light_hasher::Poseidon;
     use solana_sdk::signature::{Keypair, Signer};
-    
+
     use super::*;
 
     #[test]
