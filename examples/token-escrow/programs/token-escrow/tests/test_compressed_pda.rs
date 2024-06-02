@@ -65,7 +65,7 @@ async fn test_escrow_with_compressed_pda() {
     )
     .await;
 
-    let seed = [1u8; 32];
+    let seed = vec![1u8; 32];
     let escrow_amount = 100u64;
     let lock_up_time = 1000u64;
 
@@ -76,7 +76,7 @@ async fn test_escrow_with_compressed_pda() {
         &payer,
         lock_up_time,
         escrow_amount,
-        seed,
+        seed.to_vec(),
     )
     .await
     .unwrap();
@@ -89,7 +89,7 @@ async fn test_escrow_with_compressed_pda() {
         &payer,
         &escrow_amount,
         &amount,
-        &seed,
+        seed.to_vec(),
         &lockup_end,
     )
     .await;
@@ -135,7 +135,7 @@ async fn test_escrow_with_compressed_pda() {
         &payer,
         &withdrawal_amount,
         &escrow_amount,
-        &seed,
+        seed,
         new_lock_up_time,
     )
     .await;
@@ -148,7 +148,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
     payer: &Keypair,
     lock_up_time: u64,
     escrow_amount: u64,
-    seed: [u8; 32],
+    seed: Vec<u8>,
 ) -> Result<(), RpcError> {
     let (payer_pubkey, instruction) = create_escrow_ix(
         payer,
@@ -178,7 +178,7 @@ pub async fn perform_escrow_with_event<R: RpcConnection>(
     payer: &Keypair,
     lock_up_time: u64,
     escrow_amount: u64,
-    seed: [u8; 32],
+    seed: Vec<u8>,
 ) -> Result<(), RpcError> {
     let (_, instruction) = create_escrow_ix(
         payer,
@@ -212,7 +212,7 @@ async fn create_escrow_ix<R: RpcConnection>(
     payer: &Keypair,
     test_indexer: &mut TestIndexer<200, R>,
     env: &EnvAccounts,
-    seed: [u8; 32],
+    seed: Vec<u8>,
     context: &mut R,
     lock_up_time: u64,
     escrow_amount: u64,
@@ -285,7 +285,7 @@ pub async fn assert_escrow<R: RpcConnection>(
     payer: &Keypair,
     escrow_amount: &u64,
     amount: &u64,
-    seed: &[u8; 32],
+    seed: Vec<u8>,
     lock_up_time: &u64,
 ) {
     let payer_pubkey = payer.pubkey();
@@ -311,7 +311,7 @@ pub async fn assert_escrow<R: RpcConnection>(
         .find(|x| x.compressed_account.owner == token_escrow::ID)
         .unwrap()
         .clone();
-    let address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
@@ -499,7 +499,7 @@ pub async fn assert_withdrawal<R: RpcConnection>(
     payer: &Keypair,
     withdrawal_amount: &u64,
     escrow_amount: &u64,
-    seed: &[u8; 32],
+    seed: Vec<u8>,
     lock_up_time: u64,
 ) {
     let escrow_change_amount = escrow_amount - withdrawal_amount;
@@ -527,7 +527,7 @@ pub async fn assert_withdrawal<R: RpcConnection>(
         .unwrap()
         .clone();
 
-    let address = derive_address(&env.address_merkle_tree_pubkey, seed).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address

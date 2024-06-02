@@ -56,7 +56,7 @@ async fn only_test_create_pda() {
     )
     .await;
 
-    let seed = [1u8; 32];
+    let seed = vec![1u8; 32];
     let data = [2u8; 31];
 
     // Functional test 1 ----------------------------------------------
@@ -65,7 +65,7 @@ async fn only_test_create_pda() {
         &mut rpc,
         &env,
         &payer,
-        seed,
+        seed.to_vec(),
         &data,
         &ID,
         CreatePdaMode::ProgramIsSigner,
@@ -73,9 +73,9 @@ async fn only_test_create_pda() {
     .await
     .unwrap();
 
-    assert_created_pda(&mut test_indexer, &env, &payer, &seed, &data).await;
+    assert_created_pda(&mut test_indexer, &env, &payer, seed, &data).await;
 
-    let seed = [2u8; 32];
+    let seed = vec![2u8; 32];
     let data = [3u8; 31];
 
     // Failing 1 invalid signer seeds ----------------------------------------------
@@ -84,7 +84,7 @@ async fn only_test_create_pda() {
         &mut rpc,
         &env,
         &payer,
-        seed,
+        seed.to_vec(),
         &data,
         &ID,
         CreatePdaMode::InvalidSignerSeeds,
@@ -99,7 +99,7 @@ async fn only_test_create_pda() {
         &mut rpc,
         &env,
         &payer,
-        seed,
+        seed.to_vec(),
         &data,
         &ID,
         CreatePdaMode::InvalidInvokingProgram,
@@ -305,7 +305,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &mut rpc,
         &env_with_program_owned_address_merkle_tree,
         &payer,
-        [3u8; 32],
+        vec![3u8; 32],
         &[4u8; 31],
         &ID,
         CreatePdaMode::ProgramIsSigner,
@@ -344,7 +344,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &mut rpc,
         &env_with_program_owned_state_merkle_tree,
         &payer,
-        [3u8; 32],
+        vec![3u8; 32],
         &[4u8; 31],
         &ID,
         CreatePdaMode::ProgramIsSigner,
@@ -389,14 +389,14 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         group_pda: env.group_pda,
         registered_program_pda: env.registered_program_pda,
     };
-    let seed = [4u8; 32];
+    let seed = vec![4u8; 32];
     let data = [5u8; 31];
     perform_create_pda_with_event(
         &mut test_indexer,
         &mut rpc,
         &env_with_program_owned_state_merkle_tree,
         &payer,
-        seed,
+        seed.to_vec(),
         &data,
         &ID,
         CreatePdaMode::ProgramIsSigner,
@@ -408,7 +408,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &mut test_indexer,
         &env_with_program_owned_state_merkle_tree,
         &payer,
-        &seed,
+        seed.to_vec(),
         &data,
     )
     .await;
@@ -445,7 +445,7 @@ pub async fn perform_create_pda_failing<R: RpcConnection>(
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
-    seed: [u8; 32],
+    seed: Vec<u8>,
     data: &[u8; 31],
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
@@ -479,7 +479,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     rpc: &mut R,
     env: &EnvAccounts,
     payer: &Keypair,
-    seed: [u8; 32],
+    seed: Vec<u8>,
     data: &[u8; 31],
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
@@ -506,7 +506,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
 #[allow(clippy::too_many_arguments)]
 async fn perform_create_pda<R: RpcConnection>(
     env: &EnvAccounts,
-    seed: [u8; 32],
+    seed: Vec<u8>,
     test_indexer: &mut TestIndexer<200, R>,
     rpc: &mut R,
     data: &[u8; 31],
@@ -514,7 +514,7 @@ async fn perform_create_pda<R: RpcConnection>(
     owner_program: &Pubkey,
     signer_is_program: CreatePdaMode,
 ) -> solana_sdk::instruction::Instruction {
-    let address = derive_address(&env.address_merkle_tree_pubkey, &[&seed[..]]).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
 
     let rpc_result = test_indexer
         .create_proof_for_compressed_accounts(
@@ -550,7 +550,7 @@ pub async fn assert_created_pda<R: RpcConnection>(
     test_indexer: &mut TestIndexer<200, R>,
     env: &EnvAccounts,
     payer: &Keypair,
-    seed: &[u8; 32],
+    seed: Vec<u8>,
     data: &[u8; 31],
 ) {
     let compressed_escrow_pda = test_indexer
@@ -559,7 +559,7 @@ pub async fn assert_created_pda<R: RpcConnection>(
         .find(|x| x.compressed_account.owner == ID)
         .unwrap()
         .clone();
-    let address = derive_address(&env.address_merkle_tree_pubkey, &[&seed[..]]).unwrap();
+    let address = derive_address(&env.address_merkle_tree_pubkey, &seed).unwrap();
     assert_eq!(
         compressed_escrow_pda.compressed_account.address.unwrap(),
         address
