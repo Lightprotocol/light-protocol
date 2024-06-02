@@ -112,7 +112,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
                     _account.hash.toArray(undefined, 32),
                     _account.leafIndex,
                 ),
-                new PublicKey('9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE'),
+                new PublicKey('HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN'),
                 bn(_account.lamports),
                 _account.data ? parseAccountData(_account.data) : undefined,
                 _account.address || undefined,

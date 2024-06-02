@@ -28,7 +28,7 @@ async fn test_create_and_update_group() {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     let system_program_id =
-        Pubkey::from_str("6UqiSPd2mRCTTwkzhcs1M6DGYsqHWd5jiPueX3LwDMXQ").unwrap();
+        Pubkey::from_str("H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN").unwrap();
     program_test.add_program("light_system_program", system_program_id, None);
 
     program_test.set_compute_max_units(1_400_000u64);
