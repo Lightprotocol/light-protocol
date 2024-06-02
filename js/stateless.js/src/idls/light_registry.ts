@@ -7,11 +7,6 @@ export type LightRegistry = {
             type: 'bytes';
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]';
         },
-        {
-            name: 'CPI_AUTHORITY_PDA_SEED';
-            type: 'bytes';
-            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
-        },
     ];
     instructions: [
         {
@@ -138,6 +133,57 @@ export type LightRegistry = {
                     isMut: false;
                     isSigner: false;
                 },
+                {
+                    name: 'programToBeRegistered';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+            ];
+        },
+        {
+            name: 'nullify';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'nullifierQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
             ];
             args: [
                 {
@@ -145,8 +191,219 @@ export type LightRegistry = {
                     type: 'u8';
                 },
                 {
-                    name: 'programId';
-                    type: 'publicKey';
+                    name: 'changeLogIndices';
+                    type: {
+                        vec: 'u64';
+                    };
+                },
+                {
+                    name: 'leavesQueueIndices';
+                    type: {
+                        vec: 'u16';
+                    };
+                },
+                {
+                    name: 'indices';
+                    type: {
+                        vec: 'u64';
+                    };
+                },
+                {
+                    name: 'proofs';
+                    type: {
+                        vec: {
+                            vec: {
+                                array: ['u8', 32];
+                            };
+                        };
+                    };
+                },
+            ];
+        },
+        {
+            name: 'updateAddressMerkleTree';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'queue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'merkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'logWrapper';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'changelogIndex';
+                    type: 'u16';
+                },
+                {
+                    name: 'value';
+                    type: 'u16';
+                },
+                {
+                    name: 'lowAddressIndex';
+                    type: 'u64';
+                },
+                {
+                    name: 'lowAddressValue';
+                    type: {
+                        array: ['u8', 32];
+                    };
+                },
+                {
+                    name: 'lowAddressNextIndex';
+                    type: 'u64';
+                },
+                {
+                    name: 'lowAddressNextValue';
+                    type: {
+                        array: ['u8', 32];
+                    };
+                },
+                {
+                    name: 'lowAddressProof';
+                    type: {
+                        array: [
+                            {
+                                array: ['u8', 32];
+                            },
+                            16,
+                        ];
+                    };
+                },
+            ];
+        },
+        {
+            name: 'rolloverAddressMerkleTreeAndQueue';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'newMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+            ];
+        },
+        {
+            name: 'rolloverStateMerkleTreeAndQueue';
+            accounts: [
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'newMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'newQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldMerkleTree';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'oldQueue';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
                 },
             ];
         },
@@ -198,11 +455,6 @@ export const IDL: LightRegistry = {
             name: 'AUTHORITY_PDA_SEED',
             type: 'bytes',
             value: '[97, 117, 116, 104, 111, 114, 105, 116, 121]',
-        },
-        {
-            name: 'CPI_AUTHORITY_PDA_SEED',
-            type: 'bytes',
-            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]',
         },
     ],
     instructions: [
@@ -330,6 +582,57 @@ export const IDL: LightRegistry = {
                     isMut: false,
                     isSigner: false,
                 },
+                {
+                    name: 'programToBeRegistered',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'nullify',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'nullifierQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
             ],
             args: [
                 {
@@ -337,8 +640,219 @@ export const IDL: LightRegistry = {
                     type: 'u8',
                 },
                 {
-                    name: 'programId',
-                    type: 'publicKey',
+                    name: 'changeLogIndices',
+                    type: {
+                        vec: 'u64',
+                    },
+                },
+                {
+                    name: 'leavesQueueIndices',
+                    type: {
+                        vec: 'u16',
+                    },
+                },
+                {
+                    name: 'indices',
+                    type: {
+                        vec: 'u64',
+                    },
+                },
+                {
+                    name: 'proofs',
+                    type: {
+                        vec: {
+                            vec: {
+                                array: ['u8', 32],
+                            },
+                        },
+                    },
+                },
+            ],
+        },
+        {
+            name: 'updateAddressMerkleTree',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'queue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'merkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'logWrapper',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'changelogIndex',
+                    type: 'u16',
+                },
+                {
+                    name: 'value',
+                    type: 'u16',
+                },
+                {
+                    name: 'lowAddressIndex',
+                    type: 'u64',
+                },
+                {
+                    name: 'lowAddressValue',
+                    type: {
+                        array: ['u8', 32],
+                    },
+                },
+                {
+                    name: 'lowAddressNextIndex',
+                    type: 'u64',
+                },
+                {
+                    name: 'lowAddressNextValue',
+                    type: {
+                        array: ['u8', 32],
+                    },
+                },
+                {
+                    name: 'lowAddressProof',
+                    type: {
+                        array: [
+                            {
+                                array: ['u8', 32],
+                            },
+                            16,
+                        ],
+                    },
+                },
+            ],
+        },
+        {
+            name: 'rolloverAddressMerkleTreeAndQueue',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'newMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+            ],
+        },
+        {
+            name: 'rolloverStateMerkleTreeAndQueue',
+            accounts: [
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'newMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'newQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldMerkleTree',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'oldQueue',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
                 },
             ],
         },

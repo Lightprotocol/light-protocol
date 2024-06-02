@@ -3,6 +3,11 @@ export type AccountCompression = {
     name: 'account_compression';
     constants: [
         {
+            name: 'CPI_AUTHORITY_PDA_SEED';
+            type: 'bytes';
+            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
+        },
+        {
             name: 'GROUP_AUTHORITY_SEED';
             type: 'bytes';
             value: '[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]';
@@ -82,7 +87,7 @@ export type AccountCompression = {
         {
             name: 'PROGRAM_ID';
             type: 'string';
-            value: '"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN"';
+            value: '"CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK"';
         },
     ];
     instructions: [
@@ -176,8 +181,14 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
                 },
                 {
                     name: 'queue';
@@ -244,7 +255,9 @@ export type AccountCompression = {
                     name: 'feePayer';
                     isMut: false;
                     isSigner: true;
-                    docs: ['Signer used to pay rollover and protocol fees.'];
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -347,6 +360,11 @@ export type AccountCompression = {
                     isSigner: true;
                 },
                 {
+                    name: 'programToBeRegistered';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
                     name: 'registeredProgramPda';
                     isMut: true;
                     isSigner: false;
@@ -362,12 +380,7 @@ export type AccountCompression = {
                     isSigner: false;
                 },
             ];
-            args: [
-                {
-                    name: 'programId';
-                    type: 'publicKey';
-                },
-            ];
+            args: [];
         },
         {
             name: 'initializeStateMerkleTreeAndNullifierQueue';
@@ -1176,6 +1189,11 @@ export const IDL: AccountCompression = {
     name: 'account_compression',
     constants: [
         {
+            name: 'CPI_AUTHORITY_PDA_SEED',
+            type: 'bytes',
+            value: '[99, 112, 105, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]',
+        },
+        {
             name: 'GROUP_AUTHORITY_SEED',
             type: 'bytes',
             value: '[103, 114, 111, 117, 112, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121]',
@@ -1255,7 +1273,7 @@ export const IDL: AccountCompression = {
         {
             name: 'PROGRAM_ID',
             type: 'string',
-            value: '"5QPEJ5zDsVou9FQS3KCauKswM3VwBEBu4dpL9xTqkWwN"',
+            value: '"CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK"',
         },
     ],
     instructions: [
@@ -1349,8 +1367,14 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
                 },
                 {
                     name: 'queue',
@@ -1417,7 +1441,9 @@ export const IDL: AccountCompression = {
                     name: 'feePayer',
                     isMut: false,
                     isSigner: true,
-                    docs: ['Signer used to pay rollover and protocol fees.'],
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ],
                 },
                 {
                     name: 'authority',
@@ -1520,6 +1546,11 @@ export const IDL: AccountCompression = {
                     isSigner: true,
                 },
                 {
+                    name: 'programToBeRegistered',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
                     name: 'registeredProgramPda',
                     isMut: true,
                     isSigner: false,
@@ -1535,12 +1566,7 @@ export const IDL: AccountCompression = {
                     isSigner: false,
                 },
             ],
-            args: [
-                {
-                    name: 'programId',
-                    type: 'publicKey',
-                },
-            ],
+            args: [],
         },
         {
             name: 'initializeStateMerkleTreeAndNullifierQueue',

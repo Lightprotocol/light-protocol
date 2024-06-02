@@ -5,7 +5,7 @@ export type LightCompressedToken = {
         {
             name: 'PROGRAM_ID';
             type: 'string';
-            value: '"9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE"';
+            value: '"HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN"';
         },
     ];
     instructions: [
@@ -984,6 +984,9 @@ export type LightCompressedToken = {
                     {
                         name: 'DelegateSignerCheckFailed';
                     },
+                    {
+                        name: 'SplTokenSupplyMismatch';
+                    },
                 ];
             };
         },
@@ -1008,7 +1011,7 @@ export const IDL: LightCompressedToken = {
         {
             name: 'PROGRAM_ID',
             type: 'string',
-            value: '"9sixVEthz2kMSKfeApZXHwuboT6DZuT6crAYJTciUCqE"',
+            value: '"HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN"',
         },
     ],
     instructions: [
@@ -1991,6 +1994,9 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'DelegateSignerCheckFailed',
+                    },
+                    {
+                        name: 'SplTokenSupplyMismatch',
                     },
                 ],
             },
