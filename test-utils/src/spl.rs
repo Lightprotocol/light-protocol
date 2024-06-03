@@ -319,7 +319,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         false, // is_compress
         None,  // compression_amount
         None,  // token_pool_pda
-        None,  // decompress_token_account
+        None,  // compress_or_decompress_token_account
         true,
     )
     .unwrap();
@@ -432,7 +432,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         false,                           // is_compress
         Some(amount),                    // compression_amount
         Some(get_token_pool_pda(&mint)), // token_pool_pda
-        Some(*recipient_token_account),  // decompress_token_account
+        Some(*recipient_token_account),  // compress_or_decompress_token_account
         true,
     )
     .unwrap();
@@ -542,7 +542,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         true,                           // is_compress
         Some(amount),                   // compression_amount
         Some(get_token_pool_pda(mint)), // token_pool_pda
-        Some(*sender_token_account),    // decompress_token_account
+        Some(*sender_token_account),    // compress_or_decompress_token_account
         true,
     )
     .unwrap();

@@ -1,7 +1,7 @@
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     create_output_compressed_accounts,
-    spl_compression::process_compression,
+    spl_compression::process_compression_or_decompression,
     token_data::{AccountState, TokenData},
     ErrorCode,
 };
@@ -66,7 +66,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     bench_sbf_end!("t_sum_check");
     bench_sbf_start!("t_process_compression");
     if inputs.compress_or_decompress_amount.is_some() {
-        process_compression(&inputs, &ctx)?;
+        process_compression_or_decompression(&inputs, &ctx)?;
     }
     bench_sbf_end!("t_process_compression");
     bench_sbf_start!("t_create_output_compressed_accounts");
@@ -333,7 +333,7 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub token_pool_pda: Option<Account<'info, TokenAccount>>,
     #[account(mut)]
-    pub decompress_token_account: Option<Account<'info, TokenAccount>>,
+    pub compress_or_decompress_token_account: Option<Account<'info, TokenAccount>>,
     pub token_program: Option<Program<'info, Token>>,
     pub system_program: Program<'info, System>,
 }
@@ -489,7 +489,7 @@ pub mod transfer_sdk {
         is_compress: bool,
         compress_or_decompress_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
-        decompress_token_account: Option<Pubkey>,
+        compress_or_decompress_token_account: Option<Pubkey>,
         sort: bool,
     ) -> Result<Instruction, TransferSdkError> {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
@@ -532,7 +532,7 @@ pub mod transfer_sdk {
             account_compression_program: account_compression::ID,
             self_program: crate::ID,
             token_pool_pda,
-            decompress_token_account,
+            compress_or_decompress_token_account,
             token_program: token_pool_pda.map(|_| Token::id()),
             system_program: solana_sdk::system_program::ID,
         };

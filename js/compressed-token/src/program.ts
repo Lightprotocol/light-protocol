@@ -643,7 +643,7 @@ export class CompressedTokenProgram {
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: null,
-                decompressTokenAccount: null,
+                compressOrDecompressTokenAccount: null,
                 tokenProgram: null,
             })
             .remainingAccounts(remainingAccountMetas)
@@ -724,7 +724,7 @@ export class CompressedTokenProgram {
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
-                decompressTokenAccount: source, // token
+                compressOrDecompressTokenAccount: source, // token
                 tokenProgram: TOKEN_PROGRAM_ID,
             })
             .remainingAccounts(remainingAccountMetas)
@@ -806,7 +806,7 @@ export class CompressedTokenProgram {
                 accountCompressionProgram: accountCompressionProgram,
                 selfProgram: this.programId,
                 tokenPoolPda: this.deriveTokenPoolPda(mint),
-                decompressTokenAccount: toAddress,
+                compressOrDecompressTokenAccount: toAddress,
                 tokenProgram: TOKEN_PROGRAM_ID,
             })
             .remainingAccounts(remainingAccountMetas)

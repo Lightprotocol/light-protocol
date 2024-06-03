@@ -508,7 +508,7 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
     output_merkle_tree_pubkey: &Pubkey,
     compression_amount: u64,
     is_compress: bool,
-    decompress_token_account: &Pubkey,
+    compress_or_decompress_token_account: &Pubkey,
     token_pool_pda: Option<Pubkey>,
     mint: &Pubkey,
     error_code: u32,
@@ -575,7 +575,7 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         is_compress,
         Some(compression_amount),
         token_pool_pda,
-        Some(*decompress_token_account),
+        Some(*compress_or_decompress_token_account),
         true,
     )
     .unwrap();
@@ -585,7 +585,7 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         vec![
             spl_token::instruction::approve(
                 &anchor_spl::token::ID,
-                decompress_token_account,
+                compress_or_decompress_token_account,
                 &get_cpi_authority_pda().0,
                 &payer.pubkey(),
                 &[&payer.pubkey()],

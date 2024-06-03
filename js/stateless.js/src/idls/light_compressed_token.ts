@@ -201,7 +201,7 @@ export type LightCompressedToken = {
                     isOptional: true;
                 },
                 {
-                    name: 'decompressTokenAccount';
+                    name: 'compressOrDecompressTokenAccount';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
@@ -1210,7 +1210,7 @@ export const IDL: LightCompressedToken = {
                     isOptional: true,
                 },
                 {
-                    name: 'decompressTokenAccount',
+                    name: 'compressOrDecompressTokenAccount',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,

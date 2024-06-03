@@ -226,7 +226,7 @@ pub fn cpi_compressed_token_withdrawal<'info>(
             .to_account_info(),
         light_system_program: ctx.accounts.light_system_program.to_account_info(),
         token_pool_pda: None,
-        decompress_token_account: None,
+        compress_or_decompress_token_account: None,
         token_program: None,
         system_program: ctx.accounts.system_program.to_account_info(),
     };
