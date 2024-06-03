@@ -940,13 +940,7 @@ export type LightCompressedToken = {
                         name: 'PublicKeyAmountMissmatch';
                     },
                     {
-                        name: 'MissingNewAuthorityPda';
-                    },
-                    {
                         name: 'SignerCheckFailed';
-                    },
-                    {
-                        name: 'MintCheckFailed';
                     },
                     {
                         name: 'ComputeInputSumFailed';
@@ -1951,13 +1945,7 @@ export const IDL: LightCompressedToken = {
                         name: 'PublicKeyAmountMissmatch',
                     },
                     {
-                        name: 'MissingNewAuthorityPda',
-                    },
-                    {
                         name: 'SignerCheckFailed',
-                    },
-                    {
-                        name: 'MintCheckFailed',
                     },
                     {
                         name: 'ComputeInputSumFailed',

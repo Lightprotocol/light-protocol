@@ -248,37 +248,3 @@ pub fn process<
 
     Ok(())
 }
-
-// TODO: refactor to compressed_account
-// #[derive(Debug)]
-// #[account]
-// pub struct InstructionDataInvoke2 {
-//     pub proof: Option<CompressedProof>,
-//     pub low_element_indices: Vec<u16>,
-//     pub root_indices: Vec<u16>,
-//     pub relay_fee: Option<u64>,
-//     pub utxos: SerializedUtxos,
-// }
-
-// pub fn into_inputs(
-//     inputs: InstructionDataInvoke2,
-//     accounts: &[Pubkey],
-//     remaining_accounts: &[Pubkey],
-// ) -> Result<InstructionDataInvoke> {
-//     let input_compressed_accounts_with_merkle_context = inputs
-//         .utxos
-//         .input_compressed_accounts_from_serialized_utxos(accounts, remaining_accounts)
-//         .unwrap();
-//     let output_compressed_accounts = inputs
-//         .utxos
-//         .output_compressed_accounts_from_serialized_utxos(accounts)
-//         .unwrap();
-//     Ok(InstructionDataInvoke {
-//         proof: inputs.proof,
-//         low_element_indices: inputs.low_element_indices,
-//         root_indices: inputs.root_indices,
-//         relay_fee: inputs.relay_fee,
-//         input_compressed_accounts_with_merkle_context,
-//         output_compressed_accounts,
-//     })
-// }

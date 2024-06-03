@@ -63,9 +63,4 @@ pub mod light_system_program {
 
         process_invoke_cpi(ctx, inputs)
     }
-
-    // TODO:
-    // - add compress and decompress sol as a wrapper around
-    // process_compressed_transaction
-    // - add create_pda as a wrapper around process_compressed_transaction
 }

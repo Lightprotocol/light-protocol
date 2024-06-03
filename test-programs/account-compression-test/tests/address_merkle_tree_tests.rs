@@ -117,7 +117,7 @@ async fn test_address_queue_and_tree_functional() {
 /// 7. invalid low element next value
 /// 8. invalid low element proof
 /// 9. invalid changelog index (lower)
-/// 10. TODO invalid changelog index (higher)
+/// 10. invalid changelog index (higher)
 /// 11. invalid queue account
 /// 12. invalid Merkle tree account
 /// 13. non-associated Merkle tree
@@ -412,7 +412,6 @@ async fn update_address_merkle_tree_failing_tests() {
     )
     .unwrap();
 
-    // TODO: enable once cyclic bounded vec iter_from is fixed
     let invalid_changelog_index_high = changelog_index + 2;
     let error_invalid_changelog_index_high = update_merkle_tree(
         &mut context,

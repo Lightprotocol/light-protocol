@@ -158,8 +158,6 @@ impl DataHasher for TokenData {
         if self.state != AccountState::Initialized {
             hash_inputs.push(&state_bytes[..]);
         }
-        // TODO: implement a trait hash_default value for Option<u64> and use it
-        // for other optional values
         H::hashv(hash_inputs.as_slice())
     }
 }

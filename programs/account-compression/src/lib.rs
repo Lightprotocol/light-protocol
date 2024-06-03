@@ -188,9 +188,4 @@ pub mod account_compression {
     ) -> Result<()> {
         process_rollover_state_merkle_tree_nullifier_queue_pair(ctx)
     }
-
-    // TODO: add claim instruction
-    // TODO: insert into indexed array just insert into one array instead of possibly multiple
-
-    // TODO: insert_from_nullifier_queue_into_merkle_tree ( to nullify transactions)
 }

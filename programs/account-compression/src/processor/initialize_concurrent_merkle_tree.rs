@@ -56,11 +56,6 @@ pub fn process_initialize_state_merkle_tree(
         associated_queue,
     );
 
-    // TODO: think about whether and if yes how to use the Merkle tree index in
-    // the future. We could create a group which has ownership over a set of
-    // Merkle trees; same registration process as for pool program this needs to
-    // be the program_owner and or owner. If part of a group we can apply the same
-    // registration model as for the pool program.
     merkle_tree
         .load_merkle_tree_init(
             (*height)

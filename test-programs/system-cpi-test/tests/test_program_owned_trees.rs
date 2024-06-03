@@ -26,7 +26,6 @@ use light_test_utils::{
 use solana_sdk::instruction::Instruction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
-// TODO: move to token tests
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
     let (mut rpc, env) = setup_test_programs_with_accounts(Some(vec![(

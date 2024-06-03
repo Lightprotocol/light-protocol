@@ -134,7 +134,6 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
             )
             .map_err(ProgramError::from)?;
 
-        // TODO: replace with root history sequence number
         nullifier_queue
             .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
             .map_err(ProgramError::from)?;

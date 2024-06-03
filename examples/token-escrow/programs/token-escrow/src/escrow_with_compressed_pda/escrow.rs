@@ -200,7 +200,7 @@ pub struct PackedInputCompressedPda {
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
 }
-// TODO: add functionality to deposit into an existing escrow account
+
 #[inline(never)]
 pub fn cpi_compressed_token_transfer_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,

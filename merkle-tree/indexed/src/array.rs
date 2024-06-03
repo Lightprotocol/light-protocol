@@ -13,7 +13,6 @@ where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    // TODO: validate that it can be removed
     pub index: I,
     pub value: BigUint,
     pub next_index: I,
@@ -460,7 +459,6 @@ where
         Ok(Some(removed_element))
     }
 
-    // TODO: remove since it's not used (hashset replaces this)
     /// Returns and removes the element from the given index.
     ///
     /// It also performs necessary updates of the remaning elements, to
