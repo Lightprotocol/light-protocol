@@ -67,8 +67,6 @@ pub fn process_mint_to<'info>(
     // `output_state_merkle_tree_account_indices`
     + amounts.len() + mem::size_of::<Option::<light_system_program::sdk::CompressedCpiContext>>()+ 8;
         let mut inputs = Vec::<u8>::with_capacity(inputs_len);
-        // safety buffer prior to heap pos
-        let buffer = vec![0u8; 8];
         // # SAFETY: the inputs vector needs to be allocated before this point.
         // All heap memory from this point on is freed prior to the cpi call.
         let pre_compressed_acounts_pos = light_heap::GLOBAL_ALLOCATOR.get_heap_pos();
@@ -518,7 +516,7 @@ fn test_manual_ix_data_serialization_borsh_compat() {
         output_compressed_accounts: output_compressed_accounts.clone(),
         proof: None,
         new_address_params: Vec::with_capacity(0),
-        compression_lamports: None,
+        compress_or_decompress_lamports: None,
         is_compress: false,
         signer_seeds: signer_seeds_vec,
         cpi_context: None,

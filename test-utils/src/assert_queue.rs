@@ -162,7 +162,7 @@ pub async fn assert_queue<R: RpcConnection>(
     };
     let expected_access_meta_data = account_compression::AccessMetadata {
         owner: *payer_pubkey,
-        delegate: expected_delegate.unwrap_or_default(),
+        program_owner: expected_delegate.unwrap_or_default(),
     };
     let expected_queue_meta_data = QueueMetadata {
         access_metadata: expected_access_meta_data,

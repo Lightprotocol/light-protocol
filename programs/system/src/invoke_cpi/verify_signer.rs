@@ -4,7 +4,7 @@ use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
 
 use crate::{
-    errors::CompressedPdaError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+    errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
     InstructionDataInvokeCpi,
 };
 
@@ -52,7 +52,7 @@ pub fn cpi_signer_check(
             derived_signer,
             authority
         );
-        return err!(CompressedPdaError::CpiSignerCheckFailed);
+        return err!(SystemProgramError::CpiSignerCheckFailed);
     }
     Ok(())
 }
@@ -81,7 +81,7 @@ pub fn input_compressed_accounts_signer_check(
                 compressed_account_with_context.compressed_account.owner,
             invoking_program_id
         );
-            err!(CompressedPdaError::SignerCheckFailed)
+            err!(SystemProgramError::SignerCheckFailed)
         }
     })?;
     Ok(())
@@ -107,7 +107,7 @@ pub fn output_compressed_accounts_write_access_check(
                     invoking_program_id.key()
                 );
             msg!("compressed_account: {:?}", compressed_account);
-            return err!(CompressedPdaError::WriteAccessCheckFailed);
+            return err!(SystemProgramError::WriteAccessCheckFailed);
         }
     }
     Ok(())
@@ -127,18 +127,18 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     } else {
         None
     };
-    if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
+    if merkle_tree_unpacked.metadata.access_metadata.program_owner != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
+            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.program_owner {
                 return Ok((next_index, network_fee, seq));
             }
         }
         msg!(
-            "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
+            "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
             invoking_program,
-            merkle_tree_unpacked.metadata.access_metadata.delegate
+            merkle_tree_unpacked.metadata.access_metadata.program_owner
         );
-        return Err(CompressedPdaError::InvalidMerkleTreeOwner.into());
+        return Err(SystemProgramError::InvalidMerkleTreeOwner.into());
     }
     Ok((next_index, network_fee, seq))
 }
@@ -155,23 +155,23 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
     } else {
         None
     };
-    if merkle_tree_unpacked.metadata.access_metadata.delegate != Pubkey::default() {
+    if merkle_tree_unpacked.metadata.access_metadata.program_owner != Pubkey::default() {
         if let Some(invoking_program) = invoking_program {
-            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.delegate {
+            if *invoking_program == merkle_tree_unpacked.metadata.access_metadata.program_owner {
                 msg!(
-                    "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
+                    "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
                     invoking_program,
-                    merkle_tree_unpacked.metadata.access_metadata.delegate
+                    merkle_tree_unpacked.metadata.access_metadata.program_owner
                 );
                 return Ok(network_fee);
             }
         }
         msg!(
-            "invoking_program.key() {:?} == merkle_tree_unpacked.delegate {:?}",
+            "invoking_program.key() {:?} == merkle_tree_unpacked.program_owner {:?}",
             invoking_program,
-            merkle_tree_unpacked.metadata.access_metadata.delegate
+            merkle_tree_unpacked.metadata.access_metadata.program_owner
         );
-        Err(CompressedPdaError::InvalidMerkleTreeOwner.into())
+        Err(SystemProgramError::InvalidMerkleTreeOwner.into())
     } else {
         Ok(network_fee)
     }

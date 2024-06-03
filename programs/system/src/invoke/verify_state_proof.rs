@@ -1,5 +1,5 @@
 use crate::{
-    errors::CompressedPdaError,
+    errors::SystemProgramError,
     invoke::InstructionDataInvoke,
     sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
     NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
@@ -195,7 +195,7 @@ pub fn sum_check(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     output_compressed_account: &[OutputCompressedAccountWithPackedContext],
     relay_fee: &Option<u64>,
-    compression_lamports: &Option<u64>,
+    compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
 ) -> Result<()> {
     let mut sum: u64 = 0;
@@ -203,21 +203,21 @@ pub fn sum_check(
         sum = sum
             .checked_add(compressed_account_with_context.compressed_account.lamports)
             .ok_or(ProgramError::ArithmeticOverflow)
-            .map_err(|_| CompressedPdaError::ComputeInputSumFailed)?;
+            .map_err(|_| SystemProgramError::ComputeInputSumFailed)?;
     }
 
-    match compression_lamports {
+    match compress_or_decompress_lamports {
         Some(lamports) => {
             if *is_compress {
                 sum = sum
                     .checked_add(*lamports)
                     .ok_or(ProgramError::ArithmeticOverflow)
-                    .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
+                    .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
             } else {
                 sum = sum
                     .checked_sub(*lamports)
                     .ok_or(ProgramError::ArithmeticOverflow)
-                    .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
+                    .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
             }
         }
         None => (),
@@ -227,20 +227,20 @@ pub fn sum_check(
         sum = sum
             .checked_sub(compressed_account.compressed_account.lamports)
             .ok_or(ProgramError::ArithmeticOverflow)
-            .map_err(|_| CompressedPdaError::ComputeOutputSumFailed)?;
+            .map_err(|_| SystemProgramError::ComputeOutputSumFailed)?;
     }
 
     if let Some(relay_fee) = relay_fee {
         sum = sum
             .checked_sub(*relay_fee)
             .ok_or(ProgramError::ArithmeticOverflow)
-            .map_err(|_| CompressedPdaError::ComputeRpcSumFailed)?;
+            .map_err(|_| SystemProgramError::ComputeRpcSumFailed)?;
     }
 
     if sum == 0 {
         Ok(())
     } else {
-        Err(CompressedPdaError::SumCheckFailed.into())
+        Err(SystemProgramError::SumCheckFailed.into())
     }
 }
 
@@ -299,7 +299,7 @@ mod test {
         input_amounts: &[u64],
         output_amounts: &[u64],
         relay_fee: Option<u64>,
-        compression_lamports: Option<u64>,
+        compress_or_decompress_lamports: Option<u64>,
         is_compress: bool,
     ) -> Result<()> {
         let mut inputs = Vec::new();
@@ -336,7 +336,7 @@ mod test {
             &inputs,
             &outputs,
             &relay_fee,
-            &compression_lamports,
+            &compress_or_decompress_lamports,
             &is_compress,
         )
     }

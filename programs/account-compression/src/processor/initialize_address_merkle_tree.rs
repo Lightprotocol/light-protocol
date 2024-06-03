@@ -8,7 +8,7 @@ pub fn process_initialize_address_merkle_tree(
     address_merkle_tree_loader: &AccountLoader<'_, AddressMerkleTreeAccount>,
     index: u64,
     owner: Pubkey,
-    delegate: Option<Pubkey>,
+    program_owner: Option<Pubkey>,
     height: u32,
     changelog_size: u64,
     roots_size: u64,
@@ -25,7 +25,7 @@ pub fn process_initialize_address_merkle_tree(
     // All rollover fees are collected by the address queue.
     let rollover_fee = 0;
     address_merkle_tree.init(
-        AccessMetadata::new(owner, delegate),
+        AccessMetadata::new(owner, program_owner),
         RolloverMetadata::new(
             index,
             rollover_fee,

@@ -3,9 +3,9 @@ export type LightSystemProgram = {
     name: 'light_system_program';
     constants: [
         {
-            name: 'COMPRESSED_SOL_PDA_SEED';
+            name: 'SOL_POOL_PDA_SEED';
             type: 'bytes';
-            value: '[99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 115, 111, 108, 95, 112, 100, 97]';
+            value: '[115, 111, 108, 95, 112, 111, 111, 108, 95, 112, 100, 97]';
         },
     ];
     instructions: [
@@ -69,13 +69,13 @@ export type LightSystemProgram = {
                     isSigner: false;
                 },
                 {
-                    name: 'compressedSolPda';
+                    name: 'solPoolPda';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
                 },
                 {
-                    name: 'compressionRecipient';
+                    name: 'decompressionRecipient';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
@@ -132,13 +132,13 @@ export type LightSystemProgram = {
                     isSigner: false;
                 },
                 {
-                    name: 'compressedSolPda';
+                    name: 'solPoolPda';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
                 },
                 {
-                    name: 'compressionRecipient';
+                    name: 'decompressionRecipient';
                     isMut: true;
                     isSigner: false;
                     isOptional: true;
@@ -245,7 +245,7 @@ export type LightSystemProgram = {
                         };
                     },
                     {
-                        name: 'compressionLamports';
+                        name: 'compressOrDecompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -415,7 +415,7 @@ export type LightSystemProgram = {
                         };
                     },
                     {
-                        name: 'compressionLamports';
+                        name: 'compressOrDecompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -654,7 +654,7 @@ export type LightSystemProgram = {
                         type: 'bool';
                     },
                     {
-                        name: 'compressionLamports';
+                        name: 'compressOrDecompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -895,9 +895,9 @@ export const IDL: LightSystemProgram = {
     name: 'light_system_program',
     constants: [
         {
-            name: 'COMPRESSED_SOL_PDA_SEED',
+            name: 'SOL_POOL_PDA_SEED',
             type: 'bytes',
-            value: '[99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 115, 111, 108, 95, 112, 100, 97]',
+            value: '[115, 111, 108, 95, 112, 111, 111, 108, 95, 112, 100, 97]',
         },
     ],
     instructions: [
@@ -961,13 +961,13 @@ export const IDL: LightSystemProgram = {
                     isSigner: false,
                 },
                 {
-                    name: 'compressedSolPda',
+                    name: 'solPoolPda',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
                 },
                 {
-                    name: 'compressionRecipient',
+                    name: 'decompressionRecipient',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
@@ -1024,13 +1024,13 @@ export const IDL: LightSystemProgram = {
                     isSigner: false,
                 },
                 {
-                    name: 'compressedSolPda',
+                    name: 'solPoolPda',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
                 },
                 {
-                    name: 'compressionRecipient',
+                    name: 'decompressionRecipient',
                     isMut: true,
                     isSigner: false,
                     isOptional: true,
@@ -1139,7 +1139,7 @@ export const IDL: LightSystemProgram = {
                         },
                     },
                     {
-                        name: 'compressionLamports',
+                        name: 'compressOrDecompressLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1311,7 +1311,7 @@ export const IDL: LightSystemProgram = {
                         },
                     },
                     {
-                        name: 'compressionLamports',
+                        name: 'compressOrDecompressLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1551,7 +1551,7 @@ export const IDL: LightSystemProgram = {
                         type: 'bool',
                     },
                     {
-                        name: 'compressionLamports',
+                        name: 'compressOrDecompressLamports',
                         type: {
                             option: 'u64',
                         },

@@ -29,7 +29,7 @@ pub struct AssertCompressedTransactionInputs<'a, const INDEXED_ARRAY_SIZE: usize
     pub address_queue_pubkeys: &'a [Pubkey],
     pub event: &'a PublicTransactionEvent,
     pub sorted_output_accounts: bool,
-    pub compression_lamports: Option<u64>,
+    pub compress_or_decompress_lamports: Option<u64>,
     pub is_compress: bool,
     pub relay_fee: Option<u64>,
     pub compression_recipient: Option<Pubkey>,
@@ -99,17 +99,17 @@ pub async fn assert_compressed_transaction<const INDEXED_ARRAY_SIZE: usize, R: R
             .iter()
             .map(|x| x.merkle_context.leaf_index)
             .collect::<Vec<_>>(),
-        input.compression_lamports,
+        input.compress_or_decompress_lamports,
         input.is_compress,
         input.relay_fee,
         sequence_numbers,
     );
 
     // CHECK 7
-    if let Some(compression_lamports) = input.compression_lamports {
+    if let Some(compress_or_decompress_lamports) = input.compress_or_decompress_lamports {
         assert_compression(
             input.rpc,
-            compression_lamports,
+            compress_or_decompress_lamports,
             input.compressed_sol_pda_balance_pre,
             input.recipient_balance_pre,
             &input.compression_recipient.unwrap_or_default(),
@@ -203,7 +203,7 @@ pub fn assert_public_transaction_event(
     input_compressed_account_hashes: Option<&Vec<[u8; 32]>>,
     output_merkle_tree_accounts: &[StateMerkleTreeAccounts],
     output_leaf_indices: &Vec<u32>,
-    compression_lamports: Option<u64>,
+    compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
     relay_fee: Option<u64>,
     sequence_numbers: Vec<MerkleTreeSequenceNumber>,
@@ -228,7 +228,7 @@ pub fn assert_public_transaction_event(
     );
 
     assert_eq!(
-        event.compression_lamports, compression_lamports,
+        event.compress_or_decompress_lamports, compress_or_decompress_lamports,
         "assert_public_transaction_event: compression lamports mismatch"
     );
     assert_eq!(

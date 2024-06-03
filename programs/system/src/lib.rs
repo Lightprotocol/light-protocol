@@ -10,6 +10,15 @@ pub mod sdk;
 pub mod utils;
 declare_id!("H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN");
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "light_system_program",
+    project_url: "lightprotocol.com",
+    contacts: "email:security@lightprotocol.com",
+    policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
+    source_code: "https://github.com/Lightprotocol/light-protocol"
+}
+
 #[program]
 pub mod light_system_program {
 

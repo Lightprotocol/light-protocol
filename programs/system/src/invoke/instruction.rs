@@ -1,8 +1,8 @@
-use account_compression::program::AccountCompression;
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 
 use crate::{
-    invoke::sol_compression::COMPRESSED_SOL_PDA_SEED,
+    invoke::sol_compression::SOL_POOL_PDA_SEED,
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
         compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
@@ -28,17 +28,17 @@ pub struct InvokeInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority"], bump)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program: Program<'info, AccountCompression>,
     #[account(
         mut,
-        seeds = [COMPRESSED_SOL_PDA_SEED], bump
+        seeds = [SOL_POOL_PDA_SEED], bump
     )]
-    pub compressed_sol_pda: Option<UncheckedAccount<'info>>,
+    pub sol_pool_pda: Option<UncheckedAccount<'info>>,
     #[account(mut)]
-    pub compression_recipient: Option<UncheckedAccount<'info>>,
+    pub decompression_recipient: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
 }
 
@@ -76,10 +76,10 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
         &self.system_program
     }
     fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
-        self.compressed_sol_pda.as_ref()
+        self.sol_pool_pda.as_ref()
     }
     fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
-        self.compression_recipient.as_ref()
+        self.decompression_recipient.as_ref()
     }
 }
 
@@ -91,7 +91,7 @@ pub struct InstructionDataInvoke {
     pub output_compressed_accounts: Vec<OutputCompressedAccountWithPackedContext>,
     pub relay_fee: Option<u64>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
-    pub compression_lamports: Option<u64>,
+    pub compress_or_decompress_lamports: Option<u64>,
     pub is_compress: bool,
 }
 

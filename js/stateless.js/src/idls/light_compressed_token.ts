@@ -265,7 +265,7 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'compressionLamports';
+                        name: 'compressOrDecompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -435,7 +435,7 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'compressionLamports';
+                        name: 'compressOrDecompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -674,7 +674,7 @@ export type LightCompressedToken = {
                         type: 'bool';
                     },
                     {
-                        name: 'compressionLamports';
+                        name: 'compressOrDecompressLamports';
                         type: {
                             option: 'u64';
                         };
@@ -1273,7 +1273,7 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'compressionLamports',
+                        name: 'compressOrDecompressLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1445,7 +1445,7 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'compressionLamports',
+                        name: 'compressOrDecompressLamports',
                         type: {
                             option: 'u64',
                         },
@@ -1685,7 +1685,7 @@ export const IDL: LightCompressedToken = {
                         type: 'bool',
                     },
                     {
-                        name: 'compressionLamports',
+                        name: 'compressOrDecompressLamports',
                         type: {
                             option: 'u64',
                         },

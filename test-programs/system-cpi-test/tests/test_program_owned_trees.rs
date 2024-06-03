@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use account_compression::sdk::create_insert_leaves_instruction;
-use account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES;
+use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::{QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
@@ -142,7 +142,7 @@ async fn test_program_owned_merkle_tree() {
     let res = rpc.process_transaction(transaction).await;
     assert_custom_error_or_program_error(
         res,
-        light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
+        light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
     )
     .unwrap();
 }
@@ -216,7 +216,7 @@ async fn test_invalid_registered_program() {
     // 1. the program is registered with a different group than the Merkle tree
     {
         let derived_address =
-            Pubkey::find_program_address(&[b"cpi_authority"], &system_cpi_test::ID).0;
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
         let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
             signer: payer.pubkey(),
             registered_program_pda: invalid_group_registered_program_pda,
@@ -284,7 +284,7 @@ async fn test_invalid_registered_program() {
     // 4. use registered_program_pda of other program
     {
         let derived_address =
-            Pubkey::find_program_address(&[b"cpi_authority"], &system_cpi_test::ID).0;
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
         let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
@@ -543,7 +543,7 @@ async fn test_invalid_registered_program() {
     // 9. insert into address queue with invalid group
     {
         let derived_address =
-            Pubkey::find_program_address(&[b"cpi_authority"], &system_cpi_test::ID).0;
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
         let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,
@@ -581,7 +581,7 @@ async fn test_invalid_registered_program() {
     // 10. insert into nullifier queue with invalid group
     {
         let derived_address =
-            Pubkey::find_program_address(&[b"cpi_authority"], &system_cpi_test::ID).0;
+            Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &system_cpi_test::ID).0;
         let accounts = system_cpi_test::accounts::AppendLeavesAccountCompressionProgram {
             signer: payer.pubkey(),
             registered_program_pda: token_program_registered_program_pda,

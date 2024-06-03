@@ -92,7 +92,7 @@ pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
         *payer_pubkey
     );
     assert_eq!(
-        merkle_tree_account.metadata.access_metadata.delegate,
+        merkle_tree_account.metadata.access_metadata.program_owner,
         Pubkey::default()
     );
     assert_eq!(merkle_tree_account.metadata.associated_queue, *queue_pubkey);

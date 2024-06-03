@@ -67,7 +67,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     );
     let expected_access_meta_data = account_compression::AccessMetadata {
         owner: *owner_pubkey,
-        delegate: program_owner.unwrap_or_default(),
+        program_owner: program_owner.unwrap_or_default(),
     };
     assert_eq!(
         merkle_tree_account.metadata.access_metadata,

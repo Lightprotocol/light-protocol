@@ -2,13 +2,13 @@ use anchor_lang::{solana_program::pubkey::Pubkey, Result};
 use light_utils::hash_to_bn254_field_size_be;
 use std::collections::HashMap;
 
-use crate::{errors::CompressedPdaError, NewAddressParams, NewAddressParamsPacked};
+use crate::{errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked};
 pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
     let hash = match hash_to_bn254_field_size_be(
         [merkle_tree_pubkey.to_bytes(), *seed].concat().as_slice(),
     ) {
-        Some(hash) => Ok::<[u8; 32], CompressedPdaError>(hash.0),
-        None => return Err(CompressedPdaError::DeriveAddressError.into()),
+        Some(hash) => Ok::<[u8; 32], SystemProgramError>(hash.0),
+        None => return Err(SystemProgramError::DeriveAddressError.into()),
     }?;
 
     Ok(hash)

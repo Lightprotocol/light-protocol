@@ -20,14 +20,14 @@ pub fn create_initialize_merkle_tree_instruction(
     nullifier_queue_pubkey: Pubkey,
     state_merkle_tree_config: StateMerkleTreeConfig,
     nullifier_queue_config: NullifierQueueConfig,
-    delegate: Option<Pubkey>,
+    program_owner: Option<Pubkey>,
     index: u64,
     additional_rent: u64,
 ) -> Instruction {
     let instruction_data = InitializeStateMerkleTreeAndNullifierQueue {
         index,
         owner,
-        delegate,
+        program_owner,
         state_merkle_tree_config,
         nullifier_queue_config,
         additional_rent,
@@ -79,7 +79,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     index: u64,
     payer: Pubkey,
     owner: Pubkey,
-    delegate: Option<Pubkey>,
+    program_owner: Option<Pubkey>,
     merkle_tree_pubkey: Pubkey,
     queue_pubkey: Pubkey,
     address_merkle_tree_config: AddressMerkleTreeConfig,
@@ -88,7 +88,7 @@ pub fn create_initialize_address_merkle_tree_and_queue_instruction(
     let instruction_data = InitializeAddressMerkleTreeAndQueue {
         index,
         owner,
-        delegate,
+        program_owner,
         address_merkle_tree_config,
         address_queue_config,
     };

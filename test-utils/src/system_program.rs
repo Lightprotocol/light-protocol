@@ -92,7 +92,7 @@ pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnec
         output_merkle_tree_pubkeys: output_merkle_tree_pubkeys.as_slice(),
         transaction_params,
         relay_fee: None,
-        compression_lamports: None,
+        compress_or_decompress_lamports: None,
         is_compress: false,
         new_address_params: &address_params,
         sorted_output_accounts: false,
@@ -151,7 +151,7 @@ pub async fn compress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection
         output_merkle_tree_pubkeys: &[*output_merkle_tree_pubkey],
         transaction_params,
         relay_fee: None,
-        compression_lamports: Some(compress_amount),
+        compress_or_decompress_lamports: Some(compress_amount),
         is_compress: true,
         new_address_params: &[],
         sorted_output_accounts: false,
@@ -195,7 +195,7 @@ pub async fn decompress_sol_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnecti
         output_merkle_tree_pubkeys: &[*output_merkle_tree_pubkey],
         transaction_params,
         relay_fee: None,
-        compression_lamports: Some(decompress_amount),
+        compress_or_decompress_lamports: Some(decompress_amount),
         is_compress: false,
         new_address_params: &[],
         sorted_output_accounts: false,
@@ -264,7 +264,7 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
         output_merkle_tree_pubkeys: output_merkle_tree_pubkeys.as_slice(),
         transaction_params,
         relay_fee: None,
-        compression_lamports: None,
+        compress_or_decompress_lamports: None,
         is_compress: false,
         new_address_params: &[],
         sorted_output_accounts: false,
@@ -285,7 +285,7 @@ pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, 
     output_merkle_tree_pubkeys: &'a [Pubkey],
     transaction_params: Option<TransactionParams>,
     relay_fee: Option<u64>,
-    compression_lamports: Option<u64>,
+    compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
     new_address_params: &'a [NewAddressParams],
     sorted_output_accounts: bool,
@@ -399,13 +399,13 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         &root_indices,
         &address_params,
         proof,
-        inputs.compression_lamports,
+        inputs.compress_or_decompress_lamports,
         inputs.is_compress,
         inputs.recipient,
     );
     let mut recipient_balance_pre = 0;
     let mut compressed_sol_pda_balance_pre = 0;
-    if inputs.compression_lamports.is_some() {
+    if inputs.compress_or_decompress_lamports.is_some() {
         compressed_sol_pda_balance_pre = match inputs
             .rpc
             .get_account(get_compressed_sol_pda())
@@ -451,7 +451,7 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         input_merkle_tree_snapshots: input_merkle_tree_snapshots.as_slice(),
         output_merkle_tree_snapshots: output_merkle_tree_snapshots.as_slice(),
         recipient_balance_pre,
-        compression_lamports: inputs.compression_lamports,
+        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
         is_compress: inputs.is_compress,
         compressed_sol_pda_balance_pre,
         compression_recipient: inputs.recipient,

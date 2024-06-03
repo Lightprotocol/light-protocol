@@ -120,7 +120,7 @@ export type AccountCompression = {
                     type: 'publicKey';
                 },
                 {
-                    name: 'delegate';
+                    name: 'programOwner';
                     type: {
                         option: 'publicKey';
                     };
@@ -420,7 +420,7 @@ export type AccountCompression = {
                     type: 'publicKey';
                 },
                 {
-                    name: 'delegate';
+                    name: 'programOwner';
                     type: {
                         option: 'publicKey';
                     };
@@ -670,7 +670,7 @@ export type AccountCompression = {
                         type: 'publicKey';
                     },
                     {
-                        name: 'delegate';
+                        name: 'programOwner';
                         docs: [
                             'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
                         ];
@@ -1306,7 +1306,7 @@ export const IDL: AccountCompression = {
                     type: 'publicKey',
                 },
                 {
-                    name: 'delegate',
+                    name: 'programOwner',
                     type: {
                         option: 'publicKey',
                     },
@@ -1606,7 +1606,7 @@ export const IDL: AccountCompression = {
                     type: 'publicKey',
                 },
                 {
-                    name: 'delegate',
+                    name: 'programOwner',
                     type: {
                         option: 'publicKey',
                     },
@@ -1856,7 +1856,7 @@ export const IDL: AccountCompression = {
                         type: 'publicKey',
                     },
                     {
-                        name: 'delegate',
+                        name: 'programOwner',
                         docs: [
                             'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
                         ],

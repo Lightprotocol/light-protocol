@@ -1,5 +1,7 @@
 use crate::OutputCompressedAccountWithPackedContext;
-use anchor_lang::{solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize};
+use anchor_lang::{
+    prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
+};
 use std::{io::Write, mem};
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
@@ -17,7 +19,7 @@ pub struct PublicTransactionEvent {
     pub sequence_numbers: Vec<MerkleTreeSequenceNumber>,
     pub relay_fee: Option<u64>,
     pub is_compress: bool,
-    pub compression_lamports: Option<u64>,
+    pub compress_or_decompress_lamports: Option<u64>,
     pub pubkey_array: Vec<Pubkey>,
     // TODO: remove(data can just be written into a compressed account)
     pub message: Option<Vec<u8>>,
@@ -87,10 +89,10 @@ impl PublicTransactionEvent {
 
         writer.write_all(&[self.is_compress as u8])?;
 
-        match self.compression_lamports {
-            Some(compression_lamports) => {
+        match self.compress_or_decompress_lamports {
+            Some(compress_or_decompress_lamports) => {
                 writer.write_all(&[1])?;
-                writer.write_all(&compression_lamports.to_le_bytes())
+                writer.write_all(&compress_or_decompress_lamports.to_le_bytes())
             }
             None => writer.write_all(&[0]),
         }?;
@@ -152,7 +154,7 @@ pub mod test {
             output_leaf_indices: vec![4, 5, 6],
             relay_fee: Some(1000),
             is_compress: true,
-            compression_lamports: Some(5000),
+            compress_or_decompress_lamports: Some(5000),
             pubkey_array: vec![Keypair::new().pubkey(), Keypair::new().pubkey()],
             message: Some(vec![8, 9, 10]),
         };
@@ -215,7 +217,7 @@ pub mod test {
                     .collect(),
                 relay_fee: if rng.gen() { Some(rng.gen()) } else { None },
                 is_compress: rng.gen(),
-                compression_lamports: if rng.gen() { Some(rng.gen()) } else { None },
+                compress_or_decompress_lamports: if rng.gen() { Some(rng.gen()) } else { None },
                 pubkey_array: pubkeys,
                 message,
             };

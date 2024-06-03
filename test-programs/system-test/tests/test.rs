@@ -3,7 +3,7 @@ use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::error::ErrorCode;
 use light_hasher::Poseidon;
 use light_system_program::{
-    errors::CompressedPdaError,
+    errors::SystemProgramError,
     sdk::{
         address::derive_address,
         compressed_account::{CompressedAccount, CompressedAccountData, MerkleContext},
@@ -89,7 +89,7 @@ async fn invoke_failing_test() {
         &payer,
         inputs_struct,
         remaining_accounts,
-        CompressedPdaError::EmptyInputs.into(),
+        SystemProgramError::EmptyInputs.into(),
     )
     .await
     .unwrap();
@@ -393,7 +393,7 @@ pub async fn failing_transaction_inputs_inner(
                 + 1;
             VerifierError::ProofVerificationFailed.into()
         } else {
-            CompressedPdaError::SumCheckFailed.into()
+            SystemProgramError::SumCheckFailed.into()
         };
 
         create_instruction_and_failing_transaction(
@@ -434,7 +434,7 @@ pub async fn failing_transaction_inputs_inner(
             payer,
             inputs_struct,
             remaining_accounts.clone(),
-            CompressedPdaError::SignerCheckFailed.into(),
+            SystemProgramError::SignerCheckFailed.into(),
         )
         .await
         .unwrap();
@@ -692,9 +692,9 @@ pub async fn failing_transaction_output(
             .sum::<u64>()
             == 0
         {
-            CompressedPdaError::ComputeOutputSumFailed.into()
+            SystemProgramError::ComputeOutputSumFailed.into()
         } else {
-            CompressedPdaError::SumCheckFailed.into()
+            SystemProgramError::SumCheckFailed.into()
         };
         inputs_struct.output_compressed_accounts[num_output_compressed_accounts - 1]
             .compressed_account
@@ -730,7 +730,7 @@ pub async fn failing_transaction_output(
             payer,
             inputs_struct.clone(),
             remaining_accounts.clone(),
-            CompressedPdaError::InvokingProgramNotProvided.into(),
+            SystemProgramError::InvokingProgramNotProvided.into(),
         )
         .await
         .unwrap();
@@ -774,7 +774,7 @@ pub async fn failing_transaction_output(
             payer,
             inputs_struct.clone(),
             remaining_accounts.clone(),
-            CompressedPdaError::InvalidAddress.into(),
+            SystemProgramError::InvalidAddress.into(),
         )
         .await
         .unwrap();
@@ -825,7 +825,7 @@ pub async fn create_instruction_and_failing_transaction(
 
     let instruction_data = light_system_program::instruction::Invoke { inputs };
 
-    let compressed_sol_pda = None;
+    let sol_pool_pda = None;
 
     let accounts = light_system_program::accounts::InvokeInstruction {
         fee_payer: payer.pubkey(),
@@ -834,8 +834,8 @@ pub async fn create_instruction_and_failing_transaction(
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         account_compression_program: account_compression::ID,
         account_compression_authority: get_cpi_authority_pda(&light_system_program::ID),
-        compressed_sol_pda,
-        compression_recipient: None,
+        sol_pool_pda,
+        decompression_recipient: None,
         system_program: solana_sdk::system_program::ID,
     };
     let instruction = Instruction {
@@ -1167,7 +1167,7 @@ async fn test_with_address() {
     );
 
     let res = context.process_transaction(transaction).await;
-    assert_custom_error_or_program_error(res, CompressedPdaError::InvalidAddress.into()).unwrap();
+    assert_custom_error_or_program_error(res, SystemProgramError::InvalidAddress.into()).unwrap();
     println!("creating address -------------------------");
     create_addresses_test(
         &mut context,
@@ -1353,7 +1353,7 @@ async fn test_with_compression() {
 
     let result = context.process_transaction(transaction).await;
     // should fail because of insufficient input funds
-    assert_custom_error_or_program_error(result, CompressedPdaError::ComputeOutputSumFailed.into())
+    assert_custom_error_or_program_error(result, SystemProgramError::ComputeOutputSumFailed.into())
         .unwrap();
     let output_compressed_accounts = vec![CompressedAccount {
         lamports: compress_amount,
@@ -1385,7 +1385,7 @@ async fn test_with_compression() {
 
     let result = context.process_transaction(transaction).await;
     // should fail because of insufficient decompress amount funds
-    assert_custom_error_or_program_error(result, CompressedPdaError::ComputeOutputSumFailed.into())
+    assert_custom_error_or_program_error(result, SystemProgramError::ComputeOutputSumFailed.into())
         .unwrap();
 
     compress_sol_test(
@@ -1457,7 +1457,7 @@ async fn test_with_compression() {
 
     let result = context.process_transaction(transaction).await;
     // should fail because of insufficient output funds
-    assert_custom_error_or_program_error(result, CompressedPdaError::SumCheckFailed.into())
+    assert_custom_error_or_program_error(result, SystemProgramError::SumCheckFailed.into())
         .unwrap();
 
     let compressed_account_with_context =

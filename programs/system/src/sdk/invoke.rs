@@ -11,14 +11,14 @@ use super::compressed_account::{
     CompressedAccount, MerkleContext, PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
 };
 use crate::{
-    invoke::{processor::CompressedProof, sol_compression::COMPRESSED_SOL_PDA_SEED},
+    invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     utils::{get_cpi_authority_pda, get_registered_program_pda},
     InstructionDataInvoke, NewAddressParams, NewAddressParamsPacked,
     OutputCompressedAccountWithPackedContext,
 };
 
 pub fn get_compressed_sol_pda() -> Pubkey {
-    Pubkey::find_program_address(&[COMPRESSED_SOL_PDA_SEED], &crate::ID).0
+    Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -32,9 +32,9 @@ pub fn create_invoke_instruction(
     input_root_indices: &[u16],
     new_address_params: &[NewAddressParams],
     proof: Option<CompressedProof>,
-    compression_lamports: Option<u64>,
+    compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
-    compression_recipient: Option<Pubkey>,
+    decompression_recipient: Option<Pubkey>,
 ) -> Instruction {
     let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
         new_address_params,
@@ -44,7 +44,7 @@ pub fn create_invoke_instruction(
         output_compressed_account_merkle_tree_pubkeys,
         output_compressed_accounts,
         proof,
-        compression_lamports,
+        compress_or_decompress_lamports,
         is_compress,
     );
 
@@ -54,7 +54,7 @@ pub fn create_invoke_instruction(
 
     let instruction_data = crate::instruction::Invoke { inputs };
 
-    let compressed_sol_pda = compression_lamports.map(|_| get_compressed_sol_pda());
+    let sol_pool_pda = compress_or_decompress_lamports.map(|_| get_compressed_sol_pda());
 
     let accounts = crate::accounts::InvokeInstruction {
         fee_payer: *fee_payer,
@@ -63,8 +63,8 @@ pub fn create_invoke_instruction(
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         account_compression_program: account_compression::ID,
         account_compression_authority: get_cpi_authority_pda(&crate::ID),
-        compressed_sol_pda,
-        compression_recipient,
+        sol_pool_pda,
+        decompression_recipient,
         system_program: solana_sdk::system_program::ID,
     };
     Instruction {
@@ -83,7 +83,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
     output_compressed_account_merkle_tree_pubkeys: &[Pubkey],
     output_compressed_accounts: &[CompressedAccount],
     proof: Option<CompressedProof>,
-    compression_lamports: Option<u64>,
+    compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
 ) -> (Vec<AccountMeta>, InstructionDataInvoke) {
     let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
@@ -199,7 +199,7 @@ pub fn create_invoke_instruction_data_and_remaining_accounts(
         output_compressed_accounts: output_compressed_accounts_with_context,
         proof,
         new_address_params: new_address_params_packed,
-        compression_lamports,
+        compress_or_decompress_lamports,
         is_compress,
     };
     (remaining_accounts, inputs_struct)
@@ -336,7 +336,9 @@ mod test {
             proof.c
         );
         assert_eq!(
-            deserialized_instruction_data.compression_lamports.unwrap(),
+            deserialized_instruction_data
+                .compress_or_decompress_lamports
+                .unwrap(),
             100
         );
         assert_eq!(deserialized_instruction_data.is_compress, true);

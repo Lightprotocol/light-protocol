@@ -7,6 +7,7 @@ use crate::{
     },
     InstructionDataInvoke, NewAddressParamsPacked,
 };
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, Bumps};
 
 pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps>(
@@ -91,7 +92,7 @@ pub fn insert_addresses_cpi<'a, 'b>(
     addresses: Vec<[u8; 32]>,
 ) -> Result<()> {
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
+    let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
     let accounts = account_compression::cpi::accounts::InsertIntoQueues {
         fee_payer: fee_payer.to_account_info(),
         authority: authority.to_account_info(),

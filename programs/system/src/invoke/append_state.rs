@@ -1,6 +1,6 @@
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
-    errors::CompressedPdaError,
+    errors::SystemProgramError,
     invoke_cpi::verify_signer::check_program_owner_state_merkle_tree,
     sdk::{
         accounts::{InvokeAccounts, SignerAccounts},
@@ -8,6 +8,7 @@ use crate::{
     },
     InstructionDataInvoke,
 };
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::solana_program::program::invoke_signed;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
 use light_hasher::Poseidon;
@@ -158,7 +159,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
                     "Remaining compressed_account_addresses: {:?}",
                     compressed_account_addresses
                 );
-                return Err(CompressedPdaError::InvalidAddress.into());
+                return Err(SystemProgramError::InvalidAddress.into());
             }
         }
 
@@ -167,7 +168,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
         if account.compressed_account.data.is_some() && invoking_program.is_none() {
             msg!("Invoking program is not provided.");
             msg!("Only program owned compressed accounts can have data.");
-            return err!(CompressedPdaError::InvokingProgramNotProvided);
+            return err!(SystemProgramError::InvokingProgramNotProvided);
         }
         let hashed_owner = match hashed_pubkeys
             .iter()
@@ -196,7 +197,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     }
 
     let bump = &[CPI_AUTHORITY_PDA_BUMP];
-    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
+    let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
     let instruction = anchor_lang::solana_program::instruction::Instruction {
         program_id: account_compression::ID,
         accounts,

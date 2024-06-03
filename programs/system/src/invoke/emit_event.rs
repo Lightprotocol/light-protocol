@@ -1,5 +1,5 @@
 use crate::{
-    errors::CompressedPdaError,
+    errors::SystemProgramError,
     sdk::{
         accounts::InvokeAccounts,
         event::{MerkleTreeSequenceNumber, PublicTransactionEvent, SizedEvent},
@@ -30,7 +30,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
         sequence_numbers,
         relay_fee: inputs.relay_fee,
         pubkey_array: ctx.remaining_accounts.iter().map(|x| x.key()).collect(),
-        compression_lamports: inputs.compression_lamports,
+        compress_or_decompress_lamports: inputs.compress_or_decompress_lamports,
         message: None,
         is_compress: inputs.is_compress,
     };
@@ -38,7 +38,7 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     if ctx.accounts.get_noop_program().key() != Pubkey::new_from_array(NOOP_PUBKEY)
         && !ctx.accounts.get_noop_program().executable
     {
-        return err!(CompressedPdaError::InvalidNoopPubkey);
+        return err!(SystemProgramError::InvalidNoopPubkey);
     }
     let mut data = Vec::with_capacity(event.event_size());
     event.man_serialize(&mut data)?;

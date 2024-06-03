@@ -88,7 +88,7 @@ async fn only_test_create_pda() {
         &data,
         &ID,
         CreatePdaMode::InvalidSignerSeeds,
-        light_system_program::errors::CompressedPdaError::CpiSignerCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
     )
     .await
     .unwrap();
@@ -103,7 +103,7 @@ async fn only_test_create_pda() {
         &data,
         &ID,
         CreatePdaMode::InvalidInvokingProgram,
-        light_system_program::errors::CompressedPdaError::CpiSignerCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
     )
     .await
     .unwrap();
@@ -118,7 +118,7 @@ async fn only_test_create_pda() {
         &data,
         &ID,
         CreatePdaMode::WriteToAccountNotOwned,
-        light_system_program::errors::CompressedPdaError::WriteAccessCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
     )
     .await
     .unwrap();
@@ -163,7 +163,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::SignerCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::SignerCheckFailed.into(),
         WithInputAccountsMode::NotOwnedCompressedAccount,
     )
     .await
@@ -177,7 +177,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::CpiContextMissing.into(),
+        light_system_program::errors::SystemProgramError::CpiContextMissing.into(),
         WithInputAccountsMode::CpiContextMissing,
     )
     .await
@@ -189,7 +189,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::CpiContextAccountUndefined.into(),
+        light_system_program::errors::SystemProgramError::CpiContextAccountUndefined.into(),
         WithInputAccountsMode::CpiContextAccountMissing,
     )
     .await
@@ -201,7 +201,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::CpiContextEmpty.into(),
+        light_system_program::errors::SystemProgramError::CpiContextEmpty.into(),
         WithInputAccountsMode::CpiContextEmpty,
     )
     .await
@@ -213,7 +213,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::CpiSignerCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
         WithInputAccountsMode::CpiContextInvalidInvokingProgram,
     )
     .await
@@ -225,7 +225,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::CpiSignerCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
         WithInputAccountsMode::CpiContextInvalidSignerSeeds,
     )
     .await
@@ -239,7 +239,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         Some(compressed_token_account_data),
-        light_system_program::errors::CompressedPdaError::CpiContextProofMismatch.into(),
+        light_system_program::errors::SystemProgramError::CpiContextProofMismatch.into(),
         WithInputAccountsMode::CpiContextProofMismatch,
     )
     .await
@@ -251,7 +251,7 @@ async fn only_test_create_pda() {
         &payer,
         &compressed_account,
         None,
-        light_system_program::errors::CompressedPdaError::WriteAccessCheckFailed.into(),
+        light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
         WithInputAccountsMode::CpiContextWriteToNotOwnedAccount,
     )
     .await
@@ -310,7 +310,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &[4u8; 31],
         &ID,
         CreatePdaMode::ProgramIsSigner,
-        light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
+        light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
     )
     .await
     .unwrap();
@@ -350,7 +350,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &[4u8; 31],
         &ID,
         CreatePdaMode::ProgramIsSigner,
-        light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
+        light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
     )
     .await
     .unwrap();
@@ -437,7 +437,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
     // let res = rpc.process_transaction(tx).await;
     // assert_custom_error_or_program_error(
     //     res,
-    //     light_system_program::errors::CompressedPdaError::InvalidMerkleTreeOwner.into(),
+    //     light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
     // )
     // .unwrap();
 }
