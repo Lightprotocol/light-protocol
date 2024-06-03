@@ -120,7 +120,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         ctx.accounts.new_queue.get_lamports() + ctx.accounts.new_address_merkle_tree.get_lamports();
 
     transfer_lamports(
-        &ctx.accounts.old_address_merkle_tree.to_account_info(),
+        &ctx.accounts.old_queue.to_account_info(),
         &ctx.accounts.fee_payer.to_account_info(),
         lamports,
     )?;

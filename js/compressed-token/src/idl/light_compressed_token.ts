@@ -67,7 +67,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -97,7 +97,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -107,7 +107,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'accountCompressionAuthority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -1076,7 +1076,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -1106,7 +1106,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'registeredProgramPda',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {
@@ -1116,7 +1116,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'accountCompressionAuthority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {

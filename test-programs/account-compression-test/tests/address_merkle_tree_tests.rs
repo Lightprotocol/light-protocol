@@ -10,7 +10,6 @@ use anchor_lang::error::ErrorCode;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
     address_tree_rollover::perform_address_merkle_tree_roll_over, test_env::NOOP_PROGRAM_ID,
@@ -25,6 +24,7 @@ use light_test_utils::{
     test_forester::{empty_address_queue_test, insert_addresses},
     test_indexer::{AddressMerkleTreeAccounts, AddressMerkleTreeBundle},
 };
+use light_test_utils::{airdrop_lamports, rpc::rpc_connection::RpcConnection};
 use light_test_utils::{rpc::errors::assert_rpc_error, AccountZeroCopy};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
@@ -568,7 +568,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     )
     .unwrap();
 
-    let lamports_queue_accounts = context
+    let rollover_costs = context
         .get_account(address_queue_pubkey)
         .await
         .unwrap()
@@ -579,13 +579,22 @@ async fn test_address_merkle_tree_and_queue_rollover() {
             .await
             .unwrap()
             .unwrap()
-            .lamports
-            * 2;
+            .lamports;
+    // Airdrop sufficient funds to address queue to reimburse the rollover costs.
+    airdrop_lamports(&mut context, &address_queue_pubkey, rollover_costs)
+        .await
+        .unwrap();
+    let address_merkle_tree_lamports = context
+        .get_account(address_merkle_tree_pubkey)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
     set_address_merkle_tree_next_index(
         &mut context,
         &address_merkle_tree_pubkey,
         failing_next_index,
-        lamports_queue_accounts,
+        address_merkle_tree_lamports,
     )
     .await;
 
@@ -610,7 +619,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &mut context,
         &address_merkle_tree_pubkey,
         required_next_index,
-        lamports_queue_accounts,
+        address_merkle_tree_lamports,
     )
     .await;
 

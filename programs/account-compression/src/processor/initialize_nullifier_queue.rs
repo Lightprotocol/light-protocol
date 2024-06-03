@@ -24,6 +24,9 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
             close_threshold: close_threshold.unwrap_or(u64::MAX),
             rolledover_slot: u64::MAX,
             network_fee,
+            // The rollover fee is charged at append with the Merkle tree. The
+            // rollover that is defined in the Merkle tree is calculated to
+            // rollover the tree, queue and cpi context account.
             rollover_fee: 0,
         };
 

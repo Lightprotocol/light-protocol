@@ -58,6 +58,11 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
         remaining_accounts.push(
             ctx.remaining_accounts[params.address_merkle_tree_account_index as usize].clone(),
         );
+        // If at least one new address is created an address network fee is
+        // paid.The network fee is paid once per transaction, defined in the
+        // state Merkle tree and transferred to the nullifier queue because the
+        // nullifier queue is mutable. The network fee field in the queue is not
+        // used.
         let network_fee = check_program_owner_address_merkle_tree(
             &ctx.remaining_accounts[params.address_merkle_tree_account_index as usize],
             invoking_program,

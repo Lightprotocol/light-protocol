@@ -464,11 +464,6 @@ export type AccountCompression = {
                     isOptional: true;
                 },
                 {
-                    name: 'logWrapper';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
                     name: 'systemProgram';
                     isMut: false;
                     isSigner: false;
@@ -573,7 +568,7 @@ export type AccountCompression = {
             ];
             args: [
                 {
-                    name: 'elements';
+                    name: 'nullifiers';
                     type: {
                         vec: {
                             array: ['u8', 32];
@@ -1600,11 +1595,6 @@ export const IDL: AccountCompression = {
                     isOptional: true,
                 },
                 {
-                    name: 'logWrapper',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
                     name: 'systemProgram',
                     isMut: false,
                     isSigner: false,
@@ -1709,7 +1699,7 @@ export const IDL: AccountCompression = {
             ],
             args: [
                 {
-                    name: 'elements',
+                    name: 'nullifiers',
                     type: {
                         vec: {
                             array: ['u8', 32],

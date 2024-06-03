@@ -52,6 +52,12 @@ pub fn insert_nullifiers<
         },
         AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
+    // If the transaction contains at least one input compressed account a
+    // network fee is paid. This network fee is paid in addition to the address
+    // network fee. The network fee is paid once per transaction, defined in the
+    // state Merkle tree and transferred to the nullifier queue because the
+    // nullifier queue is mutable. The network fee field in the queue is not
+    // used.
     let mut network_fee_bundle = None;
     for account in inputs.input_compressed_accounts_with_merkle_context.iter() {
         let account_info =

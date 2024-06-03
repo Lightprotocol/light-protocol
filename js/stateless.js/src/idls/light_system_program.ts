@@ -817,6 +817,21 @@ export type LightSystemProgram = {
             name: 'CpiContextMissing';
             msg: 'CpiContextMissing';
         },
+        {
+            code: 6025;
+            name: 'DecompressionRecipienDefined';
+            msg: 'DecompressionRecipienDefined';
+        },
+        {
+            code: 6026;
+            name: 'SolPoolPdaDefined';
+            msg: 'SolPoolPdaDefined';
+        },
+        {
+            code: 6027;
+            name: 'AppendStateFailed';
+            msg: 'AppendStateFailed';
+        },
     ];
 };
 
@@ -1643,6 +1658,21 @@ export const IDL: LightSystemProgram = {
             code: 6024,
             name: 'CpiContextMissing',
             msg: 'CpiContextMissing',
+        },
+        {
+            code: 6025,
+            name: 'DecompressionRecipienDefined',
+            msg: 'DecompressionRecipienDefined',
+        },
+        {
+            code: 6026,
+            name: 'SolPoolPdaDefined',
+            msg: 'SolPoolPdaDefined',
+        },
+        {
+            code: 6027,
+            name: 'AppendStateFailed',
+            msg: 'AppendStateFailed',
         },
     ],
 };

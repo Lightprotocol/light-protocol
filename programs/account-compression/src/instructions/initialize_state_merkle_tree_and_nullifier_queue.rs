@@ -59,7 +59,7 @@ impl default::Default for NullifierQueueConfig {
         Self {
             capacity: STATE_NULLIFIER_QUEUE_VALUES,
             sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
-            network_fee: Some(1),
+            network_fee: None,
         }
     }
 }
