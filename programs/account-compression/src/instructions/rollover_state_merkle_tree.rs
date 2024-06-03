@@ -1,4 +1,5 @@
 use crate::{
+    assert_size_equal,
     processor::{
         initialize_concurrent_merkle_tree::process_initialize_state_merkle_tree,
         initialize_nullifier_queue::process_initialize_nullifier_queue,
@@ -44,15 +45,23 @@ impl<'info> GroupAccounts<'info> for RolloverStateMerkleTreeAndNullifierQueue<'i
 }
 
 /// Checks:
-/// 1. Merkle tree is ready to be rolled over
-/// 2. Merkle tree and nullifier queue are associated
-/// 3. Merkle tree is not already rolled over
-/// Actions:
+/// 1. Size of new accounts matches size old accounts
+/// 2. Merkle tree is ready to be rolled over
+/// 3. Merkle tree and nullifier queue are associated
+/// 4. Merkle tree is not already rolled over Actions:
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and nullifier queue with the same parameters
 pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverStateMerkleTreeAndNullifierQueue<'info>>,
 ) -> Result<()> {
+    assert_size_equal(
+        &ctx.accounts.old_nullifier_queue.to_account_info(),
+        &ctx.accounts.new_nullifier_queue.to_account_info(),
+    )?;
+    assert_size_equal(
+        &ctx.accounts.old_state_merkle_tree.to_account_info(),
+        &ctx.accounts.new_state_merkle_tree.to_account_info(),
+    )?;
     let queue_metadata = {
         let mut merkle_tree_account_loaded = ctx.accounts.old_state_merkle_tree.load_mut()?;
         let mut queue_account_loaded = ctx.accounts.old_nullifier_queue.load_mut()?;

@@ -428,6 +428,7 @@ where
             &new_merkle_tree_keypair,
             &bundle.merkle_tree,
             &bundle.nullifier_queue,
+            None,
         )
         .await
         .unwrap();

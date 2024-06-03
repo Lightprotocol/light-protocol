@@ -30,15 +30,24 @@ use solana_sdk::{
 };
 use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
 
+pub enum StateMerkleTreeRolloverMode {
+    QueueInvalidSize,
+    TreeInvalidSize,
+}
+
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc: &mut R,
     new_nullifier_queue_keypair: &Keypair,
     new_state_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
+    mode: Option<StateMerkleTreeRolloverMode>,
 ) -> Result<(), RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
-    let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
+    let mut size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
+    if let Some(StateMerkleTreeRolloverMode::QueueInvalidSize) = mode {
+        size += 1;
+    }
     let create_nullifier_queue_instruction = create_account_instruction(
         &payer_pubkey,
         size,
@@ -48,14 +57,16 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         &ID,
         Some(new_nullifier_queue_keypair),
     );
+    let mut state_tree_size = StateMerkleTreeAccount::LEN;
+    if let Some(StateMerkleTreeRolloverMode::TreeInvalidSize) = mode {
+        state_tree_size += 1;
+    }
     let create_state_merkle_tree_instruction = create_account_instruction(
         &payer_pubkey,
-        account_compression::StateMerkleTreeAccount::LEN,
-        rpc.get_minimum_balance_for_rent_exemption(
-            account_compression::StateMerkleTreeAccount::LEN,
-        )
-        .await
-        .unwrap(),
+        state_tree_size,
+        rpc.get_minimum_balance_for_rent_exemption(state_tree_size)
+            .await
+            .unwrap(),
         &ID,
         Some(new_state_merkle_tree_keypair),
     );
