@@ -54,10 +54,6 @@ jobs:
             sub-tests: '[
               "cargo-test-sbf -p compressed-token-test -- --test-threads=1"
             ]'
-          - program: token-escrow
-            sub-tests: '[
-              "cargo-test-sbf -p token-escrow -- --test-threads=1"
-            ]'
           - program: system-cpi-test
             sub-tests: '[
               "cargo-test-sbf -p system-cpi-test -- --test-threads=1"

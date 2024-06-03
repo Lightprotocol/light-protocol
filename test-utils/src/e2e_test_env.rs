@@ -1,73 +1,3 @@
-// Flow:
-// init indexer
-// init first keypair
-// init crank
-// vec of public Merkle tree NF queue pairs
-// vec of public address Mt and queue pairs
-// for i in rounds
-//   randomly add new keypair
-// for every keypair randomly select whether it does an action
-
-// Architecture:
-// - bundle trees, indexer etc in a E2ETestEnv struct
-// - methods:
-// 	// bundles all general actions
-//   - activate general actions
-//   // bundles all keypair actions
-//   - activate keypair actions
-// 	// calls general and keypair actions
-//   - execute round
-//   // every action takes a probability as input
-//   // if you want to execute the action on purpose pass 1
-//   - method for every action
-//  - add action activation config with default configs
-//    - all enabled
-//    - only spl, only sol, etc
-//  Forester struct
-//  - payer keypair, authority keypair
-//  -methods
-//   - empty nullifier queue
-//   - empty address queue
-//   - rollover Merkle tree
-//   - rollover address Merkle tree
-
-// keypair actions:
-// safeguard every action in case of no balance
-// 1. compress sol
-// 2. decompress sol
-// 2. transfer sol
-// 3. compress spl
-// 4. decompress spl
-// 5. mint spl
-// 6. transfer spl
-
-// general actions:
-// add keypair
-// create new state Mt
-// create new address Mt
-
-// extension:
-// keypair actions:
-// - create pda
-// - escrow tokens
-// - delegate, revoke, delegated transaction
-
-// general actions:
-// - create new program owned state Merkle tree and queue
-// - create new program owned address Merkle tree and queue
-
-// minimal start
-// struct with env and test-indexer
-// only spl transactions
-
-// second pr
-// refactor sol tests to functions that can be reused
-
-// TODO: implement traits for context object and indexer that we can implement with an rpc as well
-// context trait: send_transaction -> return transaction result, get_account_info -> return account info
-// indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
-// refactor all tests to work with that so that we can run all tests with a test validator and concurrency
-
 use crate::airdrop_lamports;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::spl::{
@@ -80,7 +10,7 @@ use crate::system_program::{
 };
 use crate::test_env::{
     create_address_merkle_tree_and_queue_account, create_state_merkle_tree_and_queue_account,
-    init_cpi_context_account, EnvAccounts,
+    EnvAccounts,
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use crate::test_indexer::TestIndexer;
@@ -342,7 +272,8 @@ where
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
-        init_cpi_context_account(
+        #[cfg(feature = "cpi_context")]
+        crate::test_env::init_cpi_context_account(
             &mut self.rpc,
             &merkle_tree_keypair.pubkey(),
             &cpi_context_keypair,
@@ -353,7 +284,7 @@ where
             accounts: StateMerkleTreeAccounts {
                 merkle_tree: merkle_tree_keypair.pubkey(),
                 nullifier_queue: nullifier_queue_keypair.pubkey(),
-                cpi_context: Keypair::new().pubkey(),
+                cpi_context: cpi_context_keypair.pubkey(),
             },
             merkle_tree,
         });
@@ -501,7 +432,8 @@ where
         .await
         .unwrap();
         let new_cpi_signature_keypair = Keypair::new();
-        init_cpi_context_account(
+        #[cfg(feature = "cpi_context")]
+        crate::test_env::init_cpi_context_account(
             &mut self.rpc,
             &new_merkle_tree_keypair.pubkey(),
             &new_cpi_signature_keypair,

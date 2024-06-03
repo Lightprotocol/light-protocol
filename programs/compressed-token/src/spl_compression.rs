@@ -4,7 +4,7 @@ use anchor_spl::token::Transfer;
 
 use crate::{CompressedTokenInstructionDataTransfer, TransferInstruction};
 
-pub fn process_compression<'info>(
+pub fn process_compression_or_decompression<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
@@ -21,7 +21,7 @@ pub fn decompress_spl_tokens<'info>(
     inputs: &CompressedTokenInstructionDataTransfer,
     ctx: &Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.decompress_token_account.as_ref() {
+    let recipient = match ctx.accounts.compress_or_decompress_token_account.as_ref() {
         Some(compression_recipient) => compression_recipient.to_account_info(),
         None => return err!(crate::ErrorCode::DecompressRecipientUndefinedForDecompress),
     };
@@ -61,7 +61,7 @@ pub fn compress_spl_tokens<'info>(
 
     transfer(
         &ctx.accounts
-            .decompress_token_account
+            .compress_or_decompress_token_account
             .as_ref()
             .unwrap()
             .to_account_info(),

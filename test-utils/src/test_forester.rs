@@ -6,8 +6,8 @@ use crate::{get_hash_set, test_indexer::StateMerkleTreeBundle, AccountZeroCopy};
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::state::QueueAccount;
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;
-use account_compression::AddressMerkleTreeAccount;
 use account_compression::{instruction::InsertAddresses, StateMerkleTreeAccount, ID};
+use account_compression::{AddressMerkleTreeAccount, SAFETY_MARGIN};
 use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
@@ -232,6 +232,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
                 .unwrap()
                 .sequence_number
                 + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
+                + SAFETY_MARGIN as usize
         )
     );
 }
@@ -404,7 +405,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                     .unwrap()
                     .sequence_number()
                     .unwrap(),
-                old_sequence_number + ADDRESS_MERKLE_TREE_ROOTS as usize
+                old_sequence_number + ADDRESS_MERKLE_TREE_ROOTS as usize + SAFETY_MARGIN as usize
             );
 
             relayer_merkle_tree

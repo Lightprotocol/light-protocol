@@ -39,7 +39,7 @@ async fn test_program_owned_merkle_tree() {
     let program_owned_merkle_tree_keypair = Keypair::new();
     let program_owned_merkle_tree_pubkey = program_owned_merkle_tree_keypair.pubkey();
     let program_owned_nullifier_queue_keypair = Keypair::new();
-    let cpi_signature_keypair = Keypair::new();
+    let cpi_context_keypair = Keypair::new();
 
     let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
         &payer,
@@ -54,7 +54,7 @@ async fn test_program_owned_merkle_tree() {
             &mut rpc,
             &program_owned_merkle_tree_keypair,
             &program_owned_nullifier_queue_keypair,
-            &cpi_signature_keypair,
+            &cpi_context_keypair,
             Some(light_compressed_token::ID),
         )
         .await;
@@ -111,13 +111,13 @@ async fn test_program_owned_merkle_tree() {
     let invalid_program_owned_merkle_tree_pubkey =
         invalid_program_owned_merkle_tree_keypair.pubkey();
     let invalid_program_owned_nullifier_queue_keypair = Keypair::new();
-    let cpi_signature_keypair = Keypair::new();
+    let cpi_context_keypair = Keypair::new();
     test_indexer
         .add_state_merkle_tree(
             &mut rpc,
             &invalid_program_owned_merkle_tree_keypair,
             &invalid_program_owned_nullifier_queue_keypair,
-            &cpi_signature_keypair,
+            &cpi_context_keypair,
             Some(Keypair::new().pubkey()),
         )
         .await;
