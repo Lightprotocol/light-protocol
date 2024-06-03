@@ -232,6 +232,7 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
                 .unwrap()
                 .sequence_number
                 + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
+                + SAFETY_MARGIN as usize
         )
     );
 }
