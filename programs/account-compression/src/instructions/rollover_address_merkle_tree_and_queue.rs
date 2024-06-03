@@ -49,6 +49,14 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
+    assert_size_equal(
+        &ctx.accounts.old_queue.to_account_info(),
+        &ctx.accounts.new_queue.to_account_info(),
+    )?;
+    assert_size_equal(
+        &ctx.accounts.old_address_merkle_tree.to_account_info(),
+        &ctx.accounts.new_address_merkle_tree.to_account_info(),
+    )?;
     let (queue_metadata, height) = {
         let mut merkle_tree_account_loaded = ctx.accounts.old_address_merkle_tree.load_mut()?;
         let mut queue_account_loaded = ctx.accounts.old_queue.load_mut()?;
@@ -125,5 +133,12 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         lamports,
     )?;
 
+    Ok(())
+}
+
+pub fn assert_size_equal(a: &AccountInfo, b: &AccountInfo) -> Result<()> {
+    if a.data_len() != b.data_len() {
+        return err!(crate::errors::AccountCompressionErrorCode::SizeMismatch);
+    }
     Ok(())
 }

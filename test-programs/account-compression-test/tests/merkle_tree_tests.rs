@@ -19,7 +19,6 @@ use light_concurrent_merkle_tree::{event::MerkleTreeEvent, ConcurrentMerkleTree2
 use light_hash_set::HashSetError;
 use light_hasher::{zero_bytes::poseidon::ZERO_BYTES, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
 use light_test_utils::{
     airdrop_lamports,
     assert_merkle_tree::assert_merkle_tree_initialized,
@@ -36,6 +35,9 @@ use light_test_utils::{
 };
 use light_test_utils::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
+};
+use light_test_utils::{
+    rpc::test_rpc::ProgramTestRpcConnection, state_tree_rollover::StateMerkleTreeRolloverMode,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use memoffset::offset_of;
@@ -611,6 +613,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        None,
     )
     .await;
 
@@ -620,6 +623,29 @@ async fn test_init_and_rollover_state_merkle_tree() {
         AccountCompressionErrorCode::NotReadyForRollover.into(),
     )
     .unwrap();
+
+    let result = perform_state_merkle_tree_roll_over(
+        &mut context,
+        &new_nullifier_queue_keypair,
+        &new_state_merkle_tree_keypair,
+        &merkle_tree_pubkey,
+        &nullifier_queue_pubkey,
+        Some(StateMerkleTreeRolloverMode::QueueInvalidSize),
+    )
+    .await;
+
+    assert_rpc_error(result, 2, AccountCompressionErrorCode::SizeMismatch.into()).unwrap();
+    let result = perform_state_merkle_tree_roll_over(
+        &mut context,
+        &new_nullifier_queue_keypair,
+        &new_state_merkle_tree_keypair,
+        &merkle_tree_pubkey,
+        &nullifier_queue_pubkey,
+        Some(StateMerkleTreeRolloverMode::TreeInvalidSize),
+    )
+    .await;
+
+    assert_rpc_error(result, 2, AccountCompressionErrorCode::SizeMismatch.into()).unwrap();
 
     set_state_merkle_tree_next_index(
         &mut context,
@@ -634,6 +660,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
         &nullifier_queue_keypair_2.pubkey(),
+        None,
     )
     .await;
 
@@ -650,6 +677,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey_2,
         &nullifier_queue_keypair.pubkey(),
+        None,
     )
     .await;
 
@@ -673,6 +701,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        None,
     )
     .await
     .unwrap();
@@ -696,6 +725,7 @@ async fn test_init_and_rollover_state_merkle_tree() {
         &failing_new_state_merkle_tree_keypair,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        None,
     )
     .await;
 

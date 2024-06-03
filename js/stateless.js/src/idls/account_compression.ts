@@ -1126,6 +1126,11 @@ export type AccountCompression = {
             name: 'NoLeavesForMerkleTree';
             msg: 'NoLeavesForMerkleTree';
         },
+        {
+            code: 6019;
+            name: 'SizeMismatch';
+            msg: 'SizeMismatch';
+        },
     ];
 };
 
@@ -2256,6 +2261,11 @@ export const IDL: AccountCompression = {
             code: 6018,
             name: 'NoLeavesForMerkleTree',
             msg: 'NoLeavesForMerkleTree',
+        },
+        {
+            code: 6019,
+            name: 'SizeMismatch',
+            msg: 'SizeMismatch',
         },
     ],
 };

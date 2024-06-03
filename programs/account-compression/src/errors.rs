@@ -42,4 +42,6 @@ pub enum AccountCompressionErrorCode {
     InputElementsEmpty,
     #[msg("NoLeavesForMerkleTree")]
     NoLeavesForMerkleTree,
+    #[msg("SizeMismatch")]
+    SizeMismatch,
 }
