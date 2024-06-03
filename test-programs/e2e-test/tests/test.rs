@@ -67,7 +67,7 @@ async fn test_10000_all() {
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
         10000,
-        Some(6166671553168915035),
+        None,
         "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;

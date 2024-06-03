@@ -26,6 +26,7 @@ pub mod state_tree_rollover;
 pub mod system_program;
 pub mod test_env;
 pub mod test_forester;
+#[allow(unused)]
 pub mod test_indexer;
 pub mod transaction_params;
 

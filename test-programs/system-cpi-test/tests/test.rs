@@ -168,94 +168,97 @@ async fn only_test_create_pda() {
     )
     .await
     .unwrap();
-    let compressed_account =
-        test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
-    // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        None,
-        light_system_program::errors::SystemProgramError::CpiContextMissing.into(),
-        WithInputAccountsMode::CpiContextMissing,
-    )
-    .await
-    .unwrap();
-    // Failing 6 provide cpi context account but no cpi context ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        None,
-        light_system_program::errors::SystemProgramError::CpiContextAccountUndefined.into(),
-        WithInputAccountsMode::CpiContextAccountMissing,
-    )
-    .await
-    .unwrap();
-    // Failing 7 provide cpi context account but cpi context is empty ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        None,
-        light_system_program::errors::SystemProgramError::CpiContextEmpty.into(),
-        WithInputAccountsMode::CpiContextEmpty,
-    )
-    .await
-    .unwrap();
-    // Failing 8 test signer checks trying to insert into cpi context account (invalid invoking program) ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        None,
-        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
-        WithInputAccountsMode::CpiContextInvalidInvokingProgram,
-    )
-    .await
-    .unwrap();
-    // Failing 9 test signer checks trying to insert into cpi context account (invalid signer seeds) ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        None,
-        light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
-        WithInputAccountsMode::CpiContextInvalidSignerSeeds,
-    )
-    .await
-    .unwrap();
-    let compressed_token_account_data =
-        test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
-    // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        Some(compressed_token_account_data),
-        light_system_program::errors::SystemProgramError::CpiContextProofMismatch.into(),
-        WithInputAccountsMode::CpiContextProofMismatch,
-    )
-    .await
-    .unwrap();
-    // Failing 11 write to account not owned ----------------------------------------------
-    perform_with_input_accounts(
-        &mut test_indexer,
-        &mut rpc,
-        &payer,
-        &compressed_account,
-        None,
-        light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
-        WithInputAccountsMode::CpiContextWriteToNotOwnedAccount,
-    )
-    .await
-    .unwrap();
+    #[cfg(feature = "cpi_context")]
+    {
+        let compressed_account =
+            test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
+        // Failing 5 provide cpi context but no cpi context account ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            None,
+            light_system_program::errors::SystemProgramError::CpiContextMissing.into(),
+            WithInputAccountsMode::CpiContextMissing,
+        )
+        .await
+        .unwrap();
+        // Failing 6 provide cpi context account but no cpi context ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            None,
+            light_system_program::errors::SystemProgramError::CpiContextAccountUndefined.into(),
+            WithInputAccountsMode::CpiContextAccountMissing,
+        )
+        .await
+        .unwrap();
+        // Failing 7 provide cpi context account but cpi context is empty ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            None,
+            light_system_program::errors::SystemProgramError::CpiContextEmpty.into(),
+            WithInputAccountsMode::CpiContextEmpty,
+        )
+        .await
+        .unwrap();
+        // Failing 8 test signer checks trying to insert into cpi context account (invalid invoking program) ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            None,
+            light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
+            WithInputAccountsMode::CpiContextInvalidInvokingProgram,
+        )
+        .await
+        .unwrap();
+        // Failing 9 test signer checks trying to insert into cpi context account (invalid signer seeds) ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            None,
+            light_system_program::errors::SystemProgramError::CpiSignerCheckFailed.into(),
+            WithInputAccountsMode::CpiContextInvalidSignerSeeds,
+        )
+        .await
+        .unwrap();
+        let compressed_token_account_data =
+            test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
+        // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            Some(compressed_token_account_data),
+            light_system_program::errors::SystemProgramError::CpiContextProofMismatch.into(),
+            WithInputAccountsMode::CpiContextProofMismatch,
+        )
+        .await
+        .unwrap();
+        // Failing 11 write to account not owned ----------------------------------------------
+        perform_with_input_accounts(
+            &mut test_indexer,
+            &mut rpc,
+            &payer,
+            &compressed_account,
+            None,
+            light_system_program::errors::SystemProgramError::WriteAccessCheckFailed.into(),
+            WithInputAccountsMode::CpiContextWriteToNotOwnedAccount,
+        )
+        .await
+        .unwrap();
+    }
 }
 
 /// Test:

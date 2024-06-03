@@ -3,9 +3,7 @@ use std::marker::PhantomData;
 use {
     crate::{
         create_account_instruction,
-        test_env::{
-            create_state_merkle_tree_and_queue_account, init_cpi_context_account, EnvAccounts,
-        },
+        test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
         AccountZeroCopy,
     },
     account_compression::{
@@ -274,7 +272,8 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             self.state_merkle_trees.len() as u64,
         )
         .await;
-        init_cpi_context_account(
+        #[cfg(feature = "cpi_context")]
+        crate::test_env::init_cpi_context_account(
             rpc,
             &merkle_tree_keypair.pubkey(),
             cpi_context_keypair,
@@ -297,70 +296,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             accounts: state_merkle_tree_account,
         });
     }
-    /*
-        pub async fn create_proof_for_compressed_accounts(
-            &mut self,
-            compressed_accounts: &[[u8; 32]],
-            context: &mut ProgramTestContext,
-        ) -> (Vec<u16>, CompressedProof) {
-            let client = Client::new();
-
-            let mut inclusion_proofs = Vec::<InclusionMerkleProofInputs>::new();
-            for compressed_account in compressed_accounts.iter() {
-                let leaf_index = self.merkle_tree.get_leaf_index(compressed_account).unwrap();
-                let proof = self
-                    .merkle_tree
-                    .get_proof_of_leaf(leaf_index, true)
-                    .unwrap();
-                inclusion_proofs.push(InclusionMerkleProofInputs {
-                    roots: BigInt::from_be_bytes(self.merkle_tree.root().as_slice()),
-                    leaves: BigInt::from_be_bytes(compressed_account),
-                    in_path_indices: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()), // leaf_index as u32,
-                    in_path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
-                });
-            }
-
-            let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
-            let json_payload =
-                InclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs).to_string();
-
-            let response_result = client
-                .post(&format!("{}{}", SERVER_ADDRESS, INCLUSION_PATH))
-                .header("Content-Type", "text/plain; charset=utf-8")
-                .body(json_payload)
-                .send()
-                .await
-                .expect("Failed to execute request.");
-            assert!(response_result.status().is_success());
-            let body = response_result.text().await.unwrap();
-            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-            let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
-
-            let merkle_tree_account =
-                AccountZeroCopy::<StateMerkleTreeAccount>::new(context, self.merkle_tree_pubkey).await;
-            let merkle_tree = merkle_tree_account
-                .deserialized()
-                .copy_merkle_tree()
-                .unwrap();
-            assert_eq!(
-                self.merkle_tree.root(),
-                merkle_tree.root().unwrap(),
-                "Local Merkle tree root is not equal to latest onchain root"
-            );
-
-            let root_indices: Vec<u16> =
-                vec![merkle_tree.current_root_index as u16; compressed_accounts.len()];
-            (
-                root_indices,
-                CompressedProof {
-                    a: proof_a,
-                    b: proof_b,
-                    c: proof_c,
-                },
-            )
-        }
-    */
 
     pub async fn create_proof_for_compressed_accounts(
         &mut self,

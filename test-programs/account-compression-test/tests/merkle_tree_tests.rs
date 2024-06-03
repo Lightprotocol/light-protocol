@@ -12,6 +12,7 @@ use account_compression::{
         STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_VALUES,
     },
     NullifierQueueConfig, QueueType, StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
+    SAFETY_MARGIN,
 };
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{event::MerkleTreeEvent, ConcurrentMerkleTree26};
@@ -284,8 +285,13 @@ async fn test_full_nullifier_queue() {
     )
     .await;
     // advance to sequence number minus one
-    set_state_merkle_tree_sequence(&mut rpc, &merkle_tree_pubkey, 2402, lamports_queue_accounts)
-        .await;
+    set_state_merkle_tree_sequence(
+        &mut rpc,
+        &merkle_tree_pubkey,
+        2402 + SAFETY_MARGIN,
+        lamports_queue_accounts,
+    )
+    .await;
     // CHECK 4
     fail_insert_into_full_queue(
         &mut rpc,
@@ -295,8 +301,13 @@ async fn test_full_nullifier_queue() {
     )
     .await;
     // TODO: add e2e test in compressed pda program for this
-    set_state_merkle_tree_sequence(&mut rpc, &merkle_tree_pubkey, 2403, lamports_queue_accounts)
-        .await;
+    set_state_merkle_tree_sequence(
+        &mut rpc,
+        &merkle_tree_pubkey,
+        2403 + SAFETY_MARGIN,
+        lamports_queue_accounts,
+    )
+    .await;
     let payer = rpc.get_payer().insecure_clone();
     let account = rpc
         .get_account(nullifier_queue_pubkey)
@@ -1501,6 +1512,7 @@ pub async fn nullify<R: RpcConnection>(
                 .unwrap()
                 .sequence_number
                 + STATE_MERKLE_TREE_ROOTS as usize
+                + SAFETY_MARGIN as usize
         )
     );
     let event = event.as_ref().unwrap();
