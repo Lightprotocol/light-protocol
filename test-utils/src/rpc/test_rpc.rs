@@ -83,7 +83,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             }
         }
 
-        // assert correct rollover fee and tip distribution
+        // assert correct rollover fee and network_fee distribution
         if let Some(transaction_params) = transaction_params {
             let mut deduped_signers = signers.to_vec();
             deduped_signers.dedup();
@@ -114,6 +114,14 @@ impl RpcConnection for ProgramTestRpcConnection {
                 println!(
                     "diff post_balance: {}",
                     post_balance as i64 - expected_post_balance
+                );
+                println!(
+                    "rollover fee: {}",
+                    transaction_params.fee_config.state_merkle_tree_rollover
+                );
+                println!(
+                    "address_network_fee: {}",
+                    transaction_params.fee_config.address_network_fee
                 );
                 println!("network_fee: {}", network_fee);
                 return Err(RpcError::from(BanksClientError::TransactionError(
