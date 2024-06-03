@@ -1,8 +1,10 @@
-use crate::OutputCompressedAccountWithPackedContext;
+use std::io::Write;
+
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
-use std::io::Write;
+
+use crate::OutputCompressedAccountWithPackedContext;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
 pub struct MerkleTreeSequenceNumber {
@@ -94,10 +96,11 @@ impl PublicTransactionEvent {
 
 #[cfg(test)]
 pub mod test {
-    use super::*;
-    use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
     use rand::Rng;
     use solana_sdk::{signature::Keypair, signer::Signer};
+
+    use super::*;
+    use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
 
     #[test]
     fn test_manual_vs_borsh_serialization() {

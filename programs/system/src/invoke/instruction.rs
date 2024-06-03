@@ -1,6 +1,7 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 
+use super::processor::CompressedProof;
 use crate::{
     invoke::sol_compression::SOL_POOL_PDA_SEED,
     sdk::{
@@ -8,8 +9,6 @@ use crate::{
         compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     },
 };
-
-use super::processor::CompressedProof;
 
 /// These are the base accounts additionally Merkle tree and queue accounts are required.
 /// These additional accounts are passed as remaining accounts.
@@ -75,10 +74,10 @@ impl<'info> InvokeAccounts<'info> for InvokeInstruction<'info> {
     fn get_system_program(&self) -> &Program<'info, System> {
         &self.system_program
     }
-    fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
         self.sol_pool_pda.as_ref()
     }
-    fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
         self.decompression_recipient.as_ref()
     }
 }

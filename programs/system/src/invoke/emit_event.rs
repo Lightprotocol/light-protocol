@@ -1,3 +1,10 @@
+use account_compression::utils::constants::NOOP_PUBKEY;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{instruction::Instruction, program::invoke},
+    Bumps,
+};
+
 use crate::{
     errors::SystemProgramError,
     sdk::{
@@ -5,12 +12,6 @@ use crate::{
         event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
     },
     InstructionDataInvoke,
-};
-use account_compression::utils::constants::NOOP_PUBKEY;
-use anchor_lang::{
-    prelude::*,
-    solana_program::{instruction::Instruction, program::invoke},
-    Bumps,
 };
 
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(

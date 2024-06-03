@@ -305,12 +305,12 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             rpc,
         )
         .await;
-
+    output_compressed_accounts.sort_by(|a, b| a.merkle_tree.cmp(&b.merkle_tree));
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &from.pubkey(), // authority
         &input_merkle_tree_context,
-        &output_compressed_accounts, // output_compressed_accounts
+        &output_compressed_accounts,
         &proof_rpc_result.root_indices,
         &Some(proof_rpc_result.proof),
         input_compressed_account_token_data.as_slice(), // input_token_data
@@ -320,6 +320,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         None,  // compression_amount
         None,  // token_pool_pda
         None,  // decompress_token_account
+        true,
     )
     .unwrap();
     let output_merkle_tree_accounts =
@@ -432,6 +433,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         Some(amount),                    // compression_amount
         Some(get_token_pool_pda(&mint)), // token_pool_pda
         Some(*recipient_token_account),  // decompress_token_account
+        true,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -541,6 +543,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         Some(amount),                   // compression_amount
         Some(get_token_pool_pda(mint)), // token_pool_pda
         Some(*sender_token_account),    // decompress_token_account
+        true,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];

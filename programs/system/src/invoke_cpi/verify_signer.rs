@@ -5,33 +5,39 @@ use light_macros::heap_neutral;
 
 use crate::{
     errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
-    InstructionDataInvokeCpi,
+    OutputCompressedAccountWithPackedContext,
 };
 
 /// Checks:
 /// 1. Invoking program is signer (cpi_signer_check)
-/// 2. Input compressed accounts with data are owned by the invoking program (input_compressed_accounts_signer_check)
-/// 3. Output compressed accounts with data are owned by the invoking program (output_compressed_accounts_write_access_check)
+/// 2. Input compressed accounts with data are owned by the invoking program
+///    (input_compressed_accounts_signer_check)
+/// 3. Output compressed accounts with data are owned by the invoking program
+///    (output_compressed_accounts_write_access_check)
 pub fn cpi_signer_checks(
-    signer_seeds: &[Vec<u8>],
     invoking_programid: &Pubkey,
     authority: &Pubkey,
-    inputs: &InstructionDataInvokeCpi,
+    signer_seeds: &[Vec<u8>],
+    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_check(signer_seeds, invoking_programid, authority)?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpd_input_checks");
-    input_compressed_accounts_signer_check(inputs, invoking_programid)?;
+    input_compressed_accounts_signer_check(
+        input_compressed_accounts_with_merkle_context,
+        invoking_programid,
+    )?;
     bench_sbf_end!("cpd_input_checks");
     bench_sbf_start!("cpda_cpi_write_checks");
-    output_compressed_accounts_write_access_check(inputs, invoking_programid)?;
+    output_compressed_accounts_write_access_check(output_compressed_accounts, invoking_programid)?;
     bench_sbf_end!("cpda_cpi_write_checks");
     Ok(())
 }
 
 /// Cpi signer check, validates that the provided invoking program
-/// is the invoking program.
+/// is the actual invoking program.
 pub fn cpi_signer_check(
     signer_seeds: &[Vec<u8>],
     invoking_program: &Pubkey,
@@ -55,45 +61,43 @@ pub fn cpi_signer_check(
     Ok(())
 }
 
-/// Checks the signer for input compressed accounts.
-/// 1. If a compressed account has data the owner has to be the invokinging program.
-/// (Compressed accounts can be either owned by the program or
-/// the authority (which can be a pda) if the compressed account has no data.)
+/// Checks that the invoking program owns all input compressed accounts.
 pub fn input_compressed_accounts_signer_check(
-    inputs: &InstructionDataInvokeCpi,
+    input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
-    inputs
-    .input_compressed_accounts_with_merkle_context
-    .iter()
-        .try_for_each(|compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
-        // CHECK 1
-        let invoking_program_id =invoking_program_id.key();
-        if invoking_program_id == compressed_account_with_context.compressed_account.owner {
-            Ok(())
-        } else {
-            msg!(
-                "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {} !=  invoking_program_id {}",
-                compressed_account_with_context.compressed_account.owner,
-            invoking_program_id
-        );
-            err!(SystemProgramError::SignerCheckFailed)
-        }
-    })?;
-    Ok(())
+    input_compressed_accounts_with_merkle_context
+        .iter()
+        .try_for_each(
+            |compressed_account_with_context: &PackedCompressedAccountWithMerkleContext| {
+                // CHECK 1
+                let invoking_program_id = invoking_program_id.key();
+                if invoking_program_id == compressed_account_with_context.compressed_account.owner {
+                    Ok(())
+                } else {
+                    msg!(
+                        "Input signer check failed. Program cannot invalidate an account it doesn't own. Owner {} !=  invoking_program_id {}",
+                        compressed_account_with_context.compressed_account.owner,
+                        invoking_program_id
+                    );
+                    err!(SystemProgramError::SignerCheckFailed)
+                }
+            },
+        )
 }
 
-/// Checks the write access for output compressed accounts. Only program owned
-/// output accounts can hold data. Every output account that holds data has to
-/// be owned by the invoking_program. For every account that has data, the owner
-/// has to be the invoking_program.
+/// Write access check for output compressed accounts.
+/// - Only program-owned output accounts can hold data.
+/// - Every output account that holds data has to be owned by the
+/// invoking_program.
+/// - outputs without data can be owned by any pubkey.
 #[inline(never)]
 #[heap_neutral]
 pub fn output_compressed_accounts_write_access_check(
-    inputs: &InstructionDataInvokeCpi,
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     invoking_program_id: &Pubkey,
 ) -> Result<()> {
-    for compressed_account in inputs.output_compressed_accounts.iter() {
+    for compressed_account in output_compressed_accounts.iter() {
         if compressed_account.compressed_account.data.is_some()
             && compressed_account.compressed_account.owner != invoking_program_id.key()
         {
@@ -167,7 +171,7 @@ pub fn check_program_owner_address_merkle_tree<'a, 'b: 'a>(
             invoking_program,
             merkle_tree_unpacked.metadata.access_metadata.program_owner
         );
-        Err(SystemProgramError::InvalidMerkleTreeOwner.into())
+        err!(SystemProgramError::InvalidMerkleTreeOwner)
     } else {
         Ok(network_fee)
     }

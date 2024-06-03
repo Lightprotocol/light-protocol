@@ -9,7 +9,7 @@ use light_system_program::sdk::event::MerkleTreeSequenceNumber;
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
     event::PublicTransactionEvent,
-    invoke::get_compressed_sol_pda,
+    invoke::get_sol_pool_pda,
 };
 use num_bigint::BigUint;
 use num_traits::FromBytes;
@@ -151,49 +151,17 @@ pub fn assert_created_compressed_accounts(
     output_compressed_accounts: &[CompressedAccount],
     output_merkle_tree_pubkeys: &[Pubkey],
     created_out_compressed_accounts: &[CompressedAccountWithMerkleContext],
-    sorted: bool,
+    _sorted: bool,
 ) {
-    if !sorted {
-        for (i, output_account) in created_out_compressed_accounts.iter().enumerate() {
-            assert_eq!(
-                output_account.compressed_account.lamports, output_compressed_accounts[i].lamports,
-                "lamports mismatch"
-            );
-            assert_eq!(
-                output_account.compressed_account.owner, output_compressed_accounts[i].owner,
-                "owner mismatch"
-            );
-            assert_eq!(
-                output_account.compressed_account.data, output_compressed_accounts[i].data,
-                "data mismatch"
-            );
-            assert_eq!(
-                output_account.compressed_account.address, output_compressed_accounts[i].address,
-                "address mismatch"
-            );
-            assert_eq!(
-                output_account.merkle_context.merkle_tree_pubkey, output_merkle_tree_pubkeys[i],
-                "merkle tree pubkey mismatch"
-            );
-        }
-    } else {
-        for output_account in created_out_compressed_accounts.iter() {
-            assert!(output_compressed_accounts
-                .iter()
-                .any(|x| x.lamports == output_account.compressed_account.lamports),);
-            assert!(output_compressed_accounts
-                .iter()
-                .any(|x| x.owner == output_account.compressed_account.owner),);
-            assert!(output_compressed_accounts
-                .iter()
-                .any(|x| x.data == output_account.compressed_account.data),);
-            assert!(output_compressed_accounts
-                .iter()
-                .any(|x| x.address == output_account.compressed_account.address),);
-            assert!(output_merkle_tree_pubkeys
-                .iter()
-                .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey),);
-        }
+    for output_account in created_out_compressed_accounts.iter() {
+        assert!(output_compressed_accounts.iter().any(|x| x.lamports
+            == output_account.compressed_account.lamports
+            && x.owner == output_account.compressed_account.owner
+            && x.data == output_account.compressed_account.data
+            && x.address == output_account.compressed_account.address),);
+        assert!(output_merkle_tree_pubkeys
+            .iter()
+            .any(|x| *x == output_account.merkle_context.merkle_tree_pubkey),);
     }
 }
 
@@ -401,7 +369,7 @@ pub async fn assert_compression<R: RpcConnection>(
     is_compress: bool,
 ) {
     if is_compress {
-        let compressed_sol_pda_balance = match context.get_account(get_compressed_sol_pda()).await {
+        let compressed_sol_pda_balance = match context.get_account(get_sol_pool_pda()).await {
             Ok(Some(account)) => account.lamports,
             _ => 0,
         };
@@ -413,7 +381,7 @@ pub async fn assert_compression<R: RpcConnection>(
         );
     } else {
         let compressed_sol_pda_balance =
-            match context.get_account(get_compressed_sol_pda()).await.unwrap() {
+            match context.get_account(get_sol_pool_pda()).await.unwrap() {
                 Some(account) => account.lamports,
                 None => 0,
             };

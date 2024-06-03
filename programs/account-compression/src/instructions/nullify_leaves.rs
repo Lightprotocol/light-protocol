@@ -17,7 +17,7 @@ use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
-    /// CHECK: should only be accessed by a registered program/owner/program_owner.
+    /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting

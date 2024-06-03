@@ -798,7 +798,7 @@ export type LightCompressedToken = {
                         type: 'bool';
                     },
                     {
-                        name: 'compressionAmount';
+                        name: 'compressOrDecompressAmount';
                         type: {
                             option: 'u64';
                         };
@@ -1812,7 +1812,7 @@ export const IDL: LightCompressedToken = {
                         type: 'bool',
                     },
                     {
-                        name: 'compressionAmount',
+                        name: 'compressOrDecompressAmount',
                         type: {
                             option: 'u64',
                         },

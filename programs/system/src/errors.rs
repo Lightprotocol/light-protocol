@@ -52,4 +52,10 @@ pub enum SystemProgramError {
     CpiContextEmpty,
     #[msg("CpiContextMissing")]
     CpiContextMissing,
+    #[msg("DecompressionRecipienDefined")]
+    DecompressionRecipienDefined,
+    #[msg("SolPoolPdaDefined")]
+    SolPoolPdaDefined,
+    #[msg("AppendStateFailed")]
+    AppendStateFailed,
 }

@@ -71,9 +71,9 @@ async fn test_init_and_insert_into_nullifier_queue() {
     let context = program_test.start_with_context().await;
     let mut rpc = ProgramTestRpcConnection { context };
     let payer_pubkey = rpc.get_payer().pubkey();
-    let network_fee = 123;
-    let rollover_threshold = Some(95);
-    let close_threshold = Some(100);
+    let network_fee = StateMerkleTreeConfig::default().network_fee.unwrap();
+    let rollover_threshold = StateMerkleTreeConfig::default().rollover_threshold;
+    let close_threshold = StateMerkleTreeConfig::default().close_threshold;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut rpc,
         &payer_pubkey,
@@ -190,9 +190,9 @@ async fn test_full_nullifier_queue() {
     let context = program_test.start_with_context().await;
     let mut rpc = ProgramTestRpcConnection { context };
     let payer_pubkey = rpc.get_payer().pubkey();
-    let network_fee = 123;
-    let rollover_threshold = Some(95);
-    let close_threshold = Some(100);
+    let network_fee = StateMerkleTreeConfig::default().network_fee.unwrap();
+    let rollover_threshold = StateMerkleTreeConfig::default().rollover_threshold;
+    let close_threshold = StateMerkleTreeConfig::default().close_threshold;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut rpc,
         &payer_pubkey,
@@ -365,9 +365,9 @@ async fn failing_queue_tests() {
     let mut rpc = ProgramTestRpcConnection { context };
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = rpc.get_payer().pubkey();
-    let network_fee = 123;
-    let rollover_threshold = Some(95);
-    let close_threshold = Some(100);
+    let network_fee = StateMerkleTreeConfig::default().network_fee.unwrap();
+    let rollover_threshold = StateMerkleTreeConfig::default().rollover_threshold;
+    let close_threshold = StateMerkleTreeConfig::default().close_threshold;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut rpc,
         &payer_pubkey,
@@ -540,9 +540,9 @@ async fn test_init_and_rollover_state_merkle_tree() {
     let context = program_test.start_with_context().await;
     let mut context = ProgramTestRpcConnection { context };
     let payer_pubkey = context.get_payer().pubkey();
-    let network_fee = 123;
-    let rollover_threshold = Some(95);
-    let close_threshold = Some(100);
+    let network_fee = StateMerkleTreeConfig::default().network_fee.unwrap();
+    let rollover_threshold = StateMerkleTreeConfig::default().rollover_threshold;
+    let close_threshold = StateMerkleTreeConfig::default().close_threshold;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
         &payer_pubkey,
@@ -725,9 +725,9 @@ async fn test_append_funtional_and_failing() {
         &payer_pubkey,
         &merkle_tree_keypair,
         &queue_keypair,
-        0,
-        None,
-        None,
+        StateMerkleTreeConfig::default().network_fee.unwrap(),
+        StateMerkleTreeConfig::default().rollover_threshold,
+        StateMerkleTreeConfig::default().close_threshold,
     )
     .await;
     let merkle_tree_keypair_2 = Keypair::new();
@@ -737,9 +737,9 @@ async fn test_append_funtional_and_failing() {
         &payer_pubkey,
         &merkle_tree_keypair_2,
         &queue_keypair_2,
-        1,
-        None,
-        None,
+        StateMerkleTreeConfig::default().network_fee.unwrap(),
+        StateMerkleTreeConfig::default().rollover_threshold,
+        StateMerkleTreeConfig::default().close_threshold,
     )
     .await;
 
@@ -847,9 +847,9 @@ async fn test_nullify_leaves() {
     let mut context = ProgramTestRpcConnection { context };
     let payer = context.get_payer().insecure_clone();
     let payer_pubkey = context.get_payer().pubkey();
-    let network_fee = 123;
-    let rollover_threshold = Some(95);
-    let close_threshold = Some(100);
+    let network_fee = StateMerkleTreeConfig::default().network_fee.unwrap();
+    let rollover_threshold = StateMerkleTreeConfig::default().rollover_threshold;
+    let close_threshold = StateMerkleTreeConfig::default().close_threshold;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
         &mut context,
         &payer_pubkey,
@@ -1115,7 +1115,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
     context: &mut R,
 ) -> Result<(), RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-        elements: elements.to_vec(),
+        nullifiers: elements.to_vec(),
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1159,7 +1159,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     context: &mut R,
 ) -> Result<(), RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
-        elements: elements.to_vec(),
+        nullifiers: elements.to_vec(),
     };
     let accounts = account_compression::accounts::InsertIntoQueues {
         fee_payer: fee_payer.pubkey(),
@@ -1220,19 +1220,12 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     );
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
 
-    let state_merkle_tree_config = StateMerkleTreeConfig {
-        rollover_threshold,
-        close_threshold,
-        network_fee: Some(network_fee),
-        ..Default::default()
-    };
-
     let instruction = create_initialize_merkle_tree_instruction(
         rpc.get_payer().pubkey(),
         rpc.get_payer().pubkey(),
         merkle_tree_pubkey,
         queue_keypair.pubkey(),
-        state_merkle_tree_config.clone(),
+        StateMerkleTreeConfig::default(),
         NullifierQueueConfig::default(),
         None,
         1,
@@ -1274,7 +1267,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         &queue_keypair.pubkey(),
         &NullifierQueueConfig::default(),
         &merkle_tree_pubkey,
-        &state_merkle_tree_config,
+        &StateMerkleTreeConfig::default(),
         QueueType::NullifierQueue,
         1,
         None,
@@ -1290,15 +1283,12 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
     leaves: Vec<(u8, [u8; 32])>,
     expected_error: u32,
 ) -> Result<(), RpcError> {
-    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees {
-        leaves, //: vec![(0, [1u8; 32]), (1, [2u8; 32])],
-    };
+    let instruction_data = account_compression::instruction::AppendLeavesToMerkleTrees { leaves };
 
     let accounts = account_compression::accounts::AppendLeaves {
         fee_payer: context.get_payer().pubkey(),
         authority: context.get_payer().pubkey(),
         registered_program_pda: None,
-        log_wrapper: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         system_program: system_program::ID,
     };
 
@@ -1310,7 +1300,6 @@ pub async fn fail_2_append_leaves_with_invalid_inputs<R: RpcConnection>(
                 .iter()
                 .map(|merkle_tree_pubkey| AccountMeta::new(*merkle_tree_pubkey, false))
                 .collect::<Vec<AccountMeta>>(),
-            // vec![AccountMeta::new(*merkle_tree_pubkey, false)],
         ]
         .concat(),
         data: instruction_data.data(),
@@ -1412,7 +1401,6 @@ pub async fn fail_4_append_leaves_with_invalid_authority<R: RpcConnection>(
         fee_payer: rpc.get_payer().pubkey(),
         authority: invalid_autority.pubkey(),
         registered_program_pda: None,
-        log_wrapper: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
         system_program: system_program::ID,
     };
 

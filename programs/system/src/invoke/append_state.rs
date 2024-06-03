@@ -1,3 +1,14 @@
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, pubkey::Pubkey},
+    Bumps,
+};
+use light_hasher::Poseidon;
+use light_heap::{bench_sbf_end, bench_sbf_start};
+use light_macros::heap_neutral;
+use light_utils::hash_to_bn254_field_size_be;
+
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
     errors::SystemProgramError,
@@ -6,15 +17,8 @@ use crate::{
         accounts::{InvokeAccounts, SignerAccounts},
         event::MerkleTreeSequenceNumber,
     },
-    InstructionDataInvoke,
+    OutputCompressedAccountWithPackedContext,
 };
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::solana_program::program::invoke_signed;
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, Bumps};
-use light_hasher::Poseidon;
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_macros::heap_neutral;
-use light_utils::hash_to_bn254_field_size_be;
 
 #[allow(clippy::too_many_arguments)]
 #[heap_neutral]
@@ -25,7 +29,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps,
 >(
-    inputs: &'a InstructionDataInvoke,
+    output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     output_compressed_account_indices: &'a mut [u32],
     output_compressed_account_hashes: &'a mut [[u8; 32]],
@@ -41,7 +45,6 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             .get_account_compression_authority()
             .to_account_info(),
         ctx.accounts.get_registered_program_pda().to_account_info(),
-        ctx.accounts.get_noop_program().to_account_info(),
         ctx.accounts.get_system_program().to_account_info(),
     ];
     let mut accounts = vec![
@@ -55,37 +58,27 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             is_signer: true,
             is_writable: false,
         },
-        AccountMeta {
-            pubkey: account_infos[2].key(),
-            is_signer: false,
-            is_writable: false,
-        },
-        AccountMeta {
-            pubkey: account_infos[3].key(),
-            is_signer: false,
-            is_writable: false,
-        },
-        AccountMeta::new_readonly(account_infos[4].key(), false),
+        AccountMeta::new_readonly(account_infos[2].key(), false),
+        AccountMeta::new_readonly(account_infos[3].key(), false),
     ];
-
     let mut current_index: u8 = 0;
     let num_leaves = output_compressed_account_hashes.len();
     let mut num_leaves_in_tree: u32 = 0;
     let mut mt_next_index = 0;
-    let vec_capacity = 12 + 33 * num_leaves;
-    let mut instruction_data = Vec::<u8>::with_capacity(vec_capacity);
+    let mut instruction_data = Vec::<u8>::with_capacity(12 + 33 * num_leaves);
     let mut hashed_merkle_tree = [0u8; 32];
-    // anchor instruction signature
+    // Anchor instruction signature.
     instruction_data.extend_from_slice(&[199, 144, 10, 82, 247, 142, 143, 7]);
     // leaves vector length (for borsh compat)
     instruction_data.extend_from_slice(&(num_leaves as u32).to_le_bytes());
-    if inputs.output_compressed_accounts[0].merkle_tree_index == 0 {
+    if output_compressed_accounts[0].merkle_tree_index == 0 {
         let account_info = ctx.remaining_accounts
-            [inputs.output_compressed_accounts[current_index as usize].merkle_tree_index as usize]
+            [output_compressed_accounts[current_index as usize].merkle_tree_index as usize]
             .to_account_info();
         let seq;
         (mt_next_index, _, seq) = check_program_owner_state_merkle_tree(
-            &ctx.remaining_accounts[current_index as usize],
+            &ctx.remaining_accounts
+                [output_compressed_accounts[current_index as usize].merkle_tree_index as usize],
             invoking_program,
         )?;
         sequence_numbers.push(MerkleTreeSequenceNumber {
@@ -110,14 +103,13 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
     }
     bench_sbf_end!("cpda_append_data_init");
     bench_sbf_start!("cpda_append_rest");
-
-    for (j, account) in inputs.output_compressed_accounts.iter().enumerate() {
+    for (j, account) in output_compressed_accounts.iter().enumerate() {
         // if mt index == current index Merkle tree account info has already been added.
         // if mt index != current index, Merkle tree account info is new, add it.
         #[allow(clippy::comparison_chain)]
         if account.merkle_tree_index == current_index {
-            // Do nothing, but is the most common case assuming ordered Merkle trees.
-        } else if account.merkle_tree_index != current_index {
+            // Do nothing, but it is the most common case.
+        } else if account.merkle_tree_index > current_index {
             current_index = account.merkle_tree_index;
             let seq;
             (mt_next_index, _, seq) = check_program_owner_state_merkle_tree(
@@ -145,6 +137,9 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
             };
             account_infos.push(account_info);
             num_leaves_in_tree = 0;
+        } else {
+            msg!("Merkle tree index is not in order.");
+            return err!(SystemProgramError::AppendStateFailed);
         }
 
         if let Some(address) = account.compressed_account.address {
@@ -193,7 +188,7 @@ pub fn insert_output_compressed_accounts_into_state_merkle_tree<
                 &hashed_merkle_tree,
                 &output_compressed_account_indices[j],
             )?;
-        instruction_data.extend_from_slice(&[(account_infos.len() - 6) as u8]);
+        instruction_data.extend_from_slice(&[(account_infos.len() - 5) as u8]);
         instruction_data.extend_from_slice(&output_compressed_account_hashes[j]);
     }
 

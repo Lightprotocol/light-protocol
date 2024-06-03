@@ -28,7 +28,6 @@ pub mod light_system_program {
         invoke::{processor::process, verify_signer::input_compressed_accounts_signer_check},
         invoke_cpi::processor::process_invoke_cpi,
     };
-
     use super::*;
 
     pub fn init_cpi_context_account(ctx: Context<InitializeCpiContextAccount>) -> Result<()> {

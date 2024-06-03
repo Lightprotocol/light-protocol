@@ -15,7 +15,7 @@ use light_system_program::{
         compressed_account::{
             CompressedAccount, CompressedAccountWithMerkleContext, MerkleContext,
         },
-        invoke::{create_invoke_instruction, get_compressed_sol_pda},
+        invoke::{create_invoke_instruction, get_sol_pool_pda},
     },
     NewAddressParams,
 };
@@ -402,19 +402,16 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         inputs.compress_or_decompress_lamports,
         inputs.is_compress,
         inputs.recipient,
+        true,
     );
     let mut recipient_balance_pre = 0;
     let mut compressed_sol_pda_balance_pre = 0;
     if inputs.compress_or_decompress_lamports.is_some() {
-        compressed_sol_pda_balance_pre = match inputs
-            .rpc
-            .get_account(get_compressed_sol_pda())
-            .await
-            .unwrap()
-        {
-            Some(account) => account.lamports,
-            None => 0,
-        };
+        compressed_sol_pda_balance_pre =
+            match inputs.rpc.get_account(get_sol_pool_pda()).await.unwrap() {
+                Some(account) => account.lamports,
+                None => 0,
+            };
     }
     if inputs.recipient.is_some() {
         // TODO: assert sender balance after fee refactor

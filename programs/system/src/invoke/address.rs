@@ -1,3 +1,6 @@
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
+use anchor_lang::{prelude::*, Bumps};
+
 use crate::{
     constants::CPI_AUTHORITY_PDA_BUMP,
     invoke_cpi::verify_signer::check_program_owner_address_merkle_tree,
@@ -5,36 +8,32 @@ use crate::{
         accounts::{InvokeAccounts, SignerAccounts},
         address::derive_address,
     },
-    InstructionDataInvoke, NewAddressParamsPacked,
+    NewAddressParamsPacked,
 };
-use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{prelude::*, Bumps};
 
-pub fn derive_new_addresses<'info, A: InvokeAccounts<'info> + SignerAccounts<'info> + Bumps>(
-    inputs: &InstructionDataInvoke,
-    ctx: &Context<'_, '_, '_, '_, A>,
+pub fn derive_new_addresses(
+    new_address_params: &[NewAddressParamsPacked],
+    num_input_compressed_accounts: usize,
+    remaining_accounts: &[AccountInfo],
     compressed_account_addresses: &mut [Option<[u8; 32]>],
     new_addresses: &mut [[u8; 32]],
-) {
-    inputs
-        .new_address_params
+) -> Result<()> {
+    new_address_params
         .iter()
         .enumerate()
-        .for_each(|(i, new_address_params)| {
+        .try_for_each(|(i, new_address_params)| {
             let address = derive_address(
-                &ctx.remaining_accounts
-                    [new_address_params.address_merkle_tree_account_index as usize]
+                &remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
                     .key(),
                 &new_address_params.seed,
             )
-            .unwrap();
-            // We are inserting addresses into two vectors to avoid unwrapping the option,
-            // and searching two vectors when hashing output compressed accounts
-            // in insert output compressed accounts into state merkle tree.
-            compressed_account_addresses
-                [i + inputs.input_compressed_accounts_with_merkle_context.len()] = Some(address);
+            .map_err(ProgramError::from)?;
+            // We are inserting addresses into two vectors to avoid unwrapping
+            // the option in following functions.
+            compressed_account_addresses[i + num_input_compressed_accounts] = Some(address);
             new_addresses[i] = address;
-        });
+            Ok(())
+        })
 }
 
 pub fn insert_addresses_into_address_merkle_tree_queue<
@@ -63,6 +62,8 @@ pub fn insert_addresses_into_address_merkle_tree_queue<
             &ctx.remaining_accounts[params.address_merkle_tree_account_index as usize],
             invoking_program,
         )?;
+        // We select the first network fee we find. All Merkle trees are
+        // initialized with the same network fee.
         if network_fee_bundle.is_none() && network_fee.is_some() {
             network_fee_bundle = Some((params.address_queue_account_index, network_fee.unwrap()));
         }

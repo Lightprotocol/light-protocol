@@ -32,8 +32,11 @@ pub mod light_compressed_token {
     /// instruction creates a token pool account for that mint owned by token
     /// authority.
     pub fn create_mint<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
+        if ctx.accounts.token_pool_pda.is_native() {
+            unimplemented!("Compressed wrapped SOL is not supported.");
+        }
         Ok(())
     }
 

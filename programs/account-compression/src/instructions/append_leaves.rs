@@ -16,11 +16,9 @@ pub struct AppendLeaves<'info> {
     #[account(mut)]
     /// Signer used to pay rollover and protocol fees.
     pub fee_payer: Signer<'info>,
-    /// CHECK: should only be accessed by a registered program/owner/program_owner.
+    /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
-    /// CHECK: in event emitting
-    pub log_wrapper: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -43,16 +41,10 @@ impl<'info> GroupAccounts<'info> for AppendLeaves<'info> {
     }
 }
 
-/// for every leaf one Merkle tree account has to be passed as remaining account
-/// for every leaf could be inserted into a different Merkle tree account
-/// 1. deduplicate Merkle trees and identify into which tree to insert what leaf
-/// 2. iterate over every unique Merkle tree and batch insert leaves
 pub fn process_append_leaves_to_merkle_trees<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, AppendLeaves<'info>>,
-    mut leaves: Vec<(u8, [u8; 32])>,
+    leaves: Vec<(u8, [u8; 32])>,
 ) -> Result<()> {
-    leaves.sort_by(|a, b| a.0.cmp(&b.0));
-
     let leaves_processed = process_batch(&ctx, &leaves)?;
     if leaves_processed != leaves.len() {
         return err!(crate::errors::AccountCompressionErrorCode::NotAllLeavesProcessed);
@@ -64,20 +56,20 @@ fn process_batch<'a, 'c: 'info, 'info>(
     ctx: &Context<'a, '_, 'c, 'info, AppendLeaves<'info>>,
     leaves: &'a [(u8, [u8; 32])],
 ) -> Result<usize> {
-    // init with first Merkle tree account
-    // iterate over all leaves
-    // if leaf belongs to current Merkle tree account insert into batch
-    // if leaf does not belong to current Merkle tree account
-    // append batch to Merkle tree
-    // insert rollover fee into vector
-    // reset batch
-    // get next Merkle tree account
-    // append leaf of different Merkle tree account to batch
+    // 1. init with first Merkle tree account
+    // 2. iterate over all leaves
+    // 3. if leaf belongs to current Merkle tree account insert into batch
+    // 4. if leaf does not belong to current Merkle tree account
+    // 5. append batch to Merkle tree
+    // 6. insert rollover fee into vector
+    // 7. reset batch
+    // 8. get next Merkle tree account
+    // 9. append leaf of different Merkle tree account to batch
     let mut leaves_processed: usize = 0;
     let len = ctx.remaining_accounts.len();
     for i in 0..len {
         let merkle_tree_acc_info = &ctx.remaining_accounts[i];
-        let lamports: u64 = {
+        let rollover_fee: u64 = {
             let start = match leaves.iter().position(|x| x.0 as usize == i) {
                 Some(pos) => Ok(pos),
                 None => err!(AccountCompressionErrorCode::NoLeavesForMerkleTree),
@@ -94,7 +86,7 @@ fn process_batch<'a, 'c: 'info, 'info>(
                     .map_err(ProgramError::from)?;
 
             let mut merkle_tree_account = merkle_tree_account.load_mut()?;
-            let lamports =
+            let rollover_fee =
                 merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
 
             check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
@@ -112,9 +104,9 @@ fn process_batch<'a, 'c: 'info, 'info>(
                         .as_slice(),
                 )
                 .map_err(ProgramError::from)?;
-            lamports
+            rollover_fee
         };
-        transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, lamports)?;
+        transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;
     }
     Ok(leaves_processed)
 }

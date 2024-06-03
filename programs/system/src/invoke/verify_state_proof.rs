@@ -1,9 +1,3 @@
-use crate::{
-    errors::SystemProgramError,
-    invoke::InstructionDataInvoke,
-    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
-    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
-};
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use anchor_lang::{prelude::*, Bumps};
 use light_hasher::Poseidon;
@@ -14,15 +8,21 @@ use light_verifier::{
     verify_merkle_proof_zkp, CompressedProof,
 };
 
+use crate::{
+    errors::SystemProgramError,
+    invoke::InstructionDataInvoke,
+    sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
+    NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
+};
+
 #[inline(never)]
 #[heap_neutral]
 pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
-    inputs: &'a InstructionDataInvoke,
+    input_compressed_accounts_with_merkle_context: &'a [PackedCompressedAccountWithMerkleContext],
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
-    for (j, input_compressed_account_with_context) in inputs
-        .input_compressed_accounts_with_merkle_context
+    for (j, input_compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter()
         .enumerate()
     {
@@ -35,8 +35,8 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
         let merkle_tree = merkle_tree.load()?;
         let fetched_roots = merkle_tree.load_roots()?;
 
-        roots[j] = fetched_roots
-            [inputs.input_compressed_accounts_with_merkle_context[j].root_index as usize];
+        roots[j] =
+            fetched_roots[input_compressed_accounts_with_merkle_context[j].root_index as usize];
     }
     Ok(())
 }
@@ -68,6 +68,7 @@ pub fn fetch_roots_address_merkle_tree<
 
 #[inline(never)]
 #[heap_neutral]
+#[allow(unused_mut)]
 pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
     remaining_accounts: &'a [AccountInfo<'info>],
     inputs: &'a InstructionDataInvoke,
@@ -117,6 +118,8 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
             hashed_pubkeys.push((merkle_tree_pubkey, current_hashed_mt));
         }
 
+        // Without cpi context all input compressed accounts have the same owner.
+        #[cfg(feature = "cpi-context")]
         if owner_pubkey
             != input_compressed_account_with_context
                 .compressed_account
@@ -193,7 +196,7 @@ pub fn verify_state_proof(
 #[heap_neutral]
 pub fn sum_check(
     input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
-    output_compressed_account: &[OutputCompressedAccountWithPackedContext],
+    output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
     relay_fee: &Option<u64>,
     compress_or_decompress_lamports: &Option<u64>,
     is_compress: &bool,
@@ -223,7 +226,7 @@ pub fn sum_check(
         None => (),
     }
 
-    for compressed_account in output_compressed_account.iter() {
+    for compressed_account in output_compressed_accounts.iter() {
         sum = sum
             .checked_sub(compressed_account.compressed_account.lamports)
             .ok_or(ProgramError::ArithmeticOverflow)
@@ -262,10 +265,14 @@ mod test {
         sum_check_test(&[100, 50], &[150 - 1], None, None, false).unwrap_err();
         sum_check_test(&[100, 50], &[], None, None, false).unwrap_err();
         sum_check_test(&[], &[100, 50], None, None, false).unwrap_err();
+        sum_check_test(&[100, 50], &[0], None, None, false).unwrap_err();
+        sum_check_test(&[0], &[100, 50], None, None, false).unwrap_err();
 
         // SUCCEED: empty
         sum_check_test(&[], &[], None, None, true).unwrap();
         sum_check_test(&[], &[], None, None, false).unwrap();
+        sum_check_test(&[0], &[0], None, None, true).unwrap();
+        sum_check_test(&[0], &[0], None, None, false).unwrap();
         // FAIL: empty
         sum_check_test(&[], &[], Some(1), None, false).unwrap_err();
         sum_check_test(&[], &[], None, Some(1), false).unwrap_err();

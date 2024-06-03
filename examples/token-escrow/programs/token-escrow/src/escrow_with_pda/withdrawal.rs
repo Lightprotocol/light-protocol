@@ -133,7 +133,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         input_token_data_with_context,
         output_compressed_accounts,
         is_compress: false,
-        compression_amount: None,
+        compress_or_decompress_amount: None,
         cpi_context: None,
     };
 
@@ -186,7 +186,7 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
         input_token_data_with_context,
         output_compressed_accounts,
         is_compress: false,
-        compression_amount: None,
+        compress_or_decompress_amount: None,
         cpi_context: None,
     };
 

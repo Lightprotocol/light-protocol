@@ -17,7 +17,7 @@ use crate::{
     OutputCompressedAccountWithPackedContext,
 };
 
-pub fn get_compressed_sol_pda() -> Pubkey {
+pub fn get_sol_pool_pda() -> Pubkey {
     Pubkey::find_program_address(&[SOL_POOL_PDA_SEED], &crate::ID).0
 }
 
@@ -35,26 +35,32 @@ pub fn create_invoke_instruction(
     compress_or_decompress_lamports: Option<u64>,
     is_compress: bool,
     decompression_recipient: Option<Pubkey>,
+    sort: bool,
 ) -> Instruction {
-    let (remaining_accounts, inputs_struct) = create_invoke_instruction_data_and_remaining_accounts(
-        new_address_params,
-        merkle_context,
-        input_compressed_accounts,
-        input_root_indices,
-        output_compressed_account_merkle_tree_pubkeys,
-        output_compressed_accounts,
-        proof,
-        compress_or_decompress_lamports,
-        is_compress,
-    );
-
+    let (remaining_accounts, mut inputs_struct) =
+        create_invoke_instruction_data_and_remaining_accounts(
+            new_address_params,
+            merkle_context,
+            input_compressed_accounts,
+            input_root_indices,
+            output_compressed_account_merkle_tree_pubkeys,
+            output_compressed_accounts,
+            proof,
+            compress_or_decompress_lamports,
+            is_compress,
+        );
+    if sort {
+        inputs_struct
+            .output_compressed_accounts
+            .sort_by(|a, b| a.merkle_tree_index.cmp(&b.merkle_tree_index));
+    }
     let mut inputs = Vec::new();
 
     InstructionDataInvoke::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let instruction_data = crate::instruction::Invoke { inputs };
 
-    let sol_pool_pda = compress_or_decompress_lamports.map(|_| get_compressed_sol_pda());
+    let sol_pool_pda = compress_or_decompress_lamports.map(|_| get_sol_pool_pda());
 
     let accounts = crate::accounts::InvokeInstruction {
         fee_payer: *fee_payer,
@@ -283,6 +289,7 @@ mod test {
             Some(100),
             true,
             None,
+            true,
         );
         assert_eq!(instruction.program_id, crate::ID);
 

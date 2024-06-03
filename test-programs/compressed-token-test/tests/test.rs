@@ -576,6 +576,7 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         Some(compression_amount),
         token_pool_pda,
         Some(*decompress_token_account),
+        true,
     )
     .unwrap();
     let instructions = if !is_compress {
@@ -1074,6 +1075,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         None,
         None,
         None,
+        true,
     )
     .unwrap();
 

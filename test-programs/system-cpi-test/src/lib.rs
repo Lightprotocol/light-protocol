@@ -71,7 +71,6 @@ pub mod system_cpi_test {
             authority: ctx.accounts.cpi_signer.to_account_info(),
             fee_payer: ctx.accounts.signer.to_account_info(),
             registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
-            log_wrapper: ctx.accounts.noop_program.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
         };
         let bump = &[bump];

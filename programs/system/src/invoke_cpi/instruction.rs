@@ -1,3 +1,10 @@
+use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use anchor_lang::{
+    prelude::*, solana_program::pubkey::Pubkey, system_program::System, AnchorDeserialize,
+    AnchorSerialize,
+};
+
+use super::account::CpiContextAccount;
 use crate::{
     invoke::{processor::CompressedProof, sol_compression::SOL_POOL_PDA_SEED},
     sdk::{
@@ -7,36 +14,26 @@ use crate::{
     },
     NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
-use anchor_lang::{
-    prelude::*, solana_program::pubkey::Pubkey, system_program::System, AnchorDeserialize,
-    AnchorSerialize,
-};
 
-use super::account::CpiContextAccount;
-/// These are the base accounts additionally Merkle tree and queue accounts are
-/// required. These additional accounts are passed as remaining accounts. One
-/// Merkle tree for each input compressed account, one queue and Merkle tree
-/// account each for each output compressed account.
 #[derive(Accounts)]
 pub struct InvokeCpiInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
-    /// CHECK: this account
+    /// CHECK:
     #[account(
     seeds = [&crate::ID.to_bytes()], bump, seeds::program = &account_compression::ID,
     )]
     pub registered_program_pda:
         Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
-    /// CHECK: this account
+    /// CHECK: checked in emit_event.rs.
     pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
+    /// CHECK:
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
+    /// CHECK:
     pub account_compression_program: Program<'info, AccountCompression>,
-    /// CHECK: is checked in signer checks to derive the authority pubkey
+    /// CHECK: checked in cpi_signer_check.
     pub invoking_program: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -89,11 +86,11 @@ impl<'info> InvokeAccounts<'info> for InvokeCpiInstruction<'info> {
         &self.account_compression_program
     }
 
-    fn get_compressed_sol_pda(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
         self.sol_pool_pda.as_ref()
     }
 
-    fn get_compression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
+    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
         self.decompression_recipient.as_ref()
     }
 
