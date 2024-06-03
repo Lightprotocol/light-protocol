@@ -887,7 +887,8 @@ export type AccountCompression = {
                         name: 'closeThreshold';
                         docs: [
                             'If current slot is greater than rolledover_slot + close_threshold and',
-                            'the account is empty it can be closed.',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
                         ];
                         type: 'u64';
                     },
@@ -2023,7 +2024,8 @@ export const IDL: AccountCompression = {
                         name: 'closeThreshold',
                         docs: [
                             'If current slot is greater than rolledover_slot + close_threshold and',
-                            'the account is empty it can be closed.',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
                         ],
                         type: 'u64',
                     },

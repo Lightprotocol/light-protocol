@@ -15,7 +15,8 @@ pub struct RolloverMetadata {
     /// The slot when the account was rolled over, a rolled over account should not be written to.
     pub rolledover_slot: u64,
     /// If current slot is greater than rolledover_slot + close_threshold and
-    /// the account is empty it can be closed.
+    /// the account is empty it can be closed. No 'close' functionality has been
+    /// implemented yet.
     pub close_threshold: u64,
 }
 
