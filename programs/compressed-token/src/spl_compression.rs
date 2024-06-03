@@ -1,3 +1,4 @@
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
 use anchor_spl::token::Transfer;
 
@@ -9,7 +10,7 @@ pub fn process_compression<'info>(
 ) -> Result<()> {
     if inputs.is_compress {
         compress_spl_tokens(inputs, ctx)
-    } else if inputs.compression_amount.is_some() {
+    } else if inputs.compress_or_decompress_amount.is_some() {
         decompress_spl_tokens(inputs, ctx)
     } else {
         Ok(())
@@ -28,7 +29,7 @@ pub fn decompress_spl_tokens<'info>(
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForDecompress),
     };
-    let amount = match inputs.compression_amount {
+    let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForDecompress),
     };
@@ -53,7 +54,7 @@ pub fn compress_spl_tokens<'info>(
         Some(token_pool_pda) => token_pool_pda.to_account_info(),
         None => return err!(crate::ErrorCode::CompressedPdaUndefinedForCompress),
     };
-    let amount = match inputs.compression_amount {
+    let amount = match inputs.compress_or_decompress_amount {
         Some(amount) => amount,
         None => return err!(crate::ErrorCode::DeCompressAmountUndefinedForCompress),
     };
@@ -83,9 +84,9 @@ pub fn transfer<'info>(
     amount: u64,
 ) -> Result<()> {
     let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID);
+        anchor_lang::prelude::Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::ID);
     let bump = &[bump];
-    let seeds = &[&[b"cpi_authority".as_slice(), bump][..]];
+    let seeds = &[&[CPI_AUTHORITY_PDA_SEED, bump][..]];
     let accounts = Transfer {
         from: from.to_account_info(),
         to: to.to_account_info(),

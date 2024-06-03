@@ -14,11 +14,10 @@ use anchor_lang::prelude::*;
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::event::{MerkleTreeEvent, NullifierEvent};
 use light_hasher::zero_bytes::poseidon::ZERO_BYTES;
-use light_macros::heap_neutral;
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
-    /// CHECK: should only be accessed by a registered program/owner/program_owner.
+    /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     /// CHECK: in event emitting
@@ -40,8 +39,6 @@ impl<'info> GroupAccounts<'info> for NullifyLeaves<'info> {
 }
 
 // TODO: implement for multiple nullifiers got a stack frame error with a loop
-#[inline(never)]
-#[heap_neutral]
 pub fn process_nullify_leaves<'a, 'b, 'c: 'info, 'info>(
     ctx: &'a Context<'a, 'b, 'c, 'info, NullifyLeaves<'info>>,
     change_log_indices: &'a [u64],

@@ -174,11 +174,11 @@ pub mod account_compression {
 
     pub fn insert_into_nullifier_queues<'a, 'b, 'c: 'info, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
-        elements: Vec<[u8; 32]>,
+        nullifiers: Vec<[u8; 32]>,
     ) -> Result<()> {
         process_insert_into_queues::<StateMerkleTreeAccount>(
             ctx,
-            &elements,
+            &nullifiers,
             QueueType::NullifierQueue,
         )
     }

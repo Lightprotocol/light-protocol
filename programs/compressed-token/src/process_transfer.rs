@@ -5,6 +5,7 @@ use crate::{
     token_data::{AccountState, TokenData},
     ErrorCode,
 };
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, AnchorDeserialize};
 use anchor_spl::token::{Token, TokenAccount};
 use light_hasher::Poseidon;
@@ -21,7 +22,6 @@ use light_system_program::{
     InstructionDataInvokeCpi, OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
-use std::mem;
 
 /// Process a token transfer instruction
 /// build inputs -> sum check -> build outputs -> add token data to inputs -> invoke cpi
@@ -60,12 +60,12 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
             .iter()
             .map(|data| data.amount)
             .collect::<Vec<u64>>(),
-        inputs.compression_amount.as_ref(),
+        inputs.compress_or_decompress_amount.as_ref(),
         inputs.is_compress,
     )?;
     bench_sbf_end!("t_sum_check");
     bench_sbf_start!("t_process_compression");
-    if inputs.compression_amount.is_some() {
+    if inputs.compress_or_decompress_amount.is_some() {
         process_compression(&inputs, &ctx)?;
     }
     bench_sbf_end!("t_process_compression");
@@ -152,7 +152,7 @@ pub fn add_token_data_to_input_compressed_accounts(
         .iter_mut()
         .enumerate()
     {
-        let mut data = Vec::with_capacity(mem::size_of::<TokenData>());
+        let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
         if input_token_data[i].delegate.is_none() && input_token_data[i].delegated_amount == 0 {
@@ -199,7 +199,7 @@ pub fn add_token_data_to_input_compressed_accounts(
 /// Get static cpi signer seeds
 pub fn get_cpi_signer_seeds() -> [&'static [u8]; 2] {
     let bump: &[u8; 1] = &[254];
-    let seeds: [&'static [u8]; 2] = [b"cpi_authority", bump];
+    let seeds: [&'static [u8]; 2] = [CPI_AUTHORITY_PDA_SEED, bump];
     seeds
 }
 
@@ -271,7 +271,7 @@ pub fn cpi_execute_compressed_transaction_transfer<'info>(
 pub fn sum_check(
     input_token_data_elements: &[TokenData],
     output_amounts: &[u64],
-    compression_amount: Option<&u64>,
+    compress_or_decompress_amount: Option<&u64>,
     is_compress: bool,
 ) -> Result<()> {
     let mut sum: u64 = 0;
@@ -282,15 +282,15 @@ pub fn sum_check(
             .map_err(|_| ErrorCode::ComputeInputSumFailed)?;
     }
 
-    if let Some(compression_amount) = compression_amount {
+    if let Some(compress_or_decompress_amount) = compress_or_decompress_amount {
         if is_compress {
             sum = sum
-                .checked_add(*compression_amount)
+                .checked_add(*compress_or_decompress_amount)
                 .ok_or(ProgramError::ArithmeticOverflow)
                 .map_err(|_| ErrorCode::ComputeCompressSumFailed)?;
         } else {
             sum = sum
-                .checked_sub(*compression_amount)
+                .checked_sub(*compress_or_decompress_amount)
                 .ok_or(ProgramError::ArithmeticOverflow)
                 .map_err(|_| ErrorCode::ComputeDecompressSumFailed)?;
         }
@@ -315,9 +315,8 @@ pub struct TransferInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
-    // This is the cpi signer
     /// CHECK: that mint authority is derived from signer
-    #[account(seeds = [b"cpi_authority"], bump,)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
     pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
     /// CHECK: this account
@@ -325,7 +324,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
-    #[account(seeds = [b"cpi_authority"], bump, seeds::program = light_system_program::ID,)]
+    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID,)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
@@ -357,7 +356,7 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub input_token_data_with_context: Vec<InputTokenDataWithContext>,
     pub output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
     pub is_compress: bool,
-    pub compression_amount: Option<u64>,
+    pub compress_or_decompress_amount: Option<u64>,
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
@@ -372,8 +371,11 @@ impl CompressedTokenInstructionDataTransfer {
     )> {
         let mut input_compressed_accounts_with_merkle_context: Vec<
             PackedCompressedAccountWithMerkleContext,
-        > = Vec::<PackedCompressedAccountWithMerkleContext>::new();
-        let mut input_token_data_vec: Vec<TokenData> = Vec::new();
+        > = Vec::<PackedCompressedAccountWithMerkleContext>::with_capacity(
+            self.input_token_data_with_context.len(),
+        );
+        let mut input_token_data_vec: Vec<TokenData> =
+            Vec::with_capacity(self.input_token_data_with_context.len());
         let owner = if self.signer_is_delegate {
             remaining_accounts[0].key()
         } else {
@@ -441,7 +443,7 @@ pub struct TokenTransferOutputData {
 }
 
 pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[b"cpi_authority"], &crate::ID)
+    Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &crate::ID)
 }
 
 #[cfg(not(target_os = "solana"))]
@@ -485,11 +487,12 @@ pub mod transfer_sdk {
         mint: Pubkey,
         owner_if_delegate_is_signer: Option<Pubkey>,
         is_compress: bool,
-        compression_amount: Option<u64>,
+        compress_or_decompress_amount: Option<u64>,
         token_pool_pda: Option<Pubkey>,
         decompress_token_account: Option<Pubkey>,
+        sort: bool,
     ) -> Result<Instruction, TransferSdkError> {
-        let (remaining_accounts, inputs_struct) = create_inputs_and_remaining_accounts(
+        let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
             input_merkle_context,
             owner_if_delegate_is_signer,
@@ -498,8 +501,13 @@ pub mod transfer_sdk {
             proof,
             mint,
             is_compress,
-            compression_amount,
+            compress_or_decompress_amount,
         );
+        if sort {
+            inputs_struct
+                .output_compressed_accounts
+                .sort_by_key(|data| data.merkle_tree_index);
+        }
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut inputs = Vec::new();
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
@@ -548,7 +556,7 @@ pub mod transfer_sdk {
         mint: Pubkey,
         owner: &Pubkey,
         is_compress: bool,
-        compression_amount: Option<u64>,
+        compress_or_decompress_amount: Option<u64>,
     ) -> Result<
         (
             HashMap<Pubkey, usize>,
@@ -576,7 +584,7 @@ pub mod transfer_sdk {
                 proof,
                 mint,
                 is_compress,
-                compression_amount,
+                compress_or_decompress_amount,
             );
         Ok((remaining_accounts, compressed_accounts_ix_data))
     }
@@ -591,7 +599,7 @@ pub mod transfer_sdk {
         proof: &Option<CompressedProof>,
         mint: Pubkey,
         is_compress: bool,
-        compression_amount: Option<u64>,
+        compress_or_decompress_amount: Option<u64>,
     ) -> (
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
@@ -682,7 +690,7 @@ pub mod transfer_sdk {
             signer_is_delegate: owner_if_delegate_is_signer.is_some(),
             mint,
             is_compress,
-            compression_amount,
+            compress_or_decompress_amount,
             cpi_context: None,
         };
 
@@ -754,7 +762,7 @@ mod test {
     fn sum_check_test(
         input_amounts: &[u64],
         output_amounts: &[u64],
-        compression_amount: Option<u64>,
+        compress_or_decompress_amount: Option<u64>,
         is_compress: bool,
     ) -> Result<()> {
         let mut inputs = Vec::new();
@@ -770,7 +778,7 @@ mod test {
             });
         }
         let ref_amount;
-        let compression_amount = match compression_amount {
+        let compress_or_decompress_amount = match compress_or_decompress_amount {
             Some(amount) => {
                 ref_amount = amount;
                 Some(&ref_amount)
@@ -780,7 +788,7 @@ mod test {
         sum_check(
             inputs.as_slice(),
             &output_amounts,
-            compression_amount,
+            compress_or_decompress_amount,
             is_compress,
         )
     }

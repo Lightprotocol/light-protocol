@@ -59,7 +59,7 @@ impl default::Default for NullifierQueueConfig {
         Self {
             capacity: STATE_NULLIFIER_QUEUE_VALUES,
             sequence_threshold: STATE_NULLIFIER_QUEUE_SEQUENCE_THRESHOLD,
-            network_fee: Some(1),
+            network_fee: None,
         }
     }
 }
@@ -73,20 +73,11 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     nullifier_queue_config: NullifierQueueConfig,
     additional_rent: u64,
 ) -> Result<()> {
-    if state_merkle_tree_config.height != StateMerkleTreeConfig::default().height {
-        unimplemented!("Only default state height supported.");
-    }
-    if state_merkle_tree_config.canopy_depth != StateMerkleTreeConfig::default().canopy_depth {
-        unimplemented!("Only default state canopy_depth supported.");
-    }
-    if state_merkle_tree_config.changelog_size != StateMerkleTreeConfig::default().changelog_size {
-        unimplemented!("Only default state changelog_size supported.");
-    }
-    if state_merkle_tree_config.roots_size != StateMerkleTreeConfig::default().roots_size {
-        unimplemented!("Only default state roots_size supported.");
+    if state_merkle_tree_config != StateMerkleTreeConfig::default() {
+        unimplemented!("Only default state tree config is supported.");
     }
     if nullifier_queue_config != NullifierQueueConfig::default() {
-        unimplemented!("Only default nullifier queue config supported.");
+        unimplemented!("Only default nullifier queue config is supported.");
     }
 
     process_initialize_state_merkle_tree(

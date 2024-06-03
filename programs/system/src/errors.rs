@@ -34,8 +34,8 @@ pub enum SystemProgramError {
     WriteAccessCheckFailed,
     #[msg("InvokingProgramNotProvided")]
     InvokingProgramNotProvided,
-    #[msg("HashedPubkeysCapacityMismatch")]
-    HashedPubkeysCapacityMismatch,
+    #[msg("InvalidCapacity")]
+    InvalidCapacity,
     #[msg("InvalidMerkleTreeOwner")]
     InvalidMerkleTreeOwner,
     #[msg("ProofIsNone")]
@@ -52,4 +52,10 @@ pub enum SystemProgramError {
     CpiContextEmpty,
     #[msg("CpiContextMissing")]
     CpiContextMissing,
+    #[msg("DecompressionRecipienDefined")]
+    DecompressionRecipienDefined,
+    #[msg("SolPoolPdaDefined")]
+    SolPoolPdaDefined,
+    #[msg("AppendStateFailed")]
+    AppendStateFailed,
 }

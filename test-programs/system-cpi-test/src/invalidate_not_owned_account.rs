@@ -264,7 +264,7 @@ pub fn cpi_compressed_token_transfer<'info>(
         input_token_data_with_context: vec![input_token_data_with_context],
         output_compressed_accounts: vec![output_token],
         is_compress: false,
-        compression_amount: None,
+        compress_or_decompress_amount: None,
         cpi_context,
     };
 

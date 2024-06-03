@@ -1,16 +1,17 @@
-use crate::{
-    errors::SystemProgramError,
-    sdk::{
-        accounts::InvokeAccounts,
-        event::{MerkleTreeSequenceNumber, PublicTransactionEvent, SizedEvent},
-    },
-    InstructionDataInvoke,
-};
 use account_compression::utils::constants::NOOP_PUBKEY;
 use anchor_lang::{
     prelude::*,
     solana_program::{instruction::Instruction, program::invoke},
     Bumps,
+};
+
+use crate::{
+    errors::SystemProgramError,
+    sdk::{
+        accounts::InvokeAccounts,
+        event::{MerkleTreeSequenceNumber, PublicTransactionEvent},
+    },
+    InstructionDataInvoke,
 };
 
 pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
@@ -40,8 +41,20 @@ pub fn emit_state_transition_event<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'
     {
         return err!(SystemProgramError::InvalidNoopPubkey);
     }
-    let mut data = Vec::with_capacity(event.event_size());
+
+    // 10240 = 10 * 1024 the max instruction data of a cpi.
+    let data_capacity = 10240;
+    let mut data = Vec::with_capacity(data_capacity);
     event.man_serialize(&mut data)?;
+
+    if data_capacity != data.capacity() {
+        msg!(
+            "Event serialization exceeded capacity. Used {}, allocated {}.",
+            data.capacity(),
+            data_capacity
+        );
+        return err!(SystemProgramError::InvalidCapacity);
+    }
     let instruction = Instruction {
         program_id: ctx.accounts.get_noop_program().key(),
         accounts: vec![],

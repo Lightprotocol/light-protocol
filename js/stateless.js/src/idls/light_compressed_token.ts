@@ -53,6 +53,12 @@ export type LightCompressedToken = {
         },
         {
             name: 'mintTo';
+            docs: [
+                'Mints tokens from an spl token mint to a list of compressed accounts.',
+                'Minted tokens are transferred to a pool account owned by the compressed',
+                'token program. The instruction creates one compressed output account for',
+                'every amount and pubkey input pair one output compressed account.',
+            ];
             accounts: [
                 {
                     name: 'feePayer';
@@ -61,7 +67,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -91,7 +97,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -101,7 +107,7 @@ export type LightCompressedToken = {
                 },
                 {
                     name: 'accountCompressionAuthority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: false;
                 },
                 {
@@ -792,7 +798,7 @@ export type LightCompressedToken = {
                         type: 'bool';
                     },
                     {
-                        name: 'compressionAmount';
+                        name: 'compressOrDecompressAmount';
                         type: {
                             option: 'u64';
                         };
@@ -981,6 +987,9 @@ export type LightCompressedToken = {
                     {
                         name: 'SplTokenSupplyMismatch';
                     },
+                    {
+                        name: 'HeapMemoryCheckFailed';
+                    },
                 ];
             };
         },
@@ -1053,6 +1062,12 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'mintTo',
+            docs: [
+                'Mints tokens from an spl token mint to a list of compressed accounts.',
+                'Minted tokens are transferred to a pool account owned by the compressed',
+                'token program. The instruction creates one compressed output account for',
+                'every amount and pubkey input pair one output compressed account.',
+            ],
             accounts: [
                 {
                     name: 'feePayer',
@@ -1061,7 +1076,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -1091,7 +1106,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'registeredProgramPda',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {
@@ -1101,7 +1116,7 @@ export const IDL: LightCompressedToken = {
                 },
                 {
                     name: 'accountCompressionAuthority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: false,
                 },
                 {
@@ -1797,7 +1812,7 @@ export const IDL: LightCompressedToken = {
                         type: 'bool',
                     },
                     {
-                        name: 'compressionAmount',
+                        name: 'compressOrDecompressAmount',
                         type: {
                             option: 'u64',
                         },
@@ -1985,6 +2000,9 @@ export const IDL: LightCompressedToken = {
                     },
                     {
                         name: 'SplTokenSupplyMismatch',
+                    },
+                    {
+                        name: 'HeapMemoryCheckFailed',
                     },
                 ],
             },

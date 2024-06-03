@@ -38,7 +38,7 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     };
     let cleanup_code: syn::Stmt = parse_quote! {
         #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
+        light_heap::GLOBAL_ALLOCATOR.free_heap(pos)?;
     };
     let len = function.block.stmts.len();
     function.block.stmts.insert(len - 1, log_post);

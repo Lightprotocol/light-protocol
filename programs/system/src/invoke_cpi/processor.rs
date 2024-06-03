@@ -1,10 +1,11 @@
+pub use anchor_lang::prelude::*;
+use light_heap::{bench_sbf_end, bench_sbf_start};
+
 use super::verify_signer::cpi_signer_checks;
 use crate::{
     invoke::processor::process, invoke_cpi::instruction::InvokeCpiInstruction,
     sdk::accounts::SignerAccounts, InstructionDataInvoke, InstructionDataInvokeCpi,
 };
-pub use anchor_lang::prelude::*;
-use light_heap::{bench_sbf_end, bench_sbf_start};
 
 /// Processes an `InvokeCpi` instruction.
 /// Checks:
@@ -17,10 +18,11 @@ pub fn process_invoke_cpi<'a, 'b, 'c: 'info + 'b, 'info>(
 ) -> Result<()> {
     bench_sbf_start!("cpda_cpi_signer_checks");
     cpi_signer_checks(
-        &inputs.signer_seeds,
         &ctx.accounts.invoking_program.key(),
         &ctx.accounts.get_authority().key(),
-        &inputs,
+        &inputs.signer_seeds,
+        &inputs.input_compressed_accounts_with_merkle_context,
+        &inputs.output_compressed_accounts,
     )?;
     bench_sbf_end!("cpda_cpi_signer_checks");
     bench_sbf_start!("cpda_process_cpi_context");

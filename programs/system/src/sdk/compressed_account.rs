@@ -1,7 +1,8 @@
+use std::collections::HashMap;
+
 use anchor_lang::prelude::*;
 use light_hasher::{Hasher, Poseidon};
 use light_utils::hash_to_bn254_field_size_be;
-use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct PackedCompressedAccountWithMerkleContext {

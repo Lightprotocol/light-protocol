@@ -1,14 +1,15 @@
-use crate::{
-    errors::SystemProgramError,
-    sdk::accounts::{InvokeAccounts, SignerAccounts},
-    InstructionDataInvoke,
-};
 use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use aligned_sized::*;
 use anchor_lang::{
     prelude::*,
     solana_program::{account_info::AccountInfo, pubkey::Pubkey},
     Bumps,
+};
+
+use crate::{
+    errors::SystemProgramError,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
+    InstructionDataInvoke,
 };
 
 #[account]
@@ -47,11 +48,11 @@ pub fn decompress_lamports<
     inputs: &'a InstructionDataInvoke,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.get_compression_recipient().as_ref() {
+    let recipient = match ctx.accounts.get_decompression_recipient().as_ref() {
         Some(decompression_recipient) => decompression_recipient.to_account_info(),
         None => return err!(SystemProgramError::DecompressRecipientUndefinedForDecompressSol),
     };
-    let sol_pool_pda = match ctx.accounts.get_compressed_sol_pda().as_ref() {
+    let sol_pool_pda = match ctx.accounts.get_sol_pool_pda().as_ref() {
         Some(sol_pool_pda) => sol_pool_pda.to_account_info(),
         None => return err!(SystemProgramError::CompressedSolPdaUndefinedForDecompressSol),
     };
@@ -75,7 +76,7 @@ pub fn compress_lamports<
     inputs: &'a InstructionDataInvoke,
     ctx: &'a Context<'a, 'b, 'c, 'info, A>,
 ) -> Result<()> {
-    let recipient = match ctx.accounts.get_compressed_sol_pda().as_ref() {
+    let recipient = match ctx.accounts.get_sol_pool_pda().as_ref() {
         Some(sol_pool_pda) => sol_pool_pda.to_account_info(),
         None => return err!(SystemProgramError::CompressedSolPdaUndefinedForCompressSol),
     };

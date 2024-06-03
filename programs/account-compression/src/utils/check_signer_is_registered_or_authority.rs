@@ -38,12 +38,12 @@ pub fn check_signer_is_registered_or_authority<
             {
                 Ok(())
             } else {
-                msg!("registered program check failed");
+                msg!("Registered program check failed.");
                 msg!("owner address: {:?}", checked_account.get_owner());
                 msg!("derived_address: {:?}", derived_address);
                 msg!("signing_address: {:?}", ctx.accounts.get_authority().key());
                 msg!(
-                    "registered pda program id: {:?}",
+                    "registered_program_id: {:?}",
                     registered_program_pda.registered_program_id
                 );
                 Err(AccountCompressionErrorCode::InvalidAuthority.into())

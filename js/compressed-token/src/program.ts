@@ -613,7 +613,7 @@ export class CompressedTokenProgram {
             signerIsDelegate: false, // TODO: implement
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
-            compressionAmount: null,
+            compressOrDecompressAmount: null,
             isCompress: false,
             cpiContext: null,
         };
@@ -687,7 +687,7 @@ export class CompressedTokenProgram {
             signerIsDelegate: false, // TODO: implement
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
-            compressionAmount: amount,
+            compressOrDecompressAmount: amount,
             isCompress: true,
             cpiContext: null,
         };
@@ -776,7 +776,7 @@ export class CompressedTokenProgram {
             signerIsDelegate: false, // TODO: implement
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
-            compressionAmount: amount,
+            compressOrDecompressAmount: amount,
             isCompress: false,
             cpiContext: null,
         };

@@ -32,11 +32,18 @@ pub mod light_compressed_token {
     /// instruction creates a token pool account for that mint owned by token
     /// authority.
     pub fn create_mint<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
+        if ctx.accounts.token_pool_pda.is_native() {
+            unimplemented!("Compressed wrapped SOL is not supported.");
+        }
         Ok(())
     }
 
+    /// Mints tokens from an spl token mint to a list of compressed accounts.
+    /// Minted tokens are transferred to a pool account owned by the compressed
+    /// token program. The instruction creates one compressed output account for
+    /// every amount and pubkey input pair one output compressed account.
     pub fn mint_to<'info>(
         ctx: Context<'_, '_, '_, 'info, MintToInstruction<'info>>,
         public_keys: Vec<Pubkey>,
@@ -85,4 +92,6 @@ pub enum ErrorCode {
     DelegateSignerCheckFailed,
     #[msg("SplTokenSupplyMismatch")]
     SplTokenSupplyMismatch,
+    #[msg("HeapMemoryCheckFailed")]
+    HeapMemoryCheckFailed,
 }

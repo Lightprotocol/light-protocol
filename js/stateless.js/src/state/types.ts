@@ -96,7 +96,7 @@ export type CompressedTokenInstructionDataTransfer = {
     inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
     isCompress: boolean;
-    compressionAmount: BN | null;
+    compressOrDecompressAmount: BN | null;
     cpiContext: null;
 };
 

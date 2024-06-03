@@ -1,9 +1,9 @@
-use crate::{errors::SystemProgramError, sdk::accounts::InvokeCpiAccounts};
+use anchor_lang::prelude::*;
 
 use super::{
     account::CpiContextAccount, instruction::InvokeCpiInstruction, InstructionDataInvokeCpi,
 };
-use anchor_lang::prelude::*;
+use crate::{errors::SystemProgramError, sdk::accounts::InvokeCpiAccounts};
 
 pub fn process_cpi_context<'info>(
     mut inputs: InstructionDataInvokeCpi,

@@ -1,6 +1,7 @@
-use crate::InstructionDataInvokeCpi;
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+
+use crate::InstructionDataInvokeCpi;
 
 /// Collects instruction data without executing a compressed transaction.
 /// Signer checks are performed on instruction data.

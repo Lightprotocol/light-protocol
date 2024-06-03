@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use anchor_lang::{solana_program::pubkey::Pubkey, Result};
 use light_utils::hash_to_bn254_field_size_be;
-use std::collections::HashMap;
 
 use crate::{errors::SystemProgramError, NewAddressParams, NewAddressParamsPacked};
 pub fn derive_address(merkle_tree_pubkey: &Pubkey, seed: &[u8; 32]) -> Result<[u8; 32]> {
@@ -78,8 +79,9 @@ pub fn pack_new_address_params(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use solana_sdk::{signature::Keypair, signer::Signer};
+
+    use super::*;
 
     #[test]
     fn test_derive_address_with_valid_input() {

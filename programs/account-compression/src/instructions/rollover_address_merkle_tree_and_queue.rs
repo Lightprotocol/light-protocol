@@ -1,6 +1,3 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-use light_macros::heap_neutral;
-
 use crate::{
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
@@ -13,12 +10,13 @@ use crate::{
     },
     AddressMerkleTreeAccount, RegisteredProgram,
 };
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
-    /// CHECK: should only be accessed by a registered program/owner/program_owner.
+    /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     #[account(zero)]
@@ -48,7 +46,6 @@ impl<'info> GroupAccounts<'info> for RolloverAddressMerkleTreeAndQueue<'info> {
 /// Actions:
 /// 1. mark Merkle tree as rolled over in this slot
 /// 2. initialize new Merkle tree and nullifier queue with the same parameters
-#[heap_neutral]
 pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, RolloverAddressMerkleTreeAndQueue<'info>>,
 ) -> Result<()> {
@@ -123,7 +120,7 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         ctx.accounts.new_queue.get_lamports() + ctx.accounts.new_address_merkle_tree.get_lamports();
 
     transfer_lamports(
-        &ctx.accounts.old_address_merkle_tree.to_account_info(),
+        &ctx.accounts.old_queue.to_account_info(),
         &ctx.accounts.fee_payer.to_account_info(),
         lamports,
     )?;

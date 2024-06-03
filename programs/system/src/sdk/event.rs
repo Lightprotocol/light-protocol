@@ -1,8 +1,10 @@
-use crate::OutputCompressedAccountWithPackedContext;
+use std::io::Write;
+
 use anchor_lang::{
     prelude::borsh, solana_program::pubkey::Pubkey, AnchorDeserialize, AnchorSerialize,
 };
-use std::{io::Write, mem};
+
+use crate::OutputCompressedAccountWithPackedContext;
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq)]
 pub struct MerkleTreeSequenceNumber {
@@ -22,28 +24,6 @@ pub struct PublicTransactionEvent {
     pub compress_or_decompress_lamports: Option<u64>,
     pub pubkey_array: Vec<Pubkey>,
     pub message: Option<Vec<u8>>,
-}
-
-pub trait SizedEvent {
-    fn event_size(&self) -> usize;
-}
-
-impl SizedEvent for PublicTransactionEvent {
-    fn event_size(&self) -> usize {
-        mem::size_of::<Self>()
-            + self.input_compressed_account_hashes.len() * mem::size_of::<[u8; 32]>()
-            + self.output_compressed_account_hashes.len() * mem::size_of::<[u8; 32]>()
-            + self.output_compressed_accounts.len()
-                * mem::size_of::<OutputCompressedAccountWithPackedContext>()
-            + self.output_leaf_indices.len() * mem::size_of::<u32>()
-            + self.sequence_numbers.len() * (mem::size_of::<Pubkey>() + mem::size_of::<u64>())
-            + self.pubkey_array.len() * mem::size_of::<Pubkey>()
-            + self
-                .message
-                .as_ref()
-                .map(|message| message.len())
-                .unwrap_or(0)
-    }
 }
 
 impl PublicTransactionEvent {
@@ -66,7 +46,7 @@ impl PublicTransactionEvent {
             account.serialize(writer)?;
         }
         #[cfg(target_os = "solana")]
-        light_heap::GLOBAL_ALLOCATOR.free_heap(pos);
+        light_heap::GLOBAL_ALLOCATOR.free_heap(pos).unwrap();
 
         writer.write_all(&(self.output_leaf_indices.len() as u32).to_le_bytes())?;
         for index in self.output_leaf_indices.iter() {
@@ -116,10 +96,11 @@ impl PublicTransactionEvent {
 
 #[cfg(test)]
 pub mod test {
-    use super::*;
-    use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
     use rand::Rng;
     use solana_sdk::{signature::Keypair, signer::Signer};
+
+    use super::*;
+    use crate::sdk::compressed_account::{CompressedAccount, CompressedAccountData};
 
     #[test]
     fn test_manual_vs_borsh_serialization() {
@@ -162,7 +143,7 @@ pub mod test {
         let borsh_serialized = event.try_to_vec().unwrap();
 
         // Serialize manually
-        let mut manual_serialized = Vec::with_capacity(event.event_size());
+        let mut manual_serialized = Vec::new();
         event.man_serialize(&mut manual_serialized).unwrap();
 
         // Compare the two byte arrays
@@ -222,7 +203,7 @@ pub mod test {
             };
 
             let borsh_serialized = event.try_to_vec().unwrap();
-            let mut manual_serialized = Vec::with_capacity(event.event_size());
+            let mut manual_serialized = Vec::new();
             event.man_serialize(&mut manual_serialized).unwrap();
 
             assert_eq!(

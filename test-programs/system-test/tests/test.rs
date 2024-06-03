@@ -803,6 +803,7 @@ pub async fn perform_tx_with_output_compressed_accounts(
         None,
         false,
         None,
+        true,
     );
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
@@ -901,6 +902,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        true,
     );
 
     let event = context
@@ -951,6 +953,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        true,
     );
 
     let res = context
@@ -983,6 +986,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        true,
     );
 
     let res = context
@@ -1029,6 +1033,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        true,
     );
     println!("Transaction with zkp -------------------------");
 
@@ -1075,6 +1080,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        true,
     );
     let res = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -1104,6 +1110,7 @@ async fn invoke_test() {
         None,
         false,
         None,
+        true,
     );
     let res = context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -1156,6 +1163,7 @@ async fn test_with_address() {
         None,
         false,
         None,
+        true,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1341,6 +1349,7 @@ async fn test_with_compression() {
         Some(compress_amount),
         false,
         None,
+        true,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1373,6 +1382,7 @@ async fn test_with_compression() {
         None,
         true,
         None,
+        true,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1445,6 +1455,7 @@ async fn test_with_compression() {
         Some(compress_amount),
         true,
         Some(recipient),
+        true,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

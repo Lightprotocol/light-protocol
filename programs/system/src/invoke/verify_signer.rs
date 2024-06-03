@@ -1,16 +1,14 @@
-use crate::{
-    errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
-    InstructionDataInvoke,
-};
 use anchor_lang::{
     err,
     solana_program::{msg, pubkey::Pubkey},
     Result,
 };
-use light_macros::heap_neutral;
 
-#[inline(never)]
-#[heap_neutral]
+use crate::{
+    errors::SystemProgramError, sdk::compressed_account::PackedCompressedAccountWithMerkleContext,
+    InstructionDataInvoke,
+};
+
 pub fn input_compressed_accounts_signer_check(
     inputs: &InstructionDataInvoke,
     authority: &Pubkey,
