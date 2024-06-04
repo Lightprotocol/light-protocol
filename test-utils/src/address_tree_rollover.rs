@@ -59,7 +59,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     new_address_merkle_tree_keypair: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer = context.get_payer().insecure_clone();
     let size =
         QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)

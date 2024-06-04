@@ -1,6 +1,8 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof};
+use light_test_utils::indexer::{
+    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext,
+};
 use photon_api::apis::configuration::Configuration;
 
 pub struct PhotonIndexer {
@@ -74,7 +76,23 @@ impl Indexer for PhotonIndexer {
         }
     }
 
+    fn get_address_tree_proof(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+        _address: [u8; 32],
+    ) -> Result<MerkleProofWithAddressContext, IndexerError> {
+        todo!()
+    }
+
     fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {
-        unimplemented!("account_nullified")
+        unimplemented!("only needed for testing")
+    }
+
+    fn address_tree_updated(
+        &mut self,
+        _merkle_tree_pubkey: [u8; 32],
+        _context: MerkleProofWithAddressContext,
+    ) {
+        unimplemented!("only needed for testing")
     }
 }

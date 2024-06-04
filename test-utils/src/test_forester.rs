@@ -548,7 +548,7 @@ pub async fn insert_addresses<R: RpcConnection>(
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     addresses: Vec<[u8; 32]>,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let num_addresses = addresses.len();
     let instruction_data = InsertAddresses { addresses };
     let accounts = account_compression::accounts::InsertIntoQueues {

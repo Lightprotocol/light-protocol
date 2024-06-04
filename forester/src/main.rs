@@ -27,6 +27,12 @@ fn init_config() -> ForesterConfig {
     let nullifier_queue_pubkey = settings
         .get_string(&SettingsKey::NullifierQueuePubkey.to_string())
         .unwrap();
+    let address_merkle_tree_pubkey = settings
+        .get_string(&SettingsKey::AddressMerkleTreePubkey.to_string())
+        .unwrap();
+    let address_merkle_tree_queue_pubkey = settings
+        .get_string(&SettingsKey::AddressMerkleTreeQueuePubkey.to_string())
+        .unwrap();
     let registry_pubkey = settings
         .get_string(&SettingsKey::RegistryPubkey.to_string())
         .unwrap();
@@ -40,6 +46,9 @@ fn init_config() -> ForesterConfig {
         server_url: SERVER_URL.to_string(),
         nullifier_queue_pubkey: Pubkey::from_str(&nullifier_queue_pubkey).unwrap(),
         state_merkle_tree_pubkey: Pubkey::from_str(&state_merkle_tree_pubkey).unwrap(),
+        address_merkle_tree_pubkey: Pubkey::from_str(&address_merkle_tree_pubkey).unwrap(),
+        address_merkle_tree_queue_pubkey: Pubkey::from_str(&address_merkle_tree_queue_pubkey)
+            .unwrap(),
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: Keypair::from_bytes(&payer).unwrap(),
         concurrency_limit: 20,

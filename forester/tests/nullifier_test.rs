@@ -19,6 +19,8 @@ fn test_config() -> Config {
         server_url: SERVER_URL.to_string(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
+        address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
+        address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
         registry_pubkey: registry_keypair.pubkey(),
         payer_keypair: env_accounts.governance_authority.insecure_clone(),
         concurrency_limit: 20,

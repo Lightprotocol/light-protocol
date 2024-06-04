@@ -1,6 +1,6 @@
 use crate::errors::ForesterError;
 use crate::nullifier::queue_data::Account;
-use crate::nullifier::{Config, QueueData};
+use crate::nullifier::{Config, StateQueueData};
 use account_compression::{QueueAccount, StateMerkleTreeAccount, ID};
 use anchor_lang::solana_program::instruction::Instruction;
 use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
@@ -156,7 +156,7 @@ pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), Fore
 async fn fetch_queue_data<T: Indexer>(
     indexer: Arc<Mutex<T>>,
     config: &Config,
-) -> Result<Option<QueueData>, ForesterError> {
+) -> Result<Option<StateQueueData>, ForesterError> {
     let (change_log_index, sequence_number) = {
         let temporary_client = RpcClient::new(&config.server_url);
         get_changelog_index(&config.state_merkle_tree_pubkey, &temporary_client)?
@@ -202,7 +202,7 @@ async fn fetch_queue_data<T: Indexer>(
             )
         })
         .collect();
-    Ok(Some(QueueData {
+    Ok(Some(StateQueueData {
         change_log_index,
         sequence_number,
         compressed_accounts_to_nullify,

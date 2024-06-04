@@ -1,25 +1,6 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
-use crate::{
-    assert_rollover::{
-        assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
-        assert_rolledover_queues_metadata,
-    },
-    create_account_instruction, get_hash_set,
-};
-
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use account_compression::{
-    self,
-    initialize_address_merkle_tree::AccountLoader,
-    state::QueueAccount,
-    utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_VALUES},
-    StateMerkleTreeAccount, ID,
-};
 use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
-use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
-use light_hasher::Poseidon;
 use memoffset::offset_of;
 use solana_sdk::{
     account::AccountSharedData,
@@ -29,6 +10,26 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
+
+use account_compression::{
+    self,
+    initialize_address_merkle_tree::AccountLoader,
+    state::QueueAccount,
+    utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_VALUES},
+    StateMerkleTreeAccount, ID,
+};
+use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
+use light_hasher::Poseidon;
+
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::{
+    assert_rollover::{
+        assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
+        assert_rolledover_queues_metadata,
+    },
+    create_account_instruction, get_hash_set,
+};
 
 pub enum StateMerkleTreeRolloverMode {
     QueueInvalidSize,
@@ -42,7 +43,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     mode: Option<StateMerkleTreeRolloverMode>,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
     let mut size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
     if let Some(StateMerkleTreeRolloverMode::QueueInvalidSize) = mode {
