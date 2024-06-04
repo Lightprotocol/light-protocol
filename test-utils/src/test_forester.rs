@@ -1,8 +1,8 @@
+use crate::indexer::test_indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundle};
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::test_env::NOOP_PROGRAM_ID;
-use crate::test_indexer::AddressMerkleTreeBundle;
-use crate::{get_hash_set, test_indexer::StateMerkleTreeBundle, AccountZeroCopy};
+use crate::{get_hash_set, AccountZeroCopy};
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::state::QueueAccount;
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;

@@ -19,8 +19,8 @@ use light_test_utils::test_env::{
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
 use light_test_utils::{
     assert_custom_error_or_program_error,
+    indexer::{create_mint_helper, TestIndexer},
     test_env::setup_test_programs_with_accounts,
-    test_indexer::{create_mint_helper, TestIndexer},
     AccountZeroCopy,
 };
 use solana_sdk::instruction::Instruction;

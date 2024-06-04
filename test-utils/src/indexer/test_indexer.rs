@@ -1,4 +1,7 @@
 use std::marker::PhantomData;
+use std::sync::{Arc, Mutex};
+
+use solana_sdk::bs58;
 
 use {
     crate::{
@@ -46,9 +49,10 @@ use {
     reqwest::Client,
     solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer},
     spl_token::instruction::initialize_mint,
-    std::{thread, time::Duration},
+    std::time::Duration,
 };
 
+use crate::indexer::{Indexer, IndexerError, MerkleProof};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
 };
@@ -94,7 +98,7 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub payer: Keypair,
     pub group_pda: Pubkey,
     pub compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
-    pub nullified_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
+    pub nullified_compressed_accounts: Arc<Mutex<Vec<CompressedAccountWithMerkleContext>>>,
     pub token_compressed_accounts: Vec<TokenDataWithContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithContext>,
     pub events: Vec<PublicTransactionEvent>,
@@ -108,7 +112,99 @@ pub struct TokenDataWithContext {
     pub token_data: TokenData,
     pub compressed_account: CompressedAccountWithMerkleContext,
 }
+
+impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> Indexer
+    for TestIndexer<INDEXED_ARRAY_SIZE, R>
+{
+    async fn get_multiple_compressed_account_proofs(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        let mut proofs: Vec<MerkleProof> = Vec::new();
+        let matching_hashes_count = self.count_matching_hashes(&hashes);
+        if matching_hashes_count == 0 {
+            return Err(IndexerError::Custom("No matching hashes found".to_string()));
+        }
+        for account in self.nullified_compressed_accounts.lock().unwrap().iter() {
+            let hash = account
+                .compressed_account
+                .hash::<Poseidon>(
+                    &account.merkle_context.merkle_tree_pubkey,
+                    &account.merkle_context.leaf_index,
+                )
+                .unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            if hashes.contains(&bs58_hash) {
+                let state_tree_bundle = self
+                    .state_merkle_trees
+                    .iter()
+                    .find(|x| x.accounts.merkle_tree == account.merkle_context.merkle_tree_pubkey)
+                    .unwrap();
+                if let Some(leaf_index) = state_tree_bundle.merkle_tree.get_leaf_index(&hash) {
+                    let proof = state_tree_bundle
+                        .merkle_tree
+                        .get_proof_of_leaf(leaf_index, false)
+                        .unwrap();
+                    proofs.push(MerkleProof {
+                        hash: bs58_hash,
+                        leaf_index: account.merkle_context.leaf_index,
+                        merkle_tree: account.merkle_context.merkle_tree_pubkey.to_string(),
+                        proof: proof.to_vec(),
+                        root_seq: self.events.len() as i64,
+                    });
+                } else {
+                    // println!("get_multiple_compressed_account_proofs: hash {} not found in merkle tree", bs58_hash);
+                }
+            }
+        }
+
+        Ok(proofs)
+    }
+
+    fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
+        let decoded_hash: [u8; 32] = bs58::decode(account_hash)
+            .into_vec()
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
+        if let Some(state_tree_bundle) = self
+            .state_merkle_trees
+            .iter_mut()
+            .find(|x| x.accounts.merkle_tree == merkle_tree_pubkey)
+        {
+            if let Some(leaf_index) = state_tree_bundle.merkle_tree.get_leaf_index(&decoded_hash) {
+                state_tree_bundle
+                    .merkle_tree
+                    .update(&[0u8; 32], leaf_index)
+                    .unwrap();
+            }
+        }
+    }
+}
 impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRAY_SIZE, R> {
+    fn count_matching_hashes(&self, query_hashes: &[String]) -> usize {
+        self.nullified_compressed_accounts
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|account| self.compute_hash(account))
+            .filter(|bs58_hash| query_hashes.contains(bs58_hash))
+            .count()
+    }
+
+    fn compute_hash(&self, account: &CompressedAccountWithMerkleContext) -> String {
+        // replace AccountType with actual type
+        let hash = account
+            .compressed_account
+            .hash::<Poseidon>(
+                &account.merkle_context.merkle_tree_pubkey,
+                &account.merkle_context.leaf_index,
+            )
+            .unwrap();
+        bs58::encode(hash).into_string()
+    }
+
     pub fn get_state_merkle_tree_accounts(
         &self,
         pubkeys: &[Pubkey],
@@ -190,12 +286,14 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 address_merkle_tree_account,
             ));
         }
+        let nullified_compressed_accounts = Arc::new(Mutex::new(Vec::new()));
+
         Self {
             state_merkle_trees,
             address_merkle_trees,
             payer,
             compressed_accounts: vec![],
-            nullified_compressed_accounts: vec![],
+            nullified_compressed_accounts,
             events: vec![],
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
@@ -364,7 +462,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         while retries > 0 {
             if retries < 3 {
                 spawn_gnark_server(self.path.as_str(), true, self.proof_types.as_slice()).await;
-                thread::sleep(Duration::from_secs(5));
+                tokio::time::sleep(Duration::from_secs(5)).await;
             }
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
@@ -388,7 +486,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                     },
                 };
             }
-            thread::sleep(Duration::from_secs(1));
+            tokio::time::sleep(Duration::from_secs(1)).await;
             retries -= 1;
         }
         panic!("Failed to get proof from server");
@@ -516,6 +614,8 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             });
             if let Some(index) = index {
                 self.nullified_compressed_accounts
+                    .lock()
+                    .unwrap()
                     .push(self.compressed_accounts[index].clone());
                 self.compressed_accounts.remove(index);
                 continue;

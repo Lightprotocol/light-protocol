@@ -5,7 +5,7 @@ use crate::{
     assert_compressed_tx::{
         assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
     },
-    test_indexer::TestIndexer,
+    indexer::TestIndexer,
 };
 use light_hasher::Poseidon;
 use light_system_program::sdk::event::PublicTransactionEvent;
@@ -253,7 +253,6 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
         });
     }
     let payer = rpc.get_payer().insecure_clone();
-
     let inputs = CompressedTransactionTestInputs {
         rpc,
         test_indexer,

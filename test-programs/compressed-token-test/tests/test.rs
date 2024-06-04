@@ -1,17 +1,19 @@
 #![cfg(feature = "test-sbf")]
+
 use anchor_lang::AnchorDeserialize;
 use anchor_lang::AnchorSerialize;
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+
 use light_circuitlib_rs::gnark::helpers::kill_gnark_server;
 use light_compressed_token::get_cpi_authority_pda;
 use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::transfer_sdk::create_transfer_instruction;
-use light_compressed_token::{
-    token_data::TokenData, transfer_sdk, ErrorCode, TokenTransferOutputData,
-};
+use light_compressed_token::{token_data::TokenData, ErrorCode, TokenTransferOutputData};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
 };
+use light_test_utils::indexer::TokenDataWithContext;
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
@@ -19,13 +21,11 @@ use light_test_utils::spl::{
     compress_test, compressed_transfer_test, create_mint_helper, create_token_account,
     decompress_test, mint_tokens_helper,
 };
-use light_test_utils::test_indexer::TokenDataWithContext;
 use light_test_utils::{
-    airdrop_lamports, assert_custom_error_or_program_error,
-    test_env::setup_test_programs_with_accounts, test_indexer::TestIndexer,
+    airdrop_lamports, assert_custom_error_or_program_error, indexer::TestIndexer,
+    test_env::setup_test_programs_with_accounts,
 };
 use light_verifier::VerifierError;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn test_create_mint() {
@@ -1051,7 +1051,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     } else {
         input_compressed_account_token_data[0].mint
     };
-    let instruction = transfer_sdk::create_transfer_instruction(
+    let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
         &input_compressed_accounts
