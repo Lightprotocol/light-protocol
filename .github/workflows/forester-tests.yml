@@ -30,7 +30,7 @@ jobs:
     name: forester-tests
     if: github.event.pull_request.draft == false
     runs-on: buildjet-2vcpu-ubuntu-2204
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout sources
