@@ -270,6 +270,7 @@ export const MerkeProofResult = pick({
     merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
     rootSeq: number(),
+    root: BN254FromString,
 });
 
 /**
@@ -294,12 +295,6 @@ export const TokenBalanceResult = pick({
 export const TokenBalanceListResult = pick({
     tokenBalances: array(TokenBalanceResult),
     cursor: nullable(PublicKeyFromString),
-});
-
-export const AccountProofResult = pick({
-    hash: array(number()),
-    root: array(number()),
-    proof: array(array(number())),
 });
 
 export const toUnixTimestamp = (blockTime: string): number => {

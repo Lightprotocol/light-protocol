@@ -22,7 +22,8 @@ describe('rpc-interop', () => {
         payer = await newAccountWithLamports(rpc, 10e9, 256);
         bob = await newAccountWithLamports(rpc, 10e9, 256);
 
-        await compress(rpc, payer, 1e9, payer.publicKey);
+        const tx = await compress(rpc, payer, 1e9, payer.publicKey);
+        console.log('tx', tx);
         executedTxs++;
     });
 
@@ -170,7 +171,7 @@ describe('rpc-interop', () => {
         assert.isNull(compressedAccountTest!.data);
     });
 
-    it('getMultipleCompressedAccounts should match', async () => {
+    it.only('getMultipleCompressedAccounts should match', async () => {
         await compress(rpc, payer, 1e9, payer.publicKey);
         executedTxs++;
 
@@ -181,11 +182,15 @@ describe('rpc-interop', () => {
         const compressedAccounts = await rpc.getMultipleCompressedAccounts(
             senderAccounts.map(account => bn(account.hash)),
         );
+        console.log('senderAccounts', senderAccounts);
+        console.log('compressedAccounts', compressedAccounts);
+
         const compressedAccountsTest =
             await testRpc.getMultipleCompressedAccounts(
                 senderAccounts.map(account => bn(account.hash)),
             );
 
+        console.log('compressedAccountsTest', compressedAccountsTest);
         assert.equal(compressedAccounts.length, compressedAccountsTest.length);
 
         compressedAccounts.forEach((account, index) => {

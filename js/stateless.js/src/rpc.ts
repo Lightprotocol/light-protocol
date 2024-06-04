@@ -391,18 +391,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        const proofWithoutRoot = res.result.value.proof.slice(0, -1);
+        // const proofWithoutRoot = res.result.value.proof.slice(0, -1);
 
-        const root = res.result.value.proof[res.result.value.proof.length - 1];
+        // const root = res.result.value.proof[res.result.value.proof.length - 1];
 
         const value: MerkleContextWithMerkleProof = {
             hash: res.result.value.hash.toArray(undefined, 32),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
-            merkleProof: proofWithoutRoot,
+            merkleProof: res.result.value.proof, //proofWithoutRoot,
             nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
             rootIndex: res.result.value.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
-            root, // TODO: validate correct root
+            root: res.result.value.root, // TODO: validate correct root
         };
         return value;
     }
@@ -486,17 +486,17 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const merkleProofs: MerkleContextWithMerkleProof[] = [];
 
         for (const proof of res.result.value) {
-            const proofWithoutRoot: BN[] = proof.proof.slice(0, -1);
-            const root = proof.proof[proof.proof.length - 1];
+            // const proofWithoutRoot: BN[] = proof.proof.slice(0, -1);
+            // const root = proof.proof[proof.proof.length - 1];
 
             const value: MerkleContextWithMerkleProof = {
                 hash: proof.hash.toArray(undefined, 32),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
-                merkleProof: proofWithoutRoot,
+                merkleProof: proof.proof,
                 nullifierQueue: mockNullifierQueue, // TODO: emit outputhash nullifierQueue in txevent
                 rootIndex: proof.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
-                root: root, // TODO: validate correct root
+                root: proof.root, // TODO: validate correct root
             };
             merkleProofs.push(value);
         }
