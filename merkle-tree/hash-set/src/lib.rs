@@ -51,7 +51,7 @@ impl From<HashSetError> for solana_program::program_error::ProgramError {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Copy)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct HashSetCell {
     pub value: [u8; 32],
     pub sequence_number: Option<usize>,
@@ -523,6 +523,14 @@ impl HashSet {
             None => Err(HashSetError::ElementDoesNotExist),
         }
     }
+
+    /// Returns an iterator over elements.
+    pub fn iter(&self) -> HashSetIterator {
+        HashSetIterator {
+            hash_set: self,
+            current: 0,
+        }
+    }
 }
 
 impl Drop for HashSet {
@@ -533,6 +541,27 @@ impl Drop for HashSet {
             let layout = Layout::array::<Option<HashSetCell>>(self.capacity).unwrap();
             alloc::dealloc(self.buckets.as_ptr() as *mut u8, layout);
         }
+    }
+}
+
+pub struct HashSetIterator<'a> {
+    hash_set: &'a HashSet,
+    current: usize,
+}
+
+impl<'a> Iterator for HashSetIterator<'a> {
+    type Item = (usize, &'a HashSetCell);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.current < self.hash_set.capacity {
+            let element_index = self.current;
+            self.current += 1;
+
+            if let Some(Some(cur_element)) = self.hash_set.get_bucket(element_index) {
+                return Some((element_index, cur_element));
+            }
+        }
+        None
     }
 }
 
@@ -855,5 +884,122 @@ mod test {
             hs.insert(&value, 0).unwrap();
             hs.mark_with_sequence_number(&value, 1).unwrap();
         }
+    }
+
+    #[test]
+    fn test_hash_set_iter_manual() {
+        let mut hs = HashSet::new(6857, 2400).unwrap();
+
+        let nullifier_1 = 945635_u32.to_biguint().unwrap();
+        let nullifier_2 = 3546656654734254353455_u128.to_biguint().unwrap();
+        let nullifier_3 = 543543656564_u64.to_biguint().unwrap();
+        let nullifier_4 = 43_u8.to_biguint().unwrap();
+        let nullifier_5 = 0_u8.to_biguint().unwrap();
+        let nullifier_6 = 65423_u32.to_biguint().unwrap();
+        let nullifier_7 = 745654665_u32.to_biguint().unwrap();
+        let nullifier_8 = 97664353453465354645645465_u128.to_biguint().unwrap();
+        let nullifier_9 = 453565465464565635475_u128.to_biguint().unwrap();
+        let nullifier_10 = 543645654645_u64.to_biguint().unwrap();
+
+        hs.insert(&nullifier_1, 0).unwrap();
+        hs.insert(&nullifier_2, 0).unwrap();
+        hs.insert(&nullifier_3, 0).unwrap();
+        hs.insert(&nullifier_4, 0).unwrap();
+        hs.insert(&nullifier_5, 0).unwrap();
+        hs.insert(&nullifier_6, 0).unwrap();
+        hs.insert(&nullifier_7, 0).unwrap();
+        hs.insert(&nullifier_8, 0).unwrap();
+        hs.insert(&nullifier_9, 0).unwrap();
+        hs.insert(&nullifier_10, 0).unwrap();
+
+        let inserted_nullifiers = hs
+            .iter()
+            .map(|(_, nullifier)| nullifier.value_biguint())
+            .collect::<Vec<_>>();
+        assert_eq!(inserted_nullifiers.len(), 10);
+        assert_eq!(inserted_nullifiers[0], nullifier_5);
+        assert_eq!(inserted_nullifiers[1], nullifier_4);
+        assert_eq!(inserted_nullifiers[2], nullifier_2);
+        assert_eq!(inserted_nullifiers[3], nullifier_9);
+        assert_eq!(inserted_nullifiers[4], nullifier_6);
+        assert_eq!(inserted_nullifiers[5], nullifier_7);
+        assert_eq!(inserted_nullifiers[6], nullifier_3);
+        assert_eq!(inserted_nullifiers[7], nullifier_10);
+        assert_eq!(inserted_nullifiers[8], nullifier_1);
+        assert_eq!(inserted_nullifiers[9], nullifier_8);
+    }
+
+    fn hash_set_iter_linear<
+        const INSERTIONS: usize,
+        const CAPACITY: usize,
+        const SEQUENCE_THRESHOLD: usize,
+    >() {
+        let mut hs = HashSet::new(CAPACITY, SEQUENCE_THRESHOLD).unwrap();
+
+        let mut expected_nullifiers = Vec::with_capacity(INSERTIONS);
+
+        for i in 0..INSERTIONS {
+            let nullifier = i.to_biguint().unwrap();
+            hs.insert(&nullifier, 0).unwrap();
+            expected_nullifiers.push(nullifier);
+        }
+
+        let inserted_nullifiers = hs
+            .iter()
+            .map(|(_, nullifier)| nullifier.value_biguint())
+            .collect::<Vec<_>>();
+        assert_eq!(inserted_nullifiers.len(), INSERTIONS);
+        assert_eq!(
+            expected_nullifiers.as_slice(),
+            inserted_nullifiers.as_slice()
+        );
+    }
+
+    #[test]
+    fn test_hash_set_iter_linear_6857_2400() {
+        hash_set_iter_linear::<3500, 6857, 2400>()
+    }
+
+    #[test]
+    fn test_hash_set_iter_linear_9601_2400() {
+        hash_set_iter_linear::<5000, 9601, 2400>()
+    }
+
+    fn hash_set_iter_random<
+        const INSERTIONS: usize,
+        const CAPACITY: usize,
+        const SEQUENCE_THRESHOLD: usize,
+    >() {
+        let mut hs = HashSet::new(CAPACITY, SEQUENCE_THRESHOLD).unwrap();
+        let mut rng = thread_rng();
+
+        let nullifiers: [BigUint; INSERTIONS] =
+            std::array::from_fn(|_| BigUint::from(Fr::rand(&mut rng)));
+
+        for nullifier in nullifiers.iter() {
+            hs.insert(&nullifier, 0).unwrap();
+        }
+
+        let mut sorted_nullifiers = nullifiers.iter().collect::<Vec<_>>();
+        let mut inserted_nullifiers = hs
+            .iter()
+            .map(|(_, nullifier)| nullifier.value_biguint())
+            .collect::<Vec<_>>();
+        sorted_nullifiers.sort();
+        inserted_nullifiers.sort();
+
+        let inserted_nullifiers = inserted_nullifiers.iter().collect::<Vec<&BigUint>>();
+        assert_eq!(inserted_nullifiers.len(), INSERTIONS);
+        assert_eq!(sorted_nullifiers.as_slice(), inserted_nullifiers.as_slice());
+    }
+
+    #[test]
+    fn test_hash_set_iter_random_6857_2400() {
+        hash_set_iter_random::<3500, 6857, 2400>()
+    }
+
+    #[test]
+    fn test_hash_set_iter_random_9601_2400() {
+        hash_set_iter_random::<5000, 9601, 2400>()
     }
 }
