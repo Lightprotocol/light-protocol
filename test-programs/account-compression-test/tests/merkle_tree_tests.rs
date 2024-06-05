@@ -43,6 +43,7 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use memoffset::offset_of;
 use num_bigint::{BigUint, ToBigUint};
 use solana_program_test::ProgramTest;
+use solana_sdk::signature::Signable;
 use solana_sdk::{
     account::AccountSharedData,
     instruction::{AccountMeta, Instruction},
@@ -50,7 +51,6 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
-use solana_sdk::signature::Signable;
 
 /// Tests:
 /// 1. Functional: Initialize nullifier queue
