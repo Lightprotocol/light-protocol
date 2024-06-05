@@ -21,7 +21,7 @@ async fn spawn_test_validator() {
 async fn test_10_validator_all() {
     spawn_test_validator().await;
     let env_accounts = get_test_env_accounts();
-    let rpc = SolanaRpcConnection::new().await;
+    let rpc = SolanaRpcConnection::new(None).await;
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
