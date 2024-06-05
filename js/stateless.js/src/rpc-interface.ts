@@ -270,6 +270,7 @@ export const MerkeProofResult = pick({
     merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
     rootSeq: number(),
+    root: BN254FromString,
 });
 
 /**
