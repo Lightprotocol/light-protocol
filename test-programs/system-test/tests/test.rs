@@ -153,6 +153,7 @@ async fn invoke_failing_test() {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn failing_transaction_inputs(
     context: &mut ProgramTestRpcConnection,
     test_indexer: &mut TestIndexer<200, ProgramTestRpcConnection>,
@@ -224,7 +225,7 @@ pub async fn failing_transaction_inputs(
                 )
                 .await;
             for (i, root_index) in proof_rpc_res.address_root_indices.iter().enumerate() {
-                new_address_params[i as usize].address_merkle_tree_root_index = *root_index;
+                new_address_params[i].address_merkle_tree_root_index = *root_index;
             }
             (proof_rpc_res.root_indices, Some(proof_rpc_res.proof))
         } else {
@@ -262,7 +263,7 @@ pub async fn failing_transaction_inputs(
         &new_address_params,
         &input_compressed_accounts
             .iter()
-            .map(|x| x.merkle_context.clone())
+            .map(|x| x.merkle_context)
             .collect::<Vec<_>>(),
         &input_compressed_accounts
             .iter()
@@ -359,11 +360,7 @@ pub async fn failing_transaction_inputs_inner(
         let mut inputs_struct = inputs_struct.clone();
         inputs_struct.input_compressed_accounts_with_merkle_context[num_inputs - 1]
             .merkle_context
-            .leaf_index = inputs_struct.input_compressed_accounts_with_merkle_context
-            [num_inputs - 1]
-            .merkle_context
-            .leaf_index
-            + 1;
+            .leaf_index += 1;
         create_instruction_and_failing_transaction(
             context,
             payer,
@@ -387,10 +384,7 @@ pub async fn failing_transaction_inputs_inner(
             // adapting compressed ouput account so that sumcheck passes
             inputs_struct.output_compressed_accounts[0]
                 .compressed_account
-                .lamports = inputs_struct.output_compressed_accounts[0]
-                .compressed_account
-                .lamports
-                + 1;
+                .lamports += 1;
             VerifierError::ProofVerificationFailed.into()
         } else {
             SystemProgramError::SumCheckFailed.into()
@@ -806,7 +800,7 @@ pub async fn perform_tx_with_output_compressed_accounts(
         true,
     );
     let result = context
-        .create_and_send_transaction(&[instruction], &payer_pubkey, &[&payer])
+        .create_and_send_transaction(&[instruction], &payer_pubkey, &[payer])
         .await
         .unwrap_err();
     assert_rpc_error(Err(result), 0, expected_error_code)
@@ -846,7 +840,7 @@ pub async fn create_instruction_and_failing_transaction(
     };
 
     let result = match context
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
     {
         Ok(_) => {

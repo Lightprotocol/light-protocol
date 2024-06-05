@@ -48,7 +48,10 @@ then
     echo "Prettier could not be found. Please install Prettier to run this script."
     exit 1
 fi
-
-pnpm prettier --write "$TS_FILE" "$TS_FILE_STATELESS"
-echo "Prettier formatting applied to $TS_FILE and $TS_FILE_STATELESS"
-
+{
+  echo "Current directory: $(pwd)"
+  pnpm prettier --write "$TS_FILE" "$TS_FILE_STATELESS" && \
+  echo "Prettier formatting applied to $TS_FILE and $TS_FILE_STATELESS"
+} || {
+  echo "Failed to apply Prettier formatting to $TS_FILE and $TS_FILE_STATELESS"
+}

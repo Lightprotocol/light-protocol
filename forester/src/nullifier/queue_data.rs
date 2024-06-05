@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct QueueData {
+pub struct StateQueueData {
     pub change_log_index: usize,
     pub sequence_number: usize,
     pub compressed_accounts_to_nullify: Vec<Account>,

@@ -1,6 +1,5 @@
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::transaction_params::TransactionParams;
+use std::fmt::Debug;
+
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -17,9 +16,12 @@ use solana_sdk::signature::{Keypair, Signature, Signer};
 use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
-use std::fmt::Debug;
 
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
 use crate::test_env::PAYER_KEYPAIR;
+use crate::transaction_params::TransactionParams;
+
 pub const SERVER_URL: &str = "http://127.0.0.1:8899";
 
 #[allow(dead_code)]
@@ -29,9 +31,10 @@ pub struct SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    pub async fn new() -> Self {
+    pub async fn new(commitment_config: Option<CommitmentConfig>) -> Self {
         let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
-        let client = RpcClient::new_with_commitment(SERVER_URL, CommitmentConfig::confirmed());
+        let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
+        let client = RpcClient::new_with_commitment(SERVER_URL, commitment_config);
         client
             .request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
             .unwrap();
@@ -44,7 +47,7 @@ impl SolanaRpcConnection {
     ) -> Result<T, RpcError> {
         let rpc_transaction_config = RpcTransactionConfig {
             encoding: Some(UiTransactionEncoding::Base64),
-            commitment: Some(CommitmentConfig::confirmed()),
+            commitment: Some(self.client.commitment()),
             ..Default::default()
         };
         let transaction = self
@@ -205,15 +208,20 @@ impl RpcConnection for SolanaRpcConnection {
         Ok(signature)
     }
 
+    async fn confirm_transaction(&mut self, transaction: Signature) -> Result<bool, RpcError> {
+        self.client
+            .confirm_transaction(&transaction)
+            .map_err(RpcError::from)
+    }
+
     fn get_payer(&self) -> &Keypair {
         &self.payer
     }
 
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        let commitment_config = CommitmentConfig::confirmed();
         let result = self
             .client
-            .get_account_with_commitment(&address, commitment_config);
+            .get_account_with_commitment(&address, self.client.commitment());
         result.map(|account| account.value).map_err(RpcError::from)
     }
 
@@ -235,12 +243,14 @@ impl RpcConnection for SolanaRpcConnection {
         self.client.get_latest_blockhash().map_err(RpcError::from)
     }
 
-    async fn process_transaction(&mut self, transaction: Transaction) -> Result<(), RpcError> {
-        let transaction_result = self.client.send_and_confirm_transaction(&transaction);
-        if let Err(e) = transaction_result {
-            return Err(RpcError::from(e));
+    async fn process_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<Signature, RpcError> {
+        match self.client.send_and_confirm_transaction(&transaction) {
+            Ok(signature) => Ok(signature),
+            Err(e) => Err(RpcError::ClientError(e)),
         }
-        Ok(())
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {
@@ -257,8 +267,9 @@ impl RpcConnection for SolanaRpcConnection {
             .map_err(RpcError::from)
     }
 
-    async fn get_anchor_account<T: AnchorDeserialize>(&mut self, _pubkey: &Pubkey) -> T {
-        todo!()
+    async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {
+        let account = self.get_account(*pubkey).await.unwrap().unwrap();
+        T::deserialize(&mut &account.data[8..]).unwrap()
     }
 
     async fn get_balance(&mut self, pubkey: &Pubkey) -> Result<u64, RpcError> {

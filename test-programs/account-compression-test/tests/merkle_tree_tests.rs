@@ -1154,7 +1154,7 @@ async fn insert_into_single_nullifier_queue<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_pubkey: &Pubkey,
     context: &mut R,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
     };
@@ -1198,7 +1198,7 @@ async fn insert_into_nullifier_queues<R: RpcConnection>(
     payer: &Keypair,
     pubkeys: &[(Pubkey, Pubkey)],
     context: &mut R,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let instruction_data = account_compression::instruction::InsertIntoNullifierQueues {
         nullifiers: elements.to_vec(),
     };

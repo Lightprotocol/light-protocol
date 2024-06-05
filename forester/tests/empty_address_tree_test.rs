@@ -1,17 +1,18 @@
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
 use forester::constants::SERVER_URL;
-use forester::nullifier::{get_nullifier_queue, nullify, Config};
+use forester::nullifier::{empty_address_queue, get_nullifier_queue, Config};
 use forester::utils::spawn_test_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
 use solana_client::rpc_client::RpcClient;
+use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::signature::{Keypair, Signer};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_indexer() {
+async fn empty_address_tree_test() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     spawn_test_validator().await;
     let env_accounts = get_test_env_accounts();
@@ -44,27 +45,44 @@ async fn test_indexer() {
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
-        KeypairActionConfig::test_forester_default(),
-        GeneralActionConfig::test_forester_default(),
+        KeypairActionConfig {
+            compress_sol: Some(1.0),
+            decompress_sol: Some(0.5),
+            transfer_sol: Some(1.0),
+            create_address: Some(1.0),
+            compress_spl: None,
+            decompress_spl: None,
+            mint_spl: None,
+            transfer_spl: None,
+            max_output_accounts: Some(3),
+        },
+        GeneralActionConfig {
+            add_keypair: Some(1.0),
+            create_state_mt: Some(0.0),
+            create_address_mt: Some(1.0),
+            nullify_compressed_accounts: Some(0.0),
+            empty_address_queue: Some(0.0),
+        },
         10,
         None,
         "../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
     env.execute_rounds().await;
-    let indexer = env.indexer;
-
     assert_ne!(get_state_queue_length(&config), 0);
     info!(
-        "Nullifying queue of {} accounts...",
+        "Address merkle tree: nullifying queue of {} accounts...",
         get_state_queue_length(&config)
     );
-    let _ = nullify(indexer, &config).await;
+
+    let mut rpc = SolanaRpcConnection::new(Some(CommitmentConfig::finalized())).await;
+    let mut indexer = env.indexer;
+    let _ = empty_address_queue(&mut rpc, &mut indexer, &config).await;
     assert_eq!(get_state_queue_length(&config), 0);
 }
 
 fn get_state_queue_length(config: &Config) -> usize {
     let client = RpcClient::new(SERVER_URL);
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &client).unwrap();
+    let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, &client).unwrap();
     queue.len()
 }

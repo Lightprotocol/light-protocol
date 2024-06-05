@@ -27,6 +27,11 @@ pub trait RpcConnection {
         signers: &[&Keypair],
     ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
 
+    fn confirm_transaction(
+        &mut self,
+        transaction: Signature,
+    ) -> impl std::future::Future<Output = Result<bool, RpcError>> + Send;
+
     fn get_payer(&self) -> &Keypair;
     fn get_account(
         &mut self,
@@ -45,7 +50,7 @@ pub trait RpcConnection {
     fn process_transaction(
         &mut self,
         transaction: Transaction,
-    ) -> impl std::future::Future<Output = Result<(), RpcError>> + Send;
+    ) -> impl std::future::Future<Output = Result<Signature, RpcError>> + Send;
     fn get_slot(&mut self) -> impl std::future::Future<Output = Result<u64, RpcError>> + Send;
     fn airdrop_lamports(
         &mut self,

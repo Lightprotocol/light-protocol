@@ -1038,7 +1038,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     root_indices: &[u16],
     input_compressed_accounts: &[CompressedAccountWithMerkleContext],
     invalid_mint: bool,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let input_compressed_account_token_data: Vec<TokenData> = input_compressed_accounts
         .iter()
         .map(|x| {

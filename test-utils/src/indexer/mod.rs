@@ -1,5 +1,6 @@
 pub mod test_indexer;
 
+use num_bigint::BigUint;
 pub use test_indexer::create_mint_helper;
 pub use test_indexer::AddressMerkleTreeAccounts;
 pub use test_indexer::AddressMerkleTreeBundle;
@@ -12,6 +13,7 @@ use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
 use light_hash_set::HashSetError;
+use light_indexed_merkle_tree::array::IndexedElement;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
@@ -21,7 +23,19 @@ pub trait Indexer: Sync + Send + 'static {
         hashes: Vec<String>,
     ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
 
+    fn get_address_tree_proof(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        address: [u8; 32],
+    ) -> Result<MerkleProofWithAddressContext, IndexerError>;
+
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
+
+    fn address_tree_updated(
+        &mut self,
+        merkle_tree_pubkey: [u8; 32],
+        context: MerkleProofWithAddressContext,
+    );
 }
 
 #[derive(Debug)]
@@ -31,6 +45,24 @@ pub struct MerkleProof {
     pub merkle_tree: String,
     pub proof: Vec<[u8; 32]>,
     pub root_seq: i64,
+}
+
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct MerkleProofWithAddressContext {
+    // pub hash: String,
+    // pub leaf_index: u32,
+    pub merkle_tree: [u8; 32],
+    // pub proof: Vec<String>,
+    // pub root: String,
+    // pub root_seq: i64,
+    pub low_address_index: u64,
+    pub low_address_value: [u8; 32],
+    pub low_address_next_index: u64,
+    pub low_address_next_value: [u8; 32],
+    pub low_address_proof: [[u8; 32]; 16],
+    pub new_low_element: IndexedElement<usize>,
+    pub new_element: IndexedElement<usize>,
+    pub new_element_next_value: BigUint,
 }
 
 #[derive(Error, Debug)]

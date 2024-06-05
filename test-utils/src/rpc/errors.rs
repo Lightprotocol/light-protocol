@@ -29,7 +29,7 @@ pub enum RpcError {
 }
 
 pub fn assert_rpc_error(
-    result: Result<(), RpcError>,
+    result: Result<solana_sdk::signature::Signature, RpcError>,
     i: u8,
     expected_error_code: u32,
 ) -> Result<(), RpcError> {

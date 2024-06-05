@@ -110,7 +110,7 @@ pub const GROUP_PDA_SEED_TEST_KEYPAIR: [u8; 64] = [
 ];
 // The test program id keypairs are necessary because the program id keypair needs to sign
 // to register the program to the security group.
-// The programids should only be used for localnet testing.
+// The program ids should only be used for localnet testing.
 // Pubkey: H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN
 pub const SYSTEM_PROGRAM_ID_TEST_KEYPAIR: [u8; 64] = [
     10, 62, 81, 156, 201, 11, 242, 85, 89, 182, 145, 223, 214, 144, 53, 147, 242, 197, 41, 55, 203,
@@ -330,7 +330,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     program_owner: Option<Pubkey>,
     index: u64,
 ) {
-    let merkle_tree_account_create_ix = crate::create_account_instruction(
+    let merkle_tree_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         account_compression::state::StateMerkleTreeAccount::LEN,
         rpc.get_minimum_balance_for_rent_exemption(
@@ -345,7 +345,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
     )
     .unwrap();
-    let nullifier_queue_account_create_ix = crate::create_account_instruction(
+    let nullifier_queue_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
         rpc.get_minimum_balance_for_rent_exemption(size)
@@ -535,13 +535,12 @@ pub async fn register_program_with_registry_program(
     program_id_keypair: &Keypair,
 ) -> Result<Pubkey, crate::rpc::errors::RpcError> {
     let governance_authority_pda = get_governance_authority_pda();
-    let (instruction, token_program_registered_program_pda) =
-        light_registry::sdk::create_register_program_instruction(
-            env.governance_authority.pubkey(),
-            governance_authority_pda,
-            env.group_pda,
-            program_id_keypair.pubkey(),
-        );
+    let (instruction, token_program_registered_program_pda) = create_register_program_instruction(
+        env.governance_authority.pubkey(),
+        governance_authority_pda,
+        env.group_pda,
+        program_id_keypair.pubkey(),
+    );
     let cpi_authority_pda = get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
         &env.governance_authority.pubkey(),

@@ -149,7 +149,7 @@ pub async fn perform_escrow_failing<R: RpcConnection>(
     lock_up_time: u64,
     escrow_amount: u64,
     seed: [u8; 32],
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let (payer_pubkey, instruction) = create_escrow_ix(
         payer,
         test_indexer,
@@ -381,7 +381,7 @@ pub async fn perform_withdrawal_failing<R: RpcConnection>(
     old_lock_up_time: u64,
     new_lock_up_time: u64,
     escrow_amount: u64,
-) -> Result<(), RpcError> {
+) -> Result<solana_sdk::signature::Signature, RpcError> {
     let instruction = perform_withdrawal(
         rpc,
         test_indexer,

@@ -149,6 +149,10 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(signature)
     }
 
+    async fn confirm_transaction(&mut self, _transaction: Signature) -> Result<bool, RpcError> {
+        Ok(true)
+    }
+
     fn get_payer(&self) -> &Keypair {
         &self.context.payer
     }
@@ -186,7 +190,11 @@ impl RpcConnection for ProgramTestRpcConnection {
             .map_err(|e| RpcError::from(BanksClientError::from(e)))
     }
 
-    async fn process_transaction(&mut self, transaction: Transaction) -> Result<(), RpcError> {
+    async fn process_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<Signature, RpcError> {
+        let sig = *transaction.signatures.first().unwrap();
         let result = self
             .context
             .banks_client
@@ -194,7 +202,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             .await
             .map_err(RpcError::from)?;
         result.result.map_err(RpcError::TransactionError)?;
-        Ok(())
+        Ok(sig)
     }
 
     async fn get_slot(&mut self) -> Result<u64, RpcError> {

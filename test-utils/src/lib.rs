@@ -115,7 +115,7 @@ pub fn create_account_instruction(
 /// we allow program error as well.
 // TODO: add generic that parses the error code from the result
 pub fn assert_custom_error_or_program_error(
-    result: Result<(), RpcError>,
+    result: Result<solana_sdk::signature::Signature, RpcError>,
     error_code: u32,
 ) -> Result<(), RpcError> {
     let accepted_errors = [
