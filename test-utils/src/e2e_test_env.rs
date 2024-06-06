@@ -68,6 +68,8 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
+use std::time::Duration;
+use log::info;
 use crate::airdrop_lamports;
 use crate::indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
@@ -103,8 +105,10 @@ use rand::prelude::SliceRandom;
 use rand::rngs::{StdRng, ThreadRng};
 use rand::{Rng, RngCore, SeedableRng};
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
+use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::{SeedDerivable, Signer};
+use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
+use crate::rpc::errors::RpcError;
 
 pub struct User {
     pub keypair: Keypair,
@@ -231,13 +235,19 @@ where
     /// Creates a new user with a random keypair and 100 sol
     pub async fn create_user(rng: &mut StdRng, rpc: &mut R) -> User {
         let keypair: Keypair = Keypair::from_seed(&[rng.gen_range(0..255); 32]).unwrap();
-        airdrop_lamports(rpc, &keypair.pubkey(), 10_000_000_000)
+
+        rpc.airdrop_lamports(&keypair.pubkey(), LAMPORTS_PER_SOL * 50)
             .await
             .unwrap();
+
         User {
             keypair,
             token_accounts: vec![],
         }
+    }
+
+    pub async fn get_balance(&mut self, pubkey: &Pubkey) -> u64 {
+        self.rpc.get_balance(pubkey).await.unwrap()
     }
 
     pub async fn execute_rounds(&mut self) {
@@ -466,6 +476,8 @@ where
             && balance > 1000
         {
             self.compress_sol(user_index, balance).await;
+        } else {
+            println!("Not enough balance to compress sol. Balance: {}", balance);
         }
 
         // decompress sol
@@ -484,6 +496,7 @@ where
         {
             self.transfer_sol(user_index).await;
         }
+
     }
 
     // TODO: add to actions after multiple Merkle tree support
@@ -520,6 +533,28 @@ where
                 None,
             )
             .await;
+    }
+
+    pub async fn transfer_sol_deterministic(&mut self, from: &Keypair, to: &Pubkey) -> Result<Signature, RpcError> {
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        info!("input_compressed_accounts: {:?}", input_compressed_accounts);
+        let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
+        let recipients = vec![*to];
+        transfer_compressed_sol_test(
+            &mut self.rpc,
+            &mut self.indexer,
+            from,
+            input_compressed_accounts.as_slice(),
+            recipients.as_slice(),
+            &[output_merkle_tree],
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
+        ).await
     }
 
     pub async fn transfer_sol(&mut self, user_index: usize) {
@@ -606,6 +641,27 @@ where
         }
     }
 
+    pub async fn compress_sol_deterministic(&mut self, from: &Keypair, amount: u64) {
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
+        compress_sol_test(
+            &mut self.rpc,
+            &mut self.indexer,
+            from,
+            input_compressed_accounts.as_slice(),
+            false,
+            amount,
+            &output_merkle_tree,
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: amount as i64,
+                fee_config: FeeConfig::default(),
+            }),
+        ).await.unwrap();
+    }
+
     pub async fn compress_sol(&mut self, user_index: usize, balance: u64) {
         println!("\n --------------------------------------------------\n\t\t Compress Sol\n --------------------------------------------------");
         // Limit max compress amount to 1 sol so that context.payer doesn't get depleted by airdrops.
@@ -647,6 +703,7 @@ where
         .unwrap();
         self.stats.sol_compress += 1;
     }
+
     pub async fn create_address(&mut self) {
         println!("\n --------------------------------------------------\n\t\t Create Address\n --------------------------------------------------");
         // select number of addresses to create
@@ -866,6 +923,11 @@ where
         let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..range, 0);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
     }
+
+    pub fn get_compressed_sol_accounts(&self, pubkey: &Pubkey) -> Vec<CompressedAccountWithMerkleContext> {
+        self.indexer.get_compressed_accounts_by_owner(pubkey)
+    }
+
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
         for _ in 0..num {
@@ -1039,7 +1101,7 @@ impl KeypairActionConfig {
     pub fn test_forester_default() -> Self {
         Self {
             compress_sol: Some(1.0),
-            decompress_sol: Some(0.5),
+            decompress_sol: Some(0.0),
             transfer_sol: Some(1.0),
             create_address: None,
             compress_spl: None,

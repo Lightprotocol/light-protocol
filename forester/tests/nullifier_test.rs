@@ -10,6 +10,8 @@ use solana_client::rpc_client::RpcClient;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::SolanaRpcConnection;
 
 fn test_config() -> Config {
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
@@ -32,8 +34,8 @@ fn test_config() -> Config {
 #[ignore]
 async fn queue_info_test() {
     let config = test_config();
-    let client = RpcClient::new(config.server_url);
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &client).unwrap();
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut rpc).await.unwrap();
     info!("Nullifier queue length: {}", queue.len());
 }
 
@@ -84,15 +86,13 @@ async fn tree_info_test() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_nullify_leaves() {
-    let indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+    let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
-    let client = RpcClient::new(SERVER_URL);
-    client
-        .request_airdrop(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .unwrap();
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let _ = rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000).await;
 
     let time = std::time::Instant::now();
-    match nullify(indexer, &config).await {
+    match nullify(&mut indexer, &mut rpc, &config).await {
         Ok(_) => {
             info!("Nullify completed");
             info!("Total time elapsed: {:?}", time.elapsed());
@@ -107,9 +107,7 @@ async fn test_nullify_leaves() {
 #[ignore]
 async fn test_subscribe_nullify() {
     let config = test_config();
-    let client = RpcClient::new(SERVER_URL);
-    client
-        .request_airdrop(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .unwrap();
-    subscribe_nullify(&config).await;
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let _ = rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000).await;
+    subscribe_nullify(&config, &mut rpc).await;
 }

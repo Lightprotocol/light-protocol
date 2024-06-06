@@ -3165,6 +3165,7 @@ dependencies = [
  "light-system-program",
  "light-utils",
  "light-verifier",
+ "log",
  "memoffset 0.9.1",
  "num-bigint 0.4.5",
  "num-traits",

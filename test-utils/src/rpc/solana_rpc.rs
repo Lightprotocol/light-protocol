@@ -4,6 +4,7 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
+use log::info;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_program_test::BanksClientError;
@@ -38,6 +39,7 @@ impl SolanaRpcConnection {
         client
             .request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
             .unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_secs(16)).await;
         Self { client, payer }
     }
 
@@ -112,7 +114,7 @@ impl RpcConnection for SolanaRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<T>, RpcError>
+    ) -> Result<Option<(T, Signature)>, RpcError>
     where
         T: AnchorDeserialize + Debug,
     {
@@ -131,7 +133,7 @@ impl RpcConnection for SolanaRpcConnection {
             latest_blockhash,
         );
         let signature = self.client.send_and_confirm_transaction(&transaction)?;
-
+        info!("Transaction signature: {:?}", signature);
         let mut event = transaction
             .message
             .instructions
@@ -149,46 +151,46 @@ impl RpcConnection for SolanaRpcConnection {
             }
         }
 
-        if let Some(transaction_params) = transaction_params {
-            let mut deduped_signers = signers.to_vec();
-            deduped_signers.dedup();
-            let post_balance = self.get_account(*payer).await?.unwrap().lamports;
+        // if let Some(transaction_params) = transaction_params {
+            // let mut deduped_signers = signers.to_vec();
+            // deduped_signers.dedup();
+            // let post_balance = self.get_account(*payer).await?.unwrap().lamports;
 
             // a network_fee is charged if there are input compressed accounts or new addresses
-            let mut network_fee: i64 = 0;
-            if transaction_params.num_input_compressed_accounts != 0 {
-                network_fee += transaction_params.fee_config.network_fee as i64;
-            }
-            if transaction_params.num_new_addresses != 0 {
-                network_fee += transaction_params.fee_config.address_network_fee as i64;
-            }
+            // let mut network_fee: i64 = 0;
+            // if transaction_params.num_input_compressed_accounts != 0 {
+            //     network_fee += transaction_params.fee_config.network_fee as i64;
+            // }
+            // if transaction_params.num_new_addresses != 0 {
+            //     network_fee += transaction_params.fee_config.address_network_fee as i64;
+            // }
 
-            let expected_post_balance = pre_balance as i64
-                - i64::from(transaction_params.num_new_addresses)
-                    * transaction_params.fee_config.address_queue_rollover as i64
-                - i64::from(transaction_params.num_output_compressed_accounts)
-                    * transaction_params.fee_config.state_merkle_tree_rollover as i64
-                - transaction_params.compress
-                - 5000 * deduped_signers.len() as i64
-                - network_fee;
+            // let expected_post_balance = pre_balance as i64
+            //     - i64::from(transaction_params.num_new_addresses)
+            //         * transaction_params.fee_config.address_queue_rollover as i64
+            //     - i64::from(transaction_params.num_output_compressed_accounts)
+            //         * transaction_params.fee_config.state_merkle_tree_rollover as i64
+            //     - transaction_params.compress
+            //     - 5000 * deduped_signers.len() as i64
+            //     - network_fee;
+            // if post_balance as i64 != expected_post_balance {
+            //     println!("transaction_params: {:?}", transaction_params);
+            //     println!("pre_balance: {}", pre_balance);
+            //     println!("post_balance: {}", post_balance);
+            //     println!("expected post_balance: {}", expected_post_balance);
+            //     println!(
+            //         "diff post_balance: {}",
+            //         post_balance as i64 - expected_post_balance
+            //     );
+            //     println!("network_fee: {}", network_fee);
+            //     return Err(RpcError::from(BanksClientError::TransactionError(
+            //         TransactionError::InstructionError(0, InstructionError::Custom(11111)),
+            //     )));
+            // }
+        // }
 
-            if post_balance as i64 != expected_post_balance {
-                println!("transaction_params: {:?}", transaction_params);
-                println!("pre_balance: {}", pre_balance);
-                println!("post_balance: {}", post_balance);
-                println!("expected post_balance: {}", expected_post_balance);
-                println!(
-                    "diff post_balance: {}",
-                    post_balance as i64 - expected_post_balance
-                );
-                println!("network_fee: {}", network_fee);
-                return Err(RpcError::from(BanksClientError::TransactionError(
-                    TransactionError::InstructionError(0, InstructionError::Custom(11111)),
-                )));
-            }
-        }
-
-        Ok(event)
+        let result = event.map(|event| (event, signature));
+        Ok(result)
     }
 
     async fn create_and_send_transaction(

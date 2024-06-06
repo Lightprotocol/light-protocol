@@ -21,6 +21,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk::signature::Signature;
 use thiserror::Error;
 
 // doesn't keep its own Merkle tree but gets it from the indexer
@@ -147,7 +148,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .unwrap()
             .unwrap();
 
-        match event {
+        match event.0 {
             MerkleTreeEvent::V2(event) => {
                 assert_eq!(event.id, state_tree_bundle.accounts.merkle_tree.to_bytes());
                 assert_eq!(
@@ -309,7 +310,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         {
             Ok(event) => {
                 let event = event.unwrap();
-                match event {
+                match event.0 {
                     MerkleTreeEvent::V3(event) => {
                         assert_eq!(event.id, address_merkle_tree_pubkey.to_bytes());
                         assert_eq!(event.seq, old_sequence_number as u64 + 1);
@@ -461,7 +462,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     low_address_proof: [[u8; 32]; 16],
     changelog_index: Option<u16>,
     registered_program: Option<Pubkey>,
-) -> Result<Option<MerkleTreeEvent>, RpcError> {
+) -> Result<Option<(MerkleTreeEvent, Signature)>, RpcError> {
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index as usize,
         None => {
