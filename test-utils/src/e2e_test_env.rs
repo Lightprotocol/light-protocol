@@ -185,14 +185,22 @@ where
                 merkle_tree: env_accounts.address_merkle_tree_pubkey,
                 queue: env_accounts.address_merkle_tree_queue_pubkey,
             }],
-            rpc.get_payer().insecure_clone(),
+            env_accounts.forester.insecure_clone(),
             env_accounts.group_pda,
             inclusion,
             non_inclusion,
             prover_server_path,
         )
         .await;
+        let payer = rpc.get_payer().insecure_clone();
 
+        airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
+            .await
+            .unwrap();
+
+        airdrop_lamports(&mut rpc, &env_accounts.forester.pubkey(), 100_000_000_000)
+            .await
+            .unwrap();
         let mut thread_rng = ThreadRng::default();
         let random_seed = thread_rng.next_u64();
         let seed: u64 = seed.unwrap_or(random_seed);
@@ -201,7 +209,6 @@ where
         println!("\n\ne2e test seed {}\n\n", seed);
         let mut rng = StdRng::seed_from_u64(seed);
         let user = Self::create_user(&mut rng, &mut rpc).await;
-        let payer = rpc.get_payer().insecure_clone();
         let mint = create_mint_helper(&mut rpc, &payer).await;
         mint_tokens_helper(
             &mut rpc,
@@ -241,7 +248,7 @@ where
     }
 
     pub async fn execute_rounds(&mut self) {
-        for _ in 0..self.rounds {
+        for _ in 0..=self.rounds {
             self.execute_round().await;
         }
     }
@@ -296,13 +303,9 @@ where
                 .unwrap_or_default(),
         ) {
             for state_tree_bundle in self.indexer.state_merkle_trees.iter_mut() {
-                nullify_compressed_accounts(
-                    &mut self.rpc,
-                    &self.payer,
-                    state_tree_bundle,
-                    Some(light_registry::ID),
-                )
-                .await;
+                println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES\n --------------------------------------------------");
+                nullify_compressed_accounts(&mut self.rpc, &self.indexer.payer, state_tree_bundle)
+                    .await;
             }
         }
 
@@ -312,10 +315,12 @@ where
                 .unwrap_or_default(),
         ) {
             for address_merkle_tree_bundle in self.indexer.address_merkle_trees.iter_mut() {
+                println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
                 empty_address_queue_test(
+                    &self.indexer.payer,
                     &mut self.rpc,
                     address_merkle_tree_bundle,
-                    Some(light_registry::ID),
+                    false,
                 )
                 .await
                 .unwrap();
@@ -863,7 +868,7 @@ where
             .indexer
             .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
         let range = std::cmp::min(input_compressed_accounts.len(), 4);
-        let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..range, 0);
+        let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..=range, 0);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
     }
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
@@ -1076,9 +1081,9 @@ impl GeneralActionConfig {
         Self {
             add_keypair: Some(1.0),
             create_state_mt: Some(1.0),
-            create_address_mt: Some(0.0),
-            nullify_compressed_accounts: Some(0.0),
-            empty_address_queue: Some(0.0),
+            create_address_mt: None,
+            nullify_compressed_accounts: None,
+            empty_address_queue: None,
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
 use crate::assert_queue::assert_address_queue_initialized;
 use crate::create_account_instruction;
+use crate::registry::register_test_forester;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
@@ -11,6 +12,7 @@ use account_compression::{
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_macros::pubkey;
+use light_registry::get_forester_epoch_pda_address;
 use light_registry::sdk::{
     create_initialize_governance_authority_instruction,
     create_initialize_group_authority_instruction, create_register_program_instruction,
@@ -25,6 +27,7 @@ use solana_sdk::{
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
+
 /// Setup test programs
 /// deploys:
 /// 1. light_registry program
@@ -55,11 +58,13 @@ pub struct EnvAccounts {
     pub governance_authority: Keypair,
     pub governance_authority_pda: Pubkey,
     pub group_pda: Pubkey,
+    pub forester: Keypair,
     pub registered_program_pda: Pubkey,
     pub registered_registry_program_pda: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_queue_pubkey: Pubkey,
     pub cpi_context_account_pubkey: Pubkey,
+    pub registered_forester_epoch_pda: Pubkey,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -126,6 +131,13 @@ pub const REGISTRY_ID_TEST_KEYPAIR: [u8; 64] = [
     20, 96, 192,
 ];
 
+pub const FORESTER_TEST_KEYPAIR: [u8; 64] = [
+    81, 4, 133, 152, 100, 67, 157, 52, 66, 70, 150, 214, 242, 90, 65, 199, 143, 192, 96, 172, 214,
+    44, 250, 77, 224, 55, 104, 35, 168, 1, 92, 200, 204, 184, 194, 21, 117, 231, 90, 62, 117, 179,
+    162, 181, 71, 36, 34, 47, 49, 195, 215, 90, 115, 3, 69, 74, 210, 75, 162, 191, 63, 51, 170,
+    204,
+];
+
 /// Setup test programs with accounts
 /// deploys:
 /// 1. light program
@@ -170,6 +182,14 @@ pub async fn setup_test_programs_with_accounts(
         .get_anchor_account::<GroupAuthority>(&authority_pda.0)
         .await;
     assert_eq!(gov_authority.authority, payer.pubkey());
+    let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+    airdrop_lamports(&mut context, &forester.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    println!("forester: {:?}", forester.pubkey());
+    register_test_forester(&mut context, &payer, &forester.pubkey())
+        .await
+        .unwrap();
 
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
@@ -221,11 +241,13 @@ pub async fn setup_test_programs_with_accounts(
         group_pda,
         governance_authority: payer,
         governance_authority_pda: authority_pda.0,
+        forester: forester.insecure_clone(),
         registered_program_pda: registered_system_program_pda,
         address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
         cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
         registered_registry_program_pda,
+        registered_forester_epoch_pda: get_forester_epoch_pda_address(&forester.pubkey()).0,
     };
     let system_program_id_test_keypair =
         Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
@@ -306,13 +328,15 @@ pub fn get_test_env_accounts() -> EnvAccounts {
 
     let cpi_signature_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
-
+    let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
     EnvAccounts {
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
         group_pda,
         governance_authority: payer,
         governance_authority_pda: authority_pda.0,
+        registered_forester_epoch_pda: get_forester_epoch_pda_address(&forester.pubkey()).0,
+        forester,
         registered_program_pda,
         address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
@@ -529,6 +553,7 @@ pub async fn init_cpi_context_account<R: RpcConnection>(
     .unwrap();
     cpi_account_keypair.pubkey()
 }
+
 pub async fn register_program_with_registry_program(
     rpc: &mut ProgramTestRpcConnection,
     env: &EnvAccounts,

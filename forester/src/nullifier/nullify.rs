@@ -1,17 +1,15 @@
 use crate::errors::ForesterError;
 use crate::nullifier::queue_data::Account;
 use crate::nullifier::{Config, StateQueueData};
-use account_compression::{QueueAccount, StateMerkleTreeAccount, ID};
-use anchor_lang::solana_program::instruction::Instruction;
-use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
+use account_compression::{QueueAccount, StateMerkleTreeAccount};
+use anchor_lang::AccountDeserialize;
 use light_hash_set::HashSet;
-use light_registry::sdk::get_cpi_authority_pda;
-use light_system_program::utils::get_registered_program_pda;
+use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
 use light_test_utils::indexer::Indexer;
-use light_test_utils::test_env::NOOP_PROGRAM_ID;
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSendTransactionConfig;
+use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use solana_sdk::transaction::Transaction;
@@ -84,7 +82,8 @@ pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), Fore
             .compressed_account_proofs
             .remove(&account.hash_string())
         {
-            let client = RpcClient::new(&config.server_url);
+            let client =
+                RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::confirmed());
             let successful_nullifications = Arc::clone(&successful_nullifications);
             let cancellation_token_clone = cancellation_token.clone();
             let arc_indexer_clone = Arc::clone(&arc_indexer);
@@ -158,11 +157,13 @@ async fn fetch_queue_data<T: Indexer>(
     config: &Config,
 ) -> Result<Option<StateQueueData>, ForesterError> {
     let (change_log_index, sequence_number) = {
-        let temporary_client = RpcClient::new(&config.server_url);
+        let temporary_client =
+            RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::processed());
         get_changelog_index(&config.state_merkle_tree_pubkey, &temporary_client)?
     };
     let compressed_accounts_to_nullify = {
-        let temporary_client = RpcClient::new(&config.server_url);
+        let temporary_client =
+            RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::processed());
         let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &temporary_client)?;
         info!(
             "Queue length: {}. Trimming to batch size of {}...",
@@ -220,32 +221,15 @@ pub async fn nullify_compressed_account<T: Indexer>(
     client: &RpcClient,
     indexer: Arc<Mutex<T>>,
 ) -> Result<(), ForesterError> {
-    let register_program_pda = get_registered_program_pda(&config.registry_pubkey);
-    let (cpi_authority, bump) = get_cpi_authority_pda();
-    let instruction_data = light_registry::instruction::Nullify {
-        bump,
+    let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
+        nullifier_queue: config.nullifier_queue_pubkey,
+        merkle_tree: config.state_merkle_tree_pubkey,
         change_log_indices: vec![change_log_index as u64],
         leaves_queue_indices: vec![account.index as u16],
         indices: vec![leaf_index],
         proofs: vec![proof],
-    };
-
-    let accounts = light_registry::accounts::NullifyLeaves {
         authority: config.payer_keypair.pubkey(),
-        registered_program_pda: register_program_pda,
-        nullifier_queue: config.nullifier_queue_pubkey,
-        merkle_tree: config.state_merkle_tree_pubkey,
-        log_wrapper: NOOP_PROGRAM_ID,
-        cpi_authority,
-        account_compression_program: ID,
-    };
-
-    let ix = Instruction {
-        program_id: config.registry_pubkey,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(),
-    };
-
+    });
     let instructions = [
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
         ix,
@@ -261,6 +245,7 @@ pub async fn nullify_compressed_account<T: Indexer>(
 
     let tx_config = RpcSendTransactionConfig {
         skip_preflight: true,
+        preflight_commitment: Some(solana_sdk::commitment_config::CommitmentLevel::Confirmed),
         ..RpcSendTransactionConfig::default()
     };
     let signature = client.send_transaction_with_config(&transaction, tx_config)?;
@@ -288,7 +273,6 @@ pub fn get_nullifier_queue(
             &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
         )?
     };
-
     let mut compressed_accounts_to_nullify = Vec::new();
     for i in 0..nullifier_queue.capacity {
         let bucket = nullifier_queue.get_bucket(i).unwrap();

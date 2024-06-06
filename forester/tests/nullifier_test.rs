@@ -3,7 +3,7 @@ use anchor_lang::AccountDeserialize;
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
-use forester::utils::u8_arr_to_hex_string;
+use forester::utils::{get_rpc_client_confirmed, u8_arr_to_hex_string};
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
@@ -86,7 +86,7 @@ async fn tree_info_test() {
 async fn test_nullify_leaves() {
     let indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
-    let client = RpcClient::new(SERVER_URL);
+    let client = get_rpc_client_confirmed();
     client
         .request_airdrop(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .unwrap();
@@ -107,7 +107,7 @@ async fn test_nullify_leaves() {
 #[ignore]
 async fn test_subscribe_nullify() {
     let config = test_config();
-    let client = RpcClient::new(SERVER_URL);
+    let client = get_rpc_client_confirmed();
     client
         .request_airdrop(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .unwrap();

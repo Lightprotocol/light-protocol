@@ -307,6 +307,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         )
         .await;
     output_compressed_accounts.sort_by(|a, b| a.merkle_tree.cmp(&b.merkle_tree));
+
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &from.pubkey(), // authority
@@ -344,13 +345,6 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             &payer.pubkey(),
             &[payer, from],
             transaction_params,
-            // Some(TransactionParams {
-            //     num_new_addresses: 0,
-            //     num_input_compressed_accounts: input_compressed_account_hashes.len() as u8,
-            //     num_output_compressed_accounts: output_compressed_accounts.len() as u8,
-            //     compress: 5000, // for second signer
-            //     fee_config: crate::FeeConfig::default(),
-            // }),
         )
         .await
         .unwrap()
