@@ -276,6 +276,29 @@ export const MerkeProofResult = pick({
 /**
  * @internal
  */
+const CompressedProofResult = pick({
+    a: array(number()),
+    b: array(number()),
+    c: array(number()),
+});
+
+/**
+ * @internal
+ */
+export const ValidityProofResult = pick({
+    compressedProof: CompressedProofResult,
+    leafIndices: array(number()),
+    leaves: array(BN254FromString),
+    rootIndices: array(number()),
+    roots: array(BN254FromString),
+    merkleTrees: array(PublicKeyFromString),
+    // TODO: enable nullifierQueues
+    // nullifierQueues: array(PublicKeyFromString),
+});
+
+/**
+ * @internal
+ */
 export const MultipleMerkleProofsResult = array(MerkeProofResult);
 
 /**

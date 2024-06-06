@@ -29,6 +29,73 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
+    it.only('getValidityProof should match', async () => {
+        const senderAccounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+
+        const hash = bn(senderAccounts[0].hash);
+        const hashTest = bn(senderAccountsTest[0].hash);
+
+        // accounts are the same
+        assert.isTrue(hash.eq(hashTest));
+
+        const validityProof = await rpc.getValidityProof([hash]);
+        const validityProofTest = await testRpc.getValidityProof([hashTest]);
+
+        validityProof.leafIndices.forEach((leafIndex, index) => {
+            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
+        });
+        validityProof.leaves.forEach((leaf, index) => {
+            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
+        });
+        validityProof.roots.forEach((elem, index) => {
+            assert.isTrue(elem.eq(validityProofTest.roots[index]));
+        });
+        validityProof.rootIndices.forEach((elem, index) => {
+            assert.equal(elem, validityProofTest.rootIndices[index]);
+        });
+        validityProof.merkleTrees.forEach((elem, index) => {
+            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
+        });
+        validityProof.nullifierQueues.forEach((elem, index) => {
+            assert.isTrue(
+                elem.equals(validityProofTest.nullifierQueues[index]),
+            );
+        });
+
+        /// FIXME: debug photon zkp
+        validityProof.compressedProof.a.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.a[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
+            );
+        });
+
+        validityProof.compressedProof.b.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.b[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
+            );
+        });
+
+        validityProof.compressedProof.c.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.c[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
+            );
+        });
+    });
+
     it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {
         for (let round = 0; round < numberOfTransfers; round++) {
             const prePayerAccounts = await rpc.getCompressedAccountsByOwner(
