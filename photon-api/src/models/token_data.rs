@@ -13,14 +13,14 @@ use crate::models;
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TokenData {
     #[serde(rename = "amount")]
-    pub amount: i32,
+    pub amount: i64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "delegate", skip_serializing_if = "Option::is_none")]
     pub delegate: Option<String>,
     #[serde(rename = "delegatedAmount")]
-    pub delegated_amount: i32,
+    pub delegated_amount: i64,
     #[serde(rename = "isNative", skip_serializing_if = "Option::is_none")]
-    pub is_native: Option<i32>,
+    pub is_native: Option<i64>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "mint")]
     pub mint: String,
@@ -33,8 +33,8 @@ pub struct TokenData {
 
 impl TokenData {
     pub fn new(
-        amount: i32,
-        delegated_amount: i32,
+        amount: i64,
+        delegated_amount: i64,
         mint: String,
         owner: String,
         state: models::AccountState,
