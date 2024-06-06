@@ -29,7 +29,7 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
-    it.only('getValidityProof should match', async () => {
+    it.skip('getValidityProof [noforester] (inclusion) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -43,7 +43,7 @@ describe('rpc-interop', () => {
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
 
-        const validityProof = await rpc.getValidityProof([hash]);
+        const validityProof = await rpc.getValidityProofDebug([hash]);
         const validityProofTest = await testRpc.getValidityProof([hashTest]);
 
         validityProof.leafIndices.forEach((leafIndex, index) => {
@@ -94,6 +94,210 @@ describe('rpc-interop', () => {
                 `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
             );
         });
+    });
+
+    it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {
+        const newAddress = bn(
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+        );
+
+        const validityProof = await rpc.getValidityProofDebug([], [newAddress]);
+        const validityProofTest = await testRpc.getValidityProof(
+            [],
+            [newAddress],
+        );
+
+        validityProof.leafIndices.forEach((leafIndex, index) => {
+            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
+        });
+        validityProof.leaves.forEach((leaf, index) => {
+            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
+        });
+        validityProof.roots.forEach((elem, index) => {
+            assert.isTrue(elem.eq(validityProofTest.roots[index]));
+        });
+        validityProof.rootIndices.forEach((elem, index) => {
+            assert.equal(elem, validityProofTest.rootIndices[index]);
+        });
+        validityProof.merkleTrees.forEach((elem, index) => {
+            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
+        });
+        validityProof.nullifierQueues.forEach((elem, index) => {
+            assert.isTrue(
+                elem.equals(validityProofTest.nullifierQueues[index]),
+            );
+        });
+
+        /// FIXME: debug photon zkp
+        validityProof.compressedProof.a.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.a[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
+            );
+        });
+
+        validityProof.compressedProof.b.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.b[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
+            );
+        });
+
+        validityProof.compressedProof.c.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.c[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
+            );
+        });
+    });
+
+    it.skip('getValidityProof [noforester] (combined) should match', async () => {
+        const senderAccounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+
+        const hash = bn(senderAccounts[0].hash);
+        const hashTest = bn(senderAccountsTest[0].hash);
+
+        // accounts are the same
+        assert.isTrue(hash.eq(hashTest));
+
+        const newAddress = bn(
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+        );
+
+        const validityProof = await rpc.getValidityProofDebug(
+            [hash],
+            [newAddress],
+        );
+        const validityProofTest = await testRpc.getValidityProof(
+            [hashTest],
+            [newAddress],
+        );
+
+        validityProof.leafIndices.forEach((leafIndex, index) => {
+            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
+        });
+        validityProof.leaves.forEach((leaf, index) => {
+            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
+        });
+        validityProof.roots.forEach((elem, index) => {
+            assert.isTrue(elem.eq(validityProofTest.roots[index]));
+        });
+        validityProof.rootIndices.forEach((elem, index) => {
+            assert.equal(elem, validityProofTest.rootIndices[index]);
+        });
+        validityProof.merkleTrees.forEach((elem, index) => {
+            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
+        });
+        validityProof.nullifierQueues.forEach((elem, index) => {
+            assert.isTrue(
+                elem.equals(validityProofTest.nullifierQueues[index]),
+            );
+        });
+
+        /// FIXME: debug photon zkp
+        validityProof.compressedProof.a.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.a[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
+            );
+        });
+
+        validityProof.compressedProof.b.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.b[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
+            );
+        });
+
+        validityProof.compressedProof.c.forEach((elem, index) => {
+            const expected = validityProofTest.compressedProof.c[index];
+            assert.equal(
+                elem,
+                expected,
+                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
+            );
+        });
+    });
+
+    it.skip('getMultipleNewAddressProofs [noforester] should match', async () => {
+        const newAddress = bn(
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+        );
+        const newAddressProof = (
+            await rpc.getMultipleNewAddressProofs([newAddress])
+        )[0];
+        const newAddressProofTest = (
+            await testRpc.getMultipleNewAddressProofs([newAddress])
+        )[0];
+
+        assert.isTrue(
+            newAddressProof.indexHashedIndexedElementLeaf.eq(
+                newAddressProofTest.indexHashedIndexedElementLeaf,
+            ),
+        );
+        assert.isTrue(
+            newAddressProof.leafHigherRangeValue.eq(
+                newAddressProofTest.leafHigherRangeValue,
+            ),
+        );
+        assert.isTrue(
+            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+        );
+        assert.isTrue(
+            newAddressProof.leafLowerRangeValue.eq(
+                newAddressProofTest.leafLowerRangeValue,
+            ),
+        );
+
+        assert.isTrue(
+            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+        );
+        assert.isTrue(
+            newAddressProof.nullifierQueue.equals(
+                newAddressProofTest.nullifierQueue,
+            ),
+        );
+
+        assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
+        assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
+
+        newAddressProof.merkleProofHashedIndexedElementLeaf.forEach(
+            (elem, index) => {
+                const expected =
+                    newAddressProofTest.merkleProofHashedIndexedElementLeaf[
+                        index
+                    ];
+                assert.equal(
+                    elem,
+                    expected,
+                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${newAddressProofTest.merkleProofHashedIndexedElementLeaf} got: ${newAddressProof.merkleProofHashedIndexedElementLeaf}`,
+                );
+            },
+        );
     });
 
     it('getMultipleCompressedAccountProofs in transfer loop should match', async () => {

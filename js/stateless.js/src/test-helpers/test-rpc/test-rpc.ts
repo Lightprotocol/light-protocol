@@ -36,7 +36,12 @@ import {
 } from '../../state';
 import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
 import { IndexedArray } from '../merkle-tree';
-import { MerkleContextWithNewAddressProof, proverRequest } from '../../rpc';
+import {
+    MerkleContextWithNewAddressProof,
+    convertMerkleProofsWithContextToHex,
+    convertNonInclusionMerkleProofInputsToHex,
+    proverRequest,
+} from '../../rpc';
 
 export interface TestRpcConfig {
     /**
@@ -511,6 +516,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             newAddressProofs.push(proof);
         }
         return newAddressProofs;
+    }
+
+    /// TODO: remove once photon 'getValidityProof' is fixed
+    async getValidityProofDebug(
+        hashes: BN254[] = [],
+        newAddresses: BN254[] = [],
+    ): Promise<CompressedProofWithContext> {
+        return this.getValidityProof(hashes, newAddresses);
     }
 
     /**
