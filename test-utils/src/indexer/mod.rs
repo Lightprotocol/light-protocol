@@ -28,7 +28,10 @@ pub trait Indexer: Sync + Send + 'static {
         hashes: Vec<String>,
     ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
 
-    fn get_rpc_compressed_accounts_by_owner(&self, owner: &Pubkey) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
+    fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
 
     fn get_address_tree_proof(
         &self,

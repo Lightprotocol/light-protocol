@@ -1,12 +1,12 @@
+use super::{nullify, Config};
 use crate::constants::{INDEXER_URL, WS_SERVER_URL};
 use crate::indexer::PhotonIndexer;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{info, warn};
 use solana_client::pubsub_client::PubsubClient;
 use solana_client::rpc_config::RpcAccountInfoConfig;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::time::{sleep, Duration};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use super::{nullify, Config};
 
 pub async fn subscribe_nullify<R: RpcConnection>(config: &Config, rpc: &mut R) {
     let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());

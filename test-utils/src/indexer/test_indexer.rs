@@ -1,9 +1,9 @@
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::info;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
-use log::info;
 use {
     crate::{
         create_account_instruction,
@@ -108,7 +108,9 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     phantom: PhantomData<R>,
 }
 
-impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone for TestIndexer<INDEXED_ARRAY_SIZE, R> {
+impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone
+    for TestIndexer<INDEXED_ARRAY_SIZE, R>
+{
     fn clone(&self) -> Self {
         Self {
             state_merkle_trees: self.state_merkle_trees.clone(),
@@ -127,7 +129,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone for TestIndexer<IN
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct TokenDataWithContext {
     pub token_data: TokenData,
@@ -135,9 +136,9 @@ pub struct TokenDataWithContext {
 }
 
 impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> Indexer
-for TestIndexer<INDEXED_ARRAY_SIZE, R>
+    for TestIndexer<INDEXED_ARRAY_SIZE, R>
 {
-     async fn get_multiple_compressed_account_proofs(
+    async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
@@ -167,6 +168,59 @@ for TestIndexer<INDEXED_ARRAY_SIZE, R>
             })
         });
         Ok(proofs)
+    }
+
+
+    // This is assuming that the test RPC moves the spent accounts out of compressed_accounts array to nullified_compressed_accounts array
+    // before these accounts will actually be nullified
+    async fn get_multiple_compressed_account_proofs_for_forester(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        let mut proofs: Vec<MerkleProof> = Vec::new();
+        let matching_hashes_count = self.count_matching_hashes(&hashes);
+        if matching_hashes_count == 0 {
+            return Err(IndexerError::Custom("No matching hashes found".to_string()));
+        }
+        for account in self.nullified_compressed_accounts.lock().unwrap().iter() {
+            let hash = account
+                .compressed_account
+                .hash::<Poseidon>(
+                    &account.merkle_context.merkle_tree_pubkey,
+                    &account.merkle_context.leaf_index,
+                )
+                .unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            if hashes.contains(&bs58_hash) {
+                let state_tree_bundle = self
+                    .state_merkle_trees
+                    .iter()
+                    .find(|x| x.accounts.merkle_tree == account.merkle_context.merkle_tree_pubkey)
+                    .unwrap();
+                if let Some(leaf_index) = state_tree_bundle.merkle_tree.get_leaf_index(&hash) {
+                    let proof = state_tree_bundle
+                        .merkle_tree
+                        .get_proof_of_leaf(leaf_index, false)
+                        .unwrap();
+                    proofs.push(MerkleProof {
+                        hash: bs58_hash,
+                        leaf_index: account.merkle_context.leaf_index,
+                        merkle_tree: account.merkle_context.merkle_tree_pubkey.to_string(),
+                        proof: proof.to_vec(),
+                        root_seq: self.events.len() as i64,
+                    });
+        Ok(proofs)
+    }
+
+    async fn get_rpc_compressed_accounts_by_owner(&self, owner: &Pubkey) -> Result<Vec<String>, IndexerError> {
+        let result = self.get_compressed_accounts_by_owner(owner);
+        let mut hashes: Vec<String> = Vec::new();
+        for account in result.iter() {
+            let hash = account.hash().unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            hashes.push(bs58_hash);
+        }
+        Ok(hashes)
     }
 
 
@@ -220,7 +274,10 @@ for TestIndexer<INDEXED_ARRAY_SIZE, R>
     }
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
-        info!("updating state_tree_bundle for the nullified account: {}", account_hash);
+        info!(
+            "updating state_tree_bundle for the nullified account: {}",
+            account_hash
+        );
         let decoded_hash: [u8; 32] = bs58::decode(account_hash)
             .into_vec()
             .unwrap()
@@ -240,7 +297,10 @@ for TestIndexer<INDEXED_ARRAY_SIZE, R>
                     .update(&[0u8; 32], leaf_index)
                     .unwrap();
                 new_root = state_tree_bundle.merkle_tree.root();
-                info!("new root for state tree: {:?}", state_tree_bundle.merkle_tree.root());
+                info!(
+                    "new root for state tree: {:?}",
+                    state_tree_bundle.merkle_tree.root()
+                );
             }
         }
     }
@@ -335,7 +395,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             non_inclusion,
             gnark_bin_path,
         )
-        .await
+            .await
     }
     pub async fn new(
         state_merkle_tree_accounts: Vec<StateMerkleTreeAccounts>,
@@ -404,7 +464,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 STATE_MERKLE_TREE_HEIGHT as usize,
                 STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
             )
-            .unwrap(),
+                .unwrap(),
         );
         merkle_tree.init().unwrap();
         let mut indexed_array = Box::<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>::default();
@@ -432,7 +492,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             owning_program_id,
             self.address_merkle_trees.len() as u64,
         )
-        .await;
+            .await;
         let address_merkle_tree_accounts = AddressMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
             queue: queue_keypair.pubkey(),
@@ -461,7 +521,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             owning_program_id,
             self.state_merkle_trees.len() as u64,
         )
-        .await;
+            .await;
         #[cfg(feature = "cpi_context")]
         crate::test_env::init_cpi_context_account(
             rpc,
@@ -469,7 +529,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             cpi_context_keypair,
             &self.payer,
         )
-        .await;
+            .await;
 
         let state_merkle_tree_account = StateMerkleTreeAccounts {
             merkle_tree: merkle_tree_keypair.pubkey(),
@@ -497,7 +557,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
     ) -> ProofRpcResult {
         if compressed_accounts.is_some()
             && ![1usize, 2usize, 3usize, 4usize, 8usize]
-                .contains(&compressed_accounts.unwrap().len())
+            .contains(&compressed_accounts.unwrap().len())
         {
             panic!(
                 "compressed_accounts must be of length 1, 2, 3, 4 or 8 != {}",
@@ -542,7 +602,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                         inclusion: inclusion_payload.inputs,
                         non_inclusion: non_inclusion_payload.inputs,
                     }
-                    .to_string();
+                        .to_string();
                     (inclusion_indices, non_inclusion_indices, combined_payload)
                 }
                 _ => {
@@ -656,7 +716,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 rpc,
                 address_merkle_tree_pubkeys[i],
             )
-            .await;
+                .await;
             let fetched_address_merkle_tree = merkle_tree_account
                 .deserialized()
                 .copy_merkle_tree()
@@ -742,7 +802,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 .find(|x| {
                     x.accounts.merkle_tree
                         == event.pubkey_array
-                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                        [event.output_compressed_accounts[i].merkle_tree_index as usize]
                 })
                 .unwrap()
                 .accounts
@@ -811,7 +871,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 .find(|x| {
                     x.accounts.merkle_tree
                         == event.pubkey_array
-                            [event.output_compressed_accounts[i].merkle_tree_index as usize]
+                        [event.output_compressed_accounts[i].merkle_tree_index as usize]
                 })
                 .unwrap()
                 .merkle_tree;
@@ -912,7 +972,7 @@ pub fn create_initialize_mint_instructions(
         None,
         decimals,
     )
-    .unwrap();
+        .unwrap();
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 

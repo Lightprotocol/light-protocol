@@ -4,14 +4,14 @@ use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
 use forester::utils::u8_arr_to_hex_string;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::SolanaRpcConnection;
 
 fn test_config() -> Config {
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
@@ -35,7 +35,9 @@ fn test_config() -> Config {
 async fn queue_info_test() {
     let config = test_config();
     let mut rpc = SolanaRpcConnection::new(None).await;
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut rpc).await.unwrap();
+    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut rpc)
+        .await
+        .unwrap();
     info!("Nullifier queue length: {}", queue.len());
 }
 
@@ -89,7 +91,9 @@ async fn test_nullify_leaves() {
     let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
     let mut rpc = SolanaRpcConnection::new(None).await;
-    let _ = rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000).await;
+    let _ = rpc
+        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await;
 
     let time = std::time::Instant::now();
     match nullify(&mut indexer, &mut rpc, &config).await {
@@ -108,6 +112,8 @@ async fn test_nullify_leaves() {
 async fn test_subscribe_nullify() {
     let config = test_config();
     let mut rpc = SolanaRpcConnection::new(None).await;
-    let _ = rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000).await;
+    let _ = rpc
+        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await;
     subscribe_nullify(&config, &mut rpc).await;
 }
