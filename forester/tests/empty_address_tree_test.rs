@@ -83,6 +83,8 @@ async fn empty_address_tree_test() {
 
 async fn get_state_queue_length(config: &Config) -> usize {
     let mut rpc = SolanaRpcConnection::new(None).await;
-    let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, &mut rpc).await.unwrap();
+    let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, &mut rpc)
+        .await
+        .unwrap();
     queue.len()
 }

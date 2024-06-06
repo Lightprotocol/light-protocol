@@ -1,9 +1,9 @@
-use log::info;
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
     Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext,
 };
+use log::info;
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 
@@ -31,8 +31,10 @@ impl Clone for PhotonIndexer {
 }
 
 impl Indexer for PhotonIndexer {
-
-    async fn get_multiple_compressed_account_proofs_for_forester(&self, hashes: Vec<String>) -> Result<Vec<MerkleProof>, IndexerError> {
+    async fn get_multiple_compressed_account_proofs_for_forester(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
         self.get_multiple_compressed_account_proofs(hashes).await
     }
 
@@ -40,7 +42,10 @@ impl Indexer for PhotonIndexer {
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
-        info!("PhotonIndexer: Getting proofs for {} accounts", hashes.len());
+        info!(
+            "PhotonIndexer: Getting proofs for {} accounts",
+            hashes.len()
+        );
         let request = photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
             params: hashes,
             ..Default::default()
@@ -86,7 +91,10 @@ impl Indexer for PhotonIndexer {
         }
     }
 
-    async fn get_rpc_compressed_accounts_by_owner(&self, owner: &Pubkey) -> Result<Vec<String>, IndexerError> {
+    async fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<String>, IndexerError> {
         let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
             params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
                 cursor: None,
@@ -99,7 +107,9 @@ impl Indexer for PhotonIndexer {
         let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
             &self.configuration,
             request,
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         info!("PhotonIndexer: Got response: {:?}", result);
 
@@ -111,7 +121,6 @@ impl Indexer for PhotonIndexer {
 
         Ok(hashes)
     }
-
 
     fn get_address_tree_proof(
         &self,

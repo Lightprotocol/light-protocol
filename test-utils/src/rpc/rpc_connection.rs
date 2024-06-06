@@ -37,7 +37,7 @@ pub trait RpcConnection {
         &mut self,
         address: Pubkey,
     ) -> impl std::future::Future<Output = Result<Option<Account>, RpcError>> + Send;
-    
+
     fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData);
 
     fn get_minimum_balance_for_rent_exemption(

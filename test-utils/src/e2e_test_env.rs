@@ -68,13 +68,12 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
-use std::time::Duration;
-use log::info;
 use crate::airdrop_lamports;
 use crate::indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
     StateMerkleTreeAccounts, StateMerkleTreeBundle, TestIndexer, TokenDataWithContext,
 };
+use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::spl::{
     compress_test, compressed_transfer_test, create_token_account, decompress_test,
@@ -95,9 +94,9 @@ use account_compression::utils::constants::{
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
@@ -108,7 +107,6 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::{SeedDerivable, Signer};
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-use crate::rpc::errors::RpcError;
 
 pub struct User {
     pub keypair: Keypair,
@@ -496,7 +494,6 @@ where
         {
             self.transfer_sol(user_index).await;
         }
-
     }
 
     // TODO: add to actions after multiple Merkle tree support
@@ -535,7 +532,11 @@ where
             .await;
     }
 
-    pub async fn transfer_sol_deterministic(&mut self, from: &Keypair, to: &Pubkey) -> Result<Signature, RpcError> {
+    pub async fn transfer_sol_deterministic(
+        &mut self,
+        from: &Keypair,
+        to: &Pubkey,
+    ) -> Result<Signature, RpcError> {
         let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
         info!("input_compressed_accounts: {:?}", input_compressed_accounts);
         let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
@@ -554,7 +555,8 @@ where
                 compress: 0,
                 fee_config: FeeConfig::default(),
             }),
-        ).await
+        )
+        .await
     }
 
     pub async fn transfer_sol(&mut self, user_index: usize) {
@@ -659,7 +661,9 @@ where
                 compress: amount as i64,
                 fee_config: FeeConfig::default(),
             }),
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
     }
 
     pub async fn compress_sol(&mut self, user_index: usize, balance: u64) {
@@ -924,7 +928,10 @@ where
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
     }
 
-    pub fn get_compressed_sol_accounts(&self, pubkey: &Pubkey) -> Vec<CompressedAccountWithMerkleContext> {
+    pub fn get_compressed_sol_accounts(
+        &self,
+        pubkey: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
         self.indexer.get_compressed_accounts_by_owner(pubkey)
     }
 

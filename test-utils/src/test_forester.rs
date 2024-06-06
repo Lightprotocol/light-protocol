@@ -15,13 +15,13 @@ use light_hasher::Poseidon;
 use light_registry::sdk::get_cpi_authority_pda;
 use light_system_program::utils::get_registered_program_pda;
 use light_utils::bigint::bigint_to_be_bytes_array;
+use solana_sdk::signature::Signature;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use solana_sdk::signature::Signature;
 use thiserror::Error;
 
 // doesn't keep its own Merkle tree but gets it from the indexer

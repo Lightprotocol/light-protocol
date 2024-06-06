@@ -1,13 +1,13 @@
 use log::info;
+use solana_sdk::signature::Signature;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
 };
-use solana_sdk::signature::Signature;
 
 use light_hasher::Poseidon;
+use light_system_program::sdk::event::PublicTransactionEvent;
 use light_system_program::{
-    NewAddressParams,
     sdk::{
         address::derive_address,
         compressed_account::{
@@ -15,18 +15,18 @@ use light_system_program::{
         },
         invoke::{create_invoke_instruction, get_sol_pool_pda},
     },
+    NewAddressParams,
 };
-use light_system_program::sdk::event::PublicTransactionEvent;
 
-use crate::{
-    assert_compressed_tx::{
-        assert_compressed_transaction, AssertCompressedTransactionInputs, get_merkle_tree_snapshots,
-    },
-    indexer::TestIndexer,
-};
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
+use crate::{
+    assert_compressed_tx::{
+        assert_compressed_transaction, get_merkle_tree_snapshots, AssertCompressedTransactionInputs,
+    },
+    indexer::TestIndexer,
+};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn create_addresses_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
@@ -258,7 +258,10 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
         });
     }
 
-    info!("output_compressed_accounts: {:?}", output_compressed_accounts);
+    info!(
+        "output_compressed_accounts: {:?}",
+        output_compressed_accounts
+    );
 
     let payer = rpc.get_payer().insecure_clone();
     let inputs = CompressedTransactionTestInputs {
@@ -449,7 +452,10 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         .test_indexer
         .add_event_and_compressed_accounts(&event.0);
 
-    info!("created_output_compressed_accounts: {:?}", created_output_compressed_accounts);
+    info!(
+        "created_output_compressed_accounts: {:?}",
+        created_output_compressed_accounts
+    );
 
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,

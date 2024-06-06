@@ -8,6 +8,7 @@ use light_hash_set::HashSet;
 use light_registry::sdk::get_cpi_authority_pda;
 use light_system_program::utils::get_registered_program_pda;
 use light_test_utils::indexer::Indexer;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::test_env::NOOP_PROGRAM_ID;
 use log::{info, warn};
 use solana_sdk::pubkey::Pubkey;
@@ -15,14 +16,15 @@ use solana_sdk::signature::Signer;
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
-use futures::FutureExt;
-use futures::TryFutureExt;
 use tokio::signal;
 use tokio::sync::{Mutex, Semaphore};
 use tokio_util::sync::CancellationToken;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 
-pub async fn nullify<T: Indexer, R: RpcConnection>(indexer: &mut T, rpc: &mut R, config: &Config) -> Result<(), ForesterError> {
+pub async fn nullify<T: Indexer, R: RpcConnection>(
+    indexer: &mut T,
+    rpc: &mut R,
+    config: &Config,
+) -> Result<(), ForesterError> {
     let concurrency_limit = config.concurrency_limit;
     let semaphore = Arc::new(Semaphore::new(concurrency_limit));
     let successful_nullifications = Arc::new(Mutex::new(1));
@@ -104,37 +106,34 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(indexer: &mut T, rpc: &mut R,
                     leaf_index,
                     &config_clone,
                     rpc,
-                    indexer
+                    indexer,
                 )
-                    .await
+                .await
                 {
                     Ok(_) => {
-                        let mut successful_nullifications =
-                            successful_nullifications.lock().await;
+                        let mut successful_nullifications = successful_nullifications.lock().await;
                         *successful_nullifications += 1;
                         break;
                     }
                     Err(e) => {
                         if retries >= max_retries {
                             warn!(
-                                    "Max retries reached for account {}: {:?}",
-                                    account.hash_string(),
-                                    e
-                                );
+                                "Max retries reached for account {}: {:?}",
+                                account.hash_string(),
+                                e
+                            );
                             break;
                         }
                         retries += 1;
                         warn!(
-                                "Retrying account {} due to error: {:?}",
-                                account.hash_string(),
-                                e
-                            );
+                            "Retrying account {} due to error: {:?}",
+                            account.hash_string(),
+                            e
+                        );
                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
             }
-
-
         } else {
             warn!("No proof found for account: {}", account.hash_string());
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -154,9 +153,8 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
     rpc: &mut R,
     config: &Config,
 ) -> Result<Option<StateQueueData>, ForesterError> {
-    let (change_log_index, sequence_number) = {
-        get_changelog_index(&config.state_merkle_tree_pubkey, rpc).await?
-    };
+    let (change_log_index, sequence_number) =
+        { get_changelog_index(&config.state_merkle_tree_pubkey, rpc).await? };
     let compressed_accounts_to_nullify = {
         let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc).await?;
         info!(
@@ -246,7 +244,13 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
         ix,
     ];
 
-    let signature = rpc.create_and_send_transaction(&instructions, &config.payer_keypair.pubkey(), &[&config.payer_keypair]).await;
+    let signature = rpc
+        .create_and_send_transaction(
+            &instructions,
+            &config.payer_keypair.pubkey(),
+            &[&config.payer_keypair],
+        )
+        .await;
     info!("Transaction: {:?}", signature);
     indexer.account_nullified(config.state_merkle_tree_pubkey, &account.hash_string());
     Ok(())
@@ -256,11 +260,14 @@ pub async fn get_nullifier_queue<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
     rpc: &mut R,
 ) -> Result<Vec<Account>, ForesterError> {
-    let mut nullifier_queue_account = rpc.get_account(*nullifier_queue_pubkey).await
+    let mut nullifier_queue_account = rpc
+        .get_account(*nullifier_queue_pubkey)
+        .await
         .map_err(|e| {
             warn!("Error fetching nullifier queue account: {:?}", e);
             ForesterError::Custom("Error fetching nullifier queue account".to_string())
-        })?.unwrap();
+        })?
+        .unwrap();
 
     let nullifier_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(
@@ -287,7 +294,9 @@ pub async fn get_changelog_index<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     rpc: &mut R,
 ) -> Result<(usize, usize), ForesterError> {
-    let merkle_tree_account = rpc.get_anchor_account::<StateMerkleTreeAccount>(merkle_tree_pubkey).await;
+    let merkle_tree_account = rpc
+        .get_anchor_account::<StateMerkleTreeAccount>(merkle_tree_pubkey)
+        .await;
     let merkle_tree = merkle_tree_account.copy_merkle_tree()?;
     Ok((
         merkle_tree.current_changelog_index,
