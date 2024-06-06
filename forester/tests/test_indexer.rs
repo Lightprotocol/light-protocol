@@ -1,5 +1,4 @@
 use account_compression::StateMerkleTreeAccount;
-use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
@@ -113,15 +112,17 @@ async fn photon_interop_state_nullification_test() {
     let bob_balance = env.rpc.get_balance(&alice.keypair.pubkey()).await.unwrap();
     info!("Bob account_balance: {}", bob_balance);
 
-    {
-        env.compress_sol_deterministic(&alice.keypair, 10_000_000)
-            .await;
-    }
-    // env.compress_sol_deterministic(&bob.keypair, 100_000).await;
+    env.compress_sol_deterministic(&alice.keypair, 10_000_000)
+        .await;
 
     let photon_indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-    // assert_accounts_by_owner(&mut env, &alice, &photon_indexer).await;
-    // assert_account_proofs_for_photon_and_test_indexer(&env, &alice.keypair.pubkey(), &photon_indexer).await;
+    assert_accounts_by_owner(&mut env, &alice, &photon_indexer).await;
+    assert_account_proofs_for_photon_and_test_indexer(
+        &env,
+        &alice.keypair.pubkey(),
+        &photon_indexer,
+    )
+    .await;
 
     let transfer_result = env
         .transfer_sol_deterministic(&alice.keypair, &bob.keypair.pubkey())
@@ -129,8 +130,8 @@ async fn photon_interop_state_nullification_test() {
     assert!(transfer_result.is_ok());
     info!("Transfer sig: {:?}", transfer_result.unwrap());
 
-    // assert_accounts_by_owner(&mut env, &alice, &photon_indexer).await;
-    // assert_accounts_by_owner(&mut env, &bob, &photon_indexer).await;
+    assert_accounts_by_owner(&mut env, &alice, &photon_indexer).await;
+    assert_accounts_by_owner(&mut env, &bob, &photon_indexer).await;
 
     assert_ne!(get_state_queue_length(&mut env.rpc, &config).await, 0);
     info!(
@@ -154,6 +155,8 @@ async fn photon_interop_state_nullification_test() {
         &photon_indexer,
     )
     .await;
+
+    // This should fail because state_tree on photon's side has not been updated after nullification:
     assert_account_proofs_for_photon_and_test_indexer(&env, &bob.keypair.pubkey(), &photon_indexer)
         .await;
 
