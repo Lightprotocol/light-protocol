@@ -270,6 +270,45 @@ export const MerkeProofResult = pick({
     merkleTree: PublicKeyFromString,
     proof: array(BN254FromString),
     rootSeq: number(),
+    root: BN254FromString,
+});
+
+/**
+ * @internal
+ */
+export const NewAddressProofResult = pick({
+    address: BN254FromString,
+    leafIndex: number(),
+    merkleTree: PublicKeyFromString,
+    proof: array(BN254FromString), // this is: merkleProofHashedIndexedElementLeaf
+    rootSeq: number(),
+    root: BN254FromString,
+    lowerRangeAddress: BN254FromString, // this is: leafLowerRangeValue.
+    higherRangeAddress: BN254FromString, // this is: leafHigherRangeValue
+    lowElementLeafIndex: BN254FromString, // this is: indexHashedIndexedElementLeaf
+});
+
+/**
+ * @internal
+ */
+const CompressedProofResult = pick({
+    a: array(number()),
+    b: array(number()),
+    c: array(number()),
+});
+
+/**
+ * @internal
+ */
+export const ValidityProofResult = pick({
+    compressedProof: CompressedProofResult,
+    leafIndices: array(number()),
+    leaves: array(BN254FromString),
+    rootIndices: array(number()),
+    roots: array(BN254FromString),
+    merkleTrees: array(PublicKeyFromString),
+    // TODO: enable nullifierQueues
+    // nullifierQueues: array(PublicKeyFromString),
 });
 
 /**

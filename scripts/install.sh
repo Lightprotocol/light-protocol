@@ -117,8 +117,8 @@ JQ_VERSION="jq-1.7.1"
 CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
 LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
-PHOTON_VERSION="0.18.0"
-PHOTON_BRANCH="nullify"
+PHOTON_VERSION="0.21.0"
+PHOTON_BRANCH=""
 
 case "${OS}" in
     "Darwin")
