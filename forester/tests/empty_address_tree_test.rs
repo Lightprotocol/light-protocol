@@ -69,20 +69,20 @@ async fn empty_address_tree_test() {
     )
     .await;
     env.execute_rounds().await;
-    assert_ne!(get_state_queue_length(&config), 0);
+    assert_ne!(get_state_queue_length(&config).await, 0);
     info!(
         "Address merkle tree: nullifying queue of {} accounts...",
-        get_state_queue_length(&config)
+        get_state_queue_length(&config).await
     );
 
-    let mut rpc = SolanaRpcConnection::new(Some(CommitmentConfig::finalized())).await;
+    let mut rpc = SolanaRpcConnection::new(Some(CommitmentConfig::confirmed())).await;
     let mut indexer = env.indexer;
     let _ = empty_address_queue(&mut rpc, &mut indexer, &config).await;
-    assert_eq!(get_state_queue_length(&config), 0);
+    assert_eq!(get_state_queue_length(&config).await, 0);
 }
 
-fn get_state_queue_length(config: &Config) -> usize {
-    let client = RpcClient::new(SERVER_URL);
-    let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, &client).unwrap();
+async fn get_state_queue_length(config: &Config) -> usize {
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, &mut rpc).await.unwrap();
     queue.len()
 }

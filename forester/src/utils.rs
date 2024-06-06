@@ -29,7 +29,7 @@ pub fn kill_photon() {
 
 pub async fn spawn_test_validator() {
     info!("Starting validator...");
-    let path = "../cli/test_bin/run test-validator --skip-indexer --skip-prover";
+    let path = "../cli/test_bin/run test-validator --skip-prover";
     Command::new("sh")
         .arg("-c")
         .arg(path)

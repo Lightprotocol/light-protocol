@@ -41,6 +41,7 @@ light-utils = { path = "../utils", version = "0.1.4" }
 memoffset = "0.9.1"
 rand = "0.8"
 photon-api = { path = "../photon-api" }
+log = "0.4.21"
 
 [dev-dependencies]
 rand = "0.8"
