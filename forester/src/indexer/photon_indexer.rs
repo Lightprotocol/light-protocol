@@ -3,7 +3,9 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
     Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext,
 };
+use log::info;
 use photon_api::apis::configuration::Configuration;
+use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 
 pub struct PhotonIndexer {
     configuration: Configuration,
@@ -29,10 +31,21 @@ impl Clone for PhotonIndexer {
 }
 
 impl Indexer for PhotonIndexer {
+    async fn get_multiple_compressed_account_proofs_for_forester(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        self.get_multiple_compressed_account_proofs(hashes).await
+    }
+
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
+        info!(
+            "PhotonIndexer: Getting proofs for {} accounts",
+            hashes.len()
+        );
         let request = photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
             params: hashes,
             ..Default::default()
@@ -44,6 +57,7 @@ impl Indexer for PhotonIndexer {
         )
         .await;
 
+
         match result {
             Ok(response) => {
                 match response.result {
@@ -53,7 +67,7 @@ impl Indexer for PhotonIndexer {
                             .iter()
                             .map(|x| {
                                 let mut proof_result_value = x.proof.clone();
-                                proof_result_value.truncate(proof_result_value.len() - 1); // Remove root
+                                // proof_result_value.truncate(proof_result_value.len() - 1); // Remove root
                                 proof_result_value.truncate(proof_result_value.len() - 10); // Remove canopy
                                 let proof: Vec<[u8; 32]> =
                                     proof_result_value.iter().map(|x| decode_hash(x)).collect();
@@ -74,6 +88,37 @@ impl Indexer for PhotonIndexer {
             }
             Err(e) => Err(IndexerError::Custom(e.to_string())),
         }
+    }
+
+    async fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<String>, IndexerError> {
+        let request = photon_api::models::GetCompressedAccountsByOwnerPostRequest {
+            params: Box::from(GetCompressedAccountsByOwnerPostRequestParams {
+                cursor: None,
+                limit: None,
+                owner: owner.to_string(),
+            }),
+            ..Default::default()
+        };
+
+        let result = photon_api::apis::default_api::get_compressed_accounts_by_owner_post(
+            &self.configuration,
+            request,
+        )
+        .await
+        .unwrap();
+
+        // info!("PhotonIndexer: Got response: {:?}", result);
+
+        let accs = result.result.unwrap().value;
+        let mut hashes = Vec::new();
+        for acc in accs.items {
+            hashes.push(acc.hash);
+        }
+
+        Ok(hashes)
     }
 
     fn get_address_tree_proof(

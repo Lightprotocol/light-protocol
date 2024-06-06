@@ -489,6 +489,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     .await;
 }
 
+#[cfg(feature = "cpi_context")]
 pub async fn init_cpi_context_account<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,

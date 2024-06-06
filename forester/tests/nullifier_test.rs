@@ -4,6 +4,8 @@ use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
 use forester::utils::u8_arr_to_hex_string;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
@@ -32,8 +34,10 @@ fn test_config() -> Config {
 #[ignore]
 async fn queue_info_test() {
     let config = test_config();
-    let client = RpcClient::new(config.server_url);
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &client).unwrap();
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut rpc)
+        .await
+        .unwrap();
     info!("Nullifier queue length: {}", queue.len());
 }
 
@@ -84,15 +88,15 @@ async fn tree_info_test() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_nullify_leaves() {
-    let indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+    let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
-    let client = RpcClient::new(SERVER_URL);
-    client
-        .request_airdrop(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .unwrap();
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let _ = rpc
+        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await;
 
     let time = std::time::Instant::now();
-    match nullify(indexer, &config).await {
+    match nullify(&mut indexer, &mut rpc, &config).await {
         Ok(_) => {
             info!("Nullify completed");
             info!("Total time elapsed: {:?}", time.elapsed());
@@ -107,9 +111,9 @@ async fn test_nullify_leaves() {
 #[ignore]
 async fn test_subscribe_nullify() {
     let config = test_config();
-    let client = RpcClient::new(SERVER_URL);
-    client
-        .request_airdrop(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .unwrap();
-    subscribe_nullify(&config).await;
+    let mut rpc = SolanaRpcConnection::new(None).await;
+    let _ = rpc
+        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await;
+    subscribe_nullify(&config, &mut rpc).await;
 }

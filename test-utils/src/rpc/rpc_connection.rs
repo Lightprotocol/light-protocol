@@ -16,7 +16,7 @@ pub trait RpcConnection {
         authority: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> impl std::future::Future<Output = Result<Option<T>, RpcError>> + Send
+    ) -> impl std::future::Future<Output = Result<Option<(T, Signature)>, RpcError>> + Send
     where
         T: AnchorDeserialize + Send + Debug;
 
@@ -37,6 +37,7 @@ pub trait RpcConnection {
         &mut self,
         address: Pubkey,
     ) -> impl std::future::Future<Output = Result<Option<Account>, RpcError>> + Send;
+
     fn set_account(&mut self, address: &Pubkey, account: &AccountSharedData);
 
     fn get_minimum_balance_for_rent_exemption(
