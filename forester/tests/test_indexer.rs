@@ -325,6 +325,9 @@ async fn test_photon_interop() {
     env.transfer_sol(user_index).await;
     // TODO: wait for photon to index
 
+    // addres...
+    env.create_address().await;
+
     {
         // print all users
         for user in &env.users {
