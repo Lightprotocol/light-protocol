@@ -45,8 +45,8 @@ describe('rpc-interop token', () => {
         charlie = await newAccountWithLamports(rpc, 1e9, 256);
 
         await mintTo(rpc, payer, mint, bob.publicKey, mintAuthority, bn(1000));
-
-        await transfer(rpc, payer, mint, bn(700), bob, charlie.publicKey);
+        /// TODO: replace for Rpc once 'getValidityProof' in Photon is working.
+        await transfer(testRpc, payer, mint, bn(700), bob, charlie.publicKey);
     });
 
     it('getCompressedTokenAccountsByOwner should match', async () => {
