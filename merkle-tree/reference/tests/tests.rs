@@ -386,3 +386,17 @@ fn test_update_poseidon() {
 fn test_update_sha256() {
     update::<Sha256>()
 }
+
+#[test]
+fn test_sequence_number() {
+    let mut merkle_tree = MerkleTree::<Poseidon>::new(4, 0);
+    assert_eq!(merkle_tree.sequence_number, 0);
+
+    let leaf1 = Poseidon::hash(&[1u8; 32]).unwrap();
+    merkle_tree.append(&leaf1).unwrap();
+    assert_eq!(merkle_tree.sequence_number, 1);
+
+    let leaf2 = Poseidon::hash(&[2u8; 32]).unwrap();
+    merkle_tree.update(&leaf2, 0).unwrap();
+    assert_eq!(merkle_tree.sequence_number, 2);
+}

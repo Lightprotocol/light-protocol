@@ -27,6 +27,7 @@ where
     pub layers: Vec<Vec<[u8; 32]>>,
     pub roots: Vec<[u8; 32]>,
     pub rightmost_index: usize,
+    pub sequence_number: usize,
 
     _hasher: PhantomData<H>,
 }
@@ -43,6 +44,7 @@ where
             layers: vec![Vec::new(); height],
             roots: vec![H::zero_bytes()[height]],
             rightmost_index: 0,
+            sequence_number: 0,
 
             _hasher: PhantomData,
         }
@@ -97,6 +99,8 @@ where
 
         self.update_upper_layers(i)?;
 
+        self.sequence_number += 1;
+
         Ok(())
     }
 
@@ -110,6 +114,8 @@ where
             .ok_or(ReferenceMerkleTreeError::LeafDoesNotExist(leaf_index))? = *leaf;
 
         self.update_upper_layers(leaf_index)?;
+
+        self.sequence_number += 1;
 
         Ok(())
     }
