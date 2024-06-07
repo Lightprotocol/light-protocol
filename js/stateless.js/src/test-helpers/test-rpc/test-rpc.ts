@@ -519,7 +519,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /// TODO: remove once photon 'getValidityProof' is fixed
-    async getValidityProofDebug(
+    async getValidityProof_direct(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
