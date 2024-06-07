@@ -41,7 +41,7 @@ pub async fn spawn_test_validator_with_indexer() {
 
 pub async fn spawn_test_validator() {
     println!("Starting validator...");
-    let path = "../../cli/test_bin/run test-validator --skip-indexer --skip-prover";
+    let path = "../cli/test_bin/run test-validator --skip-indexer --skip-prover";
     Command::new("sh")
         .arg("-c")
         .arg(path)

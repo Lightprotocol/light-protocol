@@ -138,6 +138,7 @@ pub struct TokenDataWithContext {
 impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> Indexer
     for TestIndexer<INDEXED_ARRAY_SIZE, R>
 {
+    
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
@@ -167,48 +168,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
                 }
             })
         });
-        Ok(proofs)
-    }
-
-
-    // This is assuming that the test RPC moves the spent accounts out of compressed_accounts array to nullified_compressed_accounts array
-    // before these accounts will actually be nullified
-    async fn get_multiple_compressed_account_proofs_for_forester(
-        &self,
-        hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError> {
-        let mut proofs: Vec<MerkleProof> = Vec::new();
-        let matching_hashes_count = self.count_matching_hashes(&hashes);
-        if matching_hashes_count == 0 {
-            return Err(IndexerError::Custom("No matching hashes found".to_string()));
-        }
-        for account in self.nullified_compressed_accounts.lock().unwrap().iter() {
-            let hash = account
-                .compressed_account
-                .hash::<Poseidon>(
-                    &account.merkle_context.merkle_tree_pubkey,
-                    &account.merkle_context.leaf_index,
-                )
-                .unwrap();
-            let bs58_hash = bs58::encode(hash).into_string();
-            if hashes.contains(&bs58_hash) {
-                let state_tree_bundle = self
-                    .state_merkle_trees
-                    .iter()
-                    .find(|x| x.accounts.merkle_tree == account.merkle_context.merkle_tree_pubkey)
-                    .unwrap();
-                if let Some(leaf_index) = state_tree_bundle.merkle_tree.get_leaf_index(&hash) {
-                    let proof = state_tree_bundle
-                        .merkle_tree
-                        .get_proof_of_leaf(leaf_index, false)
-                        .unwrap();
-                    proofs.push(MerkleProof {
-                        hash: bs58_hash,
-                        leaf_index: account.merkle_context.leaf_index,
-                        merkle_tree: account.merkle_context.merkle_tree_pubkey.to_string(),
-                        proof: proof.to_vec(),
-                        root_seq: self.events.len() as i64,
-                    });
         Ok(proofs)
     }
 

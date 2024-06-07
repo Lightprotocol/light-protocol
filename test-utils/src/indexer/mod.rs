@@ -18,11 +18,6 @@ use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as
 use thiserror::Error;
 
 pub trait Indexer: Sync + Send + 'static {
-    fn get_multiple_compressed_account_proofs_for_forester(
-        &self,
-        hashes: Vec<String>,
-    ) -> impl std::future::Future<Output = Result<Vec<MerkleProof>, IndexerError>> + Send + Sync;
-
     fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,

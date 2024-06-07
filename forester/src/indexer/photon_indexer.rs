@@ -31,13 +31,6 @@ impl Clone for PhotonIndexer {
 }
 
 impl Indexer for PhotonIndexer {
-    async fn get_multiple_compressed_account_proofs_for_forester(
-        &self,
-        hashes: Vec<String>,
-    ) -> Result<Vec<MerkleProof>, IndexerError> {
-        self.get_multiple_compressed_account_proofs(hashes).await
-    }
-
     async fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,

@@ -178,7 +178,7 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
         .collect::<Vec<_>>();
 
     let proofs = indexer
-        .get_multiple_compressed_account_proofs_for_forester(compressed_account_list.clone())
+        .get_multiple_compressed_account_proofs(compressed_account_list.clone())
         .await
         .map_err(|e| {
             warn!("Cannot get multiple proofs: {:#?}", e);
