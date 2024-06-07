@@ -3,7 +3,7 @@ use env_logger::Env;
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, Config};
-use forester::utils::{spawn_test_validator_with_indexer, spawn_test_validator};
+use forester::utils::{spawn_test_validator, spawn_test_validator_with_indexer};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::{Indexer, TestIndexer};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -233,7 +233,6 @@ async fn assert_accounts_by_owner(
     }
 }
 
-
 async fn assert_account_proofs_for_photon_and_test_indexer(
     env: &E2ETestEnv<500, SolanaRpcConnection>,
     user_pubkey: &Pubkey,
@@ -289,7 +288,6 @@ async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) 
     queue.len()
 }
 
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
@@ -310,35 +308,32 @@ async fn test_photon_interop() {
         },
         0,
         Some(1),
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
 
     let photon_indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+
+    for user in &env.users {
+        info!("User: {}", user.keypair.pubkey().to_string());
+    }
+
     let user_index = 0;
 
-    // If user has no spl balance it receives an airdrop
     env.transfer_sol(user_index).await;
+
     // Nullifies alls tx in queue with probability 1, also empties the queue with probability 1
     env.activate_general_actions().await;
-    // TODO: wait for photon to index
-    env.transfer_sol(user_index).await;
-    // TODO: wait for photon to index
 
-    // addres...
+    // wait for photon to index
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    env.transfer_sol(user_index).await;
+
+    // wait for photon to index
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
     env.create_address().await;
 
-    {
-        // print all users
-        for user in &env.users {
-            info!("User: {}", user.keypair.pubkey().to_string());
-        }
-        let alice = &mut env.users[0];
-        assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-    }
-    // {
-    //     let bob = &mut env.users[1];
-    //     assert_accounts_by_owner(&mut env.indexer, bob, &photon_indexer).await;
-
-    // }
+    assert_accounts_by_owner(&mut env.indexer, &env.users[0], &photon_indexer).await;
 }

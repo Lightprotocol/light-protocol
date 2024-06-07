@@ -9,7 +9,6 @@ use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_macros::pubkey;
 use light_registry::sdk::{
     create_initialize_governance_authority_instruction,

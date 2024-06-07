@@ -1,6 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::{ProgramTestRpcConnection, SolanaRpcConnection};
 use light_test_utils::test_env::{get_test_env_accounts, setup_test_programs_with_accounts};
@@ -78,7 +77,6 @@ async fn test_10000_all() {
     env.execute_rounds().await;
 }
 
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop() {
     spawn_test_validator_with_indexer().await;
@@ -120,5 +118,4 @@ async fn test_photon_interop() {
     env.activate_general_actions().await;
     // TODO: wait for photon to index
     env.create_address().await;
-
 }
