@@ -709,7 +709,7 @@ where
         self.stats.sol_compress += 1;
     }
 
-    pub async fn create_address(&mut self) {
+    pub async fn create_address(&mut self) -> Vec<Pubkey> {
         println!("\n --------------------------------------------------\n\t\t Create Address\n --------------------------------------------------");
         // select number of addresses to create
         let num_addresses = self.rng.gen_range(1..=2);
@@ -720,10 +720,13 @@ where
         info!("address_merkle_tree_pubkeys: {:?}", address_merkle_tree_pubkeys);
         info!("address_queue_pubkeys: {:?}", address_queue_pubkeys);
         let mut address_seeds = Vec::new();
+        let mut created_addresses = Vec::new();
         for _ in 0..num_addresses {
             let address_seed: [u8; 32] =
                 bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
-            address_seeds.push(address_seed)
+            address_seeds.push(address_seed);
+            // Assuming the address is derived from the seed for simplicity
+            created_addresses.push(Pubkey::new(&address_seed));
         }
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
 
@@ -749,6 +752,7 @@ where
         .await
         .unwrap();
         self.stats.create_address += num_addresses;
+        created_addresses
     }
 
     pub async fn transfer_spl(&mut self, user_index: usize) {

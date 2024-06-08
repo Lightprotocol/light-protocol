@@ -364,6 +364,18 @@ async fn test_photon_interop() {
 
     // Insert value into address queue
     info!("Creating address");
-    env.create_address().await;
+    let created_addresses = env.create_address().await;
+
+
+    // TODO: once Photon implements the get_multiple_new_address_proofs
+    // endpoint, adapt the method name and signature, fetch the exclusion proof
+    // from photon and assert that the proof is the same
+    let trees = env.get_address_merkle_tree_pubkeys(1).0;
+    let address_proof = env.indexer
+    .get_address_tree_proof(trees[0].to_bytes(), created_addresses[0].to_bytes())
+    .unwrap();
+
+    info!("NewAddress proof test-indexer: {:?}", address_proof);
+
 
 }
