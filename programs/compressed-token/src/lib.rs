@@ -7,6 +7,7 @@ pub mod spl_compression;
 pub use process_mint::*;
 pub use process_transfer::*;
 pub mod token_data;
+pub use token_data::TokenData;
 
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
 
@@ -18,9 +19,6 @@ solana_security_txt::security_txt! {
     policy: "https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol"
 }
-
-#[constant]
-pub const PROGRAM_ID: &str = "HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN";
 
 #[program]
 pub mod light_compressed_token {
@@ -58,6 +56,18 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         process_transfer::process_transfer(ctx, inputs)
     }
+
+    /// This function is a stub to allow Anchor to include the input types in
+    /// the IDL. It should not be included in production builds nor be called in
+    /// practice.
+    #[cfg(feature = "idl-build")]
+    pub fn stub_idl_build<'info>(
+        _ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        _inputs1: CompressedTokenInstructionDataTransfer,
+        _inputs2: TokenData,
+    ) -> Result<()> {
+        Err(ErrorCode::InstructionNotCallable.into())
+    }
 }
 
 #[error_code]
@@ -94,4 +104,6 @@ pub enum ErrorCode {
     SplTokenSupplyMismatch,
     #[msg("HeapMemoryCheckFailed")]
     HeapMemoryCheckFailed,
+    #[msg("The instruction is not callable")]
+    InstructionNotCallable,
 }

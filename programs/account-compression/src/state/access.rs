@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, Debug, PartialEq)]
 pub struct AccessMetadata {
     /// Owner of the Merkle tree.
     pub owner: Pubkey,

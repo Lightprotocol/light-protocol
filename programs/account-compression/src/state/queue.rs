@@ -10,7 +10,7 @@ use light_hash_set::{zero_copy::HashSetZeroCopy, HashSet};
 use std::mem;
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
+#[derive(AnchorDeserialize, Debug, PartialEq)]
 pub struct QueueMetadata {
     pub access_metadata: AccessMetadata,
     pub rollover_metadata: RolloverMetadata,
@@ -67,8 +67,8 @@ impl QueueMetadata {
     }
 }
 
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq)]
 #[account(zero_copy)]
+#[derive(AnchorDeserialize, Debug, PartialEq)]
 #[aligned_sized(anchor)]
 pub struct QueueAccount {
     pub metadata: QueueMetadata,

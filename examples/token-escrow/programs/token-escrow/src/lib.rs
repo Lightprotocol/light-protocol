@@ -25,7 +25,10 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 #[program]
 pub mod token_escrow {
 
-    use self::escrow_with_compressed_pda::withdrawal::process_withdraw_compressed_tokens_with_compressed_pda;
+    use self::{
+        escrow_with_compressed_pda::withdrawal::process_withdraw_compressed_tokens_with_compressed_pda,
+        escrow_with_pda::withdrawal::process_withdraw_compressed_escrow_tokens_with_pda,
+    };
 
     use super::*;
 

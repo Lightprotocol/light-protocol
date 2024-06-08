@@ -22,10 +22,8 @@ fi
 # Extract types
 PDA_TYPES=$(jq '.types' "$PDA_FILE")
 TOKEN_TYPES=$(jq '.types' "$TOKEN_FILE")
-
-# Merge types
-MERGED_TYPES=$(jq -s '.[0] + .[1]' <(echo "$PDA_TYPES") <(echo "$TOKEN_TYPES"))
-
+# Merge types and deduplicate
+MERGED_TYPES=$(jq -s 'add | unique_by(.name)' <(echo "$PDA_TYPES") <(echo "$TOKEN_TYPES"))
 # Generate TS content
 MERGED_CONTENT=$(jq --argjson types "$MERGED_TYPES" '.types = $types' "$TOKEN_FILE")
 

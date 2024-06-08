@@ -13,7 +13,7 @@ use crate::{AccessMetadata, MerkleTreeMetadata, RolloverMetadata};
 /// Concurrent state Merkle tree used for public compressed transactions.
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(AnchorDeserialize, Debug)]
 pub struct StateMerkleTreeAccount {
     pub metadata: MerkleTreeMetadata,
 }

@@ -162,13 +162,147 @@ export type LightSystemProgram = {
                 },
             ];
         },
+        {
+            name: 'stubIdlBuild';
+            docs: [
+                'This function is a stub to allow Anchor to include the input types in',
+                'the IDL. It should not be included in production builds nor be called in',
+                'practice.',
+            ];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'solPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'decompressionRecipient';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs1';
+                    type: {
+                        defined: 'InstructionDataInvoke';
+                    };
+                },
+                {
+                    name: 'inputs2';
+                    type: {
+                        defined: 'InstructionDataInvokeCpi';
+                    };
+                },
+                {
+                    name: 'inputs3';
+                    type: {
+                        defined: 'PublicTransactionEvent';
+                    };
+                },
+            ];
+        },
     ];
     accounts: [
         {
-            name: 'compressedSolPda';
+            name: 'registeredProgram';
             type: {
                 kind: 'struct';
-                fields: [];
+                fields: [
+                    {
+                        name: 'registeredProgramId';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'groupAuthorityPda';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'stateMerkleTreeAccount';
+            docs: [
+                'Concurrent state Merkle tree used for public compressed transactions.',
+            ];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: 'MerkleTreeMetadata';
+                        };
+                    },
+                    {
+                        name: 'stateMerkleTreeStruct';
+                        docs: ['Merkle tree for the transaction state.'];
+                        type: {
+                            array: ['u8', 272];
+                        };
+                    },
+                    {
+                        name: 'stateMerkleTreeFilledSubtrees';
+                        type: {
+                            array: ['u8', 832];
+                        };
+                    },
+                    {
+                        name: 'stateMerkleTreeChangelog';
+                        type: {
+                            array: ['u8', 1220800];
+                        };
+                    },
+                    {
+                        name: 'stateMerkleTreeRoots';
+                        type: {
+                            array: ['u8', 76800];
+                        };
+                    },
+                    {
+                        name: 'stateMerkleTreeCanopy';
+                        type: {
+                            array: ['u8', 65472];
+                        };
+                    },
+                ];
             };
         },
         {
@@ -201,6 +335,103 @@ export type LightSystemProgram = {
         },
     ];
     types: [
+        {
+            name: 'AccessMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        docs: ['Owner of the Merkle tree.'];
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'programOwner';
+                        docs: [
+                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ];
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleTreeMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'accessMetadata';
+                        type: {
+                            defined: 'AccessMetadata';
+                        };
+                    },
+                    {
+                        name: 'rolloverMetadata';
+                        type: {
+                            defined: 'RolloverMetadata';
+                        };
+                    },
+                    {
+                        name: 'associatedQueue';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nextMerkleTree';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'RolloverMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'index';
+                        docs: ['Unique index.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverFee';
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolloverThreshold';
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'networkFee';
+                        docs: ['Tip for maintaining the account.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledoverSlot';
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'closeThreshold';
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ];
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
         {
             name: 'InstructionDataInvoke';
             type: {
@@ -258,42 +489,6 @@ export type LightSystemProgram = {
             };
         },
         {
-            name: 'OutputCompressedAccountWithContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleTreeIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
             name: 'NewAddressParamsPacked';
             type: {
                 kind: 'struct';
@@ -320,27 +515,19 @@ export type LightSystemProgram = {
             };
         },
         {
-            name: 'NewAddressParams';
+            name: 'OutputCompressedAccountWithPackedContext';
             type: {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'seed';
+                        name: 'compressedAccount';
                         type: {
-                            array: ['u8', 32];
+                            defined: 'CompressedAccount';
                         };
                     },
                     {
-                        name: 'addressQueuePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'addressMerkleTreePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
+                        name: 'merkleTreeIndex';
+                        type: 'u8';
                     },
                 ];
             };
@@ -442,88 +629,17 @@ export type LightSystemProgram = {
             };
         },
         {
-            name: 'PackedCompressedAccountWithMerkleContext';
+            name: 'CompressedCpiContext';
             type: {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
+                        name: 'setContext';
+                        type: 'bool';
                     },
                     {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'PackedMerkleContext';
-                        };
-                    },
-                    {
-                        name: 'rootIndex';
-                        docs: [
-                            'Index of root used in inclusion validity proof.',
-                        ];
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedAccountWithMerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'MerkleContext';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'merkleTreePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nullifierQueuePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedMerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'merkleTreePubkeyIndex';
+                        name: 'cpiContextAccountIndex';
                         type: 'u8';
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
                     },
                 ];
             };
@@ -580,6 +696,53 @@ export type LightSystemProgram = {
                         type: {
                             array: ['u8', 32];
                         };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedCompressedAccountWithMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'PackedMerkleContext';
+                        };
+                    },
+                    {
+                        name: 'rootIndex';
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ];
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'merkleTreePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leafIndex';
+                        type: 'u32';
                     },
                 ];
             };
@@ -670,22 +833,6 @@ export type LightSystemProgram = {
                         type: {
                             option: 'bytes';
                         };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedCpiContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'setContext';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'cpiContextAccountIndex';
-                        type: 'u8';
                     },
                 ];
             };
@@ -831,6 +978,11 @@ export type LightSystemProgram = {
             code: 6027;
             name: 'AppendStateFailed';
             msg: 'AppendStateFailed';
+        },
+        {
+            code: 6028;
+            name: 'InstructionNotCallable';
+            msg: 'The instruction is not callable';
         },
     ];
 };
@@ -999,13 +1151,147 @@ export const IDL: LightSystemProgram = {
                 },
             ],
         },
+        {
+            name: 'stubIdlBuild',
+            docs: [
+                'This function is a stub to allow Anchor to include the input types in',
+                'the IDL. It should not be included in production builds nor be called in',
+                'practice.',
+            ],
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'solPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'decompressionRecipient',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs1',
+                    type: {
+                        defined: 'InstructionDataInvoke',
+                    },
+                },
+                {
+                    name: 'inputs2',
+                    type: {
+                        defined: 'InstructionDataInvokeCpi',
+                    },
+                },
+                {
+                    name: 'inputs3',
+                    type: {
+                        defined: 'PublicTransactionEvent',
+                    },
+                },
+            ],
+        },
     ],
     accounts: [
         {
-            name: 'compressedSolPda',
+            name: 'registeredProgram',
             type: {
                 kind: 'struct',
-                fields: [],
+                fields: [
+                    {
+                        name: 'registeredProgramId',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'groupAuthorityPda',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'stateMerkleTreeAccount',
+            docs: [
+                'Concurrent state Merkle tree used for public compressed transactions.',
+            ],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: 'MerkleTreeMetadata',
+                        },
+                    },
+                    {
+                        name: 'stateMerkleTreeStruct',
+                        docs: ['Merkle tree for the transaction state.'],
+                        type: {
+                            array: ['u8', 272],
+                        },
+                    },
+                    {
+                        name: 'stateMerkleTreeFilledSubtrees',
+                        type: {
+                            array: ['u8', 832],
+                        },
+                    },
+                    {
+                        name: 'stateMerkleTreeChangelog',
+                        type: {
+                            array: ['u8', 1220800],
+                        },
+                    },
+                    {
+                        name: 'stateMerkleTreeRoots',
+                        type: {
+                            array: ['u8', 76800],
+                        },
+                    },
+                    {
+                        name: 'stateMerkleTreeCanopy',
+                        type: {
+                            array: ['u8', 65472],
+                        },
+                    },
+                ],
             },
         },
         {
@@ -1038,6 +1324,103 @@ export const IDL: LightSystemProgram = {
         },
     ],
     types: [
+        {
+            name: 'AccessMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        docs: ['Owner of the Merkle tree.'],
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'programOwner',
+                        docs: [
+                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ],
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleTreeMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'accessMetadata',
+                        type: {
+                            defined: 'AccessMetadata',
+                        },
+                    },
+                    {
+                        name: 'rolloverMetadata',
+                        type: {
+                            defined: 'RolloverMetadata',
+                        },
+                    },
+                    {
+                        name: 'associatedQueue',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nextMerkleTree',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'RolloverMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'index',
+                        docs: ['Unique index.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverFee',
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolloverThreshold',
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'networkFee',
+                        docs: ['Tip for maintaining the account.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledoverSlot',
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'closeThreshold',
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ],
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
         {
             name: 'InstructionDataInvoke',
             type: {
@@ -1097,42 +1480,6 @@ export const IDL: LightSystemProgram = {
             },
         },
         {
-            name: 'OutputCompressedAccountWithContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
             name: 'NewAddressParamsPacked',
             type: {
                 kind: 'struct',
@@ -1159,27 +1506,19 @@ export const IDL: LightSystemProgram = {
             },
         },
         {
-            name: 'NewAddressParams',
+            name: 'OutputCompressedAccountWithPackedContext',
             type: {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'seed',
+                        name: 'compressedAccount',
                         type: {
-                            array: ['u8', 32],
+                            defined: 'CompressedAccount',
                         },
                     },
                     {
-                        name: 'addressQueuePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'addressMerkleTreePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
+                        name: 'merkleTreeIndex',
+                        type: 'u8',
                     },
                 ],
             },
@@ -1283,88 +1622,17 @@ export const IDL: LightSystemProgram = {
             },
         },
         {
-            name: 'PackedCompressedAccountWithMerkleContext',
+            name: 'CompressedCpiContext',
             type: {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
+                        name: 'setContext',
+                        type: 'bool',
                     },
                     {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'PackedMerkleContext',
-                        },
-                    },
-                    {
-                        name: 'rootIndex',
-                        docs: [
-                            'Index of root used in inclusion validity proof.',
-                        ],
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedAccountWithMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'MerkleContext',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'merkleTreePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nullifierQueuePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'merkleTreePubkeyIndex',
+                        name: 'cpiContextAccountIndex',
                         type: 'u8',
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
                     },
                 ],
             },
@@ -1421,6 +1689,53 @@ export const IDL: LightSystemProgram = {
                         type: {
                             array: ['u8', 32],
                         },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedCompressedAccountWithMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'PackedMerkleContext',
+                        },
+                    },
+                    {
+                        name: 'rootIndex',
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ],
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'merkleTreePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'nullifierQueuePubkeyIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leafIndex',
+                        type: 'u32',
                     },
                 ],
             },
@@ -1512,22 +1827,6 @@ export const IDL: LightSystemProgram = {
                         type: {
                             option: 'bytes',
                         },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedCpiContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'setContext',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'cpiContextAccountIndex',
-                        type: 'u8',
                     },
                 ],
             },
@@ -1673,6 +1972,11 @@ export const IDL: LightSystemProgram = {
             code: 6027,
             name: 'AppendStateFailed',
             msg: 'AppendStateFailed',
+        },
+        {
+            code: 6028,
+            name: 'InstructionNotCallable',
+            msg: 'The instruction is not callable',
         },
     ],
 };
