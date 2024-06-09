@@ -77,8 +77,8 @@ async fn empty_address_tree_test() {
         &env_accounts.forester,
         &config,
     )
-    .await
-    .unwrap();
+        .await
+        .unwrap();
     assert_eq!(get_address_queue_length(&config, &mut env.rpc).await, 0);
 }
 

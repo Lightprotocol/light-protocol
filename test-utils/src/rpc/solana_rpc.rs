@@ -267,16 +267,16 @@ impl RpcConnection for SolanaRpcConnection {
             .map_err(RpcError::from)?;
 
         loop {
-            let confirmed = self
-                .client
+        let confirmed = self
+            .client
                 .confirm_transaction_with_commitment(&signature, self.client.commitment())?
-                .value;
-            if confirmed {
+            .value;
+        if confirmed {
                 break;
             }
         }
 
-        Ok(signature)
+            Ok(signature)
     }
 
     async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {

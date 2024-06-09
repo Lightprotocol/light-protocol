@@ -95,50 +95,51 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
             let successful_nullifications = Arc::clone(&successful_nullifications);
             let cancellation_token_clone = cancellation_token.clone();
             let config_clone = config.clone();
-            let _permit = permit;
-            let mut retries = 0;
-            loop {
-                if cancellation_token_clone.is_cancelled() {
-                    info!("Task cancelled for account {}", account.hash_string());
-                    break;
-                }
-                let proof_clone = proof.clone();
-                info!("Nullifying account: {}", account.hash_string());
-                match nullify_compressed_account(
-                    account,
-                    queue_data.change_log_index,
-                    proof_clone,
-                    leaf_index,
-                    &config_clone,
-                    rpc,
-                    indexer,
-                )
-                .await
-                {
-                    Ok(_) => {
-                        let mut successful_nullifications = successful_nullifications.lock().await;
-                        *successful_nullifications += 1;
+            let task = tokio::spawn(async move {
+                let _permit = permit;
+                let mut retries = 0;
+                loop {
+                    if cancellation_token_clone.is_cancelled() {
+                        info!("Task cancelled for account {}", account.hash_string());
                         break;
                     }
-                    Err(e) => {
-                        if retries >= max_retries {
+                    let proof_clone = proof.clone();
+                    info!("Nullifying account: {}", account.hash_string());
+                    match nullify_compressed_account(
+                        account,
+                        queue_data.change_log_index,
+                        proof_clone,
+                        leaf_index,
+                        &config_clone,
+                    rpc,
+                    indexer,
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                        let mut successful_nullifications = successful_nullifications.lock().await;
+                            *successful_nullifications += 1;
+                            break;
+                        }
+                        Err(e) => {
+                            if retries >= max_retries {
+                                warn!(
+                                    "Max retries reached for account {}: {:?}",
+                                    account.hash_string(),
+                                    e
+                                );
+                                break;
+                            }
+                            retries += 1;
                             warn!(
-                                "Max retries reached for account {}: {:?}",
+                                "Retrying account {} due to error: {:?}",
                                 account.hash_string(),
                                 e
                             );
-                            break;
+                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                         }
-                        retries += 1;
-                        warn!(
-                            "Retrying account {} due to error: {:?}",
-                            account.hash_string(),
-                            e
-                        );
-                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
-            }
         } else {
             warn!("No proof found for account: {}", account.hash_string());
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -233,9 +234,9 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
 
     let signature = rpc
         .create_and_send_transaction(
-            &instructions,
+        &instructions,
             &config.payer_keypair.pubkey(),
-            &[&config.payer_keypair],
+        &[&config.payer_keypair],
         )
         .await;
     info!("Transaction: {:?}", signature);
