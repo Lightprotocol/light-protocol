@@ -84,7 +84,7 @@ jobs:
           IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            if [ "$subtest" == "cargo-test-sbf -p token-escrow -- --test-threads=1" ]; then
+            if [ "$subtest" == "cargo-test-sbf --features cpi-context -p token-escrow -- --test-threads=1" ]; then
               anchor build --program-name light_system_program -- --features cpi-context
               anchor build --program-name light_compressed_token -- --features cpi-context
             fi
