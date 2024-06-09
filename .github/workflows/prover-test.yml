@@ -9,7 +9,7 @@ on:
       - ".github/workflows/prover-release.yml"
   pull_request:
     branches:
-      - main
+      - "*"
     paths:
       - "gnark-prover/**"
       - ".github/workflows/prover-test.yml"

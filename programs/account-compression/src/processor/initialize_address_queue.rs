@@ -6,14 +6,6 @@ use crate::{
     AccessMetadata, QueueType, RolloverMetadata,
 };
 
-#[derive(Accounts)]
-pub struct InitializeAddressQueue<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(zero)]
-    pub queue: AccountLoader<'info, QueueAccount>,
-}
-
 pub fn process_initialize_address_queue<'info>(
     queue_account_info: &AccountInfo<'info>,
     queue_loader: &AccountLoader<'info, QueueAccount>,
@@ -32,8 +24,9 @@ pub fn process_initialize_address_queue<'info>(
     {
         let mut address_queue = queue_loader.load_init()?;
 
-        // Since user doesn't interact with the Merkle tree directly, we need
-        // to charge a `rollover_fee` both for the queue and Merkle tree.
+        // Since the user doesn't interact with the address Merkle tree
+        // directly, we need to charge a `rollover_fee` both for the queue and
+        // Merkle tree.
         let queue_rent = queue_account_info.lamports();
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
             compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
@@ -60,14 +53,14 @@ pub fn process_initialize_address_queue<'info>(
         drop(address_queue);
     }
 
-    let _ = unsafe {
+    unsafe {
         queue_from_bytes_zero_copy_init(
             &mut queue_account_info.try_borrow_mut_data()?,
             capacity as usize,
             sequence_threshold as usize,
         )
-        .unwrap()
-    };
+        .map_err(ProgramError::from)?;
+    }
 
     Ok(())
 }

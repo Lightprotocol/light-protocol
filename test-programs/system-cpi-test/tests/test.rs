@@ -168,7 +168,7 @@ async fn only_test_create_pda() {
     )
     .await
     .unwrap();
-    #[cfg(feature = "cpi_context")]
+    #[cfg(feature = "cpi-context")]
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();

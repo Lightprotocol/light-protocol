@@ -510,7 +510,7 @@ async fn test_invalid_registered_program() {
             low_address_next_value: [0u8; 32],
             low_address_value: [0u8; 32],
         };
-        let accounts = light_registry::accounts::UpdateMerkleTree {
+        let accounts = light_registry::accounts::UpdateAddressMerkleTree {
             authority: rpc.get_payer().pubkey(),
             registered_program_pda: register_program_pda,
             queue: invalid_group_address_queue.pubkey(),
