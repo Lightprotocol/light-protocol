@@ -31,16 +31,18 @@ pub mod light_system_program {
     use super::*;
 
     pub fn init_cpi_context_account(_ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
-        unimplemented!("CPI context is not enabled");
+        #[cfg(not(feature = "cpi-context"))]
+        {
+            unimplemented!("CPI context is not enabled");
+        }
 
-        // check that merkle tree is initialized
-        #[cfg(feature = "cpi_context")]
+        #[cfg(feature = "cpi-context")]
         {
             let merkle_tree_account = _ctx.accounts.associated_merkle_tree.load()?;
             merkle_tree_account.load_merkle_tree()?;
             _ctx.accounts
                 .cpi_context_account
-                .init(ctx.accounts.associated_merkle_tree.key());
+                .init(_ctx.accounts.associated_merkle_tree.key());
             Ok(())
         }
     }
