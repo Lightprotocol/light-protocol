@@ -12,7 +12,7 @@ import {
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
 import { Rpc } from '../rpc';
-import { defaultTestStateTreeAccounts } from '../constants';
+
 import { bn } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 

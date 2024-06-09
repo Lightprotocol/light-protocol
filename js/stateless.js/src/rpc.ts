@@ -1052,7 +1052,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * @param newAddresses  Array of BN254 new addresses.
      * @returns             validity proof with context
      */
-    async getValidityProof(
+    async getValidityProof_direct(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
@@ -1200,11 +1200,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     // FIXME: debug photon zkp. For debugging use either
     // testRpc.getValidityProof or rpc.getValidityProof to test against
-    async getValidityProofDebug(
+    async getValidityProof(
         hashes: BN254[] = [],
         _newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-        console.log("log: calling photon 'getValidityProof'");
+        console.log("log [debug]: calling photon 'getValidityProof'");
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
@@ -1223,7 +1223,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
-        console.log(res.result);
+        console.log("log [debug]: 'getValidityProof‘ response", res.result);
         const value: CompressedProofWithContext = {
             compressedProof: res.result.compressedProof,
             merkleTrees: res.result.merkleTrees,

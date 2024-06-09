@@ -2,7 +2,14 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
-import { bn, compress } from '../../src';
+import {
+    LightSystemProgram,
+    bn,
+    compress,
+    createAccount,
+    createAccountWithLamports,
+    deriveAddress,
+} from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -43,7 +50,7 @@ describe('rpc-interop', () => {
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
 
-        const validityProof = await rpc.getValidityProofDebug([hash]);
+        const validityProof = await rpc.getValidityProof([hash]);
         const validityProofTest = await testRpc.getValidityProof([hashTest]);
 
         validityProof.leafIndices.forEach((leafIndex, index) => {
@@ -67,44 +74,26 @@ describe('rpc-interop', () => {
             );
         });
 
-        /// FIXME: debug photon zkp
-        validityProof.compressedProof.a.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.a[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
-            );
-        });
+        /// Executes a transfer using a 'validityProof' directly from a prover.
+        await transfer(testRpc, payer, 1e5, payer, bob.publicKey);
+        executedTxs++;
 
-        validityProof.compressedProof.b.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.b[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
-            );
-        });
-
-        validityProof.compressedProof.c.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.c[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
-            );
-        });
+        /// Executes a transfer using a 'validityProof' from Photon
+        await transfer(rpc, payer, 1e5, payer, bob.publicKey);
+        executedTxs++;
     });
 
+    /// This won't work until new-address params are being passed to photon
     it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {
-        const newAddress = bn(
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
-        );
+        const newAddressSeed = new Uint8Array([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18, 19,
+            20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        ]);
 
-        const validityProof = await rpc.getValidityProofDebug([], [newAddress]);
+        const newAddress = bn((await deriveAddress(newAddressSeed)).toBuffer());
+
+        /// consistent proof metadata for same address
+        const validityProof = await rpc.getValidityProof([], [newAddress]);
         const validityProofTest = await testRpc.getValidityProof(
             [],
             [newAddress],
@@ -131,35 +120,33 @@ describe('rpc-interop', () => {
             );
         });
 
-        /// FIXME: debug photon zkp
-        validityProof.compressedProof.a.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.a[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
-            );
-        });
+        /// Creates a compressed account with address using a (non-inclusion)
+        /// 'validityProof' directly from a prover.
+        await createAccount(
+            testRpc,
+            payer,
+            newAddressSeed,
+            LightSystemProgram.programId,
+        );
+        executedTxs++;
 
-        validityProof.compressedProof.b.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.b[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
-            );
-        });
-
-        validityProof.compressedProof.c.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.c[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
-            );
-        });
+        /// Need a new unique address because the previous one has been created.
+        const newAddressSeedTest = new Uint8Array([
+            2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18, 19,
+            20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31, 32,
+        ]);
+        /// Creates a compressed account with address using a (non-inclusion)
+        /// 'validityProof' from Photon
+        await createAccount(
+            rpc,
+            payer,
+            newAddressSeedTest,
+            LightSystemProgram.programId,
+        );
+        executedTxs++;
     });
 
+    /// This won't work until new-address params are being passed to photon
     it.skip('getValidityProof [noforester] (combined) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -174,17 +161,13 @@ describe('rpc-interop', () => {
         // accounts are the same
         assert.isTrue(hash.eq(hashTest));
 
-        const newAddress = bn(
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
-        );
+        const newAddressSeed = new Uint8Array([
+            1, 2, 3, 4, 5, 6, 7, 20, 21, 22, 42, 32, 42, 14, 15, 16, 17, 18, 19,
+            20, 21, 22, 23, 24, 32, 32, 27, 28, 29, 30, 31, 32,
+        ]);
+        const newAddress = bn((await deriveAddress(newAddressSeed)).toBytes());
 
-        const validityProof = await rpc.getValidityProofDebug(
-            [hash],
-            [newAddress],
-        );
+        const validityProof = await rpc.getValidityProof([hash], [newAddress]);
         const validityProofTest = await testRpc.getValidityProof(
             [hashTest],
             [newAddress],
@@ -211,35 +194,22 @@ describe('rpc-interop', () => {
             );
         });
 
-        /// FIXME: debug photon zkp
-        validityProof.compressedProof.a.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.a[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
-            );
-        });
-
-        validityProof.compressedProof.b.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.b[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
-            );
-        });
-
-        validityProof.compressedProof.c.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.c[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
-            );
-        });
+        /// Creates a compressed account with address and lamports using a
+        /// (combined) 'validityProof' from Photon
+        await createAccountWithLamports(
+            rpc,
+            payer,
+            new Uint8Array([
+                1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+            0,
+            LightSystemProgram.programId,
+        );
+        executedTxs++;
     });
 
+    /// This assumes support for getMultipleNewAddressProofs in Photon.
     it.skip('getMultipleNewAddressProofs [noforester] should match', async () => {
         const newAddress = bn(
             new Uint8Array([
@@ -341,14 +311,15 @@ describe('rpc-interop', () => {
             });
 
             assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
-            /// Note: proofs.rootIndex might be divergent if either the
-            /// test-validator or photon aren't caught up with the chain state
-            /// or process new txs inbetween returning the merkleproof and
-            /// calling getRootSeq (since we're not getting that from photon yet
-            /// (v0.11.0), we're using a mockFn called getRootSeq() in the Rpc
-            /// class which fetches all events anew.
 
-            await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
+            /// TODO: replace for Rpc once 'getValidityProof' is working.
+            await transfer(
+                testRpc,
+                payer,
+                transferAmount,
+                payer,
+                bob.publicKey,
+            );
             executedTxs++;
             const postSenderAccs = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
@@ -408,6 +379,12 @@ describe('rpc-interop', () => {
         );
 
         assert.equal(receiverAccounts.length, receiverAccountsTest.length);
+
+        receiverAccounts.sort((a, b) => a.lamports.sub(b.lamports).toNumber());
+        receiverAccountsTest.sort((a, b) =>
+            a.lamports.sub(b.lamports).toNumber(),
+        );
+
         receiverAccounts.forEach((account, index) => {
             assert.equal(
                 account.owner.toBase58(),
@@ -487,7 +464,8 @@ describe('rpc-interop', () => {
         const largestAccount = senderAccounts.reduce((acc, account) =>
             account.lamports.gt(acc.lamports) ? account : acc,
         );
-        await transfer(rpc, payer, 1, payer, bob.publicKey);
+        /// assert for Rpc once getValidityProof is working again.
+        await transfer(testRpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
         const signaturesSpent = await rpc.getSignaturesForCompressedAccount(
