@@ -72,13 +72,13 @@ async fn test_program_owned_merkle_tree() {
         vec![amount; 1],
         vec![recipient_keypair.pubkey(); 1],
     );
-    let pre_merkle_tree = get_concurrent_merkle_tree::<
-        StateMerkleTreeAccount,
-        ProgramTestRpcConnection,
-        Poseidon,
-        26,
-    >(&mut rpc, program_owned_merkle_tree_pubkey)
-    .await;
+    let pre_merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut rpc, program_owned_merkle_tree_pubkey)
+            .await;
+    let pre_merkle_tree = pre_merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
     let event = rpc
         .create_and_send_transaction_with_event(
             &[instruction],
@@ -95,14 +95,14 @@ async fn test_program_owned_merkle_tree() {
         .await
         .unwrap()
         .unwrap();
-    let post_merkle_tree = get_concurrent_merkle_tree::<
-        StateMerkleTreeAccount,
-        ProgramTestRpcConnection,
-        Poseidon,
-        26,
-    >(&mut rpc, program_owned_merkle_tree_pubkey)
-    .await;
-    test_indexer.add_compressed_accounts_with_token_data(&event);
+    let post_merkle_tree_account =
+        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut rpc, program_owned_merkle_tree_pubkey)
+            .await;
+    let post_merkle_tree = post_merkle_tree_account
+        .deserialized()
+        .copy_merkle_tree()
+        .unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(&event.0);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),
@@ -343,8 +343,8 @@ async fn test_invalid_registered_program() {
             &payer.pubkey(),
             size,
             rpc.get_minimum_balance_for_rent_exemption(size)
-                .await
-                .unwrap(),
+            .await
+            .unwrap(),
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );
@@ -414,8 +414,8 @@ async fn test_invalid_registered_program() {
             &payer.pubkey(),
             size,
             rpc.get_minimum_balance_for_rent_exemption(size)
-                .await
-                .unwrap(),
+            .await
+            .unwrap(),
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );

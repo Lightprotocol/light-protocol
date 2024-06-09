@@ -1,7 +1,7 @@
 use env_logger::Env;
 use forester::constants::SERVER_URL;
 use forester::nullifier::{get_nullifier_queue, nullify, Config};
-use forester::utils::{get_rpc_client_confirmed, spawn_test_validator};
+use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -12,7 +12,7 @@ use solana_sdk::signature::{Keypair, Signer};
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_indexer() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    spawn_test_validator().await;
+    spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let config = Config {
@@ -50,20 +50,18 @@ async fn test_indexer() {
         env.transfer_sol(user_index).await;
     }
 
-    let indexer = env.indexer;
-
-    assert_ne!(get_state_queue_length(&config), 0);
+    assert_ne!(get_state_queue_length(&mut env.rpc, &config).await, 0);
     info!(
         "Nullifying queue of {} accounts...",
-        get_state_queue_length(&config)
+        get_state_queue_length(&mut env.rpc, &config).await
     );
-    nullify(indexer, &config).await.unwrap();
-    assert_eq!(get_state_queue_length(&config), 0);
+    let _ = nullify(&mut env.indexer, &mut env.rpc, &config).await;
+    assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
 }
 
-fn get_state_queue_length(config: &Config) -> usize {
-    let client = get_rpc_client_confirmed();
-
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &client).unwrap();
+async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) -> usize {
+    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc)
+        .await
+        .unwrap();
     queue.len()
 }

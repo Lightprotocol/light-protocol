@@ -6,15 +6,13 @@ use light_test_utils::test_env::{get_test_env_accounts, setup_test_programs_with
 use std::process::Command;
 
 async fn spawn_test_validator() {
-    println!("Starting validator...");
-    let path = "../../cli/test_bin/run test-validator --skip-indexer --skip-prover";
+    let path = "../../cli/test_bin/run test-validator --skip-indexer --skip-prover --skip-forester";
     Command::new("sh")
         .arg("-c")
         .arg(path)
         .spawn()
         .expect("Failed to start server process");
     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-    println!("Validator started successfully");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

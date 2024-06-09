@@ -510,8 +510,9 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
     .await;
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[payer], None)
-        .await?;
-    test_indexer.add_compressed_accounts_with_token_data(&event.unwrap());
+        .await?
+        .unwrap();
+    test_indexer.add_compressed_accounts_with_token_data(&event.0);
     Ok(())
 }
 

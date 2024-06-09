@@ -914,7 +914,7 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
-    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event);
+    let (created_compressed_accounts, _) = test_indexer.add_event_and_compressed_accounts(&event.0);
     assert_created_compressed_accounts(
         output_compressed_accounts.as_slice(),
         output_merkle_tree_pubkeys.as_slice(),
@@ -1046,7 +1046,7 @@ async fn invoke_test() {
         .await
         .unwrap()
         .unwrap();
-    test_indexer.add_event_and_compressed_accounts(&event);
+    test_indexer.add_event_and_compressed_accounts(&event.0);
 
     println!("Double spend -------------------------");
     let output_compressed_accounts = vec![CompressedAccount {
