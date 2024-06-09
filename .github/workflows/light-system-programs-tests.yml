@@ -10,7 +10,7 @@ on:
       - ".github/workflows/light-system-programs-tests.yml"
   pull_request:
     branches:
-      - main
+      - "*"
     paths:
       - "programs/**"
       - "test-programs/**"
