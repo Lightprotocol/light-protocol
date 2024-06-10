@@ -2944,6 +2944,7 @@ name = "light-bounded-vec"
 version = "0.1.4"
 dependencies = [
  "bytemuck",
+ "memoffset 0.9.1",
  "solana-program",
  "thiserror",
 ]

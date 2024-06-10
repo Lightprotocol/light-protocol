@@ -2,9 +2,11 @@ use std::{
     alloc::{self, handle_alloc_error, Layout},
     fmt, mem,
     ops::{Index, IndexMut},
+    ptr::{self, NonNull},
     slice::{self, Iter, IterMut, SliceIndex},
 };
 
+use memoffset::span_of;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -35,43 +37,84 @@ impl From<BoundedVecError> for solana_program::program_error::ProgramError {
     }
 }
 
+/// Bundle of metadata fields associated with [`BoundedVec`](BoundedVec).
+#[derive(Clone, Debug)]
+pub struct BoundedVecMetadata {
+    capacity: usize,
+    length: usize,
+}
+
+impl BoundedVecMetadata {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            length: 0,
+        }
+    }
+
+    pub fn from_ne_bytes(bytes: [u8; mem::size_of::<Self>()]) -> Self {
+        Self {
+            capacity: usize::from_ne_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
+            length: usize::from_ne_bytes(bytes[span_of!(Self, length)].try_into().unwrap()),
+        }
+    }
+
+    pub fn to_ne_bytes(&self) -> [u8; mem::size_of::<Self>()] {
+        let mut bytes = [0u8; mem::size_of::<Self>()];
+        bytes[span_of!(Self, capacity)].copy_from_slice(&self.capacity.to_ne_bytes());
+        bytes[span_of!(Self, length)].copy_from_slice(&self.length.to_ne_bytes());
+
+        bytes
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn length(&self) -> usize {
+        self.length
+    }
+}
+
 /// `BoundedVec` is a custom vector implementation which forbids
-/// post-initialization reallocations. The size is not known during compile
-/// time (that makes it different from arrays), but can be defined only once
-/// (that makes it different from [`Vec`](std::vec::Vec)).
-pub struct BoundedVec<'a, T>
+/// post-initialization reallocations.
+///
+/// The size is not known during compile time (which makes it different from
+/// arrays), but can be defined only once during instantiation.
+pub struct BoundedVec<T>
 where
     T: Clone,
 {
-    capacity: usize,
-    length: usize,
-    data: &'a mut [T],
+    metadata: *mut BoundedVecMetadata,
+    data: NonNull<T>,
 }
 
-impl<'a, T> BoundedVec<'a, T>
+impl<T> BoundedVec<T>
 where
     T: Clone,
 {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
-        let size = mem::size_of::<T>() * capacity;
-        let align = mem::align_of::<T>();
-        // SAFETY: `size` is a multiplication of `capacity`, therefore the
-        // layout is guaranteed to be aligned.
-        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
-
-        // SAFETY: We are handling the null pointer case gracefully.
-        let ptr = unsafe { alloc::alloc(layout) };
-        if ptr.is_null() {
+        let layout = Layout::new::<BoundedVecMetadata>();
+        let metadata = unsafe { alloc::alloc(layout) as *mut BoundedVecMetadata };
+        if metadata.is_null() {
             handle_alloc_error(layout);
         }
-        let data = unsafe { slice::from_raw_parts_mut(ptr as *mut T, capacity) };
-
-        Self {
-            capacity,
-            length: 0,
-            data,
+        unsafe {
+            *metadata = BoundedVecMetadata {
+                capacity,
+                length: 0,
+            };
         }
+
+        let layout = Layout::array::<T>(capacity).unwrap();
+        let data_ptr = unsafe { alloc::alloc(layout) as *mut T };
+        if data_ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+        let data = NonNull::new(data_ptr).unwrap();
+
+        Self { metadata, data }
     }
 
     pub fn from_array<const N: usize>(array: &[T; N]) -> Self {
@@ -94,7 +137,7 @@ where
         vec
     }
 
-    /// Creates a `BoundedVec<T>` directly from a pointer, a capacity, and a length.
+    /// Creates `BoundedVec<T>` directly from pointers.
     ///
     /// # Safety
     ///
@@ -116,14 +159,9 @@ where
     /// * The allocated size in bytes must be no larger than `isize::MAX`.
     ///   See the safety documentation of [`pointer::offset`].
     #[inline]
-    pub unsafe fn from_raw_parts(ptr: *mut T, length: usize, capacity: usize) -> Self {
-        let data = slice::from_raw_parts_mut(ptr, capacity);
-
-        Self {
-            capacity,
-            length,
-            data,
-        }
+    pub unsafe fn from_raw_parts(metadata: *mut BoundedVecMetadata, ptr: *mut T) -> Self {
+        let data = NonNull::new(ptr).unwrap();
+        Self { metadata, data }
     }
 
     /// Returns the total number of elements the vector can hold without
@@ -138,12 +176,24 @@ where
     /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
-        self.capacity
+        // SAFETY: `metadata` is always initialized when `BoundedVec` is
+        // created with the safe `with_capacity` method.
+        //
+        // If it's not initialized by the caller of unsafe `from_raw_parts
+        // method, it's the responsibility and mistake of the caller.
+        unsafe { (*self.metadata).capacity }
     }
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        &self.data[..self.length]
+        // SAFETY: We assume that `data` is initialized and it's certain when
+        // `BoundedVec` was created with the safe `with_capacity` method.
+        unsafe { slice::from_raw_parts(self.data.as_ptr(), self.len()) }
+    }
+
+    #[inline]
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        unsafe { slice::from_raw_parts_mut(self.data.as_ptr(), self.len()) }
     }
 
     /// Appends an element to the back of a collection.
@@ -161,19 +211,24 @@ where
     /// ```
     #[inline]
     pub fn push(&mut self, value: T) -> Result<(), BoundedVecError> {
-        if self.length == self.capacity {
+        if self.len() == self.capacity() {
             return Err(BoundedVecError::Full);
         }
 
-        self.data[self.length] = value;
-        self.length += 1;
+        unsafe { ptr::write(self.data.as_ptr().add(self.len()), value) };
+        self.inc_len();
 
         Ok(())
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.length
+        unsafe { (*self.metadata).length }
+    }
+
+    #[inline]
+    fn inc_len(&mut self) {
+        unsafe { (*self.metadata).length += 1 };
     }
 
     pub fn is_empty(&self) -> bool {
@@ -182,49 +237,61 @@ where
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.data[..self.length].get(index)
+        if index >= self.len() {
+            return None;
+        }
+        let cell = unsafe { &*self.data.as_ptr().add(index) };
+        Some(cell)
     }
 
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.data[..self.length].get_mut(index)
+        if index >= self.len() {
+            return None;
+        }
+        let cell = unsafe { &mut *self.data.as_ptr().add(index) };
+        Some(cell)
     }
 
     #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
-        self.data[..self.length].iter()
+        self.as_slice().iter()
     }
 
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
-        self.data[..self.length].iter_mut()
+        self.as_mut_slice().iter_mut()
     }
 
     #[inline]
     pub fn last(&self) -> Option<&T> {
-        if self.length < 1 {
+        if self.is_empty() {
             return None;
         }
-        self.get(self.length - 1)
+        self.get(self.len() - 1)
     }
 
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        if self.length < 1 {
+        if self.is_empty() {
             return None;
         }
-        self.get_mut(self.length - 1)
+        self.get_mut(self.len() - 1)
     }
 
+    #[inline]
     pub fn to_array<const N: usize>(&self) -> Result<[T; N], BoundedVecError> {
         if self.len() != N {
             return Err(BoundedVecError::ArraySize(N, self.len()));
         }
-        Ok(std::array::from_fn(|i| self.data[i].clone()))
+        // PANICS: We ensured that the size of the array is equal to the size
+        // of the vector.
+        Ok(std::array::from_fn(|i| self.get(i).unwrap().clone()))
     }
 
+    #[inline]
     pub fn to_vec(self) -> Vec<T> {
-        self.data[..self.length].to_vec()
+        self.as_slice().to_vec()
     }
 
     pub fn extend<U: IntoIterator<Item = T>>(&mut self, iter: U) -> Result<(), BoundedVecError> {
@@ -235,50 +302,65 @@ where
     }
 }
 
-impl<'a, T> Clone for BoundedVec<'a, T>
+impl<T> Clone for BoundedVec<T>
 where
     T: Clone,
 {
     fn clone(&self) -> Self {
         // Create a new buffer with the same capacity as the original
-        let size = mem::size_of::<T>() * self.capacity;
-        let align = mem::align_of::<T>();
-        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
 
-        let ptr = unsafe { alloc::alloc(layout) };
-        if ptr.is_null() {
+        let layout = Layout::new::<BoundedVecMetadata>();
+        let metadata = unsafe { alloc::alloc(layout) as *mut BoundedVecMetadata };
+        if metadata.is_null() {
             handle_alloc_error(layout);
         }
+        unsafe { *metadata = (*self.metadata).clone() };
 
-        // Create a slice from the newly allocated buffer
-        let new_data = unsafe { slice::from_raw_parts_mut(ptr as *mut T, self.capacity) };
+        let layout = Layout::array::<T>(self.capacity()).unwrap();
+        let data_ptr = unsafe { alloc::alloc(layout) as *mut T };
+        if data_ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+        let data = NonNull::new(data_ptr).unwrap();
 
         // Copy elements from the original data slice to the new slice
-        let new_vec = Self {
-            capacity: self.capacity,
-            length: self.length,
-            data: new_data,
-        };
+        let new_vec = Self { metadata, data };
 
         // Clone each element into the new vector
-        for i in 0..self.length {
-            new_vec.data[i] = self.data[i].clone();
+        for i in 0..self.len() {
+            unsafe { ptr::write(data_ptr.add(i), (*self.get(i).unwrap()).clone()) };
         }
 
         new_vec
     }
 }
 
-impl<'a, T> fmt::Debug for BoundedVec<'a, T>
+impl<T> fmt::Debug for BoundedVec<T>
 where
     T: Clone + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", &self.data[..self.length])
+        write!(f, "{:?}", self.as_slice())
     }
 }
 
-impl<'a, T, I: SliceIndex<[T]>> Index<I> for BoundedVec<'a, T>
+impl<T> Drop for BoundedVec<T>
+where
+    T: Clone,
+{
+    fn drop(&mut self) {
+        let layout = Layout::array::<T>(self.capacity()).unwrap();
+        // SAFETY: `data` is always initialized when created with safe methods.
+        unsafe { alloc::dealloc(self.data.as_ptr() as *mut u8, layout) };
+
+        let layout = Layout::new::<BoundedVecMetadata>();
+        // SAFETY: `metadata` is always initialized when created with safe
+        // methods.
+        unsafe { alloc::dealloc(self.metadata as *mut u8, layout) };
+    }
+}
+
+impl<T, I: SliceIndex<[T]>> Index<I> for BoundedVec<T>
 where
     T: Clone,
     I: SliceIndex<[T]>,
@@ -287,76 +369,161 @@ where
 
     #[inline]
     fn index(&self, index: I) -> &Self::Output {
-        self.data[..self.length].index(index)
+        self.as_slice().index(index)
     }
 }
 
-impl<'a, T, I> IndexMut<I> for BoundedVec<'a, T>
+impl<'a, T, I> IndexMut<I> for BoundedVec<T>
 where
     T: Clone,
     I: SliceIndex<[T]>,
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        self.data[..self.length].index_mut(index)
+        self.as_mut_slice().index_mut(index)
     }
 }
 
-impl<'a, T> PartialEq for BoundedVec<'a, T>
+impl<T> IntoIterator for BoundedVec<T>
+where
+    T: Clone,
+{
+    type Item = T;
+    type IntoIter = BoundedVecIntoIterator<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BoundedVecIntoIterator {
+            vec: self,
+            current: 0,
+        }
+    }
+}
+
+impl<T> PartialEq for BoundedVec<T>
 where
     T: Clone + PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.data[..self.length]
-            .iter()
-            .eq(other.data[..other.length].iter())
+        self.iter().eq(other.iter())
     }
 }
 
-impl<'a, T> Eq for BoundedVec<'a, T> where T: Clone + Eq {}
+impl<T> Eq for BoundedVec<T> where T: Clone + Eq {}
 
-/// `CyclicBoundedVec` is a wrapper around [`Vec`](std::vec::Vec) which:
-///
-/// * Forbids post-initialization reallocations.
-/// * Starts overwriting elements from the beginning once it reaches its
-///   capacity.
-#[derive(Debug)]
-pub struct CyclicBoundedVec<'a, T>
+pub struct BoundedVecIntoIterator<T>
 where
     T: Clone,
 {
+    vec: BoundedVec<T>,
+    current: usize,
+}
+
+impl<T> Iterator for BoundedVecIntoIterator<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let element = self.vec.get(self.current).map(|element| element.to_owned());
+        self.current += 1;
+        element
+    }
+}
+
+/// Bundle of metadata fields associated with [`CyclicBoundedVec`](CyclicBoundedVec).
+#[derive(Clone, Debug)]
+pub struct CyclicBoundedVecMetadata {
     capacity: usize,
     length: usize,
     first_index: usize,
     last_index: usize,
-    data: &'a mut [T],
 }
 
-impl<'a, T> CyclicBoundedVec<'a, T>
-where
-    T: Clone,
-{
-    #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
-        let size = mem::size_of::<T>() * capacity;
-        let align = mem::align_of::<T>();
-        // SAFETY: `size` is a multiplication of `capacity`, therefore the
-        // layout is guaranteed to be aligned.
-        let layout = unsafe { Layout::from_size_align_unchecked(size, align) };
-
-        // SAFETY: We are handling the null pointer case gracefully.
-        let ptr = unsafe { alloc::alloc(layout) };
-        if ptr.is_null() {
-            handle_alloc_error(layout);
-        }
-        let data = unsafe { slice::from_raw_parts_mut(ptr as *mut T, capacity) };
-
+impl CyclicBoundedVecMetadata {
+    pub fn new(capacity: usize) -> Self {
         Self {
             capacity,
             length: 0,
             first_index: 0,
             last_index: 0,
-            data,
         }
+    }
+
+    pub fn from_ne_bytes(bytes: [u8; mem::size_of::<CyclicBoundedVecMetadata>()]) -> Self {
+        Self {
+            capacity: usize::from_ne_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
+            length: usize::from_ne_bytes(bytes[span_of!(Self, length)].try_into().unwrap()),
+            first_index: usize::from_ne_bytes(
+                bytes[span_of!(Self, first_index)].try_into().unwrap(),
+            ),
+            last_index: usize::from_ne_bytes(bytes[span_of!(Self, last_index)].try_into().unwrap()),
+        }
+    }
+
+    pub fn to_ne_bytes(&self) -> [u8; mem::size_of::<Self>()] {
+        let mut bytes = [0u8; mem::size_of::<Self>()];
+        bytes[span_of!(Self, capacity)].copy_from_slice(&self.capacity.to_ne_bytes());
+        bytes[span_of!(Self, length)].copy_from_slice(&self.length.to_ne_bytes());
+        bytes[span_of!(Self, first_index)].copy_from_slice(&self.first_index.to_ne_bytes());
+        bytes[span_of!(Self, last_index)].copy_from_slice(&self.last_index.to_ne_bytes());
+
+        bytes
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn length(&self) -> usize {
+        self.length
+    }
+}
+
+/// `CyclicBoundedVec` is a custom vector implementation which:
+///
+/// * Forbids post-initialization reallocations.
+/// * Starts overwriting elements from the beginning once it reaches its
+///   capacity ("wrap-around").
+///
+/// The size is not known during compile time (which makes it different from
+/// arrays), but can be defined only once during instantiation.
+#[derive(Debug)]
+pub struct CyclicBoundedVec<T>
+where
+    T: Clone,
+{
+    metadata: *mut CyclicBoundedVecMetadata,
+    data: NonNull<T>,
+}
+
+impl<T> CyclicBoundedVec<T>
+where
+    T: Clone,
+{
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        let layout = Layout::new::<CyclicBoundedVecMetadata>();
+        let metadata = unsafe { alloc::alloc(layout) as *mut CyclicBoundedVecMetadata };
+        if metadata.is_null() {
+            handle_alloc_error(layout);
+        }
+        unsafe {
+            *metadata = CyclicBoundedVecMetadata {
+                capacity,
+                length: 0,
+                first_index: 0,
+                last_index: 0,
+            };
+        }
+
+        let layout = Layout::array::<T>(capacity).unwrap();
+        let data_ptr = unsafe { alloc::alloc(layout) as *mut T };
+        if data_ptr.is_null() {
+            handle_alloc_error(layout);
+        }
+        let data = NonNull::new(data_ptr).unwrap();
+
+        Self { metadata, data }
     }
 
     /// Creates a `CyclicBoundedVec<T>` directly from a pointer, a capacity, and a length.
@@ -381,21 +548,9 @@ where
     /// * The allocated size in bytes must be no larger than `isize::MAX`.
     ///   See the safety documentation of [`pointer::offset`].
     #[inline]
-    pub unsafe fn from_raw_parts(
-        ptr: *mut T,
-        length: usize,
-        capacity: usize,
-        first_index: usize,
-        last_index: usize,
-    ) -> Self {
-        let data = slice::from_raw_parts_mut(ptr, capacity);
-        Self {
-            capacity,
-            length,
-            first_index,
-            last_index,
-            data,
-        }
+    pub unsafe fn from_raw_parts(metadata: *mut CyclicBoundedVecMetadata, ptr: *mut T) -> Self {
+        let data = NonNull::new(ptr).unwrap();
+        Self { metadata, data }
     }
 
     /// Returns the total number of elements the vector can hold without
@@ -404,13 +559,13 @@ where
     /// # Examples
     ///
     /// ```
-    /// let mut vec: Vec<i32> = Vec::with_capacity(10);
+    /// let mut vec: CyclicBoundedVec<i32> = CyclicBoundedVec::with_capacity(10);
     /// vec.push(42);
     /// assert!(vec.capacity() >= 10);
     /// ```
     #[inline]
     pub fn capacity(&self) -> usize {
-        self.capacity
+        unsafe { (*self.metadata).capacity }
     }
 
     /// Appends an element to the back of a collection.
@@ -425,21 +580,28 @@ where
     #[inline]
     pub fn push(&mut self, value: T) {
         if self.is_empty() {
-            self.length += 1;
+            self.inc_len();
         } else if self.len() < self.capacity() {
-            self.length += 1;
-            self.last_index += 1;
-        } else if !self.is_empty() {
-            self.last_index = (self.last_index + 1) % self.capacity();
-            self.first_index = (self.first_index + 1) % self.capacity();
+            self.inc_len();
+            self.inc_last_index();
+        } else {
+            self.inc_last_index();
+            self.inc_first_index();
         }
-        // PANICS: We made sure that `self.newest` doesn't exceed the capacity.
-        self.data[self.last_index] = value;
+        // SAFETY: We made sure that `last_index` doesn't exceed the capacity.
+        unsafe {
+            std::ptr::write(self.data.as_ptr().add(self.last_index()), value);
+        }
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.length
+        unsafe { (*self.metadata).length }
+    }
+
+    #[inline]
+    fn inc_len(&mut self) {
+        unsafe { (*self.metadata).length += 1 }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -448,19 +610,27 @@ where
 
     #[inline]
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.data[..self.length].get(index)
+        if index >= self.len() {
+            return None;
+        }
+        let cell = unsafe { &*self.data.as_ptr().add(index) };
+        Some(cell)
     }
 
     #[inline]
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.data[..self.length].get_mut(index)
+        if index >= self.len() {
+            return None;
+        }
+        let cell = unsafe { &mut *self.data.as_ptr().add(index) };
+        Some(cell)
     }
 
     #[inline]
     pub fn iter(&self) -> CyclicBoundedVecIterator<'_, T> {
         CyclicBoundedVecIterator {
             vec: self,
-            current: self.first_index,
+            current: self.first_index(),
             is_finished: false,
         }
     }
@@ -482,55 +652,81 @@ where
 
     #[inline]
     pub fn first_index(&self) -> usize {
-        self.first_index
+        unsafe { (*self.metadata).first_index }
+    }
+
+    #[inline]
+    fn inc_first_index(&self) {
+        unsafe {
+            (*self.metadata).first_index = ((*self.metadata).last_index + 1) % self.capacity();
+        }
     }
 
     #[inline]
     pub fn first(&self) -> Option<&T> {
-        self.data.get(self.first_index)
+        self.get(self.first_index())
     }
 
     #[inline]
     pub fn first_mut(&mut self) -> Option<&mut T> {
-        self.data.get_mut(self.first_index)
+        self.get_mut(self.first_index())
     }
 
     #[inline]
     pub fn last_index(&self) -> usize {
-        self.last_index
+        unsafe { (*self.metadata).last_index }
+    }
+
+    #[inline]
+    fn inc_last_index(&mut self) {
+        unsafe {
+            (*self.metadata).last_index = ((*self.metadata).last_index + 1) % self.capacity();
+        }
     }
 
     #[inline]
     pub fn last(&self) -> Option<&T> {
-        self.data.get(self.last_index)
+        self.get(self.last_index())
     }
 
     #[inline]
     pub fn last_mut(&mut self) -> Option<&mut T> {
-        self.data.get_mut(self.last_index)
+        self.get_mut(self.last_index())
     }
 }
 
-impl<'a, T, I> Index<I> for CyclicBoundedVec<'a, T>
+impl<T> Drop for CyclicBoundedVec<T>
 where
     T: Clone,
-    I: SliceIndex<[T]>,
 {
-    type Output = I::Output;
+    fn drop(&mut self) {
+        let layout = Layout::array::<T>(self.capacity()).unwrap();
+        unsafe { alloc::dealloc(self.data.as_ptr() as *mut u8, layout) };
+
+        let layout = Layout::new::<CyclicBoundedVecMetadata>();
+        unsafe { alloc::dealloc(self.metadata as *mut u8, layout) };
+    }
+}
+
+impl<T> Index<usize> for CyclicBoundedVec<T>
+where
+    T: Clone,
+{
+    type Output = T;
 
     #[inline]
-    fn index(&self, index: I) -> &Self::Output {
-        self.data[..self.length].index(index)
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index).unwrap()
     }
 }
 
-impl<'a, T, I> IndexMut<I> for CyclicBoundedVec<'a, T>
+impl<T> IndexMut<usize> for CyclicBoundedVec<T>
 where
     T: Clone,
-    I: SliceIndex<[T]>,
 {
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        self.data[..self.length].index_mut(index)
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.get_mut(index).unwrap()
     }
 }
 
