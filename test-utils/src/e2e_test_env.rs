@@ -73,6 +73,7 @@ use crate::indexer::{
     create_mint_helper, AddressMerkleTreeAccounts, AddressMerkleTreeBundle,
     StateMerkleTreeAccounts, StateMerkleTreeBundle, TestIndexer, TokenDataWithContext,
 };
+use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::spl::{
     compress_test, compressed_transfer_test, create_token_account, decompress_test,
@@ -93,9 +94,9 @@ use account_compression::utils::constants::{
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
 use rand::distributions::uniform::{SampleRange, SampleUniform};
@@ -103,8 +104,10 @@ use rand::prelude::SliceRandom;
 use rand::rngs::{StdRng, ThreadRng};
 use rand::{Rng, RngCore, SeedableRng};
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
+use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::signer::{SeedDerivable, Signer};
+use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
+
 
 pub struct User {
     pub keypair: Keypair,
@@ -231,13 +234,19 @@ where
     /// Creates a new user with a random keypair and 100 sol
     pub async fn create_user(rng: &mut StdRng, rpc: &mut R) -> User {
         let keypair: Keypair = Keypair::from_seed(&[rng.gen_range(0..255); 32]).unwrap();
-        airdrop_lamports(rpc, &keypair.pubkey(), 10_000_000_000)
+
+        rpc.airdrop_lamports(&keypair.pubkey(), LAMPORTS_PER_SOL * 50)
             .await
             .unwrap();
+
         User {
             keypair,
             token_accounts: vec![],
         }
+    }
+
+    pub async fn get_balance(&mut self, pubkey: &Pubkey) -> u64 {
+        self.rpc.get_balance(pubkey).await.unwrap()
     }
 
     pub async fn execute_rounds(&mut self) {
@@ -295,6 +304,8 @@ where
                 .nullify_compressed_accounts
                 .unwrap_or_default(),
         ) {
+            info!("activate_general_actions nullify_compressed_accounts ");
+            info!("self.indexer.state_merkle_trees: {:?}", self.indexer.state_merkle_trees);
             for state_tree_bundle in self.indexer.state_merkle_trees.iter_mut() {
                 nullify_compressed_accounts(
                     &mut self.rpc,
@@ -466,6 +477,8 @@ where
             && balance > 1000
         {
             self.compress_sol(user_index, balance).await;
+        } else {
+            println!("Not enough balance to compress sol. Balance: {}", balance);
         }
 
         // decompress sol
@@ -522,9 +535,35 @@ where
             .await;
     }
 
+    pub async fn transfer_sol_deterministic(
+        &mut self,
+        from: &Keypair,
+        to: &Pubkey,
+    ) -> Result<Signature, RpcError> {
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        info!("input_compressed_accounts: {:?}", input_compressed_accounts);
+        let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
+        let recipients = vec![*to];
+        transfer_compressed_sol_test(
+            &mut self.rpc,
+            &mut self.indexer,
+            from,
+            input_compressed_accounts.as_slice(),
+            recipients.as_slice(),
+            &[output_merkle_tree],
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: 0,
+                fee_config: FeeConfig::default(),
+            }),
+        )
+        .await
+    }
+
     pub async fn transfer_sol(&mut self, user_index: usize) {
         let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
-
         if !input_compressed_accounts.is_empty() {
             println!("\n --------------------------------------------------\n\t\t Transfer Sol\n --------------------------------------------------");
             let recipients = self
@@ -547,7 +586,6 @@ where
                 .copied()
                 .collect::<Vec<_>>();
             let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees);
-
             transfer_compressed_sol_test(
                 &mut self.rpc,
                 &mut self.indexer,
@@ -565,13 +603,13 @@ where
             )
             .await
             .unwrap();
-            self.stats.sol_transfers += 1;
+            self.stats.sol_transfers +=1;
         }
     }
 
     pub async fn decompress_sol(&mut self, user_index: usize) {
         let input_compressed_accounts = self.get_random_compressed_sol_accounts(user_index);
-
+        info!("input_compressed_accounts: {:?}", input_compressed_accounts);
         if !input_compressed_accounts.is_empty() {
             println!("\n --------------------------------------------------\n\t\t Decompress Sol\n --------------------------------------------------");
             let output_merkle_tree = self.get_merkle_tree_pubkeys(1)[0];
@@ -604,6 +642,29 @@ where
             .unwrap();
             self.stats.sol_decompress += 1;
         }
+    }
+
+    pub async fn compress_sol_deterministic(&mut self, from: &Keypair, amount: u64) {
+        let input_compressed_accounts = self.get_compressed_sol_accounts(&from.pubkey());
+        let output_merkle_tree = self.indexer.state_merkle_trees[0].accounts.merkle_tree;
+        compress_sol_test(
+            &mut self.rpc,
+            &mut self.indexer,
+            from,
+            input_compressed_accounts.as_slice(),
+            false,
+            amount,
+            &output_merkle_tree,
+            Some(TransactionParams {
+                num_new_addresses: 0,
+                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                num_output_compressed_accounts: 1u8,
+                compress: amount as i64,
+                fee_config: FeeConfig::default(),
+            }),
+        )
+        .await
+        .unwrap();
     }
 
     pub async fn compress_sol(&mut self, user_index: usize, balance: u64) {
@@ -647,18 +708,25 @@ where
         .unwrap();
         self.stats.sol_compress += 1;
     }
-    pub async fn create_address(&mut self) {
+
+    pub async fn create_address(&mut self) -> Vec<Pubkey> {
         println!("\n --------------------------------------------------\n\t\t Create Address\n --------------------------------------------------");
         // select number of addresses to create
         let num_addresses = self.rng.gen_range(1..=2);
         // select random address Merkle tree(s)
+        info!("num_addresses: {:?}", num_addresses);
         let (address_merkle_tree_pubkeys, address_queue_pubkeys) =
             self.get_address_merkle_tree_pubkeys(num_addresses);
+        info!("address_merkle_tree_pubkeys: {:?}", address_merkle_tree_pubkeys);
+        info!("address_queue_pubkeys: {:?}", address_queue_pubkeys);
         let mut address_seeds = Vec::new();
+        let mut created_addresses = Vec::new();
         for _ in 0..num_addresses {
             let address_seed: [u8; 32] =
                 bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
-            address_seeds.push(address_seed)
+            address_seeds.push(address_seed);
+            // Assuming the address is derived from the seed for simplicity
+            created_addresses.push(Pubkey::new(&address_seed));
         }
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
 
@@ -684,6 +752,7 @@ where
         .await
         .unwrap();
         self.stats.create_address += num_addresses;
+        created_addresses
     }
 
     pub async fn transfer_spl(&mut self, user_index: usize) {
@@ -862,10 +931,21 @@ where
         let input_compressed_accounts = self
             .indexer
             .get_compressed_accounts_by_owner(&self.users[user_index].keypair.pubkey());
+        info!("input_compressed_accounts (get_random_compressed_sol_accounts): {:?}", input_compressed_accounts);
         let range = std::cmp::min(input_compressed_accounts.len(), 4);
-        let number_of_compressed_accounts = Self::safe_gen_range(&mut self.rng, 0..range, 0);
+        info!("range: {:?}", range);
+        let number_of_compressed_accounts = if range == 0 { 0 } else { Self::safe_gen_range(&mut self.rng, 1..=range, 1) };
+        info!("number_of_compressed_accounts: {:?}", number_of_compressed_accounts);
         input_compressed_accounts[0..number_of_compressed_accounts].to_vec()
     }
+
+    pub fn get_compressed_sol_accounts(
+        &self,
+        pubkey: &Pubkey,
+    ) -> Vec<CompressedAccountWithMerkleContext> {
+        self.indexer.get_compressed_accounts_by_owner(pubkey)
+    }
+
     pub fn get_merkle_tree_pubkeys(&mut self, num: u64) -> Vec<Pubkey> {
         let mut pubkeys = vec![];
         for _ in 0..num {
@@ -1039,7 +1119,7 @@ impl KeypairActionConfig {
     pub fn test_forester_default() -> Self {
         Self {
             compress_sol: Some(1.0),
-            decompress_sol: Some(0.5),
+            decompress_sol: Some(0.0),
             transfer_sol: Some(1.0),
             create_address: None,
             compress_spl: None,

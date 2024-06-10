@@ -59,7 +59,7 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
         spl_token::state::Account::unpack(&rpc.get_account(pool).await.unwrap().unwrap().data)
             .unwrap()
             .amount;
-    let event = rpc
+    let (event, _signature) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer_pubkey,
@@ -338,7 +338,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         input_merkle_tree_accounts.as_slice(),
     )
     .await;
-    let event = rpc
+    let (event, _signature) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer.pubkey(),
@@ -461,7 +461,7 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let event = rpc
+    let (event, _signature) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &context_payer.pubkey(),
@@ -565,7 +565,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     )
     .unwrap();
     let context_payer = rpc.get_payer().insecure_clone();
-    let event = rpc
+    let (event, _signature) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[approve_instruction, instruction],
             &payer.pubkey(),

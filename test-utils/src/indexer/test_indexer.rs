@@ -1,4 +1,5 @@
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::info;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
@@ -77,13 +78,13 @@ pub struct AddressMerkleTreeAccounts {
     pub queue: Pubkey,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StateMerkleTreeBundle {
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>,
@@ -107,6 +108,27 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     phantom: PhantomData<R>,
 }
 
+impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone
+    for TestIndexer<INDEXED_ARRAY_SIZE, R>
+{
+    fn clone(&self) -> Self {
+        Self {
+            state_merkle_trees: self.state_merkle_trees.clone(),
+            address_merkle_trees: self.address_merkle_trees.clone(),
+            payer: self.payer.insecure_clone(),
+            group_pda: self.group_pda,
+            compressed_accounts: self.compressed_accounts.clone(),
+            nullified_compressed_accounts: self.nullified_compressed_accounts.clone(),
+            token_compressed_accounts: self.token_compressed_accounts.clone(),
+            token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
+            events: self.events.clone(),
+            path: self.path.clone(),
+            proof_types: self.proof_types.clone(),
+            phantom: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TokenDataWithContext {
     pub token_data: TokenData,
@@ -121,22 +143,70 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
         let mut proofs: Vec<MerkleProof> = Vec::new();
-        hashes.iter().for_each(|hash| {
-            let hash_array: [u8; 32] = bs58::decode(hash)
-                .into_vec()
-                .unwrap()
-                .as_slice()
-                .try_into()
+        for account in self.compressed_accounts.iter() {
+            let hash = account
+                .compressed_account
+                .hash::<Poseidon>(
+                    &account.merkle_context.merkle_tree_pubkey,
+                    &account.merkle_context.leaf_index,
+                )
+                .unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            if hashes.contains(&bs58_hash) {
+                let state_tree_bundle = self
+                    .state_merkle_trees
+                    .iter()
+                    .find(|x| x.accounts.merkle_tree == account.merkle_context.merkle_tree_pubkey)
+                    .unwrap();
+                if let Some(leaf_index) = state_tree_bundle.merkle_tree.get_leaf_index(&hash) {
+                    let proof = state_tree_bundle
+                        .merkle_tree
+                        .get_proof_of_leaf(leaf_index, false)
+                        .unwrap();
+                    proofs.push(MerkleProof {
+                        hash: bs58_hash,
+                        leaf_index: account.merkle_context.leaf_index,
+                        merkle_tree: account.merkle_context.merkle_tree_pubkey.to_string(),
+                        proof: proof.to_vec(),
+                        root_seq: self.events.len() as i64,
+                    });
+                } else {
+                    // println!("get_multiple_compressed_account_proofs: hash {} not found in merkle tree", bs58_hash);
+                }
+            }
+        }
+
+        Ok(proofs)
+    }
+
+    // This is assuming that the test RPC moves the spent accounts out of compressed_accounts array to nullified_compressed_accounts array
+    // before these accounts will actually be nullified.
+    async fn get_multiple_compressed_account_proofs_for_forester(
+        &self,
+        hashes: Vec<String>,
+    ) -> Result<Vec<MerkleProof>, IndexerError> {
+        let mut proofs: Vec<MerkleProof> = Vec::new();
+        let matching_hashes_count = self.count_matching_hashes(&hashes);
+        if matching_hashes_count == 0 {
+            return Err(IndexerError::Custom("No matching hashes found".to_string()));
+        }
+        for account in self.nullified_compressed_accounts.lock().unwrap().iter() {
+            let hash = account
+                .compressed_account
+                .hash::<Poseidon>(
+                    &account.merkle_context.merkle_tree_pubkey,
+                    &account.merkle_context.leaf_index,
+                )
                 .unwrap();
 
             self.state_merkle_trees.iter().for_each(|tree| {
-                if let Some(leaf_index) = tree.merkle_tree.get_leaf_index(&hash_array) {
+                if let Some(leaf_index) = tree.merkle_tree.get_leaf_index(&hash) {
                     let proof = tree
                         .merkle_tree
                         .get_proof_of_leaf(leaf_index, false)
                         .unwrap();
                     proofs.push(MerkleProof {
-                        hash: hash.clone(),
+                        hash: bs58::encode(hash).into_string(),
                         leaf_index: leaf_index as u32,
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
@@ -144,8 +214,22 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
                     });
                 }
             })
-        });
+        }
         Ok(proofs)
+    }
+
+    async fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<String>, IndexerError> {
+        let result = self.get_compressed_accounts_by_owner(owner);
+        let mut hashes: Vec<String> = Vec::new();
+        for account in result.iter() {
+            let hash = account.hash().unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            hashes.push(bs58_hash);
+        }
+        Ok(hashes)
     }
 
     fn get_address_tree_proof(
@@ -198,12 +282,18 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
     }
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str) {
+        info!(
+            "updating state_tree_bundle for the nullified account: {}",
+            account_hash
+        );
         let decoded_hash: [u8; 32] = bs58::decode(account_hash)
             .into_vec()
             .unwrap()
             .as_slice()
             .try_into()
             .unwrap();
+
+        let mut new_root = [0u8; 32];
         if let Some(state_tree_bundle) = self
             .state_merkle_trees
             .iter_mut()
@@ -214,6 +304,11 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
                     .merkle_tree
                     .update(&[0u8; 32], leaf_index)
                     .unwrap();
+                new_root = state_tree_bundle.merkle_tree.root();
+                info!(
+                    "new root for state tree: {:?}",
+                    state_tree_bundle.merkle_tree.root()
+                );
             }
         }
     }
@@ -619,6 +714,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 .iter()
                 .find(|x| x.accounts.merkle_tree == address_merkle_tree_pubkeys[i])
                 .unwrap();
+            // NON-INCLUSION
             let proof_inputs = get_non_inclusion_proof_inputs(
                 address,
                 &address_tree.merkle_tree,

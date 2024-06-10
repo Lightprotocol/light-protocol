@@ -25,7 +25,7 @@ impl RpcConnection for ProgramTestRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<T>, RpcError>
+    ) -> Result<Option<(T, solana_sdk::signature::Signature)>, RpcError>
     where
         T: AnchorDeserialize,
     {
@@ -44,6 +44,7 @@ impl RpcConnection for ProgramTestRpcConnection {
             self.context.get_new_latest_blockhash().await?,
         );
 
+        let signature = transaction.signatures[0];
         // Simulate the transaction. Currently, in banks-client/server, only
         // simulations are able to track CPIs. Therefore, simulating is the
         // only way to retrieve the event.
@@ -129,7 +130,9 @@ impl RpcConnection for ProgramTestRpcConnection {
                 )));
             }
         }
-        Ok(event)
+
+        let result = event.map(|event| (event, signature));
+        Ok(result)
     }
 
     async fn create_and_send_transaction(

@@ -13,6 +13,7 @@ use forester::indexer::PhotonIndexer;
 use forester::nullifier::Config as ForesterConfig;
 use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
+use light_test_utils::rpc::SolanaRpcConnection;
 
 fn init_config() -> ForesterConfig {
     let settings = Config::builder()
@@ -61,6 +62,8 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config = init_config();
 
+    let mut rpc = SolanaRpcConnection::new(None).await;
+
     let cli = Cli::parse();
     match &cli.command {
         Some(Commands::Subscribe) => {
@@ -69,7 +72,7 @@ async fn main() {
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
 
-            subscribe_nullify(&config).await;
+            subscribe_nullify(&config, &mut rpc).await;
         }
         Some(Commands::Nullify) => {
             info!(
@@ -77,8 +80,8 @@ async fn main() {
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
 
-            let indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-            let result = nullify(indexer, &config).await;
+            let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+            let result = nullify(&mut indexer, &mut rpc, &config).await;
             info!("Nullification result: {:?}", result);
         }
         Some(Commands::Index) => {
