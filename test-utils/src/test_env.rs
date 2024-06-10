@@ -364,7 +364,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         NullifierQueueConfig::default(),
         program_owner,
         index,
-        CPI_CONTEXT_ACCOUNT_RENT,
+        0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT once enabled
     );
 
     let transaction = Transaction::new_signed_with_payer(

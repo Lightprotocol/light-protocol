@@ -45,13 +45,13 @@ pub fn process_initialize_nullifier_queue<'a, 'b, 'c: 'info, 'info>(
 
     let nullifier_queue = nullifier_queue_account_info;
     let mut nullifier_queue = nullifier_queue.try_borrow_mut_data()?;
-    let _ = unsafe {
+    unsafe {
         queue_from_bytes_zero_copy_init(
             &mut nullifier_queue,
             capacity.into(),
             sequence_threshold as usize,
         )
-        .unwrap()
-    };
+        .map_err(ProgramError::from)?;
+    }
     Ok(())
 }

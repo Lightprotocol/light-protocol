@@ -40,6 +40,7 @@ impl Default for AddressMerkleTreeConfig {
 }
 
 pub type AddressQueueConfig = NullifierQueueConfig;
+
 #[derive(Accounts)]
 pub struct InitializeAddressMerkleTreeAndQueue<'info> {
     #[account(mut)]
