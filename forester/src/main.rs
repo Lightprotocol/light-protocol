@@ -13,10 +13,26 @@ use forester::indexer::PhotonIndexer;
 use forester::nullifier::Config as ForesterConfig;
 use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
+use std::env;
+
+fn locate_config_file() -> String {
+    let file_name = "forester.toml";
+
+    let exe_path = env::current_exe().unwrap();
+    let exe_dir = exe_path.parent().unwrap();
+    let config_path = exe_dir.join(file_name);
+    if config_path.exists() {
+        return config_path.to_str().unwrap().to_string();
+    }
+
+    file_name.to_string()
+}
 
 fn init_config() -> ForesterConfig {
+    let config_path = locate_config_file();
+
     let settings = Config::builder()
-        .add_source(config::File::with_name("forester"))
+        .add_source(config::File::with_name(&config_path))
         .add_source(config::Environment::with_prefix("FORESTER"))
         .build()
         .unwrap();

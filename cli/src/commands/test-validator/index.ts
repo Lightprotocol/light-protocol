@@ -19,6 +19,11 @@ class SetupCommand extends Command {
         "Runs a test validator without starting a new prover service.",
       default: false,
     }),
+    "skip-forester": Flags.boolean({
+      description:
+        "Runs a test validator without starting a new forester service.",
+      default: false,
+    }),
     "skip-system-accounts": Flags.boolean({
       description:
         "Runs a test validator without initialized light system accounts.",
@@ -57,6 +62,7 @@ class SetupCommand extends Command {
       skipSystemAccounts: flags["skip-system-accounts"],
       indexer: !flags["skip-indexer"],
       prover: !flags["skip-prover"],
+      forester: !flags["skip-forester"],
       proveCompressedAccounts: flags["prove-compressed-accounts"],
       proveNewAddresses: flags["prove-new-addresses"],
       checkPhotonVersion: !flags["relax-indexer-version-constraint"],
