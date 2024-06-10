@@ -66,7 +66,7 @@ pub mod account_compression {
 
     /// Updates the address Merkle tree with a new address.
     pub fn update_address_merkle_tree<'info>(
-        ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
+        ctx: Context<'_, '_, '_, 'info, UpdateAddressMerkleTree<'info>>,
         // Index of the Merkle tree changelog.
         changelog_index: u16,
         // Index of the address to dequeue.

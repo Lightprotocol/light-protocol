@@ -20,9 +20,8 @@ pub struct NullifyLeaves<'info> {
     /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
-    /// CHECK: in event emitting
+    /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
-    /// CHECK: when parsing account
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
     #[account(mut)]

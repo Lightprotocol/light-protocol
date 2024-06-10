@@ -117,7 +117,7 @@ pub mod light_registry {
 
     #[allow(clippy::too_many_arguments)]
     pub fn update_address_merkle_tree(
-        ctx: Context<UpdateMerkleTree>,
+        ctx: Context<UpdateAddressMerkleTree>,
         bump: u8,
         changelog_index: u16,
         value: u16,
@@ -131,7 +131,7 @@ pub mod light_registry {
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
         let signer_seeds = &[&seeds[..]];
 
-        let accounts = account_compression::cpi::accounts::UpdateMerkleTree {
+        let accounts = account_compression::cpi::accounts::UpdateAddressMerkleTree {
             authority: ctx.accounts.cpi_authority.to_account_info(),
             registered_program_pda: Some(ctx.accounts.registered_program_pda.to_account_info()),
             log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
@@ -311,7 +311,7 @@ pub struct NullifyLeaves<'info> {
     pub registered_program_pda:
         Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
     pub account_compression_program: Program<'info, AccountCompression>,
-    /// CHECK: in event emitting
+    /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
     /// CHECK: in account compression program
     #[account(mut)]
@@ -350,7 +350,7 @@ pub struct RolloverMerkleTreeAndQueue<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateMerkleTree<'info> {
+pub struct UpdateAddressMerkleTree<'info> {
     /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
     pub authority: Signer<'info>,
     /// CHECK:
@@ -369,6 +369,6 @@ pub struct UpdateMerkleTree<'info> {
     /// CHECK: in account compression program
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
-    /// CHECK: in event emitting
+    /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
 }

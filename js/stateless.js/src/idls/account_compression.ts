@@ -146,6 +146,7 @@ export type AccountCompression = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['Fee payer pays rollover fee.'];
                 },
                 {
                     name: 'authority';
@@ -335,7 +336,7 @@ export type AccountCompression = {
             accounts: [
                 {
                     name: 'authority';
-                    isMut: true;
+                    isMut: false;
                     isSigner: true;
                 },
                 {
@@ -450,18 +451,25 @@ export type AccountCompression = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
-                    docs: ['Signer used to pay rollover and protocol fees.'];
+                    docs: ['Fee payer pays rollover fee.'];
                 },
                 {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
+                    docs: [
+                        'Checked whether instruction is accessed by a registered program or owner = authority.',
+                    ];
                 },
                 {
                     name: 'registeredProgramPda';
                     isMut: false;
                     isSigner: false;
                     isOptional: true;
+                    docs: [
+                        'Some assumes that the Merkle trees are accessed by a registered program.',
+                        'None assumes that the Merkle trees are accessed by its owner.',
+                    ];
                 },
                 {
                     name: 'systemProgram';
@@ -548,6 +556,7 @@ export type AccountCompression = {
                     name: 'feePayer';
                     isMut: true;
                     isSigner: true;
+                    docs: ['Fee payer pays rollover fee.'];
                 },
                 {
                     name: 'authority';
@@ -584,7 +593,9 @@ export type AccountCompression = {
                     name: 'feePayer';
                     isMut: false;
                     isSigner: true;
-                    docs: ['Signer used to pay rollover and protocol fees.'];
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ];
                 },
                 {
                     name: 'authority';
@@ -1283,6 +1294,7 @@ export const IDL: AccountCompression = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['Fee payer pays rollover fee.'],
                 },
                 {
                     name: 'authority',
@@ -1472,7 +1484,7 @@ export const IDL: AccountCompression = {
             accounts: [
                 {
                     name: 'authority',
-                    isMut: true,
+                    isMut: false,
                     isSigner: true,
                 },
                 {
@@ -1587,18 +1599,25 @@ export const IDL: AccountCompression = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
-                    docs: ['Signer used to pay rollover and protocol fees.'],
+                    docs: ['Fee payer pays rollover fee.'],
                 },
                 {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
+                    docs: [
+                        'Checked whether instruction is accessed by a registered program or owner = authority.',
+                    ],
                 },
                 {
                     name: 'registeredProgramPda',
                     isMut: false,
                     isSigner: false,
                     isOptional: true,
+                    docs: [
+                        'Some assumes that the Merkle trees are accessed by a registered program.',
+                        'None assumes that the Merkle trees are accessed by its owner.',
+                    ],
                 },
                 {
                     name: 'systemProgram',
@@ -1685,6 +1704,7 @@ export const IDL: AccountCompression = {
                     name: 'feePayer',
                     isMut: true,
                     isSigner: true,
+                    docs: ['Fee payer pays rollover fee.'],
                 },
                 {
                     name: 'authority',
@@ -1721,7 +1741,9 @@ export const IDL: AccountCompression = {
                     name: 'feePayer',
                     isMut: false,
                     isSigner: true,
-                    docs: ['Signer used to pay rollover and protocol fees.'],
+                    docs: [
+                        'Signer used to receive rollover accounts rentexemption reimbursement.',
+                    ],
                 },
                 {
                     name: 'authority',

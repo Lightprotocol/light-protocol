@@ -15,18 +15,18 @@ use crate::{
 };
 
 #[derive(Accounts)]
-pub struct UpdateMerkleTree<'info> {
+pub struct UpdateAddressMerkleTree<'info> {
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     #[account(mut)]
     pub queue: AccountLoader<'info, QueueAccount>,
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, AddressMerkleTreeAccount>,
-    /// CHECK: in event emitting
+    /// CHECK: when emitting event.
     pub log_wrapper: UncheckedAccount<'info>,
 }
 
-impl<'info> GroupAccounts<'info> for UpdateMerkleTree<'info> {
+impl<'info> GroupAccounts<'info> for UpdateAddressMerkleTree<'info> {
     fn get_authority(&self) -> &Signer<'info> {
         &self.authority
     }
@@ -37,7 +37,7 @@ impl<'info> GroupAccounts<'info> for UpdateMerkleTree<'info> {
 
 #[allow(clippy::too_many_arguments)]
 pub fn process_update_address_merkle_tree<'info>(
-    ctx: Context<'_, '_, '_, 'info, UpdateMerkleTree<'info>>,
+    ctx: Context<'_, '_, '_, 'info, UpdateAddressMerkleTree<'info>>,
     // Index of the Merkle tree changelog.
     changelog_index: u16,
     // Address to dequeue.
@@ -64,7 +64,7 @@ pub fn process_update_address_merkle_tree<'info>(
         );
         return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
     }
-    check_signer_is_registered_or_authority::<UpdateMerkleTree, AddressMerkleTreeAccount>(
+    check_signer_is_registered_or_authority::<UpdateAddressMerkleTree, AddressMerkleTreeAccount>(
         &ctx,
         &merkle_tree,
     )?;
@@ -101,6 +101,7 @@ pub fn process_update_address_merkle_tree<'info>(
     .map_err(ProgramError::from)?;
     // Update the Merkle tree.
     // Inputs check:
+    // - address is element of (value, next_value)
     // - changelog index gets values from account
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof

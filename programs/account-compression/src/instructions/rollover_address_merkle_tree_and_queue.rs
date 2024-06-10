@@ -16,7 +16,6 @@ use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 pub struct RolloverAddressMerkleTreeAndQueue<'info> {
     /// Signer used to receive rollover accounts rentexemption reimbursement.
     pub fee_payer: Signer<'info>,
-    /// CHECK: should only be accessed by a registered program or owner.
     pub authority: Signer<'info>,
     pub registered_program_pda: Option<Account<'info, RegisteredProgram>>,
     #[account(zero)]
