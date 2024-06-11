@@ -3,11 +3,7 @@
 use account_compression::{
     errors::AccountCompressionErrorCode,
     state::QueueAccount,
-    utils::constants::{
-        ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
-        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
-        ADDRESS_MERKLE_TREE_ROOTS,
-    },
+    utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, ID,
 };
 use anchor_lang::error::ErrorCode;
