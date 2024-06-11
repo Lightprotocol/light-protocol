@@ -262,6 +262,8 @@ describe('rpc-interop', () => {
                         index
                     ];
                 assert.equal(
+                    // Comparing string representation in order to normalize big number and remove
+                    // trailing zeroes in the big number array representation.
                     elem.toString(),
                     expected.toString(),
                     `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${newAddressProofTest.merkleProofHashedIndexedElementLeaf} got: ${newAddressProof.merkleProofHashedIndexedElementLeaf}`,

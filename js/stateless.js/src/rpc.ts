@@ -821,7 +821,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
         );
-        console.log('getTransactionWithCompressionInfo', res.result.compressionInfo.openedAccounts[0].account);
         if ('error' in res) {
             throw new SolanaJSONRPCError(res.error, 'failed to get slot');
         }
