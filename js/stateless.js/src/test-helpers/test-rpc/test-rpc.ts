@@ -479,6 +479,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const hash = indexedArray.hashElement(this.lightWasm, i);
             hashes.push(bn(hash!));
         }
+        console.log('hashes', hashes);
+        console.log("Indexed elements", indexedArray.elements);
         const tree = new MerkleTree(
             this.depth,
             this.lightWasm,

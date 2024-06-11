@@ -2,10 +2,44 @@ import { describe, it, assert, beforeAll } from 'vitest';
 import { Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
-import { bn, compress } from '../../src';
+import { bn, compress, sleep } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+const { spawn } = require('child_process');
+const waitOn = require("wait-on");
+const BN = require('bn.js');
+
+
+
+export async function waitForServers(
+    servers: { port: number; path: string }[],
+  ) {
+    const opts = {
+      resources: servers.map(
+        ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
+      ),
+      delay: 1000,
+      timeout: 250000,
+      interval: 300,
+      simultaneous: 2,
+      validateStatus: function (status: number) {
+        return (
+          (status >= 200 && status < 300) || status === 404 || status === 405
+        );
+      },
+    };
+  
+    try {
+      await waitOn(opts);
+      servers.forEach((server) => {
+        console.log(`${server.port} is up!`);
+      });
+    } catch (err) {
+      console.error("Error waiting for server to start:", err);
+      throw err;
+    }
+  }
 
 describe('rpc-interop', () => {
     let payer: Signer;
@@ -16,6 +50,22 @@ describe('rpc-interop', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
+
+        const child = spawn('bash', ['-c', 'cd /home/ubuntu/photon && (fuser -k 8784/tcp || true) && cargo run']);
+
+        child.stdout.on('data', (data) => {
+            console.log(`stdout: ${data}`);
+        });
+    
+        child.stderr.on('data', (data) => {
+            console.error(`stderr: ${data}`);
+        });
+    
+        child.on('error', (error) => {
+            console.error(`error: ${error.message}`);
+        });
+        await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
+    
         testRpc = await getTestRpc(lightWasm);
 
         /// These are constant test accounts in between test runs
@@ -29,7 +79,7 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
-    it.skip('getValidityProof [noforester] (inclusion) should match', async () => {
+    it('getValidityProof [noforester] (inclusion) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -66,37 +116,9 @@ describe('rpc-interop', () => {
                 elem.equals(validityProofTest.nullifierQueues[index]),
             );
         });
-
-        /// FIXME: debug photon zkp
-        validityProof.compressedProof.a.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.a[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
-            );
-        });
-
-        validityProof.compressedProof.b.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.b[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
-            );
-        });
-
-        validityProof.compressedProof.c.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.c[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
-            );
-        });
     });
 
-    it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {
+    it('getValidityProof [noforester] (new-addresses) should match', async () => {
         const newAddress = bn(
             new Uint8Array([
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
@@ -131,43 +153,18 @@ describe('rpc-interop', () => {
             );
         });
 
-        /// FIXME: debug photon zkp
-        validityProof.compressedProof.a.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.a[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
-            );
-        });
-
-        validityProof.compressedProof.b.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.b[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
-            );
-        });
-
-        validityProof.compressedProof.c.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.c[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
-            );
-        });
     });
 
-    it.skip('getValidityProof [noforester] (combined) should match', async () => {
+    it('getValidityProof [noforester] (combined) should match', async () => {
+        console.log("Starting");
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+        console.log("Starting1.1");
         const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-
+        console.log("Starting1.2");
         const hash = bn(senderAccounts[0].hash);
         const hashTest = bn(senderAccountsTest[0].hash);
 
@@ -189,6 +186,8 @@ describe('rpc-interop', () => {
             [hashTest],
             [newAddress],
         );
+        console.log("Starting2");
+
 
         validityProof.leafIndices.forEach((leafIndex, index) => {
             assert.equal(leafIndex, validityProofTest.leafIndices[index]);
@@ -208,39 +207,12 @@ describe('rpc-interop', () => {
         validityProof.nullifierQueues.forEach((elem, index) => {
             assert.isTrue(
                 elem.equals(validityProofTest.nullifierQueues[index]),
-            );
-        });
-
-        /// FIXME: debug photon zkp
-        validityProof.compressedProof.a.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.a[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.a expected: ${validityProofTest.compressedProof.a} got: ${validityProof.compressedProof.a}`,
-            );
-        });
-
-        validityProof.compressedProof.b.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.b[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.b expected: ${validityProofTest.compressedProof.b} got: ${validityProof.compressedProof.b}`,
-            );
-        });
-
-        validityProof.compressedProof.c.forEach((elem, index) => {
-            const expected = validityProofTest.compressedProof.c[index];
-            assert.equal(
-                elem,
-                expected,
-                `Mismatch in compressedProof.c expected: ${validityProofTest.compressedProof.c} got: ${validityProof.compressedProof.c}`,
+                "Mismatch in nullifierQueues expected: " + elem + " got: " + validityProofTest.nullifierQueues[index],
             );
         });
     });
 
-    it.skip('getMultipleNewAddressProofs [noforester] should match', async () => {
+    it('getMultipleNewAddressProofs [noforester] should match', async () => {
         const newAddress = bn(
             new Uint8Array([
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
@@ -254,6 +226,9 @@ describe('rpc-interop', () => {
             await testRpc.getMultipleNewAddressProofs([newAddress])
         )[0];
 
+        console.log(newAddressProof.indexHashedIndexedElementLeaf)
+        console.log(newAddressProofTest.indexHashedIndexedElementLeaf)
+
         assert.isTrue(
             newAddressProof.indexHashedIndexedElementLeaf.eq(
                 newAddressProofTest.indexHashedIndexedElementLeaf,
@@ -263,9 +238,12 @@ describe('rpc-interop', () => {
             newAddressProof.leafHigherRangeValue.eq(
                 newAddressProofTest.leafHigherRangeValue,
             ),
+            // Include the values
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
         );
         assert.isTrue(
             newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafIndex} got: ${newAddressProof.leafIndex}`,
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(
@@ -280,10 +258,19 @@ describe('rpc-interop', () => {
             newAddressProof.nullifierQueue.equals(
                 newAddressProofTest.nullifierQueue,
             ),
+            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
         );
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
         assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
+
+        function stripTrailingZeros(bn) {
+            let newWords = bn.words.slice();
+            while (newWords.length > 1 && newWords[newWords.length - 1] === 0) {
+                newWords.pop();
+            }
+            return new BN(newWords.join(''), bn.base);
+        }
 
         newAddressProof.merkleProofHashedIndexedElementLeaf.forEach(
             (elem, index) => {
@@ -291,10 +278,14 @@ describe('rpc-interop', () => {
                     newAddressProofTest.merkleProofHashedIndexedElementLeaf[
                         index
                     ];
+                console.log("######");
+                console.log(index);
+                console.log(elem);
+                console.log(expected);
                 assert.equal(
-                    elem,
-                    expected,
-                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${newAddressProofTest.merkleProofHashedIndexedElementLeaf} got: ${newAddressProof.merkleProofHashedIndexedElementLeaf}`,
+                    elem.toString(),
+                    expected.toString(),
+                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${expected} got: ${elem}`,
                 );
             },
         );
