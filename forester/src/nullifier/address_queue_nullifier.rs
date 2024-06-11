@@ -1,18 +1,17 @@
-use account_compression::initialize_address_merkle_tree::{AccountMeta, Pubkey};
-use account_compression::instruction::UpdateAddressMerkleTree;
-use account_compression::{AddressMerkleTreeAccount, QueueAccount, ID};
-use anchor_lang::solana_program::instruction::Instruction;
-use anchor_lang::{AccountDeserialize, InstructionData, ToAccountMetas};
+use account_compression::initialize_address_merkle_tree::Pubkey;
+use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use anchor_lang::AccountDeserialize;
 use light_hash_set::HashSet;
-use light_registry::sdk::get_cpi_authority_pda;
-use light_system_program::utils::get_registered_program_pda;
+use light_registry::sdk::{
+    create_update_address_merkle_tree_instruction, UpdateAddressMerkleTreeInstructionInputs,
+};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::test_env::NOOP_PROGRAM_ID;
 use log::info;
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::signature::Signer;
+use solana_sdk::commitment_config::CommitmentConfig;
+use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use std::mem;
 
@@ -21,13 +20,14 @@ use crate::nullifier::Config;
 pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
     rpc: &mut R,
     indexer: &mut T,
+    payer: &Keypair,
     config: &Config,
 ) -> Result<(), ForesterError> {
     let address_merkle_tree_pubkey = config.address_merkle_tree_pubkey;
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
     let mut update_errors: Vec<RpcError> = Vec::new();
 
-    let client = RpcClient::new(&config.server_url);
+    let client = RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::confirmed());
 
     loop {
         let data: &[u8] = &client.get_account_data(&address_merkle_tree_pubkey)?;
@@ -61,6 +61,7 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
         info!("updating merkle tree...");
         let update_successful = match update_merkle_tree(
             rpc,
+            payer,
             address_queue_pubkey,
             address_merkle_tree_pubkey,
             address_hashset_index,
@@ -69,8 +70,6 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
             proof.low_address_next_index,
             proof.low_address_next_value,
             proof.low_address_proof,
-            None,
-            Some(config.registry_pubkey),
         )
         .await
         {
@@ -115,6 +114,7 @@ pub async fn get_changelog_index<R: RpcConnection>(
 #[allow(clippy::too_many_arguments)]
 pub async fn update_merkle_tree<R: RpcConnection>(
     rpc: &mut R,
+    payer: &Keypair,
     address_queue_pubkey: Pubkey,
     address_merkle_tree_pubkey: Pubkey,
     value: u16,
@@ -123,8 +123,6 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     low_address_next_index: u64,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
-    _changelog_index: Option<u16>,
-    registered_program: Option<Pubkey>,
 ) -> Result<bool, RpcError> {
     info!("update_merkle_tree");
     let changelog_index = get_changelog_index(&address_merkle_tree_pubkey, rpc)
@@ -132,60 +130,20 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         .unwrap();
     info!("changelog_index: {:?}", changelog_index);
 
-    let update_ix = match registered_program {
-        Some(registered_program) => {
-            let register_program_pda = get_registered_program_pda(&registered_program);
-            let (cpi_authority, bump) = get_cpi_authority_pda();
-            let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
-                bump,
-                changelog_index: changelog_index as u16,
-                value,
-                low_address_index,
-                low_address_value,
-                low_address_next_index,
-                low_address_next_value,
-                low_address_proof,
-            };
-            let accounts = light_registry::accounts::UpdateMerkleTree {
-                authority: rpc.get_payer().pubkey(),
-                registered_program_pda: register_program_pda,
-                queue: address_queue_pubkey,
-                merkle_tree: address_merkle_tree_pubkey,
-                log_wrapper: NOOP_PROGRAM_ID,
-                cpi_authority,
-                account_compression_program: ID,
-            };
-            Instruction {
-                program_id: registered_program,
-                accounts: accounts.to_account_metas(Some(true)),
-                data: instruction_data.data(),
-            }
-        }
-        None => {
-            let instruction_data = UpdateAddressMerkleTree {
-                changelog_index: changelog_index as u16,
-                value,
-                low_address_index,
-                low_address_value,
-                low_address_next_index,
-                low_address_next_value,
-                low_address_proof,
-            };
-            Instruction {
-                program_id: ID,
-                accounts: vec![
-                    AccountMeta::new(rpc.get_payer().pubkey(), true),
-                    AccountMeta::new(ID, false),
-                    AccountMeta::new(address_queue_pubkey, false),
-                    AccountMeta::new(address_merkle_tree_pubkey, false),
-                    AccountMeta::new(NOOP_PROGRAM_ID, false),
-                ],
-                data: instruction_data.data(),
-            }
-        }
-    };
+    let update_ix =
+        create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
+            authority: payer.pubkey(),
+            address_merkle_tree: address_merkle_tree_pubkey,
+            address_queue: address_queue_pubkey,
+            value,
+            low_address_index,
+            low_address_value,
+            low_address_next_index,
+            low_address_next_value,
+            low_address_proof,
+            changelog_index: changelog_index as u16,
+        });
     info!("sending transaction...");
-    let payer = rpc.get_payer().insecure_clone();
 
     let transaction = Transaction::new_signed_with_payer(
         &[update_ix],

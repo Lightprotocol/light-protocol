@@ -371,13 +371,13 @@ export const CompressedTransactionResult = pick({
         closedAccounts: array(
             pick({
                 account: CompressedAccountResult,
-                optionTokenData: nullable(TokenDataResult),
+                optionalTokenData: nullable(TokenDataResult),
             }),
         ),
         openedAccounts: array(
             pick({
                 account: CompressedAccountResult,
-                optionTokenData: nullable(TokenDataResult),
+                optionalTokenData: nullable(TokenDataResult),
             }),
         ),
     }),

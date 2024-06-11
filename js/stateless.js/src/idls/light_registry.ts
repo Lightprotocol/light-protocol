@@ -46,31 +46,6 @@ export type LightRegistry = {
             ];
         },
         {
-            name: 'updateGovernanceAuthorityReward';
-            accounts: [
-                {
-                    name: 'authority';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authorityPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'reward';
-                    type: 'u64';
-                },
-                {
-                    name: 'index';
-                    type: 'u64';
-                },
-            ];
-        },
-        {
             name: 'updateGovernanceAuthority';
             accounts: [
                 {
@@ -150,6 +125,11 @@ export type LightRegistry = {
             name: 'nullify';
             accounts: [
                 {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
@@ -223,6 +203,11 @@ export type LightRegistry = {
         {
             name: 'updateAddressMerkleTree';
             accounts: [
+                {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
                 {
                     name: 'authority';
                     isMut: false;
@@ -309,6 +294,11 @@ export type LightRegistry = {
             name: 'rolloverAddressMerkleTreeAndQueue';
             accounts: [
                 {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
@@ -360,6 +350,11 @@ export type LightRegistry = {
             name: 'rolloverStateMerkleTreeAndQueue';
             accounts: [
                 {
+                    name: 'registeredForesterPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
                     name: 'authority';
                     isMut: false;
                     isSigner: true;
@@ -407,8 +402,88 @@ export type LightRegistry = {
                 },
             ];
         },
+        {
+            name: 'registerForester';
+            accounts: [
+                {
+                    name: 'foresterEpochPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+                {
+                    name: 'signer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'bump';
+                    type: 'u8';
+                },
+                {
+                    name: 'authority';
+                    type: 'publicKey';
+                },
+            ];
+        },
+        {
+            name: 'updateForesterEpochPda';
+            accounts: [
+                {
+                    name: 'signer';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'foresterEpochPda';
+                    isMut: true;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'authority';
+                    type: 'publicKey';
+                },
+            ];
+        },
     ];
     accounts: [
+        {
+            name: 'foresterEpoch';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'authority';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'counter';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'epochStart';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'epochEnd';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
         {
             name: 'lightGovernanceAuthority';
             type: {
@@ -421,6 +496,14 @@ export type LightRegistry = {
                     {
                         name: 'bump';
                         type: 'u8';
+                    },
+                    {
+                        name: 'epoch';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'epochLength';
+                        type: 'u64';
                     },
                     {
                         name: 'padding';
@@ -441,8 +524,8 @@ export type LightRegistry = {
     errors: [
         {
             code: 6000;
-            name: 'SumCheckFailed';
-            msg: 'Sum check failed';
+            name: 'InvalidForester';
+            msg: 'InvalidForester';
         },
     ];
 };
@@ -491,31 +574,6 @@ export const IDL: LightRegistry = {
                 {
                     name: 'bump',
                     type: 'u8',
-                },
-            ],
-        },
-        {
-            name: 'updateGovernanceAuthorityReward',
-            accounts: [
-                {
-                    name: 'authority',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authorityPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'reward',
-                    type: 'u64',
-                },
-                {
-                    name: 'index',
-                    type: 'u64',
                 },
             ],
         },
@@ -599,6 +657,11 @@ export const IDL: LightRegistry = {
             name: 'nullify',
             accounts: [
                 {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
@@ -672,6 +735,11 @@ export const IDL: LightRegistry = {
         {
             name: 'updateAddressMerkleTree',
             accounts: [
+                {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
                 {
                     name: 'authority',
                     isMut: false,
@@ -758,6 +826,11 @@ export const IDL: LightRegistry = {
             name: 'rolloverAddressMerkleTreeAndQueue',
             accounts: [
                 {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
@@ -809,6 +882,11 @@ export const IDL: LightRegistry = {
             name: 'rolloverStateMerkleTreeAndQueue',
             accounts: [
                 {
+                    name: 'registeredForesterPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
                     name: 'authority',
                     isMut: false,
                     isSigner: true,
@@ -856,8 +934,88 @@ export const IDL: LightRegistry = {
                 },
             ],
         },
+        {
+            name: 'registerForester',
+            accounts: [
+                {
+                    name: 'foresterEpochPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+                {
+                    name: 'signer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'bump',
+                    type: 'u8',
+                },
+                {
+                    name: 'authority',
+                    type: 'publicKey',
+                },
+            ],
+        },
+        {
+            name: 'updateForesterEpochPda',
+            accounts: [
+                {
+                    name: 'signer',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'foresterEpochPda',
+                    isMut: true,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'authority',
+                    type: 'publicKey',
+                },
+            ],
+        },
     ],
     accounts: [
+        {
+            name: 'foresterEpoch',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'authority',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'counter',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'epochStart',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'epochEnd',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
         {
             name: 'lightGovernanceAuthority',
             type: {
@@ -870,6 +1028,14 @@ export const IDL: LightRegistry = {
                     {
                         name: 'bump',
                         type: 'u8',
+                    },
+                    {
+                        name: 'epoch',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'epochLength',
+                        type: 'u64',
                     },
                     {
                         name: 'padding',
@@ -890,8 +1056,8 @@ export const IDL: LightRegistry = {
     errors: [
         {
             code: 6000,
-            name: 'SumCheckFailed',
-            msg: 'Sum check failed',
+            name: 'InvalidForester',
+            msg: 'InvalidForester',
         },
     ],
 };

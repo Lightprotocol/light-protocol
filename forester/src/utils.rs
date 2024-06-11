@@ -1,4 +1,7 @@
+use crate::constants::SERVER_URL;
 use log::info;
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::commitment_config::CommitmentConfig;
 use std::process::Command;
 use sysinfo::{Signal, System};
 
@@ -44,4 +47,8 @@ pub fn decode_hash(account: &str) -> [u8; 32] {
     let mut arr = [0u8; 32];
     arr.copy_from_slice(&bytes);
     arr
+}
+
+pub fn get_rpc_client_confirmed() -> RpcClient {
+    RpcClient::new_with_commitment(SERVER_URL.to_string(), CommitmentConfig::confirmed())
 }

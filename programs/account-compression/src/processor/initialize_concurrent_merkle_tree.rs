@@ -6,15 +6,6 @@ use crate::{
     RolloverMetadata,
 };
 
-#[derive(Accounts)]
-pub struct InitializeStateMerkleTree<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    #[account(zero)]
-    pub merkle_tree: AccountLoader<'info, StateMerkleTreeAccount>,
-    pub system_program: Program<'info, System>,
-}
-
 #[allow(unused_variables)]
 pub fn process_initialize_state_merkle_tree(
     merkle_tree_account_loader: &AccountLoader<'_, StateMerkleTreeAccount>,
@@ -43,7 +34,7 @@ pub fn process_initialize_state_merkle_tree(
         }
         None => 0,
     };
-    msg!("rollover fee: {}", rollover_fee);
+
     merkle_tree.init(
         AccessMetadata::new(owner, program_owner),
         RolloverMetadata::new(

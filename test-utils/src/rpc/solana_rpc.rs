@@ -262,9 +262,19 @@ impl RpcConnection for SolanaRpcConnection {
         to: &Pubkey,
         lamports: u64,
     ) -> Result<Signature, RpcError> {
-        self.client
+        let signature = self
+            .client
             .request_airdrop(to, lamports)
-            .map_err(RpcError::from)
+            .map_err(RpcError::from)?;
+        let confirmed = self
+            .client
+            .confirm_transaction_with_commitment(&signature, CommitmentConfig::confirmed())?
+            .value;
+        if confirmed {
+            Ok(signature)
+        } else {
+            Err(RpcError::CustomError("Airdrop failed".to_string()))
+        }
     }
 
     async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {

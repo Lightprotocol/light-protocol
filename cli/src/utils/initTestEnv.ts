@@ -16,12 +16,14 @@ import {
 } from "./process";
 import { startProver } from "./processProverServer";
 import { startIndexer } from "./processPhotonIndexer";
+import { startForester } from "./processForester";
 
 export async function initTestEnv({
   additionalPrograms,
   skipSystemAccounts,
   indexer = true,
   prover = true,
+  forester = true,
   proveCompressedAccounts = true,
   proveNewAddresses = false,
   checkPhotonVersion = true,
@@ -31,6 +33,7 @@ export async function initTestEnv({
   skipSystemAccounts?: boolean;
   indexer: boolean;
   prover: boolean;
+  forester: boolean;
   proveCompressedAccounts?: boolean;
   proveNewAddresses?: boolean;
   checkPhotonVersion?: boolean;
@@ -60,6 +63,10 @@ export async function initTestEnv({
   if (prover) {
     await startProver(proveCompressedAccounts, proveNewAddresses);
   }
+
+  if (forester) {
+    await startForester();
+  }
 }
 
 export async function initTestEnvIfNeeded({
@@ -67,11 +74,13 @@ export async function initTestEnvIfNeeded({
   skipSystemAccounts,
   indexer = false,
   prover = false,
+  forester = false,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   indexer?: boolean;
   prover?: boolean;
+  forester?: boolean;
 } = {}) {
   try {
     const anchorProvider = await setAnchorProvider();
@@ -85,6 +94,7 @@ export async function initTestEnvIfNeeded({
       skipSystemAccounts,
       indexer,
       prover,
+      forester,
     });
   }
 }

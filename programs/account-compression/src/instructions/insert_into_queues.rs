@@ -14,6 +14,7 @@ use num_bigint::BigUint;
 
 #[derive(Accounts)]
 pub struct InsertIntoQueues<'info> {
+    /// Fee payer pays rollover fee.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     /// CHECK: should only be accessed by a registered program or owner.

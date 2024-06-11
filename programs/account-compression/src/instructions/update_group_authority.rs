@@ -1,10 +1,8 @@
-use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
-
 use crate::GroupAuthority;
+use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 
 #[derive(Accounts)]
 pub struct UpdateGroupAuthority<'info> {
-    #[account(mut)]
     pub authority: Signer<'info>,
     #[account(
         mut,

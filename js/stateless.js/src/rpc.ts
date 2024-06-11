@@ -157,19 +157,19 @@ function buildCompressedAccountWithMaybeTokenData(account: any): {
     account: CompressedAccountWithMerkleContext;
     maybeTokenData: TokenData | null;
 } {
-    const tokenData = account.optionTokenData;
+    const tokenData = account.optionalTokenData;
     const compressedAccount: CompressedAccountWithMerkleContext =
         createCompressedAccountWithMerkleContext(
             createMerkleContext(
-                account.tree!,
+                account.account.tree!,
                 mockNullifierQueue,
-                account.hash.toArray(undefined, 32),
-                account.leafIndex,
+                account.account.hash.toArray('be', 32),
+                account.account.leafIndex,
             ),
-            account.owner,
-            bn(account.lamports),
-            account.data ? parseAccountData(account.data) : undefined,
-            account.address || undefined,
+            account.account.owner,
+            bn(account.account.lamports),
+            account.account.data ? parseAccountData(account.account.data) : undefined,
+            account.account.address || undefined,
         );
 
     if (tokenData === null) {
@@ -821,6 +821,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
         );
+        console.log('getTransactionWithCompressionInfo', res.result.compressionInfo.openedAccounts[0].account);
         if ('error' in res) {
             throw new SolanaJSONRPCError(res.error, 'failed to get slot');
         }
@@ -1052,7 +1053,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * @param newAddresses  Array of BN254 new addresses.
      * @returns             validity proof with context
      */
-    async getValidityProof(
+    async getValidityProof_direct(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
@@ -1200,11 +1201,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     // FIXME: debug photon zkp. For debugging use either
     // testRpc.getValidityProof or rpc.getValidityProof to test against
-    async getValidityProofDebug(
+    async getValidityProof(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-        console.log("log: calling photon 'getValidityProof'");
+        console.log("log [debug]: calling photon 'getValidityProof'");
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
@@ -1228,7 +1229,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
-        console.log(res.result);
+        console.log("log [debug]: 'getValidityProof‘ response", res.result);
         const value: CompressedProofWithContext = {
             compressedProof: res.result.compressedProof,
             merkleTrees: res.result.merkleTrees,

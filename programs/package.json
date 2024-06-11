@@ -12,7 +12,7 @@
     "test-system": "cargo test-sbf -p system-test -- --test-threads=1",
     "test-compressed-token": "cargo test-sbf -p compressed-token-test -- --test-threads=1",
     "test-registry": "cargo-test-sbf -p registry-test -- --test-threads=1",
-    "token-escrow": "cargo-test-sbf -p token-escrow -- --test-threads=1",
+    "token-escrow": "cargo-test-sbf --features cpi-context -p token-escrow -- --test-threads=1",
     "program-owned-account-test": "cargo-test-sbf -p program-owned-account-test -- --test-threads=1",
     "random-e2e-test": "RUST_MIN_STACK=8388608 cargo-test-sbf -p e2e-test -- --nocapture --test-threads=1"
   }

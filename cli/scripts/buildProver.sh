@@ -3,10 +3,10 @@
 set -eux
 
 build_prover() {
-  GOOS=$1 GOARCH=$2 go build -o $3
+  GOOS=$1 GOARCH=$2 go build -o "$3"
 }
 
-root_dir="$(git rev-parse --show-toplevel)";
+root_dir="$(git rev-parse --show-toplevel)"
 gnark_dir="${root_dir}/gnark-prover"
 out_dir="${root_dir}/cli/bin"
 

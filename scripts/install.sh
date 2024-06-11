@@ -117,7 +117,7 @@ JQ_VERSION="jq-1.7.1"
 CIRCOM_VERSION=$(latest_release Lightprotocol circom)
 MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
 LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
-PHOTON_VERSION="0.22.0"
+PHOTON_VERSION="0.23.0"
 PHOTON_BRANCH=""
 
 case "${OS}" in

@@ -12,7 +12,7 @@ import {
     selectMinCompressedSolAccountsForTransfer,
 } from '../programs';
 import { Rpc } from '../rpc';
-import { defaultTestStateTreeAccounts } from '../constants';
+
 import { bn } from '../state';
 import { buildAndSignTx, sendAndConfirmTx } from '../utils';
 
@@ -52,7 +52,7 @@ export async function transfer(
         lamports,
     );
 
-    const proof = await rpc.getValidityProofDebug(
+    const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
     );
 
