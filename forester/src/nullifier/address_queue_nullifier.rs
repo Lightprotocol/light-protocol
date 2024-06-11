@@ -146,7 +146,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
                 low_address_next_value,
                 low_address_proof,
             };
-            let accounts = light_registry::accounts::UpdateMerkleTree {
+            let accounts = light_registry::accounts::UpdateAddressMerkleTree {
                 authority: rpc.get_payer().pubkey(),
                 registered_program_pda: register_program_pda,
                 queue: address_queue_pubkey,
