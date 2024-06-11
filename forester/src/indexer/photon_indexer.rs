@@ -55,7 +55,6 @@ impl Indexer for PhotonIndexer {
                             .iter()
                             .map(|x| {
                                 let mut proof_result_value = x.proof.clone();
-                                // proof_result_value.truncate(proof_result_value.len() - 1); // Remove root
                                 proof_result_value.truncate(proof_result_value.len() - 10); // Remove canopy
                                 let proof: Vec<[u8; 32]> =
                                     proof_result_value.iter().map(|x| decode_hash(x)).collect();
