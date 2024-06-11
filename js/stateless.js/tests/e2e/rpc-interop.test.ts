@@ -23,7 +23,6 @@ describe('rpc-interop', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
-        // await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
 
         testRpc = await getTestRpc(lightWasm);
 
@@ -242,7 +241,6 @@ describe('rpc-interop', () => {
             newAddressProof.leafHigherRangeValue.eq(
                 newAddressProofTest.leafHigherRangeValue,
             ),
-            // Include the values
             `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
         );
         assert.isTrue(
