@@ -81,6 +81,11 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     if nullifier_queue_config != NullifierQueueConfig::default() {
         unimplemented!("Only default nullifier queue config is supported.");
     }
+    // Will be used to configure rollover fees for additional accounts (cpi
+    // context account).
+    if additional_rent != 0 {
+        unimplemented!("Additional rent is not supported.");
+    }
 
     process_initialize_state_merkle_tree(
         &ctx.accounts.merkle_tree,

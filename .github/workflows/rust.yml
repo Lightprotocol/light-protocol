@@ -9,7 +9,7 @@ on:
       - ".github/workflows/rust.yml"
   pull_request:
     branches:
-      - main
+      - "*"
     paths:
       - "**/*.rs"
       - "**/Cargo.*"
@@ -43,7 +43,7 @@ jobs:
         run: ./scripts/install.sh
 
       - name: Test workspace
-        run:  |
+        run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
           RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --workspace --all-targets  --exclude photon-api --exclude forester
