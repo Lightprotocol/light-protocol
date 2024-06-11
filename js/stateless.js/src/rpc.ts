@@ -283,7 +283,7 @@ export const proverRequest = async (
     /// TODO: Move compression into the gnark prover to save bandwidth.
     const data: any = await response.json();
     const parsed = proofFromJsonStruct(data);
-    const compressedProof = negateAndCompressProof(parsed);
+const compressedProof = negateAndCompressProof(parsed);
 
     if (log) console.timeEnd(logMsg);
 
@@ -372,7 +372,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
 
 /// TODO: replace with dynamic nullifierQueue
 const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
-
+const mockAddressQueue = defaultTestStateTreeAccounts().addressQueue;
 /**
  *
  */
@@ -619,7 +619,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
-                nullifierQueue: mockNullifierQueue, // TODO(photon): support nullifierQueue in response.
+                nullifierQueue: mockAddressQueue, // TODO(photon): support nullifierQueue in response.
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
             };
@@ -635,11 +635,13 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
+        console.log('waiting for response');
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',
             { owner: owner.toBase58() },
         );
+        console.log('unsafeRes', unsafeRes);
 
         const res = create(
             unsafeRes,
@@ -1029,9 +1031,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 leafHigherRangeValue: proof.higherRangeAddress,
                 leafIndex: bn(proof.leafIndex),
                 merkleProofHashedIndexedElementLeaf: proof.proof,
-                indexHashedIndexedElementLeaf: proof.lowElementLeafIndex,
+                indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
                 merkleTree: proof.merkleTree,
-                nullifierQueue: mockNullifierQueue,
+                nullifierQueue: mockAddressQueue,
             };
             newAddressProofs.push(_proof);
         }
@@ -1202,13 +1204,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
     // testRpc.getValidityProof or rpc.getValidityProof to test against
     async getValidityProof(
         hashes: BN254[] = [],
-        _newAddresses: BN254[] = [],
+        newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
         console.log("log [debug]: calling photon 'getValidityProof'");
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
-            hashes.map(hash => encodeBN254toBase58(hash)),
+            {
+                hashes: hashes.map(hash => encodeBN254toBase58(hash)),
+                newAddresses: newAddresses.map(address =>
+                    encodeBN254toBase58(address),
+                ),
+            },
         );
 
         const res = create(unsafeRes, jsonRpcResult(ValidityProofResult));
@@ -1228,9 +1235,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
             compressedProof: res.result.compressedProof,
             merkleTrees: res.result.merkleTrees,
             leafIndices: res.result.leafIndices,
-            nullifierQueues: res.result.merkleTrees.map(
-                () => mockNullifierQueue,
-            ), // TODO: use nullifierQueue from indexer
+            nullifierQueues: [
+                ...hashes.map(() => mockNullifierQueue),
+                ...newAddresses.map(() => mockAddressQueue)
+            ],
             rootIndices: res.result.rootIndices,
             roots: res.result.roots,
             leaves: res.result.leaves,

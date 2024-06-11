@@ -285,7 +285,7 @@ export const NewAddressProofResult = pick({
     root: BN254FromString,
     lowerRangeAddress: BN254FromString, // this is: leafLowerRangeValue.
     higherRangeAddress: BN254FromString, // this is: leafHigherRangeValue
-    lowElementLeafIndex: BN254FromString, // this is: indexHashedIndexedElementLeaf
+    lowElementLeafIndex: number(), // this is: indexHashedIndexedElementLeaf
 });
 
 /**

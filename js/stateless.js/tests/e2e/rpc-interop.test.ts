@@ -13,6 +13,40 @@ import {
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+const { spawn } = require('child_process');
+const waitOn = require('wait-on');
+const BN = require('bn.js');
+
+export async function waitForServers(
+    servers: { port: number; path: string }[],
+) {
+    const opts = {
+        resources: servers.map(
+            ({ port, path }) => `http-get://127.0.0.1:${port}${path}`,
+        ),
+        delay: 1000,
+        timeout: 250000,
+        interval: 300,
+        simultaneous: 2,
+        validateStatus: function (status: number) {
+            return (
+                (status >= 200 && status < 300) ||
+                status === 404 ||
+                status === 405
+            );
+        },
+    };
+
+    try {
+        await waitOn(opts);
+        servers.forEach(server => {
+            console.log(`${server.port} is up!`);
+        });
+    } catch (err) {
+        console.error('Error waiting for server to start:', err);
+        throw err;
+    }
+}
 
 describe('rpc-interop', () => {
     let payer: Signer;
@@ -23,6 +57,25 @@ describe('rpc-interop', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
+
+        const child = spawn('bash', [
+            '-c',
+            'cd /home/ubuntu/photon && (fuser -k 8784/tcp || true) && cargo run',
+        ]);
+
+        child.stdout.on('data', data => {
+            console.log(`stdout: ${data}`);
+        });
+
+        child.stderr.on('data', data => {
+            console.error(`stderr: ${data}`);
+        });
+
+        child.on('error', error => {
+            console.error(`error: ${error.message}`);
+        });
+        await waitForServers([{ port: 8784, path: '/getIndexerHealth' }]);
+
         testRpc = await getTestRpc(lightWasm);
 
         /// These are constant test accounts in between test runs
@@ -36,7 +89,7 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
-    it.skip('getValidityProof [noforester] (inclusion) should match', async () => {
+    it('getValidityProof [noforester] (inclusion) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -84,7 +137,9 @@ describe('rpc-interop', () => {
     });
 
     /// This won't work until new-address params are being passed to photon
-    it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {
+    it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {});
+
+    it('getValidityProof [noforester] (new-addresses) should match', async () => {
         const newAddressSeed = new Uint8Array([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18, 19,
             20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
@@ -147,14 +202,18 @@ describe('rpc-interop', () => {
     });
 
     /// This won't work until new-address params are being passed to photon
-    it.skip('getValidityProof [noforester] (combined) should match', async () => {
+    it.skip('getValidityProof [noforester] (combined) should match', async () => {});
+
+    it('getValidityProof [noforester] (combined) should match', async () => {
+        console.log('Starting');
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
+        console.log('Starting1.1');
         const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-
+        console.log('Starting1.2');
         const hash = bn(senderAccounts[0].hash);
         const hashTest = bn(senderAccountsTest[0].hash);
 
@@ -172,6 +231,7 @@ describe('rpc-interop', () => {
             [hashTest],
             [newAddress],
         );
+        console.log('Starting2');
 
         validityProof.leafIndices.forEach((leafIndex, index) => {
             assert.equal(leafIndex, validityProofTest.leafIndices[index]);
@@ -191,6 +251,10 @@ describe('rpc-interop', () => {
         validityProof.nullifierQueues.forEach((elem, index) => {
             assert.isTrue(
                 elem.equals(validityProofTest.nullifierQueues[index]),
+                'Mismatch in nullifierQueues expected: ' +
+                    elem +
+                    ' got: ' +
+                    validityProofTest.nullifierQueues[index],
             );
         });
 
@@ -210,7 +274,7 @@ describe('rpc-interop', () => {
     });
 
     /// This assumes support for getMultipleNewAddressProofs in Photon.
-    it.skip('getMultipleNewAddressProofs [noforester] should match', async () => {
+    it('getMultipleNewAddressProofs [noforester] should match', async () => {
         const newAddress = bn(
             new Uint8Array([
                 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
@@ -224,6 +288,9 @@ describe('rpc-interop', () => {
             await testRpc.getMultipleNewAddressProofs([newAddress])
         )[0];
 
+        console.log(newAddressProof.indexHashedIndexedElementLeaf);
+        console.log(newAddressProofTest.indexHashedIndexedElementLeaf);
+
         assert.isTrue(
             newAddressProof.indexHashedIndexedElementLeaf.eq(
                 newAddressProofTest.indexHashedIndexedElementLeaf,
@@ -233,9 +300,12 @@ describe('rpc-interop', () => {
             newAddressProof.leafHigherRangeValue.eq(
                 newAddressProofTest.leafHigherRangeValue,
             ),
+            // Include the values
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
         );
         assert.isTrue(
             newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafIndex} got: ${newAddressProof.leafIndex}`,
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(
@@ -250,6 +320,7 @@ describe('rpc-interop', () => {
             newAddressProof.nullifierQueue.equals(
                 newAddressProofTest.nullifierQueue,
             ),
+            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
         );
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
@@ -261,10 +332,9 @@ describe('rpc-interop', () => {
                     newAddressProofTest.merkleProofHashedIndexedElementLeaf[
                         index
                     ];
-                assert.equal(
-                    elem,
-                    expected,
-                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${newAddressProofTest.merkleProofHashedIndexedElementLeaf} got: ${newAddressProof.merkleProofHashedIndexedElementLeaf}`,
+                assert.isTrue(
+                    elem.eq(expected),
+                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${expected.toString()} got: ${elem.toString()}`,
                 );
             },
         );
