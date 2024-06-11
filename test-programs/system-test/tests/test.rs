@@ -801,9 +801,8 @@ pub async fn perform_tx_with_output_compressed_accounts(
     );
     let result = context
         .create_and_send_transaction(&[instruction], &payer_pubkey, &[payer])
-        .await
-        .unwrap_err();
-    assert_rpc_error(Err(result), 0, expected_error_code)
+        .await;
+    assert_rpc_error(result, 0, expected_error_code)
 }
 
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
@@ -850,7 +849,7 @@ pub async fn create_instruction_and_failing_transaction(
         }
         Err(e) => e,
     };
-    assert_rpc_error(Err(result), 0, expected_error_code)
+    assert_rpc_error::<()>(Err(result), 0, expected_error_code)
 }
 
 /// Tests Execute compressed transaction:
@@ -1501,6 +1500,10 @@ async fn regenerate_accounts() {
         (
             "registered_registry_program_pda",
             env.registered_registry_program_pda,
+        ),
+        (
+            "registered_forester_epoch_pda",
+            env.registered_forester_epoch_pda,
         ),
     ];
 

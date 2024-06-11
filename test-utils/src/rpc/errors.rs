@@ -28,8 +28,8 @@ pub enum RpcError {
     AssertRpcError(String),
 }
 
-pub fn assert_rpc_error(
-    result: Result<solana_sdk::signature::Signature, RpcError>,
+pub fn assert_rpc_error<T>(
+    result: Result<T, RpcError>,
     i: u8,
     expected_error_code: u32,
 ) -> Result<(), RpcError> {
@@ -42,7 +42,7 @@ pub fn assert_rpc_error(
                 "Expected error code: {}, got: {} error: {}",
                 expected_error_code,
                 error_code,
-                result.unwrap_err()
+                unsafe { result.unwrap_err_unchecked() }
             )
             .to_string(),
         )),

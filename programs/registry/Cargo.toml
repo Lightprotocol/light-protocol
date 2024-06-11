@@ -23,6 +23,7 @@ bench-sbf = []
 
 [dependencies]
 aligned-sized = { version = "0.1.4", path = "../../macros/aligned-sized" }
+light-macros= { version = "0.3.5", path = "../../macros/light" }
 anchor-lang = "0.29.0"
 bytemuck = "1.14"
 light-hasher = { version = "0.1.4", path = "../../merkle-tree/hasher" }

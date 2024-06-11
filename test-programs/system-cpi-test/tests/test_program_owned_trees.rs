@@ -1,14 +1,14 @@
 #![cfg(feature = "test-sbf")]
-
 use account_compression::sdk::create_insert_leaves_instruction;
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::{QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
-
-use light_registry::sdk::get_cpi_authority_pda;
+use light_registry::get_forester_epoch_pda_address;
+use light_registry::sdk::{
+    create_nullify_instruction, get_cpi_authority_pda, CreateNullifyInstructionInputs,
+};
 use light_system_program::utils::get_registered_program_pda;
-use light_test_utils::create_account_instruction;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
@@ -17,6 +17,7 @@ use light_test_utils::test_env::{
     initialize_new_group, register_program_with_registry_program, NOOP_PROGRAM_ID,
 };
 use light_test_utils::transaction_params::{FeeConfig, TransactionParams};
+use light_test_utils::{airdrop_lamports, create_account_instruction};
 use light_test_utils::{
     assert_custom_error_or_program_error,
     indexer::{create_mint_helper, TestIndexer},
@@ -175,7 +176,10 @@ async fn test_invalid_registered_program() {
         system_cpi_test::ID,
     )]))
     .await;
-    let payer = rpc.get_payer().insecure_clone();
+    let payer = env.forester.insecure_clone();
+    airdrop_lamports(&mut rpc, &payer.pubkey(), 100_000_000_000)
+        .await
+        .unwrap();
     let group_seed_keypair = Keypair::new();
     let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
     let invalid_group_pda =
@@ -241,15 +245,7 @@ async fn test_invalid_registered_program() {
             .await;
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
-
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
 
     // 2. directly invoke account compression program
@@ -263,17 +259,10 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match rpc
+        let result = rpc
             .create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
-            .await
-        {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+            .await;
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
     let other_program_id_keypair = Keypair::new();
     let token_program_registered_program_pda =
@@ -310,14 +299,7 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
 
     {
@@ -325,10 +307,12 @@ async fn test_invalid_registered_program() {
         let new_queue_keypair = Keypair::new();
         let (cpi_authority, bump) = light_registry::sdk::get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
+        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey()).0;
         let instruction_data =
             light_registry::instruction::RolloverStateMerkleTreeAndQueue { bump };
         let accounts = light_registry::accounts::RolloverMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
+            registered_forester_pda,
             cpi_authority,
             authority: payer.pubkey(),
             registered_program_pda,
@@ -377,14 +361,7 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 2, expected_error_code).unwrap();
     }
     // 6. rollover address Merkle tree with invalid group
     {
@@ -394,8 +371,11 @@ async fn test_invalid_registered_program() {
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let instruction_data =
             light_registry::instruction::RolloverAddressMerkleTreeAndQueue { bump };
+        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey()).0;
+
         let accounts = light_registry::accounts::RolloverMerkleTreeAndQueue {
             account_compression_program: account_compression::ID,
+            registered_forester_pda,
             cpi_authority,
             authority: payer.pubkey(),
             registered_program_pda,
@@ -447,58 +427,33 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 2, expected_error_code).unwrap();
+        assert_rpc_error(result, 2, expected_error_code).unwrap();
     }
     // 7. nullify with invalid group
     {
-        let register_program_pda = get_registered_program_pda(&light_registry::ID);
-        let (cpi_authority, bump) = get_cpi_authority_pda();
-        let instruction_data = light_registry::instruction::Nullify {
-            bump,
+        let inputs = CreateNullifyInstructionInputs {
+            authority: payer.pubkey(),
+            nullifier_queue: invalid_group_nullifier_queue.pubkey(),
+            merkle_tree: invalid_group_state_merkle_tree.pubkey(),
             change_log_indices: vec![1],
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
         };
-        let accounts = light_registry::accounts::NullifyLeaves {
-            authority: rpc.get_payer().pubkey(),
-            registered_program_pda: register_program_pda,
-            nullifier_queue: invalid_group_nullifier_queue.pubkey(),
-            merkle_tree: invalid_group_state_merkle_tree.pubkey(),
-            log_wrapper: NOOP_PROGRAM_ID,
-            cpi_authority,
-            account_compression_program: account_compression::ID,
-        };
-        let ix = Instruction {
-            program_id: light_registry::ID,
-            accounts: accounts.to_account_metas(Some(true)),
-            data: instruction_data.data(),
-        };
+        let ix = create_nullify_instruction(inputs);
+
         let result = rpc
             .create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer])
             .await;
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
     // 8. update address with invalid group
     {
         let register_program_pda = get_registered_program_pda(&light_registry::ID);
+        let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey()).0;
         let (cpi_authority, bump) = get_cpi_authority_pda();
         let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
             bump,
@@ -511,7 +466,8 @@ async fn test_invalid_registered_program() {
             low_address_value: [0u8; 32],
         };
         let accounts = light_registry::accounts::UpdateAddressMerkleTree {
-            authority: rpc.get_payer().pubkey(),
+            authority: payer.pubkey(),
+            registered_forester_pda,
             registered_program_pda: register_program_pda,
             queue: invalid_group_address_queue.pubkey(),
             merkle_tree: invalid_group_address_merkle_tree.pubkey(),
@@ -530,14 +486,7 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
     // 9. insert into address queue with invalid group
     {
@@ -568,14 +517,7 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
     // 10. insert into nullifier queue with invalid group
     {
@@ -606,14 +548,7 @@ async fn test_invalid_registered_program() {
         let expected_error_code =
             account_compression::errors::AccountCompressionErrorCode::InvalidAuthority.into();
 
-        let result = match result {
-            Ok(_) => {
-                println!("expected_error_code: {}", expected_error_code);
-                panic!("Transaction should have failed");
-            }
-            Err(e) => e,
-        };
-        assert_rpc_error(Err(result), 0, expected_error_code).unwrap();
+        assert_rpc_error(result, 0, expected_error_code).unwrap();
     }
 }
 

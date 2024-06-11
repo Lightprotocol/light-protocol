@@ -22,11 +22,13 @@ pub mod assert_token_tx;
 pub mod e2e_test_env;
 #[allow(unused)]
 pub mod indexer;
+pub mod registry;
 pub mod rpc;
 pub mod spl;
 pub mod state_tree_rollover;
 pub mod system_program;
 pub mod test_env;
+#[allow(unused)]
 pub mod test_forester;
 pub mod transaction_params;
 

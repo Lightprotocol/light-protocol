@@ -3,15 +3,17 @@ use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use account_compression::{config_accounts::GroupAuthority, program::AccountCompression};
 use anchor_lang::prelude::*;
 
+pub mod forester;
+pub use forester::*;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
 
 declare_id!("7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1");
 
 #[error_code]
-pub enum ErrorCode {
-    #[msg("Sum check failed")]
-    SumCheckFailed,
+pub enum RegistryError {
+    #[msg("InvalidForester")]
+    InvalidForester,
 }
 
 #[constant]
@@ -33,19 +35,8 @@ pub mod light_registry {
         ctx.accounts.authority_pda.authority = authority;
         ctx.accounts.authority_pda.bump = bump;
         ctx.accounts.authority_pda.rewards = rewards;
-        Ok(())
-    }
-
-    pub fn update_governance_authority_reward(
-        ctx: Context<UpdateAuthority>,
-        reward: u64,
-        index: u64,
-    ) -> Result<()> {
-        if ctx.accounts.authority_pda.rewards.len() <= index as usize {
-            ctx.accounts.authority_pda.rewards.push(reward);
-        } else {
-            ctx.accounts.authority_pda.rewards[index as usize] = reward;
-        }
+        ctx.accounts.authority_pda.epoch = 0;
+        ctx.accounts.authority_pda.epoch_length = u64::MAX;
         Ok(())
     }
 
@@ -90,6 +81,10 @@ pub mod light_registry {
         indices: Vec<u64>,
         proofs: Vec<Vec<[u8; 32]>>,
     ) -> Result<()> {
+        check_forester(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+        )?;
         let bump = &[bump];
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
         let signer_seeds = &[&seeds[..]];
@@ -127,6 +122,10 @@ pub mod light_registry {
         low_address_next_value: [u8; 32],
         low_address_proof: [[u8; 32]; 16],
     ) -> Result<()> {
+        check_forester(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+        )?;
         let bump = &[bump];
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
         let signer_seeds = &[&seeds[..]];
@@ -160,6 +159,10 @@ pub mod light_registry {
         ctx: Context<RolloverMerkleTreeAndQueue>,
         bump: u8,
     ) -> Result<()> {
+        check_forester(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+        )?;
         let bump = &[bump];
 
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
@@ -187,6 +190,10 @@ pub mod light_registry {
         ctx: Context<RolloverMerkleTreeAndQueue>,
         bump: u8,
     ) -> Result<()> {
+        check_forester(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+        )?;
         let bump = &[bump];
 
         let seeds = [CPI_AUTHORITY_PDA_SEED, bump];
@@ -209,6 +216,33 @@ pub mod light_registry {
         );
 
         account_compression::cpi::rollover_state_merkle_tree_and_nullifier_queue(cpi_ctx)
+    }
+
+    pub fn register_forester(
+        ctx: Context<RegisterForester>,
+        _bump: u8,
+        authority: Pubkey,
+    ) -> Result<()> {
+        ctx.accounts.forester_epoch_pda.authority = authority;
+        ctx.accounts.forester_epoch_pda.epoch_start = 0;
+        ctx.accounts.forester_epoch_pda.epoch_end = u64::MAX;
+        msg!(
+            "registered forester: {:?}",
+            ctx.accounts.forester_epoch_pda.authority
+        );
+        msg!(
+            "registered forester pda: {:?}",
+            ctx.accounts.forester_epoch_pda
+        );
+        Ok(())
+    }
+
+    pub fn update_forester_epoch_pda(
+        ctx: Context<UpdateForesterEpochPda>,
+        authority: Pubkey,
+    ) -> Result<()> {
+        ctx.accounts.forester_epoch_pda.authority = authority;
+        Ok(())
     }
 
     // TODO: update rewards field
@@ -251,6 +285,8 @@ pub mod light_registry {
 pub struct LightGovernanceAuthority {
     pub authority: Pubkey,
     pub bump: u8,
+    pub epoch: u64,
+    pub epoch_length: u64,
     pub _padding: [u8; 7],
     pub rewards: Vec<u64>, // initializing with storage for 8 u64s TODO: add instruction to resize
 }
@@ -299,6 +335,9 @@ pub struct RegisteredProgram<'info> {
 
 #[derive(Accounts)]
 pub struct NullifyLeaves<'info> {
+    /// CHECK:
+    #[account(mut)]
+    pub registered_forester_pda: Account<'info, ForesterEpoch>,
     /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
     pub authority: Signer<'info>,
     /// CHECK:
@@ -323,6 +362,9 @@ pub struct NullifyLeaves<'info> {
 
 #[derive(Accounts)]
 pub struct RolloverMerkleTreeAndQueue<'info> {
+    /// CHECK:
+    #[account(mut)]
+    pub registered_forester_pda: Account<'info, ForesterEpoch>,
     /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
     pub authority: Signer<'info>,
     /// CHECK:
@@ -351,6 +393,9 @@ pub struct RolloverMerkleTreeAndQueue<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateAddressMerkleTree<'info> {
+    /// CHECK:
+    #[account(mut)]
+    pub registered_forester_pda: Account<'info, ForesterEpoch>,
     /// CHECK: unchecked for now logic that regulates forester access is yet to be added.
     pub authority: Signer<'info>,
     /// CHECK:
