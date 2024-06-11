@@ -10,6 +10,7 @@ use crate::{
     },
     get_hash_set,
 };
+use account_compression::AddressMerkleTreeConfig;
 use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
     AddressMerkleTreeAccount,
@@ -60,6 +61,7 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     new_address_merkle_tree_keypair: &Keypair,
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
+    merkle_tree_config: &AddressMerkleTreeConfig,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer = context.get_payer().insecure_clone();
     let size =
@@ -77,11 +79,11 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     );
 
     let size = account_compression::state::AddressMerkleTreeAccount::size(
-        account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
-        account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG as usize,
-        account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS as usize,
-        account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
-        account_compression::utils::constants::ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG as usize,
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
     );
     let mt_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),

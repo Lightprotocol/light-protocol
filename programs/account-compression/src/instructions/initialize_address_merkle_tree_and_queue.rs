@@ -59,9 +59,6 @@ pub fn process_initialize_address_merkle_tree_and_queue<'info>(
     merkle_tree_config: AddressMerkleTreeConfig,
     queue_config: AddressQueueConfig,
 ) -> Result<()> {
-    if merkle_tree_config != AddressMerkleTreeConfig::default() {
-        unimplemented!("Only default address tree config is supported.");
-    }
     if queue_config != AddressQueueConfig::default() {
         unimplemented!("Only default address queue config is supported.");
     }

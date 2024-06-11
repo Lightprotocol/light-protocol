@@ -459,7 +459,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
-    let tree_config = AddressMerkleTreeConfig::default();
     let queue_config = AddressQueueConfig::default();
     let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
         index,
@@ -468,7 +467,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         program_owner,
         address_merkle_tree_keypair.pubkey(),
         address_queue_keypair.pubkey(),
-        tree_config.clone(),
+        merkle_tree_config.clone(),
         queue_config.clone(),
     );
     let c_ix =
@@ -501,7 +500,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         context,
         &address_merkle_tree_keypair.pubkey(),
         &address_queue_keypair.pubkey(),
-        &tree_config,
+        merkle_tree_config,
         index,
         program_owner,
         expected_change_log_length,
@@ -517,7 +516,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &address_queue_keypair.pubkey(),
         &queue_config,
         &address_merkle_tree_keypair.pubkey(),
-        &tree_config,
+        merkle_tree_config,
         QueueType::AddressQueue,
         index,
         program_owner,

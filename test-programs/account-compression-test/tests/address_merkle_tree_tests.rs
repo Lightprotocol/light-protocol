@@ -3,7 +3,11 @@
 use account_compression::{
     errors::AccountCompressionErrorCode,
     state::QueueAccount,
-    utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
+    utils::constants::{
+        ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_CHANGELOG,
+        ADDRESS_MERKLE_TREE_HEIGHT, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
+        ADDRESS_MERKLE_TREE_ROOTS,
+    },
     AddressMerkleTreeAccount, AddressMerkleTreeConfig, ID,
 };
 use anchor_lang::error::ErrorCode;
@@ -39,11 +43,10 @@ use solana_sdk::{
 /// 2. inserts two addresses to the queue
 /// 3. inserts two addresses into the address Merkle tree
 /// 4. insert third address
-#[tokio::test]
-async fn test_address_queue_and_tree_functional() {
+async fn address_queue_and_tree_functional(merkle_tree_config: &AddressMerkleTreeConfig) {
     // CHECK: 1 create address Merkle tree and queue accounts
     let (mut context, _, mut address_merkle_tree_bundle) =
-        test_setup_with_address_merkle_tree().await;
+        test_setup_with_address_merkle_tree(merkle_tree_config).await;
     let payer = context.get_payer().insecure_clone();
     let address_queue_pubkey = address_merkle_tree_bundle.accounts.queue;
     let address_merkle_tree_pubkey = address_merkle_tree_bundle.accounts.merkle_tree;
@@ -100,6 +103,32 @@ async fn test_address_queue_and_tree_functional() {
         .unwrap();
 }
 
+#[tokio::test]
+async fn test_address_queue_and_tree_functional_default() {
+    address_queue_and_tree_functional(&AddressMerkleTreeConfig::default()).await
+}
+
+#[tokio::test]
+async fn test_address_queue_and_tree_functional_custom() {
+    for changelog_size in (500..10_000).step_by(500) {
+        let roots_size = changelog_size * 2;
+
+        for address_changelog_size in (250..2000).step_by(250) {
+            address_queue_and_tree_functional(&AddressMerkleTreeConfig {
+                height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                changelog_size,
+                roots_size,
+                canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                address_changelog_size,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            })
+            .await;
+        }
+    }
+}
+
 /// Try to insert an address to the tree while pointing to an invalid low
 /// address.
 ///
@@ -122,10 +151,9 @@ async fn test_address_queue_and_tree_functional() {
 /// 11. invalid queue account
 /// 12. invalid Merkle tree account
 /// 13. non-associated Merkle tree
-#[tokio::test]
-async fn update_address_merkle_tree_failing_tests() {
+async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMerkleTreeConfig) {
     let (mut context, payer, mut address_merkle_tree_bundle) =
-        test_setup_with_address_merkle_tree().await;
+        test_setup_with_address_merkle_tree(merkle_tree_config).await;
     let address_queue_pubkey = address_merkle_tree_bundle.accounts.queue;
     let address_merkle_tree_pubkey = address_merkle_tree_bundle.accounts.merkle_tree;
     // Insert a pair of addresses, correctly. Just do it with relayer.
@@ -495,7 +523,7 @@ async fn update_address_merkle_tree_failing_tests() {
         &invalid_address_merkle_tree_keypair,
         &invalid_address_queue_keypair,
         None,
-        &AddressMerkleTreeConfig::default(),
+        merkle_tree_config,
         2,
     )
     .await;
@@ -525,6 +553,32 @@ async fn update_address_merkle_tree_failing_tests() {
     .unwrap();
 }
 
+#[tokio::test]
+async fn update_address_merkle_tree_failing_tests_default() {
+    update_address_merkle_tree_failing_tests(&AddressMerkleTreeConfig::default()).await
+}
+
+#[tokio::test]
+async fn update_address_merkle_tree_failing_tests_custom() {
+    for changelog_size in (500..10_000).step_by(500) {
+        let roots_size = changelog_size * 2;
+
+        for address_changelog_size in (250..2000).step_by(250) {
+            update_address_merkle_tree_failing_tests(&AddressMerkleTreeConfig {
+                height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                changelog_size,
+                roots_size,
+                canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                address_changelog_size,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            })
+            .await;
+        }
+    }
+}
+
 /// Tests address Merkle tree and queue rollover.
 /// 1. Not ready for rollover after init.
 /// 2. Not ready for rollover after setting next index to required value - 1.
@@ -532,9 +586,9 @@ async fn update_address_merkle_tree_failing_tests() {
 /// 4. Merkle tree and queue not associated (Invalid Merkle tree).
 /// 5. Successful rollover.
 /// 6. Attempt to rollover already rolled over Queue and Merkle tree.
-#[tokio::test]
-async fn test_address_merkle_tree_and_queue_rollover() {
-    let (mut context, payer, bundle) = test_setup_with_address_merkle_tree().await;
+async fn address_merkle_tree_and_queue_rollover(merkle_tree_config: &AddressMerkleTreeConfig) {
+    let (mut context, payer, bundle) =
+        test_setup_with_address_merkle_tree(merkle_tree_config).await;
     let address_merkle_tree_pubkey = bundle.accounts.merkle_tree;
     let address_queue_pubkey = bundle.accounts.queue;
     let address_merkle_tree_keypair_2 = Keypair::new();
@@ -546,11 +600,10 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &address_merkle_tree_keypair_2,
         &address_queue_keypair_2,
         None,
-        &AddressMerkleTreeConfig::default(),
+        merkle_tree_config,
         2,
     )
     .await;
-    let merkle_tree_config = AddressMerkleTreeConfig::default();
     let required_next_index = 2u64.pow(26) * merkle_tree_config.rollover_threshold.unwrap() / 100;
     let failing_next_index = required_next_index - 1;
 
@@ -564,6 +617,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &new_address_merkle_tree_keypair,
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
+        merkle_tree_config,
     )
     .await;
 
@@ -611,6 +665,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &new_address_merkle_tree_keypair,
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
+        merkle_tree_config,
     )
     .await;
 
@@ -636,6 +691,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &new_address_merkle_tree_keypair,
         &address_merkle_tree_pubkey,
         &address_queue_keypair_2.pubkey(),
+        merkle_tree_config,
     )
     .await;
 
@@ -653,6 +709,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &new_address_merkle_tree_keypair,
         &address_merkle_tree_keypair_2.pubkey(),
         &address_queue_pubkey,
+        merkle_tree_config,
     )
     .await;
 
@@ -676,6 +733,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &new_address_merkle_tree_keypair,
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
+        merkle_tree_config,
     )
     .await
     .unwrap();
@@ -700,6 +758,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &failing_new_state_merkle_tree_keypair,
         &address_merkle_tree_pubkey,
         &address_queue_pubkey,
+        merkle_tree_config,
     )
     .await;
 
@@ -711,7 +770,35 @@ async fn test_address_merkle_tree_and_queue_rollover() {
     .unwrap();
 }
 
-pub async fn test_setup_with_address_merkle_tree() -> (
+#[tokio::test]
+async fn test_address_merkle_tree_and_queue_rollover_default() {
+    address_merkle_tree_and_queue_rollover(&AddressMerkleTreeConfig::default()).await
+}
+
+#[tokio::test]
+async fn test_address_merkle_tree_and_queue_rollover_custom() {
+    for changelog_size in (500..10_000).step_by(500) {
+        let roots_size = changelog_size * 2;
+
+        for address_changelog_size in (250..2000).step_by(250) {
+            address_merkle_tree_and_queue_rollover(&AddressMerkleTreeConfig {
+                height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
+                changelog_size,
+                roots_size,
+                canopy_depth: ADDRESS_MERKLE_TREE_CANOPY_DEPTH,
+                address_changelog_size,
+                network_fee: Some(5000),
+                rollover_threshold: Some(95),
+                close_threshold: None,
+            })
+            .await;
+        }
+    }
+}
+
+pub async fn test_setup_with_address_merkle_tree(
+    merkle_tree_config: &AddressMerkleTreeConfig,
+) -> (
     ProgramTestRpcConnection, // rpc
     Keypair,                  // payer
     AddressMerkleTreeBundle<200>,
@@ -732,7 +819,7 @@ pub async fn test_setup_with_address_merkle_tree() -> (
         &address_merkle_tree_keypair,
         &address_queue_keypair,
         None,
-        &AddressMerkleTreeConfig::default(),
+        merkle_tree_config,
         1,
     )
     .await;
