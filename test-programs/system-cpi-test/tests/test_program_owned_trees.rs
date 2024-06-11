@@ -1,9 +1,10 @@
 #![cfg(feature = "test-sbf")]
 use account_compression::sdk::create_insert_leaves_instruction;
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
-use account_compression::{QueueAccount, StateMerkleTreeAccount};
+use account_compression::{AddressMerkleTreeConfig, QueueAccount, StateMerkleTreeAccount};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
+use light_hasher::Poseidon;
 use light_registry::get_forester_epoch_pda_address;
 use light_registry::sdk::{
     create_nullify_instruction, get_cpi_authority_pda, CreateNullifyInstructionInputs,
@@ -22,8 +23,8 @@ use light_test_utils::{
     assert_custom_error_or_program_error,
     indexer::{create_mint_helper, TestIndexer},
     test_env::setup_test_programs_with_accounts,
-    AccountZeroCopy,
 };
+use light_test_utils::{create_account_instruction, get_concurrent_merkle_tree};
 use solana_sdk::instruction::Instruction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
@@ -71,13 +72,13 @@ async fn test_program_owned_merkle_tree() {
         vec![amount; 1],
         vec![recipient_keypair.pubkey(); 1],
     );
-    let pre_merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut rpc, program_owned_merkle_tree_pubkey)
-            .await;
-    let pre_merkle_tree = pre_merkle_tree_account
-        .deserialized()
-        .copy_merkle_tree()
-        .unwrap();
+    let pre_merkle_tree = get_concurrent_merkle_tree::<
+        StateMerkleTreeAccount,
+        ProgramTestRpcConnection,
+        Poseidon,
+        26,
+    >(&mut rpc, program_owned_merkle_tree_pubkey)
+    .await;
     let event = rpc
         .create_and_send_transaction_with_event(
             &[instruction],
@@ -94,13 +95,13 @@ async fn test_program_owned_merkle_tree() {
         .await
         .unwrap()
         .unwrap();
-    let post_merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(&mut rpc, program_owned_merkle_tree_pubkey)
-            .await;
-    let post_merkle_tree = post_merkle_tree_account
-        .deserialized()
-        .copy_merkle_tree()
-        .unwrap();
+    let post_merkle_tree = get_concurrent_merkle_tree::<
+        StateMerkleTreeAccount,
+        ProgramTestRpcConnection,
+        Poseidon,
+        26,
+    >(&mut rpc, program_owned_merkle_tree_pubkey)
+    .await;
     test_indexer.add_compressed_accounts_with_token_data(&event);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
@@ -209,6 +210,7 @@ async fn test_invalid_registered_program() {
         &invalid_group_address_merkle_tree,
         &invalid_group_address_queue,
         None,
+        &AddressMerkleTreeConfig::default(),
         3,
     )
     .await;
@@ -331,14 +333,18 @@ async fn test_invalid_registered_program() {
             &account_compression::ID,
             Some(&new_queue_keypair),
         );
+        let size = account_compression::state::StateMerkleTreeAccount::size(
+            account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+            account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG as usize,
+            account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+            account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+        );
         let create_state_merkle_tree_instruction = create_account_instruction(
             &payer.pubkey(),
-            account_compression::StateMerkleTreeAccount::LEN,
-            rpc.get_minimum_balance_for_rent_exemption(
-                account_compression::StateMerkleTreeAccount::LEN,
-            )
-            .await
-            .unwrap(),
+            size,
+            rpc.get_minimum_balance_for_rent_exemption(size)
+                .await
+                .unwrap(),
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );
@@ -397,14 +403,19 @@ async fn test_invalid_registered_program() {
             &account_compression::ID,
             Some(&new_queue_keypair),
         );
+        let size = account_compression::state::AddressMerkleTreeAccount::size(
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG as usize,
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS as usize,
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG as usize,
+        );
         let create_state_merkle_tree_instruction = create_account_instruction(
             &payer.pubkey(),
-            account_compression::AddressMerkleTreeAccount::LEN,
-            rpc.get_minimum_balance_for_rent_exemption(
-                account_compression::AddressMerkleTreeAccount::LEN,
-            )
-            .await
-            .unwrap(),
+            size,
+            rpc.get_minimum_balance_for_rent_exemption(size)
+                .await
+                .unwrap(),
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );

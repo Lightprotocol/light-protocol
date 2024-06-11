@@ -26,16 +26,8 @@ pub enum ConcurrentMerkleTreeError {
     CannotUpdateEmpty,
     #[error("The batch of leaves is empty")]
     EmptyLeaves,
-    #[error("Invalid struct buffer size, expected {0}, got {1}")]
-    StructBufferSize(usize, usize),
-    #[error("Invalid filled subtrees buffer size, expected {0}, got {1}")]
-    FilledSubtreesBufferSize(usize, usize),
-    #[error("Invalid changelog buffer size, expected {0}, got {1}")]
-    ChangelogBufferSize(usize, usize),
-    #[error("Invalid root buffer size, expected {0}, got {1}")]
-    RootBufferSize(usize, usize),
-    #[error("Invalid canopy buffer size, expected {0}, got {1}")]
-    CanopyBufferSize(usize, usize),
+    #[error("Invalid buffer size, expected {0}, got {1}")]
+    BufferSize(usize, usize),
     #[error("Hasher error: {0}")]
     Hasher(#[from] HasherError),
     #[error("Bounded vector error: {0}")]
@@ -59,11 +51,7 @@ impl From<ConcurrentMerkleTreeError> for u32 {
             ConcurrentMerkleTreeError::CannotUpdateLeaf => 10009,
             ConcurrentMerkleTreeError::CannotUpdateEmpty => 10010,
             ConcurrentMerkleTreeError::EmptyLeaves => 10011,
-            ConcurrentMerkleTreeError::StructBufferSize(_, _) => 10012,
-            ConcurrentMerkleTreeError::FilledSubtreesBufferSize(_, _) => 10013,
-            ConcurrentMerkleTreeError::ChangelogBufferSize(_, _) => 100014,
-            ConcurrentMerkleTreeError::RootBufferSize(_, _) => 10015,
-            ConcurrentMerkleTreeError::CanopyBufferSize(_, _) => 10016,
+            ConcurrentMerkleTreeError::BufferSize(_, _) => 10012,
             ConcurrentMerkleTreeError::Hasher(e) => e.into(),
             ConcurrentMerkleTreeError::BoundedVec(e) => e.into(),
         }

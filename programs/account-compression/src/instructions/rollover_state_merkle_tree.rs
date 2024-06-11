@@ -8,6 +8,7 @@ use crate::{
         queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
         StateMerkleTreeAccount,
     },
+    state_merkle_tree_from_bytes_zero_copy,
     utils::{
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccounts,
@@ -62,28 +63,35 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
         &ctx.accounts.new_state_merkle_tree.to_account_info(),
     )?;
     let queue_metadata = {
-        let mut merkle_tree_account_loaded = ctx.accounts.old_state_merkle_tree.load_mut()?;
-        let mut queue_account_loaded = ctx.accounts.old_nullifier_queue.load_mut()?;
-        check_signer_is_registered_or_authority::<
-            RolloverStateMerkleTreeAndNullifierQueue,
-            StateMerkleTreeAccount,
-        >(&ctx, &merkle_tree_account_loaded)?;
-        merkle_tree_account_loaded.metadata.rollover(
-            ctx.accounts.old_nullifier_queue.key(),
-            ctx.accounts.new_state_merkle_tree.key(),
-        )?;
-        queue_account_loaded.metadata.rollover(
-            ctx.accounts.old_state_merkle_tree.key(),
-            ctx.accounts.new_nullifier_queue.key(),
-        )?;
+        let (merkle_tree_metadata, queue_metadata) = {
+            let mut merkle_tree_account_loaded = ctx.accounts.old_state_merkle_tree.load_mut()?;
+            let mut queue_account_loaded = ctx.accounts.old_nullifier_queue.load_mut()?;
+            check_signer_is_registered_or_authority::<
+                RolloverStateMerkleTreeAndNullifierQueue,
+                StateMerkleTreeAccount,
+            >(&ctx, &merkle_tree_account_loaded)?;
+            merkle_tree_account_loaded.metadata.rollover(
+                ctx.accounts.old_nullifier_queue.key(),
+                ctx.accounts.new_state_merkle_tree.key(),
+            )?;
+            queue_account_loaded.metadata.rollover(
+                ctx.accounts.old_state_merkle_tree.key(),
+                ctx.accounts.new_nullifier_queue.key(),
+            )?;
 
-        let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
-        let queue_metadata = queue_account_loaded.metadata;
+            let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
+            let queue_metadata = queue_account_loaded.metadata;
 
-        let merkle_tree = merkle_tree_account_loaded.load_merkle_tree_mut()?;
+            (merkle_tree_metadata, queue_metadata)
+        };
+
+        let merkle_tree = ctx.accounts.old_state_merkle_tree.to_account_info();
+        let merkle_tree = merkle_tree.try_borrow_data()?;
+        let merkle_tree = state_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
+
         let height = merkle_tree.height;
 
-        if merkle_tree.next_index
+        if merkle_tree.next_index()
             < ((1 << height) * merkle_tree_metadata.rollover_metadata.rollover_threshold / 100)
                 as usize
         {
@@ -96,8 +104,8 @@ pub fn process_rollover_state_merkle_tree_nullifier_queue_pair<'a, 'b, 'c: 'info
             merkle_tree_metadata.access_metadata.owner,
             Some(merkle_tree_metadata.access_metadata.program_owner),
             &(merkle_tree.height as u32),
-            &(merkle_tree.changelog_capacity as u64),
-            &(merkle_tree.roots_capacity as u64),
+            &(merkle_tree.changelog.capacity() as u64),
+            &(merkle_tree.roots.capacity() as u64),
             &(merkle_tree.canopy_depth as u64),
             ctx.accounts.new_nullifier_queue.key(),
             merkle_tree_metadata.rollover_metadata.network_fee,

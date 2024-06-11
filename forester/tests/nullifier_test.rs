@@ -1,9 +1,12 @@
+use std::mem;
+
 use account_compression::StateMerkleTreeAccount;
-use anchor_lang::AccountDeserialize;
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
 use forester::utils::{get_rpc_client_confirmed, u8_arr_to_hex_string};
+use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
+use light_hasher::Poseidon;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
@@ -68,16 +71,16 @@ async fn tree_info_test() {
         .unwrap();
 
     let data: &[u8] = &client.get_account_data(&merkle_tree_pubkey).unwrap();
-    let mut data_ref = data;
-    let merkle_tree_account: StateMerkleTreeAccount =
-        StateMerkleTreeAccount::try_deserialize(&mut data_ref).unwrap();
-    let merkle_tree = merkle_tree_account.copy_merkle_tree().unwrap();
+    let merkle_tree = ConcurrentMerkleTreeCopy::<Poseidon, 26>::from_bytes_copy(
+        &data[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+    )
+    .unwrap();
 
     let root = merkle_tree.root();
     info!("Merkle tree root: {:?}", u8_arr_to_hex_string(&root));
     info!(
         "Merkle tree rightmost leaf: {:?}",
-        u8_arr_to_hex_string(&merkle_tree.rightmost_leaf)
+        u8_arr_to_hex_string(&merkle_tree.rightmost_leaf())
     );
 }
 

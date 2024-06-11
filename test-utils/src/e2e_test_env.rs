@@ -88,8 +88,10 @@ use crate::test_env::{
 };
 use crate::test_forester::{empty_address_queue_test, nullify_compressed_accounts};
 use crate::transaction_params::{FeeConfig, TransactionParams};
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
+use account_compression::AddressMerkleTreeConfig;
+use account_compression::{
+    utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+    StateMerkleTreeConfig,
 };
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
@@ -375,6 +377,7 @@ where
             &merkle_tree_keypair,
             &nullifier_queue_keypair,
             None,
+            &AddressMerkleTreeConfig::default(),
             self.indexer.address_merkle_trees.len() as u64,
         )
         .await;
@@ -502,6 +505,7 @@ where
             &new_merkle_tree_keypair,
             &bundle.merkle_tree,
             &bundle.nullifier_queue,
+            &StateMerkleTreeConfig::default(),
             None,
         )
         .await

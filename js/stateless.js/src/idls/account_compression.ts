@@ -696,42 +696,6 @@ export type AccountCompression = {
                             defined: 'MerkleTreeMetadata';
                         };
                     },
-                    {
-                        name: 'merkleTreeStruct';
-                        type: {
-                            array: ['u8', 320];
-                        };
-                    },
-                    {
-                        name: 'merkleTreeFilledSubtrees';
-                        type: {
-                            array: ['u8', 832];
-                        };
-                    },
-                    {
-                        name: 'merkleTreeChangelog';
-                        type: {
-                            array: ['u8', 1220800];
-                        };
-                    },
-                    {
-                        name: 'merkleTreeRoots';
-                        type: {
-                            array: ['u8', 76800];
-                        };
-                    },
-                    {
-                        name: 'merkleTreeCanopy';
-                        type: {
-                            array: ['u8', 65472];
-                        };
-                    },
-                    {
-                        name: 'addressChangelog';
-                        type: {
-                            array: ['u8', 20480];
-                        };
-                    },
                 ];
             };
         },
@@ -775,37 +739,6 @@ export type AccountCompression = {
                         name: 'metadata';
                         type: {
                             defined: 'MerkleTreeMetadata';
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeStruct';
-                        docs: ['Merkle tree for the transaction state.'];
-                        type: {
-                            array: ['u8', 272];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeFilledSubtrees';
-                        type: {
-                            array: ['u8', 832];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeChangelog';
-                        type: {
-                            array: ['u8', 1220800];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeRoots';
-                        type: {
-                            array: ['u8', 76800];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeCanopy';
-                        type: {
-                            array: ['u8', 65472];
                         };
                     },
                 ];
@@ -1844,42 +1777,6 @@ export const IDL: AccountCompression = {
                             defined: 'MerkleTreeMetadata',
                         },
                     },
-                    {
-                        name: 'merkleTreeStruct',
-                        type: {
-                            array: ['u8', 320],
-                        },
-                    },
-                    {
-                        name: 'merkleTreeFilledSubtrees',
-                        type: {
-                            array: ['u8', 832],
-                        },
-                    },
-                    {
-                        name: 'merkleTreeChangelog',
-                        type: {
-                            array: ['u8', 1220800],
-                        },
-                    },
-                    {
-                        name: 'merkleTreeRoots',
-                        type: {
-                            array: ['u8', 76800],
-                        },
-                    },
-                    {
-                        name: 'merkleTreeCanopy',
-                        type: {
-                            array: ['u8', 65472],
-                        },
-                    },
-                    {
-                        name: 'addressChangelog',
-                        type: {
-                            array: ['u8', 20480],
-                        },
-                    },
                 ],
             },
         },
@@ -1923,37 +1820,6 @@ export const IDL: AccountCompression = {
                         name: 'metadata',
                         type: {
                             defined: 'MerkleTreeMetadata',
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeStruct',
-                        docs: ['Merkle tree for the transaction state.'],
-                        type: {
-                            array: ['u8', 272],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeFilledSubtrees',
-                        type: {
-                            array: ['u8', 832],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeChangelog',
-                        type: {
-                            array: ['u8', 1220800],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeRoots',
-                        type: {
-                            array: ['u8', 76800],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeCanopy',
-                        type: {
-                            array: ['u8', 65472],
                         },
                     },
                 ],

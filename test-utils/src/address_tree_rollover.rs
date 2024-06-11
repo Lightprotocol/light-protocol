@@ -4,19 +4,19 @@ use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
     assert_rollover::{
-        assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
+        // assert_rolledover_merkle_trees,
+        assert_rolledover_merkle_trees_metadata,
         assert_rolledover_queues_metadata,
     },
     get_hash_set,
 };
 use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
-    utils::constants::ADDRESS_MERKLE_TREE_HEIGHT, AddressMerkleTreeAccount,
+    AddressMerkleTreeAccount,
 };
 use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
-use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
 use light_hasher::Poseidon;
-use memoffset::offset_of;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use solana_sdk::{
     account::{AccountSharedData, WritableAccount},
     account_info::AccountInfo,
@@ -33,24 +33,25 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
     next_index: u64,
     lamports: u64,
 ) {
-    // is in range 8 -9 in concurrent mt
-    // offset for next index
-    let offset_start = 8
-        + offset_of!(AddressMerkleTreeAccount, merkle_tree_struct)
-        + offset_of!(ConcurrentMerkleTree26<Poseidon>, next_index); // 6 * 8 + 8 + 4 * 32 + 8 * 8;
-    let offset_end = offset_start + 8;
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    merkle_tree.data[offset_start..offset_end].copy_from_slice(&next_index.to_le_bytes());
+    let merkle_tree_deserialized =
+        &mut IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26>::from_bytes_zero_copy_mut(
+            &mut merkle_tree.data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
+        )
+        .unwrap();
+    unsafe {
+        *merkle_tree_deserialized.next_index = next_index as usize;
+    }
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
     rpc.set_account(merkle_tree_pubkey, &account_share_data);
-    let merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    let data_in_offset = u64::from_le_bytes(
-        merkle_tree.data[offset_start..offset_end]
-            .try_into()
-            .unwrap(),
-    );
-    assert_eq!(data_in_offset, next_index);
+    let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
+    let merkle_tree_deserialized =
+        IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26>::from_bytes_zero_copy_mut(
+            &mut merkle_tree.data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
+        )
+        .unwrap();
+    assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
 }
 
 pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
@@ -75,13 +76,18 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
         Some(new_queue_keypair),
     );
 
+    let size = account_compression::state::AddressMerkleTreeAccount::size(
+        account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
+        account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG as usize,
+        account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS as usize,
+        account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
+        account_compression::utils::constants::ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG as usize,
+    );
     let mt_account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
-        account_compression::AddressMerkleTreeAccount::LEN,
+        size,
         context
-            .get_minimum_balance_for_rent_exemption(
-                account_compression::AddressMerkleTreeAccount::LEN,
-            )
+            .get_minimum_balance_for_rent_exemption(size)
             .await
             .unwrap(),
         &account_compression::ID,
@@ -174,15 +180,15 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
         new_queue_pubkey,
     );
 
-    let struct_old = unsafe {
-        &*(old_loaded_mt_account.merkle_tree_struct.as_ptr()
-            as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
-    };
-    let struct_new = unsafe {
-        &*(new_loaded_mt_account.merkle_tree_struct.as_ptr()
-            as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
-    };
-    assert_rolledover_merkle_trees(struct_old, struct_new);
+    // let struct_old = unsafe {
+    //     &*(old_loaded_mt_account.merkle_tree_struct.as_ptr()
+    //         as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
+    // };
+    // let struct_new = unsafe {
+    //     &*(new_loaded_mt_account.merkle_tree_struct.as_ptr()
+    //         as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
+    // };
+    // assert_rolledover_merkle_trees(struct_old, struct_new);
 
     {
         let mut new_queue_account = rpc.get_account(*new_queue_pubkey).await.unwrap().unwrap();

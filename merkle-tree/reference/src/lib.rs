@@ -127,11 +127,11 @@ where
         self.roots.last().cloned().unwrap()
     }
 
-    pub fn get_path_of_leaf<'a>(
+    pub fn get_path_of_leaf(
         &self,
         mut index: usize,
         full: bool,
-    ) -> Result<BoundedVec<'a, [u8; 32]>, BoundedVecError> {
+    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
         let mut path = BoundedVec::with_capacity(self.height);
         let limit = match full {
             true => self.height,
@@ -151,11 +151,11 @@ where
         Ok(path)
     }
 
-    pub fn get_proof_of_leaf<'a>(
+    pub fn get_proof_of_leaf(
         &self,
         mut index: usize,
         full: bool,
-    ) -> Result<BoundedVec<'a, [u8; 32]>, BoundedVecError> {
+    ) -> Result<BoundedVec<[u8; 32]>, BoundedVecError> {
         let mut proof = BoundedVec::with_capacity(self.height);
         let limit = match full {
             true => self.height,

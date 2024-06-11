@@ -11,22 +11,22 @@ pub fn assert_rolledover_merkle_trees<H, const HEIGHT: usize>(
 {
     assert_eq!(old_merkle_tree.height, new_merkle_tree.height);
     assert_eq!(
-        old_merkle_tree.changelog_capacity,
-        new_merkle_tree.changelog_capacity
+        old_merkle_tree.changelog.capacity(),
+        new_merkle_tree.changelog.capacity(),
     );
     assert_eq!(
-        old_merkle_tree.changelog_length,
-        new_merkle_tree.changelog_length
+        old_merkle_tree.changelog.len(),
+        new_merkle_tree.changelog.len()
     );
     assert_eq!(
-        old_merkle_tree.current_changelog_index,
-        new_merkle_tree.current_changelog_index
+        old_merkle_tree.changelog_index(),
+        new_merkle_tree.changelog_index()
     );
     assert_eq!(
-        old_merkle_tree.roots_capacity,
-        new_merkle_tree.roots_capacity
+        old_merkle_tree.roots.capacity(),
+        new_merkle_tree.roots.capacity()
     );
-    assert_eq!(old_merkle_tree.roots_length, new_merkle_tree.roots_length);
+    assert_eq!(old_merkle_tree.roots.len(), new_merkle_tree.roots.len());
     assert_eq!(old_merkle_tree.canopy_depth, new_merkle_tree.canopy_depth);
 }
 

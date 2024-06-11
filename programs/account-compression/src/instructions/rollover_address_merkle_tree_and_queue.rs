@@ -1,4 +1,5 @@
 use crate::{
+    address_merkle_tree_from_bytes_zero_copy,
     initialize_address_merkle_tree::process_initialize_address_merkle_tree,
     initialize_address_queue::process_initialize_address_queue,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
@@ -57,28 +58,35 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
         &ctx.accounts.new_address_merkle_tree.to_account_info(),
     )?;
     let (queue_metadata, height) = {
-        let mut merkle_tree_account_loaded = ctx.accounts.old_address_merkle_tree.load_mut()?;
-        let mut queue_account_loaded = ctx.accounts.old_queue.load_mut()?;
-        check_signer_is_registered_or_authority::<
-            RolloverAddressMerkleTreeAndQueue,
-            AddressMerkleTreeAccount,
-        >(&ctx, &merkle_tree_account_loaded)?;
-        merkle_tree_account_loaded.metadata.rollover(
-            ctx.accounts.old_queue.key(),
-            ctx.accounts.new_address_merkle_tree.key(),
-        )?;
-        queue_account_loaded.metadata.rollover(
-            ctx.accounts.old_address_merkle_tree.key(),
-            ctx.accounts.new_queue.key(),
-        )?;
+        let (merkle_tree_metadata, queue_metadata) = {
+            let mut merkle_tree_account_loaded = ctx.accounts.old_address_merkle_tree.load_mut()?;
+            let mut queue_account_loaded = ctx.accounts.old_queue.load_mut()?;
+            check_signer_is_registered_or_authority::<
+                RolloverAddressMerkleTreeAndQueue,
+                AddressMerkleTreeAccount,
+            >(&ctx, &merkle_tree_account_loaded)?;
+            merkle_tree_account_loaded.metadata.rollover(
+                ctx.accounts.old_queue.key(),
+                ctx.accounts.new_address_merkle_tree.key(),
+            )?;
+            queue_account_loaded.metadata.rollover(
+                ctx.accounts.old_address_merkle_tree.key(),
+                ctx.accounts.new_queue.key(),
+            )?;
 
-        let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
-        let queue_metadata = queue_account_loaded.metadata;
+            let merkle_tree_metadata = merkle_tree_account_loaded.metadata;
+            let queue_metadata = queue_account_loaded.metadata;
 
-        let merkle_tree = merkle_tree_account_loaded.load_merkle_tree_mut()?;
-        let height = merkle_tree.merkle_tree.merkle_tree.height;
+            (merkle_tree_metadata, queue_metadata)
+        };
 
-        if merkle_tree.merkle_tree.merkle_tree.next_index
+        let merkle_tree = ctx.accounts.old_address_merkle_tree.to_account_info();
+        let merkle_tree = merkle_tree.try_borrow_data()?;
+        let merkle_tree = address_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
+
+        let height = merkle_tree.height;
+
+        if merkle_tree.next_index()
             < ((1 << height) * merkle_tree_metadata.rollover_metadata.rollover_threshold / 100)
                 as usize
         {
@@ -90,11 +98,11 @@ pub fn process_rollover_address_merkle_tree_and_queue<'a, 'b, 'c: 'info, 'info>(
             merkle_tree_metadata.rollover_metadata.index,
             merkle_tree_metadata.access_metadata.owner,
             Some(merkle_tree_metadata.access_metadata.program_owner),
-            merkle_tree.merkle_tree.merkle_tree.height as u32,
-            merkle_tree.merkle_tree.merkle_tree.changelog_capacity as u64,
-            merkle_tree.merkle_tree.merkle_tree.roots_capacity as u64,
-            merkle_tree.merkle_tree.merkle_tree.canopy_depth as u64,
-            merkle_tree.merkle_tree.changelog.capacity() as u64,
+            merkle_tree.height as u32,
+            merkle_tree.merkle_tree.indexed_changelog.capacity() as u64,
+            merkle_tree.roots.capacity() as u64,
+            merkle_tree.canopy_depth as u64,
+            merkle_tree.indexed_changelog.capacity() as u64,
             ctx.accounts.new_queue.key(),
             merkle_tree_metadata.rollover_metadata.network_fee,
             Some(merkle_tree_metadata.rollover_metadata.rollover_threshold),

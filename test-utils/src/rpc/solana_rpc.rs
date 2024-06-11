@@ -31,10 +31,14 @@ pub struct SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    pub async fn new(commitment_config: Option<CommitmentConfig>) -> Self {
+    pub fn new(commitment_config: Option<CommitmentConfig>) -> Self {
+        Self::new_with_url(SERVER_URL, commitment_config)
+    }
+
+    pub fn new_with_url<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
         let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
-        let client = RpcClient::new_with_commitment(SERVER_URL, commitment_config);
+        let client = RpcClient::new_with_commitment(url, commitment_config);
         client
             .request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
             .unwrap();

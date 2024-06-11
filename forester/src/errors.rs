@@ -1,12 +1,13 @@
 use account_compression::initialize_address_merkle_tree::Error as AccountCompressionError;
 use light_hash_set::HashSetError;
+use light_test_utils::rpc::errors::RpcError;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ForesterError {
     #[error("RPC Error: {0}")]
-    RpcError(#[from] solana_client::client_error::ClientError),
+    RpcError(#[from] RpcError),
     #[error("failed to deserialize account data")]
     DeserializeError(#[from] solana_sdk::program_error::ProgramError),
     #[error("failed to copy merkle tree")]

@@ -1,7 +1,11 @@
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    mem,
+    ops::{Deref, DerefMut},
+};
 
 use array::{IndexedArray, IndexedElement};
-use light_bounded_vec::{BoundedVec, CyclicBoundedVec};
+use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError,
     event::{IndexedMerkleTreeUpdate, RawIndexedElement},
@@ -25,35 +29,63 @@ pub const FIELD_SIZE_SUB_ONE: &str =
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct IndexedMerkleTree<'a, H, I, const HEIGHT: usize>
+pub struct IndexedMerkleTree<H, I, const HEIGHT: usize>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
-    pub merkle_tree: ConcurrentMerkleTree<'a, H, HEIGHT>,
-    pub changelog: CyclicBoundedVec<'a, RawIndexedElement<I>>,
+    pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
+    pub indexed_changelog: CyclicBoundedVec<RawIndexedElement<I>>,
 
     _index: PhantomData<I>,
 }
 
-pub type IndexedMerkleTree22<'a, H, I> = IndexedMerkleTree<'a, H, I, 22>;
-pub type IndexedMerkleTree26<'a, H, I> = IndexedMerkleTree<'a, H, I, 26>;
-pub type IndexedMerkleTree32<'a, H, I> = IndexedMerkleTree<'a, H, I, 32>;
-pub type IndexedMerkleTree40<'a, H, I> = IndexedMerkleTree<'a, H, I, 40>;
+pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22>;
+pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26>;
+pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32>;
+pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40>;
 
-impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTree<'a, H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
+    /// Size of the struct **without** dynamically sized fields (`BoundedVec`,
+    /// `CyclicBoundedVec`).
+    pub fn non_dyn_fields_size() -> usize {
+        ConcurrentMerkleTree::<H, HEIGHT>::non_dyn_fields_size()
+            // indexed_changelog (metadata)
+            + mem::size_of::<CyclicBoundedVecMetadata>()
+    }
+
+    // TODO(vadorovsky): Make a macro for that.
+    pub fn size_in_account(
+        height: usize,
+        changelog_size: usize,
+        roots_size: usize,
+        canopy_depth: usize,
+        indexed_changelog_size: usize,
+    ) -> usize {
+        ConcurrentMerkleTree::<H, HEIGHT>::size_in_account(
+            height,
+            changelog_size,
+            roots_size,
+            canopy_depth,
+        )
+        // indexed_changelog (metadata)
+        + mem::size_of::<CyclicBoundedVecMetadata>()
+        // indexed_changelog
+        + mem::size_of::<RawIndexedElement<I>>() * indexed_changelog_size
+    }
+
     pub fn new(
         height: usize,
         changelog_size: usize,
         roots_size: usize,
         canopy_depth: usize,
-        indexed_change_log_size: usize,
+        indexed_changelog_size: usize,
     ) -> Result<Self, ConcurrentMerkleTreeError> {
         let merkle_tree = ConcurrentMerkleTree::<H, HEIGHT>::new(
             height,
@@ -63,7 +95,7 @@ where
         )?;
         Ok(Self {
             merkle_tree,
-            changelog: CyclicBoundedVec::with_capacity(indexed_change_log_size),
+            indexed_changelog: CyclicBoundedVec::with_capacity(indexed_changelog_size),
             _index: PhantomData,
         })
     }
@@ -122,16 +154,8 @@ where
         Ok(())
     }
 
-    pub fn changelog_index(&self) -> usize {
-        self.merkle_tree.changelog_index()
-    }
-
-    pub fn root_index(&self) -> usize {
-        self.merkle_tree.root_index()
-    }
-
-    pub fn root(&self) -> [u8; 32] {
-        self.merkle_tree.root()
+    pub fn indexed_changelog_index(&self) -> usize {
+        self.indexed_changelog.last_index()
     }
 
     /// Checks whether the given Merkle `proof` for the given `node` (with index
@@ -153,7 +177,7 @@ where
         low_element: &IndexedElement<I>,
     ) -> Result<Option<(IndexedElement<I>, [u8; 32])>, IndexedMerkleTreeError> {
         let changelog_element_index = self
-            .changelog
+            .indexed_changelog
             .iter()
             .position(|element| element.index == low_element.index);
         // key (index) value index in the changelog
@@ -166,7 +190,7 @@ where
                 if changelog_element_index == max_usize {
                     return Err(IndexedMerkleTreeError::LowElementNotFound);
                 }
-                let changelog_element = &mut self.changelog[changelog_element_index];
+                let changelog_element = &mut self.indexed_changelog[changelog_element_index];
                 let patched_element = IndexedElement::<I> {
                     value: BigUint::from_bytes_be(&changelog_element.value),
                     index: changelog_element.index,
@@ -250,7 +274,7 @@ where
             next_value: bigint_to_be_bytes_array::<32>(&new_element.value)?,
             index: new_low_element.index,
         };
-        self.changelog.push(new_low_element_change_log);
+        self.indexed_changelog.push(new_low_element_change_log);
         let new_high_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
             next_index: new_element.next_index,
@@ -265,5 +289,57 @@ where
         };
 
         Ok(output)
+    }
+}
+
+impl<H, I, const HEIGHT: usize> Deref for IndexedMerkleTree<H, I, HEIGHT>
+where
+    H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    type Target = ConcurrentMerkleTree<H, HEIGHT>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.merkle_tree
+    }
+}
+
+impl<H, I, const HEIGHT: usize> DerefMut for IndexedMerkleTree<H, I, HEIGHT>
+where
+    H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.merkle_tree
+    }
+}
+
+impl<H, I, const HEIGHT: usize> PartialEq for IndexedMerkleTree<H, I, HEIGHT>
+where
+    H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.merkle_tree.eq(&other.merkle_tree)
+            && self
+                .indexed_changelog
+                .capacity()
+                .eq(&other.indexed_changelog.capacity())
+            && self
+                .indexed_changelog
+                .len()
+                .eq(&other.indexed_changelog.len())
+            && self
+                .indexed_changelog
+                .first_index()
+                .eq(&other.indexed_changelog.first_index())
+            && self
+                .indexed_changelog
+                .last_index()
+                .eq(&other.indexed_changelog.last_index())
+            && self.indexed_changelog.eq(&other.indexed_changelog)
     }
 }

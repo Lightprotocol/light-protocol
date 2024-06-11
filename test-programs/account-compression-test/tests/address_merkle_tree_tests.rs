@@ -10,10 +10,11 @@ use anchor_lang::error::ErrorCode;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
-use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
+use light_test_utils::get_indexed_merkle_tree;
+use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::{
-    address_tree_rollover::perform_address_merkle_tree_roll_over, test_env::NOOP_PROGRAM_ID,
-    test_forester::update_merkle_tree,
+    address_tree_rollover::perform_address_merkle_tree_roll_over, rpc::ProgramTestRpcConnection,
+    test_env::NOOP_PROGRAM_ID, test_forester::update_merkle_tree,
 };
 use light_test_utils::{
     address_tree_rollover::{
@@ -25,7 +26,6 @@ use light_test_utils::{
     test_forester::{empty_address_queue_test, insert_addresses},
 };
 use light_test_utils::{airdrop_lamports, rpc::rpc_connection::RpcConnection};
-use light_test_utils::{rpc::errors::assert_rpc_error, AccountZeroCopy};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
 use solana_program_test::ProgramTest;
@@ -383,14 +383,15 @@ async fn update_address_merkle_tree_failing_tests() {
         10008, // ConcurrentMerkleTreeError::InvalidProof
     )
     .unwrap();
-    let address_merkle_tree =
-        AccountZeroCopy::<AddressMerkleTreeAccount>::new(&mut context, address_merkle_tree_pubkey)
-            .await;
-    let address_merkle_tree = &address_merkle_tree
-        .deserialized()
-        .load_merkle_tree()
-        .unwrap();
-    let changelog_index = address_merkle_tree.merkle_tree.changelog_index();
+    let address_merkle_tree = get_indexed_merkle_tree::<
+        AddressMerkleTreeAccount,
+        ProgramTestRpcConnection,
+        Poseidon,
+        usize,
+        26,
+    >(&mut context, address_merkle_tree_pubkey)
+    .await;
+    let changelog_index = address_merkle_tree.changelog_index();
     // CHECK: 9 invalid changelog index
     let invalid_changelog_index_low = changelog_index - 2;
     let error_invalid_changelog_index_low = update_merkle_tree(
@@ -494,6 +495,7 @@ async fn update_address_merkle_tree_failing_tests() {
         &invalid_address_merkle_tree_keypair,
         &invalid_address_queue_keypair,
         None,
+        &AddressMerkleTreeConfig::default(),
         2,
     )
     .await;
@@ -544,6 +546,7 @@ async fn test_address_merkle_tree_and_queue_rollover() {
         &address_merkle_tree_keypair_2,
         &address_queue_keypair_2,
         None,
+        &AddressMerkleTreeConfig::default(),
         2,
     )
     .await;
@@ -729,6 +732,7 @@ pub async fn test_setup_with_address_merkle_tree() -> (
         &address_merkle_tree_keypair,
         &address_queue_keypair,
         None,
+        &AddressMerkleTreeConfig::default(),
         1,
     )
     .await;

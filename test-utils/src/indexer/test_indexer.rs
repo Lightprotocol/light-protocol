@@ -1,3 +1,4 @@
+use account_compression::AddressMerkleTreeConfig;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -53,6 +54,7 @@ use {
 };
 
 use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
+use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
 };
@@ -403,6 +405,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             merkle_tree_keypair,
             queue_keypair,
             owning_program_id,
+            &AddressMerkleTreeConfig::default(),
             self.address_merkle_trees.len() as u64,
         )
         .await;
@@ -581,16 +584,19 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 path_index: BigInt::from_be_bytes(leaf_index.to_be_bytes().as_slice()),
                 path_elements: proof.iter().map(|x| BigInt::from_be_bytes(x)).collect(),
             });
-            let merkle_tree_account =
-                AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, merkle_tree_pubkeys[i]).await;
-            let fetched_merkle_tree_account = merkle_tree_account.deserialized();
-            let fetched_merkle_tree = fetched_merkle_tree_account.copy_merkle_tree().unwrap();
+            let fetched_merkle_tree = unsafe {
+                get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+                    rpc,
+                    merkle_tree_pubkeys[i],
+                )
+                .await
+            };
             assert_eq!(
                 merkle_tree.root(),
                 fetched_merkle_tree.root(),
                 "Merkle tree root mismatch"
             );
-            root_indices.push(fetched_merkle_tree.current_root_index as u16);
+            root_indices.push(fetched_merkle_tree.root_index() as u16);
         }
 
         let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
@@ -625,21 +631,14 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 &address_tree.indexed_array,
             );
             non_inclusion_proofs.push(proof_inputs);
-            let merkle_tree_account = AccountZeroCopy::<AddressMerkleTreeAccount>::new(
-                rpc,
-                address_merkle_tree_pubkeys[i],
-            )
-            .await;
-            let fetched_address_merkle_tree = merkle_tree_account
-                .deserialized()
-                .copy_merkle_tree()
-                .unwrap();
-            address_root_indices.push(
-                fetched_address_merkle_tree
-                    .indexed_merkle_tree()
-                    .merkle_tree
-                    .current_root_index as u16,
-            );
+            let fetched_address_merkle_tree = unsafe {
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                    rpc,
+                    address_merkle_tree_pubkeys[i],
+                )
+                .await
+            };
+            address_root_indices.push(fetched_address_merkle_tree.root_index() as u16);
         }
 
         let non_inclusion_proof_inputs = NonInclusionProofInputs(non_inclusion_proofs.as_slice());

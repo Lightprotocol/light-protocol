@@ -38,8 +38,11 @@ pub mod light_system_program {
 
         #[cfg(feature = "cpi-context")]
         {
-            let merkle_tree_account = _ctx.accounts.associated_merkle_tree.load()?;
-            merkle_tree_account.load_merkle_tree()?;
+            use account_compression::state_merkle_tree_from_bytes_zero_copy_mut;
+
+            let merkle_tree_account = _ctx.accounts.associated_merkle_tree.to_account_info();
+            let mut data = merkle_tree_account.try_borrow_mut_data()?;
+            state_merkle_tree_from_bytes_zero_copy_mut(&mut data)?;
             _ctx.accounts
                 .cpi_context_account
                 .init(_ctx.accounts.associated_merkle_tree.key());

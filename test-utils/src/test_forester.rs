@@ -2,7 +2,7 @@ use crate::indexer::test_indexer::{AddressMerkleTreeBundle, StateMerkleTreeBundl
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::test_env::NOOP_PROGRAM_ID;
-use crate::{get_hash_set, AccountZeroCopy};
+use crate::{get_concurrent_merkle_tree, get_hash_set, get_indexed_merkle_tree};
 use account_compression::instruction::UpdateAddressMerkleTree;
 use account_compression::state::QueueAccount;
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_ROOTS;
@@ -52,13 +52,12 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
         .get_anchor_account::<ForesterEpoch>(&get_forester_epoch_pda_address(&forester.pubkey()).0)
         .await
         .counter;
-    let merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
-            .await;
-    let onchain_merkle_tree = merkle_tree_account
-        .deserialized()
-        .copy_merkle_tree()
-        .unwrap();
+    let onchain_merkle_tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+            rpc,
+            state_tree_bundle.accounts.merkle_tree,
+        )
+        .await;
     assert_eq!(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
@@ -128,7 +127,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
                 assert_eq!(event.id, state_tree_bundle.accounts.merkle_tree.to_bytes());
                 assert_eq!(
                     event.seq,
-                    onchain_merkle_tree.sequence_number as u64 + 1 + i as u64
+                    onchain_merkle_tree.sequence_number() as u64 + 1 + i as u64
                 );
                 assert_eq!(event.nullified_leaves_indices.len(), 1);
                 assert_eq!(event.nullified_leaves_indices[0], leaf_index as u64);
@@ -166,13 +165,12 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .update(&[0u8; 32], leaf_index)
             .unwrap();
     }
-    let merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
-            .await;
-    let onchain_merkle_tree = merkle_tree_account
-        .deserialized()
-        .copy_merkle_tree()
-        .unwrap();
+    let onchain_merkle_tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+            rpc,
+            state_tree_bundle.accounts.merkle_tree,
+        )
+        .await;
     assert_eq!(
         onchain_merkle_tree.root(),
         state_tree_bundle.merkle_tree.root()
@@ -206,17 +204,16 @@ async fn assert_value_is_marked_in_queue<'a, R: RpcConnection>(
         .unwrap()
         .unwrap();
     assert_eq!(&array_element.value_bytes(), compressed_account);
-    let merkle_tree_account =
-        AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, state_tree_bundle.accounts.merkle_tree)
-            .await;
+    let onchain_merkle_tree =
+        get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+            rpc,
+            state_tree_bundle.accounts.merkle_tree,
+        )
+        .await;
     assert_eq!(
         array_element.sequence_number(),
         Some(
-            merkle_tree_account
-                .deserialized()
-                .load_merkle_tree()
-                .unwrap()
-                .sequence_number
+            onchain_merkle_tree.sequence_number()
                 + account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize
                 + SAFETY_MARGIN as usize
         )
@@ -273,13 +270,13 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             0
         };
         let address_merkle_tree =
-            AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey).await;
-        let address_merkle_tree_deserialized = *address_merkle_tree.deserialized();
-        let address_merkle_tree = address_merkle_tree_deserialized.copy_merkle_tree().unwrap();
-        assert_eq!(
-            relayer_merkle_tree.root(),
-            address_merkle_tree.indexed_merkle_tree().root(),
-        );
+            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                rpc,
+                address_merkle_tree_pubkey,
+            )
+            .await;
+
+        assert_eq!(relayer_merkle_tree.root(), address_merkle_tree.root());
         let address_queue =
             unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
@@ -301,11 +298,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
-        let old_sequence_number = address_merkle_tree
-            .indexed_merkle_tree()
-            .merkle_tree
-            .sequence_number;
-        let old_root = address_merkle_tree.indexed_merkle_tree().merkle_tree.root();
+        let old_sequence_number = address_merkle_tree.sequence_number();
+        let old_root = address_merkle_tree.root();
         // Update on-chain tree.
         let update_successful = match update_merkle_tree(
             rpc,
@@ -414,13 +408,12 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 .await
                 .unwrap();
             }
-            let merkle_tree_account =
-                AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey)
-                    .await;
-            let merkle_tree = merkle_tree_account
-                .deserialized()
-                .copy_merkle_tree()
-                .unwrap();
+            let merkle_tree =
+                get_indexed_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, usize, 26>(
+                    rpc,
+                    address_merkle_tree_pubkey,
+                )
+                .await;
             let address_queue =
                 unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
@@ -447,21 +440,11 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                     &address_bundle.new_element.value,
                 )
                 .unwrap();
-            assert_eq!(
-                merkle_tree
-                    .indexed_merkle_tree()
-                    .merkle_tree
-                    .sequence_number,
-                old_sequence_number + 2
-            );
-            assert_ne!(
-                old_root,
-                merkle_tree.indexed_merkle_tree().merkle_tree.root(),
-                "Root did not change."
-            );
+            assert_eq!(merkle_tree.sequence_number(), old_sequence_number + 2);
+            assert_ne!(old_root, merkle_tree.root(), "Root did not change.");
             assert_eq!(
                 relayer_merkle_tree.root(),
-                merkle_tree.indexed_merkle_tree().merkle_tree.root(),
+                merkle_tree.root(),
                 "Root off-chain onchain inconsistent."
             );
         }
@@ -493,17 +476,13 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         Some(changelog_index) => changelog_index as usize,
         None => {
             let address_merkle_tree =
-                AccountZeroCopy::<AddressMerkleTreeAccount>::new(rpc, address_merkle_tree_pubkey)
-                    .await;
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                    rpc,
+                    address_merkle_tree_pubkey,
+                )
+                .await;
 
-            let address_merkle_tree = &address_merkle_tree
-                .deserialized()
-                .copy_merkle_tree()
-                .unwrap();
-            address_merkle_tree
-                .indexed_merkle_tree()
-                .merkle_tree
-                .changelog_index()
+            address_merkle_tree.changelog_index()
         }
     };
     let update_ix = if !signer_is_owner {

@@ -1,7 +1,11 @@
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use anchor_lang::solana_program::{pubkey::Pubkey, system_instruction};
+use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
+use light_hasher::Hasher;
+use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
+use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use solana_sdk::{
     account::Account,
     instruction::{Instruction, InstructionError},
@@ -73,6 +77,38 @@ pub async unsafe fn get_hash_set<T, R: RpcConnection>(rpc: &mut R, pubkey: Pubke
     let mut account = rpc.get_account(pubkey).await.unwrap().unwrap();
 
     HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<T>()..]).unwrap()
+}
+
+/// Fetches the fiven account, then copies and serializes it as a
+/// `ConcurrentMerkleTree`.
+pub async fn get_concurrent_merkle_tree<T, R, H, const HEIGHT: usize>(
+    rpc: &mut R,
+    pubkey: Pubkey,
+) -> ConcurrentMerkleTreeCopy<H, HEIGHT>
+where
+    R: RpcConnection,
+    H: Hasher,
+{
+    let account = rpc.get_account(pubkey).await.unwrap().unwrap();
+
+    ConcurrentMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
+}
+
+/// Fetches the fiven account, then copies and serializes it as an
+/// `IndexedMerkleTree`.
+pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize>(
+    rpc: &mut R,
+    pubkey: Pubkey,
+) -> IndexedMerkleTreeCopy<H, I, HEIGHT>
+where
+    R: RpcConnection,
+    H: Hasher,
+    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    usize: From<I>,
+{
+    let account = rpc.get_account(pubkey).await.unwrap().unwrap();
+
+    IndexedMerkleTreeCopy::from_bytes_copy(&account.data[8 + mem::size_of::<T>()..]).unwrap()
 }
 
 pub async fn airdrop_lamports<R: RpcConnection>(

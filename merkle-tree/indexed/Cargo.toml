@@ -20,6 +20,7 @@ light-hasher = { path = "../hasher", version = "0.1.4" }
 light-concurrent-merkle-tree = { path = "../concurrent", version = "0.1.4" }
 light-merkle-tree-reference = { path = "../reference", version = "0.1.4" }
 light-utils = { path = "../../utils", version = "0.1.4" }
+memoffset = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"
 
@@ -29,3 +30,4 @@ thiserror = "1.0"
 [dev-dependencies]
 ark-bn254 = "0.4"
 thiserror = "1.0"
+rand = "0.8"

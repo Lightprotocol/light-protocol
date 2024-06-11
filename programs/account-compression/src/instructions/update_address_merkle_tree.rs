@@ -4,7 +4,7 @@ use light_indexed_merkle_tree::array::IndexedElement;
 use num_bigint::BigUint;
 
 use crate::{
-    emit_indexer_event,
+    address_merkle_tree_from_bytes_zero_copy_mut, emit_indexer_event,
     errors::AccountCompressionErrorCode,
     from_vec,
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
@@ -55,22 +55,27 @@ pub fn process_update_address_merkle_tree<'info>(
     let mut address_queue = address_queue.try_borrow_mut_data()?;
     let mut address_queue = unsafe { queue_from_bytes_zero_copy_mut(&mut address_queue)? };
 
-    let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
-    if merkle_tree.metadata.associated_queue != ctx.accounts.queue.key() {
-        msg!(
+    {
+        let merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+        if merkle_tree.metadata.associated_queue != ctx.accounts.queue.key() {
+            msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated address queue {} != provided queue {}",
             merkle_tree.metadata.associated_queue,
             ctx.accounts.queue.key()
         );
-        return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
+            return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
+        }
+        check_signer_is_registered_or_authority::<UpdateAddressMerkleTree, AddressMerkleTreeAccount>(
+            &ctx,
+            &merkle_tree,
+        )?;
     }
-    check_signer_is_registered_or_authority::<UpdateAddressMerkleTree, AddressMerkleTreeAccount>(
-        &ctx,
-        &merkle_tree,
-    )?;
-    let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
 
-    let sequence_number = merkle_tree.merkle_tree.merkle_tree.sequence_number;
+    let merkle_tree = ctx.accounts.merkle_tree.to_account_info();
+    let mut merkle_tree = merkle_tree.try_borrow_mut_data()?;
+    let mut merkle_tree = address_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
+
+    let sequence_number = merkle_tree.sequence_number();
 
     let value = address_queue
         .get_unmarked_bucket(value_index as usize)
@@ -80,7 +85,7 @@ pub fn process_update_address_merkle_tree<'info>(
 
     // Update the address with ranges adjusted to the Merkle tree state.
     let address: IndexedElement<usize> = IndexedElement {
-        index: merkle_tree.merkle_tree.merkle_tree.next_index,
+        index: merkle_tree.next_index(),
         value: value.clone(),
         next_index: low_address_next_index as usize,
     };
@@ -94,11 +99,8 @@ pub fn process_update_address_merkle_tree<'info>(
 
     let low_address_next_value = BigUint::from_bytes_be(&low_address_next_value);
 
-    let mut proof = from_vec(
-        low_address_proof.as_slice(),
-        merkle_tree.merkle_tree.merkle_tree.height,
-    )
-    .map_err(ProgramError::from)?;
+    let mut proof =
+        from_vec(low_address_proof.as_slice(), merkle_tree.height).map_err(ProgramError::from)?;
     // Update the Merkle tree.
     // Inputs check:
     // - address is element of (value, next_value)
@@ -106,7 +108,6 @@ pub fn process_update_address_merkle_tree<'info>(
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof
     let indexed_merkle_tree_update = merkle_tree
-        .merkle_tree
         .update(
             usize::from(changelog_index),
             address,
@@ -126,7 +127,7 @@ pub fn process_update_address_merkle_tree<'info>(
         updates: vec![indexed_merkle_tree_update],
         // Address Merkle tree update does one update and one append,
         // thus the first seq number is final seq - 1.
-        seq: merkle_tree.merkle_tree.merkle_tree.sequence_number as u64 - 1,
+        seq: merkle_tree.sequence_number() as u64 - 1,
     });
     emit_indexer_event(
         address_event.try_to_vec()?,
