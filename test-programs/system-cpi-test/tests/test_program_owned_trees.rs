@@ -10,6 +10,7 @@ use light_registry::sdk::{
     create_nullify_instruction, get_cpi_authority_pda, CreateNullifyInstructionInputs,
 };
 use light_system_program::utils::get_registered_program_pda;
+use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::rpc::errors::{assert_rpc_error, RpcError};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::test_rpc::ProgramTestRpcConnection;
@@ -24,7 +25,6 @@ use light_test_utils::{
     indexer::{create_mint_helper, TestIndexer},
     test_env::setup_test_programs_with_accounts,
 };
-use light_test_utils::get_concurrent_merkle_tree;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
