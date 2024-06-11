@@ -423,8 +423,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     index: u64,
 ) {
     use account_compression::{
-        sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressMerkleTreeConfig,
-        AddressQueueConfig,
+        sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressQueueConfig,
     };
 
     let size = account_compression::state::QueueAccount::size(
