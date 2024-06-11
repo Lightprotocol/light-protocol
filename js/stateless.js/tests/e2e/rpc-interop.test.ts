@@ -19,8 +19,7 @@ describe('rpc-interop', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
-        await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
-    
+
         testRpc = await getTestRpc(lightWasm);
 
         /// These are constant test accounts in between test runs
@@ -185,7 +184,6 @@ describe('rpc-interop', () => {
             newAddressProof.leafHigherRangeValue.eq(
                 newAddressProofTest.leafHigherRangeValue,
             ),
-            // Include the values
             `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
         );
         assert.isTrue(
@@ -218,6 +216,8 @@ describe('rpc-interop', () => {
                         index
                     ];
                 assert.equal(
+                    // Use string comparison in order to normalize BN and avoid insignficant
+                    // differences to trailing zeroes.
                     elem.toString(),
                     expected.toString(),
                     `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${expected} got: ${elem}`,
