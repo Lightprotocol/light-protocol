@@ -24,7 +24,7 @@ use light_test_utils::{
     indexer::{create_mint_helper, TestIndexer},
     test_env::setup_test_programs_with_accounts,
 };
-use light_test_utils::{create_account_instruction, get_concurrent_merkle_tree};
+use light_test_utils::get_concurrent_merkle_tree;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
