@@ -283,7 +283,7 @@ export const proverRequest = async (
     /// TODO: Move compression into the gnark prover to save bandwidth.
     const data: any = await response.json();
     const parsed = proofFromJsonStruct(data);
-const compressedProof = negateAndCompressProof(parsed);
+    const compressedProof = negateAndCompressProof(parsed);
 
     if (log) console.timeEnd(logMsg);
 
@@ -635,13 +635,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
     async getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]> {
-        console.log('waiting for response');
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccountsByOwner',
             { owner: owner.toBase58() },
         );
-        console.log('unsafeRes', unsafeRes);
 
         const res = create(
             unsafeRes,
