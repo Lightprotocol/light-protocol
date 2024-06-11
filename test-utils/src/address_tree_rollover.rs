@@ -1,9 +1,13 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
+use crate::get_indexed_merkle_tree;
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
-    assert_rollover::{assert_rolledover_merkle_trees_metadata, assert_rolledover_queues_metadata},
+    assert_rollover::{
+        assert_rolledover_merkle_trees, assert_rolledover_merkle_trees_metadata,
+        assert_rolledover_queues_metadata,
+    },
     get_hash_set,
 };
 use account_compression::AddressMerkleTreeConfig;
@@ -11,7 +15,7 @@ use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
     AddressMerkleTreeAccount,
 };
-use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
+use anchor_lang::{InstructionData, Key, Lamports, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use solana_sdk::{
@@ -178,15 +182,20 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
         new_queue_pubkey,
     );
 
-    // let struct_old = unsafe {
-    //     &*(old_loaded_mt_account.merkle_tree_struct.as_ptr()
-    //         as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
-    // };
-    // let struct_new = unsafe {
-    //     &*(new_loaded_mt_account.merkle_tree_struct.as_ptr()
-    //         as *mut ConcurrentMerkleTree<Poseidon, { ADDRESS_MERKLE_TREE_HEIGHT as usize }>)
-    // };
-    // assert_rolledover_merkle_trees(struct_old, struct_new);
+    drop(new_loaded_mt_account);
+    drop(old_loaded_mt_account);
+
+    let struct_old = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+        rpc,
+        old_mt_account.key(),
+    )
+    .await;
+    let struct_new = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+        rpc,
+        new_mt_account.key(),
+    )
+    .await;
+    assert_rolledover_merkle_trees(&struct_old.merkle_tree, &struct_new.merkle_tree);
 
     {
         let mut new_queue_account = rpc.get_account(*new_queue_pubkey).await.unwrap().unwrap();
