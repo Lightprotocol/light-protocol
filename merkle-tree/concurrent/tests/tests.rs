@@ -206,6 +206,42 @@ where
     assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
 }
 
+/// Checks whether `append_with_proof` returns correct Merkle proofs.
+fn append_with_proof<
+    H,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+    const N_APPENDS: usize,
+>()
+where
+    H: Hasher,
+{
+    let mut merkle_tree =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    merkle_tree.init().unwrap();
+
+    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+
+    let mut rng = thread_rng();
+
+    for i in 0..N_APPENDS {
+        let leaf: [u8; 32] = Fr::rand(&mut rng)
+            .into_bigint()
+            .to_bytes_be()
+            .try_into()
+            .unwrap();
+        let mut proof = BoundedVec::with_capacity(HEIGHT);
+        merkle_tree.append_with_proof(&leaf, &mut proof).unwrap();
+        reference_tree.append(&leaf).unwrap();
+
+        let reference_proof = reference_tree.get_proof_of_leaf(i, true).unwrap();
+
+        assert_eq!(proof, reference_proof);
+    }
+}
+
 /// Performs invalid updates on the given Merkle tree by trying to swap all
 /// parameters separately. Asserts the errors that the Merkle tree should
 /// return as a part of validation of these inputs.
@@ -900,6 +936,51 @@ fn test_append_poseidon_canopy_0() {
 #[test]
 fn test_append_sha256_canopy_0() {
     append::<Sha256, 0>()
+}
+
+#[test]
+fn test_append_with_proof_keccak_4_16_16_0_16() {
+    append_with_proof::<Keccak, 4, 16, 16, 0, 16>()
+}
+
+#[test]
+fn test_append_with_proof_poseidon_4_16_16_0_16() {
+    append_with_proof::<Poseidon, 4, 16, 16, 0, 16>()
+}
+
+#[test]
+fn test_append_with_proof_sha256_4_16_16_0_16() {
+    append_with_proof::<Sha256, 4, 16, 16, 0, 16>()
+}
+
+#[test]
+fn test_append_with_proof_keccak_26_1400_2800_0_200() {
+    append_with_proof::<Keccak, 26, 1400, 2800, 0, 200>()
+}
+
+#[test]
+fn test_append_with_proof_poseidon_26_1400_2800_0_200() {
+    append_with_proof::<Poseidon, 26, 1400, 2800, 0, 200>()
+}
+
+#[test]
+fn test_append_with_proof_sha256_26_1400_2800_0_200() {
+    append_with_proof::<Sha256, 26, 1400, 2800, 0, 200>()
+}
+
+#[test]
+fn test_append_with_proof_keccak_26_1400_2800_10_200() {
+    append_with_proof::<Keccak, 26, 1400, 2800, 10, 200>()
+}
+
+#[test]
+fn test_append_with_proof_poseidon_26_1400_2800_10_200() {
+    append_with_proof::<Poseidon, 26, 1400, 2800, 10, 200>()
+}
+
+#[test]
+fn test_append_with_proof_sha256_26_1400_2800_10_200() {
+    append_with_proof::<Sha256, 26, 1400, 2800, 10, 200>()
 }
 
 #[test]
