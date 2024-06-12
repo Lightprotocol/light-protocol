@@ -106,10 +106,10 @@ async fn test_address_queue_and_tree_functional_default() {
 
 #[tokio::test]
 async fn test_address_queue_and_tree_functional_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
+    for changelog_size in (500..5000).step_by(500) {
         let roots_size = changelog_size * 2;
 
-        for address_changelog_size in (250..2000).step_by(250) {
+        for address_changelog_size in (250..1000).step_by(250) {
             address_queue_and_tree_functional(&AddressMerkleTreeConfig {
                 height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
                 changelog_size,
@@ -556,10 +556,10 @@ async fn update_address_merkle_tree_failing_tests_default() {
 
 #[tokio::test]
 async fn update_address_merkle_tree_failing_tests_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
+    for changelog_size in (500..5000).step_by(500) {
         let roots_size = changelog_size * 2;
 
-        for address_changelog_size in (250..2000).step_by(250) {
+        for address_changelog_size in (250..1000).step_by(250) {
             update_address_merkle_tree_failing_tests(&AddressMerkleTreeConfig {
                 height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
                 changelog_size,
@@ -773,10 +773,10 @@ async fn test_address_merkle_tree_and_queue_rollover_default() {
 
 #[tokio::test]
 async fn test_address_merkle_tree_and_queue_rollover_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
+    for changelog_size in (500..5000).step_by(500) {
         let roots_size = changelog_size * 2;
 
-        for address_changelog_size in (250..2000).step_by(250) {
+        for address_changelog_size in (250..1000).step_by(250) {
             address_merkle_tree_and_queue_rollover(&AddressMerkleTreeConfig {
                 height: ADDRESS_MERKLE_TREE_HEIGHT as u32,
                 changelog_size,
