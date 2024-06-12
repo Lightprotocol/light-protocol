@@ -84,9 +84,6 @@ describe('rpc-interop', () => {
         executedTxs++;
     });
 
-    /// This won't work until new-address params are being passed to photon
-    it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {});
-
     it('getValidityProof [noforester] (new-addresses) should match', async () => {
         const newAddressSeed = new Uint8Array([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18, 19,
@@ -149,9 +146,6 @@ describe('rpc-interop', () => {
         executedTxs++;
     });
 
-    /// This won't work until new-address params are being passed to photon
-    it.skip('getValidityProof [noforester] (combined) should match', async () => {});
-
     it('getValidityProof [noforester] (combined) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
@@ -177,6 +171,58 @@ describe('rpc-interop', () => {
             [newAddress],
         );
 
+        // compressedAccountProofs should match
+        const compressedAccountProof = (
+            await rpc.getMultipleCompressedAccountProofs([hash])
+        )[0];
+        const compressedAccountProofTest = (
+            await testRpc.getMultipleCompressedAccountProofs([hashTest])
+        )[0];
+
+        compressedAccountProof.merkleProof.forEach((proof, index) => {
+            assert.isTrue(
+                proof.eq(compressedAccountProofTest.merkleProof[index]),
+            );
+        });
+
+        // newAddressProofs should match
+        const newAddressProof = (
+            await rpc.getMultipleNewAddressProofs([newAddress])
+        )[0];
+        const newAddressProofTest = (
+            await testRpc.getMultipleNewAddressProofs([newAddress])
+        )[0];
+
+        assert.isTrue(
+            newAddressProof.indexHashedIndexedElementLeaf.eq(
+                newAddressProofTest.indexHashedIndexedElementLeaf,
+            ),
+        );
+        assert.isTrue(
+            newAddressProof.leafHigherRangeValue.eq(
+                newAddressProofTest.leafHigherRangeValue,
+            ),
+        );
+        assert.isTrue(
+            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+        );
+        assert.isTrue(
+            newAddressProof.leafLowerRangeValue.eq(
+                newAddressProofTest.leafLowerRangeValue,
+            ),
+        );
+        assert.isTrue(
+            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+        );
+        assert.isTrue(
+            newAddressProof.nullifierQueue.equals(
+                newAddressProofTest.nullifierQueue,
+            ),
+        );
+        assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
+        assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
+
+        // validity proof metadata should match
         validityProof.leafIndices.forEach((leafIndex, index) => {
             assert.equal(leafIndex, validityProofTest.leafIndices[index]);
         });
