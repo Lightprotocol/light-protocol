@@ -285,7 +285,7 @@ export const NewAddressProofResult = pick({
     root: BN254FromString,
     lowerRangeAddress: BN254FromString, // this is: leafLowerRangeValue.
     higherRangeAddress: BN254FromString, // this is: leafHigherRangeValue
-    lowElementLeafIndex: BN254FromString, // this is: indexHashedIndexedElementLeaf
+    lowElementLeafIndex: number(), // this is: indexHashedIndexedElementLeaf
 });
 
 /**
@@ -371,13 +371,13 @@ export const CompressedTransactionResult = pick({
         closedAccounts: array(
             pick({
                 account: CompressedAccountResult,
-                optionTokenData: nullable(TokenDataResult),
+                optionalTokenData: nullable(TokenDataResult),
             }),
         ),
         openedAccounts: array(
             pick({
                 account: CompressedAccountResult,
-                optionTokenData: nullable(TokenDataResult),
+                optionalTokenData: nullable(TokenDataResult),
             }),
         ),
     }),

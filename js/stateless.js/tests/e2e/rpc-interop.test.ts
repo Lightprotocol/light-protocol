@@ -23,6 +23,7 @@ describe('rpc-interop', () => {
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
         rpc = createRpc();
+
         testRpc = await getTestRpc(lightWasm);
 
         /// These are constant test accounts in between test runs
@@ -36,7 +37,7 @@ describe('rpc-interop', () => {
     const transferAmount = 1e4;
     const numberOfTransfers = 15;
 
-    it.skip('getValidityProof [noforester] (inclusion) should match', async () => {
+    it('getValidityProof [noforester] (inclusion) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
@@ -83,8 +84,7 @@ describe('rpc-interop', () => {
         executedTxs++;
     });
 
-    /// This won't work until new-address params are being passed to photon
-    it.skip('getValidityProof [noforester] (new-addresses) should match', async () => {
+    it('getValidityProof [noforester] (new-addresses) should match', async () => {
         const newAddressSeed = new Uint8Array([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 11, 18, 19,
             20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
@@ -146,15 +146,13 @@ describe('rpc-interop', () => {
         executedTxs++;
     });
 
-    /// This won't work until new-address params are being passed to photon
-    it.skip('getValidityProof [noforester] (combined) should match', async () => {
+    it('getValidityProof [noforester] (combined) should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
         const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-
         const hash = bn(senderAccounts[0].hash);
         const hashTest = bn(senderAccountsTest[0].hash);
 
@@ -173,50 +171,21 @@ describe('rpc-interop', () => {
             [newAddress],
         );
 
-        validityProof.leafIndices.forEach((leafIndex, index) => {
-            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
-        });
-        validityProof.leaves.forEach((leaf, index) => {
-            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
-        });
-        validityProof.roots.forEach((elem, index) => {
-            assert.isTrue(elem.eq(validityProofTest.roots[index]));
-        });
-        validityProof.rootIndices.forEach((elem, index) => {
-            assert.equal(elem, validityProofTest.rootIndices[index]);
-        });
-        validityProof.merkleTrees.forEach((elem, index) => {
-            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
-        });
-        validityProof.nullifierQueues.forEach((elem, index) => {
+        // compressedAccountProofs should match
+        const compressedAccountProof = (
+            await rpc.getMultipleCompressedAccountProofs([hash])
+        )[0];
+        const compressedAccountProofTest = (
+            await testRpc.getMultipleCompressedAccountProofs([hashTest])
+        )[0];
+
+        compressedAccountProof.merkleProof.forEach((proof, index) => {
             assert.isTrue(
-                elem.equals(validityProofTest.nullifierQueues[index]),
+                proof.eq(compressedAccountProofTest.merkleProof[index]),
             );
         });
 
-        /// Creates a compressed account with address and lamports using a
-        /// (combined) 'validityProof' from Photon
-        await createAccountWithLamports(
-            rpc,
-            payer,
-            new Uint8Array([
-                1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
-            0,
-            LightSystemProgram.programId,
-        );
-        executedTxs++;
-    });
-
-    /// This assumes support for getMultipleNewAddressProofs in Photon.
-    it.skip('getMultipleNewAddressProofs [noforester] should match', async () => {
-        const newAddress = bn(
-            new Uint8Array([
-                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-            ]),
-        );
+        // newAddressProofs should match
         const newAddressProof = (
             await rpc.getMultipleNewAddressProofs([newAddress])
         )[0];
@@ -242,6 +211,93 @@ describe('rpc-interop', () => {
                 newAddressProofTest.leafLowerRangeValue,
             ),
         );
+        assert.isTrue(
+            newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
+        );
+        assert.isTrue(
+            newAddressProof.nullifierQueue.equals(
+                newAddressProofTest.nullifierQueue,
+            ),
+        );
+        assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
+        assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
+
+        // validity proof metadata should match
+        validityProof.leafIndices.forEach((leafIndex, index) => {
+            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
+        });
+        validityProof.leaves.forEach((leaf, index) => {
+            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
+        });
+        validityProof.roots.forEach((elem, index) => {
+            assert.isTrue(elem.eq(validityProofTest.roots[index]));
+        });
+        validityProof.rootIndices.forEach((elem, index) => {
+            assert.equal(elem, validityProofTest.rootIndices[index]);
+        });
+        validityProof.merkleTrees.forEach((elem, index) => {
+            assert.isTrue(elem.equals(validityProofTest.merkleTrees[index]));
+        });
+        validityProof.nullifierQueues.forEach((elem, index) => {
+            assert.isTrue(
+                elem.equals(validityProofTest.nullifierQueues[index]),
+                'Mismatch in nullifierQueues expected: ' +
+                    elem +
+                    ' got: ' +
+                    validityProofTest.nullifierQueues[index],
+            );
+        });
+
+        /// Creates a compressed account with address and lamports using a
+        /// (combined) 'validityProof' from Photon
+        await createAccountWithLamports(
+            rpc,
+            payer,
+            new Uint8Array([
+                1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 111, 13, 14, 15, 16, 17,
+                18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 32, 29, 30, 31, 32,
+            ]),
+            0,
+            LightSystemProgram.programId,
+        );
+        executedTxs++;
+    });
+
+    /// This assumes support for getMultipleNewAddressProofs in Photon.
+    it('getMultipleNewAddressProofs [noforester] should match', async () => {
+        const newAddress = bn(
+            new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 42, 42, 42, 14, 15, 16, 17, 18,
+                19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+            ]),
+        );
+        const newAddressProof = (
+            await rpc.getMultipleNewAddressProofs([newAddress])
+        )[0];
+        const newAddressProofTest = (
+            await testRpc.getMultipleNewAddressProofs([newAddress])
+        )[0];
+
+        assert.isTrue(
+            newAddressProof.indexHashedIndexedElementLeaf.eq(
+                newAddressProofTest.indexHashedIndexedElementLeaf,
+            ),
+        );
+        assert.isTrue(
+            newAddressProof.leafHigherRangeValue.eq(
+                newAddressProofTest.leafHigherRangeValue,
+            ),
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
+        );
+        assert.isTrue(
+            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafIndex} got: ${newAddressProof.leafIndex}`,
+        );
+        assert.isTrue(
+            newAddressProof.leafLowerRangeValue.eq(
+                newAddressProofTest.leafLowerRangeValue,
+            ),
+        );
 
         assert.isTrue(
             newAddressProof.merkleTree.equals(newAddressProofTest.merkleTree),
@@ -250,6 +306,7 @@ describe('rpc-interop', () => {
             newAddressProof.nullifierQueue.equals(
                 newAddressProofTest.nullifierQueue,
             ),
+            `Mismatch in nullifierQueue expected: ${newAddressProofTest.nullifierQueue} got: ${newAddressProof.nullifierQueue}`,
         );
 
         assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
@@ -261,10 +318,9 @@ describe('rpc-interop', () => {
                     newAddressProofTest.merkleProofHashedIndexedElementLeaf[
                         index
                     ];
-                assert.equal(
-                    elem,
-                    expected,
-                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${newAddressProofTest.merkleProofHashedIndexedElementLeaf} got: ${newAddressProof.merkleProofHashedIndexedElementLeaf}`,
+                assert.isTrue(
+                    elem.eq(expected),
+                    `Mismatch in merkleProofHashedIndexedElementLeaf expected: ${expected.toString()} got: ${elem.toString()}`,
                 );
             },
         );

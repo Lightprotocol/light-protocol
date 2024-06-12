@@ -284,7 +284,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const bnPathElements = pathElements.map(value => bn(value));
             const root = bn(tree.root());
             const merkleProof: MerkleContextWithMerkleProof = {
-                hash: hashes[i].toArray(undefined, 32),
+                hash: hashes[i].toArray('be', 32),
                 merkleTree: this.merkleTreeAddress,
                 leafIndex: leafIndex,
                 merkleProof: bnPathElements,
@@ -299,7 +299,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         merkleProofs.forEach((proof, index) => {
             const leafIndex = proof.leafIndex;
             const computedHash = tree.elements()[leafIndex];
-            const hashArr = bn(computedHash).toArray(undefined, 32);
+            const hashArr = bn(computedHash).toArray('be', 32);
             if (!hashArr.every((val, index) => val === proof.hash[index])) {
                 throw new Error(
                     `Mismatch at index ${index}: expected ${proof.hash.toString()}, got ${hashArr.toString()}`,

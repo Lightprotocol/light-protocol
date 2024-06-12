@@ -112,7 +112,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
                 createMerkleContext(
                     _account.tree!,
                     mockNullifierQueue,
-                    _account.hash.toArray(undefined, 32),
+                    _account.hash.toArray('be', 32),
                     _account.leafIndex,
                 ),
                 new PublicKey('HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN'),
@@ -153,39 +153,46 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 }
 
 /** @internal */
-function buildCompressedAccountWithMaybeTokenData(account: any): {
+function buildCompressedAccountWithMaybeTokenData(
+    accountStructWithOptionalTokenData: any,
+): {
     account: CompressedAccountWithMerkleContext;
     maybeTokenData: TokenData | null;
 } {
-    const tokenData = account.optionTokenData;
+    const compressedAccountResult = accountStructWithOptionalTokenData.account;
+    const tokenDataResult =
+        accountStructWithOptionalTokenData.optionalTokenData;
+
     const compressedAccount: CompressedAccountWithMerkleContext =
         createCompressedAccountWithMerkleContext(
             createMerkleContext(
-                account.tree!,
+                compressedAccountResult.merkleTree,
                 mockNullifierQueue,
-                account.hash.toArray(undefined, 32),
-                account.leafIndex,
+                compressedAccountResult.hash.toArray('be', 32),
+                compressedAccountResult.leafIndex,
             ),
-            account.owner,
-            bn(account.lamports),
-            account.data ? parseAccountData(account.data) : undefined,
-            account.address || undefined,
+            compressedAccountResult.owner,
+            bn(compressedAccountResult.lamports),
+            compressedAccountResult.data
+                ? parseAccountData(compressedAccountResult.data)
+                : undefined,
+            compressedAccountResult.address || undefined,
         );
 
-    if (tokenData === null) {
+    if (tokenDataResult === null) {
         return { account: compressedAccount, maybeTokenData: null };
     }
 
     const parsed: TokenData = {
-        mint: tokenData.mint,
-        owner: tokenData.owner,
-        amount: tokenData.amount,
-        delegate: tokenData.delegate,
+        mint: tokenDataResult.mint,
+        owner: tokenDataResult.owner,
+        amount: tokenDataResult.amount,
+        delegate: tokenDataResult.delegate,
         state: ['uninitialized', 'initialized', 'frozen'].indexOf(
-            tokenData.state,
+            tokenDataResult.state,
         ),
-        isNative: tokenData.isNative,
-        delegatedAmount: tokenData.delegatedAmount,
+        isNative: tokenDataResult.isNative,
+        delegatedAmount: tokenDataResult.delegatedAmount,
     };
 
     return { account: compressedAccount, maybeTokenData: parsed };
@@ -372,7 +379,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
 
 /// TODO: replace with dynamic nullifierQueue
 const mockNullifierQueue = defaultTestStateTreeAccounts().nullifierQueue;
-
+const mockAddressQueue = defaultTestStateTreeAccounts().addressQueue;
 /**
  *
  */
@@ -428,7 +435,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             createMerkleContext(
                 item.tree!,
                 mockNullifierQueue,
-                item.hash.toArray(undefined, 32),
+                item.hash.toArray('be', 32),
                 item.leafIndex,
             ),
             item.owner,
@@ -524,7 +531,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         // const root = res.result.value.proof[res.result.value.proof.length - 1];
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray(undefined, 32),
+            hash: res.result.value.hash.toArray('be', 32),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof, //proofWithoutRoot,
@@ -568,7 +575,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(undefined, 32),
+                    item.hash.toArray('be', 32),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -615,11 +622,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         for (const proof of res.result.value) {
             const value: MerkleContextWithMerkleProof = {
-                hash: proof.hash.toArray(undefined, 32),
+                hash: proof.hash.toArray('be', 32),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
-                nullifierQueue: mockNullifierQueue, // TODO(photon): support nullifierQueue in response.
+                nullifierQueue: mockAddressQueue, // TODO(photon): support nullifierQueue in response.
                 rootIndex: proof.rootSeq % 2400,
                 root: proof.root,
             };
@@ -661,7 +668,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(undefined, 32),
+                    item.hash.toArray('be', 32),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -821,13 +828,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
         );
+
         if ('error' in res) {
             throw new SolanaJSONRPCError(res.error, 'failed to get slot');
         }
-        if (res.result.transaction === null) {
-            console.log('getCompressedTransaction: returning null');
-            return null;
-        }
+
+        if (res.result.transaction === null) return null;
 
         const closedAccounts: {
             account: CompressedAccountWithMerkleContext;
@@ -1029,9 +1035,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 leafHigherRangeValue: proof.higherRangeAddress,
                 leafIndex: bn(proof.leafIndex),
                 merkleProofHashedIndexedElementLeaf: proof.proof,
-                indexHashedIndexedElementLeaf: proof.lowElementLeafIndex,
+                indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
                 merkleTree: proof.merkleTree,
-                nullifierQueue: mockNullifierQueue,
+                nullifierQueue: mockAddressQueue,
             };
             newAddressProofs.push(_proof);
         }
@@ -1063,9 +1069,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 'Empty input. Provide hashes and/or new addresses.',
             );
         } else if (hashes.length > 0 && newAddresses.length === 0) {
-            console.log(
-                "NOTE: Manually calling prover for inclusion proof. To call Photon's 'getValidityProof' endpoint use 'getValidityProofDebug'.",
-            );
             /// inclusion
             const merkleProofsWithContext =
                 await this.getMultipleCompressedAccountProofs(hashes);
@@ -1096,9 +1099,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
-            console.log(
-                'NOTE: calling Photon getMultipleNewAddressProofs. May not exist yet.',
-            );
             /// new-address
             const newAddressProofs: MerkleContextWithNewAddressProof[] =
                 await this.getMultipleNewAddressProofs(newAddresses);
@@ -1202,13 +1202,17 @@ export class Rpc extends Connection implements CompressionApiInterface {
     // testRpc.getValidityProof or rpc.getValidityProof to test against
     async getValidityProof(
         hashes: BN254[] = [],
-        _newAddresses: BN254[] = [],
+        newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-        console.log("log [debug]: calling photon 'getValidityProof'");
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
-            hashes.map(hash => encodeBN254toBase58(hash)),
+            {
+                hashes: hashes.map(hash => encodeBN254toBase58(hash)),
+                newAddresses: newAddresses.map(address =>
+                    encodeBN254toBase58(address),
+                ),
+            },
         );
 
         const res = create(unsafeRes, jsonRpcResult(ValidityProofResult));
@@ -1223,14 +1227,15 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 `failed to get ValidityProof for compressed accounts ${hashes.map(hash => hash.toString())}`,
             );
         }
-        console.log("log [debug]: 'getValidityProof‘ response", res.result);
+
         const value: CompressedProofWithContext = {
             compressedProof: res.result.compressedProof,
             merkleTrees: res.result.merkleTrees,
             leafIndices: res.result.leafIndices,
-            nullifierQueues: res.result.merkleTrees.map(
-                () => mockNullifierQueue,
-            ), // TODO: use nullifierQueue from indexer
+            nullifierQueues: [
+                ...hashes.map(() => mockNullifierQueue),
+                ...newAddresses.map(() => mockAddressQueue),
+            ],
             rootIndices: res.result.rootIndices,
             roots: res.result.roots,
             leaves: res.result.leaves,

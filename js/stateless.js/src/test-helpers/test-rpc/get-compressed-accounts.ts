@@ -81,6 +81,7 @@ async function getCompressedAccountsForTest(rpc: Rpc) {
         account =>
             !allInputAccountHashes.some(hash => hash.eq(bn(account.hash))),
     );
+    unspentAccounts.sort((a, b) => b.leafIndex - a.leafIndex);
 
     return unspentAccounts;
 }

@@ -129,7 +129,7 @@ if (import.meta.vitest) {
             const base58 = encodeBN254toBase58(bn(refHash31));
 
             expect(
-                createBN254(base58, 'base58').toArray(undefined, 32),
+                createBN254(base58, 'base58').toArray('be', 32),
             ).to.be.deep.equal([0].concat(refHash31));
         });
 
