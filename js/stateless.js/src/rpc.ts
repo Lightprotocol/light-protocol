@@ -166,19 +166,10 @@ function buildCompressedAccountWithMaybeTokenData(account: any): {
                 account.hash.toArray(undefined, 32),
                 account.leafIndex,
             ),
-<<<<<<< HEAD
             account.owner,
             bn(account.lamports),
-            account.data ? parseAccountData(account.data) : undefined,
-            account.address || undefined,
-=======
-            account.account.owner,
-            bn(account.account.lamports),
-            account.account.data
-                ? parseAccountData(account.account.data)
-                : undefined,
+            account.data ? parseAccountData(account.account.data) : undefined,
             account.account.address || undefined,
->>>>>>> 72ce143ab (cmp account and address proofs in combined validityproof test)
         );
 
     if (tokenData === null) {
