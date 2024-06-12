@@ -19,7 +19,6 @@ use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
-use crate::test_env::PAYER_KEYPAIR;
 use crate::transaction_params::TransactionParams;
 
 pub const SERVER_URL: &str = "http://127.0.0.1:8899";
@@ -36,7 +35,7 @@ impl SolanaRpcConnection {
     }
 
     pub fn new_with_url<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
-        let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+        let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url, commitment_config);
         client
