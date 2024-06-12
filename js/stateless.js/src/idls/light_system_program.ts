@@ -271,37 +271,6 @@ export type LightSystemProgram = {
                             defined: 'MerkleTreeMetadata';
                         };
                     },
-                    {
-                        name: 'stateMerkleTreeStruct';
-                        docs: ['Merkle tree for the transaction state.'];
-                        type: {
-                            array: ['u8', 272];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeFilledSubtrees';
-                        type: {
-                            array: ['u8', 832];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeChangelog';
-                        type: {
-                            array: ['u8', 1220800];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeRoots';
-                        type: {
-                            array: ['u8', 76800];
-                        };
-                    },
-                    {
-                        name: 'stateMerkleTreeCanopy';
-                        type: {
-                            array: ['u8', 65472];
-                        };
-                    },
                 ];
             };
         },
@@ -1258,37 +1227,6 @@ export const IDL: LightSystemProgram = {
                         name: 'metadata',
                         type: {
                             defined: 'MerkleTreeMetadata',
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeStruct',
-                        docs: ['Merkle tree for the transaction state.'],
-                        type: {
-                            array: ['u8', 272],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeFilledSubtrees',
-                        type: {
-                            array: ['u8', 832],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeChangelog',
-                        type: {
-                            array: ['u8', 1220800],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeRoots',
-                        type: {
-                            array: ['u8', 76800],
-                        },
-                    },
-                    {
-                        name: 'stateMerkleTreeCanopy',
-                        type: {
-                            array: ['u8', 65472],
                         },
                     },
                 ],
