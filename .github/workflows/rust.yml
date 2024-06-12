@@ -31,7 +31,7 @@ concurrency:
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: buildjet-2vcpu-ubuntu-2204
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -42,8 +42,16 @@ jobs:
         shell: bash
         run: ./scripts/install.sh
 
-      - name: Test workspace
+      # concurrent merkle tree crate must run in isolation because otherwise it
+      # tries to use the idl-build feature (which fails).
+      - name: Test workspace (excluding light-concurrent-merkle-tree)
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --workspace --all-targets  --exclude photon-api --exclude forester
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --workspace --exclude light-concurrent-merkle-tree --exclude photon-api --exclude forester
+
+      - name: Test light-concurrent-merkle-tree
+        run: |
+          source ./scripts/devenv.sh
+          echo "Rust version: $(rustc --version)"
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --package light-concurrent-merkle-tree

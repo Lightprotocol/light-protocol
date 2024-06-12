@@ -6,7 +6,6 @@ use crate::{
 };
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     zero_copy::{IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut},
@@ -15,7 +14,7 @@ use light_indexed_merkle_tree::{
 
 #[account(zero_copy)]
 #[aligned_sized(anchor)]
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[derive(AnchorDeserialize, Debug)]
 pub struct AddressMerkleTreeAccount {
     pub metadata: MerkleTreeMetadata,
 }

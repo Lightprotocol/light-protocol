@@ -1,13 +1,6 @@
 export type LightCompressedToken = {
     version: '0.3.4';
     name: 'light_compressed_token';
-    constants: [
-        {
-            name: 'PROGRAM_ID';
-            type: 'string';
-            value: '"HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN"';
-        },
-    ];
     instructions: [
         {
             name: 'createMint';
@@ -225,8 +218,330 @@ export type LightCompressedToken = {
                 },
             ];
         },
+        {
+            name: 'stubIdlBuild';
+            docs: [
+                'This function is a stub to allow Anchor to include the input types in',
+                'the IDL. It should not be included in production builds nor be called in',
+                'practice.',
+            ];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'tokenPoolPda';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'compressOrDecompressTokenAccount';
+                    isMut: true;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'tokenProgram';
+                    isMut: false;
+                    isSigner: false;
+                    isOptional: true;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs1';
+                    type: {
+                        defined: 'CompressedTokenInstructionDataTransfer';
+                    };
+                },
+                {
+                    name: 'inputs2';
+                    type: {
+                        defined: 'TokenData';
+                    };
+                },
+            ];
+        },
     ];
     types: [
+        {
+            name: 'AccessMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        docs: ['Owner of the Merkle tree.'];
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'programOwner';
+                        docs: [
+                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ];
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'AccountState';
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'Initialized';
+                    },
+                    {
+                        name: 'Frozen';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedAccount';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'lamports';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'address';
+                        type: {
+                            option: {
+                                array: ['u8', 32];
+                            };
+                        };
+                    },
+                    {
+                        name: 'data';
+                        type: {
+                            option: {
+                                defined: 'CompressedAccountData';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedAccountData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'discriminator';
+                        type: {
+                            array: ['u8', 8];
+                        };
+                    },
+                    {
+                        name: 'data';
+                        type: 'bytes';
+                    },
+                    {
+                        name: 'dataHash';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedCpiContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'setContext';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'cpiContextAccountIndex';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedProof';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'a';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'b';
+                        type: {
+                            array: ['u8', 64];
+                        };
+                    },
+                    {
+                        name: 'c';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedTokenInstructionDataTransfer';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: 'CompressedProof';
+                            };
+                        };
+                    },
+                    {
+                        name: 'mint';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'signerIsDelegate';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'inputTokenDataWithContext';
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'outputCompressedAccounts';
+                        type: {
+                            vec: {
+                                defined: 'PackedTokenTransferOutputData';
+                            };
+                        };
+                    },
+                    {
+                        name: 'isCompress';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'compressOrDecompressAmount';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'cpiContext';
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'InputTokenDataWithContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'amount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'delegateIndex';
+                        type: {
+                            option: 'u8';
+                        };
+                    },
+                    {
+                        name: 'delegatedAmount';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'isNative';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'merkleContext';
+                        type: {
+                            defined: 'PackedMerkleContext';
+                        };
+                    },
+                    {
+                        name: 'rootIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
         {
             name: 'InstructionDataInvoke';
             type: {
@@ -279,120 +594,6 @@ export type LightCompressedToken = {
                     {
                         name: 'isCompress';
                         type: 'bool';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'OutputCompressedAccountWithContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleTreeIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NewAddressParamsPacked';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'addressQueueAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NewAddressParams';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'addressQueuePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'addressMerkleTreePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedProof';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'a';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'b';
-                        type: {
-                            array: ['u8', 64];
-                        };
-                    },
-                    {
-                        name: 'c';
-                        type: {
-                            array: ['u8', 32];
-                        };
                     },
                 ];
             };
@@ -468,6 +669,94 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'MerkleTreeMetadata';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'accessMetadata';
+                        type: {
+                            defined: 'AccessMetadata';
+                        };
+                    },
+                    {
+                        name: 'rolloverMetadata';
+                        type: {
+                            defined: 'RolloverMetadata';
+                        };
+                    },
+                    {
+                        name: 'associatedQueue';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'nextMerkleTree';
+                        type: 'publicKey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleTreeSequenceNumber';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'pubkey';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'seq';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NewAddressParamsPacked';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'seed';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'addressQueueAccountIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'addressMerkleTreeAccountIndex';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressedAccount';
+                        type: {
+                            defined: 'CompressedAccount';
+                        };
+                    },
+                    {
+                        name: 'merkleTreeIndex';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
             name: 'PackedCompressedAccountWithMerkleContext';
             type: {
                 kind: 'struct';
@@ -495,46 +784,6 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'CompressedAccountWithMerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'MerkleContext';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'merkleTreePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nullifierQueuePubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
-                    },
-                ];
-            };
-        },
-        {
             name: 'PackedMerkleContext';
             type: {
                 kind: 'struct';
@@ -555,7 +804,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'CompressedAccount';
+            name: 'PackedTokenTransferOutputData';
             type: {
                 kind: 'struct';
                 fields: [
@@ -564,64 +813,18 @@ export type LightCompressedToken = {
                         type: 'publicKey';
                     },
                     {
+                        name: 'amount';
+                        type: 'u64';
+                    },
+                    {
                         name: 'lamports';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'address';
                         type: {
-                            option: {
-                                array: ['u8', 32];
-                            };
+                            option: 'u64';
                         };
                     },
                     {
-                        name: 'data';
-                        type: {
-                            option: {
-                                defined: 'CompressedAccountData';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedAccountData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'discriminator';
-                        type: {
-                            array: ['u8', 8];
-                        };
-                    },
-                    {
-                        name: 'data';
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'dataHash';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleTreeSequenceNumber';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'pubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'seq';
-                        type: 'u64';
+                        name: 'merkleTreeIndex';
+                        type: 'u8';
                     },
                 ];
             };
@@ -701,167 +904,50 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'CompressedCpiContext';
+            name: 'RolloverMetadata';
             type: {
                 kind: 'struct';
                 fields: [
                     {
-                        name: 'setContext';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'cpiContextAccountIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InputTokenDataWithContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'amount';
+                        name: 'index';
+                        docs: ['Unique index.'];
                         type: 'u64';
                     },
                     {
-                        name: 'delegateIndex';
-                        type: {
-                            option: 'u8';
-                        };
-                    },
-                    {
-                        name: 'delegatedAmount';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isNative';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'PackedMerkleContext';
-                        };
-                    },
-                    {
-                        name: 'rootIndex';
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedTokenInstructionDataTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'mint';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'signerIsDelegate';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'inputTokenDataWithContext';
-                        type: {
-                            vec: {
-                                defined: 'InputTokenDataWithContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'PackedTokenTransferOutputData';
-                            };
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compressOrDecompressAmount';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'cpiContext';
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedTokenTransferOutputData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'amount';
+                        name: 'rolloverFee';
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ];
                         type: 'u64';
                     },
                     {
-                        name: 'lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'merkleTreeIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'TokenTransferOutputData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'amount';
+                        name: 'rolloverThreshold';
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ];
                         type: 'u64';
                     },
                     {
-                        name: 'lamports';
-                        type: {
-                            option: 'u64';
-                        };
+                        name: 'networkFee';
+                        docs: ['Tip for maintaining the account.'];
+                        type: 'u64';
                     },
                     {
-                        name: 'merkleTree';
-                        type: 'publicKey';
+                        name: 'rolledoverSlot';
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'closeThreshold';
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ];
+                        type: 'u64';
                     },
                 ];
             };
@@ -923,76 +1009,6 @@ export type LightCompressedToken = {
                 ];
             };
         },
-        {
-            name: 'AccountState';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'Initialized';
-                    },
-                    {
-                        name: 'Frozen';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'ErrorCode';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'PublicKeyAmountMissmatch';
-                    },
-                    {
-                        name: 'SignerCheckFailed';
-                    },
-                    {
-                        name: 'ComputeInputSumFailed';
-                    },
-                    {
-                        name: 'ComputeOutputSumFailed';
-                    },
-                    {
-                        name: 'ComputeCompressSumFailed';
-                    },
-                    {
-                        name: 'ComputeDecompressSumFailed';
-                    },
-                    {
-                        name: 'SumCheckFailed';
-                    },
-                    {
-                        name: 'DecompressRecipientUndefinedForDecompress';
-                    },
-                    {
-                        name: 'CompressedPdaUndefinedForDecompress';
-                    },
-                    {
-                        name: 'DeCompressAmountUndefinedForDecompress';
-                    },
-                    {
-                        name: 'CompressedPdaUndefinedForCompress';
-                    },
-                    {
-                        name: 'DeCompressAmountUndefinedForCompress';
-                    },
-                    {
-                        name: 'DelegateUndefined';
-                    },
-                    {
-                        name: 'DelegateSignerCheckFailed';
-                    },
-                    {
-                        name: 'SplTokenSupplyMismatch';
-                    },
-                    {
-                        name: 'HeapMemoryCheckFailed';
-                    },
-                ];
-            };
-        },
     ];
     errors: [
         {
@@ -1010,13 +1026,6 @@ export type LightCompressedToken = {
 export const IDL: LightCompressedToken = {
     version: '0.3.4',
     name: 'light_compressed_token',
-    constants: [
-        {
-            name: 'PROGRAM_ID',
-            type: 'string',
-            value: '"HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN"',
-        },
-    ],
     instructions: [
         {
             name: 'createMint',
@@ -1234,8 +1243,330 @@ export const IDL: LightCompressedToken = {
                 },
             ],
         },
+        {
+            name: 'stubIdlBuild',
+            docs: [
+                'This function is a stub to allow Anchor to include the input types in',
+                'the IDL. It should not be included in production builds nor be called in',
+                'practice.',
+            ],
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'tokenPoolPda',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'compressOrDecompressTokenAccount',
+                    isMut: true,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'tokenProgram',
+                    isMut: false,
+                    isSigner: false,
+                    isOptional: true,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs1',
+                    type: {
+                        defined: 'CompressedTokenInstructionDataTransfer',
+                    },
+                },
+                {
+                    name: 'inputs2',
+                    type: {
+                        defined: 'TokenData',
+                    },
+                },
+            ],
+        },
     ],
     types: [
+        {
+            name: 'AccessMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        docs: ['Owner of the Merkle tree.'],
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'programOwner',
+                        docs: [
+                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ],
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'AccountState',
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'Initialized',
+                    },
+                    {
+                        name: 'Frozen',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedAccount',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'lamports',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'address',
+                        type: {
+                            option: {
+                                array: ['u8', 32],
+                            },
+                        },
+                    },
+                    {
+                        name: 'data',
+                        type: {
+                            option: {
+                                defined: 'CompressedAccountData',
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedAccountData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'discriminator',
+                        type: {
+                            array: ['u8', 8],
+                        },
+                    },
+                    {
+                        name: 'data',
+                        type: 'bytes',
+                    },
+                    {
+                        name: 'dataHash',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedCpiContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'setContext',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'cpiContextAccountIndex',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedProof',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'a',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'b',
+                        type: {
+                            array: ['u8', 64],
+                        },
+                    },
+                    {
+                        name: 'c',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedTokenInstructionDataTransfer',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: 'CompressedProof',
+                            },
+                        },
+                    },
+                    {
+                        name: 'mint',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'signerIsDelegate',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'inputTokenDataWithContext',
+                        type: {
+                            vec: {
+                                defined: 'InputTokenDataWithContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'outputCompressedAccounts',
+                        type: {
+                            vec: {
+                                defined: 'PackedTokenTransferOutputData',
+                            },
+                        },
+                    },
+                    {
+                        name: 'isCompress',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'compressOrDecompressAmount',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'cpiContext',
+                        type: {
+                            option: {
+                                defined: 'CompressedCpiContext',
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'InputTokenDataWithContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'amount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'delegateIndex',
+                        type: {
+                            option: 'u8',
+                        },
+                    },
+                    {
+                        name: 'delegatedAmount',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'isNative',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'merkleContext',
+                        type: {
+                            defined: 'PackedMerkleContext',
+                        },
+                    },
+                    {
+                        name: 'rootIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
         {
             name: 'InstructionDataInvoke',
             type: {
@@ -1290,120 +1621,6 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'isCompress',
                         type: 'bool',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'OutputCompressedAccountWithContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'NewAddressParamsPacked',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'addressQueueAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'NewAddressParams',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'addressQueuePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'addressMerkleTreePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedProof',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'a',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'b',
-                        type: {
-                            array: ['u8', 64],
-                        },
-                    },
-                    {
-                        name: 'c',
-                        type: {
-                            array: ['u8', 32],
-                        },
                     },
                 ],
             },
@@ -1481,6 +1698,94 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
+            name: 'MerkleTreeMetadata',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'accessMetadata',
+                        type: {
+                            defined: 'AccessMetadata',
+                        },
+                    },
+                    {
+                        name: 'rolloverMetadata',
+                        type: {
+                            defined: 'RolloverMetadata',
+                        },
+                    },
+                    {
+                        name: 'associatedQueue',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'nextMerkleTree',
+                        type: 'publicKey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleTreeSequenceNumber',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'pubkey',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'seq',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NewAddressParamsPacked',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'seed',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'addressQueueAccountIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'addressMerkleTreeAccountIndex',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'addressMerkleTreeRootIndex',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressedAccount',
+                        type: {
+                            defined: 'CompressedAccount',
+                        },
+                    },
+                    {
+                        name: 'merkleTreeIndex',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
             name: 'PackedCompressedAccountWithMerkleContext',
             type: {
                 kind: 'struct',
@@ -1508,46 +1813,6 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'CompressedAccountWithMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'MerkleContext',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'merkleTreePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nullifierQueuePubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
-                    },
-                ],
-            },
-        },
-        {
             name: 'PackedMerkleContext',
             type: {
                 kind: 'struct',
@@ -1568,7 +1833,7 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'CompressedAccount',
+            name: 'PackedTokenTransferOutputData',
             type: {
                 kind: 'struct',
                 fields: [
@@ -1577,64 +1842,18 @@ export const IDL: LightCompressedToken = {
                         type: 'publicKey',
                     },
                     {
+                        name: 'amount',
+                        type: 'u64',
+                    },
+                    {
                         name: 'lamports',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'address',
                         type: {
-                            option: {
-                                array: ['u8', 32],
-                            },
+                            option: 'u64',
                         },
                     },
                     {
-                        name: 'data',
-                        type: {
-                            option: {
-                                defined: 'CompressedAccountData',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedAccountData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'discriminator',
-                        type: {
-                            array: ['u8', 8],
-                        },
-                    },
-                    {
-                        name: 'data',
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'dataHash',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleTreeSequenceNumber',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'pubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seq',
-                        type: 'u64',
+                        name: 'merkleTreeIndex',
+                        type: 'u8',
                     },
                 ],
             },
@@ -1715,167 +1934,50 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
-            name: 'CompressedCpiContext',
+            name: 'RolloverMetadata',
             type: {
                 kind: 'struct',
                 fields: [
                     {
-                        name: 'setContext',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'cpiContextAccountIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InputTokenDataWithContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'amount',
+                        name: 'index',
+                        docs: ['Unique index.'],
                         type: 'u64',
                     },
                     {
-                        name: 'delegateIndex',
-                        type: {
-                            option: 'u8',
-                        },
-                    },
-                    {
-                        name: 'delegatedAmount',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isNative',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'PackedMerkleContext',
-                        },
-                    },
-                    {
-                        name: 'rootIndex',
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedTokenInstructionDataTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'mint',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'signerIsDelegate',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'inputTokenDataWithContext',
-                        type: {
-                            vec: {
-                                defined: 'InputTokenDataWithContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'PackedTokenTransferOutputData',
-                            },
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compressOrDecompressAmount',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'cpiContext',
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedTokenTransferOutputData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
+                        name: 'rolloverFee',
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ],
                         type: 'u64',
                     },
                     {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'TokenTransferOutputData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
+                        name: 'rolloverThreshold',
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ],
                         type: 'u64',
                     },
                     {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
+                        name: 'networkFee',
+                        docs: ['Tip for maintaining the account.'],
+                        type: 'u64',
                     },
                     {
-                        name: 'merkleTree',
-                        type: 'publicKey',
+                        name: 'rolledoverSlot',
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'closeThreshold',
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ],
+                        type: 'u64',
                     },
                 ],
             },
@@ -1933,76 +2035,6 @@ export const IDL: LightCompressedToken = {
                         name: 'delegatedAmount',
                         docs: ['The amount delegated'],
                         type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'AccountState',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'Initialized',
-                    },
-                    {
-                        name: 'Frozen',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'ErrorCode',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'PublicKeyAmountMissmatch',
-                    },
-                    {
-                        name: 'SignerCheckFailed',
-                    },
-                    {
-                        name: 'ComputeInputSumFailed',
-                    },
-                    {
-                        name: 'ComputeOutputSumFailed',
-                    },
-                    {
-                        name: 'ComputeCompressSumFailed',
-                    },
-                    {
-                        name: 'ComputeDecompressSumFailed',
-                    },
-                    {
-                        name: 'SumCheckFailed',
-                    },
-                    {
-                        name: 'DecompressRecipientUndefinedForDecompress',
-                    },
-                    {
-                        name: 'CompressedPdaUndefinedForDecompress',
-                    },
-                    {
-                        name: 'DeCompressAmountUndefinedForDecompress',
-                    },
-                    {
-                        name: 'CompressedPdaUndefinedForCompress',
-                    },
-                    {
-                        name: 'DeCompressAmountUndefinedForCompress',
-                    },
-                    {
-                        name: 'DelegateUndefined',
-                    },
-                    {
-                        name: 'DelegateSignerCheckFailed',
-                    },
-                    {
-                        name: 'SplTokenSupplyMismatch',
-                    },
-                    {
-                        name: 'HeapMemoryCheckFailed',
                     },
                 ],
             },

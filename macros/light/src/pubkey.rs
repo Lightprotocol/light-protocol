@@ -40,9 +40,8 @@ pub(crate) fn pubkey(args: PubkeyArgs) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
-    use syn::parse_quote;
-
     use super::*;
+    use syn::parse_quote;
 
     #[test]
     fn test_pubkey() {

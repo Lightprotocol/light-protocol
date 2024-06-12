@@ -12,21 +12,23 @@ name = "light_compressed_token"
 
 [features]
 no-entrypoint = []
-no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap"]
+default = ["custom-heap", "idl-build"]
 test-sbf = []
 bench-sbf = []
 cpi-context = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+
 
 [dependencies]
 anchor-lang = "0.29.0"
 anchor-spl = "0.29.0"
 aligned-sized = { version = "0.1.4", path = "../../macros/aligned-sized" }
-account-compression = { version = "0.3.5", path = "../account-compression", features = ["cpi"] }
+account-compression = { version = "0.3.5", path = "../account-compression", features = ["cpi", "no-idl"] }
 light-system-program = { version = "0.3.4", path = "../system", features = ["cpi"] }
 solana-security-txt = "1.1.0"
 light-hasher = { version = "0.1.4", path = "../../merkle-tree/hasher" }

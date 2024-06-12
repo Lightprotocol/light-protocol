@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Default)]
+#[derive(AnchorDeserialize, Debug, PartialEq, Default)]
 pub struct RolloverMetadata {
     /// Unique index.
     pub index: u64,

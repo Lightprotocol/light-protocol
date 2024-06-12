@@ -84,11 +84,6 @@ export type AccountCompression = {
             };
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]';
         },
-        {
-            name: 'PROGRAM_ID';
-            type: 'string';
-            value: '"CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK"';
-        },
     ];
     instructions: [
         {
@@ -1164,11 +1159,6 @@ export const IDL: AccountCompression = {
                 array: ['u8', 32],
             },
             value: '[11 , 188 , 15 , 192 , 187 , 71 , 202 , 47 , 116 , 196 , 17 , 46 , 148 , 171 , 19 , 207 , 163 , 198 , 52 , 229 , 220 , 23 , 234 , 203 , 3 , 205 , 26 , 35 , 205 , 126 , 120 , 124 ,]',
-        },
-        {
-            name: 'PROGRAM_ID',
-            type: 'string',
-            value: '"CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK"',
         },
     ],
     instructions: [

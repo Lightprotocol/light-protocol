@@ -18,7 +18,8 @@ members = [
     "examples/token-escrow/programs/*",
     "test-programs/*",
     "forester",
-    "photon-api"
+    "photon-api",
+    "sdk"
 ]
 
 [profile.release]

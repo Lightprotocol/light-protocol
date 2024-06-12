@@ -9,19 +9,18 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "light_system_program"
-
 [features]
 no-entrypoint = []
-no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["custom-heap"]
+default = ["custom-heap", "idl-build"]
 test-sbf = []
 bench-sbf = []
-# This feature is not secure yet.
+idl-build = ["anchor-lang/idl-build"]
 cpi-context = []
+
 
 [dependencies]
 aligned-sized = { version = "0.1.4", path = "../../macros/aligned-sized" }

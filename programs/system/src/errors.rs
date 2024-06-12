@@ -58,4 +58,6 @@ pub enum SystemProgramError {
     SolPoolPdaDefined,
     #[msg("AppendStateFailed")]
     AppendStateFailed,
+    #[msg("The instruction is not callable")]
+    InstructionNotCallable,
 }
