@@ -5,6 +5,7 @@ use std::{
 };
 
 use array::{IndexedArray, IndexedElement};
+use changelog::IndexedChangelogEntry;
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError,
@@ -17,6 +18,7 @@ use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 
 pub mod array;
+pub mod changelog;
 pub mod copy;
 pub mod errors;
 pub mod reference;
@@ -36,7 +38,7 @@ where
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
-    pub indexed_changelog: CyclicBoundedVec<RawIndexedElement<I>>,
+    pub indexed_changelog: CyclicBoundedVec<IndexedChangelogEntry<I>>,
 
     _index: PhantomData<I>,
 }
@@ -77,7 +79,7 @@ where
         // indexed_changelog (metadata)
         + mem::size_of::<CyclicBoundedVecMetadata>()
         // indexed_changelog
-        + mem::size_of::<RawIndexedElement<I>>() * indexed_changelog_size
+        + mem::size_of::<IndexedChangelogEntry<I>>() * indexed_changelog_size
     }
 
     pub fn new(
@@ -109,6 +111,20 @@ where
         // operation.
         self.merkle_tree.append(&H::zero_indexed_leaf())?;
 
+        // Emit first changelog entry.
+        let element = RawIndexedElement {
+            value: [0_u8; 32],
+            next_index: I::zero(),
+            next_value: [0_u8; 32],
+            index: I::zero(),
+        };
+        let changelog_entry = IndexedChangelogEntry {
+            element,
+            proof: BoundedVec::from_slice(&H::zero_bytes()[..self.height]),
+            changelog_index: 0,
+        };
+        self.indexed_changelog.push(changelog_entry);
+
         Ok(())
     }
 
@@ -126,10 +142,10 @@ where
         let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
 
         let mut indexed_array = IndexedArray::<H, I, 2>::default();
-        let nullifier_bundle = indexed_array.append(&init_value)?;
-        let new_low_leaf = nullifier_bundle
+        let element_bundle = indexed_array.append(&init_value)?;
+        let new_low_leaf = element_bundle
             .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
+            .hash::<H>(&element_bundle.new_element.value)?;
 
         let mut proof = BoundedVec::with_capacity(self.merkle_tree.height);
         for i in 0..self.merkle_tree.height - self.merkle_tree.canopy_depth {
@@ -138,7 +154,7 @@ where
             proof.push(H::zero_bytes()[i]).unwrap();
         }
 
-        self.merkle_tree.update(
+        let (changelog_index, _) = self.merkle_tree.update(
             self.changelog_index(),
             &H::zero_indexed_leaf(),
             &new_low_leaf,
@@ -146,10 +162,40 @@ where
             &mut proof,
         )?;
 
-        let new_leaf = nullifier_bundle
+        // Emit changelog for low element.
+        let proof = BoundedVec::from_slice(&H::zero_bytes()[..self.height]);
+        let low_element = RawIndexedElement {
+            value: bigint_to_be_bytes_array::<32>(&element_bundle.new_low_element.value)?,
+            next_index: element_bundle.new_low_element.next_index,
+            next_value: bigint_to_be_bytes_array::<32>(&element_bundle.new_element.value)?,
+            index: element_bundle.new_low_element.index,
+        };
+        let low_element_changelog_entry = IndexedChangelogEntry {
+            element: low_element,
+            proof,
+            changelog_index,
+        };
+        self.indexed_changelog.push(low_element_changelog_entry);
+
+        let new_leaf = element_bundle
             .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
-        self.merkle_tree.append(&new_leaf)?;
+            .hash::<H>(&element_bundle.new_element_next_value)?;
+        let mut proof = BoundedVec::with_capacity(self.height);
+        let (changelog_index, _) = self.merkle_tree.append_with_proof(&new_leaf, &mut proof)?;
+
+        // Emit changelog for new element.
+        let new_element = RawIndexedElement {
+            value: bigint_to_be_bytes_array::<32>(&element_bundle.new_element.value)?,
+            next_index: element_bundle.new_element.next_index,
+            next_value: [0_u8; 32],
+            index: element_bundle.new_element.index,
+        };
+        let new_element_changelog_entry = IndexedChangelogEntry {
+            element: new_element,
+            proof,
+            changelog_index,
+        };
+        self.indexed_changelog.push(new_element_changelog_entry);
 
         Ok(())
     }
@@ -171,58 +217,85 @@ where
         Ok(())
     }
 
+    /// Iterates over indexed changelog and every time an entry corresponding
+    /// to the provided `low_element` is found, it patches:
+    ///
+    /// * Changelog index - indexed changelog entries contain corresponding
+    ///   changelog indices.
+    /// * New element - changes might impact the `next_index` field, which in
+    ///   such case is updated.
+    /// * Low element - it might completely change if a change introduced an
+    ///   element in our range.
+    /// * Merkle proof.
     #[allow(clippy::type_complexity)]
-    pub fn patch_low_element(
+    pub fn patch_elements_and_proof(
         &mut self,
-        low_element: &IndexedElement<I>,
-    ) -> Result<Option<(IndexedElement<I>, [u8; 32])>, IndexedMerkleTreeError> {
-        let changelog_element_index = self
+        indexed_changelog_index: usize,
+        changelog_index: &mut usize,
+        new_element: &mut IndexedElement<I>,
+        low_element: &mut IndexedElement<I>,
+        low_element_next_value: &mut BigUint,
+        low_leaf_proof: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<(), IndexedMerkleTreeError> {
+        let changelog_element_indices: Vec<usize> = self
             .indexed_changelog
-            .iter()
-            .position(|element| element.index == low_element.index);
-        // key (index) value index in the changelog
-
-        match changelog_element_index {
-            Some(changelog_element_index) => {
-                let max_usize = usize::MAX;
-                // TODO: benchmark whether overwriting or the comparison is more expensive.
-                // Removed elements must not be used again.
-                if changelog_element_index == max_usize {
-                    return Err(IndexedMerkleTreeError::LowElementNotFound);
+            .iter_from(indexed_changelog_index)?
+            .skip(1)
+            .enumerate()
+            .filter_map(|(index, changelog_entry)| {
+                if changelog_entry.element.index == low_element.index {
+                    Some(indexed_changelog_index + 1 + index)
+                } else {
+                    None
                 }
-                let changelog_element = &mut self.indexed_changelog[changelog_element_index];
-                let patched_element = IndexedElement::<I> {
-                    value: BigUint::from_bytes_be(&changelog_element.value),
-                    index: changelog_element.index,
-                    next_index: changelog_element.next_index,
-                };
-                // Removing the value:
-                // Writing data costs CU thus we just overwrite the index
-                // with an impossible value so that it cannot be found.
-                changelog_element.index = max_usize
-                    .try_into()
-                    .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
-                // Only use changelog event values, since these originate from an account -> can be trusted
-                Ok(Some((patched_element, changelog_element.next_value)))
-            }
-            None => Ok(None),
+            })
+            .collect();
+
+        for changelog_element_index in changelog_element_indices {
+            let changelog_entry = &mut self.indexed_changelog[changelog_element_index];
+
+            // Patch the changelog index.
+            *changelog_index = changelog_entry.changelog_index;
+
+            // Patch the `next_index` of `new_element`.
+            new_element.next_index = changelog_entry.element.next_index;
+
+            // Patch the element.
+            low_element.update_from_raw_element(&changelog_entry.element);
+            // Patch the next value.
+            *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
+            // Patch the proof.
+            low_leaf_proof.clone_from(&changelog_entry.proof);
+
+            // Removing the value:
+            // Writing data costs CU thus we just overwrite the index
+            // with an impossible value so that it cannot be found.
+            changelog_entry.element.index = usize::MAX
+                .try_into()
+                .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
         }
+
+        Ok(())
     }
 
     pub fn update(
         &mut self,
-        changelog_index: usize,
-        new_element: IndexedElement<I>,
-        low_element: IndexedElement<I>,
-        low_element_next_value: BigUint,
+        mut changelog_index: usize,
+        indexed_changelog_index: usize,
+        mut new_element: IndexedElement<I>,
+        mut low_element: IndexedElement<I>,
+        mut low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<IndexedMerkleTreeUpdate<I>, IndexedMerkleTreeError> {
-        // TODO: fix concurrency (broken right now)
-        // let patched_low_element = self.patch_low_element(&low_element)?;
-        // if let Some((patched_low_element, patched_low_element_next_value)) = patched_low_element {
-        //     low_element = patched_low_element;
-        //     low_element_next_value = BigUint::from_bytes_be(&patched_low_element_next_value);
-        // };
+        self.patch_elements_and_proof(
+            indexed_changelog_index,
+            &mut changelog_index,
+            &mut new_element,
+            &mut low_element,
+            &mut low_element_next_value,
+            low_leaf_proof,
+        )?;
+
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -257,7 +330,7 @@ where
         // tree, validating the proof is going to fail.
         let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
-        self.merkle_tree.update(
+        let (new_changelog_index, _) = self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
             &new_low_leaf,
@@ -265,24 +338,42 @@ where
             low_leaf_proof,
         )?;
 
-        // Append new element.
-        let new_leaf = new_element.hash::<H>(&low_element_next_value)?;
-        self.merkle_tree.append(&new_leaf)?;
-        let new_low_element_change_log = RawIndexedElement {
+        // Emit changelog entry for low element.
+        let new_low_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_low_element.value).unwrap(),
             next_index: new_low_element.next_index,
             next_value: bigint_to_be_bytes_array::<32>(&new_element.value)?,
             index: new_low_element.index,
         };
-        self.indexed_changelog.push(new_low_element_change_log);
+        let low_element_changelog_entry = IndexedChangelogEntry {
+            element: new_low_element,
+            proof: low_leaf_proof.clone(),
+            changelog_index: new_changelog_index,
+        };
+        self.indexed_changelog.push(low_element_changelog_entry);
+
+        // Append new element.
+        let mut proof = BoundedVec::with_capacity(self.height);
+        let new_leaf = new_element.hash::<H>(&low_element_next_value)?;
+        let (new_changelog_index, _) = self.merkle_tree.append_with_proof(&new_leaf, &mut proof)?;
+
         let new_high_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
             next_index: new_element.next_index,
             next_value: bigint_to_be_bytes_array::<32>(&low_element_next_value)?,
             index: new_element.index,
         };
+
+        // Emit changelog entry for new element.
+        let new_element_changelog_entry = IndexedChangelogEntry {
+            element: new_high_element,
+            proof,
+            changelog_index: new_changelog_index,
+        };
+        self.indexed_changelog.push(new_element_changelog_entry);
+
         let output = IndexedMerkleTreeUpdate {
-            new_low_element: new_low_element_change_log,
+            new_low_element,
             new_low_element_hash: new_low_leaf,
             new_high_element,
             new_high_element_hash: new_leaf,
