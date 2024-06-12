@@ -457,10 +457,69 @@ where
         self.append_batch(&[leaf])
     }
 
+    /// Appends a new leaf to the tree. Saves Merkle proof to the provided
+    /// `proof` reference.
+    pub fn append_with_proof(
+        &mut self,
+        leaf: &[u8; 32],
+        proof: &mut BoundedVec<[u8; 32]>,
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
+        self.append_batch_with_proofs(&[leaf], &mut [proof])
+    }
+
     /// Appends a batch of new leaves to the tree.
     pub fn append_batch(
         &mut self,
         leaves: &[&[u8; 32]],
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
+        self.append_batch_common::<false>(leaves, None)
+    }
+
+    /// Appends a batch of new leaves to the tree. Saves Merkle proofs to the
+    /// provided `proofs` slice.
+    pub fn append_batch_with_proofs(
+        &mut self,
+        leaves: &[&[u8; 32]],
+        proofs: &mut [&mut BoundedVec<[u8; 32]>],
+    ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
+        self.append_batch_common::<true>(leaves, Some(proofs))
+    }
+
+    /// Appends a batch of new leaves to the tree.
+    ///
+    /// This method contains the common logic and is not intended for external
+    /// use. Callers should choose between [`append_batch`](ConcurrentMerkleTree::append_batch)
+    /// and [`append_batch_with_proofs`](ConcurrentMerkleTree::append_batch_with_proofs).
+    fn append_batch_common<
+        // The only purpose of this const generic is to force compiler to
+        // produce separate functions, with and without proof, where the one
+        // without proof doesn't have an `if` statement and any code related to
+        // proofs. Thanks to the trick with const generic, we don't have to
+        // implement this function twice.
+        //
+        // Unfortunately, using `Option` is not enough. Compiler is still
+        // producing one function definition which contains redundant code
+        // guarded with `if` statement:
+        //
+        // https://godbolt.org/z/fEMMfMdPc
+        //
+        // Inlining the common function does not help, the whole function
+        // definition is being inlined in both places:
+        //
+        // https://godbolt.org/z/T3dxnjMzz
+        //
+        // Using the const generic helps and ends up generating two separate
+        // functions:
+        //
+        // https://godbolt.org/z/zGnM7Ycn1
+        const WITH_PROOFS: bool,
+    >(
+        &mut self,
+        leaves: &[&[u8; 32]],
+        // Slice for saving Merkle proofs.
+        //
+        // Currently it's used only for indexed Merkle trees.
+        mut proofs: Option<&mut [&mut BoundedVec<[u8; 32]>]>,
     ) -> Result<(usize, usize), ConcurrentMerkleTreeError> {
         if leaves.is_empty() {
             return Err(ConcurrentMerkleTreeError::EmptyLeaves);
@@ -510,13 +569,51 @@ where
             for i in 0..fillup_index {
                 let is_left = current_index % 2 == 0;
 
-                current_node = if is_left {
+                if is_left {
+                    // If the current node is on the left side:
+                    //
+                    //     N
+                    //    / \
+                    //  CUR  SIB
+                    //  /     \
+                    // N       N
+                    //
+                    // * The sibling (on the right) is a "zero node".
+                    // * That "zero node" becomes a part of Merkle proof.
+                    // * The upper (next current) node is `H(cur, Ø)`.
                     let empty_node = H::zero_bytes()[i];
+
+                    if WITH_PROOFS {
+                        // proofs.as_mut().unwrap()[leaf_i][i] = empty_node;
+                        proofs.as_mut().unwrap()[leaf_i].push(empty_node)?;
+                    }
+
                     self.filled_subtrees[i] = current_node;
-                    H::hashv(&[&current_node, &empty_node])?
+                    current_node = H::hashv(&[&current_node, &empty_node])?;
                 } else {
-                    H::hashv(&[&self.filled_subtrees[i], &current_node])?
-                };
+                    // If the current node is on the right side:
+                    //
+                    //     N
+                    //    / \
+                    //  SIB  CUR
+                    //  /     \
+                    // N       N
+
+                    if WITH_PROOFS {
+                        // proofs.as_mut().unwrap()[leaf_i][i] = self.filled_subtrees[i];
+                        proofs.as_mut().unwrap()[leaf_i].push(self.filled_subtrees[i])?;
+                    }
+
+                    current_node = H::hashv(&[&self.filled_subtrees[i], &current_node])?;
+                }
+
+                // current_node = if is_left {
+                //     let empty_node = H::zero_bytes()[i];
+                //     self.filled_subtrees[i] = current_node;
+                //     H::hashv(&[&current_node, &empty_node])?
+                // } else {
+                //     H::hashv(&[&self.filled_subtrees[i], &current_node])?
+                // };
 
                 if i < self.height - 1 {
                     self.changelog[changelog_index].path[i + 1] = current_node;
