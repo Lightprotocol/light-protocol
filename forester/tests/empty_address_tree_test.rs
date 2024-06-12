@@ -1,3 +1,4 @@
+use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
 use forester::constants::SERVER_URL;
 use forester::nullifier::{empty_address_queue, get_nullifier_queue, Config};
@@ -29,6 +30,12 @@ async fn empty_address_tree_test() {
     };
 
     let rpc = SolanaRpcConnection::new(None);
+
+    rpc.client
+        .request_airdrop(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(16)).await;
+    
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
