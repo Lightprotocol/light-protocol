@@ -35,7 +35,7 @@ async fn empty_address_tree_test() {
         .request_airdrop(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_secs(16)).await;
-    
+
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
