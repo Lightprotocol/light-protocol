@@ -1,11 +1,11 @@
-use std::{cmp, mem};
+use std::cmp;
 
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::{BoundedVec, BoundedVecError, CyclicBoundedVec};
 use light_concurrent_merkle_tree::{
     changelog::ChangelogEntry, errors::ConcurrentMerkleTreeError, event::MerkleTreeEvent,
-    ConcurrentMerkleTree,
+    zero_copy::ConcurrentMerkleTreeZeroCopyMut, ConcurrentMerkleTree,
 };
 use light_hash_set::HashSet;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
@@ -86,10 +86,10 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 0)
     );
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 1);
+    assert_eq!(merkle_tree.roots.last_index(), 1);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
-    assert_eq!(merkle_tree.next_index, 1);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf1);
+    assert_eq!(merkle_tree.next_index(), 1);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf1);
 
     // Appending the 2nd leaf should result in recomputing the root due to the
     // change of the `h1`, which now is a hash of the two non-zero leafs. So
@@ -124,10 +124,10 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 1),
     );
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 2);
+    assert_eq!(merkle_tree.roots.last_index(), 2);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
-    assert_eq!(merkle_tree.next_index, 2);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf2);
+    assert_eq!(merkle_tree.next_index(), 2);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf2);
 
     // Appending the 3rd leaf alters the next subtree on the right.
     // Instead of using Z[1], we will end up with the hash of the new leaf and
@@ -162,10 +162,10 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 2),
     );
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 3);
+    assert_eq!(merkle_tree.roots.last_index(), 3);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
-    assert_eq!(merkle_tree.next_index, 3);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf3);
+    assert_eq!(merkle_tree.next_index(), 3);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf3);
 
     // Appending the 4th leaf alters the next subtree on the right.
     // Instead of using Z[1], we will end up with the hash of the new leaf and
@@ -200,10 +200,10 @@ where
         ChangelogEntry::new(expected_root, expected_changelog_path, 3),
     );
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 4);
+    assert_eq!(merkle_tree.roots.last_index(), 4);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
-    assert_eq!(merkle_tree.next_index, 4);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf4);
+    assert_eq!(merkle_tree.next_index(), 4);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
 }
 
 /// Performs invalid updates on the given Merkle tree by trying to swap all
@@ -348,10 +348,10 @@ where
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 4);
+    assert_eq!(merkle_tree.roots.last_index(), 4);
     assert_eq!(merkle_tree.filled_subtrees, expected_filled_subtrees);
-    assert_eq!(merkle_tree.next_index, 4);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf4);
+    assert_eq!(merkle_tree.next_index(), 4);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
 
     // Replace `leaf1`.
     let new_leaf1 = [9u8; 32];
@@ -400,9 +400,9 @@ where
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 5);
-    assert_eq!(merkle_tree.next_index, 4);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf4);
+    assert_eq!(merkle_tree.roots.last_index(), 5);
+    assert_eq!(merkle_tree.next_index(), 4);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
 
     // Replace `leaf2`.
     let new_leaf2 = H::hash(&[8u8; 32]).unwrap();
@@ -452,9 +452,9 @@ where
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 6);
-    assert_eq!(merkle_tree.next_index, 4);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf4);
+    assert_eq!(merkle_tree.roots.last_index(), 6);
+    assert_eq!(merkle_tree.next_index(), 4);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
 
     // Replace `leaf3`.
     let new_leaf3 = H::hash(&[7u8; 32]).unwrap();
@@ -503,9 +503,9 @@ where
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 7);
-    assert_eq!(merkle_tree.next_index, 4);
-    assert_eq!(merkle_tree.rightmost_leaf, leaf4);
+    assert_eq!(merkle_tree.roots.last_index(), 7);
+    assert_eq!(merkle_tree.next_index(), 4);
+    assert_eq!(merkle_tree.rightmost_leaf(), leaf4);
 
     // Replace `leaf4`.
     let new_leaf4 = H::hash(&[6u8; 32]).unwrap();
@@ -555,9 +555,9 @@ where
     );
 
     assert_eq!(merkle_tree.root(), expected_root);
-    assert_eq!(merkle_tree.current_root_index, 8);
-    assert_eq!(merkle_tree.next_index, 4);
-    assert_eq!(merkle_tree.rightmost_leaf, new_leaf4);
+    assert_eq!(merkle_tree.roots.last_index(), 8);
+    assert_eq!(merkle_tree.next_index(), 4);
+    assert_eq!(merkle_tree.rightmost_leaf(), new_leaf4);
 }
 
 /// Tests whether appending leaves over the limit results in an explicit error.
@@ -617,8 +617,8 @@ where
         reference_tree.append(&leaf).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 4);
-    assert_eq!(merkle_tree.current_root_index, 4);
+    assert_eq!(merkle_tree.changelog.last_index(), 4);
+    assert_eq!(merkle_tree.roots.last_index(), 4);
 
     // Update 2 leaves to fill up the changelog. Its counter should reach the
     // modulus and get reset.
@@ -639,8 +639,8 @@ where
         reference_tree.update(&new_leaf, i).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 0);
-    assert_eq!(merkle_tree.current_root_index, 6);
+    assert_eq!(merkle_tree.changelog.last_index(), 0);
+    assert_eq!(merkle_tree.roots.last_index(), 6);
 
     // Update another 2 leaves to fill up the root. Its counter should reach
     // the modulus and get reset. The previously reset counter should get
@@ -662,8 +662,8 @@ where
         reference_tree.update(&new_leaf, i).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 2);
-    assert_eq!(merkle_tree.current_root_index, 0);
+    assert_eq!(merkle_tree.changelog.last_index(), 2);
+    assert_eq!(merkle_tree.roots.last_index(), 0);
 
     // The latter updates should keep incrementing the counters.
     for i in 0..3 {
@@ -683,8 +683,8 @@ where
         reference_tree.update(&new_leaf, i).unwrap();
     }
 
-    assert_eq!(merkle_tree.current_changelog_index, 5);
-    assert_eq!(merkle_tree.current_root_index, 3);
+    assert_eq!(merkle_tree.changelog.last_index(), 5);
+    assert_eq!(merkle_tree.roots.last_index(), 3);
 }
 
 /// Checks whether `append_batch` is compatible with equivalent multiple
@@ -758,7 +758,7 @@ where
             MerkleTreeEvent::V3(_) => unreachable!(),
         };
 
-        for leaf in leaves {
+        for leaf in leaves.iter() {
             reference_mt.append(leaf).unwrap();
         }
 
@@ -1077,7 +1077,7 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_ROOTS: usize>(
 ) where
     H: Hasher,
 {
-    for i in 0..concurrent_mt.current_changelog_index as usize {
+    for i in 0..concurrent_mt.changelog.len() {
         let changelog_entry = concurrent_mt.changelog[i].clone();
         let spl_changelog_entry = spl_concurrent_mt.change_logs[i];
         assert_eq!(changelog_entry.root, spl_changelog_entry.root);
@@ -1085,26 +1085,26 @@ fn compare_trees<H, const HEIGHT: usize, const MAX_ROOTS: usize>(
         assert_eq!(changelog_entry.index, spl_changelog_entry.index as u64);
     }
     assert_eq!(
-        concurrent_mt.current_changelog_index,
+        concurrent_mt.changelog.last_index(),
         spl_concurrent_mt.active_index as usize
     );
     assert_eq!(concurrent_mt.root(), spl_concurrent_mt.get_root());
-    for i in 0..concurrent_mt.current_root_index as usize {
+    for i in 0..concurrent_mt.roots.len() {
         assert_eq!(
             concurrent_mt.roots[i],
             spl_concurrent_mt.change_logs[i].root
         );
     }
     assert_eq!(
-        concurrent_mt.current_root_index,
+        concurrent_mt.roots.last_index(),
         spl_concurrent_mt.active_index as usize
     );
     assert_eq!(
-        concurrent_mt.next_index,
+        concurrent_mt.next_index(),
         spl_concurrent_mt.rightmost_proof.index as usize
     );
     assert_eq!(
-        concurrent_mt.rightmost_leaf,
+        concurrent_mt.rightmost_leaf(),
         spl_concurrent_mt.rightmost_proof.leaf
     );
 }
@@ -1210,34 +1210,14 @@ fn from_bytes<
 where
     H: Hasher,
 {
-    let mut bytes_struct = vec![0u8; mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>()];
-    let mut bytes_filled_subtrees = vec![0u8; mem::size_of::<[u8; 32]>() * HEIGHT];
-    let mut bytes_changelog = vec![0u8; mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG];
-    let mut bytes_roots = vec![0u8; mem::size_of::<[u8; 32]>() * ROOTS];
-    let mut bytes_canopy = vec![
-        0u8;
-        mem::size_of::<[u8; 32]>()
-            * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY)
-    ];
-
-    let merkle_tree = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            bytes_struct.as_mut_slice(),
-            bytes_filled_subtrees.as_mut_slice(),
-            bytes_changelog.as_mut_slice(),
-            bytes_roots.as_mut_slice(),
-            bytes_canopy.as_mut_slice(),
-            HEIGHT,
-            CHANGELOG,
-            ROOTS,
-            CANOPY,
-        )
-        .unwrap()
-    };
-    merkle_tree.init().unwrap();
-    let mut reference_tree = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
+    let mut bytes =
+        vec![
+            0u8;
+            ConcurrentMerkleTree::<H, HEIGHT>::size_in_account(HEIGHT, CHANGELOG, ROOTS, CANOPY)
+        ];
 
     let mut rng = thread_rng();
+    let mut reference_tree_1 = light_merkle_tree_reference::MerkleTree::<H>::new(HEIGHT, CANOPY);
 
     // Vector of changelog indices after each operation.
     let mut leaf_indices = CyclicBoundedVec::with_capacity(CHANGELOG);
@@ -1248,25 +1228,37 @@ where
     // Changelog is always initialized with a changelog path consisting of zero
     // bytes. For consistency, we need to assert the 1st zero byte as the first
     // expected leaf in the changelog.
-    let merkle_path = reference_tree.get_path_of_leaf(0, true).unwrap();
+    let merkle_path = reference_tree_1.get_path_of_leaf(0, true).unwrap();
     leaf_indices.push(0);
     merkle_paths.push(merkle_path);
-    roots.push(merkle_tree.root());
+
+    {
+        let mut merkle_tree =
+            ConcurrentMerkleTreeZeroCopyMut::<H, HEIGHT>::from_bytes_zero_copy_init(
+                bytes.as_mut_slice(),
+                HEIGHT,
+                CANOPY,
+                CHANGELOG,
+                ROOTS,
+            )
+            .unwrap();
+        merkle_tree.init().unwrap();
+        roots.push(merkle_tree.root());
+    }
+
+    let mut reference_tree_2 =
+        ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY).unwrap();
+    reference_tree_2.init().unwrap();
 
     // Try to make the tree full. After each append, update a random leaf.
     // Reload the tree from bytes after each action.
     for _ in 0..(1 << HEIGHT) {
         // Reload the tree.
-        let merkle_tree = unsafe {
-            ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
-                bytes_struct.as_mut_slice(),
-                bytes_filled_subtrees.as_mut_slice(),
-                bytes_changelog.as_mut_slice(),
-                bytes_roots.as_mut_slice(),
-                bytes_canopy.as_mut_slice(),
+        let mut merkle_tree =
+            ConcurrentMerkleTreeZeroCopyMut::<H, HEIGHT>::from_bytes_zero_copy_mut(
+                bytes.as_mut_slice(),
             )
-            .unwrap()
-        };
+            .unwrap();
 
         // Append leaf.
         let leaf: [u8; 32] = Fr::rand(&mut rng)
@@ -1276,14 +1268,31 @@ where
             .unwrap();
         let leaf_index = merkle_tree.next_index();
         merkle_tree.append(&leaf).unwrap();
-        reference_tree.append(&leaf).unwrap();
+        reference_tree_1.append(&leaf).unwrap();
+        reference_tree_2.append(&leaf).unwrap();
 
         leaf_indices.push(leaf_index);
         roots.push(merkle_tree.root());
-        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        let merkle_path = reference_tree_1.get_path_of_leaf(leaf_index, true).unwrap();
         merkle_paths.push(merkle_path);
 
-        assert_eq!(merkle_tree.root(), reference_tree.root());
+        assert_eq!(
+            merkle_tree.filled_subtrees.iter().collect::<Vec<_>>(),
+            reference_tree_2.filled_subtrees.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            merkle_tree.changelog.iter().collect::<Vec<_>>(),
+            reference_tree_2.changelog.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            merkle_tree.roots.iter().collect::<Vec<_>>(),
+            reference_tree_2.roots.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            merkle_tree.canopy.iter().collect::<Vec<_>>(),
+            reference_tree_2.canopy.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(merkle_tree.root(), reference_tree_1.root());
 
         let changelog_entries = merkle_tree
             .changelog_entries(merkle_tree.changelog.first_index())
@@ -1308,30 +1317,42 @@ where
         }
 
         // Update random leaf.
-        let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
-        let old_leaf = reference_tree.leaf(leaf_index);
+        let leaf_index = rng.gen_range(0..reference_tree_1.leaves().len());
+        let old_leaf = reference_tree_1.leaf(leaf_index);
         let new_leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
             .try_into()
             .unwrap();
-        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        let mut proof = reference_tree_1
+            .get_proof_of_leaf(leaf_index, false)
+            .unwrap();
+        let changelog_index = merkle_tree.changelog_index();
         merkle_tree
             .update(
-                merkle_tree.changelog_index(),
+                changelog_index,
                 &old_leaf,
                 &new_leaf,
                 leaf_index,
                 &mut proof,
             )
             .unwrap();
-        reference_tree.update(&new_leaf, leaf_index).unwrap();
+        reference_tree_1.update(&new_leaf, leaf_index).unwrap();
+        reference_tree_2
+            .update(
+                changelog_index,
+                &old_leaf,
+                &new_leaf,
+                leaf_index,
+                &mut proof,
+            )
+            .unwrap();
 
-        assert_eq!(merkle_tree.root(), reference_tree.root());
+        assert_eq!(merkle_tree.root(), reference_tree_1.root());
 
         leaf_indices.push(leaf_index);
         roots.push(merkle_tree.root());
-        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        let merkle_path = reference_tree_1.get_path_of_leaf(leaf_index, true).unwrap();
         merkle_paths.push(merkle_path);
 
         let changelog_entries = merkle_tree
@@ -1360,42 +1381,49 @@ where
     // Keep updating random leaves in loop.
     for _ in 0..1000 {
         // Reload the tree.
-        let merkle_tree = unsafe {
-            ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_mut(
-                bytes_struct.as_mut_slice(),
-                bytes_filled_subtrees.as_mut_slice(),
-                bytes_changelog.as_mut_slice(),
-                bytes_roots.as_mut_slice(),
-                bytes_canopy.as_mut_slice(),
+        let mut merkle_tree =
+            ConcurrentMerkleTreeZeroCopyMut::<H, HEIGHT>::from_bytes_zero_copy_mut(
+                bytes.as_mut_slice(),
             )
-            .unwrap()
-        };
+            .unwrap();
 
         // Update random leaf.
-        let leaf_index = rng.gen_range(0..reference_tree.leaves().len());
-        let old_leaf = reference_tree.leaf(leaf_index);
+        let leaf_index = rng.gen_range(0..reference_tree_1.leaves().len());
+        let old_leaf = reference_tree_1.leaf(leaf_index);
         let new_leaf: [u8; 32] = Fr::rand(&mut rng)
             .into_bigint()
             .to_bytes_be()
             .try_into()
             .unwrap();
-        let mut proof = reference_tree.get_proof_of_leaf(leaf_index, false).unwrap();
+        let mut proof = reference_tree_1
+            .get_proof_of_leaf(leaf_index, false)
+            .unwrap();
+        let changelog_index = merkle_tree.changelog_index();
         merkle_tree
             .update(
-                merkle_tree.changelog_index(),
+                changelog_index,
                 &old_leaf,
                 &new_leaf,
                 leaf_index,
                 &mut proof,
             )
             .unwrap();
-        reference_tree.update(&new_leaf, leaf_index).unwrap();
+        reference_tree_1.update(&new_leaf, leaf_index).unwrap();
+        reference_tree_2
+            .update(
+                changelog_index,
+                &old_leaf,
+                &new_leaf,
+                leaf_index,
+                &mut proof,
+            )
+            .unwrap();
 
-        assert_eq!(merkle_tree.root(), reference_tree.root());
+        assert_eq!(merkle_tree.root(), reference_tree_1.root());
 
         leaf_indices.push(leaf_index);
         roots.push(merkle_tree.root());
-        let merkle_path = reference_tree.get_path_of_leaf(leaf_index, true).unwrap();
+        let merkle_path = reference_tree_1.get_path_of_leaf(leaf_index, true).unwrap();
         merkle_paths.push(merkle_path);
 
         let changelog_entries = merkle_tree
@@ -1420,18 +1448,6 @@ where
             assert_eq!(root_1, root_2);
         }
     }
-
-    let merkle_tree = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
-            bytes_struct.as_slice(),
-            bytes_filled_subtrees.as_slice(),
-            bytes_changelog.as_slice(),
-            bytes_roots.as_slice(),
-            bytes_canopy.as_slice(),
-        )
-        .unwrap()
-    };
-    assert_eq!(merkle_tree.root(), reference_tree.root());
 }
 
 #[test]
@@ -1461,7 +1477,23 @@ fn test_from_bytes_sha256_8_256_256_0() {
     from_bytes::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
-fn struct_buffer_error<
+/// Tests the buffer size checks. Buffer size checks should fail any time that
+/// a provided byte slice is smaller than the expected size indicated by the
+/// tree metadata (height, changelog size, roots size etc.).
+///
+/// In case of `from_bytes_zero_copy_init`, the metadata are provided with an
+/// intention of initializing them. The provided parameters influence the
+/// size checks.
+///
+/// In case of `from_bytes_zero_copy_mut`, the metadata are read from the
+/// buffer. Therefore, we end up with two phases of checks:
+///
+/// 1. Check of the non-dynamic fields, including the metadata structs.
+///    Based on size of all non-dynamic fields of `ConcurrentMerkleTree`.
+/// 2. If the check was successful, metadata are being read from the buffer.
+/// 3. After reading the metadata, we check the buffer size again, now to the
+///    full extent, before actually using it.
+fn buffer_error<
     H,
     const HEIGHT: usize,
     const CHANGELOG: usize,
@@ -1471,202 +1503,65 @@ fn struct_buffer_error<
 where
     H: Hasher,
 {
-    let invalid_struct_size = mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>() - 10;
+    let valid_size =
+        ConcurrentMerkleTree::<H, HEIGHT>::size_in_account(HEIGHT, CHANGELOG, ROOTS, CANOPY);
 
-    let filled_subtrees_size = mem::size_of::<[u8; 32]>() * HEIGHT;
-    let changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG;
-    let roots_size = mem::size_of::<[u8; 32]>() * ROOTS;
-    let canopy_size =
-        mem::size_of::<[u8; 32]>() * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY);
+    // Check that `from_bytes_zero_copy_init` checks the bounds.
+    for invalid_size in 1..valid_size {
+        let mut bytes = vec![0u8; invalid_size];
+        let res = ConcurrentMerkleTreeZeroCopyMut::<H, HEIGHT>::from_bytes_zero_copy_init(
+            &mut bytes, HEIGHT, CANOPY, CHANGELOG, ROOTS,
+        );
+        assert!(matches!(
+            res,
+            Err(ConcurrentMerkleTreeError::BufferSize(_, _))
+        ));
+    }
 
-    let bytes_struct = vec![0u8; invalid_struct_size];
-    let bytes_filled_subtrees = vec![0u8; filled_subtrees_size];
-    let bytes_changelog = vec![0u8; changelog_size];
-    let bytes_roots = vec![0u8; roots_size];
-    let bytes_canopy = vec![0u8; canopy_size];
+    // Initialize the tree correctly.
+    let mut bytes = vec![0u8; valid_size];
+    ConcurrentMerkleTreeZeroCopyMut::<H, HEIGHT>::from_bytes_zero_copy_init(
+        &mut bytes, HEIGHT, CANOPY, CHANGELOG, ROOTS,
+    )
+    .unwrap();
 
-    let res = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes(
-            &bytes_struct,
-            &bytes_filled_subtrees,
-            &bytes_changelog,
-            &bytes_roots,
-            &bytes_canopy,
-        )
-    };
-    assert!(matches!(
-        res,
-        Err(ConcurrentMerkleTreeError::StructBufferSize(_, _))
-    ));
+    // Check that `from_bytes_zero_copy` mut checks the bounds based on the
+    // metadata in already existing Merkle tree.
+    for invalid_size in 1..valid_size {
+        let bytes = &mut bytes[..invalid_size];
+        let res = ConcurrentMerkleTreeZeroCopyMut::<H, HEIGHT>::from_bytes_zero_copy_mut(bytes);
+        assert!(matches!(
+            res,
+            Err(ConcurrentMerkleTreeError::BufferSize(_, _))
+        ));
+    }
 }
 
 #[test]
-fn test_struct_buffer_error_keccak_8_256_256() {
+fn test_buffer_error_keccak_8_256_256() {
     const HEIGHT: usize = 8;
     const CHANGELOG: usize = 256;
     const ROOTS: usize = 256;
     const CANOPY: usize = 0;
-    struct_buffer_error::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+    buffer_error::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
 #[test]
-fn test_struct_buffer_error_poseidon_8_256_256() {
+fn test_buffer_error_poseidon_8_256_256() {
     const HEIGHT: usize = 8;
     const CHANGELOG: usize = 256;
     const ROOTS: usize = 256;
     const CANOPY: usize = 0;
-    struct_buffer_error::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+    buffer_error::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
 #[test]
-fn test_struct_buffer_error_sha256_8_256_256_0() {
+fn test_buffer_error_sha256_8_256_256_0() {
     const HEIGHT: usize = 8;
     const CHANGELOG: usize = 256;
     const ROOTS: usize = 256;
     const CANOPY: usize = 0;
-    struct_buffer_error::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-fn filled_subtrees_buffer_error<
-    H,
-    const HEIGHT: usize,
-    const CHANGELOG: usize,
-    const ROOTS: usize,
-    const CANOPY: usize,
->()
-where
-    H: Hasher,
-{
-    let struct_size = mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>();
-
-    let invalid_filled_subtrees_size = mem::size_of::<[u8; 32]>() * HEIGHT - 10;
-
-    let changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG;
-    let roots_size = mem::size_of::<[u8; 32]>() * ROOTS;
-    let canopy_size =
-        mem::size_of::<[u8; 32]>() * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY);
-
-    let mut bytes_struct = vec![0u8; struct_size];
-    let mut bytes_filled_subtrees = vec![0u8; invalid_filled_subtrees_size];
-    let mut bytes_changelog = vec![0u8; changelog_size];
-    let mut bytes_roots = vec![0u8; roots_size];
-    let mut bytes_canopy = vec![0u8; canopy_size];
-
-    let res = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            &mut bytes_struct,
-            &mut bytes_filled_subtrees,
-            &mut bytes_changelog,
-            &mut bytes_roots,
-            &mut bytes_canopy,
-            HEIGHT,
-            CHANGELOG,
-            ROOTS,
-            CANOPY,
-        )
-    };
-    assert!(matches!(
-        res,
-        Err(ConcurrentMerkleTreeError::FilledSubtreesBufferSize(_, _))
-    ));
-}
-
-#[test]
-fn test_filled_subtrees_buffer_size_keccak_8_256_256() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    filled_subtrees_buffer_error::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_filled_subtrees_buffer_size_poseidon_8_256_256() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    filled_subtrees_buffer_error::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_filled_subtrees_buffer_size_sha256_8_256_256_0() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    filled_subtrees_buffer_error::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-fn changelog_buffer_error<
-    H,
-    const HEIGHT: usize,
-    const CHANGELOG: usize,
-    const ROOTS: usize,
-    const CANOPY: usize,
->()
-where
-    H: Hasher,
-{
-    let struct_size = mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>();
-    let filled_subtrees_size = mem::size_of::<[u8; 32]>() * HEIGHT;
-
-    let invalid_changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG - 10;
-
-    let roots_size = mem::size_of::<[u8; 32]>() * ROOTS;
-    let canopy_size =
-        mem::size_of::<[u8; 32]>() * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY);
-
-    let mut bytes_struct = vec![0u8; struct_size];
-    let mut bytes_filled_subtrees = vec![0u8; filled_subtrees_size];
-    let mut bytes_changelog = vec![0u8; invalid_changelog_size];
-    let mut bytes_roots = vec![0u8; roots_size];
-    let mut bytes_canopy = vec![0u8; canopy_size];
-
-    let res = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            &mut bytes_struct,
-            &mut bytes_filled_subtrees,
-            &mut bytes_changelog,
-            &mut bytes_roots,
-            &mut bytes_canopy,
-            HEIGHT,
-            CHANGELOG,
-            ROOTS,
-            CANOPY,
-        )
-    };
-    assert!(matches!(
-        res,
-        Err(ConcurrentMerkleTreeError::ChangelogBufferSize(_, _))
-    ));
-}
-
-#[test]
-fn test_changelog_buffer_size_keccak_8_256_256() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    changelog_buffer_error::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_changelog_buffer_size_poseidon_8_256_256() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    changelog_buffer_error::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_changelog_buffer_size_sha256_8_256_256_0() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    changelog_buffer_error::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
+    buffer_error::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
 fn height_zero<H>()
@@ -1680,147 +1575,6 @@ where
 
     let res = ConcurrentMerkleTree::<H, HEIGHT>::new(HEIGHT, CHANGELOG, ROOTS, CANOPY);
     assert!(matches!(res, Err(ConcurrentMerkleTreeError::HeightZero)));
-}
-
-fn root_buffer_error<
-    H,
-    const HEIGHT: usize,
-    const CHANGELOG: usize,
-    const ROOTS: usize,
-    const CANOPY: usize,
->()
-where
-    H: Hasher,
-{
-    let struct_size = mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>();
-    let filled_subtrees_size = mem::size_of::<[u8; 32]>() * HEIGHT;
-    let changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG;
-
-    let invalid_roots_size = mem::size_of::<[u8; 32]>() * ROOTS - 10;
-
-    let canopy_size =
-        mem::size_of::<[u8; 32]>() * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY);
-
-    let mut bytes_struct = vec![0u8; struct_size];
-    let mut bytes_filled_subtrees = vec![0u8; filled_subtrees_size];
-    let mut bytes_changelog = vec![0u8; changelog_size];
-    let mut bytes_roots = vec![0u8; invalid_roots_size];
-    let mut bytes_canopy = vec![0u8; canopy_size];
-
-    let res = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            &mut bytes_struct,
-            &mut bytes_filled_subtrees,
-            &mut bytes_changelog,
-            &mut bytes_roots,
-            &mut bytes_canopy,
-            HEIGHT,
-            CHANGELOG,
-            ROOTS,
-            CANOPY,
-        )
-    };
-    assert!(matches!(
-        res,
-        Err(ConcurrentMerkleTreeError::RootBufferSize(_, _))
-    ));
-}
-
-#[test]
-fn test_root_buffer_size_keccak_8_256_256() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    root_buffer_error::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_root_buffer_size_poseidon_8_256_256() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    root_buffer_error::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_root_buffer_size_sha256_8_256_256_0() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 0;
-    root_buffer_error::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-fn canopy_buffer_error<
-    H,
-    const HEIGHT: usize,
-    const CHANGELOG: usize,
-    const ROOTS: usize,
-    const CANOPY: usize,
->()
-where
-    H: Hasher,
-{
-    let struct_size = mem::size_of::<ConcurrentMerkleTree<H, HEIGHT>>();
-    let filled_subtrees_size = mem::size_of::<[u8; 32]>() * HEIGHT;
-    let changelog_size = mem::size_of::<ChangelogEntry<HEIGHT>>() * CHANGELOG;
-    let roots_size = mem::size_of::<[u8; 32]>() * ROOTS;
-
-    let invalid_canopy_size =
-        (mem::size_of::<[u8; 32]>() * ConcurrentMerkleTree::<H, HEIGHT>::canopy_size(CANOPY)) - 10;
-
-    let mut bytes_struct = vec![0u8; struct_size];
-    let mut bytes_filled_subtrees = vec![0u8; filled_subtrees_size];
-    let mut bytes_changelog = vec![0u8; changelog_size];
-    let mut bytes_roots = vec![0u8; roots_size];
-    let mut bytes_canopy = vec![0u8; invalid_canopy_size];
-
-    let res = unsafe {
-        ConcurrentMerkleTree::<H, HEIGHT>::from_bytes_init(
-            &mut bytes_struct,
-            &mut bytes_filled_subtrees,
-            &mut bytes_changelog,
-            &mut bytes_roots,
-            &mut bytes_canopy,
-            HEIGHT,
-            CHANGELOG,
-            ROOTS,
-            CANOPY,
-        )
-    };
-    assert!(matches!(
-        res,
-        Err(ConcurrentMerkleTreeError::CanopyBufferSize(_, _))
-    ));
-}
-
-#[test]
-fn test_canopy_buffer_size_keccak_8_256_256_2() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 2;
-    canopy_buffer_error::<Keccak, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_canopy_buffer_size_poseidon_8_256_256_2() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 2;
-    canopy_buffer_error::<Poseidon, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
-}
-
-#[test]
-fn test_canopy_buffer_size_sha256_8_256_256_2() {
-    const HEIGHT: usize = 8;
-    const CHANGELOG: usize = 256;
-    const ROOTS: usize = 256;
-    const CANOPY: usize = 2;
-    canopy_buffer_error::<Sha256, HEIGHT, CHANGELOG, ROOTS, CANOPY>()
 }
 
 #[test]

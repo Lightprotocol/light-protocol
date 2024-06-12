@@ -50,7 +50,7 @@ pub struct NullifierEvent {
     pub seq: u64,
 }
 
-#[derive(Debug, Default, Clone, Copy, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Default, Clone, Copy, BorshSerialize, BorshDeserialize, Eq, PartialEq)]
 pub struct RawIndexedElement<I>
 where
     I: Clone,

@@ -1,6 +1,7 @@
 use crate::{
     errors::AccountCompressionErrorCode,
     state::StateMerkleTreeAccount,
+    state_merkle_tree_from_bytes_zero_copy_mut,
     utils::{
         check_signer_is_registered_or_authority::{
             check_signer_is_registered_or_authority, GroupAccess, GroupAccounts,
@@ -85,20 +86,28 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
             let batch_size = end - start;
             leaves_processed += batch_size;
 
-            let merkle_tree_account =
-                AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
-                    .map_err(ProgramError::from)?;
+            let rollover_fee = {
+                let merkle_tree_account =
+                    AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info)
+                        .map_err(ProgramError::from)?;
 
-            let mut merkle_tree_account = merkle_tree_account.load_mut()?;
-            let rollover_fee =
-                merkle_tree_account.metadata.rollover_metadata.rollover_fee * batch_size as u64;
+                {
+                    let merkle_tree_account = merkle_tree_account.load()?;
+                    let rollover_fee = merkle_tree_account.metadata.rollover_metadata.rollover_fee
+                        * batch_size as u64;
 
-            check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
-                ctx,
-                &merkle_tree_account,
-            )?;
+                    check_signer_is_registered_or_authority::<AppendLeaves, StateMerkleTreeAccount>(
+                        ctx,
+                        &merkle_tree_account,
+                    )?;
 
-            let merkle_tree = merkle_tree_account.load_merkle_tree_mut()?;
+                    rollover_fee
+                }
+            };
+
+            let mut merkle_tree = merkle_tree_acc_info.try_borrow_mut_data()?;
+            let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
+
             merkle_tree
                 .append_batch(
                     leaves[start..end]
@@ -108,6 +117,7 @@ fn batch_append_leaves<'a, 'c: 'info, 'info>(
                         .as_slice(),
                 )
                 .map_err(ProgramError::from)?;
+
             rollover_fee
         };
         transfer_lamports_cpi(&ctx.accounts.fee_payer, merkle_tree_acc_info, rollover_fee)?;

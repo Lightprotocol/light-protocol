@@ -1,22 +1,22 @@
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
-use anchor_lang::AccountDeserialize;
 use light_hash_set::HashSet;
+use light_hasher::Poseidon;
 use light_registry::sdk::{
     create_update_address_merkle_tree_instruction, UpdateAddressMerkleTreeInstructionInputs,
 };
+use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::info;
-use solana_client::rpc_client::RpcClient;
-use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use std::mem;
 
 use crate::errors::ForesterError;
 use crate::nullifier::Config;
+
 pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
     rpc: &mut R,
     indexer: &mut T,
@@ -27,19 +27,15 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
     let mut update_errors: Vec<RpcError> = Vec::new();
 
-    let client = RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::confirmed());
-
     loop {
-        let data: &[u8] = &client.get_account_data(&address_merkle_tree_pubkey)?;
-        let mut data_ref = data;
-        let merkle_tree_account: AddressMerkleTreeAccount =
-            AddressMerkleTreeAccount::try_deserialize(&mut data_ref)?;
-        let merkle_tree = merkle_tree_account.copy_merkle_tree()?;
-        info!(
-            "address merkle_tree root: {:?}",
-            merkle_tree.indexed_merkle_tree().root()
-        );
-        let mut nullifier_queue_account = client.get_account(&address_queue_pubkey)?;
+        let merkle_tree =
+            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                rpc,
+                address_merkle_tree_pubkey,
+            )
+            .await;
+        info!("address merkle_tree root: {:?}", merkle_tree.root());
+        let mut nullifier_queue_account = rpc.get_account(address_queue_pubkey).await?.unwrap();
         let address_queue: HashSet = unsafe {
             HashSet::from_bytes_copy(
                 &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
@@ -100,14 +96,12 @@ pub async fn get_changelog_index<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     client: &mut R,
 ) -> Result<usize, ForesterError> {
-    let merkle_tree_account: AddressMerkleTreeAccount = client
-        .get_anchor_account::<AddressMerkleTreeAccount>(merkle_tree_pubkey)
-        .await;
-    let merkle_tree = merkle_tree_account.copy_merkle_tree()?;
-    let changelog_index = merkle_tree
-        .indexed_merkle_tree()
-        .merkle_tree
-        .changelog_index();
+    let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+        client,
+        *merkle_tree_pubkey,
+    )
+    .await;
+    let changelog_index = merkle_tree.changelog_index();
     Ok(changelog_index)
 }
 

@@ -2,10 +2,14 @@ use crate::errors::ForesterError;
 use crate::nullifier::queue_data::Account;
 use crate::nullifier::{Config, StateQueueData};
 use account_compression::{QueueAccount, StateMerkleTreeAccount};
-use anchor_lang::AccountDeserialize;
 use light_hash_set::HashSet;
+use light_hasher::Poseidon;
 use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
+use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::indexer::Indexer;
+use light_test_utils::rpc::errors::RpcError;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::SolanaRpcConnection;
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcSendTransactionConfig;
@@ -157,9 +161,11 @@ async fn fetch_queue_data<T: Indexer>(
     config: &Config,
 ) -> Result<Option<StateQueueData>, ForesterError> {
     let (change_log_index, sequence_number) = {
-        let temporary_client =
-            RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::processed());
-        get_changelog_index(&config.state_merkle_tree_pubkey, &temporary_client)?
+        let mut temporary_client = SolanaRpcConnection::new_with_url(
+            &config.server_url,
+            Some(CommitmentConfig::processed()),
+        );
+        get_changelog_index(&config.state_merkle_tree_pubkey, &mut temporary_client).await?
     };
     let compressed_accounts_to_nullify = {
         let temporary_client =
@@ -235,7 +241,7 @@ pub async fn nullify_compressed_account<T: Indexer>(
         ix,
     ];
 
-    let latest_blockhash = client.get_latest_blockhash()?;
+    let latest_blockhash = client.get_latest_blockhash().map_err(RpcError::from)?;
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&config.payer_keypair.pubkey()),
@@ -248,7 +254,9 @@ pub async fn nullify_compressed_account<T: Indexer>(
         preflight_commitment: Some(solana_sdk::commitment_config::CommitmentLevel::Confirmed),
         ..RpcSendTransactionConfig::default()
     };
-    let signature = client.send_transaction_with_config(&transaction, tx_config)?;
+    let signature = client
+        .send_transaction_with_config(&transaction, tx_config)
+        .map_err(RpcError::from)?;
     info!("Transaction: {:?}", signature);
     loop {
         let confirmed = client.confirm_transaction(&signature).unwrap();
@@ -267,7 +275,9 @@ pub fn get_nullifier_queue(
     nullifier_queue_pubkey: &Pubkey,
     client: &RpcClient,
 ) -> Result<Vec<Account>, ForesterError> {
-    let mut nullifier_queue_account = client.get_account(nullifier_queue_pubkey)?;
+    let mut nullifier_queue_account = client
+        .get_account(nullifier_queue_pubkey)
+        .map_err(RpcError::from)?;
     let nullifier_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(
             &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
@@ -288,17 +298,14 @@ pub fn get_nullifier_queue(
     Ok(compressed_accounts_to_nullify)
 }
 
-pub fn get_changelog_index(
+pub async fn get_changelog_index<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
-    client: &RpcClient,
+    client: &mut R,
 ) -> Result<(usize, usize), ForesterError> {
-    let data: &[u8] = &client.get_account_data(merkle_tree_pubkey)?;
-    let mut data_ref = data;
-    let merkle_tree_account: StateMerkleTreeAccount =
-        StateMerkleTreeAccount::try_deserialize(&mut data_ref)?;
-    let merkle_tree = merkle_tree_account.copy_merkle_tree()?;
-    Ok((
-        merkle_tree.current_changelog_index,
-        merkle_tree.sequence_number,
-    ))
+    let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+        client,
+        *merkle_tree_pubkey,
+    )
+    .await;
+    Ok((merkle_tree.changelog_index(), merkle_tree.sequence_number()))
 }

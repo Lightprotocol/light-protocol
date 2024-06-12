@@ -5,10 +5,10 @@ use crate::registry::register_test_forester;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
-use account_compression::QueueType;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
+use account_compression::{AddressMerkleTreeConfig, QueueType};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_macros::pubkey;
@@ -220,6 +220,7 @@ pub async fn setup_test_programs_with_accounts(
         &address_merkle_tree_keypair,
         &address_merkle_tree_queue_keypair,
         None,
+        &AddressMerkleTreeConfig::default(),
         1,
     )
     .await;
@@ -354,14 +355,19 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     program_owner: Option<Pubkey>,
     index: u64,
 ) {
+    let size = account_compression::state::StateMerkleTreeAccount::size(
+        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+    );
+
     let merkle_tree_account_create_ix = create_account_instruction(
         &payer.pubkey(),
-        account_compression::state::StateMerkleTreeAccount::LEN,
-        rpc.get_minimum_balance_for_rent_exemption(
-            account_compression::StateMerkleTreeAccount::LEN,
-        )
-        .await
-        .unwrap(),
+        size,
+        rpc.get_minimum_balance_for_rent_exemption(size)
+            .await
+            .unwrap(),
         &account_compression::ID,
         Some(merkle_tree_keypair),
     );
@@ -404,6 +410,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     rpc.process_transaction(transaction.clone()).await.unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 #[inline(never)]
 pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
@@ -412,11 +419,11 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     address_merkle_tree_keypair: &Keypair,
     address_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
+    merkle_tree_config: &AddressMerkleTreeConfig,
     index: u64,
 ) {
     use account_compression::{
-        sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressMerkleTreeConfig,
-        AddressQueueConfig,
+        sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressQueueConfig,
     };
 
     let size = account_compression::state::QueueAccount::size(
@@ -434,19 +441,23 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         Some(address_queue_keypair),
     );
 
+    let size = account_compression::state::AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
     let mt_account_create_ix = create_account_instruction(
         &payer.pubkey(),
-        account_compression::AddressMerkleTreeAccount::LEN,
+        size,
         context
-            .get_minimum_balance_for_rent_exemption(
-                account_compression::AddressMerkleTreeAccount::LEN,
-            )
+            .get_minimum_balance_for_rent_exemption(size)
             .await
             .unwrap(),
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
-    let tree_config = AddressMerkleTreeConfig::default();
     let queue_config = AddressQueueConfig::default();
     let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
         index,
@@ -455,7 +466,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         program_owner,
         address_merkle_tree_keypair.pubkey(),
         address_queue_keypair.pubkey(),
-        tree_config.clone(),
+        merkle_tree_config.clone(),
         queue_config.clone(),
     );
     let c_ix =
@@ -488,7 +499,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         context,
         &address_merkle_tree_keypair.pubkey(),
         &address_queue_keypair.pubkey(),
-        &tree_config,
+        merkle_tree_config,
         index,
         program_owner,
         expected_change_log_length,
@@ -504,7 +515,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &address_queue_keypair.pubkey(),
         &queue_config,
         &address_merkle_tree_keypair.pubkey(),
-        &tree_config,
+        merkle_tree_config,
         QueueType::AddressQueue,
         index,
         program_owner,

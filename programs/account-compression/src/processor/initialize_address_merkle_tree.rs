@@ -1,5 +1,5 @@
 use crate::{
-    errors::AccountCompressionErrorCode, state::AddressMerkleTreeAccount, AccessMetadata,
+    address_merkle_tree_from_bytes_zero_copy_init, state::AddressMerkleTreeAccount, AccessMetadata,
     RolloverMetadata,
 };
 pub use anchor_lang::prelude::*;
@@ -19,51 +19,44 @@ pub fn process_initialize_address_merkle_tree(
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
 ) -> Result<()> {
-    let mut address_merkle_tree = address_merkle_tree_loader.load_init()?;
+    {
+        let mut merkle_tree = address_merkle_tree_loader.load_init()?;
 
-    // The address Merkle tree is never directly called by the user.
-    // All rollover fees are collected by the address queue.
-    let rollover_fee = 0;
-    address_merkle_tree.init(
-        AccessMetadata::new(owner, program_owner),
-        RolloverMetadata::new(
-            index,
-            rollover_fee,
-            rollover_threshold,
-            network_fee,
-            close_threshold,
-        ),
-        associated_queue,
-    );
+        // The address Merkle tree is never directly called by the user.
+        // All rollover fees are collected by the address queue.
+        let rollover_fee = 0;
+        merkle_tree.init(
+            AccessMetadata::new(owner, program_owner),
+            RolloverMetadata::new(
+                index,
+                rollover_fee,
+                rollover_threshold,
+                network_fee,
+                close_threshold,
+            ),
+            associated_queue,
+        );
+    }
 
-    address_merkle_tree
-        .load_merkle_tree_init(
-            height
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            changelog_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            roots_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            canopy_depth
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-            address_changelog_size
-                .try_into()
-                .map_err(|_| AccountCompressionErrorCode::IntegerOverflow)?,
-        )
-        .map_err(ProgramError::from)?;
-    let address_merkle_tree_inited = address_merkle_tree.load_merkle_tree_mut()?;
+    let merkle_tree = address_merkle_tree_loader.to_account_info();
+    let mut merkle_tree = merkle_tree.try_borrow_mut_data()?;
+    let mut merkle_tree = address_merkle_tree_from_bytes_zero_copy_init(
+        &mut merkle_tree,
+        height as usize,
+        canopy_depth as usize,
+        changelog_size as usize,
+        roots_size as usize,
+        address_changelog_size as usize,
+    )?;
+    merkle_tree.init().map_err(ProgramError::from)?;
 
     // Initialize the address merkle tree with the bn254 Fr field size - 1
     // This is the highest value that you can poseidon hash with poseidon syscalls.
     // Initializing the indexed Merkle tree enables non-inclusion proofs without handling the first case specifically.
     // However, it does reduce the available address space by 1.
-    address_merkle_tree_inited
-        .merkle_tree
+    merkle_tree
         .add_highest_element()
         .map_err(ProgramError::from)?;
+
     Ok(())
 }

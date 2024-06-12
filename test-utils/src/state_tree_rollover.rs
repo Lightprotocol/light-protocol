@@ -1,26 +1,5 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
-use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
-use memoffset::offset_of;
-use solana_sdk::{
-    account::AccountSharedData,
-    account_info::AccountInfo,
-    instruction::{AccountMeta, Instruction},
-    signature::{Keypair, Signer},
-    transaction::Transaction,
-};
-use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
-
-use account_compression::{
-    self,
-    initialize_address_merkle_tree::AccountLoader,
-    state::QueueAccount,
-    utils::constants::{STATE_MERKLE_TREE_HEIGHT, STATE_NULLIFIER_QUEUE_VALUES},
-    StateMerkleTreeAccount, ID,
-};
-use light_concurrent_merkle_tree::{ConcurrentMerkleTree, ConcurrentMerkleTree26};
-use light_hasher::Poseidon;
-
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
@@ -30,6 +9,25 @@ use crate::{
     },
     create_account_instruction, get_hash_set,
 };
+use account_compression::{
+    self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount,
+    utils::constants::STATE_NULLIFIER_QUEUE_VALUES, StateMerkleTreeAccount, StateMerkleTreeConfig,
+    ID,
+};
+use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
+use light_concurrent_merkle_tree::{
+    copy::ConcurrentMerkleTreeCopy, zero_copy::ConcurrentMerkleTreeZeroCopyMut,
+};
+use light_hasher::Poseidon;
+use solana_sdk::{
+    account::AccountSharedData,
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Instruction},
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
+use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
+use std::mem;
 
 pub enum StateMerkleTreeRolloverMode {
     QueueInvalidSize,
@@ -42,6 +40,7 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     new_state_merkle_tree_keypair: &Keypair,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
+    merkle_tree_config: &StateMerkleTreeConfig,
     mode: Option<StateMerkleTreeRolloverMode>,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
@@ -58,7 +57,12 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
         &ID,
         Some(new_nullifier_queue_keypair),
     );
-    let mut state_tree_size = StateMerkleTreeAccount::LEN;
+    let mut state_tree_size = account_compression::state::StateMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+    );
     if let Some(StateMerkleTreeRolloverMode::TreeInvalidSize) = mode {
         state_tree_size += 1;
     }
@@ -110,38 +114,32 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
 }
 
 pub async fn set_state_merkle_tree_next_index<R: RpcConnection>(
-    context: &mut R,
+    rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     next_index: u64,
     lamports: u64,
 ) {
-    // is in range 8 -9 in concurrent mt
-    // offset for next index
-
-    let offset_start = 8
-        + offset_of!(StateMerkleTreeAccount, state_merkle_tree_struct)
-        + offset_of!(ConcurrentMerkleTree26<Poseidon>, next_index);
-    let offset_end = offset_start + 8;
-    let mut merkle_tree = context
-        .get_account(*merkle_tree_pubkey)
-        .await
-        .unwrap()
-        .unwrap();
-    merkle_tree.data[offset_start..offset_end].copy_from_slice(&next_index.to_le_bytes());
+    let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
+    {
+        let merkle_tree_deserialized =
+            &mut ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
+                &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
+            )
+            .unwrap();
+        unsafe {
+            *merkle_tree_deserialized.next_index = next_index as usize;
+        }
+    }
     let mut account_share_data = AccountSharedData::from(merkle_tree);
     account_share_data.set_lamports(lamports);
-    context.set_account(merkle_tree_pubkey, &account_share_data);
-    let merkle_tree = context
-        .get_account(*merkle_tree_pubkey)
-        .await
-        .unwrap()
+    rpc.set_account(merkle_tree_pubkey, &account_share_data);
+    let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
+    let merkle_tree_deserialized =
+        ConcurrentMerkleTreeZeroCopyMut::<Poseidon, 26>::from_bytes_zero_copy_mut(
+            &mut merkle_tree.data[8 + std::mem::size_of::<StateMerkleTreeAccount>()..],
+        )
         .unwrap();
-    let data_in_offset = u64::from_le_bytes(
-        merkle_tree.data[offset_start..offset_end]
-            .try_into()
-            .unwrap(),
-    );
-    assert_eq!(data_in_offset, next_index);
+    assert_eq!(merkle_tree_deserialized.next_index() as u64, next_index);
 }
 
 pub async fn assert_rolled_over_pair<R: RpcConnection>(
@@ -158,7 +156,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         .unwrap()
         .unwrap();
     let mut new_mt_lamports = 0u64;
-    let account_info = AccountInfo::new(
+    let old_account_info = AccountInfo::new(
         new_merkle_tree_pubkey,
         false,
         false,
@@ -168,7 +166,8 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         false,
         0u64,
     );
-    let new_mt_account = AccountLoader::<StateMerkleTreeAccount>::try_from(&account_info).unwrap();
+    let new_mt_account =
+        AccountLoader::<StateMerkleTreeAccount>::try_from(&old_account_info).unwrap();
     let new_loaded_mt_account = new_mt_account.load().unwrap();
 
     let mut old_mt_account = rpc
@@ -178,7 +177,7 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         .unwrap();
 
     let mut old_mt_lamports = 0u64;
-    let account_info = AccountInfo::new(
+    let new_account_info = AccountInfo::new(
         old_merkle_tree_pubkey,
         false,
         false,
@@ -188,7 +187,8 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         false,
         0u64,
     );
-    let old_mt_account = AccountLoader::<StateMerkleTreeAccount>::try_from(&account_info).unwrap();
+    let old_mt_account =
+        AccountLoader::<StateMerkleTreeAccount>::try_from(&new_account_info).unwrap();
     let old_loaded_mt_account = old_mt_account.load().unwrap();
     let current_slot = rpc.get_slot().await.unwrap();
 
@@ -199,15 +199,17 @@ pub async fn assert_rolled_over_pair<R: RpcConnection>(
         new_nullifier_queue_pubkey,
     );
 
-    let struct_old = unsafe {
-        &*(old_loaded_mt_account.state_merkle_tree_struct.as_ptr()
-            as *mut ConcurrentMerkleTree<Poseidon, { STATE_MERKLE_TREE_HEIGHT as usize }>)
-    };
-    let struct_new = unsafe {
-        &*(new_loaded_mt_account.state_merkle_tree_struct.as_ptr()
-            as *mut ConcurrentMerkleTree<Poseidon, { STATE_MERKLE_TREE_HEIGHT as usize }>)
-    };
-    assert_rolledover_merkle_trees(struct_old, struct_new);
+    let old_mt_data = old_account_info.try_borrow_data().unwrap();
+    let old_mt = ConcurrentMerkleTreeCopy::<Poseidon, 26>::from_bytes_copy(
+        &old_mt_data[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+    )
+    .unwrap();
+    let new_mt_data = new_account_info.try_borrow_data().unwrap();
+    let new_mt = ConcurrentMerkleTreeCopy::<Poseidon, 26>::from_bytes_copy(
+        &new_mt_data[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+    )
+    .unwrap();
+    assert_rolledover_merkle_trees(&old_mt, &new_mt);
 
     {
         let mut new_queue_account = rpc

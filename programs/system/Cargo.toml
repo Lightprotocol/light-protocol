@@ -29,6 +29,8 @@ anchor-lang = "0.29.0"
 light-hasher = { version = "0.1.4", path = "../../merkle-tree/hasher" }
 light-heap = { version = "0.1.5", path = "../../heap", optional = true }
 light-macros = { path = "../../macros/light", version = "0.3.5" }
+light-concurrent-merkle-tree = { path = "../../merkle-tree/concurrent", version = "0.1.4" }
+light-indexed-merkle-tree = { path = "../../merkle-tree/indexed", version = "0.1.4" }
 account-compression = { version = "0.3.5", path = "../account-compression", features = ["cpi"] }
 light-utils = { version = "0.1.4", path = "../../utils" }
 groth16-solana = "0.0.3"

@@ -1,3 +1,4 @@
+use crate::get_concurrent_merkle_tree;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::{
     get_hash_set,
@@ -5,6 +6,7 @@ use crate::{
     AccountZeroCopy,
 };
 use account_compression::{state::QueueAccount, StateMerkleTreeAccount};
+use light_hasher::Poseidon;
 use light_system_program::sdk::event::MerkleTreeSequenceNumber;
 use light_system_program::sdk::{
     compressed_account::{CompressedAccount, CompressedAccountWithMerkleContext},
@@ -256,16 +258,14 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
     deduped_snapshots.dedup();
     let mut sequence_numbers = Vec::new();
     for (i, snapshot) in deduped_snapshots.iter().enumerate() {
-        let merkle_tree_account =
-            AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, snapshot.accounts.merkle_tree)
-                .await;
-        let merkle_tree = merkle_tree_account
-            .deserialized()
-            .copy_merkle_tree()
-            .unwrap();
+        let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+            rpc,
+            snapshot.accounts.merkle_tree,
+        )
+        .await;
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: snapshot.accounts.merkle_tree,
-            seq: merkle_tree.sequence_number as u64,
+            seq: merkle_tree.sequence_number() as u64,
         });
         if merkle_tree.root() == snapshot.root {
             println!("deduped_snapshots: {:?}", deduped_snapshots);
@@ -291,9 +291,8 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             {
                 println!("test_indexer_merkle_tree index {} leaf: {:?}", i, leaf);
             }
-            let merkle_tree_roots = merkle_tree_account.deserialized().load_roots().unwrap();
             for i in 0..16 {
-                println!("root {} {:?}", i, merkle_tree_roots.get(i));
+                println!("root {} {:?}", i, merkle_tree.roots.get(i));
             }
             for i in 0..5 {
                 test_indexer_merkle_tree
@@ -325,12 +324,14 @@ pub async fn get_merkle_tree_snapshots<const INDEXED_ARRAY_SIZE: usize, R: RpcCo
 ) -> Vec<MerkleTreeTestSnapShot> {
     let mut snapshots = Vec::new();
     for account_bundle in accounts.iter() {
+        let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+            rpc,
+            account_bundle.merkle_tree,
+        )
+        .await;
         let merkle_tree_account =
             AccountZeroCopy::<StateMerkleTreeAccount>::new(rpc, account_bundle.merkle_tree).await;
-        let merkle_tree = merkle_tree_account
-            .deserialized()
-            .copy_merkle_tree()
-            .unwrap();
+
         let queue_account_lamports = match rpc
             .get_account(account_bundle.nullifier_queue)
             .await

@@ -5,6 +5,7 @@ use crate::{
         queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
         StateMerkleTreeAccount,
     },
+    state_merkle_tree_from_bytes_zero_copy_mut,
     utils::check_signer_is_registered_or_authority::{
         check_signer_is_registered_or_authority, GroupAccounts,
     },
@@ -80,21 +81,26 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
     indices: &[u64],
     ctx: &Context<'a, '_, 'c, 'info, NullifyLeaves<'info>>,
 ) -> Result<()> {
-    let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+    {
+        let merkle_tree = ctx.accounts.merkle_tree.load()?;
 
-    if merkle_tree.metadata.associated_queue != ctx.accounts.nullifier_queue.key() {
-        msg!(
+        if merkle_tree.metadata.associated_queue != ctx.accounts.nullifier_queue.key() {
+            msg!(
             "Merkle tree and nullifier queue are not associated. Merkle tree associated nullifier queue {} != nullifier queue {}",
             merkle_tree.metadata.associated_queue,
             ctx.accounts.nullifier_queue.key()
         );
-        return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
+            return err!(AccountCompressionErrorCode::MerkleTreeAndQueueNotAssociated);
+        }
+        check_signer_is_registered_or_authority::<NullifyLeaves, StateMerkleTreeAccount>(
+            ctx,
+            &merkle_tree,
+        )?;
     }
-    check_signer_is_registered_or_authority::<NullifyLeaves, StateMerkleTreeAccount>(
-        ctx,
-        &merkle_tree,
-    )?;
-    let merkle_tree = merkle_tree.load_merkle_tree_mut()?;
+
+    let merkle_tree = ctx.accounts.merkle_tree.to_account_info();
+    let mut merkle_tree = merkle_tree.try_borrow_mut_data()?;
+    let mut merkle_tree = state_merkle_tree_from_bytes_zero_copy_mut(&mut merkle_tree)?;
 
     let nullifier_queue = ctx.accounts.nullifier_queue.to_account_info();
     let mut nullifier_queue = nullifier_queue.try_borrow_mut_data()?;
@@ -111,7 +117,7 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
         );
         return err!(AccountCompressionErrorCode::InvalidMerkleProof);
     }
-    let seq = (merkle_tree.sequence_number + 1) as u64;
+    let seq = (merkle_tree.sequence_number() + 1) as u64;
     for (i, leaf_queue_index) in leaves_queue_indices.iter().enumerate() {
         let leaf_cell = nullifier_queue
             .get_unmarked_bucket(*leaf_queue_index as usize)
@@ -131,7 +137,7 @@ fn insert_nullifier<'a, 'c: 'info, 'info>(
             .map_err(ProgramError::from)?;
 
         nullifier_queue
-            .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number)
+            .mark_with_sequence_number(&leaf_cell.value_biguint(), merkle_tree.sequence_number())
             .map_err(ProgramError::from)?;
     }
     let nullify_event = NullifierEvent {

@@ -1,5 +1,9 @@
+use std::mem;
+
 use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
 use anchor_lang::prelude::*;
+use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
+use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_macros::heap_neutral;
 
@@ -117,11 +121,23 @@ pub fn check_program_owner_state_merkle_tree<'a, 'b: 'a>(
     merkle_tree_acc_info: &'b AccountInfo<'a>,
     invoking_program: &Option<Pubkey>,
 ) -> Result<(u32, Option<u64>, u64)> {
+    let (seq, next_index) = {
+        let merkle_tree = merkle_tree_acc_info.try_borrow_data()?;
+        let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
+        )
+        .map_err(ProgramError::from)?;
+
+        let seq = merkle_tree.sequence_number() as u64 + 1;
+        let next_index: u32 = merkle_tree.next_index().try_into().unwrap();
+
+        (seq, next_index)
+    };
+
     let merkle_tree =
         AccountLoader::<StateMerkleTreeAccount>::try_from(merkle_tree_acc_info).unwrap();
     let merkle_tree_unpacked = merkle_tree.load()?;
-    let seq = merkle_tree_unpacked.load_merkle_tree()?.sequence_number as u64 + 1;
-    let next_index: u32 = merkle_tree_unpacked.load_next_index()?.try_into().unwrap();
+
     let network_fee = if merkle_tree_unpacked.metadata.rollover_metadata.network_fee != 0 {
         Some(merkle_tree_unpacked.metadata.rollover_metadata.network_fee)
     } else {

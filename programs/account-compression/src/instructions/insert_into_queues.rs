@@ -2,12 +2,13 @@ use crate::{
     check_queue_type,
     errors::AccountCompressionErrorCode,
     state::queue::{queue_from_bytes_zero_copy_mut, QueueAccount},
+    state_merkle_tree_from_bytes_zero_copy,
     utils::{
         check_signer_is_registered_or_authority::check_signer_is_registered_or_authority,
         queue::{QueueBundle, QueueMap},
         transfer_lamports::transfer_lamports_cpi,
     },
-    QueueType, RegisteredProgram, SequenceNumber,
+    QueueType, RegisteredProgram,
 };
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey, ZeroCopy};
 use num_bigint::BigUint;
@@ -31,7 +32,7 @@ pub fn process_insert_into_queues<
     'b,
     'c: 'info,
     'info,
-    MerkleTreeAccount: Owner + ZeroCopy + SequenceNumber,
+    MerkleTreeAccount: Owner + ZeroCopy, // SequenceNumber,
 >(
     ctx: Context<'a, 'b, 'c, 'info, InsertIntoQueues<'info>>,
     elements: &'a [[u8; 32]],
@@ -92,9 +93,11 @@ pub fn process_insert_into_queues<
                 queue.metadata.rollover_metadata.rollover_fee * queue_bundle.elements.len() as u64;
         }
         {
-            let merkle_tree =
-                AccountLoader::<MerkleTreeAccount>::try_from(queue_bundle.merkle_tree)?;
-            let sequence_number = merkle_tree.load()?.get_sequence_number()?;
+            let sequence_number = {
+                let merkle_tree = queue_bundle.merkle_tree.try_borrow_data()?;
+                let merkle_tree = state_merkle_tree_from_bytes_zero_copy(&merkle_tree)?;
+                merkle_tree.sequence_number()
+            };
 
             let queue = queue.to_account_info();
             let mut queue = queue.try_borrow_mut_data()?;

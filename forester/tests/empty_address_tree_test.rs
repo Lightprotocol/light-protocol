@@ -28,7 +28,7 @@ async fn empty_address_tree_test() {
         max_retries: 5,
     };
 
-    let rpc = SolanaRpcConnection::new(None).await;
+    let rpc = SolanaRpcConnection::new(None);
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
@@ -65,7 +65,7 @@ async fn empty_address_tree_test() {
         get_state_queue_length(&config)
     );
 
-    let mut rpc = SolanaRpcConnection::new(Some(CommitmentConfig::confirmed())).await;
+    let mut rpc = SolanaRpcConnection::new(Some(CommitmentConfig::confirmed()));
     let mut indexer = env.indexer;
     empty_address_queue(&mut rpc, &mut indexer, &env_accounts.forester, &config)
         .await

@@ -75,9 +75,6 @@ pub fn process_initialize_state_merkle_tree_and_nullifier_queue(
     nullifier_queue_config: NullifierQueueConfig,
     additional_rent: u64,
 ) -> Result<()> {
-    if state_merkle_tree_config != StateMerkleTreeConfig::default() {
-        unimplemented!("Only default state tree config is supported.");
-    }
     if nullifier_queue_config != NullifierQueueConfig::default() {
         unimplemented!("Only default nullifier queue config is supported.");
     }

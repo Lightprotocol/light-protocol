@@ -1,19 +1,24 @@
-use account_compression::{AddressMerkleTreeAccount, StateMerkleTreeAccount};
-use anchor_lang::{prelude::*, Bumps};
-use light_hasher::Poseidon;
-use light_macros::heap_neutral;
-use light_utils::hash_to_bn254_field_size_be;
-use light_verifier::{
-    verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
-    verify_merkle_proof_zkp, CompressedProof,
-};
-
 use crate::{
     errors::SystemProgramError,
     invoke::InstructionDataInvoke,
     sdk::{accounts::InvokeAccounts, compressed_account::PackedCompressedAccountWithMerkleContext},
     NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
+use account_compression::{
+    utils::check_discrimininator::check_discriminator, AddressMerkleTreeAccount,
+    StateMerkleTreeAccount,
+};
+use anchor_lang::{prelude::*, Bumps};
+use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopy;
+use light_hasher::Poseidon;
+use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopy;
+use light_macros::heap_neutral;
+use light_utils::hash_to_bn254_field_size_be;
+use light_verifier::{
+    verify_create_addresses_and_merkle_proof_zkp, verify_create_addresses_zkp,
+    verify_merkle_proof_zkp, CompressedProof,
+};
+use std::mem;
 
 #[inline(never)]
 #[heap_neutral]
@@ -26,17 +31,22 @@ pub fn fetch_roots<'a, 'b, 'c: 'info, 'info, A: InvokeAccounts<'info> + Bumps>(
         .iter()
         .enumerate()
     {
-        let merkle_tree = AccountLoader::<StateMerkleTreeAccount>::try_from(
-            &ctx.remaining_accounts[input_compressed_account_with_context
-                .merkle_context
-                .merkle_tree_pubkey_index as usize],
+        let merkle_tree = &ctx.remaining_accounts[input_compressed_account_with_context
+            .merkle_context
+            .merkle_tree_pubkey_index as usize];
+        let merkle_tree = merkle_tree.try_borrow_data()?;
+        check_discriminator::<StateMerkleTreeAccount>(&merkle_tree)?;
+        let merkle_tree = ConcurrentMerkleTreeZeroCopy::<Poseidon, 26>::from_bytes_zero_copy(
+            &merkle_tree[8 + mem::size_of::<StateMerkleTreeAccount>()..],
         )
-        .unwrap();
-        let merkle_tree = merkle_tree.load()?;
-        let fetched_roots = merkle_tree.load_roots()?;
+        .map_err(ProgramError::from)?;
 
-        roots[j] =
-            fetched_roots[input_compressed_accounts_with_merkle_context[j].root_index as usize];
+        let fetched_roots = merkle_tree
+            .roots
+            .get(input_compressed_accounts_with_merkle_context[j].root_index as usize)
+            .unwrap();
+
+        roots[j] = *fetched_roots;
     }
     Ok(())
 }
@@ -54,12 +64,16 @@ pub fn fetch_roots_address_merkle_tree<
     roots: &'a mut [[u8; 32]],
 ) -> Result<()> {
     for (j, index_mt_account) in new_address_params.iter().enumerate() {
-        let merkle_tree = AccountLoader::<AddressMerkleTreeAccount>::try_from(
-            &ctx.remaining_accounts[index_mt_account.address_merkle_tree_account_index as usize],
+        let merkle_tree = ctx.remaining_accounts
+            [index_mt_account.address_merkle_tree_account_index as usize]
+            .to_account_info();
+        let merkle_tree = merkle_tree.try_borrow_data()?;
+        check_discriminator::<AddressMerkleTreeAccount>(&merkle_tree)?;
+        let merkle_tree = IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26>::from_bytes_zero_copy(
+            &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
         )
-        .unwrap();
-        let merkle_tree = merkle_tree.load()?;
-        let fetched_roots = merkle_tree.load_roots()?;
+        .map_err(ProgramError::from)?;
+        let fetched_roots = &merkle_tree.roots;
 
         roots[j] = fetched_roots[index_mt_account.address_merkle_tree_root_index as usize];
     }

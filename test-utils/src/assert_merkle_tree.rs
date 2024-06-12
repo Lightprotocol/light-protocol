@@ -1,7 +1,9 @@
+use account_compression::StateMerkleTreeAccount;
+use light_hasher::Poseidon;
 use light_utils::fee::compute_rollover_fee;
 use solana_sdk::pubkey::Pubkey;
 
-use crate::{rpc::rpc_connection::RpcConnection, AccountZeroCopy};
+use crate::{get_concurrent_merkle_tree, rpc::rpc_connection::RpcConnection, AccountZeroCopy};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
@@ -21,14 +23,12 @@ pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
     network_fee: u64,
     payer_pubkey: &Pubkey,
 ) {
-    let merkle_tree = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
+    let merkle_tree_account = AccountZeroCopy::<account_compression::StateMerkleTreeAccount>::new(
         rpc,
         *merkle_tree_pubkey,
     )
     .await;
-    let merkle_tree_account = merkle_tree.deserialized();
-
-    let merkle_tree = merkle_tree_account.copy_merkle_tree().unwrap();
+    let merkle_tree_account = merkle_tree_account.deserialized();
 
     let balance_merkle_tree = rpc
         .get_account(*merkle_tree_pubkey)
@@ -96,24 +96,31 @@ pub async fn assert_merkle_tree_initialized<R: RpcConnection>(
         Pubkey::default()
     );
     assert_eq!(merkle_tree_account.metadata.associated_queue, *queue_pubkey);
+
+    let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+        rpc,
+        *merkle_tree_pubkey,
+    )
+    .await;
+
     assert_eq!(merkle_tree.height, height);
-    assert_eq!(merkle_tree.changelog_capacity, changelog_capacity);
-    assert_eq!(merkle_tree.changelog_length, expected_changelog_length);
+    assert_eq!(merkle_tree.changelog.capacity(), changelog_capacity);
+    assert_eq!(merkle_tree.changelog.len(), expected_changelog_length);
     assert_eq!(
-        merkle_tree.current_changelog_index,
+        merkle_tree.changelog_index(),
         expected_changelog_length.saturating_sub(1)
     );
-    assert_eq!(merkle_tree.roots_capacity, roots_capacity);
-    assert_eq!(merkle_tree.roots_length, expected_roots_length);
+    assert_eq!(merkle_tree.roots.capacity(), roots_capacity);
+    assert_eq!(merkle_tree.roots.len(), expected_roots_length);
     assert_eq!(
-        merkle_tree.current_root_index,
+        merkle_tree.root_index(),
         expected_roots_length.saturating_sub(1)
     );
     assert_eq!(merkle_tree.canopy_depth, canopy_depth);
-    assert_eq!(merkle_tree.next_index, expected_next_index);
+    assert_eq!(merkle_tree.next_index(), expected_next_index);
     assert_eq!(
-        merkle_tree.sequence_number,
+        merkle_tree.sequence_number(),
         expected_roots_length.saturating_sub(1)
     );
-    assert_eq!(&merkle_tree.rightmost_leaf, expected_rightmost_leaf);
+    assert_eq!(&merkle_tree.rightmost_leaf(), expected_rightmost_leaf);
 }

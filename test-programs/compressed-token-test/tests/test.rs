@@ -1000,9 +1000,11 @@ async fn test_invalid_inputs() {
             true,
         )
         .await;
-
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        assert_custom_error_or_program_error(
+            res,
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
     }
     // Test 12: invalid Merkle tree pubkey
     {
@@ -1020,8 +1022,11 @@ async fn test_invalid_inputs() {
         )
         .await;
 
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
+        assert_custom_error_or_program_error(
+            res,
+            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+        )
+        .unwrap();
     }
     kill_gnark_server();
 }

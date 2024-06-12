@@ -2,6 +2,7 @@ use crate::errors::ForesterError;
 use crate::nullifier::Config;
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::AccountDeserialize;
+use light_test_utils::rpc::errors::RpcError;
 use log::{info, warn};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
@@ -64,7 +65,9 @@ pub fn merkle_tree_account(
     merkle_tree_pubkey: &Pubkey,
     client: &RpcClient,
 ) -> Result<StateMerkleTreeAccount, ForesterError> {
-    let data: &[u8] = &client.get_account_data(merkle_tree_pubkey)?;
+    let data: &[u8] = &client
+        .get_account_data(merkle_tree_pubkey)
+        .map_err(RpcError::from)?;
     let mut data_ref = data;
     Ok(StateMerkleTreeAccount::try_deserialize(&mut data_ref)?)
 }

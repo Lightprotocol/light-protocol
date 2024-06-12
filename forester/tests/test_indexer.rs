@@ -28,7 +28,7 @@ async fn test_indexer() {
         max_retries: 5,
     };
 
-    let rpc = SolanaRpcConnection::new(None).await;
+    let rpc = SolanaRpcConnection::new(None);
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
