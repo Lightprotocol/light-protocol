@@ -153,39 +153,46 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 }
 
 /** @internal */
-function buildCompressedAccountWithMaybeTokenData(account: any): {
+function buildCompressedAccountWithMaybeTokenData(
+    accountStructWithOptionalTokenData: any,
+): {
     account: CompressedAccountWithMerkleContext;
     maybeTokenData: TokenData | null;
 } {
-    const tokenData = account.optionTokenData;
+    const compressedAccountResult = accountStructWithOptionalTokenData.account;
+    const tokenDataResult =
+        accountStructWithOptionalTokenData.optionalTokenData;
+
     const compressedAccount: CompressedAccountWithMerkleContext =
         createCompressedAccountWithMerkleContext(
             createMerkleContext(
-                account.tree!,
+                compressedAccountResult.merkleTree,
                 mockNullifierQueue,
-                account.hash.toArray(undefined, 32),
-                account.leafIndex,
+                compressedAccountResult.hash.toArray(undefined, 32),
+                compressedAccountResult.leafIndex,
             ),
-            account.owner,
-            bn(account.lamports),
-            account.data ? parseAccountData(account.account.data) : undefined,
-            account.account.address || undefined,
+            compressedAccountResult.owner,
+            bn(compressedAccountResult.lamports),
+            compressedAccountResult.data
+                ? parseAccountData(compressedAccountResult.data)
+                : undefined,
+            compressedAccountResult.address || undefined,
         );
 
-    if (tokenData === null) {
+    if (tokenDataResult === null) {
         return { account: compressedAccount, maybeTokenData: null };
     }
 
     const parsed: TokenData = {
-        mint: tokenData.mint,
-        owner: tokenData.owner,
-        amount: tokenData.amount,
-        delegate: tokenData.delegate,
+        mint: tokenDataResult.mint,
+        owner: tokenDataResult.owner,
+        amount: tokenDataResult.amount,
+        delegate: tokenDataResult.delegate,
         state: ['uninitialized', 'initialized', 'frozen'].indexOf(
-            tokenData.state,
+            tokenDataResult.state,
         ),
-        isNative: tokenData.isNative,
-        delegatedAmount: tokenData.delegatedAmount,
+        isNative: tokenDataResult.isNative,
+        delegatedAmount: tokenDataResult.delegatedAmount,
     };
 
     return { account: compressedAccount, maybeTokenData: parsed };
@@ -1064,7 +1071,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         } else if (hashes.length > 0 && newAddresses.length === 0) {
             console.log(
-                "NOTE: Manually calling prover for inclusion proof. To call Photon's 'getValidityProof' endpoint use 'getValidityProofDebug'.",
+                "NOTE: Directly calling prover for inclusion proof. To call Photon's 'getValidityProof' endpoint use 'getValidityProof'.",
             );
             /// inclusion
             const merkleProofsWithContext =

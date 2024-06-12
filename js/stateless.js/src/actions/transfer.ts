@@ -52,7 +52,7 @@ export async function transfer(
         lamports,
     );
 
-    const proof = await rpc.getValidityProofDebug(
+    const proof = await rpc.getValidityProof(
         inputAccounts.map(account => bn(account.hash)),
     );
 
