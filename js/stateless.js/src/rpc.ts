@@ -112,7 +112,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
                 createMerkleContext(
                     _account.tree!,
                     mockNullifierQueue,
-                    _account.hash.toArray(undefined, 32),
+                    _account.hash.toArray('be', 32),
                     _account.leafIndex,
                 ),
                 new PublicKey('HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN'),
@@ -168,7 +168,7 @@ function buildCompressedAccountWithMaybeTokenData(
             createMerkleContext(
                 compressedAccountResult.merkleTree,
                 mockNullifierQueue,
-                compressedAccountResult.hash.toArray(undefined, 32),
+                compressedAccountResult.hash.toArray('be', 32),
                 compressedAccountResult.leafIndex,
             ),
             compressedAccountResult.owner,
@@ -435,7 +435,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             createMerkleContext(
                 item.tree!,
                 mockNullifierQueue,
-                item.hash.toArray(undefined, 32),
+                item.hash.toArray('be', 32),
                 item.leafIndex,
             ),
             item.owner,
@@ -531,7 +531,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         // const root = res.result.value.proof[res.result.value.proof.length - 1];
 
         const value: MerkleContextWithMerkleProof = {
-            hash: res.result.value.hash.toArray(undefined, 32),
+            hash: res.result.value.hash.toArray('be', 32),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
             merkleProof: res.result.value.proof, //proofWithoutRoot,
@@ -575,7 +575,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(undefined, 32),
+                    item.hash.toArray('be', 32),
                     item.leafIndex,
                 ),
                 item.owner,
@@ -622,7 +622,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
         for (const proof of res.result.value) {
             const value: MerkleContextWithMerkleProof = {
-                hash: proof.hash.toArray(undefined, 32),
+                hash: proof.hash.toArray('be', 32),
                 merkleTree: proof.merkleTree,
                 leafIndex: proof.leafIndex,
                 merkleProof: proof.proof,
@@ -668,7 +668,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 createMerkleContext(
                     item.tree!,
                     mockNullifierQueue,
-                    item.hash.toArray(undefined, 32),
+                    item.hash.toArray('be', 32),
                     item.leafIndex,
                 ),
                 item.owner,
