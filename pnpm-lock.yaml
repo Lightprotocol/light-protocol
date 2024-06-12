@@ -533,6 +533,10 @@ importers:
 >>>>>>> 946092a5 (refactor: use single rpc instance across forester calls)
 >>>>>>> d12086e9 (refactor: use single rpc instance across forester calls)
 
+  hasher.rs/src/main/wasm: {}
+
+  hasher.rs/src/main/wasm-simd: {}
+
   js/compressed-token:
     dependencies:
       '@coral-xyz/anchor':

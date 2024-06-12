@@ -288,6 +288,6 @@ pub async fn get_changelog_index<R: RpcConnection>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+        .await;
     Ok((merkle_tree.changelog_index(), merkle_tree.sequence_number()))
 }
