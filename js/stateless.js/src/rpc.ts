@@ -828,13 +828,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
             unsafeRes,
             jsonRpcResult(CompressedTransactionResult),
         );
+
         if ('error' in res) {
             throw new SolanaJSONRPCError(res.error, 'failed to get slot');
         }
-        if (res.result.transaction === null) {
-            console.log('getCompressedTransaction: returning null');
-            return null;
-        }
+
+        if (res.result.transaction === null) return null;
 
         const closedAccounts: {
             account: CompressedAccountWithMerkleContext;
@@ -1070,9 +1069,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 'Empty input. Provide hashes and/or new addresses.',
             );
         } else if (hashes.length > 0 && newAddresses.length === 0) {
-            console.log(
-                "NOTE: Directly calling prover for inclusion proof. To call Photon's 'getValidityProof' endpoint use 'getValidityProof'.",
-            );
             /// inclusion
             const merkleProofsWithContext =
                 await this.getMultipleCompressedAccountProofs(hashes);
@@ -1103,9 +1099,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 ),
             };
         } else if (hashes.length === 0 && newAddresses.length > 0) {
-            console.log(
-                'NOTE: calling Photon getMultipleNewAddressProofs. May not exist yet.',
-            );
             /// new-address
             const newAddressProofs: MerkleContextWithNewAddressProof[] =
                 await this.getMultipleNewAddressProofs(newAddresses);
@@ -1211,7 +1204,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
     ): Promise<CompressedProofWithContext> {
-        console.log("log [debug]: calling photon 'getValidityProof'");
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getValidityProof',
