@@ -9,7 +9,6 @@ use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
-    copy::IndexedMerkleTreeCopy,
     zero_copy::{IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut},
     IndexedMerkleTree,
 };
@@ -58,14 +57,6 @@ impl AddressMerkleTreeAccount {
         self.metadata
             .init(access_metadata, rollover_metadata, associated_queue)
     }
-}
-
-pub fn address_merkle_tree_from_bytes_copy(
-    data: &[u8],
-) -> Result<IndexedMerkleTreeCopy<Poseidon, usize, 26>> {
-    let data = &data[8 + mem::size_of::<AddressMerkleTreeAccount>()..];
-    let merkle_tree = IndexedMerkleTreeCopy::from_bytes_copy(data).map_err(ProgramError::from)?;
-    Ok(merkle_tree)
 }
 
 pub fn address_merkle_tree_from_bytes_zero_copy(

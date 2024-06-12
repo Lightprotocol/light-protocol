@@ -3,7 +3,6 @@ use std::mem;
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
 use light_concurrent_merkle_tree::{
-    copy::ConcurrentMerkleTreeCopy,
     zero_copy::{ConcurrentMerkleTreeZeroCopy, ConcurrentMerkleTreeZeroCopyMut},
     ConcurrentMerkleTree,
 };
@@ -44,15 +43,6 @@ impl StateMerkleTreeAccount {
         self.metadata
             .init(access_metadata, rollover_metadata, associated_queue)
     }
-}
-
-pub fn state_merkle_tree_from_bytes_copy(
-    data: &[u8],
-) -> Result<ConcurrentMerkleTreeCopy<Poseidon, 26>> {
-    let data = &data[8 + mem::size_of::<StateMerkleTreeAccount>()..];
-    let merkle_tree =
-        ConcurrentMerkleTreeCopy::from_bytes_copy(data).map_err(ProgramError::from)?;
-    Ok(merkle_tree)
 }
 
 pub fn state_merkle_tree_from_bytes_zero_copy_init(
