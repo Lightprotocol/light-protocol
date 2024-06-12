@@ -1,11 +1,12 @@
 use std::mem;
 
 use account_compression::StateMerkleTreeAccount;
-use anchor_lang::AccountDeserialize;
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
 use forester::utils::u8_arr_to_hex_string;
+use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
+use light_hasher::Poseidon;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
@@ -36,7 +37,7 @@ fn test_config() -> Config {
 #[ignore]
 async fn queue_info_test() {
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None).await;
+    let mut rpc = SolanaRpcConnection::new(None);
     let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut rpc)
         .await
         .unwrap();
@@ -92,7 +93,7 @@ async fn tree_info_test() {
 async fn test_nullify_leaves() {
     let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None).await;
+    let mut rpc = SolanaRpcConnection::new(None);
     let _ = rpc
         .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await;
@@ -113,7 +114,7 @@ async fn test_nullify_leaves() {
 #[ignore]
 async fn test_subscribe_nullify() {
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None).await;
+    let mut rpc = SolanaRpcConnection::new(None);
     let _ = rpc
         .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await;

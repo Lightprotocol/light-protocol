@@ -68,24 +68,8 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
-use num_bigint::{BigUint, RandBigInt};
-use num_traits::Num;
-use rand::distributions::uniform::{SampleRange, SampleUniform};
-use rand::prelude::SliceRandom;
-use rand::rngs::{StdRng, ThreadRng};
-use rand::{Rng, RngCore, SeedableRng};
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signature};
-use solana_sdk::signer::{SeedDerivable, Signer};
+use solana_sdk::signature::Signature;
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
-
-use account_compression::utils::constants::{
-    STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT,
-};
-use light_hasher::Poseidon;
-use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
-use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
-use light_utils::bigint::bigint_to_be_bytes_array;
 
 use crate::airdrop_lamports;
 use crate::indexer::{
@@ -114,6 +98,7 @@ use account_compression::utils::constants::{
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 
+use account_compression::{AddressMerkleTreeConfig, StateMerkleTreeConfig};
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, RandBigInt};

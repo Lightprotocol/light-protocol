@@ -11,8 +11,7 @@ use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::instruction::{Instruction, InstructionError};
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::signature::{Keypair, Signature, Signer};
+use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
@@ -38,10 +37,6 @@ impl SolanaRpcConnection {
         let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url, commitment_config);
-        client
-            .request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
-            .unwrap();
-        tokio::time::sleep(tokio::time::Duration::from_secs(16)).await;
         Self { client, payer }
     }
 

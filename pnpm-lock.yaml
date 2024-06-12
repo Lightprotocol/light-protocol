@@ -510,6 +510,10 @@ importers:
         version: 0.34.6(@vitest/browser@0.34.6)(playwright@1.40.1)(terser@5.31.0)
 >>>>>>> 946092a5 (refactor: use single rpc instance across forester calls)
 
+  hasher.rs/src/main/wasm: {}
+
+  hasher.rs/src/main/wasm-simd: {}
+
   js/compressed-token:
     dependencies:
       '@coral-xyz/anchor':

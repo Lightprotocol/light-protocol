@@ -7,6 +7,7 @@ use light_hasher::Poseidon;
 use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::indexer::Indexer;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{info, warn};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
@@ -94,51 +95,50 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
             let successful_nullifications = Arc::clone(&successful_nullifications);
             let cancellation_token_clone = cancellation_token.clone();
             let config_clone = config.clone();
-let task = tokio::spawn(async move {
-                let _permit = permit;
-                let mut retries = 0;
-                loop {
-                    if cancellation_token_clone.is_cancelled() {
-                        info!("Task cancelled for account {}", account.hash_string());
-                        break;
-                    }
-                    let proof_clone = proof.clone();
-                    info!("Nullifying account: {}", account.hash_string());
-                    match nullify_compressed_account(
-                        account,
-                        queue_data.change_log_index,
-                        proof_clone,
-                        leaf_index,
-                        &config_clone,
+            let _permit = permit;
+            let mut retries = 0;
+            loop {
+                if cancellation_token_clone.is_cancelled() {
+                    info!("Task cancelled for account {}", account.hash_string());
+                    break;
+                }
+                let proof_clone = proof.clone();
+                info!("Nullifying account: {}", account.hash_string());
+                match nullify_compressed_account(
+                    account,
+                    queue_data.change_log_index,
+                    proof_clone,
+                    leaf_index,
+                    &config_clone,
                     rpc,
                     indexer,
-                    )
-                    .await
-                    {
-                        Ok(_) => {
+                )
+                .await
+                {
+                    Ok(_) => {
                         let mut successful_nullifications = successful_nullifications.lock().await;
-                            *successful_nullifications += 1;
-                            break;
-                        }
-                        Err(e) => {
-                            if retries >= max_retries {
-                                warn!(
-                                    "Max retries reached for account {}: {:?}",
-                                    account.hash_string(),
-                                    e
-                                );
-                                break;
-                            }
-                            retries += 1;
+                        *successful_nullifications += 1;
+                        break;
+                    }
+                    Err(e) => {
+                        if retries >= max_retries {
                             warn!(
-                                "Retrying account {} due to error: {:?}",
+                                "Max retries reached for account {}: {:?}",
                                 account.hash_string(),
                                 e
                             );
-                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                            break;
                         }
+                        retries += 1;
+                        warn!(
+                            "Retrying account {} due to error: {:?}",
+                            account.hash_string(),
+                            e
+                        );
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
+            }
         } else {
             warn!("No proof found for account: {}", account.hash_string());
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -233,9 +233,9 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
 
     let signature = rpc
         .create_and_send_transaction(
-        &instructions,
+            &instructions,
             &config.payer_keypair.pubkey(),
-        &[&config.payer_keypair],
+            &[&config.payer_keypair],
         )
         .await;
     info!("Transaction: {:?}", signature);
@@ -283,12 +283,10 @@ pub async fn get_changelog_index<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     rpc: &mut R,
 ) -> Result<(usize, usize), ForesterError> {
-    let merkle_tree_account = rpc
-        .get_anchor_account::<StateMerkleTreeAccount>(merkle_tree_pubkey)
-        .await;
-    let merkle_tree = merkle_tree_account.copy_merkle_tree()?;
-    Ok((
-        merkle_tree.current_changelog_index,
-        merkle_tree.sequence_number,
-    ))
+    let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
+        rpc,
+        *merkle_tree_pubkey,
+    )
+    .await;
+    Ok((merkle_tree.changelog_index(), merkle_tree.sequence_number()))
 }

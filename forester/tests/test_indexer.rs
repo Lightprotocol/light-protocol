@@ -7,6 +7,7 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -29,6 +30,12 @@ async fn test_indexer() {
     };
 
     let rpc = SolanaRpcConnection::new(None);
+
+    rpc.client
+        .request_airdrop(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(16)).await;
+
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,
@@ -39,6 +46,7 @@ async fn test_indexer() {
         "../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
+
     let user_index = 0;
     let balance = env
         .rpc

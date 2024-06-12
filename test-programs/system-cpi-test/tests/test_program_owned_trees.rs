@@ -343,8 +343,8 @@ async fn test_invalid_registered_program() {
             &payer.pubkey(),
             size,
             rpc.get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+                .await
+                .unwrap(),
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );
@@ -414,8 +414,8 @@ async fn test_invalid_registered_program() {
             &payer.pubkey(),
             size,
             rpc.get_minimum_balance_for_rent_exemption(size)
-            .await
-            .unwrap(),
+                .await
+                .unwrap(),
             &account_compression::ID,
             Some(&new_merkle_tree_keypair),
         );

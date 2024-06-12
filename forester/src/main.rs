@@ -78,7 +78,7 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config = init_config();
 
-    let mut rpc = SolanaRpcConnection::new(None).await;
+    let mut rpc = SolanaRpcConnection::new(None);
 
     let cli = Cli::parse();
     match &cli.command {
