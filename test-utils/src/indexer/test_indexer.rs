@@ -3,26 +3,31 @@ use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use account_compression::AddressMerkleTreeConfig;
+use light_utils::bigint::bigint_to_be_bytes_array;
 use {
-    account_compression::{
-        AddressMerkleTreeAccount,
-        StateMerkleTreeAccount, utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
-    },
-    anchor_lang::AnchorDeserialize,
     crate::{
         create_account_instruction,
         test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
-        AccountZeroCopy,
     },
     account_compression::{
         utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
     },
+    anchor_lang::AnchorDeserialize,
+    crate::{
+        create_account_instruction,
+        test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts}
+        ,
+    },
+    light_hasher::Poseidon,
+    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
+    light_merkle_tree_reference::MerkleTree,
     light_prover_client::{
         gnark::{
             combined_json_formatter::CombinedJsonStruct,
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{ProofType, spawn_gnark_server},
+            helpers::{spawn_gnark_server, ProofType},
             inclusion_json_formatter::BatchInclusionJsonStruct,
             non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -34,13 +39,6 @@ use {
             get_non_inclusion_proof_inputs, NonInclusionProofInputs,
         },
     },
-    light_compressed_token::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_pool_pda,
-        mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
-    },
-    light_hasher::Poseidon,
-    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
-    light_merkle_tree_reference::MerkleTree,
     light_system_program::{
         invoke::processor::CompressedProof,
         sdk::{
@@ -55,14 +53,12 @@ use {
     spl_token::instruction::initialize_mint,
     std::time::Duration,
 };
-use account_compression::AddressMerkleTreeConfig;
-use light_utils::bigint::bigint_to_be_bytes_array;
 
+use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
 };
-use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
 
 #[derive(Debug)]
 pub struct ProofRpcResult {

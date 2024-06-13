@@ -10,14 +10,10 @@ use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
-use light_prover_client::gnark::helpers::kill_gnark_server;
 use light_compressed_token::get_cpi_authority_pda;
 use light_compressed_token::get_token_pool_pda;
-use light_compressed_token::process_transfer::get_cpi_authority_pda;
-use light_compressed_token::process_transfer::{
-    transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
-};
-use light_compressed_token::{token_data::TokenData, ErrorCode};
+use light_compressed_token::transfer_sdk::create_transfer_instruction;
+use light_compressed_token::{token_data::TokenData, ErrorCode, TokenTransferOutputData};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
