@@ -29,7 +29,7 @@ light-registry = { path = "../programs/registry", version = "0.3.4", features = 
 spl-token = { version="3.5.0", features = ["no-entrypoint"] }
 solana-transaction-status = { git = "https://github.com/Lightprotocol/agave", branch = "v1.18.11-enforce-cpi-tracking" }
 tokio = "1.36"
-light-circuitlib-rs = { path = "../circuit-lib/circuitlib-rs", version = "0.1.4" }
+light-prover-client = { path = "../circuit-lib/light-prover-client", version = "0.1.4" }
 reqwest = "0.11.26"
 light-hasher = { version = "0.1.4", path = "../merkle-tree/hasher" }
 light-merkle-tree-reference = { version = "0.1.4", path = "../merkle-tree/reference" }

@@ -40,7 +40,7 @@ env_logger = "0.11"
 function_name = "0.3.0"
 serial_test = "2.0.0"
 rstest = "0.18.2"
-light-circuitlib-rs = {path = "../circuit-lib/circuitlib-rs"}
+light-prover-client = {path = "../circuit-lib/light-prover-client" }
 light-merkle-tree-reference = {path = "../merkle-tree/reference"}
 light-hasher = {path = "../merkle-tree/hasher"}
 light-bounded-vec = {path = "../merkle-tree/bounded-vec"}

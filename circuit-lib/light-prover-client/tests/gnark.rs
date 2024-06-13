@@ -1,5 +1,5 @@
-use light_circuitlib_rs::gnark::helpers::{spawn_gnark_server, ProofType};
-use light_circuitlib_rs::{
+use light_prover_client::gnark::helpers::{spawn_gnark_server, ProofType};
+use light_prover_client::{
     gnark::{
         constants::{PROVE_PATH, SERVER_ADDRESS},
         inclusion_json_formatter::inclusion_inputs_string,
