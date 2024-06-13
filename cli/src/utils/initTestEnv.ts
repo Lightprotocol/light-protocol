@@ -28,6 +28,7 @@ export async function initTestEnv({
   proveNewAddresses = false,
   checkPhotonVersion = true,
   photonDatabaseUrl,
+  limitLedgerSize,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
@@ -38,6 +39,7 @@ export async function initTestEnv({
   proveNewAddresses?: boolean;
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
+  limitLedgerSize?: number;
 }) {
   console.log("Performing setup tasks...\n");
 
@@ -51,7 +53,11 @@ export async function initTestEnv({
     });
   };
   // We cannot await this promise directly because it will hang the process
-  startTestValidator({ additionalPrograms, skipSystemAccounts });
+  startTestValidator({
+    additionalPrograms,
+    skipSystemAccounts,
+    limitLedgerSize,
+  });
   await waitForServers([{ port: 8899, path: "/health" }]);
   await confirmServerStability("http://127.0.0.1:8899/health");
   await initAccounts();
@@ -138,14 +144,14 @@ function programFilePath(programName: string): string {
 export async function getSolanaArgs({
   additionalPrograms,
   skipSystemAccounts,
+  limitLedgerSize,
   downloadBinaries = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
+  limitLedgerSize?: number;
   downloadBinaries?: boolean;
 }): Promise<Array<string>> {
-  const LIMIT_LEDGER_SIZE = "500000000";
-
   type Program = { id: string; name?: string; tag?: string; path?: string };
   // TODO: adjust program tags
   const programs: Program[] = [
@@ -184,7 +190,7 @@ export async function getSolanaArgs({
 
   const solanaArgs = [
     "--reset",
-    `--limit-ledger-size=${LIMIT_LEDGER_SIZE}`,
+    `--limit-ledger-size=${limitLedgerSize}`,
     "--quiet",
   ];
 
@@ -218,14 +224,17 @@ export async function getSolanaArgs({
 export async function startTestValidator({
   additionalPrograms,
   skipSystemAccounts,
+  limitLedgerSize,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
+  limitLedgerSize?: number;
 }) {
   const command = "solana-test-validator";
   const solanaArgs = await getSolanaArgs({
     additionalPrograms,
     skipSystemAccounts,
+    limitLedgerSize,
   });
 
   await killTestValidator();
