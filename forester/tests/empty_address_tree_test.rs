@@ -71,13 +71,14 @@ async fn empty_address_tree_test() {
         get_address_queue_length(&config, &mut env.rpc).await
     );
 
-    let _ = empty_address_queue(
+    empty_address_queue(
         &mut env.rpc,
         &mut env.indexer,
         &env_accounts.forester,
         &config,
     )
-    .await;
+    .await
+    .unwrap();
     assert_eq!(get_address_queue_length(&config, &mut env.rpc).await, 0);
 }
 
