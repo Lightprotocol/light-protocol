@@ -266,6 +266,7 @@ pub struct UpdateAddressMerkleTreeInstructionInputs {
     pub address_merkle_tree: Pubkey,
     pub address_queue: Pubkey,
     pub changelog_index: u16,
+    pub indexed_changelog_index: u16,
     pub value: u16,
     pub low_address_index: u64,
     pub low_address_value: [u8; 32],
@@ -284,6 +285,7 @@ pub fn create_update_address_merkle_tree_instruction(
     let instruction_data = crate::instruction::UpdateAddressMerkleTree {
         bump,
         changelog_index: instructions.changelog_index,
+        indexed_changelog_index: instructions.indexed_changelog_index,
         value: instructions.value,
         low_address_index: instructions.low_address_index,
         low_address_value: instructions.low_address_value,
