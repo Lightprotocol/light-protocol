@@ -314,6 +314,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap(),
             low_address_proof.to_array().unwrap(),
             None,
+            None,
             signer_is_owner,
         )
         .await
@@ -471,10 +472,11 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
     changelog_index: Option<u16>,
+    indexed_changelog_index: Option<u16>,
     signer_is_owner: bool,
 ) -> Result<Option<(MerkleTreeEvent, Signature)>, RpcError> {
     let changelog_index = match changelog_index {
-        Some(changelog_index) => changelog_index as usize,
+        Some(changelog_index) => changelog_index,
         None => {
             let address_merkle_tree =
                 get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
@@ -483,7 +485,20 @@ pub async fn update_merkle_tree<R: RpcConnection>(
                 )
                 .await;
 
-            address_merkle_tree.changelog_index()
+            address_merkle_tree.changelog_index() as u16
+        }
+    };
+    let indexed_changelog_index = match indexed_changelog_index {
+        Some(indexed_changelog_index) => indexed_changelog_index,
+        None => {
+            let address_merkle_tree =
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                    rpc,
+                    address_merkle_tree_pubkey,
+                )
+                .await;
+
+            address_merkle_tree.indexed_changelog_index() as u16
         }
     };
     let update_ix = if !signer_is_owner {
@@ -491,7 +506,8 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             authority: forester.pubkey(),
             address_merkle_tree: address_merkle_tree_pubkey,
             address_queue: address_queue_pubkey,
-            changelog_index: changelog_index as u16,
+            changelog_index,
+            indexed_changelog_index,
             value,
             low_address_index,
             low_address_value,
@@ -501,7 +517,8 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         })
     } else {
         let instruction_data = UpdateAddressMerkleTree {
-            changelog_index: changelog_index as u16,
+            changelog_index,
+            indexed_changelog_index,
             value,
             low_address_index,
             low_address_value,
