@@ -11,7 +11,7 @@
     "restart-validator": "pnpm restart-db && pnpm wait-for-db && pnpm migrate-db && pnpm start-validator",
 
     "build": "cargo build",
-    "test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test test_indexer -- --nocapture",
+    "test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test photon_interop_test -- --nocapture",
 
     "address-tree-test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test empty_address_tree_test -- --nocapture",
     "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",

@@ -1,14 +1,20 @@
 use env_logger::Env;
-use forester::constants::SERVER_URL;
+use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::nullifier::{get_nullifier_queue, nullify, Config};
-use forester::utils::spawn_validator;
-use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
+use forester::utils::{get_state_queue_length, spawn_validator};
+use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
+use account_compression::StateMerkleTreeAccount;
+use forester::indexer::PhotonIndexer;
+use light_hasher::Poseidon;
+use light_test_utils::{get_concurrent_merkle_tree};
+use light_test_utils::indexer::{Indexer, TestIndexer};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_indexer() {
@@ -66,11 +72,4 @@ async fn test_indexer() {
         .await
         .unwrap();
     assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
-}
-
-async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) -> usize {
-    let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc)
-        .await
-        .unwrap();
-    queue.len()
 }
