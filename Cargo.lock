@@ -26,7 +26,7 @@ dependencies = [
  "light-heap",
  "light-indexed-merkle-tree",
  "light-utils",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "solana-sdk",
  "solana-security-txt",
@@ -52,7 +52,7 @@ dependencies = [
  "light-utils",
  "light-verifier",
  "memoffset 0.9.1",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "reqwest 0.11.26",
  "serde_json",
@@ -492,7 +492,7 @@ dependencies = [
  "derivative",
  "digest 0.10.7",
  "itertools",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "paste",
  "rayon",
@@ -516,7 +516,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7abe79b0e4288889c4574159ab790824d0033b9fdcb2a112a3182fac2e514565"
 dependencies = [
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "proc-macro2",
  "quote",
@@ -574,7 +574,7 @@ dependencies = [
  "ark-serialize-derive",
  "ark-std",
  "digest 0.10.7",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
 ]
 
 [[package]]
@@ -1304,7 +1304,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "reqwest 0.11.26",
  "solana-program-test",
@@ -1611,7 +1611,7 @@ dependencies = [
  "asn1-rs",
  "displaydoc",
  "nom",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "rusticata-macros",
 ]
@@ -1789,7 +1789,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "rand 0.8.5",
  "reqwest 0.11.26",
@@ -1901,7 +1901,7 @@ version = "3.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bf1fa3f06bbff1ea5b1a9c7b14aa992a39657db60a2759457328d7e058f49ee"
 dependencies = [
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "proc-macro2",
  "quote",
@@ -2079,7 +2079,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "log",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "photon-api",
  "rand 0.8.5",
@@ -2959,7 +2959,7 @@ dependencies = [
  "light-merkle-tree-reference",
  "light-utils",
  "log",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "once_cell",
  "reqwest 0.11.26",
@@ -3003,7 +3003,7 @@ dependencies = [
  "light-merkle-tree-reference",
  "light-utils",
  "memoffset 0.8.0",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "rand 0.8.5",
  "solana-program",
@@ -3023,7 +3023,7 @@ dependencies = [
  "light-heap",
  "light-utils",
  "memoffset 0.9.1",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "rand 0.8.5",
  "solana-program",
@@ -3062,7 +3062,7 @@ dependencies = [
  "light-merkle-tree-reference",
  "light-utils",
  "memoffset 0.9.1",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "rand 0.8.5",
  "solana-program",
@@ -3096,7 +3096,7 @@ checksum = "3c9a85a9752c549ceb7578064b4ed891179d20acd85f27318573b64d2d7ee7ee"
 dependencies = [
  "ark-bn254",
  "ark-ff",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "thiserror",
 ]
 
@@ -3113,6 +3113,8 @@ dependencies = [
  "light-macros",
  "light-system-program",
  "light-utils",
+ "num-bigint 0.4.5",
+ "num-traits",
  "solana-program-test",
  "solana-sdk",
  "tokio",
@@ -3160,7 +3162,7 @@ dependencies = [
  "light-utils",
  "light-verifier",
  "memoffset 0.9.1",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "photon-api",
  "rand 0.8.5",
@@ -3182,7 +3184,7 @@ dependencies = [
  "ark-bn254",
  "ark-ff",
  "light-bounded-vec",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "rand 0.8.5",
  "solana-program",
  "thiserror",
@@ -3212,7 +3214,7 @@ dependencies = [
  "hex",
  "js-sys",
  "light-poseidon",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "thiserror",
  "wasm-bindgen",
  "web-sys",
@@ -3502,11 +3504,10 @@ dependencies = [
 
 [[package]]
 name = "num-bigint"
-version = "0.4.4"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "608e7659b5c3d7cba262d894801b9ec9d00de989e8a82bd4bef91d08da45cdc0"
+checksum = "c165a9ab64cf766f73521c0dd2cfdff64f488b8f0b3e621face3462d3db536d7"
 dependencies = [
- "autocfg",
  "num-integer",
  "num-traits",
  "rand 0.8.5",
@@ -3553,11 +3554,10 @@ dependencies = [
 
 [[package]]
 name = "num-integer"
-version = "0.1.45"
+version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "225d3389fb3509a24c93f5c29eb6bde2586b98d9f016636dff58d7c6f7569cd9"
+checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "autocfg",
  "num-traits",
 ]
 
@@ -3586,9 +3586,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.18"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da0df0e5185db44f69b44f26786fe401b6c293d1907744beaa7fa62b2e5a517a"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
 ]
@@ -4412,7 +4412,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "reqwest 0.11.26",
  "serde_json",
@@ -5824,7 +5824,7 @@ dependencies = [
  "light-poseidon",
  "log",
  "memoffset 0.9.1",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-derive 0.4.2",
  "num-traits",
  "parking_lot",
@@ -7179,7 +7179,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-utils",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "reqwest 0.11.26",
  "solana-program-test",
@@ -7204,7 +7204,7 @@ dependencies = [
  "light-test-utils",
  "light-utils",
  "light-verifier",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "reqwest 0.11.26",
  "serde_json",
@@ -7477,7 +7477,7 @@ dependencies = [
  "light-system-program",
  "light-test-utils",
  "light-verifier",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "num-traits",
  "reqwest 0.12.4",
  "solana-program-test",
@@ -8367,7 +8367,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-utils",
- "num-bigint 0.4.4",
+ "num-bigint 0.4.5",
  "quote",
  "rand 0.8.5",
  "sha2 0.10.8",

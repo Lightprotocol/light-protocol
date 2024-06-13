@@ -6,28 +6,44 @@ use light_utils::hash_to_bn254_field_size_be;
 #[error_code]
 pub enum ErrorCode {
     TallyPeriodNotStarted,
+    StakeAccountAlreadySynced,
+    EpochEnded,
+    ForresterNotEligible,
+    NotInRegistrationPeriod,
+    NotInActivationPeriod,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ProtocolConfig {
     pub genesis_slot: u64,
-    /// In epochs
-    pub stake_activation_delay: u64,
-    /// Epoch length in slots
-    pub epoch_length: u64,
-    /// Must be less than epoch_length
-    pub tally_period_length: u64,
+
     pub epoch_reward: u64,
     pub base_reward: u64,
+    pub min_stake: u64,
+    pub slot_length: u64,
+    /// Epoch length in slots
+    pub epoch_length: u64,
+    /// Foresters can register for this epoch.
+    pub registration_period_length: u64,
+    /// Must be less than epoch_length
+    pub tally_period_length: u64,
 }
 
 impl ProtocolConfig {
     pub fn get_current_epoch(&self, slot: u64) -> u64 {
-        (slot - self.genesis_slot) / self.epoch_length
+        (slot.saturating_sub(self.genesis_slot)) / self.epoch_length
     }
 
     pub fn get_current_epoch_progress(&self, slot: u64) -> u64 {
-        (slot - self.genesis_slot) % self.epoch_length
+        (slot.saturating_sub(self.genesis_slot)) % self.epoch_length
+    }
+
+    pub fn is_registration_period(&self, slot: u64) -> Result<u64> {
+        let current_epoch_progress = self.get_current_epoch_progress(slot);
+        if current_epoch_progress > self.registration_period_length {
+            return err!(ErrorCode::NotInRegistrationPeriod);
+        }
+        Ok(self.get_current_epoch(slot) * self.epoch_length + self.genesis_slot)
     }
 
     pub fn is_in_tally_period(&self, slot: u64, tally_epoch: u64) -> bool {
@@ -76,17 +92,34 @@ pub struct EpochAccount {
     pub protocol_config: ProtocolConfig,
     pub last_epoch_total_stake_weight: u64,
     pub last_epoch_tally: u64,
+    pub registered_stake: u64,
 }
 
-// TODO: check how Solana handle the delegation and undelegation process (the way it is now we cannot top up a delegated account)
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct StakeAccount {
+    delegate_forester_stake_account: Option<Pubkey>,
+    /// Stake weight that is delegated to a forester.
+    /// Newly delegated stake is not active until the next epoch.
+    delegated_stake_weight: u64,
+    /// undelgated stake is stake that is not yet delegated to a forester
     stake_weight: u64,
-    delegate_forester_stake_account: Pubkey,
-    activation_epoch: u64,
-    deactivation_epoch: u64,
+    /// When undelegating stake is pending until the next epoch
+    pending_stake_weight: u64,
+    pending_epoch: u64,
     last_sync_epoch: u64,
+    /// Pending token amount are rewards that are not yet claimed to the stake
+    /// compressed token account.
     pending_token_amount: u64,
+}
+
+impl StakeAccount {
+    pub fn sync_pending_stake_weight(&mut self, current_epoch: u64) {
+        if current_epoch > self.last_sync_epoch {
+            self.stake_weight += self.pending_stake_weight;
+            self.pending_stake_weight = 0;
+            self.pending_epoch = current_epoch;
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -94,7 +127,6 @@ pub struct ForesterStakeAccount {
     forester_config: ForesterConfig,
     active_stake_weight: u64,
     pending_stake_weight: u64,
-    pending_deactivate_stake_weight: u64,
     current_epoch: u64,
     protocol_config: ProtocolConfig,
     last_compressed_forester_epoch_account_hash: [u8; 32],
@@ -124,16 +156,73 @@ impl ForesterStakeAccount {
 pub struct ForesterEpochAccount {
     forester_pubkey: Pubkey,
     epoch: u64,
-    total_stake_weight: u64,
-    counter: u64,
+    stake_weight: u64,
+    work_counter: u64,
     has_tallied: bool,
+    forester_index: u64,
+    // epoch_length: u64, // remove
+    epoch_start_slot: u64,
+    slot_length: u64,
+    total_epoch_state_weight: Option<u64>,
+    protocol_config: ProtocolConfig,
+}
+
+impl ForesterEpochAccount {
+    pub fn get_current_slot(&self, current_slot: u64) -> Result<u64> {
+        if current_slot >= self.epoch_start_slot + self.protocol_config.epoch_length {
+            return err!(ErrorCode::EpochEnded);
+        }
+        if current_slot < self.epoch_start_slot + self.protocol_config.registration_period_length {
+            return err!(ErrorCode::NotInActivationPeriod);
+        }
+        let epoch_progres = match current_slot.checked_sub(self.epoch_start_slot) {
+            Some(epoch_progres) => epoch_progres,
+            None => return err!(ErrorCode::EpochEnded),
+        };
+        Ok(epoch_progres / self.protocol_config.slot_length)
+    }
+
+    // TODO: add function that returns all light slots with start and end solana slots for a given epoch
+    pub fn get_eligible_forester_index(&self, current_slot: u64, pubkey: &Pubkey) -> Result<u64> {
+        let current_light_slot = self.get_current_slot(current_slot)?;
+        let total_epoch_state_weight = self.total_epoch_state_weight.unwrap();
+
+        // Domain separation using the pubkey and current_light_slot
+        let mut hasher = anchor_lang::solana_program::hash::Hasher::default();
+        hasher.hashv(&[
+            pubkey.to_bytes().as_slice(),
+            &current_light_slot.to_le_bytes(),
+        ]);
+        let hash_value = u64::from_be_bytes(hasher.result().to_bytes()[0..8].try_into().unwrap());
+        let forester_slot = hash_value % total_epoch_state_weight;
+        Ok(forester_slot)
+    }
+
+    pub fn check_eligibility(&self, current_slot: u64, pubkey: &Pubkey) -> Result<()> {
+        let forester_slot = self.get_eligible_forester_index(current_slot, pubkey)?;
+        if forester_slot >= self.forester_index
+            && forester_slot < self.forester_index + self.stake_weight
+        {
+            Ok(())
+        } else {
+            err!(ErrorCode::ForresterNotEligible)
+        }
+    }
+}
+
+/// This instruction needs to be executed once once the active period starts.
+pub fn set_total_registered_stake(
+    forester_epoch_account: &mut ForesterEpochAccount,
+    epoch_account: &EpochAccount,
+) {
+    forester_epoch_account.total_epoch_state_weight = Some(epoch_account.registered_stake);
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct CompressedForesterEpochAccount {
     rewards_earned: u64,
     epoch: u64,
-    total_stake_weight: u64,
+    stake_weight: u64,
     previous_hash: [u8; 32],
     forester_pubkey: Pubkey,
 }
@@ -145,14 +234,14 @@ impl CompressedForesterEpochAccount {
             self.previous_hash.as_slice(),
             &self.rewards_earned.to_le_bytes(),
             &self.epoch.to_le_bytes(),
-            &self.total_stake_weight.to_le_bytes(),
+            &self.stake_weight.to_le_bytes(),
         ])
         .map_err(ProgramError::from)?;
         Ok(hash)
     }
 
     pub fn get_reward(&self, stake: u64) -> u64 {
-        self.rewards_earned * stake / self.total_stake_weight
+        self.rewards_earned * stake / self.stake_weight
     }
 }
 
@@ -160,7 +249,7 @@ impl CompressedForesterEpochAccount {
 pub struct CompressedForesterEpochAccountInput {
     rewards_earned: u64,
     epoch: u64,
-    total_stake_weight: u64,
+    stake_weight: u64,
 }
 impl CompressedForesterEpochAccountInput {
     pub fn into_compressed_forester_epoch_account(
@@ -171,7 +260,7 @@ impl CompressedForesterEpochAccountInput {
         CompressedForesterEpochAccount {
             rewards_earned: self.rewards_earned,
             epoch: self.epoch,
-            total_stake_weight: self.total_stake_weight,
+            stake_weight: self.stake_weight,
             previous_hash,
             forester_pubkey,
         }
@@ -183,7 +272,7 @@ impl CompressedForesterEpochAccountInput {
 /// 3. iterate over all compressed forester epoch accounts, increase Account.stake_weight by rewards_earned in every step
 /// 4. set StakeAccount.last_sync_epoch to the epoch of the last compressed forester epoch account
 /// 5. prove inclusion of last hash in State merkle tree
-pub fn sync_staker_account(
+pub fn sync_stake_account(
     stake_account: &mut StakeAccount,
     compressed_forester_epoch_accounts: Vec<CompressedForesterEpochAccountInput>,
     hashed_forester_pubkey: [u8; 32],
@@ -198,7 +287,7 @@ pub fn sync_staker_account(
     }
     let last_sync_epoch = stake_account.last_sync_epoch;
     if compressed_forester_epoch_accounts[0].epoch <= last_sync_epoch {
-        return err!(ErrorCode::TallyPeriodNotStarted);
+        return err!(ErrorCode::StakeAccountAlreadySynced);
     }
 
     for compressed_forester_epoch_account in compressed_forester_epoch_accounts.iter() {
@@ -207,8 +296,8 @@ pub fn sync_staker_account(
             .into_compressed_forester_epoch_account(previous_hash, crate::ID);
         previous_hash = compressed_forester_epoch_account.hash(hashed_forester_pubkey)?;
         let get_staker_epoch_reward =
-            compressed_forester_epoch_account.get_reward(stake_account.stake_weight);
-        stake_account.stake_weight += get_staker_epoch_reward;
+            compressed_forester_epoch_account.get_reward(stake_account.delegated_stake_weight);
+        stake_account.delegated_stake_weight += get_staker_epoch_reward;
         stake_account.pending_token_amount += get_staker_epoch_reward;
     }
     stake_account.last_sync_epoch = compressed_forester_epoch_accounts
@@ -235,8 +324,6 @@ pub fn sync_staker_account(
     Ok(())
 }
 
-// It is easier to make stake active immediately.
-// It is easy to enforce a cool off period for unstaking. // TODO: research whats the science behind cool off periods
 pub fn stake(stake_account: &mut StakeAccount, num_tokens: u64) -> Result<()> {
     stake_account.stake_weight += num_tokens;
     Ok(())
@@ -250,8 +337,11 @@ pub fn delegate(
     current_slot: u64,
 ) -> Result<()> {
     forester_stake_account.sync(current_slot);
-    stake_account.delegate_forester_stake_account = *forester_stake_account_pubkey;
+    // TODO: check that is not delegated to a different forester
+    stake_account.delegate_forester_stake_account = Some(*forester_stake_account_pubkey);
     forester_stake_account.pending_stake_weight += num_tokens;
+    stake_account.delegated_stake_weight += num_tokens;
+    stake_account.stake_weight -= num_tokens;
     Ok(())
 }
 
@@ -261,6 +351,11 @@ pub fn register_for_epoch(
     epoch_account: &mut EpochAccount,
     current_slot: u64,
 ) -> Result<()> {
+    // Check whether we are in a epoch registration phase and which epoch we are in
+    let current_epoch_start_slot = forester_stake_account
+        .protocol_config
+        .is_registration_period(current_slot)?;
+
     // Init epoch account if not initialized
     if *epoch_account == EpochAccount::default() {
         *epoch_account = EpochAccount {
@@ -271,9 +366,12 @@ pub fn register_for_epoch(
     }
 
     forester_stake_account.sync(current_slot);
-    forester_epoch_account.total_stake_weight += forester_stake_account.active_stake_weight;
+    forester_epoch_account.stake_weight += forester_stake_account.active_stake_weight;
     forester_epoch_account.epoch = forester_stake_account.current_epoch;
-    // forester_epoch_account.slot_updated = current_slot;
+    forester_epoch_account.forester_index = epoch_account.registered_stake;
+    epoch_account.registered_stake += forester_stake_account.active_stake_weight;
+    forester_epoch_account.epoch_start_slot = current_epoch_start_slot;
+    forester_epoch_account.protocol_config = forester_stake_account.protocol_config;
 
     Ok(())
 }
@@ -282,8 +380,10 @@ pub fn simulate_work_and_slots(
     forester_epoch_account: &mut ForesterEpochAccount,
     current_slot: &mut u64,
     num_slots_and_work: u64,
+    queue_pubkey: &Pubkey,
 ) -> Result<()> {
-    forester_epoch_account.counter += num_slots_and_work;
+    forester_epoch_account.check_eligibility(*current_slot, queue_pubkey)?;
+    forester_epoch_account.work_counter += num_slots_and_work;
     *current_slot += num_slots_and_work;
     Ok(())
 }
@@ -301,8 +401,8 @@ pub fn tally_results(
     }
 
     forester_epoch_account.has_tallied = true;
-    epoch_account.last_epoch_total_stake_weight += forester_epoch_account.total_stake_weight;
-    epoch_account.last_epoch_tally += forester_epoch_account.counter;
+    epoch_account.last_epoch_total_stake_weight += forester_epoch_account.stake_weight;
+    epoch_account.last_epoch_tally += forester_epoch_account.work_counter;
     Ok(())
 }
 
@@ -332,8 +432,8 @@ pub fn forester_claim_rewards(
 
     let total_stake_weight = epoch_account.last_epoch_total_stake_weight;
     let total_tally = epoch_account.last_epoch_tally;
-    let forester_stake_weight = forester_epoch_account.total_stake_weight;
-    let forester_tally = forester_epoch_account.counter;
+    let forester_stake_weight = forester_epoch_account.stake_weight;
+    let forester_tally = forester_epoch_account.work_counter;
     let reward = epoch_account.protocol_config.get_rewards(
         total_stake_weight,
         total_tally,
@@ -350,9 +450,9 @@ pub fn forester_claim_rewards(
     // Increase the active deleagted stake weight by the net_reward
     forester_stake_account.active_stake_weight += net_reward;
     let compressed_account = CompressedForesterEpochAccount {
-        rewards_earned: reward,
+        rewards_earned: net_reward,
         epoch: forester_epoch_account.epoch,
-        total_stake_weight: forester_epoch_account.total_stake_weight,
+        stake_weight: forester_epoch_account.stake_weight,
         previous_hash: forester_stake_account.last_compressed_forester_epoch_account_hash,
         forester_pubkey: forester_epoch_account.forester_pubkey,
     };
@@ -369,27 +469,54 @@ pub fn forester_claim_rewards(
     Ok(compressed_account)
 }
 
-pub fn staker_sync_account(
+pub fn undelegate(
     stake_account: &mut StakeAccount,
-    protocol_config: &ProtocolConfig,
+    forester_stake_account: &mut ForesterStakeAccount,
+    amount: u64,
+    current_slot: u64,
+) -> Result<()> {
+    forester_stake_account.sync(current_slot);
+    forester_stake_account.active_stake_weight -= amount;
+    stake_account.delegated_stake_weight -= amount;
+    stake_account.pending_stake_weight += amount;
+    stake_account.pending_epoch = forester_stake_account
+        .protocol_config
+        .get_current_epoch(current_slot);
+    if stake_account.delegated_stake_weight == 0 {
+        stake_account.delegate_forester_stake_account = None;
+    }
+    Ok(())
+}
+
+pub fn unstake(
+    stake_account: &mut StakeAccount,
+    stake_token_account: &mut MockCompressedTokenAccount,
+    recipient_token_account: &mut MockCompressedTokenAccount,
+    protocol_config: ProtocolConfig,
+    amount: u64,
     current_slot: u64,
 ) -> Result<()> {
     let current_epoch = protocol_config.get_current_epoch(current_slot);
-    if current_epoch > stake_account.last_sync_epoch {
-        stake_account.last_sync_epoch = current_epoch;
-        stake_account.stake_weight -= stake_account.deactivation_epoch;
-    }
+    stake_account.sync_pending_stake_weight(current_epoch);
+    // reduce stake weight
+    // only non delegated stake can be unstaked
+    stake_account.stake_weight -= amount;
+    // transfer tokens
+    stake_token_account.balance -= amount;
+    recipient_token_account.balance += amount;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use solana_sdk::{signature::Keypair, signer::Signer};
+
     use super::*;
 
-    pub fn advance_epoch(slot: &mut u64) {
-        *slot += 11;
-    }
-
+    /// Questions:
+    ///
     /// Scenario:
     /// 1. Protocol config setup
     /// 2. User stakes 1000 tokens
@@ -400,17 +527,19 @@ mod tests {
     /// 7. Tally results
     /// 8. Forester withdraws rewards
     /// 9. User syncs stake account
-    // TODO: add contention prevention
     // TODO: add unstake
     #[test]
     fn staking_scenario() {
+        let epoch_length = 10;
         let protocol_config = ProtocolConfig {
-            genesis_slot: 0,
-            stake_activation_delay: 1,
-            epoch_length: 10,
+            genesis_slot: 20,
+            registration_period_length: 1,
+            epoch_length,
             tally_period_length: 2,
             epoch_reward: 100_000,
             base_reward: 50_000,
+            min_stake: 0,
+            slot_length: 1,
         };
         let mut current_slot = 0;
 
@@ -447,9 +576,14 @@ mod tests {
         .unwrap();
         assert_eq!(
             forester_stake_account.pending_stake_weight,
-            user_stake_account.stake_weight
+            user_stake_account.delegated_stake_weight
         );
-        advance_epoch(&mut current_slot);
+        assert_eq!(
+            forester_stake_account_pubkey,
+            user_stake_account.delegate_forester_stake_account.unwrap()
+        );
+        // We need to start in epoch 1, because nobody can register before epoch 0
+        current_slot = 30;
 
         // ----------------------------------------------------------------------------------------
         // 5. Forester registers for epoch and initializes epoch account and
@@ -463,14 +597,21 @@ mod tests {
         )
         .unwrap();
         assert_eq!(forester_stake_account.pending_stake_weight, 0);
-        assert_eq!(
-            forester_epoch_account.total_stake_weight,
-            user_token_balance
-        );
+        assert_eq!(forester_epoch_account.stake_weight, user_token_balance);
+        assert_eq!(epoch_account.registered_stake, user_token_balance);
+        assert_eq!(forester_epoch_account.epoch_start_slot, 30);
+        current_slot = 31;
 
         // ----------------------------------------------------------------------------------------
         // 6. Forester performs some actions until epoch ends
-        simulate_work_and_slots(&mut forester_epoch_account, &mut current_slot, 10).unwrap();
+        set_total_registered_stake(&mut forester_epoch_account, &epoch_account);
+        simulate_work_and_slots(
+            &mut forester_epoch_account,
+            &mut current_slot,
+            epoch_length,
+            &Pubkey::new_unique(),
+        )
+        .unwrap();
 
         // ----------------------------------------------------------------------------------------
         // 7. Tally results
@@ -492,6 +633,12 @@ mod tests {
             current_slot,
         )
         .unwrap();
+        let forester_fee = 10_000;
+        assert_eq!(forester_token_account.balance, forester_fee);
+        assert_eq!(
+            forester_token_pool_account.balance,
+            protocol_config.epoch_reward - forester_fee
+        );
 
         // ----------------------------------------------------------------------------------------
         // 9. User syncs stake account
@@ -501,9 +648,9 @@ mod tests {
         let compressed_forester_epoch_account_input_account = CompressedForesterEpochAccountInput {
             rewards_earned: compressed_forester_epoch_account.rewards_earned,
             epoch: compressed_forester_epoch_account.epoch,
-            total_stake_weight: compressed_forester_epoch_account.total_stake_weight,
+            stake_weight: compressed_forester_epoch_account.stake_weight,
         };
-        sync_staker_account(
+        sync_stake_account(
             &mut user_stake_account,
             vec![compressed_forester_epoch_account_input_account],
             hashed_forester_pubkey,
@@ -512,20 +659,60 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            user_stake_account.stake_weight,
+            user_stake_account.delegated_stake_weight,
             user_token_balance + compressed_forester_epoch_account.rewards_earned
         );
+        println!(
+            "compressed_forester_epoch_account.rewards_earned: {}",
+            compressed_forester_epoch_account.rewards_earned
+        );
+        println!(
+            "User d delegated_stake_weight: {}",
+            user_stake_account.delegated_stake_weight
+        );
+
+        // ----------------------------------------------------------------------------------------
+        // 10. User unstakes
+        let mut user_stake_token_account = MockCompressedTokenAccount { balance: 1000 };
+        let mut recipient_token_account = MockCompressedTokenAccount { balance: 0 };
+        let unstake_amount = 100;
+        undelegate(
+            &mut user_stake_account,
+            &mut forester_stake_account,
+            unstake_amount,
+            current_slot,
+        )
+        .unwrap();
+        assert_eq!(user_stake_account.pending_stake_weight, unstake_amount);
+        assert_eq!(
+            forester_stake_account.active_stake_weight,
+            900 + protocol_config.epoch_reward - forester_fee
+        );
+        unstake(
+            &mut user_stake_account,
+            &mut user_stake_token_account,
+            &mut recipient_token_account,
+            protocol_config,
+            unstake_amount,
+            current_slot,
+        )
+        .unwrap();
+        assert_eq!(user_stake_account.delegated_stake_weight, 90900);
+        assert_eq!(user_stake_token_account.balance, 900);
+        assert_eq!(recipient_token_account.balance, unstake_amount);
     }
 
     #[test]
     fn test_zero_values() {
         let protocol_config = ProtocolConfig {
             genesis_slot: 0,
-            stake_activation_delay: 1,
+            registration_period_length: 1,
             epoch_length: 10,
             tally_period_length: 2,
             epoch_reward: 100_000,
             base_reward: 50_000,
+            min_stake: 0,
+            slot_length: 1,
         };
 
         assert_eq!(protocol_config.get_rewards(100_000, 20_000, 0, 0), 0);
@@ -543,11 +730,13 @@ mod tests {
     fn test_equal_stake_and_tally() {
         let protocol_config = ProtocolConfig {
             genesis_slot: 0,
-            stake_activation_delay: 1,
+            registration_period_length: 1,
             epoch_length: 10,
             tally_period_length: 2,
             epoch_reward: 100_000,
             base_reward: 50_000,
+            min_stake: 0,
+            slot_length: 1,
         };
 
         let total_stake_weight = 100_000;
@@ -563,11 +752,13 @@ mod tests {
     fn test_single_forester() {
         let protocol_config = ProtocolConfig {
             genesis_slot: 0,
-            stake_activation_delay: 1,
+            registration_period_length: 1,
             epoch_length: 10,
             tally_period_length: 2,
             epoch_reward: 100_000,
             base_reward: 50_000,
+            min_stake: 0,
+            slot_length: 1,
         };
 
         let total_stake_weight = 10_000;
@@ -589,11 +780,13 @@ mod tests {
     fn test_proportional_distribution() {
         let protocol_config = ProtocolConfig {
             genesis_slot: 0,
-            stake_activation_delay: 1,
+            registration_period_length: 1,
             epoch_length: 10,
             tally_period_length: 2,
             epoch_reward: 100_000,
             base_reward: 50_000,
+            min_stake: 0,
+            slot_length: 1,
         };
 
         let total_stake_weight = 100_000;
@@ -616,11 +809,13 @@ mod tests {
     fn reward_calculation() {
         let protocol_config = ProtocolConfig {
             genesis_slot: 0,
-            stake_activation_delay: 1,
+            registration_period_length: 1,
             epoch_length: 10,
             tally_period_length: 2,
             epoch_reward: 100_000,
             base_reward: 50_000,
+            min_stake: 0,
+            slot_length: 1,
         };
         let total_stake_weight = 100_000;
         let total_tally = 20_000;
@@ -682,5 +877,90 @@ mod tests {
             );
             assert_eq!(reward, 10_000);
         }
+    }
+
+    fn setup_forester_epoch_account(
+        forester_start_range: u64,
+        forester_stake_weight: u64,
+        epoch_length: u64,
+        slot_length: u64,
+        epoch_start_slot: u64,
+        total_epoch_state_weight: u64,
+    ) -> ForesterEpochAccount {
+        ForesterEpochAccount {
+            forester_pubkey: Pubkey::default(),
+            epoch: 0,
+            stake_weight: forester_stake_weight,
+            work_counter: 0,
+            has_tallied: false,
+            forester_index: forester_start_range,
+            epoch_start_slot,
+            slot_length,
+            total_epoch_state_weight: Some(total_epoch_state_weight),
+            protocol_config: ProtocolConfig {
+                genesis_slot: 0,
+                registration_period_length: 1,
+                epoch_length,
+                tally_period_length: 2,
+                epoch_reward: 100_000,
+                base_reward: 50_000,
+                min_stake: 0,
+                slot_length: 1,
+            },
+        }
+    }
+
+    // Instead of index I use stake weight to get the period
+    #[test]
+    fn test_eligibility_check_within_epoch() {
+        let mut eligible = HashMap::<u8, (u64, u64)>::new();
+        let slot_length = 20;
+        let num_foresters = 5;
+        let epoch_start_slot = 10;
+        let epoch_len = 2000;
+        let queue_pubkey = Keypair::new().pubkey();
+        let mut total_stake_weight = 0;
+        for forester_index in 0..num_foresters {
+            let forester_stake_weight = 10_000 * (forester_index + 1);
+            total_stake_weight += forester_stake_weight;
+        }
+        let mut current_total_stake_weight = 0;
+        for forester_index in 0..num_foresters {
+            let forester_stake_weight = 10_000 * (forester_index + 1);
+            let account = setup_forester_epoch_account(
+                current_total_stake_weight,
+                forester_stake_weight,
+                epoch_len,
+                slot_length,
+                epoch_start_slot,
+                total_stake_weight,
+            );
+            current_total_stake_weight += forester_stake_weight;
+
+            // Check eligibility within and outside the epoch
+            for i in 0..epoch_len {
+                let index = account.check_eligibility(i, &queue_pubkey);
+                if index.is_ok() {
+                    match eligible.get_mut(&(forester_index as u8)) {
+                        Some((_, count)) => {
+                            *count += 1;
+                        }
+                        None => {
+                            eligible.insert(forester_index as u8, (forester_stake_weight, 1));
+                        }
+                    };
+                }
+            }
+        }
+        println!("stats --------------------------------");
+        for (forester_index, num_eligible_slots) in eligible.iter() {
+            println!("forester_index = {:?}", forester_index);
+            println!("num_eligible_slots = {:?}", num_eligible_slots);
+            // assert_eq!(*num_eligible_slots, slots_per_forester);
+        }
+
+        let sum = eligible.values().map(|x| x.1).sum::<u64>();
+        let total_slots: u64 = (epoch_len - epoch_start_slot) - 1;
+        assert_eq!(sum, total_slots);
     }
 }
