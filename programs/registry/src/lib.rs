@@ -115,6 +115,7 @@ pub mod light_registry {
         ctx: Context<UpdateAddressMerkleTree>,
         bump: u8,
         changelog_index: u16,
+        indexed_changelog_index: u16,
         value: u16,
         low_address_index: u64,
         low_address_value: [u8; 32],
@@ -146,6 +147,7 @@ pub mod light_registry {
         account_compression::cpi::update_address_merkle_tree(
             cpi_ctx,
             changelog_index,
+            indexed_changelog_index,
             value,
             low_address_index,
             low_address_value,
