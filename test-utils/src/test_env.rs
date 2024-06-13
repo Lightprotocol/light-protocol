@@ -1,13 +1,21 @@
-use std::cmp;
-
 use crate::assert_address_merkle_tree::assert_address_merkle_tree_initialized;
+use crate::assert_epoch::{
+    assert_epoch_pda, assert_finalized_epoch_registration, assert_registered_forester_pda,
+};
 use crate::assert_queue::assert_address_queue_initialized;
-use crate::create_account_instruction;
-use crate::registry::register_test_forester;
+use crate::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, TestForester};
+use crate::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
+use crate::indexer::{Indexer, TestIndexer, TokenDataWithContext};
+use crate::registry::{
+    delegate_test, deposit_test, mint_standard_tokens, register_test_forester, DelegateInputs,
+    DepositInputs,
+};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::rpc::solana_rpc::SolanaRpcUrl;
 use crate::rpc::test_rpc::ProgramTestRpcConnection;
 use crate::rpc::SolanaRpcConnection;
+use crate::spl::{approve_test, create_mint_helper_with_keypair};
+use crate::{create_account_instruction, get_custom_compressed_account, FetchedAccount};
 use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
@@ -18,18 +26,25 @@ use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_macros::pubkey;
-use light_registry::get_forester_epoch_pda_address;
+use light_registry::delegate::get_escrow_token_authority;
+use light_registry::delegate::state::DelegateAccount;
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_registry::sdk::{
-    create_initialize_governance_authority_instruction,
+    create_finalize_registration_instruction, create_initialize_governance_authority_instruction,
     create_initialize_group_authority_instruction, create_register_program_instruction,
-    get_cpi_authority_pda, get_governance_authority_pda, get_group_pda,
 };
+use light_registry::utils::{
+    get_cpi_authority_pda, get_epoch_pda_address, get_forester_pda_address, get_group_pda,
+    get_protocol_config_pda_address,
+};
+use light_registry::{ForesterAccount, ForesterConfig, ForesterEpochPda};
 use light_system_program::utils::get_registered_program_pda;
 use solana_program_test::{ProgramTest, ProgramTestContext};
 use solana_sdk::{
     pubkey::Pubkey, signature::Keypair, signature::Signer, system_instruction,
     transaction::Transaction,
 };
+use std::cmp;
 
 pub const CPI_CONTEXT_ACCOUNT_RENT: u64 = 143487360; // lamports of the cpi context account
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
@@ -57,6 +72,7 @@ pub async fn setup_test_programs(
     program_test.set_compute_max_units(1_400_000u64);
     program_test.start_with_context().await
 }
+
 #[derive(Debug)]
 pub struct EnvAccounts {
     pub merkle_tree_pubkey: Pubkey,
@@ -70,7 +86,8 @@ pub struct EnvAccounts {
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_queue_pubkey: Pubkey,
     pub cpi_context_account_pubkey: Pubkey,
-    pub registered_forester_epoch_pda: Pubkey,
+    pub registered_forester_pda: Pubkey,
+    pub forester_epoch: Option<Epoch>,
 }
 
 // Hardcoded keypairs for deterministic pubkeys for testing
@@ -144,6 +161,13 @@ pub const FORESTER_TEST_KEYPAIR: [u8; 64] = [
     204,
 ];
 
+pub const STANDARD_TOKEN_MINT_KEYPAIR: [u8; 64] = [
+    158, 84, 243, 82, 179, 195, 150, 115, 253, 116, 105, 208, 172, 232, 56, 204, 78, 134, 49, 115,
+    154, 29, 215, 9, 15, 210, 232, 206, 164, 0, 143, 230, 23, 199, 87, 14, 203, 181, 205, 0, 91,
+    12, 187, 82, 112, 64, 102, 81, 107, 38, 243, 254, 236, 101, 20, 225, 114, 9, 216, 84, 233, 71,
+    60, 166,
+];
+
 /// Setup test programs with accounts
 /// deploys:
 /// 1. light program
@@ -156,9 +180,35 @@ pub const FORESTER_TEST_KEYPAIR: [u8; 64] = [
 /// 6. creates and initializes group authority
 /// 7. registers the light_system_program program with the group authority
 /// 8. initializes Merkle tree owned by
-
+/// Note:
+/// - registers a forester
+/// - advances to the active phase slot 2
+/// - active phase doesn't end
 pub async fn setup_test_programs_with_accounts(
     additional_programs: Option<Vec<(String, Pubkey)>>,
+) -> (ProgramTestRpcConnection, EnvAccounts) {
+    let token_mint_keypair = Keypair::from_bytes(STANDARD_TOKEN_MINT_KEYPAIR.as_slice()).unwrap();
+
+    setup_test_programs_with_accounts_with_protocol_config(
+        additional_programs,
+        ProtocolConfig {
+            // Init with an active epoch which doesn't end
+            active_phase_length: 1_000_000_000,
+            slot_length: 1_000_000_000,
+            genesis_slot: 0,
+            registration_phase_length: 2,
+            mint: token_mint_keypair.pubkey(),
+            ..Default::default()
+        },
+        true,
+    )
+    .await
+}
+
+pub async fn setup_test_programs_with_accounts_with_protocol_config(
+    additional_programs: Option<Vec<(String, Pubkey)>>,
+    protocol_config: ProtocolConfig,
+    register_forester_and_advance_to_active_phase: bool,
 ) -> (ProgramTestRpcConnection, EnvAccounts) {
     use crate::airdrop_lamports;
 
@@ -170,26 +220,44 @@ pub async fn setup_test_programs_with_accounts(
     airdrop_lamports(&mut context, &forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();
-    let env_accounts = initialize_accounts(&mut context, &payer, &forester).await;
+    let env_accounts = initialize_accounts(
+        &mut context,
+        &payer,
+        &forester,
+        protocol_config,
+        register_forester_and_advance_to_active_phase,
+    )
+    .await;
     (context, env_accounts)
 }
 
 pub async fn setup_accounts_devnet(payer: &Keypair, forester: &Keypair) -> EnvAccounts {
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Devnet, None);
 
-    initialize_accounts(&mut rpc, payer, forester).await
+    initialize_accounts(&mut rpc, payer, forester, ProtocolConfig::default(), false).await
 }
 
 pub async fn initialize_accounts<R: RpcConnection>(
     context: &mut R,
     payer: &Keypair,
     forester: &Keypair,
+    protocol_config: ProtocolConfig,
+    register_forester_and_advance_to_active_phase: bool,
 ) -> EnvAccounts {
     let cpi_authority_pda = get_cpi_authority_pda();
-    let authority_pda = get_governance_authority_pda();
+    let authority_pda = get_protocol_config_pda_address();
+    let token_mint_keypair = Keypair::from_bytes(STANDARD_TOKEN_MINT_KEYPAIR.as_slice()).unwrap();
+    println!("mint keypair: {:?}", token_mint_keypair.pubkey());
+    create_mint_helper_with_keypair(
+        context,
+        payer,
+        &token_mint_keypair,
+        &Some(cpi_authority_pda.0),
+    )
+    .await;
 
     let instruction =
-        create_initialize_governance_authority_instruction(payer.pubkey(), payer.pubkey());
+        create_initialize_governance_authority_instruction(payer.pubkey(), protocol_config);
     context
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
         .await
@@ -207,9 +275,19 @@ pub async fn initialize_accounts<R: RpcConnection>(
     assert_eq!(gov_authority.authority, payer.pubkey());
 
     println!("forester: {:?}", forester.pubkey());
-    register_test_forester(context, payer, &forester.pubkey())
-        .await
-        .unwrap();
+    register_test_forester(
+        context,
+        payer,
+        &forester,
+        ForesterConfig {
+            fee: 1,
+            fee_recipient: forester.pubkey(),
+        },
+    )
+    .await
+    .unwrap();
+    println!("Registered register_test_forester ");
+
     let system_program_id_test_keypair =
         Keypair::from_bytes(&SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
     register_program_with_registry_program(
@@ -224,7 +302,7 @@ pub async fn initialize_accounts<R: RpcConnection>(
     register_program_with_registry_program(context, payer, &group_pda, &registry_id_test_keypair)
         .await
         .unwrap();
-
+    println!("Registered system program");
     let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
     let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
     let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
@@ -266,6 +344,42 @@ pub async fn initialize_accounts<R: RpcConnection>(
     init_cpi_context_account(context, &merkle_tree_pubkey, &cpi_signature_keypair, payer).await;
     let registered_system_program_pda = get_registered_program_pda(&light_system_program::ID);
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
+    let forester_epoch = if register_forester_and_advance_to_active_phase {
+        let mut registered_epoch = Epoch::register(context, &protocol_config, forester)
+            .await
+            .unwrap()
+            .unwrap();
+        context
+            .warp_to_slot(registered_epoch.phases.active.start)
+            .unwrap();
+        let tree_accounts = vec![
+            TreeAccounts {
+                tree_type: TreeType::State,
+                merkle_tree: merkle_tree_pubkey,
+                queue: nullifier_queue_pubkey,
+                is_rolledover: false,
+            },
+            TreeAccounts {
+                tree_type: TreeType::Address,
+                merkle_tree: address_merkle_tree_keypair.pubkey(),
+                queue: address_merkle_tree_queue_keypair.pubkey(),
+                is_rolledover: false,
+            },
+        ];
+
+        registered_epoch
+            .fetch_account_and_add_trees_with_schedule(context, tree_accounts.clone())
+            .await
+            .unwrap();
+        let ix = create_finalize_registration_instruction(&forester.pubkey(), 0);
+        context
+            .create_and_send_transaction(&[ix], &forester.pubkey(), &[forester])
+            .await
+            .unwrap();
+        Some(registered_epoch)
+    } else {
+        None
+    };
     EnvAccounts {
         merkle_tree_pubkey,
         nullifier_queue_pubkey,
@@ -278,8 +392,164 @@ pub async fn initialize_accounts<R: RpcConnection>(
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
         cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
         registered_registry_program_pda,
-        registered_forester_epoch_pda: get_forester_epoch_pda_address(&forester.pubkey()).0,
+        registered_forester_pda: get_forester_pda_address(&forester.pubkey()).0,
+        forester_epoch,
     }
+}
+
+pub async fn set_env_with_delegate_and_forester(
+    protocol_config: Option<ProtocolConfig>,
+    keypair_config: Option<KeypairActionConfig>,
+    general_config: Option<GeneralActionConfig>,
+    rounds: u64,
+    seed: Option<u64>,
+) -> (
+    crate::e2e_test_env::E2ETestEnv<
+        ProgramTestRpcConnection,
+        TestIndexer<ProgramTestRpcConnection>,
+    >,
+    Keypair,
+    EnvAccounts,
+    Vec<TreeAccounts>,
+    Epoch,
+) {
+    let protocol_config = protocol_config.unwrap_or_default();
+    let (rpc, env) =
+        setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, false).await;
+    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+        &env.forester.insecure_clone(),
+        &env,
+        KeypairActionConfig::all_default().inclusion(),
+        KeypairActionConfig::all_default().non_inclusion(),
+    )
+    .await;
+    let mut e2e_env =
+        E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+            rpc,
+            indexer,
+            &env,
+            keypair_config.unwrap_or(KeypairActionConfig::all_default()),
+            general_config.unwrap_or_default(),
+            rounds,
+            seed,
+        )
+        .await;
+    let delegate_keypair = create_delegate(
+        &mut e2e_env,
+        &env,
+        1_000_000,
+        env.registered_forester_pda,
+        0,
+        None,
+    )
+    .await;
+
+    // TODO: remove
+    let tree_accounts = vec![
+        TreeAccounts {
+            tree_type: TreeType::State,
+            merkle_tree: env.merkle_tree_pubkey,
+            queue: env.nullifier_queue_pubkey,
+            is_rolledover: false,
+        },
+        TreeAccounts {
+            tree_type: TreeType::Address,
+            merkle_tree: env.address_merkle_tree_pubkey,
+            queue: env.address_merkle_tree_queue_pubkey,
+            is_rolledover: false,
+        },
+    ];
+    let slot = protocol_config.genesis_slot + protocol_config.active_phase_length;
+    e2e_env.rpc.warp_to_slot(slot).unwrap();
+
+    let registered_epoch = Epoch::register(&mut e2e_env.rpc, &protocol_config, &env.forester)
+        .await
+        .unwrap();
+    assert!(registered_epoch.is_some());
+    let mut registered_epoch = registered_epoch.unwrap();
+    let forester_epoch_pda: ForesterEpochPda = e2e_env
+        .rpc
+        .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(forester_epoch_pda.stake_weight, 1_000_000);
+    assert!(forester_epoch_pda.total_epoch_state_weight.is_none());
+    // we advanced to the next epoch so that delegated pending stake becomes active
+    assert_eq!(forester_epoch_pda.epoch, 1);
+    let epoch = forester_epoch_pda.epoch;
+    let forester_pda_pubkey = get_forester_pda_address(&env.forester.pubkey()).0;
+    let forester_pda = e2e_env
+        .rpc
+        .get_anchor_account::<ForesterAccount>(&forester_pda_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    println!("forester_pda: {:?}", forester_pda);
+    let expected_stake = forester_pda.active_stake_weight;
+    println!("expected_stake: {}", expected_stake);
+    assert_epoch_pda(&mut e2e_env.rpc, epoch, expected_stake).await;
+
+    assert_registered_forester_pda(
+        &mut e2e_env.rpc,
+        &registered_epoch.forester_epoch_pda,
+        &env.forester.pubkey(),
+        epoch,
+    )
+    .await;
+    let current_slot = e2e_env.rpc.get_slot().await.unwrap();
+    e2e_env
+        .rpc
+        .warp_to_slot(current_slot + protocol_config.active_phase_length)
+        .unwrap();
+    let ix = create_finalize_registration_instruction(&env.forester.pubkey(), epoch);
+    e2e_env
+        .rpc
+        .create_and_send_transaction(&[ix], &env.forester.pubkey(), &[&env.forester])
+        .await
+        .unwrap();
+    let epoch_pda = get_epoch_pda_address(epoch);
+    assert_finalized_epoch_registration(
+        &mut e2e_env.rpc,
+        &registered_epoch.forester_epoch_pda,
+        &epoch_pda,
+    )
+    .await;
+    // Refetch after finalization
+    let forester_epoch_pda: ForesterEpochPda = e2e_env
+        .rpc
+        .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let current_solana_slot = e2e_env.rpc.get_slot().await.unwrap();
+    registered_epoch.add_trees_with_schedule(
+        &forester_epoch_pda,
+        tree_accounts.clone(),
+        current_solana_slot,
+    );
+    let _forester = Forester {
+        registration: registered_epoch.clone(),
+        active: registered_epoch.clone(),
+        ..Default::default()
+    };
+    // Forester epoch account is assumed to exist (is inited with test program deployment)
+    let forester = TestForester {
+        keypair: env.forester.insecure_clone(),
+        forester: _forester.clone(),
+        is_registered: Some(0),
+    };
+    e2e_env.foresters.push(forester);
+    e2e_env.epoch_config = _forester;
+    e2e_env.epoch = epoch;
+
+    (
+        e2e_env,
+        delegate_keypair,
+        env,
+        tree_accounts,
+        registered_epoch,
+    )
 }
 
 pub async fn initialize_new_group<R: RpcConnection>(
@@ -331,7 +601,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
     let group_pda = get_group_pda(group_seed_keypair.pubkey());
 
     let payer = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
-    let authority_pda = get_governance_authority_pda();
+    let authority_pda = get_protocol_config_pda_address();
     let (_, registered_program_pda) = create_register_program_instruction(
         payer.pubkey(),
         authority_pda,
@@ -354,13 +624,14 @@ pub fn get_test_env_accounts() -> EnvAccounts {
         group_pda,
         governance_authority: payer,
         governance_authority_pda: authority_pda.0,
-        registered_forester_epoch_pda: get_forester_epoch_pda_address(&forester.pubkey()).0,
+        registered_forester_pda: get_forester_pda_address(&forester.pubkey()).0,
         forester,
         registered_program_pda,
         address_merkle_tree_pubkey: address_merkle_tree_keypair.pubkey(),
         address_merkle_tree_queue_pubkey: address_merkle_tree_queue_keypair.pubkey(),
         cpi_context_account_pubkey: cpi_signature_keypair.pubkey(),
         registered_registry_program_pda,
+        forester_epoch: None,
     }
 }
 
@@ -376,7 +647,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
-    use light_registry::sdk::create_initialize_merkle_tree_instruction as create_initialize_merkle_tree_instruction_registry;
+    use light_registry::account_compression_cpi::sdk::create_initialize_merkle_tree_instruction as create_initialize_merkle_tree_instruction_registry;
     let size = account_compression::state::StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
         merkle_tree_config.changelog_size as usize,
@@ -457,7 +728,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     queue_config: &AddressQueueConfig,
     index: u64,
 ) {
-    use light_registry::sdk::create_initialize_address_merkle_tree_and_queue_instruction as create_initialize_address_merkle_tree_and_queue_instruction_registry;
+    use light_registry::account_compression_cpi::sdk::create_initialize_address_merkle_tree_and_queue_instruction as create_initialize_address_merkle_tree_and_queue_instruction_registry;
 
     let size =
         account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
@@ -638,14 +909,17 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     group_pda: &Pubkey,
     program_id_keypair: &Keypair,
 ) -> Result<Pubkey, crate::rpc::errors::RpcError> {
-    let governance_authority_pda = get_governance_authority_pda();
+    let governance_authority_pda = get_protocol_config_pda_address();
     let (instruction, token_program_registered_program_pda) = create_register_program_instruction(
         governance_authority.pubkey(),
         governance_authority_pda,
         *group_pda,
         program_id_keypair.pubkey(),
     );
-    let cpi_authority_pda = get_cpi_authority_pda();
+    println!("isnt {:?}", instruction.accounts);
+    println!("governance authority {:?}", governance_authority.pubkey());
+    println!("program id {:?}", program_id_keypair.pubkey());
+    let cpi_authority_pda = light_registry::utils::get_cpi_authority_pda();
     let transfer_instruction = system_instruction::transfer(
         &governance_authority.pubkey(),
         &cpi_authority_pda.0,
@@ -661,4 +935,141 @@ pub async fn register_program_with_registry_program<R: RpcConnection>(
     )
     .await?;
     Ok(token_program_registered_program_pda)
+}
+
+pub async fn create_delegate(
+    e2e_env: &mut crate::e2e_test_env::E2ETestEnv<
+        ProgramTestRpcConnection,
+        TestIndexer<ProgramTestRpcConnection>,
+    >,
+    env: &EnvAccounts,
+    deposit_amount: u64,
+    forester_pda: Pubkey,
+    epoch: u64,
+    delegate_keypair: Option<Keypair>,
+) -> Keypair {
+    let (delegate_keypair, delegate_account, delegate_escrow) =
+        if let Some(delegate_keypair) = delegate_keypair {
+            let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+                &mut e2e_env.indexer,
+                &delegate_keypair.pubkey(),
+                &light_registry::ID,
+            );
+            let escrow_account = e2e_env.indexer.get_compressed_token_accounts_by_owner(
+                &get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0,
+            );
+            (
+                delegate_keypair,
+                delegate_account[0].clone(),
+                Some(escrow_account[0].clone()),
+            )
+        } else {
+            (Keypair::new(), None, None)
+        };
+    e2e_env
+        .rpc
+        .airdrop_lamports(&delegate_keypair.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    mint_standard_tokens::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>(
+        &mut e2e_env.rpc,
+        &mut e2e_env.indexer,
+        &env.governance_authority,
+        &delegate_keypair.pubkey(),
+        1_000_000_000,
+        &env.merkle_tree_pubkey,
+    )
+    .await
+    .unwrap();
+    // let forester_pda = env.registered_forester_pda;
+    deposit_to_delegate_account_helper(
+        e2e_env,
+        &delegate_keypair,
+        deposit_amount,
+        env,
+        epoch,
+        delegate_account,
+        delegate_escrow,
+    )
+    .await;
+    // delegate to forester
+    {
+        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+            &mut e2e_env.indexer,
+            &delegate_keypair.pubkey(),
+            &light_registry::ID,
+        );
+        println!("delegate pre: delegate_account: {:?}", delegate_account);
+        let inputs = DelegateInputs {
+            sender: &delegate_keypair,
+            amount: deposit_amount,
+            delegate_account: delegate_account[0].as_ref().unwrap().clone(),
+            forester_pda,
+            no_sync: false,
+            output_merkle_tree: env.merkle_tree_pubkey,
+        };
+        delegate_test(&mut e2e_env.rpc, &mut e2e_env.indexer, inputs)
+            .await
+            .unwrap();
+        let delegate_account = get_custom_compressed_account::<_, _, DelegateAccount>(
+            &mut e2e_env.indexer,
+            &delegate_keypair.pubkey(),
+            &light_registry::ID,
+        );
+        println!("delegate post: delegate_account: {:?}", delegate_account);
+    }
+    delegate_keypair
+}
+
+pub async fn deposit_to_delegate_account_helper(
+    e2e_env: &mut crate::e2e_test_env::E2ETestEnv<
+        ProgramTestRpcConnection,
+        TestIndexer<ProgramTestRpcConnection>,
+    >,
+    delegate_keypair: &Keypair,
+    deposit_amount: u64,
+    env: &EnvAccounts,
+    epoch: u64,
+    delegate_account: Option<FetchedAccount<DelegateAccount>>,
+    input_escrow_token_account: Option<TokenDataWithContext>,
+) {
+    let escrow_pda_authority = get_escrow_token_authority(&delegate_keypair.pubkey(), 0).0;
+
+    let token_accounts = e2e_env
+        .indexer
+        .get_compressed_token_accounts_by_owner(&delegate_keypair.pubkey());
+    // approve amount is expected to equal deposit amount
+    approve_test(
+        &delegate_keypair,
+        &mut e2e_env.rpc,
+        &mut e2e_env.indexer,
+        token_accounts,
+        deposit_amount,
+        None,
+        &escrow_pda_authority,
+        &env.merkle_tree_pubkey,
+        &env.merkle_tree_pubkey,
+        None,
+    )
+    .await;
+    let token_accounts = e2e_env
+        .indexer
+        .get_compressed_token_accounts_by_owner(&delegate_keypair.pubkey())
+        .iter()
+        .filter(|a| a.token_data.delegate.is_some())
+        .cloned()
+        .collect::<Vec<_>>();
+
+    let deposit_inputs = DepositInputs {
+        sender: &delegate_keypair,
+        amount: deposit_amount,
+        delegate_account,
+        input_token_data: token_accounts,
+        input_escrow_token_account,
+        epoch,
+    };
+    deposit_test(&mut e2e_env.rpc, &mut e2e_env.indexer, deposit_inputs)
+        .await
+        .unwrap();
 }

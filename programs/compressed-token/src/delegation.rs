@@ -247,7 +247,7 @@ pub mod sdk {
     use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
     use light_system_program::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext},
+        sdk::compressed_account::CompressedAccountWithMerkleContext,
     };
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -269,8 +269,7 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
-        pub input_compressed_accounts: Vec<CompressedAccount>,
-        pub input_merkle_contexts: Vec<MerkleContext>,
+        pub input_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
         pub mint: Pubkey,
         pub delegated_amount: u64,
         pub delegate_lamports: Option<u64>,
@@ -290,7 +289,6 @@ pub mod sdk {
                 ],
                 &inputs.input_token_data,
                 &inputs.input_compressed_accounts,
-                &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),
             );
@@ -358,8 +356,7 @@ pub mod sdk {
         pub root_indices: Vec<u16>,
         pub proof: CompressedProof,
         pub input_token_data: Vec<TokenData>,
-        pub input_compressed_accounts: Vec<CompressedAccount>,
-        pub input_merkle_contexts: Vec<MerkleContext>,
+        pub input_compressed_accounts: Vec<CompressedAccountWithMerkleContext>,
         pub mint: Pubkey,
         pub output_account_merkle_tree: Pubkey,
     }
@@ -372,7 +369,6 @@ pub mod sdk {
                 &[inputs.output_account_merkle_tree],
                 &inputs.input_token_data,
                 &inputs.input_compressed_accounts,
-                &inputs.input_merkle_contexts,
                 &inputs.root_indices,
                 &Vec::new(),
             );

@@ -1,10 +1,13 @@
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use anchor_lang::solana_program::{pubkey::Pubkey, system_instruction};
+use indexer::Indexer;
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hash_set::HashSet;
 use light_hasher::Hasher;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
+use light_registry::delegate::state::CompressedAccountTrait;
+use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use solana_sdk::{
     account::Account,
@@ -20,11 +23,13 @@ pub mod address_merkle_tree_config;
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
 pub mod assert_compressed_tx;
+pub mod assert_epoch;
 pub mod assert_merkle_tree;
 pub mod assert_queue;
 pub mod assert_rollover;
 pub mod assert_token_tx;
 pub mod e2e_test_env;
+pub mod forester_epoch;
 #[allow(unused)]
 pub mod indexer;
 pub mod registry;
@@ -184,4 +189,44 @@ pub fn assert_custom_error_or_program_error(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub struct FetchedAccount<T: anchor_lang::AnchorDeserialize + CompressedAccountTrait> {
+    pub deserialized_account: T,
+    pub comporessed_account: CompressedAccountWithMerkleContext,
+}
+
+pub fn get_custom_compressed_account<
+    R: RpcConnection,
+    I: Indexer<R>,
+    T: anchor_lang::AnchorDeserialize + CompressedAccountTrait,
+>(
+    indexer: &mut I,
+    owner: &Pubkey,
+    program_owner: &Pubkey,
+) -> Vec<Option<FetchedAccount<T>>> {
+    let accounts = indexer.get_compressed_accounts_by_owner(program_owner);
+    let find_account_of_owner = accounts
+        .iter()
+        .map(|a| {
+            if let Some(data) = &a.compressed_account.data {
+                let deserialized_account = T::deserialize_reader(&mut &data.data[..]);
+                if deserialized_account.is_ok()
+                    && deserialized_account.as_ref().unwrap().get_owner() == *owner
+                {
+                    Some(FetchedAccount::<T> {
+                        deserialized_account: deserialized_account.unwrap(),
+                        comporessed_account: a.clone(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .filter(|a| a.is_some())
+        .collect::<Vec<_>>();
+    find_account_of_owner
 }

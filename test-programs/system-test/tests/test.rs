@@ -1485,10 +1485,12 @@ async fn regenerate_accounts() {
             "registered_registry_program_pda",
             env.registered_registry_program_pda,
         ),
+        ("registered_forester_pda", env.registered_forester_pda),
         (
-            "registered_forester_epoch_pda",
-            env.registered_forester_epoch_pda,
+            "forester_epoch_pda",
+            env.forester_epoch.as_ref().unwrap().forester_epoch_pda,
         ),
+        ("epoch_pda", env.forester_epoch.as_ref().unwrap().epoch_pda),
     ];
 
     for (name, pubkey) in pubkeys {

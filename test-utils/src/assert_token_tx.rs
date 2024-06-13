@@ -227,13 +227,14 @@ pub async fn assert_create_mint<R: RpcConnection>(
     authority: &Pubkey,
     mint: &Pubkey,
     pool: &Pubkey,
+    mint_authority: &Pubkey,
 ) {
     let mint_account: spl_token::state::Mint =
         spl_token::state::Mint::unpack(&context.get_account(*mint).await.unwrap().unwrap().data)
             .unwrap();
     assert_eq!(mint_account.supply, 0);
     assert_eq!(mint_account.decimals, 2);
-    assert_eq!(mint_account.mint_authority.unwrap(), *authority);
+    assert_eq!(mint_account.mint_authority.unwrap(), *mint_authority);
     assert_eq!(mint_account.freeze_authority, Some(*authority).into());
     assert!(mint_account.is_initialized);
     let mint_account: spl_token::state::Account =

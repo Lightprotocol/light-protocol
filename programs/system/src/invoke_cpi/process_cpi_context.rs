@@ -75,6 +75,7 @@ pub fn process_cpi_context<'info>(
                 msg!("cpi context account : {:?}", cpi_context_account);
                 msg!("fee payer : {:?}", fee_payer);
                 msg!("cpi context  : {:?}", cpi_context);
+                msg!("Either fee payer mismatch or first set context is true but set context is false");
                 return err!(SystemProgramError::CpiContextFeePayerMismatch);
             }
             inputs.combine(&cpi_context_account.context);
@@ -114,6 +115,8 @@ pub fn set_cpi_context(
         cpi_context_account.context.push(inputs);
     } else {
         msg!(" {} != {}", fee_payer, cpi_context_account.fee_payer);
+        msg!("cpi context account : {:?}", cpi_context_account);
+        msg!("cpi context  : {:?}", inputs.cpi_context);
         return err!(SystemProgramError::CpiContextFeePayerMismatch);
     }
     Ok(())

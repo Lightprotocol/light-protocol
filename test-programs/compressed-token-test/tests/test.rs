@@ -1086,17 +1086,14 @@ async fn test_approve_failing() {
         let inputs = CreateApproveInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint,
@@ -1133,17 +1130,14 @@ async fn test_approve_failing() {
         let inputs = CreateApproveInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint,
@@ -1184,17 +1178,14 @@ async fn test_approve_failing() {
         let inputs = CreateApproveInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint,
@@ -1224,17 +1215,14 @@ async fn test_approve_failing() {
         let inputs = CreateApproveInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint: invalid_mint.pubkey(),
@@ -1267,17 +1255,14 @@ async fn test_approve_failing() {
         let inputs = CreateApproveInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint,
@@ -1496,17 +1481,14 @@ async fn test_revoke_failing() {
         let inputs = CreateRevokeInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint,
@@ -1532,17 +1514,14 @@ async fn test_revoke_failing() {
         let inputs = CreateRevokeInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint,
@@ -1577,17 +1556,14 @@ async fn test_revoke_failing() {
         let inputs = CreateRevokeInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: sender.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             mint: invalid_mint.pubkey(),
@@ -2175,17 +2151,14 @@ async fn test_failing_freeze() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: invalid_authority.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree,
@@ -2214,17 +2187,14 @@ async fn test_failing_freeze() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: payer.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree: invalid_merkle_tree.pubkey(),
@@ -2255,17 +2225,14 @@ async fn test_failing_freeze() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: payer.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree,
@@ -2321,17 +2288,14 @@ async fn test_failing_freeze() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: payer.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree,
@@ -2437,17 +2401,14 @@ async fn test_failing_thaw() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: invalid_authority.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree,
@@ -2476,17 +2437,14 @@ async fn test_failing_thaw() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: payer.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree: invalid_merkle_tree.pubkey(),
@@ -2517,17 +2475,14 @@ async fn test_failing_thaw() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: payer.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree,
@@ -2574,17 +2529,14 @@ async fn test_failing_thaw() {
         let inputs = CreateInstructionInputs {
             fee_payer: rpc.get_payer().pubkey(),
             authority: payer.pubkey(),
-            input_merkle_contexts: input_compressed_accounts
-                .iter()
-                .map(|x| x.compressed_account.merkle_context)
-                .collect(),
+
             input_token_data: input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data)
                 .collect(),
             input_compressed_accounts: input_compressed_accounts
                 .iter()
-                .map(|x| &x.compressed_account.compressed_account)
+                .map(|x| &x.compressed_account)
                 .cloned()
                 .collect::<Vec<_>>(),
             outputs_merkle_tree,
@@ -2880,10 +2832,6 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
         &payer.pubkey(),
-        &input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect::<Vec<_>>(),
         &[change_out_compressed_account],
         &root_indices,
         &proof,
@@ -2894,7 +2842,7 @@ pub async fn failing_compress_decompress<R: RpcConnection>(
             .as_slice(),
         &input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         *mint,
@@ -3318,18 +3266,19 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
     } else {
         input_compressed_account_token_data[0].mint
     };
+    // WARNING THIS MIGHT BE WRONG DOUBLE CHECK
+    let mut input_compressed_accounts = input_compressed_accounts.to_vec();
+    input_compressed_accounts.iter_mut().for_each(|x| {
+        x.merkle_context = MerkleContext {
+            merkle_tree_pubkey: *merkle_tree_pubkey,
+            nullifier_queue_pubkey: *nullifier_queue_pubkey,
+            queue_index: None,
+            leaf_index: x.merkle_context.leaf_index,
+        };
+    });
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &payer.pubkey(),
-        &input_compressed_accounts
-            .iter()
-            .map(|x| MerkleContext {
-                merkle_tree_pubkey: *merkle_tree_pubkey,
-                nullifier_queue_pubkey: *nullifier_queue_pubkey,
-                leaf_index: x.merkle_context.leaf_index,
-                queue_index: None,
-            })
-            .collect::<Vec<MerkleContext>>(),
         &[
             change_token_transfer_output,
             transfer_recipient_token_transfer_output,
@@ -3337,11 +3286,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         root_indices,
         proof,
         input_compressed_account_token_data.as_slice(),
-        &input_compressed_accounts
-            .iter()
-            .map(|x| &x.compressed_account)
-            .cloned()
-            .collect::<Vec<_>>(),
+        &input_compressed_accounts,
         mint,
         None,
         false,

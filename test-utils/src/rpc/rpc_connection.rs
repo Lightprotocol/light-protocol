@@ -35,6 +35,16 @@ pub trait RpcConnection: Clone + Send + Sync + Debug + 'static {
     where
         T: AnchorDeserialize + Send + Debug;
 
+    fn create_and_send_transaction_with_events<T>(
+        &mut self,
+        instruction: &[Instruction],
+        authority: &Pubkey,
+        signers: &[&Keypair],
+        transaction_params: Option<TransactionParams>,
+    ) -> impl std::future::Future<Output = Result<Option<(Vec<T>, Signature, Slot)>, RpcError>> + Send
+    where
+        T: AnchorDeserialize + Send + Debug;
+
     fn create_and_send_transaction<'a>(
         &'a mut self,
         instruction: &'a [Instruction],

@@ -11,7 +11,7 @@
 // release compressed tokens
 
 use light_hasher::Poseidon;
-use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
+use light_system_program::sdk::event::PublicTransactionEvent;
 use light_test_utils::airdrop_lamports;
 use light_test_utils::indexer::{Indexer, TestIndexer};
 use light_test_utils::spl::{create_mint_helper, mint_tokens_helper};
@@ -244,14 +244,14 @@ pub async fn perform_escrow<R: RpcConnection>(
         input_token_data: &[input_compressed_token_account_data.token_data],
         lock_up_time: *lock_up_time,
         signer: &payer_pubkey,
-        input_merkle_context: &[MerkleContext {
-            leaf_index: compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-            merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-            queue_index: None,
-        }],
+        // input_merkle_context: &[MerkleContext {
+        //     leaf_index: compressed_input_account_with_context
+        //         .merkle_context
+        //         .leaf_index,
+        //     merkle_tree_pubkey: env.merkle_tree_pubkey,
+        //     nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        //     queue_index: None,
+        // }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
             env.merkle_tree_pubkey,
@@ -260,7 +260,7 @@ pub async fn perform_escrow<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &input_compressed_token_account_data.token_data.mint,
-        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
+        input_compressed_accounts: &[compressed_input_account_with_context],
     };
     create_escrow_instruction(create_ix_inputs, *escrow_amount)
 }
@@ -401,14 +401,14 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         input_token_data: &[escrow_token_data_with_context.token_data],
         lock_up_time: 0,
         signer: &payer_pubkey,
-        input_merkle_context: &[MerkleContext {
-            leaf_index: compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-            merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-            queue_index: None,
-        }],
+        // input_merkle_context: &[MerkleContext {
+        //     leaf_index: compressed_input_account_with_context
+        //         .merkle_context
+        //         .leaf_index,
+        //     merkle_tree_pubkey: env.merkle_tree_pubkey,
+        //     nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        //     queue_index: None,
+        // }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
             env.merkle_tree_pubkey,
@@ -417,7 +417,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         root_indices: &rpc_result.root_indices,
         proof: &Some(rpc_result.proof),
         mint: &escrow_token_data_with_context.token_data.mint,
-        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
+        input_compressed_accounts: &[compressed_input_account_with_context],
     };
 
     create_withdrawal_escrow_instruction(create_ix_inputs, *withdrawal_amount)

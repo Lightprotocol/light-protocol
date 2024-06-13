@@ -5,7 +5,9 @@ use crate::operations::fetch_state_queue_data;
 use crate::tree_sync::TreeData;
 use crate::{ForesterConfig, RpcPool};
 use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
-use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
+use light_registry::account_compression_cpi::sdk::{
+    create_nullify_instruction, CreateNullifyInstructionInputs,
+};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{debug, error, info, warn};
@@ -276,16 +278,19 @@ async fn nullify_state<R: RpcConnection>(
     let change_log_index = root_seq % STATE_MERKLE_TREE_CHANGELOG;
     debug!("change_log_index: {:?}", change_log_index);
 
-    let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
-        nullifier_queue: tree_data.queue_pubkey,
-        merkle_tree: tree_data.tree_pubkey,
-        change_log_indices: vec![change_log_index],
-        leaves_queue_indices: vec![leaves_queue_index],
-        indices: vec![leaf_index],
-        proofs: vec![proof],
-        authority: payer.pubkey(),
-        derivation: Pubkey::from_str(&config.external_services.derivation).unwrap(),
-    });
+    let ix = create_nullify_instruction(
+        CreateNullifyInstructionInputs {
+            nullifier_queue: tree_data.queue_pubkey,
+            merkle_tree: tree_data.tree_pubkey,
+            change_log_indices: vec![change_log_index],
+            leaves_queue_indices: vec![leaves_queue_index],
+            indices: vec![leaf_index],
+            proofs: vec![proof],
+            authority: payer.pubkey(),
+            derivation: Pubkey::from_str(&config.external_services.derivation).unwrap(),
+        },
+        0,
+    );
 
     let instructions = vec![
         ComputeBudgetInstruction::set_compute_unit_limit(config.cu_limit),

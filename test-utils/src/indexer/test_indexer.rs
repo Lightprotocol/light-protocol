@@ -1,4 +1,3 @@
-use light_registry::sdk::get_registered_program_pda;
 use log::{debug, info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
@@ -947,10 +946,7 @@ impl<R: RpcConnection> TestIndexer<R> {
     pub fn get_compressed_token_balance(&self, owner: &Pubkey, mint: &Pubkey) -> u64 {
         self.token_compressed_accounts
             .iter()
-            .filter(|x| {
-                x.compressed_account.compressed_account.owner == *owner
-                    && x.token_data.mint == *mint
-            })
+            .filter(|x| x.token_data.owner == *owner && x.token_data.mint == *mint)
             .map(|x| x.token_data.amount)
             .sum()
     }

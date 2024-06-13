@@ -108,8 +108,7 @@ async fn test_escrow_with_compressed_pda() {
     let rpc_error = RpcError::TransactionError(transaction_error);
     assert!(matches!(result, Err(error) if error.to_string() == rpc_error.to_string()));
 
-    rpc.warp_to_slot(lock_up_time + 1).unwrap();
-
+    rpc.warp_to_slot(lockup_end + 1).unwrap();
     perform_withdrawal_with_event(
         &mut rpc,
         &mut test_indexer,
@@ -251,14 +250,14 @@ async fn create_escrow_ix<R: RpcConnection>(
         input_token_data: &[input_compressed_token_account_data.token_data],
         lock_up_time,
         signer: &payer_pubkey,
-        input_merkle_context: &[MerkleContext {
-            leaf_index: compressed_input_account_with_context
-                .merkle_context
-                .leaf_index,
-            merkle_tree_pubkey: env.merkle_tree_pubkey,
-            nullifier_queue_pubkey: env.nullifier_queue_pubkey,
-            queue_index: None,
-        }],
+        // input_merkle_context: &[MerkleContext {
+        //     leaf_index: compressed_input_account_with_context
+        //         .merkle_context
+        //         .leaf_index,
+        //     merkle_tree_pubkey: env.merkle_tree_pubkey,
+        //     nullifier_queue_pubkey: env.nullifier_queue_pubkey,
+        //     queue_index: None,
+        // }],
         output_compressed_account_merkle_tree_pubkeys: &[
             env.merkle_tree_pubkey,
             env.merkle_tree_pubkey,
@@ -269,7 +268,7 @@ async fn create_escrow_ix<R: RpcConnection>(
         mint: &input_compressed_token_account_data.token_data.mint,
         new_address_params,
         cpi_context_account: &env.cpi_context_account_pubkey,
-        input_compressed_accounts: &[compressed_input_account_with_context.compressed_account],
+        input_compressed_accounts: &[compressed_input_account_with_context],
     };
     let instruction = create_escrow_instruction(create_ix_inputs.clone(), escrow_amount);
     (payer_pubkey, instruction)
@@ -482,7 +481,7 @@ pub async fn perform_withdrawal<R: RpcConnection>(
         old_lock_up_time,
         new_lock_up_time,
         address: compressed_escrow_pda.compressed_account.address.unwrap(),
-        input_compressed_accounts: &[compressed_escrow_pda.compressed_account],
+        input_compressed_accounts: &[compressed_escrow_pda],
     };
     create_withdrawal_instruction(create_withdrawal_ix_inputs.clone(), escrow_amount)
 }

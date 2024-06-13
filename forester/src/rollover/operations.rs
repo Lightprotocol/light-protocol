@@ -2,6 +2,10 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use light_registry::account_compression_cpi::sdk::{
+    create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
+    CreateRolloverMerkleTreeInstructionInputs,
+};
 use log::info;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::pubkey::Pubkey;
@@ -19,10 +23,10 @@ use account_compression::{
 };
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
-use light_registry::sdk::{
-    create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
-    CreateRolloverMerkleTreeInstructionInputs,
-};
+// use light_registry::sdk::{
+//     create_rollover_address_merkle_tree_instruction, create_rollover_state_merkle_tree_instruction,
+//     CreateRolloverMerkleTreeInstructionInputs,
+// };
 use light_test_utils::address_merkle_tree_config::{
     get_address_bundle_config, get_state_bundle_config,
 };
@@ -320,6 +324,7 @@ pub async fn create_rollover_address_merkle_tree_instructions<R: RpcConnection>(
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
         },
+        0, // TODO: make epoch dynamic
     );
     vec![
         create_nullifier_queue_instruction,
@@ -368,14 +373,16 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: RpcConnection>(
         &account_compression::ID,
         Some(new_state_merkle_tree_keypair),
     );
-    let instruction =
-        create_rollover_state_merkle_tree_instruction(CreateRolloverMerkleTreeInstructionInputs {
+    let instruction = create_rollover_state_merkle_tree_instruction(
+        CreateRolloverMerkleTreeInstructionInputs {
             authority: *authority,
             new_queue: new_nullifier_queue_keypair.pubkey(),
             new_merkle_tree: new_state_merkle_tree_keypair.pubkey(),
             old_queue: *nullifier_queue_pubkey,
             old_merkle_tree: *merkle_tree_pubkey,
-        });
+        },
+        0, // TODO: make epoch dynamic
+    );
     vec![
         create_nullifier_queue_instruction,
         create_state_merkle_tree_instruction,

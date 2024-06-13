@@ -11,7 +11,9 @@ use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         address::{add_and_get_remaining_account_indices, pack_new_address_params},
-        compressed_account::{pack_merkle_context, CompressedAccount, MerkleContext},
+        compressed_account::{
+            pack_merkle_context, CompressedAccountWithMerkleContext, MerkleContext,
+        },
         CompressedCpiContext,
     },
     NewAddressParams,
@@ -22,13 +24,12 @@ use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 pub struct CreateCompressedPdaEscrowInstructionInputs<'a> {
     pub lock_up_time: u64,
     pub signer: &'a Pubkey,
-    pub input_merkle_context: &'a [MerkleContext],
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [u16],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
-    pub input_compressed_accounts: &'a [CompressedAccount],
+    pub input_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub mint: &'a Pubkey,
     pub new_address_params: NewAddressParams,
     pub cpi_context_account: &'a Pubkey,
@@ -42,7 +43,6 @@ pub fn create_escrow_instruction(
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_compressed_accounts,
-        input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
@@ -139,7 +139,7 @@ pub struct CreateCompressedPdaWithdrawalInstructionInputs<'a> {
     pub root_indices: &'a [u16],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
-    pub input_compressed_accounts: &'a [CompressedAccount],
+    pub input_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub mint: &'a Pubkey,
     pub old_lock_up_time: u64,
     pub new_lock_up_time: u64,
@@ -155,7 +155,7 @@ pub fn create_withdrawal_instruction(
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_compressed_accounts,
-        &[input_params.input_token_escrow_merkle_context],
+        // &[input_params.input_token_escrow_merkle_context],
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,

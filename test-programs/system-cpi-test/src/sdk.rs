@@ -10,13 +10,13 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_token::{
     get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
 };
-use light_registry::sdk::get_registered_program_pda;
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         address::pack_new_address_params,
         compressed_account::PackedCompressedAccountWithMerkleContext,
     },
+    utils::get_registered_program_pda,
     NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};

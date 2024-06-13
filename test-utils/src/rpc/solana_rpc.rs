@@ -135,6 +135,18 @@ impl RpcConnection for SolanaRpcConnection {
         let client = RpcClient::new_with_commitment(url, commitment_config);
         Self { client, payer }
     }
+    async fn create_and_send_transaction_with_events<T>(
+        &mut self,
+        _instructions: &[Instruction],
+        _payer: &Pubkey,
+        _signers: &[&Keypair],
+        _transaction_params: Option<TransactionParams>,
+    ) -> Result<Option<(Vec<T>, Signature, u64)>, RpcError>
+    where
+        T: AnchorDeserialize + Debug,
+    {
+        unimplemented!("create_and_send_transaction_with_events")
+    }
 
     async fn create_and_send_transaction_with_event<T>(
         &mut self,

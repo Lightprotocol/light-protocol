@@ -166,20 +166,43 @@ pub async fn create_token_pool<R: RpcConnection>(
 }
 
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
+    let mint: Keypair = Keypair::new();
+
+    create_mint_helper_with_keypair(rpc, payer, &mint, &None).await
+}
+
+pub async fn create_mint_helper_with_keypair<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Keypair,
+    mint_authority: &Option<Pubkey>,
+) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
         .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await
         .unwrap();
-    let mint = Keypair::new();
 
-    let (instructions, pool) =
-        create_initialize_mint_instructions(&payer_pubkey, &payer_pubkey, rent, 2, &mint);
+    let (instructions, pool) = create_initialize_mint_instructions(
+        &payer_pubkey,
+        &payer_pubkey,
+        rent,
+        2,
+        mint,
+        mint_authority,
+    );
 
-    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, &mint])
+    rpc.create_and_send_transaction(&instructions, &payer_pubkey, &[payer, mint])
         .await
         .unwrap();
-    assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
+    assert_create_mint(
+        rpc,
+        &payer_pubkey,
+        &mint.pubkey(),
+        &pool,
+        &mint_authority.unwrap_or(payer_pubkey),
+    )
+    .await;
     mint.pubkey()
 }
 
@@ -207,15 +230,17 @@ pub fn create_initialize_mint_instructions(
     rent: u64,
     decimals: u8,
     mint_keypair: &Keypair,
+    mint_authority: &Option<Pubkey>,
 ) -> ([Instruction; 4], Pubkey) {
     let account_create_ix =
         create_account_instruction(payer, Mint::LEN, rent, &spl_token::ID, Some(mint_keypair));
 
     let mint_pubkey = mint_keypair.pubkey();
+    let mint_authority = mint_authority.unwrap_or(*authority);
     let create_mint_instruction = initialize_mint(
         &spl_token::ID,
         &mint_keypair.pubkey(),
-        authority,
+        &mint_authority,
         Some(authority),
         decimals,
     )
@@ -371,14 +396,13 @@ pub async fn compressed_transfer_test<R: RpcConnection, I: Indexer<R>>(
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &from.pubkey(), // authority
-        &input_merkle_tree_context,
         &output_compressed_accounts,
         &proof_rpc_result.root_indices,
         &Some(proof_rpc_result.proof),
         &input_compressed_account_token_data, // input_token_data
         &input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         *mint,
@@ -504,13 +528,9 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
     let mint = input_compressed_accounts[0].token_data.mint;
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
-        &payer.pubkey(), // authority
-        &input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect::<Vec<_>>(), // input_compressed_account_merkle_tree_pubkeys
+        &payer.pubkey(),                  // authority
         &[change_out_compressed_account], // output_compressed_accounts
-        &proof_rpc_result.root_indices, // root_indices
+        &proof_rpc_result.root_indices,   // root_indices
         &Some(proof_rpc_result.proof),
         input_compressed_accounts
             .iter()
@@ -519,7 +539,7 @@ pub async fn decompress_test<R: RpcConnection, I: Indexer<R>>(
             .as_slice(), // input_token_data
         &input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         mint,                            // mint
@@ -616,7 +636,6 @@ pub async fn compress_test<R: RpcConnection, I: Indexer<R>>(
     let instruction = create_transfer_instruction(
         &rpc.get_payer().pubkey(),
         &payer.pubkey(),              // authority
-        &Vec::new(),                  // input_compressed_account_merkle_tree_pubkeys
         &[output_compressed_account], // output_compressed_accounts
         &Vec::new(),                  // root_indices
         &None,
@@ -732,17 +751,13 @@ pub async fn approve_test<R: RpcConnection, I: Indexer<R>>(
     let inputs = CreateApproveInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
-        input_merkle_contexts: input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect(),
         input_token_data: input_compressed_accounts
             .iter()
             .map(|x| x.token_data)
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         mint,
@@ -891,17 +906,13 @@ pub async fn revoke_test<R: RpcConnection, I: Indexer<R>>(
     let inputs = CreateRevokeInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
-        input_merkle_contexts: input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect(),
         input_token_data: input_compressed_accounts
             .iter()
             .map(|x| x.token_data)
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         mint,
@@ -1041,17 +1052,13 @@ pub async fn freeze_or_thaw_test<R: RpcConnection, const FREEZE: bool, I: Indexe
     let inputs = CreateInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
-        input_merkle_contexts: input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect(),
         input_token_data: input_compressed_accounts
             .iter()
             .map(|x| x.token_data)
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         outputs_merkle_tree: *outputs_merkle_tree,
@@ -1324,17 +1331,13 @@ pub async fn create_burn_test_instruction<R: RpcConnection, I: Indexer<R>>(
     let inputs = CreateBurnInstructionInputs {
         fee_payer: rpc.get_payer().pubkey(),
         authority: authority.pubkey(),
-        input_merkle_contexts: input_compressed_accounts
-            .iter()
-            .map(|x| x.compressed_account.merkle_context)
-            .collect(),
         input_token_data: input_compressed_accounts
             .iter()
             .map(|x| x.token_data)
             .collect(),
         input_compressed_accounts: input_compressed_accounts
             .iter()
-            .map(|x| &x.compressed_account.compressed_account)
+            .map(|x| &x.compressed_account)
             .cloned()
             .collect::<Vec<_>>(),
         change_account_merkle_tree: *change_account_merkle_tree,

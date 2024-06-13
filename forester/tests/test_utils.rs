@@ -68,6 +68,8 @@ pub fn general_action_config() -> GeneralActionConfig {
         nullify_compressed_accounts: Some(1.0),
         empty_address_queue: Some(1.0),
         rollover: None,
+        add_forester: None,
+        disable_epochs: true,
     }
 }
 

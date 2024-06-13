@@ -85,10 +85,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         let mut vec = vec![false; inputs.output_compressed_accounts.len()];
         if let Some(index) = delegated_transfer.delegate_change_account_index {
             vec[index as usize] = true;
+            (Some(vec), Some(ctx.accounts.authority.key()))
         } else {
-            return err!(crate::ErrorCode::InvalidDelegateIndex);
+            (None, None)
         }
-        (Some(vec), Some(ctx.accounts.authority.key()))
     } else {
         (None, None)
     };
@@ -270,13 +270,14 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
 ) -> Result<()> {
-    let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[0].owner.to_bytes())
-        .unwrap()
-        .0;
     for (i, compressed_account_with_context) in input_compressed_accounts_with_merkle_context
         .iter_mut()
         .enumerate()
     {
+        // TODO: get from vector
+        let hashed_owner = hash_to_bn254_field_size_be(&input_token_data[i].owner.to_bytes())
+            .unwrap()
+            .0;
         let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
@@ -487,12 +488,15 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     );
     let mut input_token_data_vec: Vec<TokenData> =
         Vec::with_capacity(input_token_data_with_context.len());
-    let owner = if let Some(signer_is_delegate) = signer_is_delegate {
-        signer_is_delegate.owner
-    } else {
-        *signer
-    };
+
     for input_token_data in input_token_data_with_context.iter() {
+        let owner = if input_token_data.delegate_index.is_none() {
+            *signer
+        } else if let Some(signer_is_delegate) = signer_is_delegate {
+            signer_is_delegate.owner
+        } else {
+            *signer
+        };
         // This is a check for convenience to throw a meaningful error.
         // The actual security results from the proof verification.
         if signer_is_delegate.is_some()
@@ -510,10 +514,11 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                 input_token_data.delegate_index.unwrap() as usize
             );
             return err!(ErrorCode::DelegateSignerCheckFailed);
-        } else if signer_is_delegate.is_some() && input_token_data.delegate_index.is_none() {
-            msg!("Signer is delegate but token data has no delegate.");
-            return err!(ErrorCode::DelegateSignerCheckFailed);
         }
+        // else if signer_is_delegate.is_some() && input_token_data.delegate_index.is_none() {
+        // msg!("Signer is delegate but token data has no delegate.");
+        // return err!(ErrorCode::DelegateSignerCheckFailed);
+        // }
         let compressed_account = CompressedAccount {
             owner: crate::ID,
             lamports: input_token_data.lamports.unwrap_or_default(),
@@ -579,7 +584,7 @@ pub mod transfer_sdk {
     use anchor_spl::token::Token;
     use light_system_program::{
         invoke::processor::CompressedProof,
-        sdk::compressed_account::{CompressedAccount, MerkleContext, PackedMerkleContext},
+        sdk::compressed_account::{CompressedAccountWithMerkleContext, PackedMerkleContext},
     };
     use solana_sdk::{
         instruction::{AccountMeta, Instruction},
@@ -610,12 +615,11 @@ pub mod transfer_sdk {
     pub fn create_transfer_instruction(
         fee_payer: &Pubkey,
         owner: &Pubkey,
-        input_merkle_context: &[MerkleContext],
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
         proof: &Option<CompressedProof>,
         input_token_data: &[TokenData],
-        input_compressed_accounts: &[CompressedAccount],
+        input_compressed_accounts: &[CompressedAccountWithMerkleContext],
         mint: Pubkey,
         delegate: Option<Pubkey>,
         is_compress: bool,
@@ -629,7 +633,6 @@ pub mod transfer_sdk {
         let (remaining_accounts, mut inputs_struct) = create_inputs_and_remaining_accounts(
             input_token_data,
             input_compressed_accounts,
-            input_merkle_context,
             delegate,
             output_compressed_accounts,
             root_indices,
@@ -691,8 +694,7 @@ pub mod transfer_sdk {
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts_checked(
         input_token_data: &[TokenData],
-        input_compressed_accounts: &[CompressedAccount],
-        input_merkle_context: &[MerkleContext],
+        input_compressed_accounts: &[CompressedAccountWithMerkleContext],
         owner_if_delegate_is_signer: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
@@ -724,7 +726,6 @@ pub mod transfer_sdk {
             create_inputs_and_remaining_accounts(
                 input_token_data,
                 input_compressed_accounts,
-                input_merkle_context,
                 owner_if_delegate_is_signer,
                 output_compressed_accounts,
                 root_indices,
@@ -741,8 +742,8 @@ pub mod transfer_sdk {
     #[allow(clippy::too_many_arguments)]
     pub fn create_inputs_and_remaining_accounts(
         input_token_data: &[TokenData],
-        input_compressed_accounts: &[CompressedAccount],
-        input_merkle_context: &[MerkleContext],
+        input_compressed_accounts: &[CompressedAccountWithMerkleContext],
+        // input_merkle_context: &[MerkleContext],
         delegate: Option<Pubkey>,
         output_compressed_accounts: &[TokenTransferOutputData],
         root_indices: &[u16],
@@ -781,7 +782,6 @@ pub mod transfer_sdk {
                 additonal_accounts.as_slice(),
                 input_token_data,
                 input_compressed_accounts,
-                input_merkle_context,
                 root_indices,
                 output_compressed_accounts,
             );
@@ -809,11 +809,11 @@ pub mod transfer_sdk {
         (remaining_accounts, inputs_struct)
     }
 
+    // TODO: move to light sdk
     pub fn create_input_output_and_remaining_accounts(
         additional_accounts: &[Pubkey],
         input_token_data: &[TokenData],
-        input_compressed_accounts: &[CompressedAccount],
-        input_merkle_context: &[MerkleContext],
+        input_compressed_accounts: &[CompressedAccountWithMerkleContext],
         root_indices: &[u16],
         output_compressed_accounts: &[TokenTransferOutputData],
     ) -> (
@@ -835,61 +835,15 @@ pub mod transfer_sdk {
         }
         let mut input_token_data_with_context: Vec<InputTokenDataWithContext> = Vec::new();
 
-        for (i, token_data) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey) {
-                Some(_) => {}
-                None => {
-                    remaining_accounts.insert(input_merkle_context[i].merkle_tree_pubkey, index);
-                    index += 1;
-                }
-            };
-            let delegate_index = match token_data.delegate {
-                Some(delegate) => match remaining_accounts.get(&delegate) {
-                    Some(delegate_index) => Some(*delegate_index as u8),
-                    None => {
-                        remaining_accounts.insert(delegate, index);
-                        index += 1;
-                        Some((index - 1) as u8)
-                    }
-                },
-                None => None,
-            };
-            let lamports = if input_compressed_accounts[i].lamports != 0 {
-                Some(input_compressed_accounts[i].lamports)
-            } else {
-                None
-            };
-            let token_data_with_context = InputTokenDataWithContext {
-                amount: token_data.amount,
-                delegate_index,
-                merkle_context: PackedMerkleContext {
-                    merkle_tree_pubkey_index: *remaining_accounts
-                        .get(&input_merkle_context[i].merkle_tree_pubkey)
-                        .unwrap() as u8,
-                    nullifier_queue_pubkey_index: 0,
-                    leaf_index: input_merkle_context[i].leaf_index,
-                    queue_index: None,
-                },
-                root_index: root_indices[i],
-                lamports,
-            };
-            input_token_data_with_context.push(token_data_with_context);
-        }
-        for (i, _) in input_token_data.iter().enumerate() {
-            match remaining_accounts.get(&input_merkle_context[i].nullifier_queue_pubkey) {
-                Some(_) => {}
-                None => {
-                    remaining_accounts
-                        .insert(input_merkle_context[i].nullifier_queue_pubkey, index);
-                    index += 1;
-                }
-            };
-            input_token_data_with_context[i]
-                .merkle_context
-                .nullifier_queue_pubkey_index = *remaining_accounts
-                .get(&input_merkle_context[i].nullifier_queue_pubkey)
-                .unwrap() as u8;
-        }
+        create_input_token_accounts(
+            input_token_data,
+            &mut remaining_accounts,
+            input_compressed_accounts,
+            &mut index,
+            root_indices,
+            &mut input_token_data_with_context,
+        );
+
         let mut _output_compressed_accounts: Vec<PackedTokenTransferOutputData> =
             Vec::with_capacity(output_compressed_accounts.len());
         for (i, mt) in output_compressed_accounts.iter().enumerate() {
@@ -912,6 +866,95 @@ pub mod transfer_sdk {
             input_token_data_with_context,
             _output_compressed_accounts,
         )
+    }
+
+    pub fn create_input_token_accounts(
+        input_token_data: &[TokenData],
+        remaining_accounts: &mut HashMap<Pubkey, usize>,
+        input_compressed_accounts: &[CompressedAccountWithMerkleContext],
+        index: &mut usize,
+        root_indices: &[u16],
+        input_token_data_with_context: &mut Vec<InputTokenDataWithContext>,
+    ) {
+        for (i, token_data) in input_token_data.iter().enumerate() {
+            match remaining_accounts.get(
+                &input_compressed_accounts[i]
+                    .merkle_context
+                    .merkle_tree_pubkey,
+            ) {
+                Some(_) => {}
+                None => {
+                    remaining_accounts.insert(
+                        input_compressed_accounts[i]
+                            .merkle_context
+                            .merkle_tree_pubkey,
+                        *index,
+                    );
+                    *index += 1;
+                }
+            };
+            let delegate_index = match token_data.delegate {
+                Some(delegate) => match remaining_accounts.get(&delegate) {
+                    Some(delegate_index) => Some(*delegate_index as u8),
+                    None => {
+                        remaining_accounts.insert(delegate, *index);
+                        *index += 1;
+                        Some((*index - 1) as u8)
+                    }
+                },
+                None => None,
+            };
+            let lamports = if input_compressed_accounts[i].compressed_account.lamports != 0 {
+                Some(input_compressed_accounts[i].compressed_account.lamports)
+            } else {
+                None
+            };
+            let token_data_with_context = InputTokenDataWithContext {
+                amount: token_data.amount,
+                delegate_index,
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: *remaining_accounts
+                        .get(
+                            &input_compressed_accounts[i]
+                                .merkle_context
+                                .merkle_tree_pubkey,
+                        )
+                        .unwrap() as u8,
+                    nullifier_queue_pubkey_index: 0,
+                    leaf_index: input_compressed_accounts[i].merkle_context.leaf_index,
+                    queue_index: None,
+                },
+                root_index: root_indices[i],
+                lamports,
+            };
+            input_token_data_with_context.push(token_data_with_context);
+
+            match remaining_accounts.get(
+                &input_compressed_accounts[i]
+                    .merkle_context
+                    .nullifier_queue_pubkey,
+            ) {
+                Some(_) => {}
+                None => {
+                    remaining_accounts.insert(
+                        input_compressed_accounts[i]
+                            .merkle_context
+                            .nullifier_queue_pubkey,
+                        *index,
+                    );
+                    *index += 1;
+                }
+            };
+            input_token_data_with_context[i]
+                .merkle_context
+                .nullifier_queue_pubkey_index = *remaining_accounts
+                .get(
+                    &input_compressed_accounts[i]
+                        .merkle_context
+                        .nullifier_queue_pubkey,
+                )
+                .unwrap() as u8;
+        }
     }
 
     pub fn to_account_metas(remaining_accounts: HashMap<Pubkey, usize>) -> Vec<AccountMeta> {

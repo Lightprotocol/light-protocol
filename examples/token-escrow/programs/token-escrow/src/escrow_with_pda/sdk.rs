@@ -15,7 +15,7 @@ use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::{
         address::add_and_get_remaining_account_indices,
-        compressed_account::{CompressedAccount, MerkleContext},
+        compressed_account::CompressedAccountWithMerkleContext,
     },
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -26,13 +26,13 @@ use crate::escrow_with_compressed_pda::sdk::get_token_owner_pda;
 pub struct CreateEscrowInstructionInputs<'a> {
     pub lock_up_time: u64,
     pub signer: &'a Pubkey,
-    pub input_merkle_context: &'a [MerkleContext],
+    // pub input_merkle_context: &'a [MerkleContext],
     pub output_compressed_account_merkle_tree_pubkeys: &'a [Pubkey],
     pub output_compressed_accounts: &'a [TokenTransferOutputData],
     pub root_indices: &'a [u16],
     pub proof: &'a Option<CompressedProof>,
     pub input_token_data: &'a [light_compressed_token::token_data::TokenData],
-    pub input_compressed_accounts: &'a [CompressedAccount],
+    pub input_compressed_accounts: &'a [CompressedAccountWithMerkleContext],
     pub mint: &'a Pubkey,
 }
 
@@ -50,7 +50,7 @@ pub fn create_escrow_instruction(
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts_checked(
         input_params.input_token_data,
         input_params.input_compressed_accounts,
-        input_params.input_merkle_context,
+        // input_params.input_mesrkle_context,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
@@ -122,7 +122,7 @@ pub fn create_withdrawal_escrow_instruction(
     let (mut remaining_accounts, inputs) = create_inputs_and_remaining_accounts(
         input_params.input_token_data,
         input_params.input_compressed_accounts,
-        input_params.input_merkle_context,
+        // input_params.input_merkle_context,
         None,
         input_params.output_compressed_accounts,
         input_params.root_indices,
