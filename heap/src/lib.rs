@@ -1,4 +1,4 @@
-use std::{alloc::Layout, mem::size_of, ptr::null_mut, usize};
+use std::{alloc::Layout, mem::size_of, ptr::null_mut};
 pub mod bench;
 
 #[cfg(target_os = "solana")]
