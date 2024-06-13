@@ -13,11 +13,13 @@ use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
-use light_registry::sdk::{
+
+use light_registry::account_compression_cpi::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
 };
-use light_registry::{get_forester_epoch_pda_address, ForesterEpoch, RegisterForester};
+use light_registry::utils::get_forester_epoch_pda_address;
+use light_registry::{ForesterEpochPda, RegisterForester};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use log::debug;
 use solana_sdk::signature::Signature;
@@ -47,16 +49,19 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     rpc: &mut R,
     forester: &Keypair,
     state_tree_bundle: &mut StateMerkleTreeBundle,
+    epoch: u64,
 ) {
     let nullifier_queue = unsafe {
         get_hash_set::<QueueAccount, R>(rpc, state_tree_bundle.accounts.nullifier_queue).await
     };
     let pre_forester_counter = rpc
-        .get_anchor_account::<ForesterEpoch>(&get_forester_epoch_pda_address(&forester.pubkey()).0)
+        .get_anchor_account::<ForesterEpochPda>(
+            &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
+        )
         .await
         .unwrap()
         .unwrap()
-        .counter;
+        .work_counter;
     let onchain_merkle_tree =
         get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
             rpc,
@@ -110,16 +115,19 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             .to_array::<16>()
             .unwrap()
             .to_vec();
-        let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
-            authority: forester.pubkey(),
-            nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
-            merkle_tree: state_tree_bundle.accounts.merkle_tree,
-            change_log_indices: vec![change_log_index],
-            leaves_queue_indices: vec![*index_in_nullifier_queue as u16],
-            indices: vec![leaf_index as u64],
-            proofs: vec![proof],
-            derivation: forester.pubkey(),
-        });
+        let ix = create_nullify_instruction(
+            CreateNullifyInstructionInputs {
+                authority: forester.pubkey(),
+                nullifier_queue: state_tree_bundle.accounts.nullifier_queue,
+                merkle_tree: state_tree_bundle.accounts.merkle_tree,
+                change_log_indices: vec![change_log_index],
+                leaves_queue_indices: vec![*index_in_nullifier_queue as u16],
+                indices: vec![leaf_index as u64],
+                proofs: vec![proof],
+                derivation: forester.pubkey(),
+            },
+            epoch,
+        );
         let instructions = [ix];
 
         let event = rpc
@@ -188,7 +196,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
     );
     assert_forester_counter(
         rpc,
-        &get_forester_epoch_pda_address(&forester.pubkey()).0,
+        &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
         pre_forester_counter,
         num_nullified,
     )
@@ -238,16 +246,16 @@ pub async fn assert_forester_counter<R: RpcConnection>(
     num_nullified: u64,
 ) -> Result<(), RpcError> {
     let account = rpc
-        .get_anchor_account::<ForesterEpoch>(pubkey)
+        .get_anchor_account::<ForesterEpochPda>(pubkey)
         .await?
         .unwrap();
-    if account.counter != pre + num_nullified {
-        debug!("account.counter: {}", account.counter);
+    if account.work_counter != pre + num_nullified {
+        debug!("account.work_counter: {}", account.work_counter);
         debug!("pre: {}", pre);
         debug!("num_nullified: {}", num_nullified);
         debug!("forester pubkey: {:?}", pubkey);
         return Err(RpcError::CustomError(
-            "Forester counter not updated correctly".to_string(),
+            "ForesterEpochPda counter not updated correctly".to_string(),
         ));
     }
     Ok(())
@@ -269,6 +277,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
     rpc: &mut R,
     address_tree_bundle: &mut AddressMerkleTreeBundle,
     signer_is_owner: bool,
+    epoch: u64,
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
@@ -288,13 +297,13 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
     let mut counter = 0;
     loop {
         let pre_forester_counter = if !signer_is_owner {
-            rpc.get_anchor_account::<ForesterEpoch>(
-                &get_forester_epoch_pda_address(&forester.pubkey()).0,
+            rpc.get_anchor_account::<ForesterEpochPda>(
+                &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
             )
             .await
             .map_err(|e| RelayerUpdateError::RpcError)?
             .unwrap()
-            .counter
+            .work_counter
         } else {
             0
         };
@@ -344,6 +353,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             Some(changelog_index),
             Some(indexed_changelog_index),
             signer_is_owner,
+            epoch,
         )
         .await
         {
@@ -439,7 +449,7 @@ pub async fn empty_address_queue_test<R: RpcConnection>(
             if !signer_is_owner {
                 assert_forester_counter(
                     rpc,
-                    &get_forester_epoch_pda_address(&forester.pubkey()).0,
+                    &get_forester_epoch_pda_address(&forester.pubkey(), epoch).0,
                     pre_forester_counter,
                     1,
                 )
@@ -543,6 +553,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     changelog_index: Option<u16>,
     indexed_changelog_index: Option<u16>,
     signer_is_owner: bool,
+    epoch: u64,
 ) -> Result<Option<(MerkleTreeEvent, Signature, u64)>, RpcError> {
     let changelog_index = match changelog_index {
         Some(changelog_index) => changelog_index,
@@ -571,19 +582,22 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         }
     };
     let update_ix = if !signer_is_owner {
-        create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
-            authority: forester.pubkey(),
-            address_merkle_tree: address_merkle_tree_pubkey,
-            address_queue: address_queue_pubkey,
-            changelog_index,
-            indexed_changelog_index,
-            value,
-            low_address_index,
-            low_address_value,
-            low_address_next_index,
-            low_address_next_value,
-            low_address_proof,
-        })
+        create_update_address_merkle_tree_instruction(
+            UpdateAddressMerkleTreeInstructionInputs {
+                authority: forester.pubkey(),
+                address_merkle_tree: address_merkle_tree_pubkey,
+                address_queue: address_queue_pubkey,
+                changelog_index,
+                indexed_changelog_index,
+                value,
+                low_address_index,
+                low_address_value,
+                low_address_next_index,
+                low_address_next_value,
+                low_address_proof,
+            },
+            epoch,
+        )
     } else {
         let instruction_data = UpdateAddressMerkleTree {
             changelog_index,

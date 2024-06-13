@@ -70,7 +70,9 @@ async fn test_address_tree_rollover() {
     info!("test_address_tree_rollover: created address");
 
     // rollover address Merkle tree
-    env.rollover_address_merkle_tree_and_queue(0).await.unwrap();
+    env.rollover_address_merkle_tree_and_queue(0, &env_accounts.forester, env.epoch)
+        .await
+        .unwrap();
     info!("test_address_tree_rollover: rollover address tree");
 }
 
@@ -130,6 +132,9 @@ async fn test_state_tree_rollover() {
     for i in 0..5 {
         env.compress_sol_deterministic(&payer_keypair, LAMPORTS_PER_SOL, Some(i))
             .await;
-        env.rollover_state_merkle_tree_and_queue(i).await.unwrap();
+        // rollover address Merkle tree
+        env.rollover_state_merkle_tree_and_queue(i, &env_accounts.forester, env.epoch)
+            .await
+            .unwrap();
     }
 }

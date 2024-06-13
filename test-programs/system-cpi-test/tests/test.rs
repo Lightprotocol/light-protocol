@@ -513,7 +513,8 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         registered_program_pda: env.registered_program_pda,
         registered_registry_program_pda: env.registered_registry_program_pda,
         forester: env.forester.insecure_clone(),
-        registered_forester_epoch_pda: env.registered_forester_epoch_pda,
+        registered_forester_pda: env.registered_forester_pda,
+        forester_epoch: env.forester_epoch.clone(),
     };
 
     perform_create_pda_failing(
@@ -556,7 +557,8 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         registered_program_pda: env.registered_program_pda,
         registered_registry_program_pda: env.registered_registry_program_pda,
         forester: env.forester.insecure_clone(),
-        registered_forester_epoch_pda: env.registered_forester_epoch_pda,
+        registered_forester_pda: env.registered_forester_pda,
+        forester_epoch: env.forester_epoch.clone(),
     };
     perform_create_pda_failing(
         &mut test_indexer,
@@ -609,7 +611,8 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         registered_program_pda: env.registered_program_pda,
         registered_registry_program_pda: env.registered_registry_program_pda,
         forester: env.forester.insecure_clone(),
-        registered_forester_epoch_pda: env.registered_forester_epoch_pda,
+        registered_forester_pda: env.registered_forester_pda,
+        forester_epoch: env.forester_epoch.clone(),
     };
     let seed = [4u8; 32];
     let data = [5u8; 31];

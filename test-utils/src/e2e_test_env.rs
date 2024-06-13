@@ -69,6 +69,10 @@
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
 use light_compressed_token::token_data::AccountState;
+use light_registry::protocol_config::state::{ProtocolConfig, ProtocolConfigPda};
+use light_registry::sdk::create_finalize_registration_instruction;
+use light_registry::utils::get_protocol_config_pda_address;
+use light_registry::ForesterConfig;
 use log::info;
 use num_bigint::{BigUint, RandBigInt};
 use num_traits::Num;
@@ -103,12 +107,18 @@ use crate::address_tree_rollover::{
     assert_rolled_over_address_merkle_tree_and_queue,
     perform_address_merkle_tree_roll_over_forester, perform_state_merkle_tree_roll_over_forester,
 };
+use crate::assert_epoch::{
+    assert_finalized_epoch_registration, assert_report_work, fetch_epoch_and_forester_pdas,
+};
+use crate::forester_epoch::{Epoch, Forester, TreeAccounts, TreeType};
 use crate::indexer::{
     AddressMerkleTreeAccounts, AddressMerkleTreeBundle, Indexer, StateMerkleTreeAccounts,
-    StateMerkleTreeBundle, TokenDataWithContext,
+    StateMerkleTreeBundle, TestIndexer, TokenDataWithContext,
 };
+use crate::registry::register_test_forester;
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
+use crate::rpc::ProgramTestRpcConnection;
 use crate::spl::{
     approve_test, burn_test, compress_test, compressed_transfer_test, create_mint_helper,
     create_token_account, decompress_test, freeze_test, mint_tokens_helper, revoke_test, thaw_test,
@@ -151,6 +161,10 @@ pub struct Stats {
     pub spl_burned: u64,
     pub spl_frozen: u64,
     pub spl_thawed: u64,
+    pub registered_foresters: u64,
+    pub created_foresters: u64,
+    pub work_reported: u64,
+    pub finalized_registrations: u64,
 }
 
 impl Stats {
@@ -178,14 +192,50 @@ impl Stats {
         println!("Spl burned {}", self.spl_burned);
         println!("Spl frozen {}", self.spl_frozen);
         println!("Spl thawed {}", self.spl_thawed);
+        println!("Registered foresters {}", self.registered_foresters);
+        println!("Created foresters {}", self.created_foresters);
+        println!("Work reported {}", self.work_reported);
+        println!("Finalized registrations {}", self.finalized_registrations);
     }
+}
+pub async fn init_program_test_env(
+    rpc: ProgramTestRpcConnection,
+    env_accounts: &EnvAccounts,
+) -> E2ETestEnv<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>> {
+    let indexer: TestIndexer<ProgramTestRpcConnection> = TestIndexer::init_from_env(
+        &env_accounts.forester.insecure_clone(),
+        env_accounts,
+        KeypairActionConfig::all_default().inclusion(),
+        KeypairActionConfig::all_default().non_inclusion(),
+    )
+    .await;
+
+    E2ETestEnv::<ProgramTestRpcConnection, TestIndexer<ProgramTestRpcConnection>>::new(
+        rpc,
+        indexer,
+        env_accounts,
+        KeypairActionConfig::all_default(),
+        GeneralActionConfig::default(),
+        10,
+        None,
+    )
+    .await
+}
+
+#[derive(Debug, PartialEq)]
+pub struct TestForester {
+    keypair: Keypair,
+    forester: Forester,
+    is_registered: Option<u64>,
 }
 
 pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
     pub payer: Keypair,
+    pub governance_keypair: Keypair,
     pub indexer: I,
     pub users: Vec<User>,
     pub mints: Vec<Pubkey>,
+    pub foresters: Vec<TestForester>,
     pub rpc: R,
     pub keypair_action_config: KeypairActionConfig,
     pub general_action_config: GeneralActionConfig,
@@ -193,6 +243,13 @@ pub struct E2ETestEnv<R: RpcConnection, I: Indexer<R>> {
     pub rounds: u64,
     pub rng: StdRng,
     pub stats: Stats,
+    pub epoch: u64,
+    pub slot: u64,
+    /// Forester struct is reused but not used for foresting here
+    /// Epoch config keeps track of the ongong epochs.
+    pub epoch_config: Forester,
+    pub protocol_config: ProtocolConfig,
+    pub registration_epoch: u64,
 }
 
 impl<R: RpcConnection, I: Indexer<R>> E2ETestEnv<R, I>
@@ -237,6 +294,32 @@ where
             vec![user.keypair.pubkey()],
         )
         .await;
+        let protocol_config_pda_address = get_protocol_config_pda_address().0;
+        let protocol_config = rpc
+            .get_anchor_account::<ProtocolConfigPda>(&protocol_config_pda_address)
+            .await
+            .unwrap()
+            .unwrap()
+            .config;
+        // TODO: add clear test env enum
+        // register foresters is only compatible with ProgramTest environment
+        let (foresters, epoch_config) =
+            if let Some(registered_epoch) = env_accounts.forester_epoch.as_ref() {
+                let _forester = Forester {
+                    registration: registered_epoch.clone(),
+                    active: registered_epoch.clone(),
+                    ..Default::default()
+                };
+                // Forester epoch account is assumed to exist (is inited with test program deployment)
+                let forester = TestForester {
+                    keypair: env_accounts.forester.insecure_clone(),
+                    forester: _forester.clone(),
+                    is_registered: Some(0),
+                };
+                (vec![forester], _forester)
+            } else {
+                (Vec::<TestForester>::new(), Forester::default())
+            };
         Self {
             payer,
             indexer,
@@ -249,6 +332,13 @@ where
             rng,
             mints: vec![],
             stats: Stats::default(),
+            foresters,
+            registration_epoch: 0,
+            epoch: 0,
+            slot: 0,
+            epoch_config,
+            protocol_config,
+            governance_keypair: env_accounts.governance_authority.insecure_clone(),
         }
     }
 
@@ -330,10 +420,25 @@ where
                 .nullify_compressed_accounts
                 .unwrap_or_default(),
         ) {
-            let payer = self.indexer.get_payer().insecure_clone();
             for state_tree_bundle in self.indexer.get_state_merkle_trees_mut().iter_mut() {
                 println!("\n --------------------------------------------------\n\t\t NULLIFYING LEAVES\n --------------------------------------------------");
-                nullify_compressed_accounts(&mut self.rpc, &payer, state_tree_bundle).await;
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &state_tree_bundle.accounts.nullifier_queue,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    // TODO: add newly addeded trees to foresters
+                    nullify_compressed_accounts(
+                        &mut self.rpc,
+                        &payer,
+                        state_tree_bundle,
+                        self.epoch,
+                    )
+                    .await;
+                } else {
+                    println!("No forester found for nullifier queue");
+                };
             }
         }
 
@@ -342,13 +447,30 @@ where
                 .empty_address_queue
                 .unwrap_or_default(),
         ) {
-            let payer = self.indexer.get_payer().insecure_clone();
             for address_merkle_tree_bundle in self.indexer.get_address_merkle_trees_mut().iter_mut()
             {
-                println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
-                empty_address_queue_test(&payer, &mut self.rpc, address_merkle_tree_bundle, false)
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &address_merkle_tree_bundle.accounts.queue,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    println!("\n --------------------------------------------------\n\t\t Empty Address Queue\n --------------------------------------------------");
+                    println!("epoch {}", self.epoch);
+                    println!("forester {}", payer.pubkey());
+                    // TODO: add newly addeded trees to foresters
+                    empty_address_queue_test(
+                        &payer,
+                        &mut self.rpc,
+                        address_merkle_tree_bundle,
+                        false,
+                        self.epoch,
+                    )
                     .await
                     .unwrap();
+                } else {
+                    println!("No forester found for address queue");
+                };
             }
         }
 
@@ -366,11 +488,19 @@ where
                 && is_read_for_rollover
             {
                 println!("\n --------------------------------------------------\n\t\t Rollover State Merkle Tree\n --------------------------------------------------");
-
-                self.rollover_state_merkle_tree_and_queue(index)
-                    .await
-                    .unwrap();
-                self.stats.rolledover_state_trees += 1;
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &self.indexer.get_state_merkle_trees()[index]
+                        .accounts
+                        .nullifier_queue,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    self.rollover_state_merkle_tree_and_queue(index, &payer, self.epoch)
+                        .await
+                        .unwrap();
+                    self.stats.rolledover_state_trees += 1;
+                }
             }
         }
 
@@ -387,11 +517,240 @@ where
                 .gen_bool(self.general_action_config.rollover.unwrap_or_default())
                 && is_read_for_rollover
             {
-                println!("\n --------------------------------------------------\n\t\t Rollover Address Merkle Tree\n --------------------------------------------------");
-                self.rollover_address_merkle_tree_and_queue(index)
-                    .await
-                    .unwrap();
-                self.stats.rolledover_address_trees += 1;
+                // find forester which is eligible this slot for this tree
+                if let Some(payer) = Self::get_eligible_forester_for_queue(
+                    &self.indexer.get_address_merkle_trees()[index]
+                        .accounts
+                        .queue,
+                    &self.foresters,
+                    self.slot,
+                ) {
+                    println!("\n --------------------------------------------------\n\t\t Rollover Address Merkle Tree\n --------------------------------------------------");
+                    self.rollover_address_merkle_tree_and_queue(index, &payer, self.epoch)
+                        .await
+                        .unwrap();
+                    self.stats.rolledover_address_trees += 1;
+                }
+            }
+        }
+
+        if self
+            .rng
+            .gen_bool(self.general_action_config.add_forester.unwrap_or_default())
+        {
+            println!("\n --------------------------------------------------\n\t\t Add Forester\n --------------------------------------------------");
+            let forester = TestForester {
+                keypair: Keypair::new(),
+                forester: Forester::default(),
+                is_registered: None,
+            };
+            let forester_config = ForesterConfig {
+                fee: self.rng.gen_range(0..=100),
+            };
+            register_test_forester(
+                &mut self.rpc,
+                &self.governance_keypair,
+                &forester.keypair.pubkey(),
+                forester_config,
+            )
+            .await
+            .unwrap();
+            self.foresters.push(forester);
+            self.stats.created_foresters += 1;
+        }
+
+        // advance to next light slot and perform forester epoch actions
+        if !self.general_action_config.disable_epochs {
+            println!("\n --------------------------------------------------\n\t\t Start Epoch Actions \n --------------------------------------------------");
+
+            let current_solana_slot = self.rpc.get_slot().await.unwrap();
+            let current_light_slot = self
+                .protocol_config
+                .get_current_active_epoch_progress(current_solana_slot)
+                / self.protocol_config.slot_length;
+            // If slot didn't change, advance to next slot
+            // if current_light_slot != self.slot {
+            let new_slot = current_solana_slot + self.protocol_config.slot_length;
+            println!("advanced slot from {} to {}", self.slot, current_light_slot);
+            println!("solana slot from {} to {}", current_solana_slot, new_slot);
+            self.rpc.warp_to_slot(new_slot).unwrap();
+
+            self.slot = current_light_slot + 1;
+
+            let current_solana_slot = self.rpc.get_slot().await.unwrap();
+            // need to detect whether new registration phase started
+            let current_registration_epoch =
+                self.protocol_config.get_current_epoch(current_solana_slot);
+            // If reached new registration phase register all foresters
+            if current_registration_epoch != self.registration_epoch {
+                println!("\n --------------------------------------------------\n\t\t Register Foresters for new Epoch \n --------------------------------------------------");
+
+                self.registration_epoch = current_registration_epoch;
+                println!("new register epoch {}", self.registration_epoch);
+                println!("num foresters {}", self.foresters.len());
+                for forester in self.foresters.iter_mut() {
+                    println!(
+                        "registered forester {} for epoch {}",
+                        forester.keypair.pubkey(),
+                        self.registration_epoch
+                    );
+
+                    let registered_epoch =
+                        Epoch::register(&mut self.rpc, &self.protocol_config, &forester.keypair)
+                            .await
+                            .unwrap()
+                            .unwrap();
+                    println!("registered_epoch {:?}", registered_epoch.phases);
+                    forester.forester.registration = registered_epoch;
+                    if forester.is_registered.is_none() {
+                        forester.is_registered = Some(self.registration_epoch);
+                    }
+                    self.stats.registered_foresters += 1;
+                }
+            }
+
+            let current_active_epoch = self
+                .protocol_config
+                .get_current_active_epoch(current_solana_slot)
+                .unwrap();
+            // If reached new active epoch
+            // 1. move epoch in every forester to report work epoch
+            // 2. report work for every forester
+            // 3. finalize registration for every forester
+            #[allow(clippy::comparison_chain)]
+            if current_active_epoch > self.epoch {
+                self.slot = current_light_slot;
+                self.epoch = current_active_epoch;
+                // 1. move epoch in every forester to report work epoch
+                for forester in self.foresters.iter_mut() {
+                    if forester.is_registered.is_none() {
+                        continue;
+                    }
+                    forester.forester.switch_to_report_work();
+                }
+                println!("\n --------------------------------------------------\n\t\t Report Work \n --------------------------------------------------");
+
+                // 2. report work for every forester
+                for forester in self.foresters.iter_mut() {
+                    if forester.is_registered.is_none() {
+                        continue;
+                    }
+                    println!("report work for forester {}", forester.keypair.pubkey());
+                    println!(
+                        "forester.forester.report_work.forester_epoch_pda {}",
+                        forester.forester.report_work.forester_epoch_pda
+                    );
+                    println!(
+                        "forester.forester.report_work.epoch_pda {}",
+                        forester.forester.report_work.epoch_pda
+                    );
+
+                    let (pre_forester_epoch_pda, pre_epoch_pda) = fetch_epoch_and_forester_pdas(
+                        &mut self.rpc,
+                        &forester.forester.report_work.forester_epoch_pda,
+                        &forester.forester.report_work.epoch_pda,
+                    )
+                    .await;
+                    forester
+                        .forester
+                        .report_work(&mut self.rpc, &forester.keypair)
+                        .await
+                        .unwrap();
+                    println!("reported work");
+                    assert_report_work(
+                        &mut self.rpc,
+                        &forester.forester.report_work.forester_epoch_pda,
+                        &forester.forester.report_work.epoch_pda,
+                        pre_forester_epoch_pda,
+                        pre_epoch_pda,
+                    )
+                    .await;
+                    self.stats.work_reported += 1;
+                }
+
+                // 3. finalize registration for every forester
+                println!("\n --------------------------------------------------\n\t\t Finalize Registration \n --------------------------------------------------");
+
+                // 3.1 get tree accounts
+                // TODO: use TreeAccounts in TestIndexer
+                let mut tree_accounts = self
+                    .indexer
+                    .get_state_merkle_trees()
+                    .iter()
+                    .map(|state_merkle_tree_bundle| TreeAccounts {
+                        tree_type: TreeType::State,
+                        merkle_tree: state_merkle_tree_bundle.accounts.merkle_tree,
+                        queue: state_merkle_tree_bundle.accounts.nullifier_queue,
+                        is_rolledover: false,
+                    })
+                    .collect::<Vec<TreeAccounts>>();
+                self.indexer.get_address_merkle_trees().iter().for_each(
+                    |address_merkle_tree_bundle| {
+                        tree_accounts.push(TreeAccounts {
+                            tree_type: TreeType::Address,
+                            merkle_tree: address_merkle_tree_bundle.accounts.merkle_tree,
+                            queue: address_merkle_tree_bundle.accounts.queue,
+                            is_rolledover: false,
+                        });
+                    },
+                );
+                // 3.2 finalize registration for every forester
+                for forester in self.foresters.iter_mut() {
+                    if forester.is_registered.is_none() {
+                        continue;
+                    }
+                    println!(
+                        "registered forester {} for epoch {}",
+                        forester.keypair.pubkey(),
+                        self.epoch
+                    );
+                    println!(
+                        "forester.forester registration epoch {:?}",
+                        forester.forester.registration.epoch
+                    );
+                    println!(
+                        "forester.forester active epoch {:?}",
+                        forester.forester.active.epoch
+                    );
+                    println!(
+                        "forester.forester report_work epoch {:?}",
+                        forester.forester.report_work.epoch
+                    );
+
+                    forester
+                        .forester
+                        .active
+                        .fetch_account_and_add_trees_with_schedule(
+                            &mut self.rpc,
+                            tree_accounts.clone(),
+                        )
+                        .await
+                        .unwrap();
+                    let ix = create_finalize_registration_instruction(
+                        &forester.keypair.pubkey(),
+                        forester.forester.active.epoch,
+                    );
+                    self.rpc
+                        .create_and_send_transaction(
+                            &[ix],
+                            &forester.keypair.pubkey(),
+                            &[&forester.keypair],
+                        )
+                        .await
+                        .unwrap();
+                    assert_finalized_epoch_registration(
+                        &mut self.rpc,
+                        &forester.forester.active.forester_epoch_pda,
+                        &forester.forester.active.epoch_pda,
+                    )
+                    .await;
+                    self.stats.finalized_registrations += 1;
+                }
+            } else if current_active_epoch < self.epoch {
+                panic!(
+                    "current_active_epoch {} is less than self.epoch {}",
+                    current_active_epoch, self.epoch
+                );
             }
         }
     }
@@ -691,6 +1050,26 @@ where
         }
     }
 
+    pub fn get_eligible_forester_for_queue(
+        queue_pubkey: &Pubkey,
+        foresters: &[TestForester],
+        light_slot: u64,
+    ) -> Option<Keypair> {
+        for f in foresters.iter() {
+            let tree = f
+                .forester
+                .active
+                .merkle_trees
+                .iter()
+                .find(|mt| mt.tree_pubkey.queue == *queue_pubkey);
+            if let Some(tree) = tree {
+                if tree.is_eligible(light_slot) {
+                    return Some(f.keypair.insecure_clone());
+                }
+            }
+        }
+        None
+    }
     pub async fn transfer_sol_deterministic(
         &mut self,
         from: &Keypair,
@@ -1409,6 +1788,8 @@ where
     pub async fn rollover_state_merkle_tree_and_queue(
         &mut self,
         index: usize,
+        payer: &Keypair,
+        epoch: u64,
     ) -> Result<(), RpcError> {
         let bundle = self.indexer.get_state_merkle_trees()[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
@@ -1421,13 +1802,14 @@ where
             .await
             .unwrap();
         let rollover_signature_and_slot = perform_state_merkle_tree_roll_over_forester(
-            self.indexer.get_payer(),
+            payer,
             &mut self.rpc,
             &new_nullifier_queue_keypair,
             &new_merkle_tree_keypair,
             &new_cpi_signature_keypair,
             &bundle.merkle_tree,
             &bundle.nullifier_queue,
+            epoch,
         )
         .await
         .unwrap();
@@ -1471,6 +1853,8 @@ where
     pub async fn rollover_address_merkle_tree_and_queue(
         &mut self,
         index: usize,
+        payer: &Keypair,
+        epoch: u64,
     ) -> Result<(), RpcError> {
         let bundle = self.indexer.get_address_merkle_trees()[index].accounts;
         let new_nullifier_queue_keypair = Keypair::new();
@@ -1482,12 +1866,13 @@ where
             .unwrap();
         println!("prior balance {}", fee_payer_balance);
         perform_address_merkle_tree_roll_over_forester(
-            self.indexer.get_payer(),
+            payer,
             &mut self.rpc,
             &new_nullifier_queue_keypair,
             &new_merkle_tree_keypair,
             &bundle.merkle_tree,
             &bundle.queue,
+            epoch,
         )
         .await?;
         assert_rolled_over_address_merkle_tree_and_queue(
@@ -1851,6 +2236,10 @@ pub struct GeneralActionConfig {
     pub nullify_compressed_accounts: Option<f64>,
     pub empty_address_queue: Option<f64>,
     pub rollover: Option<f64>,
+    pub add_forester: Option<f64>,
+    /// TODO: add this
+    /// Creates one infinte epoch
+    pub disable_epochs: bool,
 }
 impl Default for GeneralActionConfig {
     fn default() -> Self {
@@ -1861,6 +2250,8 @@ impl Default for GeneralActionConfig {
             nullify_compressed_accounts: Some(0.2),
             empty_address_queue: Some(0.2),
             rollover: None,
+            add_forester: None,
+            disable_epochs: false,
         }
     }
 }
@@ -1874,16 +2265,20 @@ impl GeneralActionConfig {
             nullify_compressed_accounts: None,
             empty_address_queue: None,
             rollover: None,
+            add_forester: None,
+            disable_epochs: false,
         }
     }
     pub fn test_with_rollover() -> Self {
         Self {
             add_keypair: Some(0.3),
-            create_state_mt: None,
-            create_address_mt: None,
-            nullify_compressed_accounts: None,
-            empty_address_queue: None,
-            rollover: None,
+            create_state_mt: Some(1.0),
+            create_address_mt: Some(1.0),
+            nullify_compressed_accounts: Some(0.2),
+            empty_address_queue: Some(0.2),
+            rollover: Some(0.5),
+            add_forester: None,
+            disable_epochs: false,
         }
     }
 }

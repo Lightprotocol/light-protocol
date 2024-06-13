@@ -108,8 +108,7 @@ async fn test_escrow_with_compressed_pda() {
     let rpc_error = RpcError::TransactionError(transaction_error);
     assert!(matches!(result, Err(error) if error.to_string() == rpc_error.to_string()));
 
-    rpc.warp_to_slot(lock_up_time + 1).unwrap();
-
+    rpc.warp_to_slot(lockup_end + 1).unwrap();
     perform_withdrawal_with_event(
         &mut rpc,
         &mut test_indexer,

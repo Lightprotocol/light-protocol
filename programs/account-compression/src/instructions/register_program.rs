@@ -14,7 +14,7 @@ pub struct RegisteredProgram {
 #[derive(Accounts)]
 pub struct RegisterProgramToGroup<'info> {
     /// CHECK: Signer is checked according to authority pda in instruction.
-    #[account(mut, constraint= authority.key() == group_authority_pda.authority @AccountCompressionErrorCode::InvalidAuthority)]
+    #[account( mut, constraint= authority.key() == group_authority_pda.authority @AccountCompressionErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     pub program_to_be_registered: Signer<'info>,
     #[account(
