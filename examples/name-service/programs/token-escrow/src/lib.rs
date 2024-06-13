@@ -18,35 +18,36 @@ pub enum NameError {
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
+pub const ADDRESS_TREE: Pubkey = pubkey!("C83cpRN6oaafjNgMQJvaYgAz592EP5wunKvbokeTKPLn");
+pub const ADDRESS_QUEUE: Pubkey = pubkey!("HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFLHVaaRWz");
+
 #[program]
 pub mod name_service {
 
     use super::*;
 
     pub fn create_name<'info>(
-        ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
+        ctx: Context<'_, '_, '_, 'info, CreateName<'info>>,
         proof: CompressedProof,
         name: u64,
         output_state_merkle_tree_account_index: u8,
-        new_address_params: NewAddressParamsPacked,
+        // The proof gets verified against the tree root. We don't pass the full
+        // 32-byte root to save instruction data.
+        address_tree_root_index: u16,
         bump: u8,
     ) -> Result<()> {
-        let compressed_pda = create_compressed_pda_data(lock_up_time, &ctx, &new_address_params)?;
+        
+        // 1. Construct the PDA 
+        let compressed_pda = create_compressed_pda(&ctx, &address_tree_root_index, name)?;
 
-
-        // Construct the PDA 
-        // Consists of: account layout, address, data-hash
-
-
-        // 3. Call the LightVM to verify & apply the state transition
-
-        // Create CPI signer seed
+        
+        
+        // 2. Create CPI signer seed
         let bump_seed = &[bump];
         let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
         let signer_seeds = [&b"name"[..], &signer_key_bytes[..], bump_seed];
 
-
-        // Create inputs struct
+        // 3. Create inputs struct
         const inputs_struct = InstructionDataInvokeCpi {
             // The proof proves that the PDA is new
             proof: Some(proof),
@@ -54,16 +55,19 @@ pub mod name_service {
             new_address_params: vec![new_address_params],
             // We create a new compressed account, so no input state.
             input_compressed_accounts_with_merkle_context: Vec::new(),
-            output_compressed_accounts: vec![compressed_pda_account],
+            output_compressed_accounts: vec![compressed_pda],
             signer_seeds: seeds.iter().map(|x| x.to_vec()).collect::<Vec<Vec<u8>>>(),
-            // These are all advanced params that you dont need to worry about:
+            // These are all advanced params you don't need to worry about for
+            // this example:
             is_compress: false,
             compress_or_decompress_lamports: None,
             relay_fee: None,
             cpi_context: None,
         }
+        // 4. Verify and apply the state transition
         verify(ctx, &inputs_struct, &[&signer_seeds])?;
-        
+
+        Ok(())
     }
 }
 
@@ -77,47 +81,61 @@ pub struct CreateName<'info> {
     #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
+    // This is the address that will be created
+    #[account(mut)]
+    pub address: AccountInfo<'info>,
+    #[account]
+    pub address_tree: AccountInfo<'info>,
+    #[account(mut)]
+    pub address_queue: AccountInfo<'info>,
     #[authority]
     #[account(seeds = [b"name".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub name_owner_pda: AccountInfo<'info>,
+
     #[self_program]
     pub self_program: Program<'info, NameService>,
 }
 
+// Define the account data layout.
+#[account]
+pub struct NamePda {
+    pub name: u64,
+}
 
-fn cpi_compressed_pda_transfer<'info>(
-    ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
-    proof: CompressedProof,
-    new_address_params: NewAddressParamsPacked,
-    compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: CompressedCpiContext,
-    bump: u8,
-) -> Result<()> {
-    
-    Ok(())
+// Implement the hasher trait. You can define custom hashing schemas for your
+// account data. 
+impl light_hasher::DataHasher for NamePda {
+    fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
+        H::hash(&self.name.to_le_bytes())
+    }
 }
 
 
-fn create_compressed_pda_data(
+// 1. set the new data
+// 2. derive the address
+// 3. return the compressed account in a format recognized by the VM.
+fn create_compressed_pda(
     ctx: &Context<'_, '_, '_, '_, EscrowCompressedTokensWithCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
     name: u64,
 ) -> Result<OutputCompressedAccountWithPackedContext> {
 
-    let timelock_compressed_pda = EscrowTimeLock {
-        slot: current_slot.checked_add(lock_up_time).unwrap(),
+    let name_pda_data = NamePda {
+        name: name,
     };
+
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
-        data: timelock_compressed_pda.try_to_vec().unwrap(),
-        data_hash: timelock_compressed_pda
+        data: name_pda_data.try_to_vec().unwrap(),
+        data_hash: name_pda_data
             .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
-    let derive_address = derive_address(
-        &ctx.remaining_accounts[new_address_params.address_merkle_tree_account_index as usize]
-            .key(),
-        &new_address_params.seed,
+
+    // TODO: this
+    let address_seed = derive_address(
+        &crate::ID,
+        &ns,
     )
     .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(OutputCompressedAccountWithPackedContext {
@@ -131,8 +149,3 @@ fn create_compressed_pda_data(
     })
 }
 
-impl light_hasher::DataHasher for EscrowTimeLock {
-    fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
-        H::hash(&self.slot.to_le_bytes())
-    }
-}
