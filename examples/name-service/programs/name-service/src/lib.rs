@@ -1,20 +1,26 @@
-#![allow(clippy::too_many_arguments)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_compressed_token::InputTokenDataWithContext;
-use light_compressed_token::PackedTokenTransferOutputData;
+use light_hasher::errors::HasherError;
+use light_hasher::DataHasher;
+use light_hasher::Hasher;
+use light_hasher::Poseidon;
+use light_sdk::{traits:: *, pubkey, LightTraits, light_accounts, utils::derive_program_derived_address_seeds};
 use light_system_program::invoke::processor::CompressedProof;
-pub mod escrow_with_compressed_pda;
-pub mod escrow_with_pda;
-
-pub use escrow_with_compressed_pda::escrow::*;
-pub use escrow_with_pda::escrow::*;
-use light_system_program::sdk::CompressedCpiContext;
+use light_system_program::sdk::compressed_account::CompressedAccount;
+use light_system_program::sdk::compressed_account::CompressedAccountData;
 use light_system_program::NewAddressParamsPacked;
 
-#[error_code]
-pub enum NameError {
-}
+use light_system_program::OutputCompressedAccountWithPackedContext;
+use light_system_program::invoke_cpi::account::CpiContextAccount;
+use account_compression::program::AccountCompression;
+use light_sdk::traits::InvokeCpiContextAccount;
+use account_compression::RegisteredProgram;
+use light_system_program::program::LightSystemProgram;
+use light_sdk::traits::LightSystemAccount;
+
+// #[error_code]
+// pub enum NameError {
+// }
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
@@ -24,31 +30,45 @@ pub const ADDRESS_QUEUE: Pubkey = pubkey!("HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFL
 #[program]
 pub mod name_service {
 
+    use light_sdk::verify::verify;
+    use light_system_program::InstructionDataInvokeCpi;
+
     use super::*;
 
     pub fn create_name<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateName<'info>>,
         proof: CompressedProof,
         name: u64,
-        output_state_merkle_tree_account_index: u8,
         // The proof gets verified against the tree root. We don't pass the full
         // 32-byte root to save instruction data.
-        address_tree_root_index: u16,
+        address_merkle_tree_root_index: u16,
         bump: u8,
     ) -> Result<()> {
         
         // 1. Construct the PDA 
-        let compressed_pda = create_compressed_pda(&ctx, &address_tree_root_index, name)?;
+        let compressed_pda = create_compressed_pda(&ctx.accounts.address, name)?;
+        
+        // Here we expect the first remaining_account to be the
+        // pubkey of the state tree that the account shall be inserted into.
+        // state_tree [0]
+        // address_tree [1]
+        // address_queue [2]
 
-        
-        
         // 2. Create CPI signer seed
         let bump_seed = &[bump];
         let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
         let signer_seeds = [&b"name"[..], &signer_key_bytes[..], bump_seed];
 
+        // Create address params struct
+        let new_address_params = NewAddressParamsPacked {
+            seed: derive_program_derived_address_seeds(&crate::ID, &[b"name", &signer_key_bytes[..]])?,
+            address_merkle_tree_account_index: 1,
+            address_queue_account_index: 2,
+            address_merkle_tree_root_index,
+        };
+
         // 3. Create inputs struct
-        const inputs_struct = InstructionDataInvokeCpi {
+        let inputs_struct = InstructionDataInvokeCpi {
             // The proof proves that the PDA is new
             proof: Some(proof),
             // Metadata for the VM to verify the new address
@@ -56,14 +76,15 @@ pub mod name_service {
             // We create a new compressed account, so no input state.
             input_compressed_accounts_with_merkle_context: Vec::new(),
             output_compressed_accounts: vec![compressed_pda],
-            signer_seeds: seeds.iter().map(|x| x.to_vec()).collect::<Vec<Vec<u8>>>(),
+            signer_seeds: signer_seeds.iter().map(|x| x.to_vec()).collect::<Vec<Vec<u8>>>(),
             // These are all advanced params you don't need to worry about for
             // this example:
             is_compress: false,
             compress_or_decompress_lamports: None,
             relay_fee: None,
             cpi_context: None,
-        }
+        };
+
         // 4. Verify and apply the state transition
         verify(ctx, &inputs_struct, &[&signer_seeds])?;
 
@@ -84,27 +105,26 @@ pub struct CreateName<'info> {
     // This is the address that will be created
     #[account(mut)]
     pub address: AccountInfo<'info>,
-    #[account]
     pub address_tree: AccountInfo<'info>,
     #[account(mut)]
     pub address_queue: AccountInfo<'info>,
     #[authority]
     #[account(seeds = [b"name".as_slice(), signer.key.to_bytes().as_slice()], bump)]
     pub name_owner_pda: AccountInfo<'info>,
-
     #[self_program]
-    pub self_program: Program<'info, NameService>,
+    pub self_program: Program<'info, crate::program::NameService>,
 }
 
 // Define the account data layout.
+#[derive(Debug)]
 #[account]
 pub struct NamePda {
-    pub name: u64,
+    name: u64,
 }
 
 // Implement the hasher trait. You can define custom hashing schemas for your
 // account data. 
-impl light_hasher::DataHasher for NamePda {
+impl DataHasher for NamePda {
     fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
         H::hash(&self.name.to_le_bytes())
     }
@@ -114,16 +134,16 @@ impl light_hasher::DataHasher for NamePda {
 // 1. set the new data
 // 2. derive the address
 // 3. return the compressed account in a format recognized by the VM.
-fn create_compressed_pda(
-    ctx: &Context<'_, '_, '_, '_, EscrowCompressedTokensWithCompressedPda<'_>>,
-    new_address_params: &NewAddressParamsPacked,
+fn create_compressed_pda<'info>(
+    address: &AccountInfo<'info>,
     name: u64,
 ) -> Result<OutputCompressedAccountWithPackedContext> {
 
     let name_pda_data = NamePda {
-        name: name,
+        name,
     };
 
+    // Create data hash struct as the VM expects it.
     let compressed_account_data = CompressedAccountData {
         discriminator: 1u64.to_le_bytes(),
         data: name_pda_data.try_to_vec().unwrap(),
@@ -131,20 +151,14 @@ fn create_compressed_pda(
             .hash::<Poseidon>()
             .map_err(ProgramError::from)?,
     };
-
-    // TODO: this
-    let address_seed = derive_address(
-        &crate::ID,
-        &ns,
-    )
-    .map_err(|_| ProgramError::InvalidArgument)?;
     Ok(OutputCompressedAccountWithPackedContext {
         compressed_account: CompressedAccount {
             owner: crate::ID,
             lamports: 0,
-            address: Some(derive_address),
+            address: Some(address.key.to_bytes()),
             data: Some(compressed_account_data),
         },
+        // Set the index of your tree in remaining accounts for the CPI.
         merkle_tree_index: 0,
     })
 }
