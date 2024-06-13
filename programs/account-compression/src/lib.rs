@@ -67,6 +67,7 @@ pub mod account_compression {
         ctx: Context<'_, '_, '_, 'info, UpdateAddressMerkleTree<'info>>,
         // Index of the Merkle tree changelog.
         changelog_index: u16,
+        indexed_changelog_index: u16,
         // Index of the address to dequeue.
         value: u16,
         // Low address.
@@ -81,6 +82,7 @@ pub mod account_compression {
         process_update_address_merkle_tree(
             ctx,
             changelog_index,
+            indexed_changelog_index,
             value,
             low_address_index,
             low_address_value,
