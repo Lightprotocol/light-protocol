@@ -93,17 +93,18 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
     }
 }
 
-pub async fn get_changelog_index<R: RpcConnection>(
+pub async fn get_changelog_indices<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     client: &mut R,
-) -> Result<usize, ForesterError> {
+) -> Result<(usize, usize), ForesterError> {
     let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
         client,
         *merkle_tree_pubkey,
     )
     .await;
     let changelog_index = merkle_tree.changelog_index();
-    Ok(changelog_index)
+    let indexed_changelog_index = merkle_tree.indexed_changelog_index();
+    Ok((changelog_index, indexed_changelog_index))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -120,9 +121,10 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     low_address_proof: [[u8; 32]; 16],
 ) -> Result<bool, RpcError> {
     info!("update_merkle_tree");
-    let changelog_index = get_changelog_index(&address_merkle_tree_pubkey, rpc)
-        .await
-        .unwrap();
+    let (changelog_index, indexed_changelog_index) =
+        get_changelog_indices(&address_merkle_tree_pubkey, rpc)
+            .await
+            .unwrap();
     info!("changelog_index: {:?}", changelog_index);
 
     let update_ix =
@@ -137,6 +139,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             low_address_next_value,
             low_address_proof,
             changelog_index: changelog_index as u16,
+            indexed_changelog_index: indexed_changelog_index as u16,
         });
     info!("sending transaction...");
 
