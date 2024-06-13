@@ -51,6 +51,11 @@ class SetupCommand extends Command {
       required: false,
       exclusive: ["skip-indexer"],
     }),
+    "limit-ledger-size": Flags.integer({
+      description: "Keep this amount of shreds in root slots.",
+      required: false,
+      default: 10000,
+    }),
   };
 
   async run() {
@@ -59,14 +64,15 @@ class SetupCommand extends Command {
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
     await initTestEnv({
-      skipSystemAccounts: flags["skip-system-accounts"],
-      indexer: !flags["skip-indexer"],
-      prover: !flags["skip-prover"],
+      checkPhotonVersion: !flags["relax-indexer-version-constraint"],
       forester: !flags["skip-forester"],
+      indexer: !flags["skip-indexer"],
+      limitLedgerSize: flags["limit-ledger-size"],
+      photonDatabaseUrl: flags["indexer-db-url"],
       proveCompressedAccounts: flags["prove-compressed-accounts"],
       proveNewAddresses: flags["prove-new-addresses"],
-      checkPhotonVersion: !flags["relax-indexer-version-constraint"],
-      photonDatabaseUrl: flags["indexer-db-url"],
+      prover: !flags["skip-prover"],
+      skipSystemAccounts: flags["skip-system-accounts"],
     });
 
     this.log("\nSetup tasks completed successfully \x1b[32m✔\x1b[0m");
