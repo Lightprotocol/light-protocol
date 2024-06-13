@@ -13,11 +13,7 @@ use light_system_program::sdk::CompressedCpiContext;
 use light_system_program::NewAddressParamsPacked;
 
 #[error_code]
-pub enum EscrowError {
-    #[msg("Escrow is locked")]
-    EscrowLocked,
-    #[msg("CpiContextAccountIndexNotFound")]
-    CpiContextAccountIndexNotFound,
+pub enum NameError {
 }
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
@@ -25,74 +21,67 @@ declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 #[program]
 pub mod name_service {
 
-    use self::{
-        escrow_with_compressed_pda::withdrawal::process_withdraw_compressed_tokens_with_compressed_pda,
-        escrow_with_pda::withdrawal::process_withdraw_compressed_escrow_tokens_with_pda,
-    };
-
     use super::*;
 
-    pub fn escrow_compressed_tokens_with_compressed_pda<'info>(
+    pub fn create_name<'info>(
         ctx: Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
-        lock_up_time: u64,
-        escrow_amount: u64,
         proof: CompressedProof,
-        mint: Pubkey,
-        signer_is_delegate: bool,
-        input_token_data_with_context: Vec<InputTokenDataWithContext>,
-        output_state_merkle_tree_account_indices: Vec<u8>,
+        name: u64,
+        output_state_merkle_tree_account_index: u8,
         new_address_params: NewAddressParamsPacked,
-        cpi_context: CompressedCpiContext,
         bump: u8,
     ) -> Result<()> {
         let compressed_pda = create_compressed_pda_data(lock_up_time, &ctx, &new_address_params)?;
 
-        process_escrow_compressed_tokens_with_compressed_pda(
-            ctx,
-            lock_up_time,
-            escrow_amount,
-            proof,
-            mint,
-            signer_is_delegate,
-            input_token_data_with_context,
-            output_state_merkle_tree_account_indices,
-            new_address_params,
-            cpi_context,
-            bump,
-        )
-    }   
+
+        // Construct the PDA 
+        // Consists of: account layout, address, data-hash
+
+
+        // 3. Call the LightVM to verify & apply the state transition
+
+        // Create CPI signer seed
+        let bump_seed = &[bump];
+        let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
+        let signer_seeds = [&b"name"[..], &signer_key_bytes[..], bump_seed];
+
+
+        // Create inputs struct
+        const inputs_struct = InstructionDataInvokeCpi {
+            // The proof proves that the PDA is new
+            proof: Some(proof),
+            // Metadata for the VM to verify the new address
+            new_address_params: vec![new_address_params],
+            // We create a new compressed account, so no input state.
+            input_compressed_accounts_with_merkle_context: Vec::new(),
+            output_compressed_accounts: vec![compressed_pda_account],
+            signer_seeds: seeds.iter().map(|x| x.to_vec()).collect::<Vec<Vec<u8>>>(),
+            // These are all advanced params that you dont need to worry about:
+            is_compress: false,
+            compress_or_decompress_lamports: None,
+            relay_fee: None,
+            cpi_context: None,
+        }
+        verify(ctx, &inputs_struct, &[&signer_seeds])?;
+        
+    }
 }
 
 
 
+// 1. pda not passed as pubkey, but rather in instructiondata
 #[light_accounts]
 #[derive(Accounts, LightTraits)]
-pub struct EscrowCompressedTokensWithCompressedPda<'info> {
+pub struct CreateName<'info> {
     #[account(mut)]
     #[fee_payer]
     pub signer: Signer<'info>,
     /// CHECK:
     #[authority]
-    #[account(seeds = [b"escrow".as_slice(), signer.key.to_bytes().as_slice()], bump)]
-    pub token_owner_pda: AccountInfo<'info>,
-    pub compressed_token_program: Program<'info, LightCompressedToken>,
-    pub compressed_token_cpi_authority_pda: AccountInfo<'info>,
+    #[account(seeds = [b"name".as_slice(), signer.key.to_bytes().as_slice()], bump)]
+    pub name_owner_pda: AccountInfo<'info>,
     #[self_program]
-    pub self_program: Program<'info, TokenEscrow>,
-    /// CHECK:
-    #[cpi_context]
-    #[account(mut)]
-    pub cpi_context_account: Account<'info, CpiContextAccount>,
-}
-
-
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct PackedInputCompressedPda {
-    pub old_lock_up_time: u64,
-    pub new_lock_up_time: u64,
-    pub address: [u8; 32],
-    pub merkle_context: PackedMerkleContext,
-    pub root_index: u16,
+    pub self_program: Program<'info, NameService>,
 }
 
 
@@ -104,32 +93,17 @@ fn cpi_compressed_pda_transfer<'info>(
     cpi_context: CompressedCpiContext,
     bump: u8,
 ) -> Result<()> {
-    // Create CPI signer seed
-    let bump_seed = &[bump];
-    let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
-    let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
-
-    // Create inputs struct
-    let inputs_struct = create_cpi_inputs_for_new_address(
-        proof,
-        new_address_params,
-        compressed_pda,
-        &signer_seeds,
-        Some(cpi_context),
-    );
-
-    verify(ctx, &inputs_struct, &[&signer_seeds])?;
-
+    
     Ok(())
 }
 
 
 fn create_compressed_pda_data(
-    lock_up_time: u64,
     ctx: &Context<'_, '_, '_, '_, EscrowCompressedTokensWithCompressedPda<'_>>,
     new_address_params: &NewAddressParamsPacked,
+    name: u64,
 ) -> Result<OutputCompressedAccountWithPackedContext> {
-    let current_slot = Clock::get()?.slot;
+
     let timelock_compressed_pda = EscrowTimeLock {
         slot: current_slot.checked_add(lock_up_time).unwrap(),
     };
