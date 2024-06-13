@@ -1,5 +1,6 @@
 use account_compression::AddressMerkleTreeConfig;
 use light_utils::bigint::bigint_to_be_bytes_array;
+use log::info;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
@@ -79,13 +80,13 @@ pub struct AddressMerkleTreeAccounts {
     pub queue: Pubkey,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StateMerkleTreeBundle {
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>,
@@ -107,6 +108,27 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub path: String,
     pub proof_types: Vec<ProofType>,
     phantom: PhantomData<R>,
+}
+
+impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone
+    for TestIndexer<INDEXED_ARRAY_SIZE, R>
+{
+    fn clone(&self) -> Self {
+        Self {
+            state_merkle_trees: self.state_merkle_trees.clone(),
+            address_merkle_trees: self.address_merkle_trees.clone(),
+            payer: self.payer.insecure_clone(),
+            group_pda: self.group_pda,
+            compressed_accounts: self.compressed_accounts.clone(),
+            nullified_compressed_accounts: self.nullified_compressed_accounts.clone(),
+            token_compressed_accounts: self.token_compressed_accounts.clone(),
+            token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
+            events: self.events.clone(),
+            path: self.path.clone(),
+            proof_types: self.proof_types.clone(),
+            phantom: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -148,6 +170,20 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             })
         });
         Ok(proofs)
+    }
+
+    async fn get_rpc_compressed_accounts_by_owner(
+        &self,
+        owner: &Pubkey,
+    ) -> Result<Vec<String>, IndexerError> {
+        let result = self.get_compressed_accounts_by_owner(owner);
+        let mut hashes: Vec<String> = Vec::new();
+        for account in result.iter() {
+            let hash = account.hash().unwrap();
+            let bs58_hash = bs58::encode(hash).into_string();
+            hashes.push(bs58_hash);
+        }
+        Ok(hashes)
     }
 
     fn get_address_tree_proof(
@@ -206,6 +242,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             .as_slice()
             .try_into()
             .unwrap();
+
         if let Some(state_tree_bundle) = self
             .state_merkle_trees
             .iter_mut()

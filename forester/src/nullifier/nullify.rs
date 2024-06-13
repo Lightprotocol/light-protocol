@@ -7,26 +7,33 @@ use light_hasher::Poseidon;
 use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
 use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::indexer::Indexer;
-use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::SolanaRpcConnection;
 use log::{info, warn};
-use solana_client::rpc_client::RpcClient;
-use solana_client::rpc_config::RpcSendTransactionConfig;
-use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
-use solana_sdk::transaction::Transaction;
 use std::collections::HashMap;
 use std::mem;
-use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::{Mutex, Semaphore};
 use tokio_util::sync::CancellationToken;
 
-pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), ForesterError> {
-    let arc_indexer = Arc::new(Mutex::new(indexer));
+#[allow(dead_code)]
+pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
+    indexer: &mut T,
+    rpc: &mut R,
+    config: &Config,
+) -> Result<(), ForesterError> {
+    // TODO: check that our part of the queue is not empty before starting
+    // fetch the queue data, pass the data to the nullify function and nullify the accounts
+    nullify(indexer, rpc, config).await
+}
+
+pub async fn nullify<T: Indexer, R: RpcConnection>(
+    indexer: &mut T,
+    rpc: &mut R,
+    config: &Config,
+) -> Result<(), ForesterError> {
     let concurrency_limit = config.concurrency_limit;
     let semaphore = Arc::new(Semaphore::new(concurrency_limit));
     let successful_nullifications = Arc::new(Mutex::new(1));
@@ -43,8 +50,7 @@ pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), Fore
 
     loop {
         let queue_data = {
-            let mut queue_data = fetch_queue_data(arc_indexer.clone(), config).await?;
-
+            let mut queue_data = fetch_queue_data(indexer, rpc, config).await?;
             if cancellation_token.is_cancelled() {
                 info!("Cancellation detected, exiting loop...");
                 break;
@@ -52,7 +58,7 @@ pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), Fore
             if queue_data.is_none()
                 || *successful_nullifications.lock().await % config.batch_size == 0
             {
-                match fetch_queue_data(arc_indexer.clone(), config).await {
+                match fetch_queue_data(indexer, rpc, config).await {
                     Ok(data) => {
                         queue_data = data;
                     }
@@ -86,64 +92,55 @@ pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), Fore
             .compressed_account_proofs
             .remove(&account.hash_string())
         {
-            let client =
-                RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::confirmed());
             let successful_nullifications = Arc::clone(&successful_nullifications);
             let cancellation_token_clone = cancellation_token.clone();
-            let arc_indexer_clone = Arc::clone(&arc_indexer);
             let config_clone = config.clone();
-            let task = tokio::spawn(async move {
-                let _permit = permit;
-                let mut retries = 0;
-                loop {
-                    if cancellation_token_clone.is_cancelled() {
-                        info!("Task cancelled for account {}", account.hash_string());
+            let _permit = permit;
+            let mut retries = 0;
+            loop {
+                if cancellation_token_clone.is_cancelled() {
+                    info!("Task cancelled for account {}", account.hash_string());
+                    break;
+                }
+                let proof_clone = proof.clone();
+                info!("Nullifying account: {}", account.hash_string());
+                match nullify_compressed_account(
+                    account,
+                    queue_data.change_log_index,
+                    proof_clone,
+                    leaf_index,
+                    &config_clone,
+                    rpc,
+                    indexer,
+                )
+                .await
+                {
+                    Ok(_) => {
+                        let mut successful_nullifications = successful_nullifications.lock().await;
+                        *successful_nullifications += 1;
                         break;
                     }
-                    let proof_clone = proof.clone();
-                    info!("Nullifying account: {}", account.hash_string());
-                    match nullify_compressed_account(
-                        account,
-                        queue_data.change_log_index,
-                        proof_clone,
-                        leaf_index,
-                        &config_clone,
-                        &client,
-                        arc_indexer_clone.clone(),
-                    )
-                    .await
-                    {
-                        Ok(_) => {
-                            let mut successful_nullifications =
-                                successful_nullifications.lock().await;
-                            *successful_nullifications += 1;
-                            break;
-                        }
-                        Err(e) => {
-                            if retries >= max_retries {
-                                warn!(
-                                    "Max retries reached for account {}: {:?}",
-                                    account.hash_string(),
-                                    e
-                                );
-                                break;
-                            }
-                            retries += 1;
+                    Err(e) => {
+                        if retries >= max_retries {
                             warn!(
-                                "Retrying account {} due to error: {:?}",
+                                "Max retries reached for account {}: {:?}",
                                 account.hash_string(),
                                 e
                             );
-                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                            break;
                         }
+                        retries += 1;
+                        warn!(
+                            "Retrying account {} due to error: {:?}",
+                            account.hash_string(),
+                            e
+                        );
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
-            });
-            if let Err(e) = task.await {
-                warn!("Task failed with error: {:?}", e);
-                continue;
             }
         } else {
+            warn!("No proof found for account: {}", account.hash_string());
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             continue;
         }
@@ -156,21 +153,15 @@ pub async fn nullify<T: Indexer>(indexer: T, config: &Config) -> Result<(), Fore
     Ok(())
 }
 
-async fn fetch_queue_data<T: Indexer>(
-    indexer: Arc<Mutex<T>>,
+async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
+    indexer: &T,
+    rpc: &mut R,
     config: &Config,
 ) -> Result<Option<StateQueueData>, ForesterError> {
-    let (change_log_index, sequence_number) = {
-        let mut temporary_client = SolanaRpcConnection::new_with_url(
-            &config.server_url,
-            Some(CommitmentConfig::processed()),
-        );
-        get_changelog_index(&config.state_merkle_tree_pubkey, &mut temporary_client).await?
-    };
+    let (change_log_index, sequence_number) =
+        { get_changelog_index(&config.state_merkle_tree_pubkey, rpc).await? };
     let compressed_accounts_to_nullify = {
-        let temporary_client =
-            RpcClient::new_with_commitment(&config.server_url, CommitmentConfig::processed());
-        let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &temporary_client)?;
+        let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc).await?;
         info!(
             "Queue length: {}. Trimming to batch size of {}...",
             queue.len(),
@@ -191,8 +182,6 @@ async fn fetch_queue_data<T: Indexer>(
         .map(|account| account.hash_string())
         .collect::<Vec<_>>();
 
-    let indexer_guard = indexer.lock().await;
-    let indexer = indexer_guard.deref();
     let proofs = indexer
         .get_multiple_compressed_account_proofs(compressed_account_list.clone())
         .await
@@ -200,6 +189,7 @@ async fn fetch_queue_data<T: Indexer>(
             warn!("Cannot get multiple proofs: {:#?}", e);
             ForesterError::NoProofsFound
         })?;
+
     let compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, i64)> = proofs
         .into_iter()
         .map(|proof| {
@@ -218,14 +208,14 @@ async fn fetch_queue_data<T: Indexer>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn nullify_compressed_account<T: Indexer>(
+pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
     account: Account,
     change_log_index: usize,
     proof: Vec<[u8; 32]>,
     leaf_index: u64,
     config: &Config,
-    client: &RpcClient,
-    indexer: Arc<Mutex<T>>,
+    rpc: &mut R,
+    indexer: &mut T,
 ) -> Result<(), ForesterError> {
     let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
         nullifier_queue: config.nullifier_queue_pubkey,
@@ -241,43 +231,34 @@ pub async fn nullify_compressed_account<T: Indexer>(
         ix,
     ];
 
-    let latest_blockhash = client.get_latest_blockhash().map_err(RpcError::from)?;
-    let transaction = Transaction::new_signed_with_payer(
-        &instructions,
-        Some(&config.payer_keypair.pubkey()),
-        &[&config.payer_keypair],
-        latest_blockhash,
-    );
-
-    let tx_config = RpcSendTransactionConfig {
-        skip_preflight: true,
-        preflight_commitment: Some(solana_sdk::commitment_config::CommitmentLevel::Confirmed),
-        ..RpcSendTransactionConfig::default()
-    };
-    let signature = client
-        .send_transaction_with_config(&transaction, tx_config)
-        .map_err(RpcError::from)?;
+    let signature = rpc
+        .create_and_send_transaction(
+            &instructions,
+            &config.payer_keypair.pubkey(),
+            &[&config.payer_keypair],
+        )
+        .await;
     info!("Transaction: {:?}", signature);
-    loop {
-        let confirmed = client.confirm_transaction(&signature).unwrap();
-        if confirmed {
-            break;
-        }
-    }
 
-    let mut guard = indexer.lock().await;
-    let indexer = guard.deref_mut();
+    // TODO: check if the transaction was successful and implement retry logic
+
     indexer.account_nullified(config.state_merkle_tree_pubkey, &account.hash_string());
     Ok(())
 }
 
-pub fn get_nullifier_queue(
+pub async fn get_nullifier_queue<R: RpcConnection>(
     nullifier_queue_pubkey: &Pubkey,
-    client: &RpcClient,
+    rpc: &mut R,
 ) -> Result<Vec<Account>, ForesterError> {
-    let mut nullifier_queue_account = client
-        .get_account(nullifier_queue_pubkey)
-        .map_err(RpcError::from)?;
+    let mut nullifier_queue_account = rpc
+        .get_account(*nullifier_queue_pubkey)
+        .await
+        .map_err(|e| {
+            warn!("Error fetching nullifier queue account: {:?}", e);
+            ForesterError::Custom("Error fetching nullifier queue account".to_string())
+        })?
+        .unwrap();
+
     let nullifier_queue: HashSet = unsafe {
         HashSet::from_bytes_copy(
             &mut nullifier_queue_account.data[8 + mem::size_of::<QueueAccount>()..],
@@ -300,10 +281,10 @@ pub fn get_nullifier_queue(
 
 pub async fn get_changelog_index<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
-    client: &mut R,
+    rpc: &mut R,
 ) -> Result<(usize, usize), ForesterError> {
     let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, 26>(
-        client,
+        rpc,
         *merkle_tree_pubkey,
     )
     .await;

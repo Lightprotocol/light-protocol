@@ -11,8 +11,7 @@ use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::instruction::{Instruction, InstructionError};
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::signature::{Keypair, Signature, Signer};
+use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
@@ -38,9 +37,6 @@ impl SolanaRpcConnection {
         let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url, commitment_config);
-        client
-            .request_airdrop(&payer.pubkey(), LAMPORTS_PER_SOL * 1000)
-            .unwrap();
         Self { client, payer }
     }
 
@@ -115,7 +111,7 @@ impl RpcConnection for SolanaRpcConnection {
         payer: &Pubkey,
         signers: &[&Keypair],
         transaction_params: Option<TransactionParams>,
-    ) -> Result<Option<T>, RpcError>
+    ) -> Result<Option<(T, Signature)>, RpcError>
     where
         T: AnchorDeserialize + Debug,
     {
@@ -174,7 +170,6 @@ impl RpcConnection for SolanaRpcConnection {
                 - transaction_params.compress
                 - 5000 * deduped_signers.len() as i64
                 - network_fee;
-
             if post_balance as i64 != expected_post_balance {
                 println!("transaction_params: {:?}", transaction_params);
                 println!("pre_balance: {}", pre_balance);
@@ -191,7 +186,8 @@ impl RpcConnection for SolanaRpcConnection {
             }
         }
 
-        Ok(event)
+        let result = event.map(|event| (event, signature));
+        Ok(result)
     }
 
     async fn create_and_send_transaction(
@@ -269,15 +265,18 @@ impl RpcConnection for SolanaRpcConnection {
             .client
             .request_airdrop(to, lamports)
             .map_err(RpcError::from)?;
-        let confirmed = self
-            .client
-            .confirm_transaction_with_commitment(&signature, CommitmentConfig::confirmed())?
-            .value;
-        if confirmed {
-            Ok(signature)
-        } else {
-            Err(RpcError::CustomError("Airdrop failed".to_string()))
+
+        loop {
+            let confirmed = self
+                .client
+                .confirm_transaction_with_commitment(&signature, self.client.commitment())?
+                .value;
+            if confirmed {
+                break;
+            }
         }
+
+        Ok(signature)
     }
 
     async fn get_anchor_account<T: AnchorDeserialize>(&mut self, pubkey: &Pubkey) -> T {

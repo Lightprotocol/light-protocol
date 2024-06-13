@@ -1,8 +1,12 @@
 #![cfg(feature = "test-sbf")]
+
+use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use solana_sdk::instruction::Instruction;
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+
 use account_compression::sdk::create_insert_leaves_instruction;
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::{AddressMerkleTreeConfig, QueueAccount, StateMerkleTreeAccount};
-use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
 use light_registry::get_forester_epoch_pda_address;
@@ -25,8 +29,6 @@ use light_test_utils::{
     indexer::{create_mint_helper, TestIndexer},
     test_env::setup_test_programs_with_accounts,
 };
-use solana_sdk::instruction::Instruction;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
@@ -102,7 +104,7 @@ async fn test_program_owned_merkle_tree() {
         26,
     >(&mut rpc, program_owned_merkle_tree_pubkey)
     .await;
-    test_indexer.add_compressed_accounts_with_token_data(&event);
+    test_indexer.add_compressed_accounts_with_token_data(&event.0);
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),
@@ -230,7 +232,7 @@ async fn test_invalid_registered_program() {
             ),
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
-            system_program: solana_sdk::system_program::ID,
+            system_program: system_program::ID,
             merkle_tree: merkle_tree_pubkey,
             queue: merkle_tree_pubkey, // not used in this ix
         };
@@ -283,7 +285,7 @@ async fn test_invalid_registered_program() {
             ),
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
-            system_program: solana_sdk::system_program::ID,
+            system_program: system_program::ID,
             merkle_tree: merkle_tree_pubkey,
             queue: merkle_tree_pubkey, // not used in this ix
         };
@@ -307,7 +309,7 @@ async fn test_invalid_registered_program() {
     {
         let new_merkle_tree_keypair = Keypair::new();
         let new_queue_keypair = Keypair::new();
-        let (cpi_authority, bump) = light_registry::sdk::get_cpi_authority_pda();
+        let (cpi_authority, bump) = get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let registered_forester_pda = get_forester_epoch_pda_address(&env.forester.pubkey()).0;
         let instruction_data =
@@ -333,7 +335,7 @@ async fn test_invalid_registered_program() {
             &account_compression::ID,
             Some(&new_queue_keypair),
         );
-        let size = account_compression::state::StateMerkleTreeAccount::size(
+        let size = StateMerkleTreeAccount::size(
             account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
             account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG as usize,
             account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
@@ -373,7 +375,7 @@ async fn test_invalid_registered_program() {
     {
         let new_merkle_tree_keypair = Keypair::new();
         let new_queue_keypair = Keypair::new();
-        let (cpi_authority, bump) = light_registry::sdk::get_cpi_authority_pda();
+        let (cpi_authority, bump) = get_cpi_authority_pda();
         let registered_program_pda = get_registered_program_pda(&light_registry::ID);
         let instruction_data =
             light_registry::instruction::RolloverAddressMerkleTreeAndQueue { bump };
@@ -511,7 +513,7 @@ async fn test_invalid_registered_program() {
             ),
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
-            system_program: solana_sdk::system_program::ID,
+            system_program: system_program::ID,
             merkle_tree: env.address_merkle_tree_pubkey,
             queue: env.address_merkle_tree_queue_pubkey,
         };
@@ -542,7 +544,7 @@ async fn test_invalid_registered_program() {
             ),
             account_compression_program: account_compression::ID,
             cpi_signer: derived_address,
-            system_program: solana_sdk::system_program::ID,
+            system_program: system_program::ID,
             merkle_tree: env.merkle_tree_pubkey,
             queue: env.nullifier_queue_pubkey,
         };

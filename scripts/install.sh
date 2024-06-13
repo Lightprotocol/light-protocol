@@ -110,7 +110,7 @@ check_flag() {
 
 GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
-PNPM_VERSION="8.8.0"
+PNPM_VERSION="9.2.0"
 SOLANA_VERSION="1.18.11"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
@@ -287,6 +287,6 @@ echo "📦 Installing pnpm dependencies"
 pnpm install
 
 echo "📦 Installing Playwright"
-pnpm exec playwright install
+pnpm exec playwright install --with-deps
 
 echo "✨ Light Protocol development dependencies installed"

@@ -1644,7 +1644,7 @@ pub async fn nullify<R: RpcConnection>(
                 + SAFETY_MARGIN as usize
         )
     );
-    let event = event.as_ref().unwrap();
+    let event = event.unwrap().0;
     match event {
         MerkleTreeEvent::V1(_) => panic!("Expected V2 event"),
         MerkleTreeEvent::V2(event_v1) => {

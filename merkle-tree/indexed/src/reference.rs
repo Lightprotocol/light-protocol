@@ -24,7 +24,7 @@ pub enum IndexedReferenceMerkleTreeError {
     Hasher(#[from] HasherError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[repr(C)]
 pub struct IndexedMerkleTree<H, I>
 where

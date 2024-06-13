@@ -19,6 +19,7 @@ use light_system_program::{
     },
     NewAddressParams,
 };
+use solana_sdk::signature::Signature;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -215,7 +216,7 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
     recipients: &[Pubkey],
     output_merkle_tree_pubkeys: &[Pubkey],
     transaction_params: Option<TransactionParams>,
-) -> Result<(), RpcError> {
+) -> Result<Signature, RpcError> {
     if recipients.len() != output_merkle_tree_pubkeys.len() {
         panic!("recipients and output_merkle_tree_pubkeys length mismatch for transfer_compressed_sol_test");
     }
@@ -270,8 +271,7 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
         created_addresses: None,
         recipient: None,
     };
-    compressed_transaction_test(inputs).await?;
-    Ok(())
+    compressed_transaction_test(inputs).await
 }
 
 pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
@@ -295,7 +295,7 @@ pub struct CompressedTransactionTestInputs<'a, const INDEXED_ARRAY_SIZE: usize, 
 #[allow(clippy::too_many_arguments)]
 pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     inputs: CompressedTransactionTestInputs<'_, INDEXED_ARRAY_SIZE, R>,
-) -> Result<(), RpcError> {
+) -> Result<Signature, RpcError> {
     let mut compressed_account_hashes = Vec::new();
 
     let compressed_account_input_hashes = if !inputs.input_compressed_accounts.is_empty() {
@@ -437,13 +437,13 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
 
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer
-        .add_event_and_compressed_accounts(&event);
+        .add_event_and_compressed_accounts(&event.0);
     let input = AssertCompressedTransactionInputs {
         rpc: inputs.rpc,
         test_indexer: inputs.test_indexer,
         output_compressed_accounts: inputs.output_compressed_accounts,
         created_output_compressed_accounts: created_output_compressed_accounts.as_slice(),
-        event: &event,
+        event: &event.0,
         input_merkle_tree_snapshots: input_merkle_tree_snapshots.as_slice(),
         output_merkle_tree_snapshots: output_merkle_tree_snapshots.as_slice(),
         recipient_balance_pre,
@@ -462,5 +462,5 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             .collect::<Vec<Pubkey>>(),
     };
     assert_compressed_transaction(input).await;
-    Ok(())
+    Ok(event.1)
 }
