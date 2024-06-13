@@ -94,9 +94,9 @@ async fn test_nullify_leaves() {
     let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
     let mut rpc = SolanaRpcConnection::new(None);
-    let _ = rpc
-        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .await;
+    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
+        .unwrap();
 
     let time = std::time::Instant::now();
     match nullify(&mut indexer, &mut rpc, &config).await {
@@ -115,8 +115,8 @@ async fn test_nullify_leaves() {
 async fn test_subscribe_nullify() {
     let config = test_config();
     let mut rpc = SolanaRpcConnection::new(None);
-    let _ = rpc
-        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .await;
+    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
+        .unwrap();
     subscribe_nullify(&config, &mut rpc).await;
 }

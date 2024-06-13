@@ -62,7 +62,9 @@ async fn test_indexer() {
         "Nullifying queue of {} accounts...",
         get_state_queue_length(&mut env.rpc, &config).await
     );
-    let _ = nullify(&mut env.indexer, &mut env.rpc, &config).await;
+    nullify(&mut env.indexer, &mut env.rpc, &config)
+        .await
+        .unwrap();
     assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
 }
 
