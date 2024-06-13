@@ -60,4 +60,8 @@ pub enum SystemProgramError {
     AppendStateFailed,
     #[msg("The instruction is not callable")]
     InstructionNotCallable,
+    #[msg("InvalidAddressTree")]
+    InvalidAddressTree,
+    #[msg("InvalidAddressQueue")]
+    InvalidAddressQueue,
 }

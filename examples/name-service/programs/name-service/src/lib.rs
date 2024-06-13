@@ -1,26 +1,23 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
-use light_hasher::errors::HasherError;
-use light_hasher::DataHasher;
-use light_hasher::Hasher;
-use light_hasher::Poseidon;
-use light_sdk::{traits:: *, pubkey, LightTraits, light_accounts, utils::derive_program_derived_address_seeds};
-use light_system_program::invoke::processor::CompressedProof;
-use light_system_program::sdk::compressed_account::CompressedAccount;
-use light_system_program::sdk::compressed_account::CompressedAccountData;
-use light_system_program::NewAddressParamsPacked;
+use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
+use light_sdk::{
+    traits::{*, InvokeCpiContextAccount, LightSystemAccount},
+    pubkey,
+    LightTraits,
+    light_accounts,
+    utils::derive_program_derived_address_seeds,
+};
+use light_system_program::{
+    invoke::processor::CompressedProof,
+    sdk::compressed_account::{CompressedAccount, CompressedAccountData},
+    NewAddressParamsPacked,
+    OutputCompressedAccountWithPackedContext,
+    invoke_cpi::account::CpiContextAccount,
+    program::LightSystemProgram,
+};
+use account_compression::{program::AccountCompression, RegisteredProgram};
 
-use light_system_program::OutputCompressedAccountWithPackedContext;
-use light_system_program::invoke_cpi::account::CpiContextAccount;
-use account_compression::program::AccountCompression;
-use light_sdk::traits::InvokeCpiContextAccount;
-use account_compression::RegisteredProgram;
-use light_system_program::program::LightSystemProgram;
-use light_sdk::traits::LightSystemAccount;
-
-// #[error_code]
-// pub enum NameError {
-// }
 
 declare_id!("7yucc7fL3JGbyMwg4neUaenNSdySS39hbAk89Ao3t1Hz");
 
@@ -31,10 +28,14 @@ pub const ADDRESS_QUEUE: Pubkey = pubkey!("HNjtNrjt6irUPYEgxhx2Vcs42koK9fxzm3aFL
 pub mod name_service {
 
     use light_sdk::verify::verify;
-    use light_system_program::InstructionDataInvokeCpi;
+    use light_system_program::{errors::SystemProgramError, InstructionDataInvokeCpi};
 
     use super::*;
 
+    // TODO: 
+    // 1) Check trees
+    // 2) Extend data field/deriv for name_service
+    // 3) Add update instruction
     pub fn create_name<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateName<'info>>,
         proof: CompressedProof,
@@ -51,8 +52,16 @@ pub mod name_service {
         // Here we expect the first remaining_account to be the
         // pubkey of the state tree that the account shall be inserted into.
         // state_tree [0]
-        // address_tree [1]
-        // address_queue [2]
+        // state_queue [1]
+        // address_tree [2]
+        // address_queue [3]
+        if (ctx.remaining_accounts[2] != ADDRESS_TREE) {
+            return Err(SystemProgramError::InvalidAddressTree);
+        }
+        if (ctx.remaining_accounts[3] != ADDRESS_QUEUE) {
+            return Err(SystemProgramError::InvalidAddressQueue);
+        }
+
 
         // 2. Create CPI signer seed
         let bump_seed = &[bump];
@@ -60,7 +69,7 @@ pub mod name_service {
         let signer_seeds = [&b"name"[..], &signer_key_bytes[..], bump_seed];
 
         // Create address params struct
-        let new_address_params = NewAddressParamsPacked {
+        let new_address_params: NewAddressParamsPacked = NewAddressParamsPacked {
             seed: derive_program_derived_address_seeds(&crate::ID, &[b"name", &signer_key_bytes[..]])?,
             address_merkle_tree_account_index: 1,
             address_queue_account_index: 2,
@@ -68,7 +77,7 @@ pub mod name_service {
         };
 
         // 3. Create inputs struct
-        let inputs_struct = InstructionDataInvokeCpi {
+        let inputs_struct: InstructionDataInvokeCpi = InstructionDataInvokeCpi {
             // The proof proves that the PDA is new
             proof: Some(proof),
             // Metadata for the VM to verify the new address
@@ -123,13 +132,12 @@ pub struct NamePda {
 }
 
 // Implement the hasher trait. You can define custom hashing schemas for your
-// account data. 
+// account data.
 impl DataHasher for NamePda {
     fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], HasherError> {
         H::hash(&self.name.to_le_bytes())
     }
 }
-
 
 // 1. set the new data
 // 2. derive the address
