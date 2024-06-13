@@ -7,7 +7,7 @@ pub mod forester;
 pub use forester::*;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
-
+pub mod staking;
 declare_id!("7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1");
 
 #[error_code]
