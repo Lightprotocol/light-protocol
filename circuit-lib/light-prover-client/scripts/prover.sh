@@ -7,9 +7,9 @@ kill_light_prover() {
 }
 
 build_prover() {
-  cd "$root_dir/gnark-prover"
+  cd "$root_dir/light-prover"
   go build || {
-    echo "gnark-prover build failed. Check for errors."
+    echo "light-prover build failed. Check for errors."
     exit 1
   }
 }
@@ -50,8 +50,8 @@ for option in "${options[@]}"; do
   esac
 done
 
-keys_dir="$root_dir/gnark-prover/proving-keys/"
-cmd="$root_dir/gnark-prover/light-prover start --keys-dir=$keys_dir"
+keys_dir="$root_dir/light-prover/proving-keys/"
+cmd="$root_dir/light-prover/light-prover start --keys-dir=$keys_dir"
 if [ "$inclusion" = true ]; then cmd="$cmd --inclusion=true"; fi
 if [ "$non_inclusion" = true ]; then cmd="$cmd --non-inclusion=true"; fi
 if [ "$combined" = true ]; then cmd="$cmd --combined=true"; fi

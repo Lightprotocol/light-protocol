@@ -1,26 +1,28 @@
-use super::NewAddressProofWithContext;
-use account_compression::AddressMerkleTreeConfig;
-use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use {
+    account_compression::{
+        AddressMerkleTreeAccount,
+        StateMerkleTreeAccount, utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
+    },
+    anchor_lang::AnchorDeserialize,
     crate::{
         create_account_instruction,
         test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
+        AccountZeroCopy,
     },
     account_compression::{
         utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
     },
-    anchor_lang::AnchorDeserialize,
-    light_circuitlib_rs::{
+    light_prover_client::{
         gnark::{
             combined_json_formatter::CombinedJsonStruct,
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{spawn_gnark_server, ProofType},
+            helpers::{ProofType, spawn_gnark_server},
             inclusion_json_formatter::BatchInclusionJsonStruct,
             non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -53,12 +55,14 @@ use {
     spl_token::instruction::initialize_mint,
     std::time::Duration,
 };
+use account_compression::AddressMerkleTreeConfig;
+use light_utils::bigint::bigint_to_be_bytes_array;
 
-use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
 };
+use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
 
 #[derive(Debug)]
 pub struct ProofRpcResult {
@@ -415,7 +419,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         }
 
         // correct path so that the examples can be run:
-        // "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        // "../../../../circuit-lib/light-prover-client/scripts/prover.sh",
         spawn_gnark_server(gnark_bin_path, true, vec_proof_types.as_slice()).await;
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {

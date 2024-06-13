@@ -16,7 +16,7 @@ function execute_commands {
 
 REPO_TOP_DIR=$(git rev-parse --show-toplevel)
 
-CIRCUIT_RS_DIR="$REPO_TOP_DIR/circuit-lib/circuitlib-rs"
+CIRCUIT_RS_DIR="$REPO_TOP_DIR/circuit-lib/light-prover-client"
 
 MAX_COUNT=4
 

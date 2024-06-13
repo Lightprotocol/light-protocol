@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use light_circuitlib_rs::{
+    use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
             helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
@@ -16,7 +16,7 @@ mod test {
     async fn prove_inclusion() {
         init_logger();
         spawn_gnark_server(
-            "../circuitlib-rs/scripts/prover.sh",
+            "../light-prover-client/scripts/prover.sh",
             true,
             &vec![ProofType::Inclusion],
         )

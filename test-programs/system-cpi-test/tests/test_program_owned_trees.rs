@@ -50,7 +50,7 @@ async fn test_program_owned_merkle_tree() {
         &env,
         true,
         true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     test_indexer

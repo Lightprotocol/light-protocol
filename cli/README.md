@@ -71,7 +71,7 @@ light test-validator --skip-prover
 
 ```
 
-> **Note:** The CLI currently runs the photon indexer and gnark-prover as background processes at port: `8784` and `3001` respectively.
+> **Note:** The CLI currently runs the photon indexer and light-prover as background processes at port: `8784` and `3001` respectively.
 
 **2. Ensure you have sufficient localnet funds**
 

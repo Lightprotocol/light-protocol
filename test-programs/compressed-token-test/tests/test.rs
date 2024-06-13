@@ -10,7 +10,8 @@ use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
-use light_circuitlib_rs::gnark::helpers::kill_gnark_server;
+use light_prover_client::gnark::helpers::kill_gnark_server;
+use light_compressed_token::get_cpi_authority_pda;
 use light_compressed_token::get_token_pool_pda;
 use light_compressed_token::process_transfer::get_cpi_authority_pda;
 use light_compressed_token::process_transfer::{
@@ -51,7 +52,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
         &env,
         true,
         false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
 
@@ -180,7 +181,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         &env,
         true,
         false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
@@ -231,7 +232,7 @@ async fn test_decompression() {
         &env,
         true,
         false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     let sender = Keypair::new();
@@ -784,7 +785,7 @@ async fn test_failing_decompression() {
         &env,
         true,
         false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     let sender = Keypair::new();
@@ -1128,7 +1129,7 @@ async fn test_invalid_inputs() {
         &env,
         true,
         false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     let recipient_keypair = Keypair::new();

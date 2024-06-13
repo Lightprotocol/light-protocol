@@ -7,7 +7,7 @@ build_prover() {
 }
 
 root_dir="$(git rev-parse --show-toplevel)"
-gnark_dir="${root_dir}/gnark-prover"
+gnark_dir="${root_dir}/light-prover"
 out_dir="${root_dir}/cli/bin"
 
 if [ ! -e "$out_dir" ]; then

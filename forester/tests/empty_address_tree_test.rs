@@ -58,7 +58,7 @@ async fn empty_address_tree_test() {
         },
         0,
         None,
-        "../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     for _ in 0..10 {

@@ -18,7 +18,7 @@ jobs:
 
       - name: Build artifacts
         run: |
-          cd gnark-prover
+          cd light-prover
           for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "windows amd64"; do
             IFS=' ' read -r -a cfg <<< "$cfgstr"
             export GOOS="${cfg[0]}"
@@ -31,7 +31,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            gnark-prover/prover-darwin-amd64
-            gnark-prover/prover-darwin-arm64
-            gnark-prover/prover-linux-amd64
-            gnark-prover/prover-windows-amd64
+            light-prover/prover-darwin-amd64
+            light-prover/prover-darwin-arm64
+            light-prover/prover-linux-amd64
+            light-prover/prover-windows-amd64

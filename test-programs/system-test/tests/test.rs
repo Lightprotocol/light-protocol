@@ -99,7 +99,7 @@ async fn invoke_failing_test() {
         &env,
         true,
         true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     // cicuit instantiations allow for 1, 2, 3, 4, 8 inclusion proofs
@@ -867,7 +867,7 @@ async fn invoke_test() {
         &env,
         true,
         true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
 
@@ -1127,7 +1127,7 @@ async fn test_with_address() {
         &env,
         true,
         true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
 
@@ -1319,7 +1319,7 @@ async fn test_with_compression() {
         &env,
         true,
         false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     let compress_amount = 1_000_000;

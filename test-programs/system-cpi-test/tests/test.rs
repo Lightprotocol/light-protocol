@@ -52,7 +52,7 @@ async fn only_test_create_pda() {
         &env,
         true,
         true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
 
@@ -276,7 +276,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &env,
         true,
         true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../circuit-lib/light-prover-client/scripts/prover.sh",
     )
     .await;
     // Failing test 1 invalid address Merkle tree ----------------------------------------------

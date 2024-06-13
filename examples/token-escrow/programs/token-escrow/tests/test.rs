@@ -56,7 +56,7 @@ async fn test_escrow_pda() {
         &env,
         true,
         false,
-        "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        "../../../../circuit-lib/light-prover-client/scripts/prover.sh",
     );
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
