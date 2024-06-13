@@ -22,11 +22,12 @@ async fn spawn_test_validator() {
 async fn test_10_validator_all() {
     spawn_test_validator().await;
     let env_accounts = get_test_env_accounts();
-    let rpc = SolanaRpcConnection::new(None);
-    rpc.client
-        .request_airdrop(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+    let mut rpc = SolanaRpcConnection::new(None);
+
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
         .unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(16)).await;
+
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
         &env_accounts,

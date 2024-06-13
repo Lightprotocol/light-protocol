@@ -3,7 +3,7 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
     Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext,
 };
-use log::info;
+
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 
@@ -96,8 +96,6 @@ impl Indexer for PhotonIndexer {
         )
         .await
         .unwrap();
-
-        info!("PhotonIndexer: Got response: {:?}", result);
 
         let accs = result.result.unwrap().value;
         let mut hashes = Vec::new();

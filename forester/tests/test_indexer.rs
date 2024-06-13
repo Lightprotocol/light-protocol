@@ -29,12 +29,11 @@ async fn test_indexer() {
         max_retries: 5,
     };
 
-    let rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(None);
 
-    rpc.client
-        .request_airdrop(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
         .unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(16)).await;
 
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
