@@ -821,7 +821,9 @@ pub async fn perform_tx_with_output_compressed_accounts(
 }
 
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::indexer::Indexer;
+use light_test_utils::test_env::setup_test_programs_with_accounts_with_protocol_config;
 
 pub async fn create_instruction_and_failing_transaction(
     context: &mut ProgramTestRpcConnection,
@@ -1488,7 +1490,20 @@ async fn test_with_compression() {
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
-    let (mut context, env) = setup_test_programs_with_accounts(None).await;
+
+    let protocol_config = ProtocolConfig {
+        genesis_slot: 0,
+        slot_length: 10,
+        registration_phase_length: 100,
+        active_phase_length: 200,
+        report_work_phase_length: 100,
+        ..ProtocolConfig::default()
+    };
+    let (mut context, env) =
+        setup_test_programs_with_accounts_with_protocol_config(None, protocol_config, true).await;
+
+    // let (mut context, env) = setup_test_programs_with_accounts(None).await;
+
     // List of public keys to fetch and export
     let pubkeys = vec![
         ("merkle_tree_pubkey", env.merkle_tree_pubkey),

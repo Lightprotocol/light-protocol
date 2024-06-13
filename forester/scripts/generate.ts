@@ -11,7 +11,7 @@ import { randomBytes } from 'tweetnacl';
 import * as dotenv from "dotenv";
 dotenv.config();
 
-const RPC_API_KEY = process.env.PHOTON_API_KEY;
+const RPC_API_KEY = process.env.RPC_API_KEY;
 console.log("RPC_API_KEY: ", RPC_API_KEY);
 
 const LAMPORTS = 0.9 * LAMPORTS_PER_SOL;
@@ -43,8 +43,8 @@ function generateKeypairs(count: number): Keypair[] {
     return keypairs;
 }
 
-const payerKeypairs = [Keypair.fromSecretKey(Uint8Array.from(aliceKeypair))]; //generateKeypairs(NUMBER_OF_CONCURRENT_TRANSFERS);
-const receiverKeypairs = [Keypair.fromSecretKey(Uint8Array.from(bobKeypair))]; //generateKeypairs(NUMBER_OF_CONCURRENT_TRANSFERS);
+const payerKeypairs = generateKeypairs(CONCURRENT_TX); //[Keypair.fromSecretKey(Uint8Array.from(aliceKeypair))]; //
+const receiverKeypairs = generateKeypairs(CONCURRENT_TX); //[Keypair.fromSecretKey(Uint8Array.from(bobKeypair))];
 
 async function transferAsync(i: number, rpc: Rpc, payer: Signer, receiverPublicKey: PublicKey): Promise<void> {
     const transferSig = await transfer(rpc, payer, TRANSFER_AMOUNT, payer, receiverPublicKey);
@@ -76,10 +76,9 @@ function devnetRpc(): Rpc {
 }
 
 async function prefillNullifierQueue() {
-    const rpc = devnetRpc();
+    const rpc = localRpc();
 
-
-    const isAirdropNeeded = false;
+    const isAirdropNeeded = true;
     if (isAirdropNeeded) {
         await Promise.all([
             ...payerKeypairs.map(async payer => await airdropSol({
@@ -102,7 +101,7 @@ async function prefillNullifierQueue() {
         })
     );
 
-    const isCompressNeeded = false;
+    const isCompressNeeded = true;
     if (isCompressNeeded) {
         await Promise.all(
             payerKeypairs.map(async (payer) => {
@@ -112,7 +111,14 @@ async function prefillNullifierQueue() {
         );
     }
 
-    const isTransferNeeded = false;
+    await Promise.all(
+        payerKeypairs.map(async (payer) => {
+            const balance = await rpc.getCompressedBalanceByOwner(payer.publicKey);
+            console.log(`Payer ${payer.publicKey.toBase58()} compressed balance:`, balance);
+        })
+    );
+
+    const isTransferNeeded = true;
     if (isTransferNeeded) {
         for (let i = 0; i < TOTAL_TX; i += CONCURRENT_TX) {
             const promises = [];

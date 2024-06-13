@@ -16,7 +16,7 @@ pub struct MerkleProofWithContext {
     #[serde(rename = "hash")]
     pub hash: String,
     #[serde(rename = "leafIndex")]
-    pub leaf_index: u32,
+    pub leaf_index: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "merkleTree")]
     pub merkle_tree: String,
@@ -32,7 +32,7 @@ pub struct MerkleProofWithContext {
 impl MerkleProofWithContext {
     pub fn new(
         hash: String,
-        leaf_index: u32,
+        leaf_index: u64,
         merkle_tree: String,
         proof: Vec<String>,
         root: String,

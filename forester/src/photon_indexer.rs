@@ -32,7 +32,6 @@ impl<R: RpcConnection> Debug for PhotonIndexer<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PhotonIndexer")
             .field("configuration", &self.configuration)
-            .field("configuration", &self.configuration)
             .finish()
     }
 }
@@ -87,7 +86,10 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
 
                         Ok(proofs)
                     }
-                    None => Err(IndexerError::Custom("No result".to_string())),
+                    None => {
+                        let error = response.error.unwrap();
+                        Err(IndexerError::Custom(error.message.unwrap()))
+                    }
                 }
             }
             Err(e) => Err(IndexerError::Custom(e.to_string())),
@@ -149,8 +151,6 @@ impl<R: RpcConnection> Indexer<R> for PhotonIndexer<R> {
         if result.is_err() {
             return Err(IndexerError::Custom(result.err().unwrap().to_string()));
         }
-
-        info!("Result: {:?}", result);
 
         let photon_proofs = result.unwrap().result.unwrap().value;
         let mut proofs: Vec<NewAddressProofWithContext> = Vec::new();

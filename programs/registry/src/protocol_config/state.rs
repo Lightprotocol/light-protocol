@@ -133,6 +133,10 @@ impl ProtocolConfig {
         Ok(slot / self.active_phase_length)
     }
 
+    pub fn get_current_epoch(&self, slot: u64) -> u64 {
+        (slot.saturating_sub(self.genesis_slot)) / self.active_phase_length
+    }
+
     pub fn get_current_active_epoch(&self, slot: u64) -> Result<u64> {
         let slot = slot
             .checked_sub(self.genesis_slot + self.registration_phase_length)

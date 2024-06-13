@@ -1,3 +1,6 @@
+use crate::rpc::errors::RpcError;
+use crate::rpc::rpc_connection::RpcConnection;
+use crate::transaction_params::TransactionParams;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -9,16 +12,13 @@ use solana_program_test::BanksClientError;
 use solana_sdk::account::{Account, AccountSharedData};
 use solana_sdk::bs58;
 use solana_sdk::commitment_config::CommitmentConfig;
+use solana_sdk::epoch_info::EpochInfo;
 use solana_sdk::instruction::{Instruction, InstructionError};
 use solana_sdk::signature::{Keypair, Signature};
 use solana_sdk::transaction::{Transaction, TransactionError};
 use solana_transaction_status::option_serializer::OptionSerializer;
 use solana_transaction_status::{UiInstruction, UiTransactionEncoding};
 use std::fmt::{Debug, Display, Formatter};
-
-use crate::rpc::errors::RpcError;
-use crate::rpc::rpc_connection::RpcConnection;
-use crate::transaction_params::TransactionParams;
 
 pub enum SolanaRpcUrl {
     Testnet,
@@ -134,6 +134,33 @@ impl RpcConnection for SolanaRpcConnection {
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url, commitment_config);
         Self { client, payer }
+    }
+
+    async fn process_transaction(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<Signature, RpcError> {
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
+        match self.client.send_and_confirm_transaction(&transaction) {
+            Ok(signature) => Ok(signature),
+            Err(e) => Err(RpcError::ClientError(e)),
+        }
+    }
+
+    async fn process_transaction_with_context(
+        &mut self,
+        transaction: Transaction,
+    ) -> Result<(Signature, Slot), RpcError> {
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
+        match self.client.send_and_confirm_transaction(&transaction) {
+            Ok(signature) => {
+                let sig_info = self.client.get_signature_statuses(&[signature]);
+                let sig_info = sig_info.unwrap().value.first().unwrap().clone();
+                let slot = sig_info.unwrap().slot;
+                Ok((signature, slot))
+            }
+            Err(e) => Err(RpcError::ClientError(e)),
+        }
     }
 
     async fn create_and_send_transaction_with_event<T>(
@@ -256,41 +283,6 @@ impl RpcConnection for SolanaRpcConnection {
         }
     }
 
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
-        self.client.get_latest_blockhash().map_err(RpcError::from)
-    }
-
-    async fn process_transaction(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<Signature, RpcError> {
-        debug!("CommitmentConfig: {:?}", self.client.commitment());
-        match self.client.send_and_confirm_transaction(&transaction) {
-            Ok(signature) => Ok(signature),
-            Err(e) => Err(RpcError::ClientError(e)),
-        }
-    }
-
-    async fn process_transaction_with_context(
-        &mut self,
-        transaction: Transaction,
-    ) -> Result<(Signature, Slot), RpcError> {
-        debug!("CommitmentConfig: {:?}", self.client.commitment());
-        match self.client.send_and_confirm_transaction(&transaction) {
-            Ok(signature) => {
-                let sig_info = self.client.get_signature_statuses(&[signature]);
-                let sig_info = sig_info.unwrap().value.first().unwrap().clone();
-                let slot = sig_info.unwrap().slot;
-                Ok((signature, slot))
-            }
-            Err(e) => Err(RpcError::ClientError(e)),
-        }
-    }
-
-    async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        self.client.get_slot().map_err(RpcError::from)
-    }
-
     async fn airdrop_lamports(
         &mut self,
         to: &Pubkey,
@@ -319,7 +311,15 @@ impl RpcConnection for SolanaRpcConnection {
         self.client.get_balance(pubkey).map_err(RpcError::from)
     }
 
-    fn warp_to_slot(&mut self, _slot: Slot) -> Result<(), RpcError> {
-        todo!()
+    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
+        self.client.get_latest_blockhash().map_err(RpcError::from)
+    }
+
+    async fn get_slot(&mut self) -> Result<u64, RpcError> {
+        self.client.get_slot().map_err(RpcError::from)
+    }
+
+    fn get_epoch_info(&self) -> Result<EpochInfo, RpcError> {
+        self.client.get_epoch_info().map_err(RpcError::from)
     }
 }

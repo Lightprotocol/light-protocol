@@ -1065,7 +1065,7 @@ where
                 .active
                 .merkle_trees
                 .iter()
-                .find(|mt| mt.tree_pubkey.queue == *queue_pubkey);
+                .find(|mt| mt.tree_accounts.queue == *queue_pubkey);
             if let Some(tree) = tree {
                 if tree.is_eligible(light_slot) {
                     return Some(f.keypair.insecure_clone());

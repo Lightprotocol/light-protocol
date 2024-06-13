@@ -47,7 +47,7 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Clone + Debug + 'static {
 
     fn address_tree_updated(
         &mut self,
-        _merkle_tree_pubkey: [u8; 32],
+        _merkle_tree_pubkey: Pubkey,
         _context: &NewAddressProofWithContext,
     ) {
     }
@@ -131,10 +131,10 @@ pub trait Indexer<R: RpcConnection>: Sync + Send + Clone + Debug + 'static {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MerkleProof {
     pub hash: String,
-    pub leaf_index: u32,
+    pub leaf_index: u64,
     pub merkle_tree: String,
     pub proof: Vec<[u8; 32]>,
     pub root_seq: u64,

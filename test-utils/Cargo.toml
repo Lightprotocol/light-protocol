@@ -41,6 +41,7 @@ memoffset = "0.9.1"
 rand = "0.8"
 photon-api = { path = "../photon-api", version = "0.29.0" }
 log = "0.4"
+serde = { version = "1.0.197", features = ["derive"] }
 
 [dev-dependencies]
 rand = "0.8"

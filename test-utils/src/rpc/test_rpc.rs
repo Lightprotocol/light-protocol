@@ -216,21 +216,6 @@ impl RpcConnection for ProgramTestRpcConnection {
         Ok(rent?.minimum_balance(data_len))
     }
 
-    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
-        self.context
-            .get_new_latest_blockhash()
-            .await
-            .map_err(|e| RpcError::from(BanksClientError::from(e)))
-    }
-
-    async fn get_slot(&mut self) -> Result<u64, RpcError> {
-        self.context
-            .banks_client
-            .get_root_slot()
-            .await
-            .map_err(RpcError::from)
-    }
-
     async fn airdrop_lamports(
         &mut self,
         to: &Pubkey,
@@ -262,6 +247,21 @@ impl RpcConnection for ProgramTestRpcConnection {
         self.context
             .banks_client
             .get_balance(*pubkey)
+            .await
+            .map_err(RpcError::from)
+    }
+
+    async fn get_latest_blockhash(&mut self) -> Result<Hash, RpcError> {
+        self.context
+            .get_new_latest_blockhash()
+            .await
+            .map_err(|e| RpcError::from(BanksClientError::from(e)))
+    }
+
+    async fn get_slot(&mut self) -> Result<u64, RpcError> {
+        self.context
+            .banks_client
+            .get_root_slot()
             .await
             .map_err(RpcError::from)
     }

@@ -100,7 +100,7 @@ impl ForesterEpochPda {
         if self.is_eligible(forester_slot) {
             Ok(())
         } else {
-            err!(RegistryError::ForresterNotEligible)
+            err!(RegistryError::ForesterNotEligible)
         }
     }
 
@@ -142,7 +142,7 @@ impl ForesterEpochPda {
     }
 }
 
-/// This instruction needs to be executed once once the active period starts.
+/// This instruction needs to be executed once the active period starts.
 pub fn set_total_registered_weight_instruction(
     forester_epoch_pda: &mut ForesterEpochPda,
     epoch_pda: &EpochPda,
