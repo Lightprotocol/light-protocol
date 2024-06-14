@@ -8,7 +8,7 @@ use account_compression::StateMerkleTreeAccount;
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{Config, get_nullifier_queue, nullify};
-use forester::utils::{get_state_queue_length, spawn_validator};
+use forester::utils::{get_state_queue_length, LightValidatorConfig, spawn_validator};
 use light_hasher::Poseidon;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::get_concurrent_merkle_tree;
@@ -18,7 +18,7 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn photon_interop_test() {
+async fn photon_interop_state_tree_test() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
@@ -30,7 +30,7 @@ async fn photon_interop_test() {
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
         address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
         registry_pubkey: registry_keypair.pubkey(),
-        payer_keypair: env_accounts.governance_authority.insecure_clone(),
+        payer_keypair: env_accounts.forester.insecure_clone(),
         concurrency_limit: 1,
         batch_size: 1,
         max_retries: 5,
@@ -41,7 +41,7 @@ async fn photon_interop_test() {
         .await
         .unwrap();
 
-    rpc.airdrop_lamports(&env_accounts.governance_authority.pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
 
@@ -144,8 +144,8 @@ async fn photon_interop_test() {
     assert!(transfer_result.is_ok());
     info!("Transfer sig: {:?}", transfer_result.unwrap());
 
-    // assert_accounts_by_owner(&mut env, &alice, &photon_indexer).await;
-    // assert_accounts_by_owner(&mut env, &bob, &photon_indexer).await;
+    assert_accounts_by_owner(&mut env.indexer, &alice, &photon_indexer).await;
+    assert_accounts_by_owner(&mut env.indexer, &bob, &photon_indexer).await;
 
     assert_ne!(get_state_queue_length(&mut env.rpc, &config).await, 0);
     info!(
@@ -153,8 +153,8 @@ async fn photon_interop_test() {
         get_state_queue_length(&mut env.rpc, &config).await
     );
 
-    let _ = nullify(&mut env.indexer, &mut env.rpc, &config).await;
-    // assert_account_proofs_for_photon_and_test_indexer(&env, &alice.keypair.pubkey(), &photon_indexer).await;
+    nullify(&mut env.indexer, &mut env.rpc, &config).await.unwrap();
+    assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
 
     info!("Getting nullifier queue...");
 
@@ -233,97 +233,3 @@ async fn assert_account_proofs_for_photon_and_test_indexer(
         }
     }
 }
-
-
-
-// #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-// async fn test_photon_interop() {
-//     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-//     spawn_test_validator_with_indexer().await;
-//     let env_accounts = get_test_env_accounts();
-//     let rpc = SolanaRpcConnection::new(None);
-//     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
-//         rpc,
-//         &env_accounts,
-//         KeypairActionConfig {
-//             max_output_accounts: Some(1),
-//             ..KeypairActionConfig::all_default()
-//         },
-//         GeneralActionConfig {
-//             nullify_compressed_accounts: Some(1.0),
-//             empty_address_queue: Some(1.0),
-//             add_keypair: None,
-//             create_state_mt: None,
-//             create_address_mt: None,
-//             ..GeneralActionConfig::default()
-//         },
-//         0,
-//         Some(1),
-//         "../circuit-lib/circuitlib-rs/scripts/prover.sh",
-//     )
-//         .await;
-//
-//     let photon_indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-//     let user_index = 0;
-//     let balance = env
-//         .rpc
-//         .get_balance(&env.users[user_index].keypair.pubkey())
-//         .await
-//         .unwrap();
-//
-//     // Create starting output account
-//     info!("Compressing sol");
-//     env.compress_sol(user_index, balance).await;
-//
-//     {
-//         let alice = &mut env.users[0];
-//         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-//         assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
-//     }
-//
-//     // Insert output into nullifier queue
-//     info!("Transferring sol");
-//     env.transfer_sol(user_index).await;
-//
-//     {
-//         let alice = &mut env.users[0];
-//         assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
-//     }
-//
-//     // Nullifies all hashes in nullifier queue
-//     info!("Nullifying queue");
-//     env.activate_general_actions().await;
-//
-//     {
-//         let alice = &mut env.users[0];
-//         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-//         // TODO: Test-indexer and photon should return requivalent merkleproofs for the same account
-//         // assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
-//     }
-//
-//     // Ensures test-indexer is creating valid proofs.
-//     info!("Transferring sol");
-//     env.transfer_sol(user_index).await;
-//     {
-//         let alice = &mut env.users[0];
-//         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-//         // assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
-//     }
-//
-//     // Insert value into address queue
-//     info!("Creating address");
-//     let created_addresses = env.create_address().await;
-//
-//
-//     // TODO: once Photon implements the get_multiple_new_address_proofs
-//     // endpoint, adapt the method name and signature, fetch the exclusion proof
-//     // from photon and assert that the proof is the same
-//     let trees = env.get_address_merkle_tree_pubkeys(1).0;
-//     let address_proof = env.indexer
-//         .get_address_tree_proof(trees[0].to_bytes(), created_addresses[0].to_bytes())
-//         .unwrap();
-//
-//     info!("NewAddress proof test-indexer: {:?}", address_proof);
-//
-//
-// }
