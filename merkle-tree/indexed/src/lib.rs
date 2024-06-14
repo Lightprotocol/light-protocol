@@ -237,7 +237,7 @@ where
         low_element_next_value: &mut BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
-        let changelog_element_indices: Vec<usize> = self
+        let indexed_changelog_indices: Vec<usize> = self
             .indexed_changelog
             .iter_from(indexed_changelog_index)?
             .skip(1)
@@ -251,8 +251,34 @@ where
             })
             .collect();
 
-        for changelog_element_index in changelog_element_indices {
-            let changelog_entry = &mut self.indexed_changelog[changelog_element_index];
+        for indexed_changelog_index in indexed_changelog_indices {
+            let changelog_entry = &mut self.indexed_changelog[indexed_changelog_index];
+
+            let next_element_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
+            if next_element_value == new_element.value {
+                // Is the next element is equal to the new element, it means
+                // that the caller is trying to double-spend.
+                return Err(IndexedMerkleTreeError::ElementAlreadyExists);
+            } else if next_element_value < new_element.value {
+                // If the next element is lower than the current element, it means
+                // that it should become the low element.
+                *low_element = IndexedElement {
+                    index: changelog_entry.element.next_index,
+                    value: BigUint::from_bytes_be(&changelog_entry.element.next_value),
+                    next_index: low_element.next_index,
+                };
+
+                // Start the patching process from scratch for the new low
+                // element
+                return self.patch_elements_and_proof(
+                    indexed_changelog_index,
+                    changelog_index,
+                    new_element,
+                    low_element,
+                    low_element_next_value,
+                    low_leaf_proof,
+                );
+            }
 
             // Patch the changelog index.
             *changelog_index = changelog_entry.changelog_index;
