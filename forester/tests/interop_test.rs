@@ -98,6 +98,7 @@ async fn test_photon_interop() {
     validator_config.enable_indexer = true;
     validator_config.enable_prover = true;
     validator_config.enable_forester = true;
+    validator_config.wait_time = 25;
     spawn_validator(validator_config).await;
 
     let env_accounts = get_test_env_accounts();
