@@ -101,21 +101,19 @@ async fn test_photon_interop() {
     spawn_validator(validator_config).await;
 
     let env_accounts = get_test_env_accounts();
-    let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    // let config = Config {
-    //     server_url: SERVER_URL.to_string(),
-    //     nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
-    //     state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
-    //     address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
-    //     address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
-    //     registry_pubkey: registry_keypair.pubkey(),
-    //     payer_keypair: env_accounts.forester.insecure_clone(),
-    //     concurrency_limit: 1,
-    //     batch_size: 1,
-    //     max_retries: 5,
-    // };
-    let rpc = SolanaRpcConnection::new(None);
 
+
+    let mut rpc = SolanaRpcConnection::new(None);
+
+
+    // Needed because currently TestEnv.new() transfers funds from get_payer. 
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
+        .unwrap();
+
+    rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
+        .unwrap();
 
     let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
         rpc,
