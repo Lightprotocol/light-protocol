@@ -298,13 +298,6 @@ where
             *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
             // Patch the proof.
             low_leaf_proof.clone_from(&changelog_entry.proof);
-
-            // Removing the value:
-            // Writing data costs CU thus we just overwrite the index
-            // with an impossible value so that it cannot be found.
-            changelog_entry.element.index = usize::MAX
-                .try_into()
-                .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
         }
 
         // If we found a new low element.
