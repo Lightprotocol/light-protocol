@@ -13,8 +13,7 @@ async fn test_10_all() {
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
         10,
-        None,
-        "../../circuit-lib/light-prover-client/scripts/prover.sh",
+        None
     )
     .await;
     env.execute_rounds().await;
@@ -33,8 +32,7 @@ async fn test_10000_all() {
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
         10000,
-        None,
-        "../../circuit-lib/light-prover-client/scripts/prover.sh",
+        None
     )
     .await;
     env.execute_rounds().await;
