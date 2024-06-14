@@ -3,7 +3,7 @@ mod test {
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{kill_light_prover, spawn_light_prover, ProofType},
+            helpers::{kill_prover, spawn_prover, ProofType},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
@@ -15,12 +15,7 @@ mod test {
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
-        spawn_light_prover(
-            "../light-prover-client/scripts/prover.sh",
-            true,
-            &vec![ProofType::Inclusion],
-        )
-        .await;
+        spawn_prover(true, &vec![ProofType::Inclusion]).await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);
@@ -55,6 +50,6 @@ mod test {
             )
             .unwrap();
         }
-        kill_light_prover();
+        kill_prover();
     }
 }
