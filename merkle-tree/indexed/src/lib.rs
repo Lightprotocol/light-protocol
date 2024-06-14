@@ -268,8 +268,6 @@ where
             })
             .collect();
 
-        println!("indexed_changelog_indices: {next_indexed_changelog_indices:?}");
-
         let mut new_low_element = None;
 
         for next_indexed_changelog_index in next_indexed_changelog_indices {
@@ -285,7 +283,6 @@ where
                 break;
             }
 
-            println!("patchin from changelog entry: {changelog_entry:?}");
             // Patch the changelog index.
             *changelog_index = changelog_entry.changelog_index;
 
@@ -316,10 +313,8 @@ where
                 .unwrap()
                 + indexed_changelog_index
                 + 1;
-            println!("new_low_element_changelog_index: {new_low_element_changelog_index}");
             let new_low_element_changelog_entry =
                 &self.indexed_changelog[new_low_element_changelog_index];
-            println!("new_low_element_changelog_entry: {new_low_element_changelog_entry:?}");
 
             *changelog_index = new_low_element_changelog_entry.changelog_index;
             *low_element = IndexedElement {
@@ -331,8 +326,6 @@ where
             new_element.next_index = low_element.next_index;
 
             // Start the patching process from scratch for the new low element.
-            println!("Trying with new low element {}", new_low_element);
-            println!("New proof: {low_leaf_proof:?}");
             return self.patch_elements_and_proof(
                 new_low_element_changelog_index,
                 changelog_index,

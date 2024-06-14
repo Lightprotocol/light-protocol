@@ -930,7 +930,6 @@ fn perform_change_log_test<const DOUBLE_SPEND: bool>(addresses: &[BigUint]) {
     let indexed_changelog_index = onchain_indexed_merkle_tree.indexed_changelog_index();
     for (i, (address, indexed_array)) in addresses.iter().zip(indexed_arrays.iter_mut()).enumerate()
     {
-        println!("===== ACTOR {i} ======");
         let (old_low_address, old_low_address_next_value) = indexed_array
             .find_low_element_for_nonexistent(&address)
             .unwrap();
