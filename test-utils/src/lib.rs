@@ -14,7 +14,7 @@ use solana_sdk::{
     transaction,
     transaction::Transaction,
 };
-use std::{marker::PhantomData, mem, pin::Pin};
+use std::{fmt, marker::PhantomData, mem, pin::Pin};
 
 pub mod address_tree_rollover;
 pub mod assert_address_merkle_tree;
@@ -103,7 +103,15 @@ pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize>(
 where
     R: RpcConnection,
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     let account = rpc.get_account(pubkey).await.unwrap().unwrap();
