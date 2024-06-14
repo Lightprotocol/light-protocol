@@ -822,34 +822,60 @@ pub fn functional_non_inclusion_test() {
 //     //     .unwrap();
 // }
 
-/**
- *
- * Range Hash (value, next_index, next_value) -> need next value not next value index
- * Update of a range:
- * 1. Find the low element, low element points to the next hight element
- * 2. update low element with H (low_value, new_inserted_value_index, new_inserted_value)
- * 3. append the tree with H(new_inserted_value,index_of_next_value, next_value)
- *
-*/
-// This test is generating a situation where the low element has to be patched.
-// Scenario:
-// 1. two parties start with the initialized indexing array
-// 2. both parties compute their values with the empty indexed Merkle tree state
-// 3. party one inserts first
-// 4. party two needs to patch the low element because the low element has changed
-// 5. party two inserts
+/// Performs conflicting Merkle tree updates where:
+///
+/// 1. Party one inserts 30.
+/// 2. Party two inserts 10.
 #[test]
 fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
 
-    perform_change_log_test(&[address_1, address_2]);
+    perform_change_log_test::<false>(&[address_1, address_2]);
 }
 
-/// Performs conflicting Merkle tree update operations where multiple actors
-/// try to add new ranges when using the same (for the most of actors - outdated)
+/// Performs conflicting Merkle tree updates where:
+///
+/// 1. Party one inserts 10.
+/// 2. Party two inserts 30.
+#[test]
+fn functional_changelog_test_2() {
+    let address_1 = 10_u32.to_biguint().unwrap();
+    let address_2 = 30_u32.to_biguint().unwrap();
+
+    perform_change_log_test::<false>(&[address_1, address_2]);
+}
+
+/// Performs conflicting Merkle tree updates where two parties try to insert
+/// the same element.
+#[test]
+fn functional_changelog_test_double_spend() {
+    let address = 10_u32.to_biguint().unwrap();
+
+    perform_change_log_test::<true>(&[address.clone(), address.clone()]);
+}
+
+/// Performs conflicting Merkle tree updates where multiple actors try to add
+/// add new ranges when using the same (for the most of actors - outdated)
 /// Merkle proofs and changelog indices.
-fn perform_change_log_test(addresses: &[BigUint]) {
+///
+/// Scenario:
+///
+/// 1. Two paries start with the same indexed array state.
+/// 2. Both parties compute their values with the same indexed Merkle tree
+///    state.
+/// 3. Party one inserts first.
+/// 4. Party two needs to patch the low element, because the low element has
+///    changed.
+/// 5. Party two inserts.
+/// 6. Party N needs to patch the low element, because the low element has
+///    changed.
+/// 7. Party N inserts.
+///
+/// `DOUBLE_SPEND` indicates whether the provided addresses are an attempt to
+/// double-spend by the subsequent parties. When set to `true`, we expect
+/// subsequent updates to fail.
+fn perform_change_log_test<const DOUBLE_SPEND: bool>(addresses: &[BigUint]) {
     // Initialize the trees and indexed array.
     let mut relayer_indexed_array =
         IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
@@ -879,7 +905,8 @@ fn perform_change_log_test(addresses: &[BigUint]) {
     let mut indexed_arrays = vec![relayer_indexed_array.clone(); addresses.len()];
     let changelog_index = onchain_indexed_merkle_tree.changelog_index();
     let indexed_changelog_index = onchain_indexed_merkle_tree.indexed_changelog_index();
-    for (address, indexed_array) in addresses.iter().zip(indexed_arrays.iter_mut()) {
+    for (i, (address, indexed_array)) in addresses.iter().zip(indexed_arrays.iter_mut()).enumerate()
+    {
         let (old_low_address, old_low_address_next_value) = indexed_array
             .find_low_element_for_nonexistent(&address)
             .unwrap();
@@ -891,15 +918,30 @@ fn perform_change_log_test(addresses: &[BigUint]) {
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
-        onchain_indexed_merkle_tree
-            .update(
+        if DOUBLE_SPEND && i > 0 {
+            let res = onchain_indexed_merkle_tree.update(
                 changelog_index,
                 indexed_changelog_index,
                 address_bundle.new_element,
                 old_low_address,
                 old_low_address_next_value,
                 &mut low_element_proof,
-            )
-            .unwrap();
+            );
+            assert!(matches!(
+                res,
+                Err(IndexedMerkleTreeError::ElementAlreadyExists)
+            ));
+        } else {
+            onchain_indexed_merkle_tree
+                .update(
+                    changelog_index,
+                    indexed_changelog_index,
+                    address_bundle.new_element,
+                    old_low_address,
+                    old_low_address_next_value,
+                    &mut low_element_proof,
+                )
+                .unwrap();
+        }
     }
 }
