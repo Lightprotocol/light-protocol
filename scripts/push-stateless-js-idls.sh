@@ -22,6 +22,7 @@ for FILE in "${FILES_TO_COPY[@]}"; do
 done
 
 echo "IDL type files pushed to directories."
+export COREPACK_ENABLE_STRICT=0
 
 
 # fmt 
