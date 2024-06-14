@@ -1,3 +1,7 @@
+// TODO: 
+// 1) Check trees
+// 2) Extend data field/deriv for name_service
+// 3) Add update instruction
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
@@ -32,10 +36,7 @@ pub mod name_service {
 
     use super::*;
 
-    // TODO: 
-    // 1) Check trees
-    // 2) Extend data field/deriv for name_service
-    // 3) Add update instruction
+    
     pub fn create_name<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateName<'info>>,
         proof: CompressedProof,
@@ -63,7 +64,7 @@ pub mod name_service {
         }
 
 
-        // 2. Create CPI signer seed
+        // Create CPI signer seed
         let bump_seed = &[bump];
         let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
         let signer_seeds = [&b"name"[..], &signer_key_bytes[..], bump_seed];
@@ -76,7 +77,7 @@ pub mod name_service {
             address_merkle_tree_root_index,
         };
 
-        // 3. Create inputs struct
+        // Create inputs struct
         let inputs_struct: InstructionDataInvokeCpi = InstructionDataInvokeCpi {
             // The proof proves that the PDA is new
             proof: Some(proof),
@@ -94,7 +95,7 @@ pub mod name_service {
             cpi_context: None,
         };
 
-        // 4. Verify and apply the state transition
+        // Verify and apply the state transition
         verify(ctx, &inputs_struct, &[&signer_seeds])?;
 
         Ok(())
