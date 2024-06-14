@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
@@ -34,7 +35,15 @@ pub const FIELD_SIZE_SUB_ONE: &str =
 pub struct IndexedMerkleTree<H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
@@ -51,7 +60,15 @@ pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40>;
 impl<H, I, const HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     /// Size of the struct **without** dynamically sized fields (`BoundedVec`,
@@ -237,7 +254,7 @@ where
         low_element_next_value: &mut BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
-        let indexed_changelog_indices: Vec<usize> = self
+        let next_indexed_changelog_indices: Vec<usize> = self
             .indexed_changelog
             .iter_from(indexed_changelog_index)?
             .skip(1)
@@ -251,8 +268,12 @@ where
             })
             .collect();
 
-        for indexed_changelog_index in indexed_changelog_indices {
-            let changelog_entry = &mut self.indexed_changelog[indexed_changelog_index];
+        println!("indexed_changelog_indices: {next_indexed_changelog_indices:?}");
+
+        let mut new_low_element = None;
+
+        for next_indexed_changelog_index in next_indexed_changelog_indices {
+            let changelog_entry = &mut self.indexed_changelog[next_indexed_changelog_index];
 
             let next_element_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
             if next_element_value == new_element.value {
@@ -262,24 +283,13 @@ where
             } else if next_element_value < new_element.value {
                 // If the next element is lower than the current element, it means
                 // that it should become the low element.
-                *low_element = IndexedElement {
-                    index: changelog_entry.element.next_index,
-                    value: BigUint::from_bytes_be(&changelog_entry.element.next_value),
-                    next_index: low_element.next_index,
-                };
-
-                // Start the patching process from scratch for the new low
-                // element
-                return self.patch_elements_and_proof(
-                    indexed_changelog_index,
-                    changelog_index,
-                    new_element,
-                    low_element,
-                    low_element_next_value,
-                    low_leaf_proof,
-                );
+                //
+                // Save it and break the loop.
+                new_low_element = Some((changelog_entry.element.next_value, next_element_value));
+                break;
             }
 
+            println!("patchin from changelog entry: {changelog_entry:?}");
             // Patch the changelog index.
             *changelog_index = changelog_entry.changelog_index;
 
@@ -299,6 +309,49 @@ where
             changelog_entry.element.index = usize::MAX
                 .try_into()
                 .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
+        }
+
+        // If we found a new low element.
+        if let Some((new_low_element_raw, new_low_element)) = new_low_element {
+            // Find a changelog entry which represents the insertion of
+            // new low element.
+            //
+            // PANICS: At this point, we are absolutely sure that such entry exists.
+            // It it doesn't, then we really did something wrong with the
+            // implementation.
+            let new_low_element_changelog_index = self
+                .indexed_changelog
+                .iter_from(indexed_changelog_index)?
+                .skip(1)
+                .position(|changelog_entry| changelog_entry.element.value == new_low_element_raw)
+                .unwrap()
+                + indexed_changelog_index
+                + 1;
+            println!("new_low_element_changelog_index: {new_low_element_changelog_index}");
+            let new_low_element_changelog_entry =
+                &self.indexed_changelog[new_low_element_changelog_index];
+            println!("new_low_element_changelog_entry: {new_low_element_changelog_entry:?}");
+
+            *changelog_index = new_low_element_changelog_entry.changelog_index;
+            *low_element = IndexedElement {
+                index: new_low_element_changelog_entry.element.index,
+                value: new_low_element.clone(),
+                next_index: new_low_element_changelog_entry.element.next_index,
+            };
+            low_leaf_proof.clone_from(&new_low_element_changelog_entry.proof);
+            new_element.next_index = low_element.next_index;
+
+            // Start the patching process from scratch for the new low element.
+            println!("Trying with new low element {}", new_low_element);
+            println!("New proof: {low_leaf_proof:?}");
+            return self.patch_elements_and_proof(
+                new_low_element_changelog_index,
+                changelog_index,
+                new_element,
+                low_element,
+                low_element_next_value,
+                low_leaf_proof,
+            );
         }
 
         Ok(())
@@ -412,7 +465,15 @@ where
 impl<H, I, const HEIGHT: usize> Deref for IndexedMerkleTree<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     type Target = ConcurrentMerkleTree<H, HEIGHT>;
@@ -425,7 +486,15 @@ where
 impl<H, I, const HEIGHT: usize> DerefMut for IndexedMerkleTree<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -436,7 +505,15 @@ where
 impl<H, I, const HEIGHT: usize> PartialEq for IndexedMerkleTree<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     fn eq(&self, other: &Self) -> bool {

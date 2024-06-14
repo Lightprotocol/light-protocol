@@ -854,6 +854,21 @@ fn functional_changelog_test_2() {
     perform_change_log_test::<false>(&[address_1, address_2]);
 }
 
+/// Performs conflicting Merkle tree updates where:
+///
+/// 1. Party one inserts 30.
+/// 2. Party two inserts 10.
+/// 3. Party three inserts 20.
+///
+#[test]
+fn functional_changelog_test_3() {
+    let address_1 = 30_u32.to_biguint().unwrap();
+    let address_2 = 10_u32.to_biguint().unwrap();
+    let address_3 = 20_u32.to_biguint().unwrap();
+
+    perform_change_log_test::<false>(&[address_1, address_2, address_3]);
+}
+
 /// Performs conflicting Merkle tree updates where two parties try to insert
 /// the same element.
 #[test]
@@ -915,6 +930,7 @@ fn perform_change_log_test<const DOUBLE_SPEND: bool>(addresses: &[BigUint]) {
     let indexed_changelog_index = onchain_indexed_merkle_tree.indexed_changelog_index();
     for (i, (address, indexed_array)) in addresses.iter().zip(indexed_arrays.iter_mut()).enumerate()
     {
+        println!("===== ACTOR {i} ======");
         let (old_low_address, old_low_address_next_value) = indexed_array
             .find_low_element_for_nonexistent(&address)
             .unwrap();

@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     marker::PhantomData,
     mem,
     ops::{Deref, DerefMut},
@@ -20,7 +21,15 @@ use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 pub struct IndexedMerkleTreeZeroCopy<'a, H, I, const HEIGHT: usize>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub merkle_tree: mem::ManuallyDrop<IndexedMerkleTree<H, I, HEIGHT>>,
@@ -32,7 +41,15 @@ where
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     /// Returns a zero-copy wrapper of `IndexedMerkleTree` created from the
@@ -82,7 +99,15 @@ where
 impl<'a, H, I, const HEIGHT: usize> Deref for IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     type Target = IndexedMerkleTree<H, I, HEIGHT>;
@@ -98,13 +123,29 @@ pub struct IndexedMerkleTreeZeroCopyMut<'a, H, I, const HEIGHT: usize>(
 )
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>;
 
 impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     pub fn from_bytes_zero_copy_mut(bytes: &'a mut [u8]) -> Result<Self, IndexedMerkleTreeError> {
@@ -163,7 +204,15 @@ where
 impl<'a, H, I, const HEIGHT: usize> Deref for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     type Target = IndexedMerkleTree<H, I, HEIGHT>;
@@ -176,7 +225,15 @@ where
 impl<'a, H, I, const HEIGHT: usize> DerefMut for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
