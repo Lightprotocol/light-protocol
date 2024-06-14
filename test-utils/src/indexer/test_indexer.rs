@@ -567,7 +567,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         while retries > 0 {
             if retries < 3 {
                 spawn_gnark_server(self.path.as_str(), true, self.proof_types.as_slice()).await;
-                tokio::time::sleep(Duration::from_secs(5)).await;
+                tokio::time::sleep(Duration::from_secs(10)).await;
             }
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

@@ -18,7 +18,7 @@ impl Default for LightValidatorConfig {
             enable_indexer: false,
             enable_prover: false,
             enable_forester: false,
-            wait_time: 10,
+            wait_time: 20,
         }
     }
 }
