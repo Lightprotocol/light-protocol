@@ -4,6 +4,7 @@ set -x
 
 kill_light_prover() {
   pkill -f '.*prover-.*' || true
+  sleep 1
 }
 
 build_prover() {
@@ -56,8 +57,6 @@ if [ "$inclusion" = true ]; then cmd="$cmd --inclusion=true"; fi
 if [ "$non_inclusion" = true ]; then cmd="$cmd --non-inclusion=true"; fi
 if [ "$combined" = true ]; then cmd="$cmd --combined=true"; fi
 
-kill_light_prover
-
 echo "Running command: $cmd"
-$cmd &
+kill_light_prover && $cmd &
 echo "Command completed with status code $?"

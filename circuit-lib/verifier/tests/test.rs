@@ -3,7 +3,7 @@ mod test {
     use light_prover_client::{
         gnark::{
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{kill_gnark_server, spawn_gnark_server, ProofType},
+            helpers::{kill_light_prover, spawn_light_prover, ProofType},
             inclusion_json_formatter::inclusion_inputs_string,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
         },
@@ -15,7 +15,7 @@ mod test {
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
-        spawn_gnark_server(
+        spawn_light_prover(
             "../light-prover-client/scripts/prover.sh",
             true,
             &vec![ProofType::Inclusion],
@@ -55,6 +55,6 @@ mod test {
             )
             .unwrap();
         }
-        kill_gnark_server();
+        kill_light_prover();
     }
 }

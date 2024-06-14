@@ -47,14 +47,7 @@ async fn only_test_create_pda() {
     let (mut rpc, env) =
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        true,
-        true,
-        "../../circuit-lib/light-prover-client/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer = TestIndexer::init_from_env(&payer, &env, true, true).await;
 
     let seed = [1u8; 32];
     let data = [2u8; 31];
@@ -271,14 +264,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         setup_test_programs_with_accounts(Some(vec![(String::from("system_cpi_test"), ID)])).await;
 
     let payer = rpc.get_payer().insecure_clone();
-    let mut test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        true,
-        true,
-        "../../circuit-lib/light-prover-client/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer = TestIndexer::init_from_env(&payer, &env, true, true).await;
     // Failing test 1 invalid address Merkle tree ----------------------------------------------
     let program_owned_address_merkle_tree_keypair = Keypair::new();
     let program_owned_address_queue_keypair = Keypair::new();
