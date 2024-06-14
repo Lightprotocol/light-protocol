@@ -276,11 +276,7 @@ where
             let changelog_entry = &mut self.indexed_changelog[next_indexed_changelog_index];
 
             let next_element_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
-            if next_element_value == new_element.value {
-                // Is the next element is equal to the new element, it means
-                // that the caller is trying to double-spend.
-                return Err(IndexedMerkleTreeError::ElementAlreadyExists);
-            } else if next_element_value < new_element.value {
+            if next_element_value < new_element.value {
                 // If the next element is lower than the current element, it means
                 // that it should become the low element.
                 //
