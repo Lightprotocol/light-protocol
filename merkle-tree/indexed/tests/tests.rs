@@ -839,21 +839,23 @@ pub fn functional_non_inclusion_test() {
 // 4. party two needs to patch the low element because the low element has changed
 // 5. party two inserts
 #[test]
-pub fn functional_changelog_test() {
+fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
 
-    perform_change_log_test(address_1.clone(), address_2.clone());
+    perform_change_log_test(&[address_1, address_2]);
 }
 
-fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
-    let mut relayer_indexing_array =
+/// Performs conflicting Merkle tree update operations where multiple actors
+/// try to add new ranges when using the same (for the most of actors - outdated)
+/// Merkle proofs and changelog indices.
+fn perform_change_log_test(addresses: &[BigUint]) {
+    // Initialize the trees and indexed array.
+    let mut relayer_indexed_array =
         IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
-    relayer_indexing_array.init().unwrap();
-    // appends the first element
+    relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(10, 0).unwrap();
-
     let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, 10>::new(
         10,
         MERKLE_TREE_CHANGELOG,
@@ -870,62 +872,34 @@ fn perform_change_log_test(address_1: BigUint, address_2: BigUint) {
         onchain_indexed_merkle_tree.root(),
         "environment setup failed relayer and onchain indexed Merkle tree roots are inconsistent"
     );
-    let actor_1_indexed_array_state = relayer_indexing_array.clone();
-    let actor_2_indexed_array_state = relayer_indexing_array.clone();
 
-    let (old_low_address_1, old_low_address_next_value_1) = actor_1_indexed_array_state
-        .find_low_element_for_nonexistent(&address_1)
-        .unwrap();
-    let address_bundle_1 = relayer_indexing_array
-        .new_element_with_low_element_index(old_low_address_1.index, &address_1)
-        .unwrap();
+    // Perform updates for each actor, where every of them is using the same
+    // changelog indices, generating a conflict which needs to be solved by
+    // patching from changelog.
+    let mut indexed_arrays = vec![relayer_indexed_array.clone(); addresses.len()];
     let changelog_index = onchain_indexed_merkle_tree.changelog_index();
     let indexed_changelog_index = onchain_indexed_merkle_tree.indexed_changelog_index();
-    {
-        let mut low_element_proof_1 = relayer_merkle_tree
-            .get_proof_of_leaf(old_low_address_1.index, false)
+    for (address, indexed_array) in addresses.iter().zip(indexed_arrays.iter_mut()) {
+        let (old_low_address, old_low_address_next_value) = indexed_array
+            .find_low_element_for_nonexistent(&address)
+            .unwrap();
+        let address_bundle = indexed_array
+            .new_element_with_low_element_index(old_low_address.index, address)
+            .unwrap();
+
+        let mut low_element_proof = relayer_merkle_tree
+            .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
         onchain_indexed_merkle_tree
             .update(
                 changelog_index,
                 indexed_changelog_index,
-                address_bundle_1.new_element.clone(),
-                old_low_address_1.clone(),
-                old_low_address_next_value_1,
-                &mut low_element_proof_1,
+                address_bundle.new_element,
+                old_low_address,
+                old_low_address_next_value,
+                &mut low_element_proof,
             )
             .unwrap();
     }
-
-    // getting parameters for the second actor with the pre update state
-    let (old_low_address, old_low_address_next_value) = actor_2_indexed_array_state
-        .find_low_element_for_nonexistent(&address_1)
-        .unwrap();
-    let address_bundle = relayer_indexing_array
-        .new_element_with_low_element_index(old_low_address.index, &address_2)
-        .unwrap();
-    let mut low_element_proof = relayer_merkle_tree
-        .get_proof_of_leaf(old_low_address.index, false)
-        .unwrap();
-
-    onchain_indexed_merkle_tree
-        .update(
-            changelog_index,
-            indexed_changelog_index,
-            address_bundle.new_element,
-            old_low_address,
-            old_low_address_next_value,
-            &mut low_element_proof,
-        )
-        .unwrap();
-
-    // update the relayer state
-    relayer_merkle_tree
-        .append(&address_1, &mut relayer_indexing_array)
-        .unwrap();
-
-    relayer_merkle_tree
-        .append(&address_2, &mut relayer_indexing_array)
-        .unwrap();
 }
