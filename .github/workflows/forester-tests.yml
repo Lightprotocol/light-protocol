@@ -29,7 +29,7 @@ jobs:
   forester-tests:
     name: forester-tests
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-8vcpu-ubuntu-2204
+    runs-on: buildjet-4vcpu-ubuntu-2204
     timeout-minutes: 60
 
     steps:
