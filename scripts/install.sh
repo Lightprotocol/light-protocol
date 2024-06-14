@@ -190,9 +190,7 @@ export PATH="${PREFIX}/go/bin:${PATH}"
 
 echo "Downloading gnark keys"
 # run the gnark-prover/scripts/download_keys.sh script
-# this script will download the keys from IPFS and place them in the gnark-prover/circuits directory
-
-# get root dir
+# this script will download the keys from IPFS and place them in the gnark-prover/proving-keys directory
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 "$ROOT_DIR"/gnark-prover/scripts/download_keys.sh
 

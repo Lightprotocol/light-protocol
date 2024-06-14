@@ -21,26 +21,31 @@ jobs:
   stateless-js:
     name: stateless-js
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: Run build script
-        run: ./scripts/build.sh
+      - run: git branch --track main origin/main
+        if: ${{ github.event_name == 'pull_request' }}
+
+      - name: Build CLI
+        run: |
+          source ./scripts/devenv.sh
+          npx nx affected -t build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests
         run: |
           source ./scripts/devenv.sh
-          cd js/stateless.js
-          pnpm run test
+          npx nx run @lightprotocol/stateless.js:test          
 
       - name: Run compressed-token tests
         run: |
           source ./scripts/devenv.sh
-          cd js/compressed-token
-          pnpm run test
+          npx nx run @lightprotocol/compressed-token:test

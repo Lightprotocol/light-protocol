@@ -4,41 +4,49 @@ description: Checkout sources, install dependencies, build and prepare for tests
 runs:
   using: "composite"
   steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        swap-storage: false
+
     - name: Checkout sources
       uses: actions/checkout@v4
 
-    - name: Cache Rust dependencies
-      uses: actions/cache@v3
+    - name: Restore .local directory cache
+      id: restore-local-cache
+      uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo
-          **/target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Cache .local directory
-      uses: actions/cache@v3
-      with:
-        path: .local
-        key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+          .local
+          gnark-prover/proving-keys
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
 
     - name: Install dependencies
+      if: steps.restore-local-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         ./scripts/install.sh
+
+    - name: Set local environment
+      shell: bash
+      run: |
         source ./scripts/devenv.sh
 
+    - name: Rust cache
+      uses: swatinem/rust-cache@v2
+
     - name: Setup pnpm
-      uses: pnpm/action-setup@v2.4.0
+      uses: pnpm/action-setup@v4
       with:
-        version: 9
-        run_install: false
+        run_install: true
 
     - name: Get pnpm store directory
       shell: bash
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       name: Setup pnpm cache
       with:
         path: ${{ env.STORE_PATH }}
@@ -46,19 +54,27 @@ runs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
 
-    - name: Install pnpm dependencies
-      shell: bash
-      run: pnpm install
-
-    - name: Build and prepare for tests
+    - name: Generate Solana keypair
       shell: bash
       run: |
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        npx nx build @lightprotocol/hasher.rs
-        npx nx build @lightprotocol/programs
-        npx nx build @lightprotocol/zk-compression-cli
+        
+    - name: Copy spl_noop.so to target/deploy
+      shell: bash
+      run: |
+        mkdir -p ./target/deploy
+        cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
+
+    - name: Cache .local directory
+      if: steps.restore-local-cache.outputs.cache-hit != 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          .local
+          gnark-prover/proving-keys
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
 
     - name: Check for git changes
       shell: bash

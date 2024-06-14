@@ -2,8 +2,12 @@ import { airdropSol } from "@lightprotocol/stateless.js";
 import { getPayer, setAnchorProvider } from "./utils";
 import {
   BASE_PATH,
+  LIGHT_ACCOUNT_COMPRESSION_TAG,
+  LIGHT_COMPRESSED_TOKEN_TAG,
   LIGHT_MERKLE_TREE_PROGRAM_TAG,
   LIGHT_PROTOCOL_PROGRAMS_DIR_ENV,
+  LIGHT_REGISTRY_TAG,
+  LIGHT_SYSTEM_PROGRAM_TAG,
   SPL_NOOP_PROGRAM_TAG,
 } from "./constants";
 import path from "path";
@@ -163,22 +167,22 @@ export async function getSolanaArgs({
     {
       id: "H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN",
       name: "light_system_program.so",
-      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+      tag: LIGHT_SYSTEM_PROGRAM_TAG,
     },
     {
       id: "HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN",
       name: "light_compressed_token.so",
-      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+      tag: LIGHT_COMPRESSED_TOKEN_TAG,
     },
     {
       id: "CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK",
       name: "account_compression.so",
-      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+      tag: LIGHT_ACCOUNT_COMPRESSION_TAG,
     },
     {
       id: "7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1",
       name: "light_registry.so",
-      tag: LIGHT_MERKLE_TREE_PROGRAM_TAG,
+      tag: LIGHT_REGISTRY_TAG,
     },
   ];
   if (additionalPrograms)

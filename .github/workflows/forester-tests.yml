@@ -29,14 +29,12 @@ jobs:
   forester-tests:
     name: forester-tests
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -44,6 +42,4 @@ jobs:
       - name: Run forester tests
         run: |
           source ./scripts/devenv.sh
-          mkdir -p ./target/deploy
-          cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
-          RUST_MIN_STACK=98388608 RUSTFLAGS="-D warnings" cargo test --package forester
+          npx nx run @lightprotocol/forester:test
