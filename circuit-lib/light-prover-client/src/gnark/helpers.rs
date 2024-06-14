@@ -98,7 +98,7 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
 
 fn get_project_root() -> Option<String> {
     let output = Command::new("git")
-        .args(&["rev-parse", "--show-toplevel"])
+        .args(["rev-parse", "--show-toplevel"])
         .output()
         .ok()?;
 
