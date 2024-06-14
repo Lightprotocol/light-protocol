@@ -427,12 +427,20 @@ where
         };
         self.indexed_changelog.push(low_element_changelog_entry);
 
+        // New element is always the newest one in the tree. Since we
+        // support concurrent updates, the index provided by the caller
+        // might be outdated. Let's just use the latest index indicated
+        // by the tree.
+        new_element.index =
+            I::try_from(self.next_index()).map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
+
         // Append new element.
         let mut proof = BoundedVec::with_capacity(self.height);
         let new_leaf = new_element.hash::<H>(&low_element_next_value)?;
         let (new_changelog_index, _) = self.merkle_tree.append_with_proof(&new_leaf, &mut proof)?;
 
-        let new_high_element = RawIndexedElement {
+        // Prepare raw new element to save in changelog.
+        let raw_new_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
             next_index: new_element.next_index,
             next_value: bigint_to_be_bytes_array::<32>(&low_element_next_value)?,
@@ -441,7 +449,7 @@ where
 
         // Emit changelog entry for new element.
         let new_element_changelog_entry = IndexedChangelogEntry {
-            element: new_high_element,
+            element: raw_new_element,
             proof,
             changelog_index: new_changelog_index,
         };
@@ -450,7 +458,7 @@ where
         let output = IndexedMerkleTreeUpdate {
             new_low_element,
             new_low_element_hash: new_low_leaf,
-            new_high_element,
+            new_high_element: raw_new_element,
             new_high_element_hash: new_leaf,
         };
 
