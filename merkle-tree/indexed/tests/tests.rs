@@ -953,7 +953,7 @@ fn perform_change_log_test<const DOUBLE_SPEND: bool>(addresses: &[BigUint]) {
             );
             assert!(matches!(
                 res,
-                Err(IndexedMerkleTreeError::ElementAlreadyExists)
+                Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
             ));
         } else {
             onchain_indexed_merkle_tree
