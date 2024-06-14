@@ -203,6 +203,7 @@ async fn test_photon_interop() {
     let address_proof = env
         .indexer
         .get_address_tree_proof(trees[0].to_bytes(), created_addresses[0].to_bytes())
+        .await
         .unwrap();
 
     info!("NewAddress proof test-indexer: {:?}", address_proof);
