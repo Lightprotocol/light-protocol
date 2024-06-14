@@ -186,7 +186,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         Ok(hashes)
     }
 
-    fn get_address_tree_proof(
+    async fn get_address_tree_proof(
         &self,
         merkle_tree_pubkey: [u8; 32],
         address: [u8; 32],

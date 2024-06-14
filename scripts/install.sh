@@ -237,6 +237,9 @@ download_file_github \
     pnpm \
     "${PREFIX}/bin"
 
+chmod +x "${PREFIX}/bin/pnpm"
+export PATH="${PREFIX}/bin:${PATH}"
+
 echo "📥 Downloading Solana toolchain"
 download_and_extract_github \
     solana-labs \
@@ -290,3 +293,4 @@ echo "📦 Installing Playwright"
 pnpm exec playwright install --with-deps
 
 echo "✨ Light Protocol development dependencies installed"
+
