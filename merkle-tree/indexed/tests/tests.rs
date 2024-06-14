@@ -1,5 +1,7 @@
 use std::cell::{RefCell, RefMut};
 
+use ark_bn254::Fr;
+use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
     event::IndexedMerkleTreeUpdate,
@@ -13,6 +15,7 @@ use light_indexed_merkle_tree::{
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::FromBytes;
+use rand::thread_rng;
 use thiserror::Error;
 
 const MERKLE_TREE_HEIGHT: usize = 4;
@@ -271,7 +274,7 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
-            1,
+            MERKLE_TREE_INDEXED_CHANGELOG,
         )
         .unwrap(),
     );
@@ -329,7 +332,7 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
-            1,
+            MERKLE_TREE_INDEXED_CHANGELOG,
         )
         .unwrap(),
     );
@@ -404,7 +407,7 @@ where
             MERKLE_TREE_CHANGELOG,
             MERKLE_TREE_ROOTS,
             MERKLE_TREE_CANOPY,
-            1,
+            MERKLE_TREE_INDEXED_CHANGELOG,
         )
         .unwrap(),
     );
@@ -835,7 +838,7 @@ fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false>(&[address_1, address_2]);
+    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -851,7 +854,7 @@ fn functional_changelog_test_2() {
     let address_1 = 10_u32.to_biguint().unwrap();
     let address_2 = 30_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false>(&[address_1, address_2]);
+    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -860,13 +863,19 @@ fn functional_changelog_test_2() {
 /// 2. Party two inserts 10.
 /// 3. Party three inserts 20.
 ///
+/// In this case:
+///
+/// * Party one:
+///   * Updates the inserted element (10) to point to 30 as the next one.
+/// * Party two:
+///   * Updates the low element from 0 to 10.
 #[test]
 fn functional_changelog_test_3() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
     let address_3 = 20_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false>(&[address_1, address_2, address_3]);
+    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2, address_3]);
 }
 
 /// Performs conflicting Merkle tree updates where two parties try to insert
@@ -875,7 +884,46 @@ fn functional_changelog_test_3() {
 fn functional_changelog_test_double_spend() {
     let address = 10_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<true>(&[address.clone(), address.clone()]);
+    perform_change_log_test::<true, 10, 16, 16, 0, 16>(&[address.clone(), address.clone()]);
+}
+
+#[test]
+fn functional_changelog_test_random_8_512_512_0_512() {
+    const HEIGHT: usize = 8;
+    const CHANGELOG: usize = 512;
+    const ROOTS: usize = 512;
+    const CANOPY: usize = 0;
+    const INDEXED_CHANGELOG: usize = 512;
+    const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
+
+    functional_changelog_test_random::<
+        HEIGHT,
+        CHANGELOG,
+        ROOTS,
+        CANOPY,
+        INDEXED_CHANGELOG,
+        N_OPERATIONS,
+    >()
+}
+
+/// Performs `N_OPERATIONS` concurrent updates with random elements. All of them without
+/// updating the changelog indices. All of them should result in using indexed changelog
+/// for patching the proof.
+fn functional_changelog_test_random<
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+    const INDEXED_CHANGELOG: usize,
+    const N_OPERATIONS: usize,
+>() {
+    let mut rng = thread_rng();
+
+    let leaves: Vec<BigUint> = (0..N_OPERATIONS)
+        .map(|_| BigUint::from_bytes_be(&Fr::rand(&mut rng).into_bigint().to_bytes_be()))
+        .collect();
+
+    perform_change_log_test::<false, HEIGHT, CHANGELOG, ROOTS, CANOPY, INDEXED_CHANGELOG>(&leaves);
 }
 
 /// Performs conflicting Merkle tree updates where multiple actors try to add
@@ -898,19 +946,28 @@ fn functional_changelog_test_double_spend() {
 /// `DOUBLE_SPEND` indicates whether the provided addresses are an attempt to
 /// double-spend by the subsequent parties. When set to `true`, we expect
 /// subsequent updates to fail.
-fn perform_change_log_test<const DOUBLE_SPEND: bool>(addresses: &[BigUint]) {
+fn perform_change_log_test<
+    const DOUBLE_SPEND: bool,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+    const INDEXED_CHANGELOG: usize,
+>(
+    addresses: &[BigUint],
+) {
     // Initialize the trees and indexed array.
     let mut relayer_indexed_array =
         IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
     relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
-        reference::IndexedMerkleTree::<Poseidon, usize>::new(10, 0).unwrap();
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
     let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, 10>::new(
-        10,
-        MERKLE_TREE_CHANGELOG,
-        MERKLE_TREE_ROOTS,
-        0,
-        MERKLE_TREE_INDEXED_CHANGELOG,
+        HEIGHT,
+        CHANGELOG,
+        ROOTS,
+        CANOPY,
+        INDEXED_CHANGELOG,
     )
     .unwrap();
     onchain_indexed_merkle_tree.init().unwrap();
