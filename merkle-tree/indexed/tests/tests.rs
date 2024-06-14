@@ -826,6 +826,10 @@ pub fn functional_non_inclusion_test() {
 ///
 /// 1. Party one inserts 30.
 /// 2. Party two inserts 10.
+///
+/// In this case, party two needs to update:
+///
+/// * The inserted element (10) to point to 30 as the next one.
 #[test]
 fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
@@ -838,6 +842,10 @@ fn functional_changelog_test_1() {
 ///
 /// 1. Party one inserts 10.
 /// 2. Party two inserts 30.
+///
+/// In this case, party two needs to update:
+///
+/// * The low element from 0 to 10.
 #[test]
 fn functional_changelog_test_2() {
     let address_1 = 10_u32.to_biguint().unwrap();
