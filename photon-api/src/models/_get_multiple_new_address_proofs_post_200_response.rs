@@ -11,28 +11,30 @@
 use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct GetIndexerSlotPostRequest {
-    /// An ID to identify the request.
+pub struct GetMultipleNewAddressProofsPost200Response {
+    #[serde(rename = "error", skip_serializing_if = "Option::is_none")]
+    pub error: Option<Box<models::GetCompressedAccountPost200ResponseError>>,
+    /// An ID to identify the response.
     #[serde(rename = "id")]
     pub id: Id,
     /// The version of the JSON-RPC protocol.
     #[serde(rename = "jsonrpc")]
     pub jsonrpc: Jsonrpc,
-    /// The name of the method to invoke.
-    #[serde(rename = "method")]
-    pub method: Method,
+    #[serde(rename = "result", skip_serializing_if = "Option::is_none")]
+    pub result: Option<Box<models::GetMultipleNewAddressProofsPost200ResponseResult>>,
 }
 
-impl GetIndexerSlotPostRequest {
-    pub fn new(id: Id, jsonrpc: Jsonrpc, method: Method) -> GetIndexerSlotPostRequest {
-        GetIndexerSlotPostRequest {
+impl GetMultipleNewAddressProofsPost200Response {
+    pub fn new(id: Id, jsonrpc: Jsonrpc) -> GetMultipleNewAddressProofsPost200Response {
+        GetMultipleNewAddressProofsPost200Response {
+            error: None,
             id,
             jsonrpc,
-            method,
+            result: None,
         }
     }
 }
-/// An ID to identify the request.
+/// An ID to identify the response.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Id {
     #[serde(rename = "test-account")]
@@ -54,17 +56,5 @@ pub enum Jsonrpc {
 impl Default for Jsonrpc {
     fn default() -> Jsonrpc {
         Self::Variant2Period0
-    }
-}
-/// The name of the method to invoke.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
-pub enum Method {
-    #[serde(rename = "getIndexerSlot")]
-    GetIndexerSlot,
-}
-
-impl Default for Method {
-    fn default() -> Method {
-        Self::GetIndexerSlot
     }
 }

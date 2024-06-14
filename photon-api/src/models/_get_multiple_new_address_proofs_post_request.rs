@@ -11,7 +11,7 @@
 use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct GetIndexerSlotPostRequest {
+pub struct GetMultipleNewAddressProofsPostRequest {
     /// An ID to identify the request.
     #[serde(rename = "id")]
     pub id: Id,
@@ -21,14 +21,22 @@ pub struct GetIndexerSlotPostRequest {
     /// The name of the method to invoke.
     #[serde(rename = "method")]
     pub method: Method,
+    #[serde(rename = "params")]
+    pub params: Vec<String>,
 }
 
-impl GetIndexerSlotPostRequest {
-    pub fn new(id: Id, jsonrpc: Jsonrpc, method: Method) -> GetIndexerSlotPostRequest {
-        GetIndexerSlotPostRequest {
+impl GetMultipleNewAddressProofsPostRequest {
+    pub fn new(
+        id: Id,
+        jsonrpc: Jsonrpc,
+        method: Method,
+        params: Vec<String>,
+    ) -> GetMultipleNewAddressProofsPostRequest {
+        GetMultipleNewAddressProofsPostRequest {
             id,
             jsonrpc,
             method,
+            params,
         }
     }
 }
@@ -59,12 +67,12 @@ impl Default for Jsonrpc {
 /// The name of the method to invoke.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Method {
-    #[serde(rename = "getIndexerSlot")]
-    GetIndexerSlot,
+    #[serde(rename = "getMultipleNewAddressProofs")]
+    GetMultipleNewAddressProofs,
 }
 
 impl Default for Method {
     fn default() -> Method {
-        Self::GetIndexerSlot
+        Self::GetMultipleNewAddressProofs
     }
 }

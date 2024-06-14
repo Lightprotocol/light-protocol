@@ -11,16 +11,19 @@
 use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub struct GetCompressedBalancePost200ResponseResult {
+pub struct GetMultipleNewAddressProofsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
     #[serde(rename = "value")]
-    pub value: i32,
+    pub value: Vec<models::MerkleContextWithNewAddressProof>,
 }
 
-impl GetCompressedBalancePost200ResponseResult {
-    pub fn new(context: models::Context, value: i32) -> GetCompressedBalancePost200ResponseResult {
-        GetCompressedBalancePost200ResponseResult {
+impl GetMultipleNewAddressProofsPost200ResponseResult {
+    pub fn new(
+        context: models::Context,
+        value: Vec<models::MerkleContextWithNewAddressProof>,
+    ) -> GetMultipleNewAddressProofsPost200ResponseResult {
+        GetMultipleNewAddressProofsPost200ResponseResult {
             context: Box::new(context),
             value,
         }
