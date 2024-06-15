@@ -279,7 +279,7 @@ where
                 // that it should become the low element.
                 //
                 // Save it and break the loop.
-                new_low_element = Some((changelog_entry.element.next_value, next_element_value));
+                new_low_element = Some((next_indexed_changelog_index + 1, next_element_value));
                 break;
             }
 
@@ -298,21 +298,7 @@ where
         }
 
         // If we found a new low element.
-        if let Some((new_low_element_raw, new_low_element)) = new_low_element {
-            // Find a changelog entry which represents the insertion of
-            // new low element.
-            //
-            // PANICS: At this point, we are absolutely sure that such entry exists.
-            // It it doesn't, then we really did something wrong with the
-            // implementation.
-            let new_low_element_changelog_index = self
-                .indexed_changelog
-                .iter_from(indexed_changelog_index)?
-                .skip(1)
-                .position(|changelog_entry| changelog_entry.element.value == new_low_element_raw)
-                .unwrap()
-                + indexed_changelog_index
-                + 1;
+        if let Some((new_low_element_changelog_index, new_low_element)) = new_low_element {
             let new_low_element_changelog_entry =
                 &self.indexed_changelog[new_low_element_changelog_index];
 
