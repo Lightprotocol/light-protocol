@@ -466,7 +466,7 @@ where
             .rng
             .gen_bool(self.keypair_action_config.create_address.unwrap_or(0.0))
         {
-            self.create_address().await;
+            self.create_address(None).await;
         }
 
         // compress sol
@@ -716,7 +716,7 @@ where
         self.stats.sol_compress += 1;
     }
 
-    pub async fn create_address(&mut self) -> Vec<Pubkey> {
+    pub async fn create_address(&mut self, optional_addresses: Option<Vec<Pubkey>>) -> Vec<Pubkey> {
         println!("\n --------------------------------------------------\n\t\t Create Address\n --------------------------------------------------");
         // select number of addresses to create
         let num_addresses = self.rng.gen_range(1..=2);
@@ -725,12 +725,22 @@ where
             self.get_address_merkle_tree_pubkeys(num_addresses);
         let mut address_seeds = Vec::new();
         let mut created_addresses = Vec::new();
-        for _ in 0..num_addresses {
-            let address_seed: [u8; 32] =
-                bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
-            address_seeds.push(address_seed);
-            created_addresses.push(Pubkey::from(address_seed));
+
+        if let Some(addresses) = optional_addresses {
+            for address in addresses {
+                let address_seed: [u8; 32] = address.to_bytes();
+                address_seeds.push(address_seed);
+                created_addresses.push(address);
+            }
+        } else {
+            for _ in 0..num_addresses {
+                let address_seed: [u8; 32] =
+                    bigint_to_be_bytes_array::<32>(&self.rng.gen_biguint(256)).unwrap();
+                address_seeds.push(address_seed);
+                created_addresses.push(Pubkey::from(address_seed));
+            }
         }
+
         let output_compressed_accounts = self.get_merkle_tree_pubkeys(num_addresses);
 
         // TODO: add other input compressed accounts

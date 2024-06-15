@@ -264,7 +264,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         // Get the Merkle proof for updating low element.
         let low_address_proof = address_tree_bundle
             .merkle_tree
-            .get_proof_of_leaf(old_low_address.index, false)
+            .get_proof_of_leaf(old_low_address.index, true)
             .unwrap();
 
         let low_address_index: u64 = old_low_address.index as u64;
@@ -272,7 +272,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         let low_address_next_index: u64 = old_low_address.next_index as u64;
         let low_address_next_value: [u8; 32] =
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
-        let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
+        let low_address_proof = low_address_proof.to_vec();
 
         Ok(NewAddressProofWithContext {
             merkle_tree: merkle_tree_pubkey,
@@ -280,9 +280,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             low_address_value,
             low_address_next_index,
             low_address_next_value,
-            low_address_proof: low_address_proof.to_vec(), // TODO: Check why test-indexer is 16
+            low_address_proof, // TODO: Check why test-indexer is 16
             root: address_tree_bundle.merkle_tree.root(),
-            root_seq: 0_i64, // TODO: Replace mock with actual sequence number
+            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64, //0_i64, // TODO: Replace mock with actual sequence number
         })
     }
 

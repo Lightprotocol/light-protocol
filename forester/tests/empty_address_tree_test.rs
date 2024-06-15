@@ -62,7 +62,7 @@ async fn empty_address_tree_test() {
     )
     .await;
     for _ in 0..10 {
-        env.create_address().await;
+        env.create_address(None).await;
     }
 
     assert_ne!(get_address_queue_length(&config, &mut env.rpc).await, 0);
