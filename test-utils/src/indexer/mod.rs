@@ -78,7 +78,7 @@ pub struct MerkleProofWithAddressContext {
     pub new_element_next_value: BigUint,
 }
 
-// For consistency with the API.
+// For consistency with the Photon API.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NewAddressProofWithContext {
     pub merkle_tree: [u8; 32],
