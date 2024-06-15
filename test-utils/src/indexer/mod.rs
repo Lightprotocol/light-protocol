@@ -32,7 +32,9 @@ pub trait Indexer: Sync + Send + 'static {
         &self,
         merkle_tree_pubkey: [u8; 32],
         address: [u8; 32],
-    ) -> Result<MerkleProofWithAddressContext, IndexerError>;
+    ) -> impl std::future::Future<Output = Result<MerkleProofWithAddressContext, IndexerError>>
+           + Send
+           + Sync;
 
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
 

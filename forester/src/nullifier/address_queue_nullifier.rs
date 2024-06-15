@@ -51,6 +51,7 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
         info!("address_hashset_index: {:?}", address_hashset_index);
         let proof = indexer
             .get_address_tree_proof(address_merkle_tree_pubkey.to_bytes(), address.value)
+            .await
             .unwrap();
         info!("proof: {:?}", proof);
 

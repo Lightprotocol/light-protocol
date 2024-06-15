@@ -68,6 +68,9 @@ docs/GetMultipleCompressedAccountsPost200Response.md
 docs/GetMultipleCompressedAccountsPost200ResponseResult.md
 docs/GetMultipleCompressedAccountsPostRequest.md
 docs/GetMultipleCompressedAccountsPostRequestParams.md
+docs/GetMultipleNewAddressProofsPost200Response.md
+docs/GetMultipleNewAddressProofsPost200ResponseResult.md
+docs/GetMultipleNewAddressProofsPostRequest.md
 docs/GetTransactionWithCompressionInfoPost200Response.md
 docs/GetTransactionWithCompressionInfoPost200ResponseResult.md
 docs/GetTransactionWithCompressionInfoPost200ResponseResultCompressionInfo.md
@@ -76,6 +79,8 @@ docs/GetTransactionWithCompressionInfoPostRequestParams.md
 docs/GetValidityProofPost200Response.md
 docs/GetValidityProofPost200ResponseResult.md
 docs/GetValidityProofPostRequest.md
+docs/GetValidityProofPostRequestParams.md
+docs/MerkleContextWithNewAddressProof.md
 docs/MerkleProofWithContext.md
 docs/PaginatedAccountList.md
 docs/PaginatedSignatureInfoList.md
@@ -148,6 +153,9 @@ src/models/_get_multiple_compressed_accounts_post_200_response.rs
 src/models/_get_multiple_compressed_accounts_post_200_response_result.rs
 src/models/_get_multiple_compressed_accounts_post_request.rs
 src/models/_get_multiple_compressed_accounts_post_request_params.rs
+src/models/_get_multiple_new_address_proofs_post_200_response.rs
+src/models/_get_multiple_new_address_proofs_post_200_response_result.rs
+src/models/_get_multiple_new_address_proofs_post_request.rs
 src/models/_get_transaction_with_compression_info_post_200_response.rs
 src/models/_get_transaction_with_compression_info_post_200_response_result.rs
 src/models/_get_transaction_with_compression_info_post_200_response_result_compression_info.rs
@@ -156,6 +164,7 @@ src/models/_get_transaction_with_compression_info_post_request_params.rs
 src/models/_get_validity_proof_post_200_response.rs
 src/models/_get_validity_proof_post_200_response_result.rs
 src/models/_get_validity_proof_post_request.rs
+src/models/_get_validity_proof_post_request_params.rs
 src/models/account.rs
 src/models/account_data.rs
 src/models/account_list.rs
@@ -164,6 +173,7 @@ src/models/account_with_optional_token_data.rs
 src/models/compressed_proof.rs
 src/models/compressed_proof_with_context.rs
 src/models/context.rs
+src/models/merkle_context_with_new_address_proof.rs
 src/models/merkle_proof_with_context.rs
 src/models/mod.rs
 src/models/paginated_account_list.rs

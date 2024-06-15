@@ -3,6 +3,7 @@ use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
     Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext,
 };
+use solana_sdk::bs58;
 
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
@@ -106,11 +107,33 @@ impl Indexer for PhotonIndexer {
         Ok(hashes)
     }
 
-    fn get_address_tree_proof(
+    // TODO: implement conversion
+    async fn get_address_tree_proof(
         &self,
         _merkle_tree_pubkey: [u8; 32],
-        _address: [u8; 32],
+        address: [u8; 32],
     ) -> Result<MerkleProofWithAddressContext, IndexerError> {
+        let request = photon_api::models::GetMultipleNewAddressProofsPostRequest {
+            params: vec![bs58::encode(address).into_string()],
+            ..Default::default()
+        };
+
+        let result = photon_api::apis::default_api::get_multiple_new_address_proofs_post(
+            &self.configuration,
+            request,
+        )
+        .await
+        .unwrap();
+
+        let _proofs = result.result.unwrap().value;
+
+        // let merkle_proof_with_address_context: MerkleProofWithAddressContext = {
+        //     merkle_tree: proofs[0].merkle_tree,
+        //     proof: proofs[0].proof,
+        //     address: address,
+        // };
+
+        // Ok(proofs[0])
         todo!()
     }
 

@@ -23,6 +23,7 @@ Method | HTTP request | Description
 [**get_latest_non_voting_signatures_post**](DefaultApi.md#get_latest_non_voting_signatures_post) | **POST** /getLatestNonVotingSignatures | 
 [**get_multiple_compressed_account_proofs_post**](DefaultApi.md#get_multiple_compressed_account_proofs_post) | **POST** /getMultipleCompressedAccountProofs | 
 [**get_multiple_compressed_accounts_post**](DefaultApi.md#get_multiple_compressed_accounts_post) | **POST** /getMultipleCompressedAccounts | 
+[**get_multiple_new_address_proofs_post**](DefaultApi.md#get_multiple_new_address_proofs_post) | **POST** /getMultipleNewAddressProofs | 
 [**get_transaction_with_compression_info_post**](DefaultApi.md#get_transaction_with_compression_info_post) | **POST** /getTransactionWithCompressionInfo | 
 [**get_validity_proof_post**](DefaultApi.md#get_validity_proof_post) | **POST** /getValidityProof | 
 
@@ -547,6 +548,34 @@ Name | Type | Description  | Required | Notes
 ### Return type
 
 [**models::GetMultipleCompressedAccountsPost200Response**](_getMultipleCompressedAccounts_post_200_response.md)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+- **Content-Type**: application/json
+- **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+
+## get_multiple_new_address_proofs_post
+
+> models::GetMultipleNewAddressProofsPost200Response get_multiple_new_address_proofs_post(get_multiple_new_address_proofs_post_request)
+
+
+### Parameters
+
+
+Name | Type | Description  | Required | Notes
+------------- | ------------- | ------------- | ------------- | -------------
+**get_multiple_new_address_proofs_post_request** | [**GetMultipleNewAddressProofsPostRequest**](GetMultipleNewAddressProofsPostRequest.md) |  | [required] |
+
+### Return type
+
+[**models::GetMultipleNewAddressProofsPost200Response**](_getMultipleNewAddressProofs_post_200_response.md)
 
 ### Authorization
 

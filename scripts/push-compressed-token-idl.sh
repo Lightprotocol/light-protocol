@@ -39,6 +39,7 @@ MERGED_CONTENT=$(jq --argjson types "$MERGED_TYPES" '.types = $types' "$TOKEN_FI
 
 echo "IDL for $TYPE_NAME generated at $TS_FILE and $TS_FILE_STATELESS"
 
+export COREPACK_ENABLE_STRICT=0
 
 # fmt 
 if ! command -v pnpm prettier &> /dev/null

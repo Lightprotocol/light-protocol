@@ -10,7 +10,7 @@ Name | Type | Description | Notes
 **lamports** | **i32** |  | [default to 100]
 **leaf_index** | **i32** |  | [default to 100]
 **owner** | **String** | A Solana public key represented as a base58 string. | [default to 11111112D1oxKts8YPdTJRG5FzxTNpMtWmq8hkVx3]
-**seq** | Option<**i32**> |  | [optional][default to 100]
+**seq** | **i32** |  | [default to 100]
 **slot_created** | **i32** |  | [default to 100]
 **tree** | **String** | A Solana public key represented as a base58 string. | [default to 11111112D1oxKts8YPdTJRG5FzxTNpMtWmq8hkVx3]
 
