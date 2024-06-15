@@ -1,7 +1,9 @@
+use std::str::FromStr;
+
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
-    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext,
+    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
 };
 use solana_sdk::bs58;
 
@@ -107,12 +109,19 @@ impl Indexer for PhotonIndexer {
         Ok(hashes)
     }
 
-    // TODO: implement conversion
     async fn get_address_tree_proof(
         &self,
         _merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
+        _address: [u8; 32],
     ) -> Result<MerkleProofWithAddressContext, IndexerError> {
+        unimplemented!("only needed for testing")
+    }
+
+    async fn get_multiple_new_address_proofs(
+        &self,
+        _merkle_tree_pubkey: [u8; 32],
+        address: [u8; 32],
+    ) -> Result<NewAddressProofWithContext, IndexerError> {
         let request = photon_api::models::GetMultipleNewAddressProofsPostRequest {
             params: vec![bs58::encode(address).into_string()],
             ..Default::default()
@@ -122,19 +131,36 @@ impl Indexer for PhotonIndexer {
             &self.configuration,
             request,
         )
-        .await
-        .unwrap();
+        .await;
 
-        let _proofs = result.result.unwrap().value;
+        if result.is_err() {
+            return Err(IndexerError::Custom(result.err().unwrap().to_string()));
+        }
 
-        // let merkle_proof_with_address_context: MerkleProofWithAddressContext = {
-        //     merkle_tree: proofs[0].merkle_tree,
-        //     proof: proofs[0].proof,
-        //     address: address,
-        // };
+        let proofs: photon_api::models::MerkleContextWithNewAddressProof =
+            result.unwrap().result.unwrap().value[0].clone();
 
-        // Ok(proofs[0])
-        todo!()
+        // TODO: use decode_hash
+        let tree_pubkey = Pubkey::from_str(&proofs.merkle_tree).unwrap();
+        let low_address_value = Pubkey::from_str(&proofs.lower_range_address).unwrap();
+        let next_address_value = Pubkey::from_str(&proofs.higher_range_address).unwrap();
+        Ok(NewAddressProofWithContext {
+            merkle_tree: tree_pubkey.to_bytes(),
+            low_address_index: proofs.low_element_leaf_index as u64,
+            low_address_value: low_address_value.to_bytes(),
+            low_address_next_index: proofs.leaf_index as u64,
+            low_address_next_value: next_address_value.to_bytes(),
+            low_address_proof: {
+                let proof_vec: Vec<[u8; 32]> = proofs
+                    .proof
+                    .iter()
+                    .map(|x: &String| decode_hash(x))
+                    .collect();
+                proof_vec
+            },
+            root: decode_hash(&proofs.root),
+            root_seq: proofs.root_seq as i64,
+        })
     }
 
     fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {

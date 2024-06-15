@@ -1,3 +1,4 @@
+use super::NewAddressProofWithContext;
 use account_compression::AddressMerkleTreeConfig;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use log::info;
@@ -5,6 +6,7 @@ use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
+
 use {
     crate::{
         create_account_instruction,
@@ -186,6 +188,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         Ok(hashes)
     }
 
+    // TODO: Unify this function with get_multiple_new_address_proofs.
     async fn get_address_tree_proof(
         &self,
         merkle_tree_pubkey: [u8; 32],
@@ -232,6 +235,54 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             new_low_element: address_bundle.new_low_element,
             new_element: address_bundle.new_element,
             new_element_next_value: address_bundle.new_element_next_value,
+        })
+    }
+
+    async fn get_multiple_new_address_proofs(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        address: [u8; 32],
+    ) -> Result<NewAddressProofWithContext, IndexerError> {
+        let pubkey = Pubkey::from(merkle_tree_pubkey);
+        let address_tree_bundle = self
+            .address_merkle_trees
+            .iter()
+            .find(|x| x.accounts.merkle_tree == pubkey)
+            .unwrap();
+
+        let address_biguint = BigUint::from_bytes_be(address.as_slice());
+
+        let (old_low_address, old_low_address_next_value) = address_tree_bundle
+            .indexed_array
+            .find_low_element_for_nonexistent(&address_biguint)
+            .unwrap();
+        let address_bundle = address_tree_bundle
+            .indexed_array
+            .new_element_with_low_element_index(old_low_address.index, &address_biguint)
+            .unwrap();
+
+        // Get the Merkle proof for updating low element.
+        let low_address_proof = address_tree_bundle
+            .merkle_tree
+            .get_proof_of_leaf(old_low_address.index, true)
+            .unwrap();
+
+        let low_address_index: u64 = old_low_address.index as u64;
+        let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
+        let low_address_next_index: u64 = old_low_address.next_index as u64;
+        let low_address_next_value: [u8; 32] =
+            bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
+        let low_address_proof = low_address_proof.to_vec();
+
+        Ok(NewAddressProofWithContext {
+            merkle_tree: merkle_tree_pubkey,
+            low_address_index,
+            low_address_value,
+            low_address_next_index,
+            low_address_next_value,
+            low_address_proof,
+            root: address_tree_bundle.merkle_tree.root(),
+            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64,
         })
     }
 

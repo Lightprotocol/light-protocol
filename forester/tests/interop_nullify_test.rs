@@ -91,7 +91,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn test_photon_interop() {
+async fn test_photon_interop_nullify_account() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let mut validator_config = LightValidatorConfig::default();
@@ -179,7 +179,8 @@ async fn test_photon_interop() {
     {
         let alice = &mut env.users[0];
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-        // TODO: Test-indexer and photon should return equivalent merkleproofs for the same account
+        // TODO(photon): Test-indexer and photon should return equivalent
+        // merkleproofs for the same account.
         // assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
     }
 
@@ -189,22 +190,5 @@ async fn test_photon_interop() {
     {
         let alice = &mut env.users[0];
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-        // assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
-    }
-
-    // Insert value into address queue
-    info!("Creating address");
-    let created_addresses = env.create_address().await;
-
-    // TODO: once Photon implements the get_multiple_new_address_proofs
-    // endpoint, adapt the method name and signature, fetch the exclusion proof
-    // from photon and assert that the proof is the same
-    let trees = env.get_address_merkle_tree_pubkeys(1).0;
-    let address_proof = env
-        .indexer
-        .get_address_tree_proof(trees[0].to_bytes(), created_addresses[0].to_bytes())
-        .await
-        .unwrap();
-
-    info!("NewAddress proof test-indexer: {:?}", address_proof);
+    };
 }
