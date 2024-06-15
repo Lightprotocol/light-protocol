@@ -36,6 +36,12 @@ pub trait Indexer: Sync + Send + 'static {
            + Send
            + Sync;
 
+    fn get_multiple_new_address_proofs(
+        &self,
+        merkle_tree_pubkey: [u8; 32],
+        address: [u8; 32],
+    ) -> impl std::future::Future<Output = Result<NewAddressProofWithContext, IndexerError>> + Send + Sync;
+
     fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
 
     fn address_tree_updated(
@@ -70,6 +76,19 @@ pub struct MerkleProofWithAddressContext {
     pub new_low_element: IndexedElement<usize>,
     pub new_element: IndexedElement<usize>,
     pub new_element_next_value: BigUint,
+}
+
+// For consistency with the API.
+#[derive(Clone, Default, Debug, PartialEq)]
+pub struct NewAddressProofWithContext {
+    pub merkle_tree: [u8; 32],
+    pub root: [u8; 32],
+    pub root_seq: i64,
+    pub low_address_index: u64,
+    pub low_address_value: [u8; 32],
+    pub low_address_next_index: u64,
+    pub low_address_next_value: [u8; 32],
+    pub low_address_proof: Vec<[u8; 32]>, // TODO: Check why test-indexer is 16
 }
 
 #[derive(Error, Debug)]
