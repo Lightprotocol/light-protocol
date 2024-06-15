@@ -280,9 +280,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             low_address_value,
             low_address_next_index,
             low_address_next_value,
-            low_address_proof, // TODO: Check why test-indexer is 16
+            low_address_proof,
             root: address_tree_bundle.merkle_tree.root(),
-            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64, //0_i64, // TODO: Replace mock with actual sequence number
+            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64,
         })
     }
 

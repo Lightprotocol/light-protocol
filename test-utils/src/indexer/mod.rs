@@ -88,7 +88,7 @@ pub struct NewAddressProofWithContext {
     pub low_address_value: [u8; 32],
     pub low_address_next_index: u64,
     pub low_address_next_value: [u8; 32],
-    pub low_address_proof: Vec<[u8; 32]>, // TODO: Check why test-indexer is 16
+    pub low_address_proof: Vec<[u8; 32]>,
 }
 
 #[derive(Error, Debug)]

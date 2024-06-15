@@ -117,7 +117,6 @@ impl Indexer for PhotonIndexer {
         unimplemented!("only needed for testing")
     }
 
-    // TODO: implement conversion
     async fn get_multiple_new_address_proofs(
         &self,
         _merkle_tree_pubkey: [u8; 32],
