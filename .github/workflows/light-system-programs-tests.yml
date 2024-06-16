@@ -70,9 +70,6 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - run: git branch --track main origin/main
-        if: ${{ github.event_name == 'pull_request' }}
-
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
