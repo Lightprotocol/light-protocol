@@ -32,9 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
-    env:
-      NX_SKIP_CACHE: true
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
