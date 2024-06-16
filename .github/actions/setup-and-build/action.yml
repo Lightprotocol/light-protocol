@@ -12,6 +12,8 @@ runs:
 
     - name: Checkout sources
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Restore .local directory cache
       id: restore-local-cache
@@ -39,6 +41,8 @@ runs:
     - name: Start CI run
       shell: bash
       run: 'npx nx-cloud start-ci-run --distribute-on="8 linux-medium-js"'
+
+    - uses: nrwl/nx-set-shas@v4
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
