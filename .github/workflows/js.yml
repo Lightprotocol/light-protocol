@@ -38,14 +38,14 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx affected -t build @lightprotocol/zk-compression-cli
+          npx nx affected --base=remotes/origin/main~1 -t build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests
         run: |
           source ./scripts/devenv.sh
-          npx nx run @lightprotocol/stateless.js:test          
+          npx nx affected --base=remotes/origin/main~1 -t test @lightprotocol/stateless.js          
 
       - name: Run compressed-token tests
         run: |
           source ./scripts/devenv.sh
-          npx nx run @lightprotocol/compressed-token:test
+          npx nx affected --base=remotes/origin/main~1 -t test @lightprotocol/compressed-token

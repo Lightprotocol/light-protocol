@@ -42,7 +42,7 @@ runs:
       shell: bash
       run: 'npx nx-cloud start-ci-run --distribute-on="8 linux-medium-js"'
 
-    - uses: nrwl/nx-set-shas@v4
+#    - uses: nrwl/nx-set-shas@v4
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4

@@ -78,7 +78,7 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx affected -t build @lightprotocol/zk-compression-cli
+          npx nx affected --base=remotes/origin/main~1 -t build @lightprotocol/zk-compression-cli
 
       - name: build-programs
         run: |
