@@ -38,6 +38,15 @@
         "^build",
         "build"
       ]
+    },
+    "format:check": {
+        "cache": true,
+        "inputs": [
+            "noMarkdown",
+            "^noMarkdown",
+            "noTestLedger",
+            "^noTestLedger"
+        ]
     }
   },
   "nxCloudAccessToken": "MTdjMjM5MjMtOGJjMS00OTJlLTgyYzYtYTAwMmY2ZjljZjM3fHJlYWQtd3JpdGU="
