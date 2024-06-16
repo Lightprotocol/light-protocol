@@ -15,9 +15,9 @@ runs:
       with:
         fetch-depth: 0
 
-    - name: Start CI run
-      shell: bash
-      run: 'npx nx-cloud start-ci-run --distribute-on="8 linux-medium-js"'
+#    - name: Start CI run
+#      shell: bash
+#      run: 'npx nx-cloud start-ci-run --distribute-on="8 linux-medium-js"'
 
     - name: Restore .local directory cache
       id: restore-local-cache
