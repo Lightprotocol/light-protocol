@@ -4,11 +4,13 @@ description: Checkout sources, install dependencies, build and prepare for tests
 runs:
   using: "composite"
   steps:
-#    - name: Free Disk Space (Ubuntu)
-#      uses: jlumbroso/free-disk-space@main
-#      with:
-#        tool-cache: false
-#        swap-storage: false
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: false
+        swap-storage: false
+        large-packages: false
+        docker-images: false
 
     - name: Checkout sources
       uses: actions/checkout@v4
