@@ -26,8 +26,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -38,14 +36,14 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx affected --base=remotes/origin/main~1 -t build @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests
         run: |
           source ./scripts/devenv.sh
-          npx nx affected --base=remotes/origin/main~1 -t test @lightprotocol/stateless.js          
+          npx nx test @lightprotocol/stateless.js          
 
       - name: Run compressed-token tests
         run: |
           source ./scripts/devenv.sh
-          npx nx affected --base=remotes/origin/main~1 -t test @lightprotocol/compressed-token
+          npx nx test @lightprotocol/compressed-token

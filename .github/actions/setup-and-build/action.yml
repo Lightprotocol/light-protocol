@@ -14,8 +14,6 @@ runs:
 
     - name: Checkout sources
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Restore .local directory cache
       id: restore-local-cache

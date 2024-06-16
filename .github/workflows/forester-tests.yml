@@ -35,8 +35,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -44,4 +42,4 @@ jobs:
       - name: Run forester tests
         run: |
           source ./scripts/devenv.sh
-          npx nx affected --base=remotes/origin/main~1 -t test @lightprotocol/forester
+          npx nx test @lightprotocol/forester

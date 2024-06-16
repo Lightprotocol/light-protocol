@@ -66,8 +66,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -78,7 +76,7 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx affected --base=remotes/origin/main~1 -t build @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: build-programs
         run: |

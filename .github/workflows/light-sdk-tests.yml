@@ -34,8 +34,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
@@ -46,5 +44,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx affected --base=remotes/origin/main~1 -t test "$subtest"
+            npx nx test "$subtest"
           done
