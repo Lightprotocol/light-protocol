@@ -27,9 +27,9 @@ jobs:
         include:
           - name: sdk-tests-light-rpc-cli
             sub-tests: '[
-                "@lightprotocol/circuit-lib.js:test",
-                "@lightprotocol/prover.js:test",
-                "@lightprotocol/zk-compression-cli:test",
+                "@lightprotocol/circuit-lib.js",
+                "@lightprotocol/prover.js",
+                "@lightprotocol/zk-compression-cli",
             ]'
     steps:
       - name: Checkout sources
@@ -44,5 +44,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx run "$subtest"
+            npx nx affected -t test "$subtest"
           done

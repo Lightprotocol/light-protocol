@@ -36,6 +36,10 @@ runs:
     - name: Rust cache
       uses: swatinem/rust-cache@v2
 
+    - name: Start CI run
+      shell: bash
+      run: 'npx nx-cloud start-ci-run --distribute-on="8 linux-medium-js"'
+
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
       with:
