@@ -123,13 +123,6 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
                 .is_native,
             None
         );
-        assert_eq!(
-            transfer_recipient_token_compressed_account
-                .token_data
-                .delegated_amount,
-            0
-        );
-
         let transfer_recipient_compressed_account = transfer_recipient_token_compressed_account
             .compressed_account
             .clone();
@@ -201,7 +194,6 @@ pub async fn assert_mint_to<'a, const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
                     && x.token_data.mint == mint
                     && x.token_data.delegate.is_none()
                     && x.token_data.is_native.is_none()
-                    && x.token_data.delegated_amount == 0
             })
             .expect("Mint to failed to create expected compressed token account.");
         created_token_accounts.remove(pos);

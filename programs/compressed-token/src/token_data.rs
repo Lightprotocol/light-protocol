@@ -31,8 +31,6 @@ pub struct TokenData {
     /// used by the Processor to ensure that wrapped SOL accounts do not
     /// drop below this threshold.
     pub is_native: Option<u64>,
-    /// The amount delegated
-    pub delegated_amount: u64,
 }
 
 /// Hashing schema: H(mint, owner, amount, delegate, delegated_amount,
@@ -63,7 +61,6 @@ impl TokenData {
             amount_bytes,
             native_amount,
             &[0; 32],
-            &[0; 8],
         )
     }
 
@@ -73,19 +70,12 @@ impl TokenData {
         amount_bytes: &[u8; 8],
         native_amount: &Option<u64>,
         hashed_delegate: &[u8; 32],
-        delegated_amount: &[u8; 8],
     ) -> std::result::Result<[u8; 32], HasherError> {
         let mut hash_inputs = vec![mint.as_slice(), owner.as_slice(), amount_bytes.as_slice()];
         if WITH_DELEGATE {
             hash_inputs.push(hashed_delegate.as_slice());
         }
-        // First byte is prefix.
-        // Next 8 bytes are the value.
-        let mut prefixed_delegated_amount: [u8; 9] = [1, 0, 0, 0, 0, 0, 0, 0, 0];
-        if WITH_DELEGATE {
-            prefixed_delegated_amount[1..].copy_from_slice(delegated_amount.as_slice());
-            hash_inputs.push(prefixed_delegated_amount.as_slice());
-        }
+
         // First byte is prefix.
         // Second byte is option.
         // Next 8 bytes are the value.
@@ -108,7 +98,6 @@ impl TokenData {
         amount_bytes: &[u8; 8],
         native_amount: &Option<u64>,
         hashed_delegate: &[u8; 32],
-        delegated_amount: &[u8; 8],
     ) -> std::result::Result<[u8; 32], HasherError> {
         Self::get_hash_inputs_with_hashed_values::<H, true>(
             mint,
@@ -116,7 +105,6 @@ impl TokenData {
             amount_bytes,
             native_amount,
             hashed_delegate,
-            delegated_amount,
         )
     }
 }
@@ -135,15 +123,12 @@ impl DataHasher for TokenData {
         let amount_bytes = self.amount.to_le_bytes();
         hash_inputs.push(amount_bytes.as_slice());
         let hashed_delegate;
-        let mut delegated_amount: [u8; 9] = [1, 0, 0, 0, 0, 0, 0, 0, 0];
 
         if let Some(delegate) = self.delegate {
             hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
                 .unwrap()
                 .0;
             hash_inputs.push(hashed_delegate.as_slice());
-            delegated_amount[1..].copy_from_slice(&self.delegated_amount.to_le_bytes());
-            hash_inputs.push(delegated_amount.as_slice());
         };
         let mut native_amount: [u8; 10] = [2, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         if self.is_native.is_some() {
@@ -177,7 +162,6 @@ pub mod test {
             delegate: Some(Pubkey::new_unique()),
             state: AccountState::Initialized,
             is_native: Some(100),
-            delegated_amount: 100,
         };
         let hashed_token_data = token_data.hash::<Poseidon>().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -197,7 +181,6 @@ pub mod test {
                 &token_data.amount.to_le_bytes(),
                 &token_data.is_native,
                 &hashed_delegate,
-                &token_data.delegated_amount.to_le_bytes(),
             )
             .unwrap();
         assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
@@ -209,7 +192,6 @@ pub mod test {
             delegate: None,
             state: AccountState::Initialized,
             is_native: None,
-            delegated_amount: 0,
         };
         let hashed_token_data = token_data.hash::<Poseidon>().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -239,7 +221,6 @@ pub mod test {
                 delegate: Some(Pubkey::new_unique()),
                 state: AccountState::Initialized,
                 is_native: Some(rng.gen()),
-                delegated_amount: rng.gen(),
             };
             let hashed_token_data = token_data.hash::<H>().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -259,7 +240,6 @@ pub mod test {
                     &token_data.amount.to_le_bytes(),
                     &token_data.is_native,
                     &hashed_delegate,
-                    &token_data.delegated_amount.to_le_bytes(),
                 )
                 .unwrap();
             assert_eq!(hashed_token_data, hashed_token_data_with_hashed_values);
@@ -271,7 +251,6 @@ pub mod test {
                 delegate: None,
                 state: AccountState::Initialized,
                 is_native: None,
-                delegated_amount: 0,
             };
             let hashed_token_data = token_data.hash::<H>().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
@@ -312,7 +291,6 @@ pub mod test {
             delegate: None,
             state: AccountState::Initialized,
             is_native: Some(100),
-            delegated_amount: 0,
         };
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice())
             .unwrap()
@@ -399,22 +377,19 @@ pub mod test {
             &token_data.amount.to_le_bytes(),
             &token_data.is_native,
             &hashed_delegate,
-            &token_data.delegated_amount.to_le_bytes(),
         )
         .unwrap();
         assert_to_previous_hashes(hash7, &mut vec_previous_hashes);
-        // different delegated amount
-        let delegated_amount: u64 = 101;
-        let hash8 = TokenData::hash_with_delegate_hashed_values::<Poseidon>(
-            &hashed_mint,
-            &hashed_owner,
-            &token_data.amount.to_le_bytes(),
-            &token_data.is_native,
-            &hashed_delegate,
-            &delegated_amount.to_le_bytes(),
-        )
-        .unwrap();
-        assert_to_previous_hashes(hash8, &mut vec_previous_hashes);
+        // // different delegated amount
+        // let hash8 = TokenData::hash_with_delegate_hashed_values::<Poseidon>(
+        //     &hashed_mint,
+        //     &hashed_owner,
+        //     &token_data.amount.to_le_bytes(),
+        //     &token_data.is_native,
+        //     &hashed_delegate,
+        // )
+        // .unwrap();
+        // assert_to_previous_hashes(hash8, &mut vec_previous_hashes);
         // different account state
         let mut token_data = token_data;
         token_data.state = AccountState::Frozen;
@@ -425,11 +400,6 @@ pub mod test {
         token_data.delegate = delegate;
         let hash10 = token_data.hash::<Poseidon>().unwrap();
         assert_to_previous_hashes(hash10, &mut vec_previous_hashes);
-        // different account state with delegate and delegated amount
-        let mut token_data = token_data;
-        token_data.delegated_amount = delegated_amount;
-        let hash11 = token_data.hash::<Poseidon>().unwrap();
-        assert_to_previous_hashes(hash11, &mut vec_previous_hashes);
         // different account state with delegate and delegated amount and is native
         let mut token_data = token_data;
         token_data.is_native = Some(101);

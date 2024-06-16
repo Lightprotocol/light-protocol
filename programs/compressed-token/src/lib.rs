@@ -8,6 +8,10 @@ pub use process_mint::*;
 pub use process_transfer::*;
 pub mod token_data;
 pub use token_data::TokenData;
+pub mod delegation;
+pub mod freeze;
+use freeze::*;
+pub mod burn;
 
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
 
@@ -55,6 +59,34 @@ pub mod light_compressed_token {
         inputs: Vec<u8>,
     ) -> Result<()> {
         process_transfer::process_transfer(ctx, inputs)
+    }
+
+    pub fn approve<'info>(
+        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        delegation::process_approve(ctx, inputs)
+    }
+
+    pub fn revoke<'info>(
+        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        delegation::process_revoke(ctx, inputs)
+    }
+
+    pub fn freeze<'info>(
+        ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        freeze::process_freeze_or_thaw::<false, true>(ctx, inputs)
+    }
+
+    pub fn thaw<'info>(
+        ctx: Context<'_, '_, '_, 'info, FreezeInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        freeze::process_freeze_or_thaw::<true, false>(ctx, inputs)
     }
 
     /// This function is a stub to allow Anchor to include the input types in
@@ -106,4 +138,8 @@ pub enum ErrorCode {
     HeapMemoryCheckFailed,
     #[msg("The instruction is not callable")]
     InstructionNotCallable,
+    #[msg("ArithmeticUnderflow")]
+    ArithmeticUnderflow,
+    #[msg("InvalidDelegate")]
+    InvalidDelegate,
 }

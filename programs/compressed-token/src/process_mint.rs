@@ -7,7 +7,7 @@ use crate::{
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_hasher::Poseidon;
+use light_hasher::{DataHasher, Poseidon};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::{
     sdk::compressed_account::{CompressedAccount, CompressedAccountData},
@@ -99,10 +99,11 @@ pub fn process_mint_to<'info>(
             );
             compression_public_keys.len()
         ];
-        create_output_compressed_accounts(
+        create_output_compressed_accounts::<false>(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
             compression_public_keys.as_slice(),
+            None,
             &amounts,
             None,
             &hashed_mint,
@@ -139,15 +140,24 @@ pub fn process_mint_to<'info>(
 /// 2. Create, hash and serialize token data.  
 /// 3. Create compressed account data.
 /// 4. Repeat for every pubkey.
-pub fn create_output_compressed_accounts(
+pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FROZEN: bool>(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
     mint_pubkey: Pubkey,
     pubkeys: &[Pubkey],
+    delegate: Option<Pubkey>,
+    is_delegate: Option<&[bool]>,
     amounts: &[u64],
     lamports: Option<&[Option<u64>]>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
 ) -> Result<()> {
+    let hashed_delegate = if WITH_DELEGATE {
+        hash_to_bn254_field_size_be(delegate.unwrap().to_bytes().as_slice())
+            .unwrap()
+            .0
+    } else {
+        [0u8; 32]
+    };
     for (i, (owner, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
         // 83 =
         //      32  mint
@@ -157,32 +167,57 @@ pub fn create_output_compressed_accounts(
         // +    1   state
         // +    8   delegated_amount
         let mut token_data_bytes = Vec::with_capacity(83);
+        let delegate = if WITH_DELEGATE && is_delegate.unwrap_or(&vec![false; amounts.len()][..])[i]
+        {
+            match delegate.as_ref() {
+                Some(delegate_pubkey) => Some(delegate_pubkey.clone()),
+                None => None,
+            }
+        } else {
+            None
+        };
+        let state = if IS_FROZEN {
+            AccountState::Frozen
+        } else {
+            AccountState::Initialized
+        };
 
         // 1,000 CU token data and serialize
         let token_data = TokenData {
             mint: mint_pubkey,
             owner: *owner,
             amount: *amount,
-            delegate: None,
-            state: AccountState::Initialized,
+            delegate,
+            state,
             is_native: None,
-            delegated_amount: 0,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
         let owner_hashed = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
         let amount_bytes = amount.to_le_bytes();
-
-        let data: CompressedAccountData = CompressedAccountData {
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-            data: token_data_bytes,
-            data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+        let data_hash = if IS_FROZEN {
+            token_data.hash::<Poseidon>()
+        } else if WITH_DELEGATE && is_delegate.unwrap_or(&vec![false; amounts.len()][..])[i] {
+            TokenData::hash_with_delegate_hashed_values::<Poseidon>(
+                hashed_mint,
+                &owner_hashed,
+                &amount_bytes,
+                &None,
+                &hashed_delegate,
+            )
+        } else {
+            TokenData::hash_with_hashed_values::<Poseidon>(
                 hashed_mint,
                 &owner_hashed,
                 &amount_bytes,
                 &None,
             )
-            .map_err(ProgramError::from)?,
+        }
+        .map_err(ProgramError::from)?;
+        let data: CompressedAccountData = CompressedAccountData {
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            data: token_data_bytes,
+            data_hash,
         };
         bench_sbf_end!("token_data_hash");
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
@@ -507,7 +542,6 @@ fn test_manual_ix_data_serialization_borsh_compat() {
             delegate: None,
             state: AccountState::Initialized,
             is_native: None,
-            delegated_amount: 0,
         };
 
         token_data.serialize(&mut token_data_bytes).unwrap();
