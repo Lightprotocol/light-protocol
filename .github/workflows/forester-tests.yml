@@ -44,4 +44,4 @@ jobs:
       - name: Run forester tests
         run: |
           source ./scripts/devenv.sh
-          npx nx affected -t test @lightprotocol/forester
+          npx nx affected --base=remotes/origin/main~1 -t test @lightprotocol/forester
