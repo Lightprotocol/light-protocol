@@ -1,3 +1,6 @@
+use log::warn;
+use num_bigint::BigUint;
+use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
@@ -52,7 +55,9 @@ use {
     std::time::Duration,
 };
 
-use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
+use crate::indexer::{
+    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
+};
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
@@ -629,9 +634,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 warn!("Error: {}", response_result.text().await.unwrap());
 
                 // wait for a second before retrying
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            retries -= 1;
-        }
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                retries -= 1;
+            }
         }
         panic!("Failed to get proof from server");
     }
