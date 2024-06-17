@@ -408,6 +408,8 @@ pub struct CompressedTokenInstructionDataTransfer {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
+// TODO: check whether we can remove
+// TODO: move other function here for minimal diff
 // impl CompressedTokenInstructionDataTransfer {
 //     pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer(
 //         &self,
@@ -646,13 +648,58 @@ pub mod transfer_sdk {
         HashMap<Pubkey, usize>,
         CompressedTokenInstructionDataTransfer,
     ) {
-        let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+        let mut additonal_accounts = Vec::new();
         if let Some(owner_if_delegate_is_signer) = owner_if_delegate_is_signer {
-            remaining_accounts.insert(owner_if_delegate_is_signer, 0);
+            additonal_accounts.push(owner_if_delegate_is_signer);
+        }
+        let (remaining_accounts, input_token_data_with_context, _output_compressed_accounts) =
+            create_input_output_and_remaining_accounts(
+                additonal_accounts.as_slice(),
+                input_token_data,
+                input_merkle_context,
+                root_indices,
+                output_compressed_accounts,
+            );
+
+        let inputs_struct = CompressedTokenInstructionDataTransfer {
+            output_compressed_accounts: _output_compressed_accounts.to_vec(),
+            proof: proof.clone(),
+            input_token_data_with_context,
+            signer_is_delegate: owner_if_delegate_is_signer.is_some(),
+            mint,
+            is_compress,
+            compress_or_decompress_amount,
+            cpi_context: None,
+        };
+
+        (remaining_accounts, inputs_struct)
+    }
+
+    pub fn create_input_output_and_remaining_accounts(
+        additiona_accounts: &[Pubkey],
+        input_token_data: &[TokenData],
+        input_merkle_context: &[MerkleContext],
+        root_indices: &[u16],
+        output_compressed_accounts: &[TokenTransferOutputData],
+    ) -> (
+        HashMap<Pubkey, usize>,
+        Vec<crate::InputTokenDataWithContext>,
+        Vec<PackedTokenTransferOutputData>,
+    ) {
+        let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
+
+        let mut index = 0;
+        for account in additiona_accounts {
+            match remaining_accounts.get(account) {
+                Some(_) => {}
+                None => {
+                    remaining_accounts.insert(*account, index);
+                    index += 1;
+                }
+            };
         }
         let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
 
-        let mut index = 0;
         for (i, token_data) in input_token_data.iter().enumerate() {
             match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey) {
                 Some(_) => {}
@@ -719,19 +766,11 @@ pub mod transfer_sdk {
                 merkle_tree_index: *remaining_accounts.get(&mt.merkle_tree).unwrap() as u8,
             });
         }
-
-        let inputs_struct = CompressedTokenInstructionDataTransfer {
-            output_compressed_accounts: _output_compressed_accounts.to_vec(),
-            proof: proof.clone(),
+        (
+            remaining_accounts,
             input_token_data_with_context,
-            signer_is_delegate: owner_if_delegate_is_signer.is_some(),
-            mint,
-            is_compress,
-            compress_or_decompress_amount,
-            cpi_context: None,
-        };
-
-        (remaining_accounts, inputs_struct)
+            _output_compressed_accounts,
+        )
     }
 
     pub fn to_account_metas(remaining_accounts: HashMap<Pubkey, usize>) -> Vec<AccountMeta> {

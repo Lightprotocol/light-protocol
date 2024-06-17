@@ -11,8 +11,8 @@ use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
-    create_output_compressed_accounts, token_data::AccountState, ErrorCode,
-    InputTokenDataWithContext, TokenData, TransferInstruction,
+    create_output_compressed_accounts, token_data::AccountState, ApproveOrRevokeInstruction,
+    ErrorCode, InputTokenDataWithContext, TokenData,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -90,7 +90,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
 /// 4. pack token data into input compressed accounts
 /// 5. execute compressed transaction
 pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, ApproveOrRevokeInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataApprove =
@@ -172,7 +172,7 @@ pub struct CompressedTokenInstructionDataRevoke {
 }
 
 pub fn process_revoke<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, ApproveOrRevokeInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataRevoke =
@@ -235,6 +235,107 @@ pub fn create_input_and_output_accounts_revoke(
         &hashed_mint,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
+}
+
+#[cfg(not(target_os = "solana"))]
+pub mod sdk {
+
+    use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+    use light_system_program::{
+        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+    };
+    use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+
+    use crate::{
+        token_data::TokenData,
+        transfer_sdk::{
+            create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
+        },
+    };
+
+    use super::CompressedTokenInstructionDataApprove;
+
+    pub struct CreateApproveInstructionInputs {
+        pub fee_payer: Pubkey,
+        pub authority: Pubkey,
+        pub root_indices: Vec<u16>,
+        pub proof: CompressedProof,
+        pub input_token_data: Vec<TokenData>,
+        pub input_merkle_contexts: Vec<MerkleContext>,
+        pub mint: Pubkey,
+        pub delegated_amount: u64,
+        pub delegated_compressed_account_merkle_tree: Pubkey,
+        pub change_compressed_account_merkle_tree: Pubkey,
+        pub delegate: Pubkey,
+    }
+
+    pub fn create_approve_instruction(
+        inputs: CreateApproveInstructionInputs,
+    ) -> Result<Instruction, TransferSdkError> {
+        let (remaining_accounts, input_token_data_with_context, _) =
+            create_input_output_and_remaining_accounts(
+                &[
+                    inputs.delegated_compressed_account_merkle_tree,
+                    inputs.change_compressed_account_merkle_tree,
+                ],
+                &inputs.input_token_data,
+                &inputs.input_merkle_contexts,
+                &inputs.root_indices,
+                &Vec::new(),
+            );
+        let delegated_merkle_tree_index = remaining_accounts
+            .get(&inputs.delegated_compressed_account_merkle_tree)
+            .unwrap();
+        let change_account_merkle_tree_index = remaining_accounts
+            .get(&inputs.change_compressed_account_merkle_tree)
+            .unwrap();
+        let inputs_struct = CompressedTokenInstructionDataApprove {
+            proof: inputs.proof,
+            mint: inputs.mint,
+            input_token_data_with_context,
+            cpi_context: None,
+            delegate: inputs.delegate,
+            delegated_amount: inputs.delegated_amount,
+            delegate_merkle_tree_index: *delegated_merkle_tree_index as u8,
+            change_account_merkle_tree_index: *change_account_merkle_tree_index as u8,
+        };
+        let remaining_accounts = to_account_metas(remaining_accounts);
+        let mut serialized_ix_data = Vec::new();
+        CompressedTokenInstructionDataApprove::serialize(&inputs_struct, &mut serialized_ix_data)
+            .unwrap();
+
+        let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
+        let instruction_data = crate::instruction::Approve {
+            inputs: serialized_ix_data,
+        };
+
+        // TODO: create an instruction struct without any optionals
+        let accounts = crate::accounts::ApproveOrRevokeInstruction {
+            fee_payer: inputs.fee_payer,
+            authority: inputs.authority,
+            cpi_authority_pda,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            self_program: crate::ID,
+            system_program: solana_sdk::system_program::ID,
+        };
+
+        Ok(Instruction {
+            program_id: crate::ID,
+            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+
+            data: instruction_data.data(),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -423,22 +524,6 @@ mod test {
         };
         let expected_compressed_output_accounts =
             create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);
-        // let serialized_expected_token_data = expected_change_token_data.try_to_vec().unwrap();
-        // let change_data_struct = CompressedAccountData {
-        //     discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-        //     data: serialized_expected_token_data.clone(),
-        //     data_hash: expected_change_token_data.hash::<Poseidon>().unwrap(),
-        // };
-
-        // let expected_compressed_output_accounts = vec![OutputCompressedAccountWithPackedContext {
-        //     compressed_account: CompressedAccount {
-        //         owner: crate::ID,
-        //         lamports: 0,
-        //         data: Some(change_data_struct),
-        //         address: None,
-        //     },
-        //     merkle_tree_index: 1,
-        // }];
         assert_eq!(
             output_compressed_accounts,
             expected_compressed_output_accounts

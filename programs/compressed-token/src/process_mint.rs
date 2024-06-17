@@ -99,10 +99,11 @@ pub fn process_mint_to<'info>(
             );
             compression_public_keys.len()
         ];
-        create_output_compressed_accounts::<false>(
+        create_output_compressed_accounts::<false, false>(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
             compression_public_keys.as_slice(),
+            None,
             None,
             &amounts,
             None,

@@ -2,6 +2,7 @@
 
 use anchor_lang::AnchorDeserialize;
 use anchor_lang::AnchorSerialize;
+use light_test_utils::spl::approve_test;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 use light_circuitlib_rs::gnark::helpers::kill_gnark_server;
@@ -270,6 +271,62 @@ async fn test_decompression() {
         None,
     )
     .await;
+    kill_gnark_server();
+}
+
+#[tokio::test]
+async fn test_delegation() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let merkle_tree_pubkey = env.merkle_tree_pubkey;
+    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
+        &payer,
+        &env,
+        true,
+        false,
+        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
+    )
+    .await;
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let delegate = Keypair::new();
+    airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    mint_tokens_helper(
+        &mut rpc,
+        &mut test_indexer,
+        &merkle_tree_pubkey,
+        &payer,
+        &mint,
+        vec![amount],
+        vec![sender.pubkey()],
+    )
+    .await;
+    let input_compressed_accounts =
+        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+    let delegated_amount = 1000u64;
+    let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
+        .compressed_account
+        .merkle_context
+        .merkle_tree_pubkey;
+    approve_test(
+        &sender,
+        &mut rpc,
+        &mut test_indexer,
+        input_compressed_accounts,
+        delegated_amount,
+        &delegate.pubkey(),
+        &delegated_compressed_account_merkle_tree,
+        &delegated_compressed_account_merkle_tree,
+        None,
+    )
+    .await;
+
     kill_gnark_server();
 }
 
@@ -855,7 +912,6 @@ async fn test_invalid_inputs() {
         let mut input_compressed_account_token_data =
             test_indexer.token_compressed_accounts[0].token_data;
         input_compressed_account_token_data.delegate = Some(Pubkey::new_unique());
-        input_compressed_account_token_data.delegated_amount = 1;
         let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
             .compressed_account
             .clone()];
@@ -934,37 +990,37 @@ async fn test_invalid_inputs() {
         assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
             .unwrap();
     }
-    // Test 9: DelegateUndefined
-    {
-        let mut input_compressed_account_token_data =
-            test_indexer.token_compressed_accounts[0].token_data;
-        input_compressed_account_token_data.delegated_amount = 1;
-        let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
-            .compressed_account
-            .clone()];
-        let mut vec = Vec::new();
-        crate::TokenData::serialize(&input_compressed_account_token_data, &mut vec).unwrap();
-        input_compressed_accounts[0]
-            .compressed_account
-            .data
-            .as_mut()
-            .unwrap()
-            .data = vec;
-        let res = perform_transfer_failing_test(
-            &mut rpc,
-            change_out_compressed_account_0,
-            transfer_recipient_out_compressed_account_0,
-            &merkle_tree_pubkey,
-            &nullifier_queue_pubkey,
-            &recipient_keypair,
-            &Some(proof_rpc_result.proof.clone()),
-            &proof_rpc_result.root_indices,
-            &input_compressed_accounts,
-            false,
-        )
-        .await;
-        assert_custom_error_or_program_error(res, ErrorCode::DelegateUndefined.into()).unwrap();
-    }
+    // Error is not used anymore since we remove delegated amount
+    // // Test 9: DelegateUndefined
+    // {
+    //     let mut input_compressed_account_token_data =
+    //         test_indexer.token_compressed_accounts[0].token_data;
+    //     let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
+    //         .compressed_account
+    //         .clone()];
+    //     let mut vec = Vec::new();
+    //     crate::TokenData::serialize(&input_compressed_account_token_data, &mut vec).unwrap();
+    //     input_compressed_accounts[0]
+    //         .compressed_account
+    //         .data
+    //         .as_mut()
+    //         .unwrap()
+    //         .data = vec;
+    //     let res = perform_transfer_failing_test(
+    //         &mut rpc,
+    //         change_out_compressed_account_0,
+    //         transfer_recipient_out_compressed_account_0,
+    //         &merkle_tree_pubkey,
+    //         &nullifier_queue_pubkey,
+    //         &recipient_keypair,
+    //         &Some(proof_rpc_result.proof.clone()),
+    //         &proof_rpc_result.root_indices,
+    //         &input_compressed_accounts,
+    //         false,
+    //     )
+    //     .await;
+    //     assert_custom_error_or_program_error(res, ErrorCode::DelegateUndefined.into()).unwrap();
+    // }
     // Test 10: invalid root indices
     {
         let mut root_indices = proof_rpc_result.root_indices.clone();

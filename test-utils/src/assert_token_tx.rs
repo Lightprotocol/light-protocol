@@ -11,7 +11,6 @@ use light_system_program::sdk::{
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
-// TODO: replace with borsch serialize
 use crate::rpc::rpc_connection::RpcConnection;
 use anchor_lang::AnchorSerialize;
 
@@ -33,12 +32,14 @@ pub async fn assert_transfer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
     input_merkle_tree_test_snapshots: &[MerkleTreeTestSnapShot],
     event: &PublicTransactionEvent,
+    delegates: Option<Vec<Option<Pubkey>>>,
 ) {
     // CHECK 1
     assert_compressed_token_accounts(
         test_indexer,
         out_compressed_accounts,
         output_merkle_tree_snapshots,
+        delegates,
     );
     // CHECK 2
     assert_nullifiers_exist_in_hash_sets(
@@ -81,7 +82,9 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
     test_indexer: &mut TestIndexer<INDEXED_ARRAY_SIZE, R>,
     out_compressed_accounts: &[TokenTransferOutputData],
     output_merkle_tree_snapshots: &[MerkleTreeTestSnapShot],
+    delegates: Option<Vec<Option<Pubkey>>>,
 ) {
+    let delegates = delegates.unwrap_or(vec![None; out_compressed_accounts.len()]);
     let mut tree = Pubkey::default();
     let mut index = 0;
     for (i, out_compressed_account) in out_compressed_accounts.iter().enumerate() {
@@ -115,7 +118,7 @@ pub fn assert_compressed_token_accounts<const INDEXED_ARRAY_SIZE: usize, R: RpcC
             transfer_recipient_token_compressed_account
                 .token_data
                 .delegate,
-            None
+            delegates[i]
         );
         assert_eq!(
             transfer_recipient_token_compressed_account
@@ -224,7 +227,7 @@ pub async fn assert_create_mint<R: RpcConnection>(
     assert_eq!(mint_account.supply, 0);
     assert_eq!(mint_account.decimals, 2);
     assert_eq!(mint_account.mint_authority.unwrap(), *authority);
-    assert_eq!(mint_account.freeze_authority, None.into());
+    assert_eq!(mint_account.freeze_authority, Some(*authority).into());
     assert!(mint_account.is_initialized);
     let mint_account: spl_token::state::Account =
         spl_token::state::Account::unpack(&context.get_account(*pool).await.unwrap().unwrap().data)

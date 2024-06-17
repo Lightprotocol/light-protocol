@@ -10,8 +10,11 @@ pub mod token_data;
 pub use token_data::TokenData;
 pub mod delegation;
 pub mod freeze;
-use freeze::*;
+pub mod freeze_instruction;
+use freeze_instruction::*;
+pub mod approve_or_revoke_instruction;
 pub mod burn;
+pub use approve_or_revoke_instruction::*;
 
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
 
@@ -62,14 +65,14 @@ pub mod light_compressed_token {
     }
 
     pub fn approve<'info>(
-        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, ApproveOrRevokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         delegation::process_approve(ctx, inputs)
     }
 
     pub fn revoke<'info>(
-        ctx: Context<'_, '_, '_, 'info, TransferInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, ApproveOrRevokeInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         delegation::process_revoke(ctx, inputs)
