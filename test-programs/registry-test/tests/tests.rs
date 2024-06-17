@@ -127,6 +127,7 @@ async fn failing_test_forester() {
                 address_merkle_tree: env.address_merkle_tree_pubkey,
                 address_queue: env.address_merkle_tree_queue_pubkey,
                 changelog_index: 0,
+                indexed_changelog_index: 0,
                 value: 1,
                 low_address_index: 1,
                 low_address_value: [0u8; 32],
