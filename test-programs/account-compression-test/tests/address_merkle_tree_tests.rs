@@ -497,6 +497,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     .unwrap();
 
     // CHECK: 12 invalid Merkle tree account
+    let indexed_changelog_index = address_merkle_tree.indexed_changelog_index();
     let invalid_merkle_tree = address_queue_pubkey;
     let error_invalid_merkle_tree = update_merkle_tree(
         &mut context,
@@ -510,7 +511,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(changelog_index as u16),
-        None,
+        Some(indexed_changelog_index as u16),
         true,
     )
     .await;
