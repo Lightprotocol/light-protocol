@@ -123,11 +123,9 @@ async fn test_photon_interop_address() {
             add_keypair: None,
             create_state_mt: None,
             create_address_mt: None,
-            ..GeneralActionConfig::default()
         },
         0,
         Some(1),
-        "../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
 

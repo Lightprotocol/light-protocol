@@ -131,7 +131,6 @@ async fn test_photon_interop_nullify_account() {
         },
         0,
         Some(1),
-        "../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
 
