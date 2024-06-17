@@ -3,12 +3,19 @@
 set -x
 
 kill_light_prover() {
-  pkill -f '.*prover-.*' || true
+  if ! pkill -f '.*prover-.*'  ; then
+    echo "No process matching .*prover-.* found"
+  fi
+
+  if ! pkill -f '.*light-prover.*' ; then
+    echo "No process matching .*light-prover.* found"
+  fi
+
   sleep 1
 }
 
 build_prover() {
-  cd "$root_dir/light-prover"
+  cd "$root_dir/light-prover" || exit
   go build || {
     echo "light-prover build failed. Check for errors."
     exit 1
