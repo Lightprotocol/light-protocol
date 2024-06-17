@@ -51,6 +51,10 @@ impl BoundedVecMetadata {
         }
     }
 
+    pub fn new_with_length(capacity: usize, length: usize) -> Self {
+        Self { capacity, length }
+    }
+
     pub fn from_ne_bytes(bytes: [u8; mem::size_of::<Self>()]) -> Self {
         Self {
             capacity: usize::from_ne_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
@@ -460,6 +464,20 @@ impl CyclicBoundedVecMetadata {
         }
     }
 
+    pub fn new_with_indices(
+        capacity: usize,
+        length: usize,
+        first_index: usize,
+        last_index: usize,
+    ) -> Self {
+        Self {
+            capacity,
+            length,
+            first_index,
+            last_index,
+        }
+    }
+
     pub fn from_ne_bytes(bytes: [u8; mem::size_of::<CyclicBoundedVecMetadata>()]) -> Self {
         Self {
             capacity: usize::from_ne_bytes(bytes[span_of!(Self, capacity)].try_into().unwrap()),
@@ -509,7 +527,7 @@ where
     T: Clone,
 {
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
+    fn metadata_with_capacity(capacity: usize) -> *mut CyclicBoundedVecMetadata {
         let layout = Layout::new::<CyclicBoundedVecMetadata>();
         let metadata = unsafe { alloc::alloc(layout) as *mut CyclicBoundedVecMetadata };
         if metadata.is_null() {
@@ -524,12 +542,47 @@ where
             };
         }
 
+        metadata
+    }
+
+    #[inline]
+    fn metadata_from(src_metadata: &CyclicBoundedVecMetadata) -> *mut CyclicBoundedVecMetadata {
+        let layout = Layout::new::<CyclicBoundedVecMetadata>();
+        let metadata = unsafe { alloc::alloc(layout) as *mut CyclicBoundedVecMetadata };
+        if metadata.is_null() {
+            handle_alloc_error(layout);
+        }
+        unsafe { (*metadata).clone_from(src_metadata) };
+
+        metadata
+    }
+
+    #[inline]
+    fn data_with_capacity(capacity: usize) -> NonNull<T> {
         let layout = Layout::array::<T>(capacity).unwrap();
         let data_ptr = unsafe { alloc::alloc(layout) as *mut T };
         if data_ptr.is_null() {
             handle_alloc_error(layout);
         }
         let data = NonNull::new(data_ptr).unwrap();
+
+        data
+    }
+
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        let metadata = Self::metadata_with_capacity(capacity);
+        let data = Self::data_with_capacity(capacity);
+
+        Self { metadata, data }
+    }
+
+    /// Creates a `CyclicBoundedVec<T>` with the given `metadata`.
+    #[inline]
+    pub unsafe fn with_metadata(metadata: &CyclicBoundedVecMetadata) -> Self {
+        let capacity = metadata.capacity();
+        let metadata = Self::metadata_from(metadata);
+        let data = Self::data_with_capacity(capacity);
 
         Self { metadata, data }
     }
