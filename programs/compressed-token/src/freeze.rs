@@ -17,7 +17,7 @@ use crate::FreezeInstruction;
 use crate::{
     add_token_data_to_input_compressed_accounts, constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     cpi_execute_compressed_transaction_transfer,
-    delegation::get_input_compressed_accounts_with_merkle_context_and_check_signer,
+    process_transfer::get_input_compressed_accounts_with_merkle_context_and_check_signer,
     token_data::AccountState, InputTokenDataWithContext, TokenData,
 };
 
@@ -78,6 +78,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     let (mut compressed_input_accounts, input_token_data) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<FROZEN_INPUTS>(
             &inputs.owner,
+            &None,
             remaining_accounts,
             &inputs.input_token_data_with_context,
             mint,

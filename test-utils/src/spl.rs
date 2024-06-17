@@ -236,6 +236,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
     amounts: &[u64],
     input_compressed_accounts: &[TokenDataWithContext],
     output_merkle_tree_pubkeys: &[Pubkey],
+    delegate_change_account_index: Option<u8>,
     transaction_params: Option<TransactionParams>,
 ) {
     if recipients.len() != amounts.len() && amounts.len() != output_merkle_tree_pubkeys.len() {
@@ -310,6 +311,11 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         .await;
     output_compressed_accounts.sort_by(|a, b| a.merkle_tree.cmp(&b.merkle_tree));
 
+    let delegate_pubkey = if delegate_change_account_index.is_some() {
+        Some(payer.pubkey())
+    } else {
+        None
+    };
     let instruction = create_transfer_instruction(
         &payer.pubkey(),
         &from.pubkey(), // authority
@@ -319,12 +325,13 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         &Some(proof_rpc_result.proof),
         input_compressed_account_token_data.as_slice(), // input_token_data
         *mint,
-        None,  // owner_if_delegate_is_signer
-        false, // is_compress
-        None,  // compression_amount
-        None,  // token_pool_pda
-        None,  // compress_or_decompress_token_account
+        delegate_pubkey, // owner_if_delegate_change_account_index
+        false,           // is_compress
+        None,            // compression_amount
+        None,            // token_pool_pda
+        None,            // compress_or_decompress_token_account
         true,
+        delegate_change_account_index,
     )
     .unwrap();
     let output_merkle_tree_accounts =
@@ -341,11 +348,16 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         input_merkle_tree_accounts.as_slice(),
     )
     .await;
+    let authority_signer = if let Some(_) = delegate_change_account_index {
+        payer
+    } else {
+        from
+    };
     let (event, _signature) = rpc
         .create_and_send_transaction_with_event::<PublicTransactionEvent>(
             &[instruction],
             &payer.pubkey(),
-            &[payer, from],
+            &[payer, authority_signer],
             transaction_params,
         )
         .await
@@ -353,6 +365,13 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         .unwrap();
 
     let (_, created_output_accounts) = test_indexer.add_event_and_compressed_accounts(&event);
+    let delegates = if let Some(index) = delegate_change_account_index {
+        let mut delegates = vec![None; created_output_accounts.len()];
+        delegates[index as usize] = Some(payer.pubkey());
+        Some(delegates)
+    } else {
+        None
+    };
     assert_transfer(
         rpc,
         test_indexer,
@@ -366,7 +385,7 @@ pub async fn compressed_transfer_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         &snapshots,
         &input_snapshots,
         &event,
-        None,
+        delegates,
     )
     .await;
 }
@@ -426,12 +445,13 @@ pub async fn decompress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             .collect::<Vec<_>>()
             .as_slice(), // input_token_data
         mint,                            // mint
-        None,                            // owner_if_delegate_is_signer
+        None,                            // owner_if_delegate_change_account_index
         false,                           // is_compress
         Some(amount),                    // compression_amount
         Some(get_token_pool_pda(&mint)), // token_pool_pda
         Some(*recipient_token_account),  // compress_or_decompress_token_account
         true,
+        None,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];
@@ -543,6 +563,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         Some(get_token_pool_pda(mint)), // token_pool_pda
         Some(*sender_token_account),    // compress_or_decompress_token_account
         true,
+        None,
     )
     .unwrap();
     let output_merkle_tree_pubkeys = vec![*output_merkle_tree_pubkey];

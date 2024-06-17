@@ -146,16 +146,20 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
     mint_pubkey: Pubkey,
     pubkeys: &[Pubkey],
     delegate: Option<Pubkey>,
-    is_delegate: Option<&[bool]>,
+    is_delegate: Option<Vec<bool>>,
     amounts: &[u64],
     lamports: Option<&[Option<u64>]>,
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
 ) -> Result<()> {
     let hashed_delegate = if WITH_DELEGATE {
-        hash_to_bn254_field_size_be(delegate.unwrap().to_bytes().as_slice())
-            .unwrap()
-            .0
+        if let Some(delegate) = delegate {
+            hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
+                .unwrap()
+                .0
+        } else {
+            [0u8; 32]
+        }
     } else {
         [0u8; 32]
     };
@@ -168,15 +172,15 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
         // +    1   state
         // +    8   delegated_amount
         let mut token_data_bytes = Vec::with_capacity(83);
-        let delegate = if WITH_DELEGATE && is_delegate.unwrap_or(&vec![false; amounts.len()][..])[i]
-        {
-            match delegate.as_ref() {
-                Some(delegate_pubkey) => Some(delegate_pubkey.clone()),
-                None => None,
-            }
-        } else {
-            None
-        };
+        let delegate =
+            if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
+                match delegate.as_ref() {
+                    Some(delegate_pubkey) => Some(delegate_pubkey.clone()),
+                    None => None,
+                }
+            } else {
+                None
+            };
         let state = if IS_FROZEN {
             AccountState::Frozen
         } else {
@@ -198,7 +202,7 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
         let amount_bytes = amount.to_le_bytes();
         let data_hash = if IS_FROZEN {
             token_data.hash::<Poseidon>()
-        } else if WITH_DELEGATE && is_delegate.unwrap_or(&vec![false; amounts.len()][..])[i] {
+        } else if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
             TokenData::hash_with_delegate_hashed_values::<Poseidon>(
                 hashed_mint,
                 &owner_hashed,

@@ -684,6 +684,10 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 fetched_merkle_tree.root(),
                 "Merkle tree root mismatch"
             );
+            // debug print for proof verification failed
+            // println!("input_compressed_account_hashes: {:?}", accounts);
+            // println!("root: {:?}", merkle_tree.root());
+
             root_indices.push(fetched_merkle_tree.root_index() as u16);
         }
 

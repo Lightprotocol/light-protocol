@@ -1,18 +1,16 @@
 use anchor_lang::prelude::*;
 use light_system_program::{
     invoke::processor::CompressedProof,
-    sdk::{
-        compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-        CompressedCpiContext,
-    },
+    sdk::{compressed_account::PackedCompressedAccountWithMerkleContext, CompressedCpiContext},
     OutputCompressedAccountWithPackedContext,
 };
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
     add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
-    create_output_compressed_accounts, token_data::AccountState, ApproveOrRevokeInstruction,
-    ErrorCode, InputTokenDataWithContext, TokenData,
+    create_output_compressed_accounts,
+    get_input_compressed_accounts_with_merkle_context_and_check_signer, ApproveOrRevokeInstruction,
+    ErrorCode, InputTokenDataWithContext,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -25,59 +23,6 @@ pub struct CompressedTokenInstructionDataApprove {
     pub delegated_amount: u64,
     pub delegate_merkle_tree_index: u8,
     pub change_account_merkle_tree_index: u8,
-}
-
-pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const IS_FROZEN: bool>(
-    signer: &Pubkey,
-    remaining_accounts: &[AccountInfo<'_>],
-    input_token_data_with_context: &Vec<InputTokenDataWithContext>,
-    mint: &Pubkey,
-) -> Result<(
-    Vec<PackedCompressedAccountWithMerkleContext>,
-    Vec<TokenData>,
-)> {
-    let mut input_compressed_accounts_with_merkle_context: Vec<
-        PackedCompressedAccountWithMerkleContext,
-    > = Vec::<PackedCompressedAccountWithMerkleContext>::with_capacity(
-        input_token_data_with_context.len(),
-    );
-    let mut input_token_data_vec: Vec<TokenData> =
-        Vec::with_capacity(input_token_data_with_context.len());
-    for input_token_data in input_token_data_with_context.iter() {
-        let compressed_account = CompressedAccount {
-            owner: crate::ID,
-            lamports: input_token_data.is_native.unwrap_or_default(),
-            data: None,
-            address: None,
-        };
-        let state = if IS_FROZEN {
-            AccountState::Frozen
-        } else {
-            AccountState::Initialized
-        };
-        let token_data = TokenData {
-            mint: *mint,
-            owner: *signer,
-            amount: input_token_data.amount,
-            delegate: input_token_data.delegate_index.map(|_| {
-                remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
-            }),
-            state,
-            is_native: input_token_data.is_native,
-        };
-        input_token_data_vec.push(token_data);
-        input_compressed_accounts_with_merkle_context.push(
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account,
-                merkle_context: input_token_data.merkle_context,
-                root_index: input_token_data.root_index,
-            },
-        );
-    }
-    Ok((
-        input_compressed_accounts_with_merkle_context,
-        input_token_data_vec,
-    ))
 }
 
 /// Processes an approve instruction.
@@ -126,6 +71,7 @@ pub fn create_input_and_output_accounts_approve(
     let (mut compressed_input_accounts, input_token_data) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
             authority,
+            &None,
             remaining_accounts,
             &inputs.input_token_data_with_context,
             &inputs.mint,
@@ -145,7 +91,7 @@ pub fn create_input_and_output_accounts_approve(
         inputs.mint,
         &[*authority; 2],
         Some(inputs.delegate),
-        Some(&[true, false][..]),
+        Some(vec![true, false]),
         &[inputs.delegated_amount, change_amount],
         None, // TODO: add wrapped sol support
         &hashed_mint,
@@ -208,6 +154,7 @@ pub fn create_input_and_output_accounts_revoke(
     let (mut compressed_input_accounts, input_token_data) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
             authority,
+            &None,
             remaining_accounts,
             &inputs.input_token_data_with_context,
             &inputs.mint,
@@ -341,7 +288,10 @@ pub mod sdk {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::freeze::test_freeze::create_expected_token_output_accounts;
+    use crate::{
+        freeze::test_freeze::create_expected_token_output_accounts, token_data::AccountState,
+        TokenData,
+    };
     use anchor_lang::solana_program::account_info::AccountInfo;
     use light_system_program::sdk::compressed_account::PackedMerkleContext;
 

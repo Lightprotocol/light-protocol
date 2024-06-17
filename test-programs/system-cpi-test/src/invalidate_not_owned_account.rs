@@ -260,7 +260,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
         mint,
-        signer_is_delegate: false,
+        delegated_transfer: None,
         input_token_data_with_context: vec![input_token_data_with_context],
         output_compressed_accounts: vec![output_token],
         is_compress: false,

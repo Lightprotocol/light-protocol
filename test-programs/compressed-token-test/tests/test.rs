@@ -209,6 +209,7 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
         input_compressed_accounts.as_slice(),
         &vec![env.merkle_tree_pubkey; outputs],
         None,
+        None,
     )
     .await;
 }
@@ -307,26 +308,79 @@ async fn test_delegation() {
         vec![sender.pubkey()],
     )
     .await;
-    let input_compressed_accounts =
-        test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
-    let delegated_amount = 1000u64;
-    let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
-        .compressed_account
-        .merkle_context
-        .merkle_tree_pubkey;
-    approve_test(
-        &sender,
-        &mut rpc,
-        &mut test_indexer,
-        input_compressed_accounts,
-        delegated_amount,
-        &delegate.pubkey(),
-        &delegated_compressed_account_merkle_tree,
-        &delegated_compressed_account_merkle_tree,
-        None,
-    )
-    .await;
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let delegated_amount = 1000u64;
+        let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
+            .compressed_account
+            .merkle_context
+            .merkle_tree_pubkey;
+        approve_test(
+            &sender,
+            &mut rpc,
+            &mut test_indexer,
+            input_compressed_accounts,
+            delegated_amount,
+            &delegate.pubkey(),
+            &delegated_compressed_account_merkle_tree,
+            &delegated_compressed_account_merkle_tree,
+            None,
+        )
+        .await;
+    }
 
+    let recipient = Pubkey::new_unique();
+    // Transfer partial delegated amount
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let output_amounts = vec![900u64, 100];
+        compressed_transfer_test(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &mint,
+            &sender,
+            &[recipient, sender.pubkey()],
+            &output_amounts,
+            input_compressed_accounts.as_slice(),
+            &vec![env.merkle_tree_pubkey; 2],
+            Some(1),
+            None,
+        )
+        .await;
+    }
+    // Transfer full delegated amount
+    {
+        let input_compressed_accounts =
+            test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
+        let input_compressed_accounts = input_compressed_accounts
+            .iter()
+            .filter(|x| x.token_data.delegate.is_some())
+            .cloned()
+            .collect::<Vec<TokenDataWithContext>>();
+        let output_amounts = vec![100];
+        compressed_transfer_test(
+            &delegate,
+            &mut rpc,
+            &mut test_indexer,
+            &mint,
+            &sender,
+            &[recipient],
+            &output_amounts,
+            input_compressed_accounts.as_slice(),
+            &vec![env.merkle_tree_pubkey; 1],
+            None,
+            None,
+        )
+        .await;
+    }
     kill_gnark_server();
 }
 
@@ -634,6 +688,7 @@ pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         token_pool_pda,
         Some(*compress_or_decompress_token_account),
         true,
+        None,
     )
     .unwrap();
     let instructions = if !is_compress {
@@ -1137,6 +1192,7 @@ async fn perform_transfer_failing_test<R: RpcConnection>(
         None,
         None,
         true,
+        None,
     )
     .unwrap();
 

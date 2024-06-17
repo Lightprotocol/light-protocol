@@ -9,8 +9,8 @@ use light_utils::hash_to_bn254_field_size_be;
 use crate::{
     add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
     create_output_compressed_accounts,
-    delegation::get_input_compressed_accounts_with_merkle_context_and_check_signer, ErrorCode,
-    InputTokenDataWithContext, TransferInstruction,
+    process_transfer::get_input_compressed_accounts_with_merkle_context_and_check_signer,
+    ErrorCode, InputTokenDataWithContext, TransferInstruction,
 };
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataBurn {
@@ -60,6 +60,7 @@ pub fn create_input_and_output_accounts_burn(
     let (mut compressed_input_accounts, input_token_data) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
             authority,
+            &None, // TODO: enable
             remaining_accounts,
             &inputs.input_token_data_with_context,
             &inputs.mint,
