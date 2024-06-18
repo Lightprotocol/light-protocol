@@ -14,7 +14,6 @@ const PROVER_PATH: &str = "../circuit-lib/circuitlib-rs/scripts/prover.sh";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {
-    // env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
