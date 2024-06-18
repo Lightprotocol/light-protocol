@@ -564,9 +564,8 @@ where
         if data_ptr.is_null() {
             handle_alloc_error(layout);
         }
-        let data = NonNull::new(data_ptr).unwrap();
-
-        data
+        // PANICS: We ensured that the pointer is not NULL.
+        NonNull::new(data_ptr).unwrap()
     }
 
     #[inline]
@@ -578,6 +577,12 @@ where
     }
 
     /// Creates a `CyclicBoundedVec<T>` with the given `metadata`.
+    ///
+    /// # Safety
+    ///
+    /// This method is unsafe, as it does not guarantee the correctness of
+    /// provided parameters (other than `capacity`). The full responisibility
+    /// is on the caller.
     #[inline]
     pub unsafe fn with_metadata(metadata: &CyclicBoundedVecMetadata) -> Self {
         let capacity = metadata.capacity();
