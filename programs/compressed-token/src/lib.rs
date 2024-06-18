@@ -5,17 +5,15 @@ pub mod process_mint;
 pub mod process_transfer;
 pub mod spl_compression;
 pub use process_mint::*;
-pub use process_transfer::*;
 pub mod token_data;
 pub use token_data::TokenData;
 pub mod delegation;
 pub mod freeze;
-pub mod freeze_instruction;
-use freeze_instruction::*;
-pub mod approve_or_revoke_instruction;
+pub mod instructions;
+pub use instructions::*;
 pub mod burn;
-pub use approve_or_revoke_instruction::*;
 
+use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -90,6 +88,13 @@ pub mod light_compressed_token {
         inputs: Vec<u8>,
     ) -> Result<()> {
         freeze::process_freeze_or_thaw::<true, false>(ctx, inputs)
+    }
+
+    pub fn burn<'info>(
+        ctx: Context<'_, '_, '_, 'info, ApproveOrRevokeInstruction<'info>>,
+        inputs: Vec<u8>,
+    ) -> Result<()> {
+        burn::process_burn(ctx, inputs)
     }
 
     /// This function is a stub to allow Anchor to include the input types in

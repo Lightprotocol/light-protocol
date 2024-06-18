@@ -3,12 +3,11 @@ use crate::{
     create_output_compressed_accounts,
     spl_compression::process_compression_or_decompression,
     token_data::{AccountState, TokenData},
-    ErrorCode,
+    ErrorCode, TransferInstruction,
 };
-use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
+use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, AnchorDeserialize};
-use anchor_spl::token::{Token, TokenAccount};
-use light_hasher::Poseidon;
+use light_hasher::{DataHasher, Poseidon};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -135,7 +134,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 
     bench_sbf_start!("t_add_token_data_to_input_compressed_accounts");
     if !compressed_input_accounts.is_empty() {
-        add_token_data_to_input_compressed_accounts(
+        add_token_data_to_input_compressed_accounts::<false>(
             &mut compressed_input_accounts,
             input_token_data.as_slice(),
             &hashed_mint,
@@ -160,7 +159,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 /// Create output compressed accounts
 /// 1. enforces discriminator
 /// 2. hashes token data
-pub fn add_token_data_to_input_compressed_accounts(
+pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
     input_compressed_accounts_with_merkle_context: &mut [PackedCompressedAccountWithMerkleContext],
     input_token_data: &[TokenData],
     hashed_mint: &[u8; 32],
@@ -175,36 +174,46 @@ pub fn add_token_data_to_input_compressed_accounts(
         let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
-
-        if input_token_data[i].delegate.is_none() {
-            let data = CompressedAccountData {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data,
-                data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
-                    hashed_mint,
-                    &hashed_owner,
-                    &amount,
-                    &input_token_data[i].is_native,
-                )
-                .map_err(ProgramError::from)?,
-            };
-            compressed_account_with_context.compressed_account.data = Some(data);
+        if !FROZEN_INPUTS {
+            if input_token_data[i].delegate.is_none() {
+                let data = CompressedAccountData {
+                    discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                    data,
+                    data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+                        hashed_mint,
+                        &hashed_owner,
+                        &amount,
+                        &input_token_data[i].is_native,
+                    )
+                    .map_err(ProgramError::from)?,
+                };
+                compressed_account_with_context.compressed_account.data = Some(data);
+            } else {
+                let hashed_delegate =
+                    hash_to_bn254_field_size_be(&input_token_data[i].delegate.unwrap().to_bytes())
+                        .unwrap()
+                        .0;
+                let data = CompressedAccountData {
+                    discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                    data,
+                    data_hash: TokenData::hash_with_delegate_hashed_values::<Poseidon>(
+                        hashed_mint,
+                        &hashed_owner,
+                        &amount,
+                        &input_token_data[i].is_native,
+                        &hashed_delegate,
+                    )
+                    .map_err(ProgramError::from)?,
+                };
+                compressed_account_with_context.compressed_account.data = Some(data);
+            }
         } else {
-            let hashed_delegate =
-                hash_to_bn254_field_size_be(&input_token_data[i].delegate.unwrap().to_bytes())
-                    .unwrap()
-                    .0;
             let data = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data,
-                data_hash: TokenData::hash_with_delegate_hashed_values::<Poseidon>(
-                    hashed_mint,
-                    &hashed_owner,
-                    &amount,
-                    &input_token_data[i].is_native,
-                    &hashed_delegate,
-                )
-                .map_err(ProgramError::from)?,
+                data_hash: input_token_data[i]
+                    .hash::<Poseidon>()
+                    .map_err(ProgramError::from)?,
             };
             compressed_account_with_context.compressed_account.data = Some(data);
         }
@@ -220,6 +229,7 @@ pub fn get_cpi_signer_seeds() -> [&'static [u8]; 2] {
 }
 
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 pub fn cpi_execute_compressed_transaction_transfer<
     'info,
     A: InvokeAccounts<'info> + SignerAccounts<'info>,
@@ -330,78 +340,6 @@ pub fn sum_check(
     }
 }
 
-#[derive(Accounts)]
-pub struct TransferInstruction<'info> {
-    #[account(mut)]
-    pub fee_payer: Signer<'info>,
-    pub authority: Signer<'info>,
-    /// CHECK: that mint authority is derived from signer
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
-    pub cpi_authority_pda: UncheckedAccount<'info>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
-    /// CHECK: this account
-    pub registered_program_pda:
-        Account<'info, account_compression::instructions::register_program::RegisteredProgram>,
-    /// CHECK: this account
-    pub noop_program: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
-    #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID,)]
-    pub account_compression_authority: UncheckedAccount<'info>,
-    /// CHECK: this account in psp account compression program
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
-    #[account(mut)]
-    pub token_pool_pda: Option<Account<'info, TokenAccount>>,
-    #[account(mut)]
-    pub compress_or_decompress_token_account: Option<Account<'info, TokenAccount>>,
-    pub token_program: Option<Program<'info, Token>>,
-    pub system_program: Program<'info, System>,
-}
-
-impl<'info> InvokeAccounts<'info> for TransferInstruction<'info> {
-    fn get_registered_program_pda(
-        &self,
-    ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>
-    {
-        &self.registered_program_pda
-    }
-
-    fn get_noop_program(&self) -> &UncheckedAccount<'info> {
-        &self.noop_program
-    }
-
-    fn get_account_compression_authority(&self) -> &UncheckedAccount<'info> {
-        &self.account_compression_authority
-    }
-
-    fn get_account_compression_program(&self) -> &Program<'info, AccountCompression> {
-        &self.account_compression_program
-    }
-
-    fn get_system_program(&self) -> &Program<'info, System> {
-        &self.system_program
-    }
-
-    fn get_sol_pool_pda(&self) -> Option<&UncheckedAccount<'info>> {
-        None
-    }
-
-    fn get_decompression_recipient(&self) -> Option<&UncheckedAccount<'info>> {
-        None
-    }
-}
-
-impl<'info> SignerAccounts<'info> for TransferInstruction<'info> {
-    fn get_fee_payer(&self) -> &Signer<'info> {
-        &self.fee_payer
-    }
-
-    fn get_authority(&self) -> &Signer<'info> {
-        &self.authority
-    }
-}
-
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InputTokenDataWithContext {
     pub amount: u64,
@@ -436,7 +374,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     signer: &Pubkey,
     signer_is_delegate: &Option<DelegatedTransfer>,
     remaining_accounts: &[AccountInfo<'_>],
-    input_token_data_with_context: &Vec<InputTokenDataWithContext>,
+    input_token_data_with_context: &[InputTokenDataWithContext],
     mint: &Pubkey,
 ) -> Result<(
     Vec<PackedCompressedAccountWithMerkleContext>,
@@ -456,6 +394,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
     };
     for input_token_data in input_token_data_with_context.iter() {
         if signer_is_delegate.is_some()
+            && input_token_data.delegate_index.is_some()
             && *signer
                 != remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
         {
@@ -468,6 +407,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                 "delegate index {:?}",
                 input_token_data.delegate_index.unwrap() as usize
             );
+            return err!(ErrorCode::DelegateSignerCheckFailed);
+        } else if signer_is_delegate.is_some() && input_token_data.delegate_index.is_none() {
+            msg!("Signer is delegate but token data has no delegate.");
             return err!(ErrorCode::DelegateSignerCheckFailed);
         }
         let compressed_account = CompressedAccount {
@@ -541,11 +483,13 @@ pub mod transfer_sdk {
         pubkey::Pubkey,
     };
 
-    use crate::{
-        token_data::TokenData, CompressedTokenInstructionDataTransfer, DelegatedTransfer,
-        PackedTokenTransferOutputData, TokenTransferOutputData,
-    };
+    use crate::{token_data::TokenData, CompressedTokenInstructionDataTransfer};
     use anchor_lang::error_code;
+
+    use super::{
+        DelegatedTransfer, InputTokenDataWithContext, PackedTokenTransferOutputData,
+        TokenTransferOutputData,
+    };
 
     #[error_code]
     pub enum TransferSdkError {
@@ -594,7 +538,7 @@ pub mod transfer_sdk {
         let mut inputs = Vec::new();
         CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
-        let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
+        let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
         let instruction_data = crate::instruction::Transfer { inputs };
         let authority = if let Some(delegate) = delegate {
             delegate
@@ -744,7 +688,7 @@ pub mod transfer_sdk {
         output_compressed_accounts: &[TokenTransferOutputData],
     ) -> (
         HashMap<Pubkey, usize>,
-        Vec<crate::InputTokenDataWithContext>,
+        Vec<InputTokenDataWithContext>,
         Vec<PackedTokenTransferOutputData>,
     ) {
         let mut remaining_accounts = HashMap::<Pubkey, usize>::new();
@@ -759,7 +703,7 @@ pub mod transfer_sdk {
                 }
             };
         }
-        let mut input_token_data_with_context: Vec<crate::InputTokenDataWithContext> = Vec::new();
+        let mut input_token_data_with_context: Vec<InputTokenDataWithContext> = Vec::new();
 
         for (i, token_data) in input_token_data.iter().enumerate() {
             match remaining_accounts.get(&input_merkle_context[i].merkle_tree_pubkey) {
@@ -780,7 +724,7 @@ pub mod transfer_sdk {
                 },
                 None => None,
             };
-            let token_data_with_context = crate::InputTokenDataWithContext {
+            let token_data_with_context = InputTokenDataWithContext {
                 amount: token_data.amount,
                 delegate_index,
                 is_native: token_data.is_native,

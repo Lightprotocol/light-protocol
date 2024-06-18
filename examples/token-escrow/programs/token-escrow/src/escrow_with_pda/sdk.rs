@@ -2,11 +2,14 @@
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_token::{
-    transfer_sdk::{
-        create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
-        to_account_metas,
+    process_transfer::get_cpi_authority_pda,
+    process_transfer::{
+        transfer_sdk::{
+            create_inputs_and_remaining_accounts, create_inputs_and_remaining_accounts_checked,
+            to_account_metas,
+        },
+        TokenTransferOutputData,
     },
-    TokenTransferOutputData,
 };
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -51,6 +54,7 @@ pub fn create_escrow_instruction(
         input_params.signer,
         false,
         None,
+        None,
     )
     .unwrap();
 
@@ -74,7 +78,7 @@ pub fn create_escrow_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {
@@ -119,6 +123,7 @@ pub fn create_withdrawal_escrow_instruction(
         *input_params.mint,
         false,
         None,
+        None,
     );
 
     let merkle_tree_indices = add_and_get_remaining_account_indices(
@@ -141,7 +146,7 @@ pub fn create_withdrawal_escrow_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
     let accounts = crate::accounts::EscrowCompressedTokensWithPda {

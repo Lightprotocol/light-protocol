@@ -7,11 +7,15 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
-    add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
     create_output_compressed_accounts,
-    process_transfer::get_input_compressed_accounts_with_merkle_context_and_check_signer,
-    ErrorCode, InputTokenDataWithContext, TransferInstruction,
+    process_transfer::{
+        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
+        InputTokenDataWithContext,
+    },
+    ApproveOrRevokeInstruction, ErrorCode,
 };
+
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataBurn {
     pub proof: CompressedProof,
@@ -20,11 +24,12 @@ pub struct CompressedTokenInstructionDataBurn {
     pub cpi_context: Option<CompressedCpiContext>,
     pub burn_amount: u64,
     pub change_account_merkle_tree_index: u8,
+    pub delegated_transfer: Option<DelegatedTransfer>,
 }
 
 // TODO: make callable by delegate
 pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, TransferInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, ApproveOrRevokeInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataBurn =
@@ -60,7 +65,7 @@ pub fn create_input_and_output_accounts_burn(
     let (mut compressed_input_accounts, input_token_data) =
         get_input_compressed_accounts_with_merkle_context_and_check_signer::<false>(
             authority,
-            &None, // TODO: enable
+            &inputs.delegated_transfer,
             remaining_accounts,
             &inputs.input_token_data_with_context,
             &inputs.mint,
@@ -70,28 +75,148 @@ pub fn create_input_and_output_accounts_burn(
         Some(change_amount) => change_amount,
         None => return err!(ErrorCode::ArithmeticUnderflow),
     };
-    let mut output_compressed_accounts =
-        vec![OutputCompressedAccountWithPackedContext::default(); 1];
+
     let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes())
         .unwrap()
         .0;
-    create_output_compressed_accounts::<false, false>(
-        &mut output_compressed_accounts,
-        inputs.mint,
-        &[*authority; 1],
-        None,
-        None,
-        &[change_amount],
-        None, // TODO: add wrapped sol support
-        &hashed_mint,
-        &[inputs.change_account_merkle_tree_index],
-    )?;
-    add_token_data_to_input_compressed_accounts(
+    let output_compressed_accounts = if change_amount > 0 {
+        let (is_delegate, authority, delegate) =
+            if let Some(delegated_transfer) = inputs.delegated_transfer.as_ref() {
+                let mut vec = vec![false; 1];
+                vec[delegated_transfer.delegate_change_account_index as usize] = true;
+                (Some(vec), delegated_transfer.owner, Some(*authority))
+            } else {
+                (None, *authority, None)
+            };
+        let mut output_compressed_accounts =
+            vec![OutputCompressedAccountWithPackedContext::default(); 1];
+        create_output_compressed_accounts::<true, false>(
+            &mut output_compressed_accounts,
+            inputs.mint,
+            &[authority; 1],
+            delegate,
+            is_delegate,
+            &[change_amount],
+            None, // TODO: add wrapped sol support
+            &hashed_mint,
+            &[inputs.change_account_merkle_tree_index],
+        )?;
+        output_compressed_accounts
+    } else {
+        Vec::new()
+    };
+    add_token_data_to_input_compressed_accounts::<false>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
+}
+
+#[cfg(not(target_os = "solana"))]
+pub mod sdk {
+
+    use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+    use light_system_program::{
+        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+    };
+    use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+
+    use crate::{
+        process_transfer::{
+            get_cpi_authority_pda,
+            transfer_sdk::{
+                create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
+            },
+            DelegatedTransfer,
+        },
+        token_data::TokenData,
+    };
+
+    use super::CompressedTokenInstructionDataBurn;
+
+    pub struct CreateBurnInstructionInputs {
+        pub fee_payer: Pubkey,
+        pub authority: Pubkey,
+        pub root_indices: Vec<u16>,
+        pub proof: CompressedProof,
+        pub input_token_data: Vec<TokenData>,
+        pub input_merkle_contexts: Vec<MerkleContext>,
+        pub change_account_merkle_tree: Pubkey,
+        pub mint: Pubkey,
+        pub burn_amount: u64,
+        pub signer_is_delegate: bool,
+    }
+
+    pub fn create_burn_instruction(
+        inputs: CreateBurnInstructionInputs,
+    ) -> Result<Instruction, TransferSdkError> {
+        let (remaining_accounts, input_token_data_with_context, _) =
+            create_input_output_and_remaining_accounts(
+                &[inputs.change_account_merkle_tree],
+                &inputs.input_token_data,
+                &inputs.input_merkle_contexts,
+                &inputs.root_indices,
+                &Vec::new(),
+            );
+        let outputs_merkle_tree_index = remaining_accounts
+            .get(&inputs.change_account_merkle_tree)
+            .unwrap();
+        let delegated_transfer = if inputs.signer_is_delegate {
+            let delegated_transfer = DelegatedTransfer {
+                owner: inputs.input_token_data[0].owner,
+                delegate_change_account_index: 0,
+            };
+            Some(delegated_transfer)
+        } else {
+            None
+        };
+        let inputs_struct = CompressedTokenInstructionDataBurn {
+            proof: inputs.proof,
+            input_token_data_with_context,
+            cpi_context: None,
+            change_account_merkle_tree_index: *outputs_merkle_tree_index as u8,
+            delegated_transfer,
+            mint: inputs.mint,
+            burn_amount: inputs.burn_amount,
+        };
+        let remaining_accounts = to_account_metas(remaining_accounts);
+        let mut serialized_ix_data = Vec::new();
+        CompressedTokenInstructionDataBurn::serialize(&inputs_struct, &mut serialized_ix_data)
+            .unwrap();
+
+        let (cpi_authority_pda, _) = get_cpi_authority_pda();
+        let data = crate::instruction::Burn {
+            inputs: serialized_ix_data,
+        }
+        .data();
+
+        let accounts = crate::accounts::ApproveOrRevokeInstruction {
+            fee_payer: inputs.fee_payer,
+            authority: inputs.authority,
+            cpi_authority_pda,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            self_program: crate::ID,
+            system_program: solana_sdk::system_program::ID,
+        };
+
+        Ok(Instruction {
+            program_id: crate::ID,
+            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+
+            data,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -168,6 +293,7 @@ mod test {
             cpi_context: None,
             burn_amount: 50,
             change_account_merkle_tree_index: 1,
+            delegated_transfer: None,
         };
         let (compressed_input_accounts, output_compressed_accounts) =
             create_input_and_output_accounts_burn(&inputs, &authority, &remaining_accounts)

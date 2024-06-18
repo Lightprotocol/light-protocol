@@ -7,10 +7,13 @@ use light_system_program::{
 use light_utils::hash_to_bn254_field_size_be;
 
 use crate::{
-    add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
     create_output_compressed_accounts,
-    get_input_compressed_accounts_with_merkle_context_and_check_signer, ApproveOrRevokeInstruction,
-    ErrorCode, InputTokenDataWithContext,
+    process_transfer::{
+        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        get_input_compressed_accounts_with_merkle_context_and_check_signer,
+        InputTokenDataWithContext,
+    },
+    ApproveOrRevokeInstruction, ErrorCode,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -100,7 +103,7 @@ pub fn create_input_and_output_accounts_approve(
             inputs.change_account_merkle_tree_index,
         ],
     )?;
-    add_token_data_to_input_compressed_accounts(
+    add_token_data_to_input_compressed_accounts::<false>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -176,7 +179,7 @@ pub fn create_input_and_output_accounts_revoke(
         &hashed_mint,
         &[inputs.output_account_merkle_tree_index],
     )?;
-    add_token_data_to_input_compressed_accounts(
+    add_token_data_to_input_compressed_accounts::<false>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -194,13 +197,16 @@ pub mod sdk {
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::{
-        token_data::TokenData,
-        transfer_sdk::{
-            create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
+        process_transfer::{
+            get_cpi_authority_pda,
+            transfer_sdk::{
+                create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
+            },
         },
+        token_data::TokenData,
     };
 
-    use super::CompressedTokenInstructionDataApprove;
+    use super::{CompressedTokenInstructionDataApprove, CompressedTokenInstructionDataRevoke};
 
     pub struct CreateApproveInstructionInputs {
         pub fee_payer: Pubkey,
@@ -251,8 +257,79 @@ pub mod sdk {
         CompressedTokenInstructionDataApprove::serialize(&inputs_struct, &mut serialized_ix_data)
             .unwrap();
 
-        let (cpi_authority_pda, _) = crate::get_cpi_authority_pda();
+        let (cpi_authority_pda, _) = get_cpi_authority_pda();
         let instruction_data = crate::instruction::Approve {
+            inputs: serialized_ix_data,
+        };
+
+        // TODO: create an instruction struct without any optionals
+        let accounts = crate::accounts::ApproveOrRevokeInstruction {
+            fee_payer: inputs.fee_payer,
+            authority: inputs.authority,
+            cpi_authority_pda,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            self_program: crate::ID,
+            system_program: solana_sdk::system_program::ID,
+        };
+
+        Ok(Instruction {
+            program_id: crate::ID,
+            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+
+            data: instruction_data.data(),
+        })
+    }
+
+    pub struct CreateRevokeInstructionInputs {
+        pub fee_payer: Pubkey,
+        pub authority: Pubkey,
+        pub root_indices: Vec<u16>,
+        pub proof: CompressedProof,
+        pub input_token_data: Vec<TokenData>,
+        pub input_merkle_contexts: Vec<MerkleContext>,
+        pub mint: Pubkey,
+        pub output_account_merkle_tree: Pubkey,
+    }
+
+    pub fn create_revoke_instruction(
+        inputs: CreateRevokeInstructionInputs,
+    ) -> Result<Instruction, TransferSdkError> {
+        let (remaining_accounts, input_token_data_with_context, _) =
+            create_input_output_and_remaining_accounts(
+                &[inputs.output_account_merkle_tree],
+                &inputs.input_token_data,
+                &inputs.input_merkle_contexts,
+                &inputs.root_indices,
+                &Vec::new(),
+            );
+        let output_account_merkle_tree_index = remaining_accounts
+            .get(&inputs.output_account_merkle_tree)
+            .unwrap();
+
+        let inputs_struct = CompressedTokenInstructionDataRevoke {
+            proof: inputs.proof,
+            mint: inputs.mint,
+            input_token_data_with_context,
+            cpi_context: None,
+            output_account_merkle_tree_index: *output_account_merkle_tree_index as u8,
+        };
+        let remaining_accounts = to_account_metas(remaining_accounts);
+        let mut serialized_ix_data = Vec::new();
+        CompressedTokenInstructionDataRevoke::serialize(&inputs_struct, &mut serialized_ix_data)
+            .unwrap();
+
+        let (cpi_authority_pda, _) = get_cpi_authority_pda();
+        let instruction_data = crate::instruction::Revoke {
             inputs: serialized_ix_data,
         };
 

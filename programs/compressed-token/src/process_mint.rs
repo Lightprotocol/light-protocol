@@ -141,6 +141,7 @@ pub fn process_mint_to<'info>(
 /// 2. Create, hash and serialize token data.  
 /// 3. Create compressed account data.
 /// 4. Repeat for every pubkey.
+#[allow(clippy::too_many_arguments)]
 pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FROZEN: bool>(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
     mint_pubkey: Pubkey,
@@ -174,10 +175,7 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
         let mut token_data_bytes = Vec::with_capacity(83);
         let delegate =
             if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
-                match delegate.as_ref() {
-                    Some(delegate_pubkey) => Some(delegate_pubkey.clone()),
-                    None => None,
-                }
+                delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey)
             } else {
                 None
             };
@@ -459,7 +457,7 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
 
 #[cfg(not(target_os = "solana"))]
 pub mod mint_sdk {
-    use crate::{get_cpi_authority_pda, get_token_pool_pda};
+    use crate::{get_token_pool_pda, process_transfer::get_cpi_authority_pda};
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use anchor_spl;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
@@ -532,7 +530,7 @@ pub mod mint_sdk {
 
 #[test]
 fn test_manual_ix_data_serialization_borsh_compat() {
-    use crate::get_cpi_signer_seeds;
+    use crate::process_transfer::get_cpi_signer_seeds;
     let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
     let amounts = vec![1, 2];
     let mint_pubkey = Pubkey::new_unique();

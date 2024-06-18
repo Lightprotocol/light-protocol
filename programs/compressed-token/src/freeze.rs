@@ -13,12 +13,15 @@ use light_system_program::{
 };
 use light_utils::hash_to_bn254_field_size_be;
 
-use crate::FreezeInstruction;
 use crate::{
-    add_token_data_to_input_compressed_accounts, constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-    cpi_execute_compressed_transaction_transfer,
-    process_transfer::get_input_compressed_accounts_with_merkle_context_and_check_signer,
-    token_data::AccountState, InputTokenDataWithContext, TokenData,
+    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+    process_transfer::{
+        add_token_data_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
+        get_input_compressed_accounts_with_merkle_context_and_check_signer,
+        InputTokenDataWithContext,
+    },
+    token_data::{AccountState, TokenData},
+    FreezeInstruction,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -44,9 +47,9 @@ pub fn process_freeze_or_thaw<
     let inputs: CompressedTokenInstructionDataFreeze =
         CompressedTokenInstructionDataFreeze::deserialize(&mut inputs.as_slice())?;
     let (compressed_input_accounts, output_compressed_accounts) =
-        create_input_and_output_accounts_freeze_or_thaw::<false, true>(
+        create_input_and_output_accounts_freeze_or_thaw::<FROZEN_INPUTS, FROZEN_OUTPUTS>(
             &inputs,
-            &ctx.accounts.authority.key(),
+            &ctx.accounts.mint.key(),
             ctx.remaining_accounts,
         )?;
     // TODO: implement trait for TransferInstruction and FreezeInstruction
@@ -98,7 +101,7 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut output_compressed_accounts,
     )?;
 
-    add_token_data_to_input_compressed_accounts(
+    add_token_data_to_input_compressed_accounts::<FROZEN_INPUTS>(
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
@@ -114,78 +117,79 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     outputs_merkle_tree_index: &u8,
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
-    let hashed_owner = hash_to_bn254_field_size_be(owner.to_bytes().as_slice())
-        .unwrap()
-        .0;
+    // TODO: add hash function with hashed inputs
+    // let hashed_owner = hash_to_bn254_field_size_be(owner.to_bytes().as_slice())
+    //     .unwrap()
+    //     .0;
     let mut cached_hashed_delegates =
         Vec::<(u8, [u8; 32])>::with_capacity(input_token_data_with_context.len());
-    Ok(
-        for (i, token_data) in input_token_data_with_context.iter().enumerate() {
-            // 83 =
-            //      32  mint
-            // +    32  owner
-            // +    8   amount
-            // +    1   delegate
-            // +    1   state
-            // +    8   delegated_amount
-            let mut token_data_bytes = Vec::with_capacity(83);
-            let (_hashed_delegate, delegate) = match token_data.delegate_index {
-                Some(index) => {
-                    let result = cached_hashed_delegates.iter().find(|x| x.0 == index);
-                    match result {
-                        None => {
-                            let delegate = remaining_accounts[index as usize].key();
-                            let hashed_delegate =
-                                hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-                                    .unwrap()
-                                    .0;
-                            cached_hashed_delegates.push((index, hashed_delegate));
-                            (Some(hashed_delegate), Some(delegate))
-                        }
-                        Some((_, hashed_delegate)) => (
-                            Some(*hashed_delegate),
-                            Some(remaining_accounts[index as usize].key()),
-                        ),
-                    }
-                }
-                None => (None, None),
-            };
-            let state = if IS_FROZEN {
-                AccountState::Frozen
-            } else {
-                AccountState::Initialized
-            };
-            // 1,000 CU token data and serialize
-            let token_data = TokenData {
-                mint: mint.clone(),
-                owner: *owner,
-                amount: token_data.amount,
-                delegate,
-                state,
-                is_native: None,
-            };
-            token_data.serialize(&mut token_data_bytes).unwrap();
-            // TODO: add hash function with hashed inputs
-            let data_hash = token_data.hash::<Poseidon>().map_err(ProgramError::from)?;
-            let data: CompressedAccountData = CompressedAccountData {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                data: token_data_bytes,
-                data_hash,
-            };
-            // TODO: support wrapped sol
-            // let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
 
-            output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
-                compressed_account: CompressedAccount {
-                    owner: crate::ID,
-                    lamports: 0,
-                    data: Some(data),
-                    address: None,
-                },
-                merkle_tree_index: *outputs_merkle_tree_index,
-            };
-        },
-    )
+    for (i, token_data) in input_token_data_with_context.iter().enumerate() {
+        // 83 =
+        //      32  mint
+        // +    32  owner
+        // +    8   amount
+        // +    1   delegate
+        // +    1   state
+        // +    8   delegated_amount
+        let mut token_data_bytes = Vec::with_capacity(83);
+        let (_hashed_delegate, delegate) = match token_data.delegate_index {
+            Some(index) => {
+                let result = cached_hashed_delegates.iter().find(|x| x.0 == index);
+                match result {
+                    None => {
+                        let delegate = remaining_accounts[index as usize].key();
+                        let hashed_delegate =
+                            hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
+                                .unwrap()
+                                .0;
+                        cached_hashed_delegates.push((index, hashed_delegate));
+                        (Some(hashed_delegate), Some(delegate))
+                    }
+                    Some((_, hashed_delegate)) => (
+                        Some(*hashed_delegate),
+                        Some(remaining_accounts[index as usize].key()),
+                    ),
+                }
+            }
+            None => (None, None),
+        };
+        let state = if IS_FROZEN {
+            AccountState::Frozen
+        } else {
+            AccountState::Initialized
+        };
+        // 1,000 CU token data and serialize
+        let token_data = TokenData {
+            mint: *mint,
+            owner: *owner,
+            amount: token_data.amount,
+            delegate,
+            state,
+            is_native: None,
+        };
+        token_data.serialize(&mut token_data_bytes).unwrap();
+        // TODO: add hash function with hashed inputs
+        let data_hash = token_data.hash::<Poseidon>().map_err(ProgramError::from)?;
+        let data: CompressedAccountData = CompressedAccountData {
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            data: token_data_bytes,
+            data_hash,
+        };
+        // TODO: support wrapped sol
+        // let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
+
+        output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
+            compressed_account: CompressedAccount {
+                owner: crate::ID,
+                lamports: 0,
+                data: Some(data),
+                address: None,
+            },
+            merkle_tree_index: *outputs_merkle_tree_index,
+        };
+    }
+    Ok(())
 }
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenInstructionDataThaw {
@@ -196,39 +200,114 @@ pub struct CompressedTokenInstructionDataThaw {
     pub outputs_merkle_tree_index: u8,
 }
 
-// pub fn create_input_and_output_accounts_thaw(
-//     inputs: &CompressedTokenInstructionDataThaw,
-//     mint: &Pubkey,
-//     remaining_accounts: &[AccountInfo<'_>],
-// ) -> Result<(
-//     Vec<PackedCompressedAccountWithMerkleContext>,
-//     Vec<OutputCompressedAccountWithPackedContext>,
-// )> {
-//     let (mut compressed_input_accounts, input_token_data) =
-//         get_input_compressed_accounts_with_merkle_context_and_check_signer::<true>(
-//             &inputs.owner,
-//             remaining_accounts,
-//             &inputs.input_token_data_with_context,
-//             mint,
-//         )?;
-//     let mut output_compressed_accounts =
-//         vec![OutputCompressedAccountWithPackedContext::default(); compressed_input_accounts.len()];
-//     let hashed_mint = hash_to_bn254_field_size_be(&mint.to_bytes()).unwrap().0;
-//     create_token_output_accounts::<false>(
-//         inputs.input_token_data_with_context.as_slice(),
-//         remaining_accounts,
-//         mint,
-//         &inputs.owner,
-//         &inputs.outputs_merkle_tree_index,
-//         &mut output_compressed_accounts,
-//     )?;
-//     add_token_data_to_input_compressed_accounts(
-//         &mut compressed_input_accounts,
-//         input_token_data.as_slice(),
-//         &hashed_mint,
-//     )?;
-//     Ok((compressed_input_accounts, output_compressed_accounts))
-// }
+#[cfg(not(target_os = "solana"))]
+pub mod sdk {
+
+    use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
+    use light_system_program::{
+        invoke::processor::CompressedProof, sdk::compressed_account::MerkleContext,
+    };
+    use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
+
+    use crate::{
+        process_transfer::transfer_sdk::{
+            create_input_output_and_remaining_accounts, to_account_metas, TransferSdkError,
+        },
+        token_data::TokenData,
+    };
+
+    use super::CompressedTokenInstructionDataFreeze;
+
+    pub struct CreateInstructionInputs {
+        pub fee_payer: Pubkey,
+        pub authority: Pubkey,
+        pub root_indices: Vec<u16>,
+        pub proof: CompressedProof,
+        pub input_token_data: Vec<TokenData>,
+        pub input_merkle_contexts: Vec<MerkleContext>,
+        pub outputs_merkle_tree: Pubkey,
+    }
+
+    pub fn create_instruction<const FREEZE: bool>(
+        inputs: CreateInstructionInputs,
+    ) -> Result<Instruction, TransferSdkError> {
+        let (remaining_accounts, input_token_data_with_context, _) =
+            create_input_output_and_remaining_accounts(
+                &[inputs.outputs_merkle_tree],
+                &inputs.input_token_data,
+                &inputs.input_merkle_contexts,
+                &inputs.root_indices,
+                &Vec::new(),
+            );
+        let outputs_merkle_tree_index =
+            remaining_accounts.get(&inputs.outputs_merkle_tree).unwrap();
+
+        let inputs_struct = CompressedTokenInstructionDataFreeze {
+            proof: inputs.proof,
+            input_token_data_with_context,
+            cpi_context: None,
+            outputs_merkle_tree_index: *outputs_merkle_tree_index as u8,
+            owner: inputs.input_token_data[0].owner,
+        };
+        let remaining_accounts = to_account_metas(remaining_accounts);
+        let mut serialized_ix_data = Vec::new();
+        CompressedTokenInstructionDataFreeze::serialize(&inputs_struct, &mut serialized_ix_data)
+            .unwrap();
+
+        let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
+        let data = if FREEZE {
+            crate::instruction::Freeze {
+                inputs: serialized_ix_data,
+            }
+            .data()
+        } else {
+            crate::instruction::Thaw {
+                inputs: serialized_ix_data,
+            }
+            .data()
+        };
+
+        // TODO: create an instruction struct without any optionals
+        let accounts = crate::accounts::FreezeInstruction {
+            fee_payer: inputs.fee_payer,
+            authority: inputs.authority,
+            cpi_authority_pda,
+            light_system_program: light_system_program::ID,
+            registered_program_pda: light_system_program::utils::get_registered_program_pda(
+                &light_system_program::ID,
+            ),
+            noop_program: Pubkey::new_from_array(
+                account_compression::utils::constants::NOOP_PUBKEY,
+            ),
+            account_compression_authority: light_system_program::utils::get_cpi_authority_pda(
+                &light_system_program::ID,
+            ),
+            account_compression_program: account_compression::ID,
+            self_program: crate::ID,
+            system_program: solana_sdk::system_program::ID,
+            mint: inputs.input_token_data[0].mint,
+        };
+
+        Ok(Instruction {
+            program_id: crate::ID,
+            accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
+
+            data,
+        })
+    }
+
+    pub fn create_freeze_instruction(
+        inputs: CreateInstructionInputs,
+    ) -> Result<Instruction, TransferSdkError> {
+        create_instruction::<true>(inputs)
+    }
+
+    pub fn create_thaw_instruction(
+        inputs: CreateInstructionInputs,
+    ) -> Result<Instruction, TransferSdkError> {
+        create_instruction::<false>(inputs)
+    }
+}
 
 #[cfg(test)]
 pub mod test_freeze {

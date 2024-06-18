@@ -5,7 +5,10 @@ use crate::{
     },
     indexer::{TestIndexer, TokenDataWithContext},
 };
-use light_compressed_token::{get_cpi_authority_pda, get_token_pool_pda, TokenTransferOutputData};
+use light_compressed_token::{
+    get_token_pool_pda,
+    process_transfer::{get_cpi_authority_pda, TokenTransferOutputData},
+};
 use light_system_program::sdk::{
     compressed_account::CompressedAccountWithMerkleContext, event::PublicTransactionEvent,
 };

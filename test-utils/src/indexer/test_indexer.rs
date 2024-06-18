@@ -684,9 +684,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 fetched_merkle_tree.root(),
                 "Merkle tree root mismatch"
             );
-            // debug print for proof verification failed
-            // println!("input_compressed_account_hashes: {:?}", accounts);
-            // println!("root: {:?}", merkle_tree.root());
 
             root_indices.push(fetched_merkle_tree.root_index() as u16);
         }
@@ -694,11 +691,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         let inclusion_proof_inputs = InclusionProofInputs(inclusion_proofs.as_slice());
         let batch_inclusion_proof_inputs =
             BatchInclusionJsonStruct::from_inclusion_proof_inputs(&inclusion_proof_inputs);
-
-        // let inclusion_proof_inputs_json =
-        //     InclusionJsonStruct::from_inclusion_proof_inputs(&batch_inclusion_proof_inputs);
-
-        // let root_indices = vec![merkle_tree.current_root_index as u16; accounts.len()];
 
         (batch_inclusion_proof_inputs, root_indices)
     }

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_token::{
+use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
     PackedTokenTransferOutputData,
 };

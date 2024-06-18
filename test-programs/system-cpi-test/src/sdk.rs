@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressed_token::transfer_sdk::to_account_metas;
+use light_compressed_token::process_transfer::{
+    get_cpi_authority_pda, transfer_sdk::to_account_metas,
+};
 use light_system_program::{
     invoke::processor::CompressedProof, sdk::address::pack_new_address_params,
     sdk::compressed_account::PackedCompressedAccountWithMerkleContext, NewAddressParams,
@@ -46,7 +48,7 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         cpi_context: None,
     };
 
-    let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
 
@@ -102,7 +104,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         bump,
         mode,
         cpi_context,
-        token_transfer_data: input_params.token_transfer_data.clone(),
+        token_transfer_data: input_params.token_transfer_data,
     };
 
     let registered_program_pda = Pubkey::find_program_address(
@@ -110,7 +112,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         &account_compression::ID,
     )
     .0;
-    let compressed_token_cpi_authority_pda = light_compressed_token::get_cpi_authority_pda().0;
+    let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
 
