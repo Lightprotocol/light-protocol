@@ -92,7 +92,7 @@ export type TokenTransferOutputData = {
 export type CompressedTokenInstructionDataTransfer = {
     proof: CompressedProof | null;
     mint: PublicKey;
-    signerIsDelegate: boolean;
+    delegatedTransfer: null;
     inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
     isCompress: boolean;

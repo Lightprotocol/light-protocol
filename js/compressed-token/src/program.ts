@@ -610,7 +610,7 @@ export class CompressedTokenProgram {
         const data: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            signerIsDelegate: false, // TODO: implement
+            delegatedTransfer: null, // TODO: implement
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: null,
@@ -684,7 +684,7 @@ export class CompressedTokenProgram {
         const data: CompressedTokenInstructionDataTransfer = {
             proof: null,
             mint,
-            signerIsDelegate: false, // TODO: implement
+            delegatedTransfer: null, // TODO: implement
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: amount,
@@ -773,7 +773,7 @@ export class CompressedTokenProgram {
         const data: CompressedTokenInstructionDataTransfer = {
             proof: recentValidityProof,
             mint,
-            signerIsDelegate: false, // TODO: implement
+            delegatedTransfer: null, // TODO: implement
             inputTokenDataWithContext,
             outputCompressedAccounts: packedOutputTokenData,
             compressOrDecompressAmount: amount,

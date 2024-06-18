@@ -84,8 +84,9 @@ export type CompressedTokenInstructionDataInvoke = {
     mint: PublicKey;
     /**
      * Whether the signer is a delegate
+     * TODO: implement delegated transfer struct
      */
-    signerIsDelegate: boolean;
+    delegatedTransfer: null;
     /**
      * Input token data with packed merkle context
      */
