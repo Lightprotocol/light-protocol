@@ -1,23 +1,71 @@
 {
-  "tasksRunnerOptions": {
-    "default": {
-      "runner": "nx/tasks-runners/default",
-      "options": {
-        "cacheableOperations": ["build", "test"]
-      }
-    }
-  },
   "namedInputs": {
-    "noMarkdown": ["!{projectRoot}/**/*.md"]
+    "noMarkdown": [
+      "!{projectRoot}/**/*.md"
+    ],
+    "noTestLedger": [
+      "!{projectRoot}/test-ledger"
+    ]
   },
   "targetDefaults": {
     "build": {
-      "inputs": ["noMarkdown", "^noMarkdown"],
-      "dependsOn": ["^build"]
+      "cache": true,
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown",
+        "noTestLedger",
+        "^noTestLedger"
+      ],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "{workspaceRoot}/{projectRoot}",
+        "{workspaceRoot}/target/deploy",
+        "{workspaceRoot}/target/idl",
+        "{workspaceRoot}/target/types"
+      ]
     },
     "test": {
-      "inputs": ["noMarkdown", "^noMarkdown"],
-      "dependsOn": ["^build", "build"]
+      "cache": true,
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown",
+        "noTestLedger",
+        "^noTestLedger"
+      ],
+      "dependsOn": [
+        "^build",
+        "build"
+      ]
+    },
+    "format": {
+      "cache": true,
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown",
+        "noTestLedger",
+        "^noTestLedger"
+      ]
+    },
+    "format:check": {
+        "cache": true,
+        "inputs": [
+            "noMarkdown",
+            "^noMarkdown",
+            "noTestLedger",
+            "^noTestLedger"
+        ]
+    },
+    "lint": {
+      "cache": true,
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown",
+        "noTestLedger",
+        "^noTestLedger"
+      ]
     }
-  }
+  },
+  "nxCloudAccessToken": "MTdjMjM5MjMtOGJjMS00OTJlLTgyYzYtYTAwMmY2ZjljZjM3fHJlYWQtd3JpdGU="
 }

@@ -33,8 +33,8 @@ jobs:
   system-programs:
     name: system-programs
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
-    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       matrix:
         include:
@@ -66,21 +66,20 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
 
-      - name: ${{ matrix.program }}
+      - name: build-programs
         run: |
           source ./scripts/devenv.sh
-          mkdir -p ./target/deploy
-          cp ./third-party/solana-program-library/spl_noop.so ./target/deploy/spl_noop.so
-
           anchor build
           anchor build --program-name light_system_program -- --features cpi-context
 
+      - name: ${{ matrix.program }}
+        run: |
+          source ./scripts/devenv.sh
+          
           IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do

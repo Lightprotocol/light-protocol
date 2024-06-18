@@ -13,22 +13,32 @@ runs:
       with:
         ref: ${{ inputs.branch }}
 
-    - name: Cache .local directory
+    - name: Restore .local directory cache
+      id: restore-local-cache
       uses: actions/cache@v3
       with:
-        path: .local
-        key: ${{ runner.os }}-local-${{ hashFiles('**/install.sh') }}
+        path: |
+          .local
+          gnark-prover/proving-keys
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
 
     - name: Install dependencies
+      if: steps.restore-local-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         ./scripts/install.sh
+
+    - name: Set local environment
+      shell: bash
+      run: |
         source ./scripts/devenv.sh
 
+    - name: Rust cache
+      uses: swatinem/rust-cache@v2
+
     - name: Setup pnpm
-      uses: pnpm/action-setup@v2.4.0
+      uses: pnpm/action-setup@v4
       with:
-        version: 8
         run_install: false
 
     - name: Get pnpm store directory
@@ -36,7 +46,15 @@ runs:
       run: |
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-    - name: Install pnpm dependencies
+    - uses: actions/cache@v4
+      name: Setup pnpm cache
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    - name: Install dependencies
       shell: bash
       run: pnpm install
 
@@ -49,4 +67,11 @@ runs:
         npx nx build @lightprotocol/hasher.rs
         npx nx build @lightprotocol/programs
         npx nx build @lightprotocol/zk-compression-cli
-        echo "Skip check for git changes"
+
+    - name: Cache .local directory
+      uses: actions/cache@v3
+      with:
+        path: |
+          .local
+          gnark-prover/proving-keys
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}

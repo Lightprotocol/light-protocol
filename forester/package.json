@@ -6,13 +6,11 @@
     "restart-db": "docker compose down -v && docker compose up -d",
     "migrate-db": "../.local/cargo/bin/photon-migration --database-url postgres://photon:photon@localhost:5432/postgres",
     "wait-for-db": "./scripts/wait_for_db.sh",
-
     "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
     "restart-validator": "pnpm restart-db && pnpm wait-for-db && pnpm migrate-db && pnpm start-validator",
-
     "build": "cargo build",
-    "test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test test_indexer -- --nocapture",
-
+    "test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --nocapture --test-threads=1",
+    "test-indexer": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test test_indexer -- --nocapture",
     "address-tree-test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test empty_address_tree_test -- --nocapture",
     "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
     "tree-info": "RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
@@ -32,8 +30,18 @@
   },
   "devDependencies": {
     "@lightprotocol/stateless.js": "workspace:^",
+    "@lightprotocol/zk-compression-cli": "workspace:*",
     "@solana/web3.js": "^1.91.7",
     "borsh": "^2.0.0",
     "ts-node": "^10.9.2"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{workspaceRoot}/target/release"
+        ]
+      }
+    }
   }
 }

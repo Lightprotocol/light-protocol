@@ -32,16 +32,13 @@ concurrency:
 jobs:
   test:
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Run install script
-        shell: bash
-        run: ./scripts/install.sh
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
 
       # concurrent merkle tree crate must run in isolation because otherwise it
       # tries to use the idl-build feature (which fails).

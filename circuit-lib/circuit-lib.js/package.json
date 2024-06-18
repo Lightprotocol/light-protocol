@@ -20,6 +20,7 @@
     "ffjavascript": "^0.2.62"
   },
   "devDependencies": {
+    "@lightprotocol/zk-compression-cli": "workspace:*",
     "@coral-xyz/anchor": "0.29.0",
     "@solana/web3.js": "^1.87.6",
     "@types/chai": "^4.3.9",
@@ -42,5 +43,12 @@
   "files": [
     "lib/**/*",
     "circuits/**/*"
-  ]
+  ],
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": ["{projectRoot}/lib"]
+      }
+    }
+  }
 }

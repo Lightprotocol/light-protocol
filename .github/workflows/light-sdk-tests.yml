@@ -21,18 +21,17 @@ jobs:
   light-sdk-tests:
     name: light-sdk-tests
     if: github.event.pull_request.draft == false
-    runs-on: buildjet-4vcpu-ubuntu-2204
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - name: sdk-tests-light-rpc-cli
             sub-tests: '[
-                "@lightprotocol/circuit-lib.js:test",
-                "@lightprotocol/prover.js:test",
-                "@lightprotocol/zk-compression-cli:test",
+                "@lightprotocol/circuit-lib.js",
+                "@lightprotocol/prover.js",
+                "@lightprotocol/zk-compression-cli",
             ]'
     steps:
-    
       - name: Checkout sources
         uses: actions/checkout@v4
 
@@ -45,5 +44,5 @@ jobs:
           IFS=', ' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
-            npx nx run "$subtest"
+            npx nx test "$subtest"
           done

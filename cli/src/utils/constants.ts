@@ -1,5 +1,9 @@
 export const SPL_NOOP_PROGRAM_TAG = "spl-noop-v0.2.0";
 export const LIGHT_MERKLE_TREE_PROGRAM_TAG = "light-merkle-tree-program-v0.3.1";
+export const LIGHT_ACCOUNT_COMPRESSION_TAG = "account-compression-v0.3.5";
+export const LIGHT_SYSTEM_PROGRAM_TAG = "light-system-program-v0.3.4";
+export const LIGHT_REGISTRY_TAG = "light-registry-v0.3.4";
+export const LIGHT_COMPRESSED_TOKEN_TAG = "light-compressed-token-v0.3.4";
 
 export const CONFIG_PATH = "/.config/light/";
 export const CONFIG_FILE_NAME = "config.json";

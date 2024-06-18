@@ -11,14 +11,6 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2.4.0
-        with:
-          version: 8
-          run_install: false
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
