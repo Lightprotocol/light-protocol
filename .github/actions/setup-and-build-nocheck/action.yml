@@ -19,7 +19,7 @@ runs:
       with:
         path: |
           .local
-          gnark-prover/proving-keys
+          light-prover/proving-keys
         key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
 
     - name: Install dependencies
@@ -73,5 +73,5 @@ runs:
       with:
         path: |
           .local
-          gnark-prover/proving-keys
+          light-prover/proving-keys
         key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
