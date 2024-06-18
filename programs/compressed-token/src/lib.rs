@@ -150,4 +150,6 @@ pub enum ErrorCode {
     ArithmeticUnderflow,
     #[msg("InvalidDelegate")]
     InvalidDelegate,
+    #[msg("HashToFieldError")]
+    HashToFieldError,
 }

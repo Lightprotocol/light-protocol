@@ -86,9 +86,10 @@ pub fn create_input_and_output_accounts_approve(
     };
     let mut output_compressed_accounts =
         vec![OutputCompressedAccountWithPackedContext::default(); 2];
-    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes())
-        .unwrap()
-        .0;
+    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
+        Some(hashed_mint) => hashed_mint.0,
+        None => return err!(ErrorCode::HashToFieldError),
+    };
     create_output_compressed_accounts::<true, false>(
         &mut output_compressed_accounts,
         inputs.mint,
@@ -165,9 +166,10 @@ pub fn create_input_and_output_accounts_revoke(
     let sum_inputs = input_token_data.iter().map(|x| x.amount).sum::<u64>();
     let mut output_compressed_accounts =
         vec![OutputCompressedAccountWithPackedContext::default(); 1];
-    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes())
-        .unwrap()
-        .0;
+    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
+        Some(hashed_mint) => hashed_mint.0,
+        None => return err!(ErrorCode::HashToFieldError),
+    };
     create_output_compressed_accounts::<false, false>(
         &mut output_compressed_accounts,
         inputs.mint,
@@ -239,9 +241,11 @@ pub mod sdk {
         let delegated_merkle_tree_index = remaining_accounts
             .get(&inputs.delegated_compressed_account_merkle_tree)
             .unwrap();
-        let change_account_merkle_tree_index = remaining_accounts
-            .get(&inputs.change_compressed_account_merkle_tree)
-            .unwrap();
+        let change_account_merkle_tree_index =
+            match remaining_accounts.get(&inputs.change_compressed_account_merkle_tree) {
+                Some(change_account_merkle_tree_index) => change_account_merkle_tree_index,
+                None => return Err(TransferSdkError::AccountNotFound),
+            };
         let inputs_struct = CompressedTokenInstructionDataApprove {
             proof: inputs.proof,
             mint: inputs.mint,
@@ -255,7 +259,7 @@ pub mod sdk {
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut serialized_ix_data = Vec::new();
         CompressedTokenInstructionDataApprove::serialize(&inputs_struct, &mut serialized_ix_data)
-            .unwrap();
+            .map_err(|_| TransferSdkError::SerializationError)?;
 
         let (cpi_authority_pda, _) = get_cpi_authority_pda();
         let instruction_data = crate::instruction::Approve {
@@ -325,7 +329,7 @@ pub mod sdk {
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut serialized_ix_data = Vec::new();
         CompressedTokenInstructionDataRevoke::serialize(&inputs_struct, &mut serialized_ix_data)
-            .unwrap();
+            .map_err(|_| TransferSdkError::SerializationError)?;
 
         let (cpi_authority_pda, _) = get_cpi_authority_pda();
         let instruction_data = crate::instruction::Revoke {

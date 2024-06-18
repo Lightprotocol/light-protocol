@@ -70,9 +70,10 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
     }
     bench_sbf_end!("t_process_compression");
     bench_sbf_start!("t_create_output_compressed_accounts");
-    let hashed_mint = hash_to_bn254_field_size_be(&inputs.mint.to_bytes())
-        .unwrap()
-        .0;
+    let hashed_mint = match hash_to_bn254_field_size_be(&inputs.mint.to_bytes()) {
+        Some(hashed_mint) => hashed_mint.0,
+        None => return err!(ErrorCode::HashToFieldError),
+    };
 
     let mut output_compressed_accounts = vec![
         OutputCompressedAccountWithPackedContext::default();
@@ -497,6 +498,10 @@ pub mod transfer_sdk {
         SignerCheckFailed,
         #[msg("Create transfer instruction failed")]
         CreateTransferInstructionFailed,
+        #[msg("Account not found")]
+        AccountNotFound,
+        #[msg("Serialization error")]
+        SerializationError,
     }
 
     #[allow(clippy::too_many_arguments)]
