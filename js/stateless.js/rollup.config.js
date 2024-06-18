@@ -26,6 +26,12 @@ const rolls = (fmt, env) => ({
         }),
         env === 'browser' ? nodePolyfills() : undefined,
     ].filter(Boolean),
+    // TODO: Consider alternative
+    onwarn: (warning, warn) => {
+        // Suppress circular dependency warnings
+        if (warning.code === 'CIRCULAR_DEPENDENCY') return;
+        warn(warning);
+    },
 });
 
 const typesConfig = {
