@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
 
-set -x
-
 kill_light_prover() {
-  if ! pkill -f '.*prover-.*'  ; then
-    echo "No process matching .*prover-.* found"
+  prover_pid=$(lsof -t -i :3001)
+  if [ -n "$prover_pid" ]; then
+    kill $prover_pid
+    echo "Killed process with PID $prover_pid bound to port 3001"
+  else
+    echo "No process found running on port 3001"
   fi
-
-  if ! pkill -f '.*light-prover.*' ; then
-    echo "No process matching .*light-prover.* found"
-  fi
-
-  sleep 1
 }
 
 build_prover() {
@@ -65,5 +61,7 @@ if [ "$non_inclusion" = true ]; then cmd="$cmd --non-inclusion=true"; fi
 if [ "$combined" = true ]; then cmd="$cmd --combined=true"; fi
 
 echo "Running command: $cmd"
+
 kill_light_prover && $cmd &
+
 echo "Command completed with status code $?"

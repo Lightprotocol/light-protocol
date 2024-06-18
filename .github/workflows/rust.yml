@@ -46,7 +46,7 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --workspace --exclude light-concurrent-merkle-tree --exclude photon-api --exclude forester -- --test-threads=1
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --workspace --exclude light-concurrent-merkle-tree --exclude photon-api --exclude forester
 
       - name: Test light-concurrent-merkle-tree
         run: |

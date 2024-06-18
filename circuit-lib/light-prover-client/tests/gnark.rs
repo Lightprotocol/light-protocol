@@ -15,7 +15,6 @@ async fn prove_inclusion() {
     let client = Client::new();
     for number_of_utxos in &[1, 2, 3, 4, 8] {
         let (inputs, _) = inclusion_inputs_string(*number_of_utxos as usize);
-        println!("Inputs utxo {} inclusion: {}", number_of_utxos, inputs);
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")

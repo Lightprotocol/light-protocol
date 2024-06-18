@@ -37,27 +37,26 @@ pub async fn spawn_prover(restart: bool, proof_types: &[ProofType]) {
     if let Some(project_root) = get_project_root() {
         let path = "circuit-lib/light-prover-client/scripts/prover.sh";
         let absolute_path = format!("{}/{}", project_root.trim(), path);
-
         if restart {
             kill_prover();
         }
 
         if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
+
+            let proof_type_args: Vec<String> = proof_types.iter().map(|p| p.to_string()).collect();
+            let proof_type_str = proof_type_args.join(" ");
             Command::new("sh")
                 .arg("-c")
-                .arg(format!(
-                    "{} {}",
-                    absolute_path,
-                    proof_types
-                        .iter()
-                        .map(|p| p.to_string() + " ")
-                        .collect::<String>(),
-                ))
+                .arg(format!("{} {}", absolute_path, proof_type_str))
                 .spawn()
                 .expect("Failed to start server process");
-            health_check(20, 5).await;
-            info!("Prover started");
+            let health_result = health_check(20, 5).await;
+            if health_result {
+                info!("Prover started successfully");
+            } else {
+                panic!("Prover failed to start");
+            }
             IS_LOADING.store(false, Ordering::Relaxed);
         }
     } else {
