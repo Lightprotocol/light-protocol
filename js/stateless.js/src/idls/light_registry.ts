@@ -254,6 +254,10 @@ export type LightRegistry = {
                     type: 'u16';
                 },
                 {
+                    name: 'indexedChangelogIndex';
+                    type: 'u16';
+                },
+                {
                     name: 'value';
                     type: 'u16';
                 },
@@ -783,6 +787,10 @@ export const IDL: LightRegistry = {
                 },
                 {
                     name: 'changelogIndex',
+                    type: 'u16',
+                },
+                {
+                    name: 'indexedChangelogIndex',
                     type: 'u16',
                 },
                 {

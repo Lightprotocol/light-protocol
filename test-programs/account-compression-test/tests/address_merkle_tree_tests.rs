@@ -264,6 +264,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
         true,
     )
     .await
@@ -283,6 +284,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
         true,
     )
     .await
@@ -300,6 +302,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
         true,
     )
@@ -325,6 +328,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
         true,
     )
     .await;
@@ -348,6 +352,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         invalid_low_element_next_index,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
         true,
     )
@@ -373,6 +378,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         invalid_low_element_next_value,
         low_element_proof.to_array().unwrap(),
         None,
+        None,
         true,
     )
     .await;
@@ -397,6 +403,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         invalid_low_element_proof,
+        None,
         None,
         true,
     )
@@ -430,6 +437,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(invalid_changelog_index_low as u16),
+        None,
         true,
     )
     .await;
@@ -453,6 +461,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(invalid_changelog_index_high as u16),
+        None,
         true,
     )
     .await;
@@ -476,6 +485,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         None,
+        None,
         true,
     )
     .await;
@@ -487,6 +497,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
     .unwrap();
 
     // CHECK: 12 invalid Merkle tree account
+    let indexed_changelog_index = address_merkle_tree.indexed_changelog_index();
     let invalid_merkle_tree = address_queue_pubkey;
     let error_invalid_merkle_tree = update_merkle_tree(
         &mut context,
@@ -500,6 +511,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(changelog_index as u16),
+        Some(indexed_changelog_index as u16),
         true,
     )
     .await;
@@ -538,6 +550,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
         Some(changelog_index as u16),
+        None,
         true,
     )
     .await;
@@ -892,6 +905,7 @@ pub async fn test_with_invalid_low_element(
         low_element.next_index as u64,
         bigint_to_be_bytes_array(&low_element_next_value).unwrap(),
         low_element_proof.to_array().unwrap(),
+        None,
         None,
         true,
     )

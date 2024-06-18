@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref};
+use std::{fmt, marker::PhantomData, ops::Deref};
 
 use light_bounded_vec::CyclicBoundedVecMetadata;
 use light_concurrent_merkle_tree::{
@@ -14,13 +14,29 @@ use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize>(IndexedMerkleTree<H, I, HEIGHT>)
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>;
 
 impl<H, I, const HEIGHT: usize> IndexedMerkleTreeCopy<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     /// Casts a byte slice into wrapped `IndexedMerkleTree` structure reference,
@@ -64,7 +80,15 @@ where
 impl<H, I, const HEIGHT: usize> Deref for IndexedMerkleTreeCopy<H, I, HEIGHT>
 where
     H: Hasher,
-    I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
+    I: CheckedAdd
+        + CheckedSub
+        + Copy
+        + Clone
+        + fmt::Debug
+        + PartialOrd
+        + ToBytes
+        + TryFrom<usize>
+        + Unsigned,
     usize: From<I>,
 {
     type Target = IndexedMerkleTree<H, I, HEIGHT>;

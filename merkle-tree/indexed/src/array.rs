@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, fmt::Debug, marker::PhantomData};
 
-use light_concurrent_merkle_tree::light_hasher::Hasher;
+use light_concurrent_merkle_tree::{event::RawIndexedElement, light_hasher::Hasher};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
@@ -79,6 +79,12 @@ where
         ])?;
 
         Ok(hash)
+    }
+
+    pub fn update_from_raw_element(&mut self, raw_element: &RawIndexedElement<I>) {
+        self.index = raw_element.index;
+        self.value = BigUint::from_bytes_be(&raw_element.value);
+        self.next_index = raw_element.next_index;
     }
 }
 

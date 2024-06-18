@@ -40,6 +40,7 @@ pub fn process_update_address_merkle_tree<'info>(
     ctx: Context<'_, '_, '_, 'info, UpdateAddressMerkleTree<'info>>,
     // Index of the Merkle tree changelog.
     changelog_index: u16,
+    indexed_changelog_index: u16,
     // Address to dequeue.
     value_index: u16,
     // Low address.
@@ -110,6 +111,7 @@ pub fn process_update_address_merkle_tree<'info>(
     let indexed_merkle_tree_update = merkle_tree
         .update(
             usize::from(changelog_index),
+            usize::from(indexed_changelog_index),
             address,
             low_address,
             low_address_next_value,

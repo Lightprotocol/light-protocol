@@ -4,7 +4,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "push-idls": "../scripts/push-stateless-js-idls.sh && ../scripts/push-compressed-token-idl.sh",
-    "build": "anchor build && pnpm build-system && pnpm build-compressed-token && pnpm push-idls",
+    "build": "anchor build",
+    "build-idls": "anchor build && pnpm build-system && pnpm build-compressed-token && pnpm push-idls",
     "build-system": "anchor build --program-name light_system_program -- --features cpi-context idl-build custom-heap",
     "build-compressed-token": "anchor build --program-name light_compressed_token -- --features cpi-context idl-build custom-heap",
     "test": "pnpm test-account-compression && pnpm test-system && pnpm test-compressed-token && pnpm test-registry",

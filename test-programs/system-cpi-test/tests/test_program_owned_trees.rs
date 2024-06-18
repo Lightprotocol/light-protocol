@@ -471,6 +471,7 @@ async fn test_invalid_registered_program() {
         let instruction_data = light_registry::instruction::UpdateAddressMerkleTree {
             bump,
             changelog_index: 1,
+            indexed_changelog_index: 1,
             value: 1u16,
             low_address_index: 1,
             low_address_proof: [[0u8; 32]; 16],
