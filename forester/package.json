@@ -29,9 +29,9 @@
     "tnt": "pnpm start-validator && pnpm transfer-sync && pnpm queue-info && pnpm nullify && pnpm queue-info && pnpm transfer-sync"
   },
   "devDependencies": {
-    "@lightprotocol/stateless.js": "workspace:^",
+    "@lightprotocol/stateless.js": "workspace:*",
     "@lightprotocol/zk-compression-cli": "workspace:*",
-    "@solana/web3.js": "^1.91.7",
+    "@solana/web3.js": "^1.91.8",
     "borsh": "^2.0.0",
     "ts-node": "^10.9.2"
   },
