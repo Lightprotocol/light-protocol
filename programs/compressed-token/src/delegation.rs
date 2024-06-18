@@ -13,7 +13,7 @@ use crate::{
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
         InputTokenDataWithContext,
     },
-    ApproveOrRevokeInstruction, ErrorCode,
+    ErrorCode, GenericInstruction,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -38,7 +38,7 @@ pub struct CompressedTokenInstructionDataApprove {
 /// 4. pack token data into input compressed accounts
 /// 5. execute compressed transaction
 pub fn process_approve<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, ApproveOrRevokeInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataApprove =
@@ -121,7 +121,7 @@ pub struct CompressedTokenInstructionDataRevoke {
 }
 
 pub fn process_revoke<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, ApproveOrRevokeInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataRevoke =
@@ -262,8 +262,7 @@ pub mod sdk {
             inputs: serialized_ix_data,
         };
 
-        // TODO: create an instruction struct without any optionals
-        let accounts = crate::accounts::ApproveOrRevokeInstruction {
+        let accounts = crate::accounts::GenericInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,
@@ -333,8 +332,7 @@ pub mod sdk {
             inputs: serialized_ix_data,
         };
 
-        // TODO: create an instruction struct without any optionals
-        let accounts = crate::accounts::ApproveOrRevokeInstruction {
+        let accounts = crate::accounts::GenericInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,

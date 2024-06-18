@@ -545,7 +545,7 @@ pub mod transfer_sdk {
         } else {
             *owner
         };
-        println!("authority: {:?}", authority);
+
         let accounts = crate::accounts::TransferInstruction {
             fee_payer: *fee_payer,
             authority,

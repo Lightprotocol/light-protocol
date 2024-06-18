@@ -63,14 +63,14 @@ pub mod light_compressed_token {
     }
 
     pub fn approve<'info>(
-        ctx: Context<'_, '_, '_, 'info, ApproveOrRevokeInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         delegation::process_approve(ctx, inputs)
     }
 
     pub fn revoke<'info>(
-        ctx: Context<'_, '_, '_, 'info, ApproveOrRevokeInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         delegation::process_revoke(ctx, inputs)
@@ -91,7 +91,7 @@ pub mod light_compressed_token {
     }
 
     pub fn burn<'info>(
-        ctx: Context<'_, '_, '_, 'info, ApproveOrRevokeInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, GenericInstruction<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
         burn::process_burn(ctx, inputs)

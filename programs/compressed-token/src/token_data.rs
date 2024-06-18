@@ -380,16 +380,6 @@ pub mod test {
         )
         .unwrap();
         assert_to_previous_hashes(hash7, &mut vec_previous_hashes);
-        // // different delegated amount
-        // let hash8 = TokenData::hash_with_delegate_hashed_values::<Poseidon>(
-        //     &hashed_mint,
-        //     &hashed_owner,
-        //     &token_data.amount.to_le_bytes(),
-        //     &token_data.is_native,
-        //     &hashed_delegate,
-        // )
-        // .unwrap();
-        // assert_to_previous_hashes(hash8, &mut vec_previous_hashes);
         // different account state
         let mut token_data = token_data;
         token_data.state = AccountState::Frozen;

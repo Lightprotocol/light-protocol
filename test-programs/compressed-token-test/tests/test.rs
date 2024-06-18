@@ -11,10 +11,12 @@ use light_test_utils::spl::thaw_test;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 use light_circuitlib_rs::gnark::helpers::kill_gnark_server;
-use light_compressed_token::get_cpi_authority_pda;
 use light_compressed_token::get_token_pool_pda;
-use light_compressed_token::transfer_sdk::create_transfer_instruction;
-use light_compressed_token::{token_data::TokenData, ErrorCode, TokenTransferOutputData};
+use light_compressed_token::process_transfer::get_cpi_authority_pda;
+use light_compressed_token::process_transfer::{
+    transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
+};
+use light_compressed_token::{token_data::TokenData, ErrorCode};
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -477,7 +479,7 @@ async fn test_revoke() {
     }
 }
 
-/// Test revoke:
+/// Test Burn:
 /// 1. Burn tokens
 /// 1. Delegate tokens with approve
 /// 2. Burn delegated tokens
@@ -583,7 +585,7 @@ async fn test_burn() {
         )
         .await;
     }
-    // 3. Burn delegated tokens all
+    // 3. Burn all delegated tokens
     {
         let input_compressed_accounts =
             test_indexer.get_compressed_token_accounts_by_owner(&sender.pubkey());
@@ -1424,37 +1426,6 @@ async fn test_invalid_inputs() {
         assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
             .unwrap();
     }
-    // Error is not used anymore since we remove delegated amount
-    // // Test 9: DelegateUndefined
-    // {
-    //     let mut input_compressed_account_token_data =
-    //         test_indexer.token_compressed_accounts[0].token_data;
-    //     let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
-    //         .compressed_account
-    //         .clone()];
-    //     let mut vec = Vec::new();
-    //     crate::TokenData::serialize(&input_compressed_account_token_data, &mut vec).unwrap();
-    //     input_compressed_accounts[0]
-    //         .compressed_account
-    //         .data
-    //         .as_mut()
-    //         .unwrap()
-    //         .data = vec;
-    //     let res = perform_transfer_failing_test(
-    //         &mut rpc,
-    //         change_out_compressed_account_0,
-    //         transfer_recipient_out_compressed_account_0,
-    //         &merkle_tree_pubkey,
-    //         &nullifier_queue_pubkey,
-    //         &recipient_keypair,
-    //         &Some(proof_rpc_result.proof.clone()),
-    //         &proof_rpc_result.root_indices,
-    //         &input_compressed_accounts,
-    //         false,
-    //     )
-    //     .await;
-    //     assert_custom_error_or_program_error(res, ErrorCode::DelegateUndefined.into()).unwrap();
-    // }
     // Test 10: invalid root indices
     {
         let mut root_indices = proof_rpc_result.root_indices.clone();

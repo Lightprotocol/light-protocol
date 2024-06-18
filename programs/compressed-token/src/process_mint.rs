@@ -1,5 +1,5 @@
 #[cfg(target_os = "solana")]
-use crate::get_cpi_signer_seeds;
+use crate::process_transfer::get_cpi_signer_seeds;
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
     token_data::{AccountState, TokenData},

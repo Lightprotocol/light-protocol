@@ -13,7 +13,7 @@ use crate::{
         get_input_compressed_accounts_with_merkle_context_and_check_signer, DelegatedTransfer,
         InputTokenDataWithContext,
     },
-    ApproveOrRevokeInstruction, ErrorCode,
+    ErrorCode, GenericInstruction,
 };
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -27,9 +27,8 @@ pub struct CompressedTokenInstructionDataBurn {
     pub delegated_transfer: Option<DelegatedTransfer>,
 }
 
-// TODO: make callable by delegate
 pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
-    ctx: Context<'a, 'b, 'c, 'info, ApproveOrRevokeInstruction<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
 ) -> Result<()> {
     let inputs: CompressedTokenInstructionDataBurn =
@@ -191,7 +190,7 @@ pub mod sdk {
         }
         .data();
 
-        let accounts = crate::accounts::ApproveOrRevokeInstruction {
+        let accounts = crate::accounts::GenericInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,
             cpi_authority_pda,

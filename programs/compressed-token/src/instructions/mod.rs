@@ -1,6 +1,6 @@
-pub mod approve_or_revoke;
 pub mod freeze;
+pub mod generic;
 pub mod transfer;
-pub use approve_or_revoke::*;
 pub use freeze::*;
+pub use generic::*;
 pub use transfer::*;

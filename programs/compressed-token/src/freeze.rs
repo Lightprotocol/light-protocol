@@ -117,13 +117,6 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
     outputs_merkle_tree_index: &u8,
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
 ) -> Result<()> {
-    // TODO: add hash function with hashed inputs
-    // let hashed_owner = hash_to_bn254_field_size_be(owner.to_bytes().as_slice())
-    //     .unwrap()
-    //     .0;
-    let mut cached_hashed_delegates =
-        Vec::<(u8, [u8; 32])>::with_capacity(input_token_data_with_context.len());
-
     for (i, token_data) in input_token_data_with_context.iter().enumerate() {
         // 83 =
         //      32  mint
@@ -133,27 +126,9 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         // +    1   state
         // +    8   delegated_amount
         let mut token_data_bytes = Vec::with_capacity(83);
-        let (_hashed_delegate, delegate) = match token_data.delegate_index {
-            Some(index) => {
-                let result = cached_hashed_delegates.iter().find(|x| x.0 == index);
-                match result {
-                    None => {
-                        let delegate = remaining_accounts[index as usize].key();
-                        let hashed_delegate =
-                            hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-                                .unwrap()
-                                .0;
-                        cached_hashed_delegates.push((index, hashed_delegate));
-                        (Some(hashed_delegate), Some(delegate))
-                    }
-                    Some((_, hashed_delegate)) => (
-                        Some(*hashed_delegate),
-                        Some(remaining_accounts[index as usize].key()),
-                    ),
-                }
-            }
-            None => (None, None),
-        };
+        let delegate = token_data
+            .delegate_index
+            .map(|index| remaining_accounts[index as usize].key());
         let state = if IS_FROZEN {
             AccountState::Frozen
         } else {
@@ -169,7 +144,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             is_native: None,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
-        // TODO: add hash function with hashed inputs
+
         let data_hash = token_data.hash::<Poseidon>().map_err(ProgramError::from)?;
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
@@ -267,7 +242,6 @@ pub mod sdk {
             .data()
         };
 
-        // TODO: create an instruction struct without any optionals
         let accounts = crate::accounts::FreezeInstruction {
             fee_payer: inputs.fee_payer,
             authority: inputs.authority,

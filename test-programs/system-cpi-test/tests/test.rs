@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::AnchorDeserialize;
-use light_compressed_token::InputTokenDataWithContext;
+use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_hasher::{Hasher, Poseidon};
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{

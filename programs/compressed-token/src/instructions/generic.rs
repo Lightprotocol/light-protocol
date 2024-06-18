@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
 
 #[derive(Accounts)]
-pub struct ApproveOrRevokeInstruction<'info> {
+pub struct GenericInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     pub authority: Signer<'info>,
@@ -26,7 +26,7 @@ pub struct ApproveOrRevokeInstruction<'info> {
     pub system_program: Program<'info, System>,
 }
 
-impl<'info> InvokeAccounts<'info> for ApproveOrRevokeInstruction<'info> {
+impl<'info> InvokeAccounts<'info> for GenericInstruction<'info> {
     fn get_registered_program_pda(
         &self,
     ) -> &Account<'info, account_compression::instructions::register_program::RegisteredProgram>
@@ -59,7 +59,7 @@ impl<'info> InvokeAccounts<'info> for ApproveOrRevokeInstruction<'info> {
     }
 }
 
-impl<'info> SignerAccounts<'info> for ApproveOrRevokeInstruction<'info> {
+impl<'info> SignerAccounts<'info> for GenericInstruction<'info> {
     fn get_fee_payer(&self) -> &Signer<'info> {
         &self.fee_payer
     }
