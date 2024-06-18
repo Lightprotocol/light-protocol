@@ -40,11 +40,13 @@ where
     let size = mem::size_of::<T>() * metadata.capacity();
     let ptr = bytes[*offset..*offset + size].as_ptr() as *const T;
 
-    let mut vec = BoundedVec::with_capacity(metadata.capacity());
+    let mut vec = BoundedVec::with_metadata(metadata);
+    let dst_ptr = vec.as_mut_ptr() as *mut T;
+
     for i in 0..metadata.length() {
         let val = ptr::read(ptr.add(i));
-        // PANICS: We ensured the bounds.
-        vec.push(val).unwrap();
+        // SAFETY: We ensured the bounds.
+        unsafe { ptr::write(dst_ptr.add(i), val) };
     }
 
     *offset += size;
@@ -69,13 +71,15 @@ where
     T: Clone,
 {
     let size = mem::size_of::<T>() * metadata.capacity();
-    let ptr = bytes[*offset..*offset + size].as_ptr() as *const T;
+    let src_ptr = bytes[*offset..*offset + size].as_ptr() as *const T;
 
     let mut vec = CyclicBoundedVec::with_metadata(metadata);
+    let dst_ptr = vec.as_mut_ptr() as *mut T;
+
     for i in 0..metadata.length() {
-        let val = ptr::read(ptr.add(i));
-        // PANICS: We ensured the bounds.
-        (*vec.get_mut(i).unwrap()) = val;
+        let val = ptr::read(src_ptr.add(i));
+        // SAFETY: We ensured the bounds.
+        unsafe { ptr::write(dst_ptr.add(i), val) };
     }
 
     *offset += size;

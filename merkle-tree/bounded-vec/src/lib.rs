@@ -96,7 +96,7 @@ where
     T: Clone,
 {
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
+    fn metadata_with_capacity(capacity: usize) -> *mut BoundedVecMetadata {
         let layout = Layout::new::<BoundedVecMetadata>();
         let metadata = unsafe { alloc::alloc(layout) as *mut BoundedVecMetadata };
         if metadata.is_null() {
@@ -109,12 +109,52 @@ where
             };
         }
 
+        metadata
+    }
+
+    #[inline]
+    fn metadata_from(src_metadata: &BoundedVecMetadata) -> *mut BoundedVecMetadata {
+        let layout = Layout::new::<BoundedVecMetadata>();
+        let metadata = unsafe { alloc::alloc(layout) as *mut BoundedVecMetadata };
+        if metadata.is_null() {
+            handle_alloc_error(layout);
+        }
+        unsafe { (*metadata).clone_from(src_metadata) };
+
+        metadata
+    }
+
+    #[inline]
+    fn data_with_capacity(capacity: usize) -> NonNull<T> {
         let layout = Layout::array::<T>(capacity).unwrap();
         let data_ptr = unsafe { alloc::alloc(layout) as *mut T };
         if data_ptr.is_null() {
             handle_alloc_error(layout);
         }
-        let data = NonNull::new(data_ptr).unwrap();
+        // PANICS: We ensured that the pointer is not NULL.
+        NonNull::new(data_ptr).unwrap()
+    }
+
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        let metadata = Self::metadata_with_capacity(capacity);
+        let data = Self::data_with_capacity(capacity);
+
+        Self { metadata, data }
+    }
+
+    /// Creates a `BoundedVec<T>` with the given `metadata`.
+    ///
+    /// # Safety
+    ///
+    /// This method is unsafe, as it does not guarantee the correctness of
+    /// provided parameters (other than `capacity`). The full responisibility
+    /// is on the caller.
+    #[inline]
+    pub unsafe fn with_metadata(metadata: &BoundedVecMetadata) -> Self {
+        let capacity = metadata.capacity();
+        let metadata = Self::metadata_from(metadata);
+        let data = Self::data_with_capacity(capacity);
 
         Self { metadata, data }
     }
@@ -246,6 +286,12 @@ where
         }
         let cell = unsafe { &mut *self.data.as_ptr().add(index) };
         Some(cell)
+    }
+
+    /// Returns a mutable pointer to `BoundedVec`'s buffer.
+    #[inline(always)]
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.data.as_ptr()
     }
 
     #[inline]
@@ -690,6 +736,12 @@ where
         }
         let cell = unsafe { &mut *self.data.as_ptr().add(index) };
         Some(cell)
+    }
+
+    /// Returns a mutable pointer to `BoundedVec`'s buffer.
+    #[inline(always)]
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.data.as_ptr()
     }
 
     #[inline]
