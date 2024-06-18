@@ -56,9 +56,7 @@ runs:
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        npx nx build @lightprotocol/hasher.rs
-        npx nx build @lightprotocol/programs
-        npx nx build @lightprotocol/zk-compression-cli
+        npx nx run-many --target=build --all --skip-nx-cache
 
     - name: Check for git changes
       shell: bash
