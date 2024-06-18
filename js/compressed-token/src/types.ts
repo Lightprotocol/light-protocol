@@ -48,10 +48,6 @@ export type InputTokenDataWithContext = {
      */
     delegateIndex: number | null;
     /**
-     * Optional: The amount of delegated tokens
-     */
-    delegatedAmount: BN | null;
-    /**
      * Optional: Whether the token is native (wSOL)
      */
     isNative: BN | null;
@@ -131,8 +127,4 @@ export type TokenData = {
      * this threshold.
      */
     isNative: BN | null;
-    /**
-     * The amount delegated
-     */
-    delegatedAmount: BN;
 };

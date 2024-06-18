@@ -238,9 +238,11 @@ pub mod sdk {
                 &inputs.root_indices,
                 &Vec::new(),
             );
-        let delegated_merkle_tree_index = remaining_accounts
-            .get(&inputs.delegated_compressed_account_merkle_tree)
-            .unwrap();
+        let delegated_merkle_tree_index =
+            match remaining_accounts.get(&inputs.delegated_compressed_account_merkle_tree) {
+                Some(delegated_merkle_tree_index) => delegated_merkle_tree_index,
+                None => return Err(TransferSdkError::AccountNotFound),
+            };
         let change_account_merkle_tree_index =
             match remaining_accounts.get(&inputs.change_compressed_account_merkle_tree) {
                 Some(change_account_merkle_tree_index) => change_account_merkle_tree_index,
@@ -315,9 +317,11 @@ pub mod sdk {
                 &inputs.root_indices,
                 &Vec::new(),
             );
-        let output_account_merkle_tree_index = remaining_accounts
-            .get(&inputs.output_account_merkle_tree)
-            .unwrap();
+        let output_account_merkle_tree_index =
+            match remaining_accounts.get(&inputs.output_account_merkle_tree) {
+                Some(output_account_merkle_tree_index) => output_account_merkle_tree_index,
+                None => return Err(TransferSdkError::AccountNotFound),
+            };
 
         let inputs_struct = CompressedTokenInstructionDataRevoke {
             proof: inputs.proof,

@@ -159,9 +159,11 @@ pub mod sdk {
                 &inputs.root_indices,
                 &Vec::new(),
             );
-        let outputs_merkle_tree_index = remaining_accounts
-            .get(&inputs.change_account_merkle_tree)
-            .unwrap();
+        let outputs_merkle_tree_index =
+            match remaining_accounts.get(&inputs.change_account_merkle_tree) {
+                Some(index) => index,
+                None => return Err(TransferSdkError::AccountNotFound),
+            };
         let delegated_transfer = if inputs.signer_is_delegate {
             let delegated_transfer = DelegatedTransfer {
                 owner: inputs.input_token_data[0].owner,

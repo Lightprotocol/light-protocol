@@ -26,7 +26,6 @@ type TokenData = {
     delegate: PublicKey | null;
     state: number;
     isNative: BN | null;
-    delegatedAmount: BN;
 };
 
 export type EventWithParsedTokenTlvData = {
