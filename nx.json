@@ -39,6 +39,15 @@
         "build"
       ]
     },
+    "format": {
+      "cache": true,
+      "inputs": [
+        "noMarkdown",
+        "^noMarkdown",
+        "noTestLedger",
+        "^noTestLedger"
+      ]
+    },
     "format:check": {
         "cache": true,
         "inputs": [

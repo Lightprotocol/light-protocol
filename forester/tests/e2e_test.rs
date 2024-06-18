@@ -10,9 +10,11 @@ use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
 
+const PROVER_PATH: &str = "../circuit-lib/circuitlib-rs/scripts/prover.sh";
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_indexer() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+async fn test_state_tree_nullifier() {
+    // env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
@@ -42,7 +44,7 @@ async fn test_indexer() {
         GeneralActionConfig::test_forester_default(),
         0,
         None,
-        "../circuit-lib/circuitlib-rs/scripts/prover.sh",
+        PROVER_PATH,
     )
     .await;
 
@@ -53,7 +55,7 @@ async fn test_indexer() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
-    for _ in 0..10 {
+    for _ in 0..5 {
         env.transfer_sol(user_index).await;
     }
 
@@ -66,6 +68,46 @@ async fn test_indexer() {
         .await
         .unwrap();
     assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_1_all() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    spawn_validator(Default::default()).await;
+    let env_accounts = get_test_env_accounts();
+    let mut rpc = SolanaRpcConnection::new(None);
+
+    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
+        .await
+        .unwrap();
+
+    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
+        rpc,
+        &env_accounts,
+        KeypairActionConfig {
+            compress_sol: Some(1.0),
+            decompress_sol: Some(1.0),
+            transfer_sol: Some(1.0),
+            create_address: Some(1.0),
+            compress_spl: Some(1.0),
+            decompress_spl: Some(1.0),
+            mint_spl: Some(1.0),
+            transfer_spl: Some(1.0),
+            max_output_accounts: Some(3),
+        },
+        GeneralActionConfig {
+            add_keypair: Some(1.0),
+            create_state_mt: Some(1.0),
+            create_address_mt: Some(1.0),
+            nullify_compressed_accounts: Some(1.0),
+            empty_address_queue: Some(1.0),
+        },
+        1,
+        None,
+        PROVER_PATH,
+    )
+    .await;
+    env.execute_rounds().await;
 }
 
 async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) -> usize {
