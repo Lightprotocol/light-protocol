@@ -37,7 +37,7 @@ impl From<BoundedVecError> for solana_program::program_error::ProgramError {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoundedVecMetadata {
     capacity: usize,
     length: usize,
@@ -442,7 +442,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CyclicBoundedVecMetadata {
     capacity: usize,
     length: usize,
@@ -781,14 +781,15 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::array;
 
     use light_utils::rand::gen_range_exclude;
-
     use rand::{
         distributions::{Distribution, Standard},
-        Rng,
+        thread_rng, Rng,
     };
+
+    use super::*;
 
     fn rand_bounded_vec<T>() -> BoundedVec<T>
     where
@@ -810,12 +811,225 @@ mod test {
     }
 
     #[test]
+    fn test_bounded_vec_metadata() {
+        let mut rng = thread_rng();
+
+        for _ in 0..1000 {
+            let capacity = rng.gen();
+            let metadata = BoundedVecMetadata::new(capacity);
+
+            assert_eq!(metadata.capacity(), capacity);
+            assert_eq!(metadata.length(), 0);
+
+            let bytes = metadata.to_ne_bytes();
+            let metadata_2 = BoundedVecMetadata::from_ne_bytes(bytes);
+
+            assert_eq!(metadata, metadata_2);
+        }
+    }
+
+    #[test]
     fn test_bounded_vec_with_capacity() {
         for capacity in 0..1024 {
             let bounded_vec = BoundedVec::<u32>::with_capacity(capacity);
 
             assert_eq!(bounded_vec.capacity(), capacity);
             assert_eq!(bounded_vec.len(), 0);
+        }
+    }
+
+    fn bounded_vec_from_array<const N: usize>() {
+        let mut rng = thread_rng();
+
+        let arr: [u64; N] = array::from_fn(|_| rng.gen());
+        let vec = BoundedVec::from_array(&arr);
+
+        assert_eq!(&arr, vec.as_slice());
+    }
+
+    #[test]
+    fn test_bounded_vec_from_array_256() {
+        bounded_vec_from_array::<256>()
+    }
+
+    #[test]
+    fn test_bounded_vec_from_array_512() {
+        bounded_vec_from_array::<512>()
+    }
+
+    #[test]
+    fn test_bounded_vec_from_array_1024() {
+        bounded_vec_from_array::<1024>()
+    }
+
+    #[test]
+    fn test_bounded_vec_from_slice() {
+        let mut rng = thread_rng();
+
+        for capacity in 0..10_000 {
+            let vec: Vec<u64> = (0..capacity).map(|_| rng.gen()).collect();
+            let bounded_vec = BoundedVec::from_slice(&vec);
+
+            assert_eq!(vec.as_slice(), bounded_vec.as_slice());
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_is_empty() {
+        let mut rng = thread_rng();
+        let mut vec = BoundedVec::with_capacity(1000);
+
+        assert!(vec.is_empty());
+
+        for _ in 0..1000 {
+            let element: u64 = rng.gen();
+            vec.push(element).unwrap();
+
+            assert!(!vec.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_get() {
+        let mut vec = BoundedVec::with_capacity(1000);
+
+        for i in 0..1000 {
+            vec.push(i).unwrap();
+        }
+
+        for i in 0..1000 {
+            assert_eq!(vec.get(i), Some(&i));
+        }
+        for i in 1000..10_000 {
+            assert!(vec.get(i).is_none());
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_get_mut() {
+        let mut vec = BoundedVec::with_capacity(1000);
+
+        for i in 0..1000 {
+            vec.push(i).unwrap();
+        }
+
+        for i in 0..1000 {
+            let element = vec.get_mut(i).unwrap();
+            assert_eq!(element, &i);
+            *element = i * 2;
+        }
+        for i in 0..1000 {
+            assert_eq!(vec.get_mut(i), Some(&mut (i * 2)));
+        }
+        for i in 1000..10_000 {
+            assert!(vec.get_mut(i).is_none());
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_iter_mut() {
+        let mut vec = BoundedVec::with_capacity(1000);
+
+        for i in 0..1000 {
+            vec.push(i).unwrap();
+        }
+
+        for (i, element) in vec.iter().enumerate() {
+            assert_eq!(*element, i);
+        }
+
+        for element in vec.iter_mut() {
+            *element = *element * 2;
+        }
+
+        for (i, element) in vec.iter().enumerate() {
+            assert_eq!(*element, i * 2);
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_last() {
+        let mut rng = thread_rng();
+        let mut vec = BoundedVec::with_capacity(1000);
+
+        assert!(vec.last().is_none());
+
+        for _ in 0..1000 {
+            let element: u64 = rng.gen();
+            vec.push(element).unwrap();
+
+            assert_eq!(vec.last(), Some(&element));
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_last_mut() {
+        let mut rng = thread_rng();
+        let mut vec = BoundedVec::with_capacity(1000);
+
+        assert!(vec.last_mut().is_none());
+
+        for _ in 0..1000 {
+            let element_old: u64 = rng.gen();
+            vec.push(element_old).unwrap();
+
+            let element_ref = vec.last_mut().unwrap();
+            assert_eq!(*element_ref, element_old);
+
+            // Assign a new value.
+            let element_new: u64 = rng.gen();
+            *element_ref = element_new;
+
+            // Assert that it took the effect.
+            let element_ref = vec.last_mut().unwrap();
+            assert_eq!(*element_ref, element_new);
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_to_array() {
+        let vec = BoundedVec::from_array(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+        let arr: [u32; 16] = vec.to_array().unwrap();
+        assert_eq!(arr, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+
+        assert!(matches!(
+            vec.to_array::<15>(),
+            Err(BoundedVecError::ArraySize(_, _))
+        ));
+        assert!(matches!(
+            vec.to_array::<17>(),
+            Err(BoundedVecError::ArraySize(_, _))
+        ));
+    }
+
+    #[test]
+    fn test_bounded_vec_to_vec() {
+        let mut rng = thread_rng();
+
+        for capacity in (0..10_000).step_by(100) {
+            let vec_1: Vec<u64> = (0..capacity).map(|_| rng.gen()).collect();
+            let bounded_vec = BoundedVec::from_slice(&vec_1);
+            let vec_2 = bounded_vec.to_vec();
+
+            assert_eq!(vec_1.as_slice(), vec_2.as_slice());
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_extend() {
+        let mut rng = thread_rng();
+
+        for capacity in (1..10_000).step_by(100) {
+            let length = rng.gen_range(0..capacity);
+
+            let mut vec = BoundedVec::with_capacity(capacity);
+            vec.extend(0..length).unwrap();
+
+            assert_eq!(vec.capacity(), capacity);
+            assert_eq!(vec.len(), length);
+            for (element_1, element_2) in vec.iter().zip(0..length) {
+                assert_eq!(*element_1, element_2);
+            }
         }
     }
 
@@ -861,6 +1075,56 @@ mod test {
     }
 
     #[test]
+    fn test_bounded_vec_index() {
+        let mut vec = BoundedVec::with_capacity(1000);
+        for i in 0..1000 {
+            vec.push(i).unwrap();
+        }
+
+        for i in 0..1000 {
+            assert_eq!(vec[i], i);
+        }
+
+        for i in 0..1000 {
+            vec[i] = i * 2;
+        }
+
+        for i in 0..1000 {
+            assert_eq!(vec[i], i * 2);
+        }
+    }
+
+    #[test]
+    fn test_bounded_vec_into_iter() {
+        let mut vec = BoundedVec::with_capacity(1000);
+        for i in 0..1000 {
+            vec.push(i).unwrap();
+        }
+
+        for (i, element) in vec.into_iter().enumerate() {
+            assert_eq!(element, i);
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_metadata() {
+        let mut rng = thread_rng();
+
+        for _ in 0..1000 {
+            let capacity = rng.gen();
+            let metadata = CyclicBoundedVecMetadata::new(capacity);
+
+            assert_eq!(metadata.capacity(), capacity);
+            assert_eq!(metadata.length(), 0);
+
+            let bytes = metadata.to_ne_bytes();
+            let metadata_2 = CyclicBoundedVecMetadata::from_ne_bytes(bytes);
+
+            assert_eq!(metadata, metadata_2);
+        }
+    }
+
+    #[test]
     fn test_cyclic_bounded_vec_with_capacity() {
         for capacity in 0..1024 {
             let cyclic_bounded_vec = CyclicBoundedVec::<u32>::with_capacity(capacity);
@@ -869,6 +1133,109 @@ mod test {
             assert_eq!(cyclic_bounded_vec.len(), 0);
             assert_eq!(cyclic_bounded_vec.first_index(), 0);
             assert_eq!(cyclic_bounded_vec.last_index(), 0);
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_is_empty() {
+        let mut rng = thread_rng();
+        let mut vec = CyclicBoundedVec::with_capacity(1000);
+
+        assert!(vec.is_empty());
+
+        for _ in 0..1000 {
+            let element: u64 = rng.gen();
+            vec.push(element);
+
+            assert!(!vec.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_get() {
+        let mut vec = CyclicBoundedVec::with_capacity(1000);
+
+        for i in 0..1000 {
+            vec.push(i);
+        }
+
+        for i in 0..1000 {
+            assert_eq!(vec.get(i), Some(&i));
+        }
+        for i in 1000..10_000 {
+            assert!(vec.get(i).is_none());
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_get_mut() {
+        let mut vec = CyclicBoundedVec::with_capacity(1000);
+
+        for i in 0..2000 {
+            vec.push(i);
+        }
+
+        for i in 0..1000 {
+            let element = vec.get_mut(i).unwrap();
+            assert_eq!(*element, 1000 + i);
+            *element = i * 2;
+        }
+        for i in 0..1000 {
+            assert_eq!(vec.get_mut(i), Some(&mut (i * 2)));
+        }
+        for i in 1000..10_000 {
+            assert!(vec.get_mut(i).is_none());
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_first() {
+        let mut vec = CyclicBoundedVec::with_capacity(500);
+
+        assert!(vec.first().is_none());
+
+        for i in 0..1000 {
+            vec.push(i);
+            assert_eq!(vec.first(), Some(&((i as u64).saturating_sub(499))));
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_last() {
+        let mut rng = thread_rng();
+        let mut vec = CyclicBoundedVec::with_capacity(500);
+
+        assert!(vec.last().is_none());
+
+        for _ in 0..1000 {
+            let element: u64 = rng.gen();
+            vec.push(element);
+
+            assert_eq!(vec.last(), Some(&element));
+        }
+    }
+
+    #[test]
+    fn test_cyclic_bounded_vec_last_mut() {
+        let mut rng = thread_rng();
+        let mut vec = CyclicBoundedVec::with_capacity(500);
+
+        assert!(vec.last_mut().is_none());
+
+        for _ in 0..1000 {
+            let element_old: u64 = rng.gen();
+            vec.push(element_old);
+
+            let element_ref = vec.last_mut().unwrap();
+            assert_eq!(*element_ref, element_old);
+
+            // Assign a new value.
+            let element_new: u64 = rng.gen();
+            *element_ref = element_new;
+
+            // Assert that it took the effect.
+            let element_ref = vec.last_mut().unwrap();
+            assert_eq!(*element_ref, element_new);
         }
     }
 
