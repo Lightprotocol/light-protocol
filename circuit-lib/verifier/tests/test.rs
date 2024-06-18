@@ -15,7 +15,7 @@ mod test {
     #[tokio::test]
     async fn prove_inclusion() {
         init_logger();
-        spawn_prover(true, &vec![ProofType::Inclusion]).await;
+        spawn_prover(false, &[ProofType::Inclusion]).await;
         let client = Client::new();
         for number_of_compressed_accounts in &[1usize, 2, 3, 4, 8] {
             let (inputs, big_int_inputs) = inclusion_inputs_string(*number_of_compressed_accounts);

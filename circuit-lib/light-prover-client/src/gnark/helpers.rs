@@ -41,7 +41,8 @@ pub async fn spawn_prover(restart: bool, proof_types: &[ProofType]) {
         if restart {
             kill_prover();
         }
-        if !health_check(5, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+
+        if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
             Command::new("sh")
                 .arg("-c")
