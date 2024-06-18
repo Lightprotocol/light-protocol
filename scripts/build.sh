@@ -11,6 +11,6 @@ pnpm install || { echo >&2 "Failed to install dependencies. Aborting."; exit 1; 
 
 mkdir -p target/deploy && cp third-party/solana-program-library/spl_noop.so target/deploy
 
-npx nx run-many --target=build --all --skip-nx-cache
+npx nx run-many --target=build --all
 
 echo "Build process completed successfully."
