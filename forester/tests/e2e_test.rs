@@ -10,8 +10,6 @@ use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
 
-const PROVER_PATH: &str = "../circuit-lib/circuitlib-rs/scripts/prover.sh";
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {
     spawn_validator(Default::default()).await;
@@ -43,7 +41,6 @@ async fn test_state_tree_nullifier() {
         GeneralActionConfig::test_forester_default(),
         0,
         None,
-        PROVER_PATH,
     )
     .await;
 
@@ -103,7 +100,6 @@ async fn test_1_all() {
         },
         1,
         None,
-        PROVER_PATH,
     )
     .await;
     env.execute_rounds().await;
