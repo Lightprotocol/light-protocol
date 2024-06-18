@@ -62,7 +62,7 @@ runs:
         source ./scripts/devenv.sh
         mkdir -p /home/runner/.config/solana/
         solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-        
+
     - name: Copy spl_noop.so to target/deploy
       shell: bash
       run: |
@@ -77,6 +77,12 @@ runs:
           .local
           gnark-prover/proving-keys
         key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+
+    - name: Build project
+      if: steps.restore-local-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        npx nx run-many --target=build --all
 
     - name: Check for git changes
       shell: bash
