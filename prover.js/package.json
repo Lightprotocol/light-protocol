@@ -21,7 +21,7 @@
   ],
   "scripts": {
     "test-prepare-circom": "./scripts/build_test_circuit.sh",
-    "test:nodejs": "vitest run",
+    "test:nodejs": "vitest run --pool=forks",
     "test:browser": "vitest run --browser.name=firefox --browser.provider=playwright --browser.headless",
     "test": "pnpm test-prepare-circom && pnpm test:nodejs",
     "test-skip-compile": "pnpm test:nodejs",
@@ -36,7 +36,7 @@
   "dependencies": {
     "@coral-xyz/anchor": "0.29.0",
     "circomlibjs": "^0.1.7",
-    "ffjavascript": "^0.2.63",
+    "ffjavascript": "^0.3.0",
     "snarkjs": "^0.7.4"
   },
   "devDependencies": {
@@ -53,7 +53,6 @@
     "@vitest/browser": "^1.6.0",
     "circomlib": "^2.0.5",
     "eslint": "8.57.0",
-    "eslint-config-love": "^53.0.0",
     "eslint-plugin-import": "^2.25.2",
     "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
     "eslint-plugin-promise": "^6.0.0",

@@ -39,7 +39,7 @@
     "cli-progress": "^3.12.0",
     "cli-spinners": "^2.9.2",
     "dotenv": "^16.4.5",
-    "ffjavascript": "^0.2.63",
+    "ffjavascript": "^0.3.0",
     "find-process": "^1.4.7",
     "node-fetch": "^3.3.2",
     "snake-case": "^3.0.4",

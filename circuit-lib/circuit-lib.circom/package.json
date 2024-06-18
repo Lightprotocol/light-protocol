@@ -18,7 +18,7 @@
     "chai-as-promised": "^7.1.1",
     "circom_tester": "^0.0.19",
     "circomlib": "^2.0.5",
-    "ffjavascript": "^0.2.63",
+    "ffjavascript": "^0.3.0",
     "mocha": "^10.2.0",
     "mocha-suppress-logs": "^0.3.1",
     "prettier": "^3.3.2",
