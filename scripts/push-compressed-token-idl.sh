@@ -1,5 +1,4 @@
 #!/bin/bash
-
 cd "$(git rev-parse --show-toplevel)"
 
 PDA_FILE="target/idl/light_system_program.json"
@@ -20,9 +19,8 @@ then
 fi
 
 # Extract types
-PDA_TYPES=$(jq '.types' < "$PDA_FILE")
-TOKEN_TYPES=$(jq '.types' < "$TOKEN_FILE")
-
+PDA_TYPES=$(jq '.types' "$PDA_FILE")
+TOKEN_TYPES=$(jq '.types' "$TOKEN_FILE")
 # Merge types and deduplicate
 MERGED_TYPES=$(jq -s 'add | unique_by(.name)' <(echo "$PDA_TYPES") <(echo "$TOKEN_TYPES"))
 # Generate TS content
