@@ -3111,6 +3111,7 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-macros",
+ "log",
  "solana-program-test",
  "solana-sdk",
  "tokio",

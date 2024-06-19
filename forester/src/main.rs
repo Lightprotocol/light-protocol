@@ -4,17 +4,20 @@ use config::Config;
 use env_logger::Env;
 use forester::nqmt::reindex_and_store;
 use log::info;
-use solana_sdk::signature::Keypair;
+use solana_sdk::signature::{Keypair, Signer};
 use std::str::FromStr;
-
+use serde_json::Result;
 use forester::cli::{Cli, Commands};
 use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
-use forester::nullifier::Config as ForesterConfig;
+use forester::nullifier::{Config as ForesterConfig, empty_address_queue};
 use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
 use light_test_utils::rpc::SolanaRpcConnection;
 use std::env;
+use std::sync::Arc;
+use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -27,6 +30,10 @@ fn locate_config_file() -> String {
     }
 
     file_name.to_string()
+}
+
+fn convert(json: &str) -> Result<Vec<u8>> {
+    serde_json::from_str(json)
 }
 
 fn init_config() -> ForesterConfig {
@@ -53,11 +60,8 @@ fn init_config() -> ForesterConfig {
     let registry_pubkey = settings
         .get_string(&SettingsKey::RegistryPubkey.to_string())
         .unwrap();
-    let payer = settings.get_array(&SettingsKey::Payer.to_string()).unwrap();
-    let payer: Vec<u8> = payer
-        .iter()
-        .map(|v| v.clone().into_uint().unwrap() as u8)
-        .collect();
+    let payer = settings.get_string(&SettingsKey::Payer.to_string()).unwrap();
+    let payer: Vec<u8> = convert(&payer).unwrap();
 
     ForesterConfig {
         server_url: SERVER_URL.to_string(),
@@ -68,9 +72,10 @@ fn init_config() -> ForesterConfig {
             .unwrap(),
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: Keypair::from_bytes(&payer).unwrap(),
-        concurrency_limit: 20,
-        batch_size: 1000,
+        concurrency_limit: 1,
+        batch_size: 1,
         max_retries: 5,
+        max_concurrent_batches: 1,
     }
 }
 #[tokio::main]
@@ -78,7 +83,17 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config = init_config();
 
-    let mut rpc = SolanaRpcConnection::new(SERVER_URL, None);
+    let commitment_config = CommitmentConfig {
+        commitment: CommitmentLevel::Confirmed,
+    };
+
+    let mut rpc = SolanaRpcConnection::new(SERVER_URL, Some(commitment_config));
+
+    rpc.airdrop_lamports(
+        &config.payer_keypair.pubkey(),
+        10_000_000_000,
+    ).await.unwrap();
+
 
     let cli = Cli::parse();
     match &cli.command {
@@ -87,7 +102,7 @@ async fn main() {
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
-            subscribe_nullify(&config, &mut rpc).await;
+            subscribe_nullify(&config, rpc.clone()).await;
         }
         Some(Commands::Nullify) => {
             info!(
@@ -95,8 +110,21 @@ async fn main() {
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
 
+            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(INDEXER_URL.to_string())));
+            let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+            let result = nullify(indexer, rpc, &config).await;
+            info!("Nullification result: {:?}", result);
+        }
+        Some(Commands::AddressTreeNullify) => {
+            info!(
+                "Nullify address tree accounts for address queue: {} and merkle tree: {}",
+                config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
+            );
+
             let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-            let result = nullify(&mut indexer, &mut rpc, &config).await;
+
+            let result = empty_address_queue(&mut indexer, &mut rpc, &config).await;
             info!("Nullification result: {:?}", result);
         }
         Some(Commands::Index) => {

@@ -137,22 +137,25 @@ async fn test_photon_interop_address() {
 
     // Insert value into address queue
     info!("Creating address 1");
+    let mut trees = env.get_address_merkle_tree_pubkeys(1).0;
 
-    let trees = env.get_address_merkle_tree_pubkeys(1).0;
+    let iterations = 10;
+    for i in 0..iterations {
+        info!("Round {} of {}", i, iterations);
+        let address_1 = generate_pubkey_254();
 
-    let address_1 = generate_pubkey_254();
-
-    {
-        assert_new_address_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &trees,
-            &[address_1].to_vec(),
-            &photon_indexer,
-        )
-        .await;
+        {
+            assert_new_address_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &trees,
+                &[address_1].to_vec(),
+                &photon_indexer,
+            )
+                .await;
+        }
+        let _created_addresses = env.create_address(Some(vec![address_1])).await;
+        trees = env.get_address_merkle_tree_pubkeys(1).0;
     }
-    let _created_addresses = env.create_address(Some(vec![address_1])).await;
-
     // Empties address queue and updates address tree
     info!("Emptying address queue");
     env.activate_general_actions().await;
@@ -161,7 +164,7 @@ async fn test_photon_interop_address() {
     // updated address tree.
     info!("Creating address 2");
     let address_2 = generate_pubkey_254();
-    // TODO(photon): Test-indexer and photon should return equivalent
+    // Test-indexer and photon should return equivalent
     // address-proofs for the same address.
     {
         assert_new_address_proofs_for_photon_and_test_indexer(

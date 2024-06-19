@@ -115,6 +115,12 @@ impl SolanaRpcConnection {
     }
 }
 
+impl Clone for SolanaRpcConnection {
+    fn clone(&self) -> Self {
+        todo!()
+    }
+}
+
 impl RpcConnection for SolanaRpcConnection {
     async fn create_and_send_transaction_with_event<T>(
         &mut self,

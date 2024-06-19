@@ -17,7 +17,7 @@ use light_indexed_merkle_tree::array::IndexedElement;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
-pub trait Indexer: Sync + Send + 'static {
+pub trait Indexer: Sync + Send + Clone + 'static {
     fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,
@@ -42,13 +42,16 @@ pub trait Indexer: Sync + Send + 'static {
         address: [u8; 32],
     ) -> impl std::future::Future<Output = Result<NewAddressProofWithContext, IndexerError>> + Send + Sync;
 
-    fn account_nullified(&mut self, merkle_tree_pubkey: Pubkey, account_hash: &str);
+
+    fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {
+    }
 
     fn address_tree_updated(
         &mut self,
-        merkle_tree_pubkey: [u8; 32],
-        context: MerkleProofWithAddressContext,
-    );
+        _merkle_tree_pubkey: [u8; 32],
+        _context: MerkleProofWithAddressContext,
+    ) {
+    }
 }
 
 #[derive(Debug)]

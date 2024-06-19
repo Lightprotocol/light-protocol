@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use super::{nullify, Config};
 use crate::constants::{INDEXER_URL, WS_SERVER_URL};
 use crate::indexer::PhotonIndexer;
@@ -8,8 +9,11 @@ use solana_client::rpc_config::RpcAccountInfoConfig;
 use solana_sdk::commitment_config::CommitmentConfig;
 use tokio::time::{sleep, Duration};
 
-pub async fn subscribe_nullify<R: RpcConnection>(config: &Config, rpc: &mut R) {
-    let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+pub async fn subscribe_nullify<R: RpcConnection + Clone + Send + Sync + 'static>(config: &Config, rpc: R) {
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(INDEXER_URL.to_string())));
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    let config = Arc::new(config.clone());
+
     loop {
         let (_account_subscription_client, account_subscription_receiver) =
             match PubsubClient::account_subscribe(
@@ -35,7 +39,11 @@ pub async fn subscribe_nullify<R: RpcConnection>(config: &Config, rpc: &mut R) {
                 Ok(_) => {
                     info!("nullify request received");
                     let time = std::time::Instant::now();
-                    match nullify(&mut indexer, rpc, config).await {
+
+                    let indexer_clone = Arc::clone(&indexer);
+                    let rpc_clone = Arc::clone(&rpc);
+
+                    match nullify(indexer_clone, rpc_clone, &config).await {
                         Ok(_) => {
                             info!("Nullify completed");
                             info!("Time elapsed: {:?}", time.elapsed());

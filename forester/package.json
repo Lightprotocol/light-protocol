@@ -11,6 +11,8 @@
     "build": "cargo build",
     "test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --nocapture --test-threads=1",
 
+    "test-sync": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify",
+
     "interop-nullify-test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test test_photon_interop_nullify_account -- --nocapture",
     "interop-address-test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test test_photon_interop_address -- --nocapture",
 
@@ -19,12 +21,11 @@
     "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
     "tree-info": "RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
     "queue-info": "RUST_MIN_STACK=8388608 cargo test queue_info_test -- --nocapture",
-    "test-10-sync": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify && pnpm transfer-sync && pnpm nullify && pnpm transfer-sync && pnpm nullify",
     "test-1000": "pnpm restart-validator && pnpm transfer && pnpm nullify && pnpm transfer && pnpm nullify",
     "transfer-100k": "ts-node scripts/generate_100k.ts",
-    "subscribe": "RUST_MIN_STACK=8388608 cargo run --release -- subscribe",
-    "nullify": "RUST_MIN_STACK=8388608 cargo run --release -- nullify",
-    "reindex": "RUST_MIN_STACK=8388608 cargo run --release -- index",
+    "subscribe": "RUST_MIN_STACK=8388608 cargo run -- subscribe",
+    "nullify": "RUST_MIN_STACK=8388608 cargo run -- nullify",
+    "reindex": "RUST_MIN_STACK=8388608 cargo run -- index",
     "dump-accounts": "./scripts/dump.sh",
     "transfer": "ts-node ./scripts/generate.ts",
     "transfer-10": "ts-node ./scripts/generate_10.ts",

@@ -1,32 +1,40 @@
 use env_logger::Env;
-use forester::constants::INDEXER_URL;
+use forester::constants::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
-use forester::utils::{spawn_validator, LightValidatorConfig};
+use forester::utils::{spawn_validator, LightValidatorConfig, get_state_queue_length};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
-use light_test_utils::test_env::get_test_env_accounts;
+use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
+use solana_sdk::signature::{Keypair, Signer};
+use account_compression::StateMerkleTreeAccount;
+use forester::nullifier::{Config, get_nullifier_queue, nullify};
+use light_hasher::Poseidon;
+use light_test_utils::get_concurrent_merkle_tree;
 
 pub async fn assert_accounts_by_owner(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
     user: &User,
     photon_indexer: &PhotonIndexer,
-) {
-    let photon_accs = photon_indexer
+)
+{
+    let mut photon_accs = photon_indexer
         .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
-    let test_accs = indexer
+    photon_accs.sort();
+
+    let mut test_accs = indexer
         .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
+    test_accs.sort();
 
     info!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
@@ -35,6 +43,10 @@ pub async fn assert_accounts_by_owner(
         photon_accs.len()
     );
     assert_eq!(test_accs.len(), photon_accs.len());
+
+    info!("test_accs: {:?}", test_accs);
+    info!("photon_accs: {:?}", photon_accs);
+
     for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
         assert_eq!(test_acc, indexer_acc);
     }
@@ -44,7 +56,8 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer,
-) {
+)
+{
     let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
         .get_rpc_compressed_accounts_by_owner(user_pubkey)
         .await;
@@ -143,33 +156,39 @@ async fn test_photon_interop_nullify_account() {
         .await
         .unwrap();
 
-    // Create starting output account
-    info!("Compressing sol");
-    env.compress_sol(user_index, balance).await;
+    let iterations = 10;
 
-    {
-        let alice = &mut env.users[0];
-        assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-        assert_account_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &alice.keypair.pubkey(),
-            &photon_indexer,
-        )
-        .await;
-    }
+    for i in 0..iterations {
+        info!("Round {} of {}", i, iterations);
 
-    // Insert output into nullifier queue
-    info!("Transferring sol");
-    env.transfer_sol(user_index).await;
+        // Create starting output account
+        info!("Compressing sol");
+        env.compress_sol(user_index, balance).await;
 
-    {
-        let alice = &mut env.users[0];
-        assert_account_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &alice.keypair.pubkey(),
-            &photon_indexer,
-        )
-        .await;
+        {
+            let alice = &mut env.users[0];
+            assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
+            assert_account_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &alice.keypair.pubkey(),
+                &photon_indexer,
+            )
+                .await;
+        }
+
+        // Insert output into nullifier queue
+        info!("Transferring sol");
+        env.transfer_sol(user_index).await;
+
+        {
+            let alice = &mut env.users[0];
+            assert_account_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &alice.keypair.pubkey(),
+                &photon_indexer,
+            )
+                .await;
+        }
     }
 
     // Nullifies all hashes in nullifier queue

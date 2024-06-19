@@ -18,9 +18,8 @@ use crate::errors::ForesterError;
 use crate::nullifier::Config;
 
 pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
-    rpc: &mut R,
     indexer: &mut T,
-    payer: &Keypair,
+    rpc: &mut R,
     config: &Config,
 ) -> Result<(), ForesterError> {
     let address_merkle_tree_pubkey = config.address_merkle_tree_pubkey;
@@ -43,6 +42,7 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
         };
 
         let address = address_queue.first_no_seq().unwrap();
+        info!("address_queue: {:?}", address);
         if address.is_none() {
             break;
         }
@@ -58,7 +58,7 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
         info!("updating merkle tree...");
         let update_successful = match update_merkle_tree(
             rpc,
-            payer,
+            &config.payer_keypair,
             address_queue_pubkey,
             address_merkle_tree_pubkey,
             address_hashset_index,

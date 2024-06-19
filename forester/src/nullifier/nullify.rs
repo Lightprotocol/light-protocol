@@ -10,18 +10,22 @@ use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{info, warn};
 use solana_sdk::pubkey::Pubkey;
+use std::str::FromStr;
 use solana_sdk::signature::Signer;
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
+use futures::future::select_all;
 use tokio::signal;
-use tokio::sync::{Mutex, Semaphore};
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
 
 #[allow(dead_code)]
 pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
-    indexer: &mut T,
-    rpc: &mut R,
+    indexer: Arc<Mutex<T>>,
+    rpc: Arc<Mutex<R>>,
     config: &Config,
 ) -> Result<(), ForesterError> {
     // TODO: check that our part of the queue is not empty before starting
@@ -30,13 +34,13 @@ pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
 }
 
 pub async fn nullify<T: Indexer, R: RpcConnection>(
-    indexer: &mut T,
-    rpc: &mut R,
+    indexer: Arc<Mutex<T>>,
+    rpc: Arc<Mutex<R>>,
     config: &Config,
 ) -> Result<(), ForesterError> {
-    let concurrency_limit = config.concurrency_limit;
-    let semaphore = Arc::new(Semaphore::new(concurrency_limit));
-    let successful_nullifications = Arc::new(Mutex::new(1));
+    // let concurrency_limit = config.concurrency_limit;
+    // let semaphore = Arc::new(Semaphore::new(concurrency_limit));
+    let successful_nullifications = Arc::new(Mutex::new(0));
     let cancellation_token = CancellationToken::new();
     let cancellation_token_clone = cancellation_token.clone();
     let _terminate_handle = {
@@ -48,59 +52,89 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
         })
     };
 
+    let mut handles: Vec<JoinHandle<Result<(), ForesterError>>> = vec![];
+
     loop {
-        let queue_data = {
-            let mut queue_data = fetch_queue_data(indexer, rpc, config).await?;
-            if cancellation_token.is_cancelled() {
-                info!("Cancellation detected, exiting loop...");
-                break;
-            }
-            if queue_data.is_none()
-                || *successful_nullifications.lock().await % config.batch_size == 0
-            {
-                match fetch_queue_data(indexer, rpc, config).await {
-                    Ok(data) => {
-                        queue_data = data;
-                    }
-                    Err(e) => match e {
-                        ForesterError::NoProofsFound => {
-                            warn!("No proofs found. Please check that nullifier queue is empty");
-                            break;
-                        }
-                        _ => {
-                            warn!("Error fetching queue data: {:?}", e);
-                            continue;
-                        }
-                    },
-                }
-            }
-
-            queue_data
-        };
-
-        if queue_data.is_none() {
-            info!("No more accounts to nullify. Exiting...");
-            cancellation_token.cancel();
+        if cancellation_token.is_cancelled() {
+            info!("Cancellation detected, exiting loop...");
             break;
         }
 
-        let permit = Arc::clone(&semaphore).acquire_owned().await;
-        let max_retries = config.max_retries;
-        let mut queue_data = queue_data.unwrap();
+        // Process completed tasks
+        handles.retain(|h: &JoinHandle<Result<(), ForesterError>>| !h.is_finished());
+
+        while handles.len() >= config.max_concurrent_batches {
+            // Wait for at least one task to complete before spawning more
+            let (result, index, remaining) = select_all(handles).await;
+            handles = remaining;
+            if let Err(e) = result {
+                warn!("Error processing batch: {:?}", e);
+            }
+            info!("Task {} completed", index);
+        }
+
+        let queue_data = fetch_queue_data(&indexer, &rpc, config).await?;
+
+        if queue_data.is_none() {
+            info!("No more accounts to nullify. Exiting...");
+            break;
+        }
+
+        let queue_data = queue_data.unwrap();
+        let successful_nullifications_clone = Arc::clone(&successful_nullifications);
+        let cancellation_token_clone = cancellation_token.clone();
+        let config_clone = config.clone();
+        let indexer_clone = Arc::clone(&indexer);
+        let rpc_clone = Arc::clone(&rpc);
+        let handle: JoinHandle<Result<(), ForesterError>> = tokio::spawn(async move {
+            process_batch(
+                queue_data,
+                &successful_nullifications_clone,
+                &cancellation_token_clone,
+                &config_clone,
+                &rpc_clone,
+                &indexer_clone,
+            ).await
+        });
+
+        handles.push(handle);
+    }
+
+    // Wait for all remaining tasks to complete
+    while !handles.is_empty() {
+        let (result, _index, remaining) = select_all(handles).await;
+        handles = remaining;
+        if let Err(e) = result {
+            warn!("Error processing batch: {:?}", e);
+        }
+    }
+
+    // TODO: should we use terminate_handle.await.unwrap() here?
+    // let successful_nullifications = successful_nullifications.lock().await;
+    // info!("Successful nullifications: {}", *successful_nullifications);
+
+    Ok(())
+}
+
+async fn process_batch<T: Indexer, R: RpcConnection>(
+    mut queue_data: StateQueueData,
+    successful_nullifications: &Arc<Mutex<usize>>,
+    cancellation_token: &CancellationToken,
+    config: &Config,
+    rpc: &Arc<Mutex<R>>,
+    indexer: &Arc<Mutex<T>>,
+) -> Result<(), ForesterError> {
+    while !queue_data.compressed_accounts_to_nullify.is_empty() {
         let account = queue_data.compressed_accounts_to_nullify.remove(0);
-        if let Some((proof, leaf_index, _)) = queue_data
+        if let Some((proof, leaf_index, root_seq)) = queue_data
             .compressed_account_proofs
             .remove(&account.hash_string())
         {
-            let successful_nullifications = Arc::clone(&successful_nullifications);
-            let cancellation_token_clone = cancellation_token.clone();
-            let config_clone = config.clone();
-            let _permit = permit;
             let mut retries = 0;
             loop {
-                if cancellation_token_clone.is_cancelled() {
+                if cancellation_token.is_cancelled() {
                     info!("Task cancelled for account {}", account.hash_string());
-                    break;
+                    return Ok(());
                 }
                 let proof_clone = proof.clone();
                 info!("Nullifying account: {}", account.hash_string());
@@ -109,11 +143,12 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
                     queue_data.change_log_index,
                     proof_clone,
                     leaf_index,
-                    &config_clone,
-                    rpc,
-                    indexer,
+                    root_seq,
+                    config,
+                    &mut *rpc.lock().await,
+                    &mut *indexer.lock().await,
                 )
-                .await
+                    .await
                 {
                     Ok(_) => {
                         let mut successful_nullifications = successful_nullifications.lock().await;
@@ -121,7 +156,7 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
                         break;
                     }
                     Err(e) => {
-                        if retries >= max_retries {
+                        if retries >= config.max_retries {
                             warn!(
                                 "Max retries reached for account {}: {:?}",
                                 account.hash_string(),
@@ -145,23 +180,18 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
             continue;
         }
     }
-
-    // TODO: should we use terminate_handle.await.unwrap() here?
-    let successful_nullifications = successful_nullifications.lock().await;
-    info!("Successful nullifications: {}", *successful_nullifications);
-
     Ok(())
 }
 
 async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
-    indexer: &T,
-    rpc: &mut R,
+    indexer: &Arc<Mutex<T>>,
+    rpc: &Arc<Mutex<R>>,
     config: &Config,
 ) -> Result<Option<StateQueueData>, ForesterError> {
     let (change_log_index, sequence_number) =
-        { get_changelog_index(&config.state_merkle_tree_pubkey, rpc).await? };
+        { get_changelog_index(&config.state_merkle_tree_pubkey, &mut *rpc.lock().await).await? };
     let compressed_accounts_to_nullify = {
-        let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc).await?;
+        let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut *rpc.lock().await).await?;
         info!(
             "Queue length: {}. Trimming to batch size of {}...",
             queue.len(),
@@ -182,14 +212,14 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
         .map(|account| account.hash_string())
         .collect::<Vec<_>>();
 
-    let proofs = indexer
+    info!("Fetching proofs for accounts: {:?}", compressed_account_list);
+    let proofs = &mut *indexer.lock().await
         .get_multiple_compressed_account_proofs(compressed_account_list.clone())
         .await
         .map_err(|e| {
             warn!("Cannot get multiple proofs: {:#?}", e);
             ForesterError::NoProofsFound
         })?;
-
     let compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, u64)> = proofs
         .into_iter()
         .map(|proof| {
@@ -213,24 +243,33 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
     change_log_index: usize,
     proof: Vec<[u8; 32]>,
     leaf_index: u64,
+    root_seq: u64,
     config: &Config,
     rpc: &mut R,
     indexer: &mut T,
 ) -> Result<(), ForesterError> {
+    info!("Nullifying account: {}...", account.hash_string());
+    info!("Change log index: {}", change_log_index);
+    info!("Leaf index: {}", leaf_index);
+    info!("Root seq: {}", root_seq);
+    let root_seq_mod = root_seq % STATE_MERKLE_TREE_CHANGELOG;
+    info!("Root seq mod: {}", root_seq_mod);
+
     let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
         nullifier_queue: config.nullifier_queue_pubkey,
         merkle_tree: config.state_merkle_tree_pubkey,
-        change_log_indices: vec![change_log_index as u64],
+        change_log_indices: vec![root_seq_mod],
         leaves_queue_indices: vec![account.index as u16],
         indices: vec![leaf_index],
         proofs: vec![proof],
         authority: config.payer_keypair.pubkey(),
+        derivation: Pubkey::from_str("En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP").unwrap(),
     });
     let instructions = [
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
         ix,
     ];
-
+    info!("Authority: {:?}", config.payer_keypair.pubkey());
     let signature = rpc
         .create_and_send_transaction(
             &instructions,
@@ -287,6 +326,6 @@ pub async fn get_changelog_index<R: RpcConnection>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+        .await;
     Ok((merkle_tree.changelog_index(), merkle_tree.sequence_number()))
 }

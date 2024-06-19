@@ -12,6 +12,7 @@ pub struct Config {
     pub concurrency_limit: usize,
     pub batch_size: usize,
     pub max_retries: usize,
+    pub max_concurrent_batches: usize,
 }
 
 impl Clone for Config {
@@ -27,6 +28,7 @@ impl Clone for Config {
             concurrency_limit: self.concurrency_limit,
             batch_size: self.batch_size,
             max_retries: self.max_retries,
+            max_concurrent_batches: self.max_concurrent_batches
         }
     }
 }

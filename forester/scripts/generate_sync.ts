@@ -21,7 +21,7 @@ const bobKeypair = [
 
 const LAMPORTS = 1e11;
 const COMPRESS_AMOUNT = 1e9;
-const TOTAL_NUMBER_OF_TRANSFERS = 10;
+const TOTAL_NUMBER_OF_TRANSFERS = 800;
 const NUMBER_OF_CONCURRENT_TRANSFERS = 1;
 const TRANSFER_AMOUNT = 10;
 
@@ -30,15 +30,34 @@ async function transferAsync(i: number, rpc: Rpc, payer: Signer, bobPublicKey: P
     console.log(`transfer ${i} of ${TOTAL_NUMBER_OF_TRANSFERS}: ${transferSig}`);
 }
 
+function localRpc(): Rpc {
+    let validatorUrl = 'http://0.0.0.0:8899';
+    let photonUrl = 'http://0.0.0.0:8784';
+    let proverUrl = 'http://0.0.0.0:3001';
+
+    return createRpc(validatorUrl, photonUrl, proverUrl);
+}
+
+function zkTestnetRpc(): Rpc {
+    let validatorUrl = 'https://zk-testnet.helius.dev:8899';
+    let photonUrl = 'https://zk-testnet.helius.dev:8784';
+    let proverUrl = 'https://zk-testnet.helius.dev:3001';
+
+    return createRpc(validatorUrl, photonUrl, proverUrl);
+}
+
 async function prefillNullifierQueue() {
-    const rpc = createRpc();
+
+    const rpc = localRpc();
     const payer = Keypair.fromSecretKey(Uint8Array.from(payerKeypair));
+    const tx1 = await airdropSol({connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey});
+
     const bob = Keypair.fromSecretKey(Uint8Array.from(bobKeypair));
 
-    const tx1 = await airdropSol({connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey});
-    console.log('tx1', tx1);
+    console.log('Airdropping SOL to payer and bob...');
     const tx2 = await airdropSol({connection: rpc, lamports: LAMPORTS, recipientPublicKey: bob.publicKey});
     console.log('tx2', tx2);
+    console.log('Airdrop completed.');
 
     const payerBalance = await rpc.getBalance(payer.publicKey);
     console.log('payer balance', payerBalance);

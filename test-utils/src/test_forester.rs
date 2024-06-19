@@ -109,6 +109,7 @@ pub async fn nullify_compressed_accounts<R: RpcConnection>(
             leaves_queue_indices: vec![*index_in_nullifier_queue as u16],
             indices: vec![leaf_index as u64],
             proofs: vec![proof],
+            derivation: forester.pubkey(),
         });
         let instructions = [ix];
 

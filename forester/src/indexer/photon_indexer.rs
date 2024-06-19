@@ -1,5 +1,4 @@
-use std::str::FromStr;
-
+use log::info;
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
@@ -51,6 +50,7 @@ impl Indexer for PhotonIndexer {
 
         match result {
             Ok(response) => {
+                info!("Response: {:?}", response);
                 match response.result {
                     Some(result) => {
                         let proofs = result
@@ -140,16 +140,15 @@ impl Indexer for PhotonIndexer {
         let proofs: photon_api::models::MerkleContextWithNewAddressProof =
             result.unwrap().result.unwrap().value[0].clone();
 
-        // TODO: use decode_hash
-        let tree_pubkey = Pubkey::from_str(&proofs.merkle_tree).unwrap();
-        let low_address_value = Pubkey::from_str(&proofs.lower_range_address).unwrap();
-        let next_address_value = Pubkey::from_str(&proofs.higher_range_address).unwrap();
+        let tree_pubkey = decode_hash(&proofs.merkle_tree);
+        let low_address_value = decode_hash(&proofs.lower_range_address);
+        let next_address_value = decode_hash(&proofs.higher_range_address);
         Ok(NewAddressProofWithContext {
-            merkle_tree: tree_pubkey.to_bytes(),
+            merkle_tree: tree_pubkey,
             low_address_index: proofs.low_element_leaf_index as u64,
-            low_address_value: low_address_value.to_bytes(),
+            low_address_value,
             low_address_next_index: proofs.next_index as u64,
-            low_address_next_value: next_address_value.to_bytes(),
+            low_address_next_value,
             low_address_proof: {
                 let proof_vec: Vec<[u8; 32]> = proofs
                     .proof
@@ -161,17 +160,5 @@ impl Indexer for PhotonIndexer {
             root: decode_hash(&proofs.root),
             root_seq: proofs.root_seq as i64,
         })
-    }
-
-    fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {
-        unimplemented!("only needed for testing")
-    }
-
-    fn address_tree_updated(
-        &mut self,
-        _merkle_tree_pubkey: [u8; 32],
-        _context: MerkleProofWithAddressContext,
-    ) {
-        unimplemented!("only needed for testing")
     }
 }
