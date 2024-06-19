@@ -2,10 +2,11 @@ package merkle_tree
 
 import (
 	"fmt"
-	"github.com/iden3/go-iden3-crypto/poseidon"
 	"light/light-prover/prover"
 	"math/big"
 	"math/rand"
+
+	"github.com/iden3/go-iden3-crypto/poseidon"
 )
 
 type PoseidonNode interface {
@@ -191,7 +192,7 @@ func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid 
 				value.Add(leafLower, big.NewInt(1))
 			} else {
 				if lowValue {
-					value.Add(leafLower, big.NewInt(-1))
+					value.Sub(leafLower, big.NewInt(1))
 				} else {
 					value.Add(leafUpper, big.NewInt(1))
 				}

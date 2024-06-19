@@ -33,7 +33,7 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
 
       - name: Run stateless.js tests
         run: |

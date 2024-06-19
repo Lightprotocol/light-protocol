@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/poseidon"
+	"math/big"
 	"os"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
+
 	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
@@ -27,19 +29,19 @@ type ProvingSystem struct {
 	ConstraintSystem          constraint.ConstraintSystem
 }
 
-// ProofRound gadget generates the ParentHash
-type ProofRound struct {
-	Direction frontend.Variable
-	Hash      frontend.Variable
-	Sibling   frontend.Variable
+// ProveParentHash gadget generates the ParentHash
+type ProveParentHash struct {
+	Bit     frontend.Variable
+	Hash    frontend.Variable
+	Sibling frontend.Variable
 }
 
-func (gadget ProofRound) DefineGadget(api frontend.API) interface{} {
-	api.AssertIsBoolean(gadget.Direction)
-	d1 := api.Select(gadget.Direction, gadget.Sibling, gadget.Hash)
-	d2 := api.Select(gadget.Direction, gadget.Hash, gadget.Sibling)
-	sum := abstractor.Call(api, poseidon.Poseidon2{In1: d1, In2: d2})
-	return sum
+func (gadget ProveParentHash) DefineGadget(api frontend.API) interface{} {
+	api.AssertIsBoolean(gadget.Bit)
+	d1 := api.Select(gadget.Bit, gadget.Sibling, gadget.Hash)
+	d2 := api.Select(gadget.Bit, gadget.Hash, gadget.Sibling)
+	hash := abstractor.Call(api, poseidon.Poseidon2{In1: d1, In2: d2})
+	return hash
 }
 
 type InclusionProof struct {
@@ -108,11 +110,8 @@ type CombinedProof struct {
 }
 
 func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
-	x := abstractor.Call(api, gadget.InclusionProof)
-	y := abstractor.Call(api, gadget.NonInclusionProof)
-	if x == nil || y == nil {
-		return nil
-	}
+	abstractor.Call(api, gadget.InclusionProof)
+	abstractor.Call(api, gadget.NonInclusionProof)
 	return nil
 }
 
@@ -123,12 +122,33 @@ type LeafHashGadget struct {
 	Value                frontend.Variable
 }
 
+// Limit the number of bits to 248 + 1,
+// since we truncate address values to 31 bytes.
 func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	api.AssertIsDifferent(gadget.LeafLowerRangeValue, gadget.Value)
-	api.AssertIsLessOrEqual(gadget.LeafLowerRangeValue, gadget.Value)
-	api.AssertIsDifferent(gadget.LeafHigherRangeValue, gadget.Value)
-	api.AssertIsLessOrEqual(gadget.Value, gadget.LeafHigherRangeValue)
+	// Lower bound is less than value
+	AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248}.DefineGadget(api)
+	// Value is less than upper bound
+	AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248}.DefineGadget(api)
 	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafIndex, In3: gadget.LeafHigherRangeValue})
+}
+
+// Assert A is less than B.
+type AssertIsLess struct {
+	A frontend.Variable
+	B frontend.Variable
+	N int
+}
+
+// To prevent overflows N (the number of bits) must not be greater than 252 + 1,
+// see https://github.com/zkopru-network/zkopru/issues/116
+func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
+	// Add 2^N to B to ensure a positive number
+	oneShifted := new(big.Int).Lsh(big.NewInt(1), uint(gadget.N))
+	num := api.Add(gadget.A, api.Sub(oneShifted, gadget.B))
+	bin := api.ToBinary(num, gadget.N+1)
+	api.AssertIsEqual(0, bin[gadget.N])
+	return nil
 }
 
 type MerkleRootGadget struct {
@@ -141,7 +161,7 @@ type MerkleRootGadget struct {
 func (gadget MerkleRootGadget) DefineGadget(api frontend.API) interface{} {
 	currentPath := api.ToBinary(gadget.Index, gadget.Depth)
 	for i := 0; i < gadget.Depth; i++ {
-		gadget.Hash = abstractor.Call(api, ProofRound{Direction: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
+		gadget.Hash = abstractor.Call(api, ProveParentHash{Bit: currentPath[i], Hash: gadget.Hash, Sibling: gadget.Path[i]})
 	}
 	return gadget.Hash
 }

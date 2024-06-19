@@ -47,6 +47,9 @@
   "nx": {
     "targets": {
       "build": {
+        "inputs": [
+          "{projectRoot}/cli"
+        ],
         "outputs": [
           "{projectRoot}/lib"
         ]

@@ -164,7 +164,8 @@ type InclusionTreeValidPair struct {
 // - `validPair`: A valid tree constructed with input parameters. The Valid field is set to `true`.
 // - `invalidRootPair`: A valid tree but the root value is invalidated by setting it to an integer 999. The Valid field is set to `false`.
 // - `invalidLeafPair`: A valid tree where a leaf value is invalidated by setting it to an integer 999. The Valid field wis set to `false`.
-// - `invalidInPathIndicesPair`: A valid tree but the InPathIndices value is invalidated by setting it to an integer 999. The Valid field is set to `false`.
+// - `invalidInPathIndicesPair`: A valid tree but the InPathIndices value is invalidated by adding 1 to the index. The Valid field is set to `false`.
+// - `invalidInPathIndicesPair`: A valid tree but the InPathIndices value is invalidated by subtracting 1 from the index. The Valid field is set to `false`.
 // - `invalidInPathElementsPair`: A valid tree where the InPathElements is invalidated by setting a value to an integer 999. The Valid field is set to `false`.
 //
 // Example usage:
@@ -191,9 +192,13 @@ func MakeTestIncludedTrees(depth int, numberOfUtxos int) []InclusionTreeValidPai
 	invalidLeafTree.Inputs[0].Leaf = *big.NewInt(999)
 	invalidLeafPair := InclusionTreeValidPair{Tree: invalidLeafTree, Valid: false}
 
-	invalidInPathIndicesTree := BuildTestTree(depth, numberOfUtxos, true)
-	invalidInPathIndicesTree.Inputs[0].PathIndex = 999
-	invalidInPathIndicesPair := InclusionTreeValidPair{Tree: invalidInPathIndicesTree, Valid: false}
+	invalidInPathIndicesTreeAddOne := BuildTestTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeAddOne.Inputs[0].PathIndex = invalidInPathIndicesTreeAddOne.Inputs[0].PathIndex + 1
+	invalidInPathIndicesPairAddOne := InclusionTreeValidPair{Tree: invalidInPathIndicesTreeAddOne, Valid: false}
+
+	invalidInPathIndicesTreeSubOne := BuildTestTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeSubOne.Inputs[0].PathIndex = invalidInPathIndicesTreeSubOne.Inputs[0].PathIndex - 1
+	invalidInPathIndicesPairSubOne := InclusionTreeValidPair{Tree: invalidInPathIndicesTreeSubOne, Valid: false}
 
 	invalidInPathElementsTree := BuildTestTree(depth, numberOfUtxos, true)
 	invalidInPathElementsTree.Inputs[0].PathElements[0] = *big.NewInt(999)
@@ -202,7 +207,8 @@ func MakeTestIncludedTrees(depth int, numberOfUtxos int) []InclusionTreeValidPai
 	trees = append(trees, validPair)
 	trees = append(trees, invalidRootPair)
 	trees = append(trees, invalidLeafPair)
-	trees = append(trees, invalidInPathIndicesPair)
+	trees = append(trees, invalidInPathIndicesPairAddOne)
+	trees = append(trees, invalidInPathIndicesPairSubOne)
 	trees = append(trees, invalidInPathElementsPair)
 	return trees
 }
@@ -273,9 +279,13 @@ func MakeTestNonInclusionTrees(depth int, numberOfUtxos int) []NonInclusionTreeV
 	invalidHighValueTree := BuildTestNonInclusionTree(depth, numberOfUtxos, true, false, false)
 	invalidHighValuePair := NonInclusionTreeValidPair{Tree: invalidHighValueTree, Valid: false}
 
-	invalidInPathIndicesTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
-	invalidInPathIndicesTree.Inputs[0].PathIndex = 999
-	invalidInPathIndicesPair := NonInclusionTreeValidPair{Tree: invalidInPathIndicesTree, Valid: false}
+	invalidInPathIndicesTreeAddOne := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeAddOne.Inputs[0].PathIndex += 1
+	invalidInPathIndicesPairAddOne := NonInclusionTreeValidPair{Tree: invalidInPathIndicesTreeAddOne, Valid: false}
+
+	invalidInPathIndicesTreeSubOne := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeSubOne.Inputs[0].PathIndex -= 1
+	invalidInPathIndicesPairSubOne := NonInclusionTreeValidPair{Tree: invalidInPathIndicesTreeSubOne, Valid: false}
 
 	invalidInPathElementsTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
 	invalidInPathElementsTree.Inputs[0].PathElements[0] = *big.NewInt(999)
@@ -285,7 +295,8 @@ func MakeTestNonInclusionTrees(depth int, numberOfUtxos int) []NonInclusionTreeV
 	trees = append(trees, invalidRootPair)
 	trees = append(trees, invalidLowValuePair)
 	trees = append(trees, invalidHighValuePair)
-	trees = append(trees, invalidInPathIndicesPair)
+	trees = append(trees, invalidInPathIndicesPairAddOne)
+	trees = append(trees, invalidInPathIndicesPairSubOne)
 	trees = append(trees, invalidInPathElementsPair)
 	return trees
 }
