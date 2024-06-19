@@ -3112,6 +3112,7 @@ dependencies = [
  "light-hasher",
  "light-heap",
  "light-macros",
+ "log",
  "solana-program-test",
  "solana-sdk",
  "tokio",
@@ -3993,6 +3994,7 @@ dependencies = [
 name = "photon-api"
 version = "0.28.1"
 dependencies = [
+ "log",
  "reqwest 0.11.26",
  "serde",
  "serde_derive",

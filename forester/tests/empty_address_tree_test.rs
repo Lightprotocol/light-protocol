@@ -1,8 +1,9 @@
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
-use forester::constants::SERVER_URL;
-use forester::nullifier::{empty_address_queue, get_nullifier_queue, Config};
+use forester::external_services_config::ExternalServicesConfig;
+use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::spawn_validator;
+use forester::{nullify_addresses, ForesterConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
@@ -10,6 +11,7 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
 use solana_sdk::signature::{Keypair, Signer};
+use std::sync::Arc;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn empty_address_tree_test() {
@@ -17,8 +19,8 @@ async fn empty_address_tree_test() {
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    let config = Config {
-        server_url: SERVER_URL.to_string(),
+    let config = ForesterConfig {
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
@@ -28,6 +30,7 @@ async fn empty_address_tree_test() {
         concurrency_limit: 1,
         batch_size: 1,
         max_retries: 5,
+        max_concurrent_batches: 5,
     };
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -72,18 +75,11 @@ async fn empty_address_tree_test() {
         get_address_queue_length(&config, &mut env.rpc).await
     );
 
-    empty_address_queue(
-        &mut env.rpc,
-        &mut env.indexer,
-        &env_accounts.forester,
-        &config,
-    )
-    .await
-    .unwrap();
+    nullify_addresses(Arc::new(config.clone())).await;
     assert_eq!(get_address_queue_length(&config, &mut env.rpc).await, 0);
 }
 
-async fn get_address_queue_length<R: RpcConnection>(config: &Config, rpc: &mut R) -> usize {
+async fn get_address_queue_length<R: RpcConnection>(config: &ForesterConfig, rpc: &mut R) -> usize {
     let queue = get_nullifier_queue(&config.address_merkle_tree_queue_pubkey, rpc)
         .await
         .unwrap();

@@ -451,6 +451,7 @@ async fn test_invalid_registered_program() {
             leaves_queue_indices: vec![1u16],
             indices: vec![0u64],
             proofs: vec![vec![[0u8; 32]; 26]],
+            derivation: env.forester.pubkey(),
         };
         let ix = create_nullify_instruction(inputs);
 

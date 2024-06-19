@@ -2,19 +2,17 @@ use anchor_lang::prelude::Pubkey;
 use clap::Parser;
 use config::Config;
 use env_logger::Env;
-use forester::nqmt::reindex_and_store;
-use log::info;
-use solana_sdk::signature::Keypair;
-use std::str::FromStr;
-
 use forester::cli::{Cli, Commands};
-use forester::constants::{INDEXER_URL, SERVER_URL};
-use forester::indexer::PhotonIndexer;
-use forester::nullifier::Config as ForesterConfig;
-use forester::nullifier::{nullify, subscribe_nullify};
+use forester::external_services_config::ExternalServicesConfig;
+use forester::nqmt::reindex_and_store;
 use forester::settings::SettingsKey;
-use light_test_utils::rpc::SolanaRpcConnection;
+use forester::{nullify_addresses, nullify_state, subscribe_state, ForesterConfig};
+use log::{error, info};
+use serde_json::Result;
+use solana_sdk::signature::Keypair;
 use std::env;
+use std::str::FromStr;
+use std::sync::Arc;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -27,6 +25,10 @@ fn locate_config_file() -> String {
     }
 
     file_name.to_string()
+}
+
+fn convert(json: &str) -> Result<Vec<u8>> {
+    serde_json::from_str(json)
 }
 
 fn init_config() -> ForesterConfig {
@@ -53,14 +55,13 @@ fn init_config() -> ForesterConfig {
     let registry_pubkey = settings
         .get_string(&SettingsKey::RegistryPubkey.to_string())
         .unwrap();
-    let payer = settings.get_array(&SettingsKey::Payer.to_string()).unwrap();
-    let payer: Vec<u8> = payer
-        .iter()
-        .map(|v| v.clone().into_uint().unwrap() as u8)
-        .collect();
+    let payer = settings
+        .get_string(&SettingsKey::Payer.to_string())
+        .unwrap();
+    let payer: Vec<u8> = convert(&payer).unwrap();
 
     ForesterConfig {
-        server_url: SERVER_URL.to_string(),
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: Pubkey::from_str(&nullifier_queue_pubkey).unwrap(),
         state_merkle_tree_pubkey: Pubkey::from_str(&state_merkle_tree_pubkey).unwrap(),
         address_merkle_tree_pubkey: Pubkey::from_str(&address_merkle_tree_pubkey).unwrap(),
@@ -68,18 +69,16 @@ fn init_config() -> ForesterConfig {
             .unwrap(),
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: Keypair::from_bytes(&payer).unwrap(),
-        concurrency_limit: 20,
-        batch_size: 1000,
+        concurrency_limit: 10,
+        batch_size: 10,
         max_retries: 5,
+        max_concurrent_batches: 1,
     }
 }
 #[tokio::main]
 async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let config = init_config();
-
-    let mut rpc = SolanaRpcConnection::new(SERVER_URL, None);
-
+    let config: Arc<ForesterConfig> = Arc::new(init_config());
     let cli = Cli::parse();
     match &cli.command {
         Some(Commands::Subscribe) => {
@@ -87,17 +86,30 @@ async fn main() {
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
-            subscribe_nullify(&config, &mut rpc).await;
+            subscribe_state(config.clone()).await;
+        }
+        Some(Commands::NullifyState) => {
+            nullify_state(config).await;
+        }
+        Some(Commands::NullifyAddresses) => {
+            nullify_addresses(config).await;
         }
         Some(Commands::Nullify) => {
-            info!(
-                "Nullify compressed accounts for nullifier queue: {} and merkle tree: {}",
-                config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
-            );
+            let state_nullifier = tokio::spawn(nullify_state(config.clone()));
+            let address_nullifier = tokio::spawn(nullify_addresses(config.clone()));
 
-            let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-            let result = nullify(&mut indexer, &mut rpc, &config).await;
-            info!("Nullification result: {:?}", result);
+            // Wait for both nullifiers to complete
+            let (state_result, address_result) = tokio::join!(state_nullifier, address_nullifier);
+
+            if let Err(e) = state_result {
+                error!("State nullifier encountered an error: {:?}", e);
+            }
+
+            if let Err(e) = address_result {
+                error!("Address nullifier encountered an error: {:?}", e);
+            }
+
+            info!("All nullification processes completed");
         }
         Some(Commands::Index) => {
             info!("Reindex merkle tree & nullifier queue accounts");

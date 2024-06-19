@@ -1,7 +1,8 @@
 use env_logger::Env;
-use forester::constants::SERVER_URL;
-use forester::nullifier::{get_nullifier_queue, nullify, Config};
+use forester::external_services_config::ExternalServicesConfig;
+use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::spawn_validator;
+use forester::{nullify_state, ForesterConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
@@ -10,14 +11,16 @@ use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
+use std::sync::Arc;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    let config = Config {
-        server_url: SERVER_URL.to_string(),
+    let config = ForesterConfig {
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
@@ -27,6 +30,7 @@ async fn test_state_tree_nullifier() {
         concurrency_limit: 1,
         batch_size: 1,
         max_retries: 5,
+        max_concurrent_batches: 5,
     };
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -52,7 +56,9 @@ async fn test_state_tree_nullifier() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
-    for _ in 0..5 {
+    let iterations = 100;
+    for i in 0..iterations {
+        info!("Round {} of {}", i, iterations);
         env.transfer_sol(user_index).await;
     }
 
@@ -61,9 +67,9 @@ async fn test_state_tree_nullifier() {
         "Nullifying queue of {} accounts...",
         get_state_queue_length(&mut env.rpc, &config).await
     );
-    nullify(&mut env.indexer, &mut env.rpc, &config)
-        .await
-        .unwrap();
+
+    let arc_config = Arc::new(config.clone());
+    nullify_state(arc_config).await;
     assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
 }
 
@@ -107,7 +113,7 @@ async fn test_1_all() {
     env.execute_rounds().await;
 }
 
-async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) -> usize {
+async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &ForesterConfig) -> usize {
     let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc)
         .await
         .unwrap();

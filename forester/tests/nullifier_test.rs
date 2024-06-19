@@ -1,28 +1,29 @@
 use std::mem;
+use std::sync::Arc;
 
 use account_compression::StateMerkleTreeAccount;
-use forester::constants::{INDEXER_URL, SERVER_URL};
-use forester::indexer::PhotonIndexer;
-use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
+use forester::external_services_config::ExternalServicesConfig;
+use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::u8_arr_to_hex_string;
+use forester::{nullify_state, subscribe_state, ForesterConfig};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hasher::Poseidon;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
-use log::{info, warn};
+use log::info;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::Keypair;
 use solana_sdk::signer::Signer;
 
-fn test_config() -> Config {
+fn test_config() -> ForesterConfig {
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
 
     let env_accounts = get_test_env_accounts();
-    Config {
-        server_url: SERVER_URL.to_string(),
+    ForesterConfig {
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
@@ -32,6 +33,7 @@ fn test_config() -> Config {
         concurrency_limit: 20,
         batch_size: 1000,
         max_retries: 5,
+        max_concurrent_batches: 5,
     }
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -70,7 +72,7 @@ async fn tree_info_test() {
         nullifier_queue_pubkey, merkle_tree_pubkey
     );
 
-    let client = RpcClient::new(SERVER_URL);
+    let client = RpcClient::new(test_config().external_services.rpc_url);
     client
         .request_airdrop(&payer_pubkey, LAMPORTS_PER_SOL * 1000)
         .unwrap();
@@ -92,23 +94,16 @@ async fn tree_info_test() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_nullify_leaves() {
-    let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-    let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+    let config = Arc::new(test_config());
+    let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    rpc.lock()
+        .await
+        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
 
-    let time = std::time::Instant::now();
-    match nullify(&mut indexer, &mut rpc, &config).await {
-        Ok(_) => {
-            info!("Nullify completed");
-            info!("Total time elapsed: {:?}", time.elapsed());
-        }
-        Err(e) => {
-            warn!("Error: {:?}", e);
-        }
-    }
+    nullify_state(config).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -119,5 +114,5 @@ async fn test_subscribe_nullify() {
     rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
-    subscribe_nullify(&config, &mut rpc).await;
+    subscribe_state(Arc::new(config)).await;
 }
