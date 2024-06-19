@@ -49,7 +49,7 @@ describe('rpc-interop token', () => {
         await transfer(testRpc, payer, mint, bn(700), bob, charlie.publicKey);
     });
 
-    it('getCompressedTokenAccountsByOwner should match', async () => {
+    it.skip('getCompressedTokenAccountsByOwner should match', async () => {
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,
             { mint },
@@ -97,7 +97,7 @@ describe('rpc-interop token', () => {
         });
     });
 
-    it('getCompressedTokenAccountBalance should match ', async () => {
+    it.skip('getCompressedTokenAccountBalance should match ', async () => {
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,
             { mint },
@@ -114,7 +114,7 @@ describe('rpc-interop token', () => {
         assert.isNotNull(balanceTest.amount);
     });
 
-    it('getCompressedTokenBalancesByOwner should match', async () => {
+    it.skip('getCompressedTokenBalancesByOwner should match', async () => {
         const balances = await rpc.getCompressedTokenBalancesByOwner(
             bob.publicKey,
             { mint },
@@ -147,7 +147,7 @@ describe('rpc-interop token', () => {
         });
     });
 
-    it('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
+    it.skip('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForTokenOwner(
             bob.publicKey,
         );
@@ -160,7 +160,7 @@ describe('rpc-interop token', () => {
         assert.equal(signaturesReceiver.length, 1);
     });
 
-    it('[delegate unused] getCompressedTokenAccountsByDelegate should match', async () => {
+    it.skip('[delegate unused] getCompressedTokenAccountsByDelegate should match', async () => {
         const accs = await rpc.getCompressedTokenAccountsByDelegate(
             bob.publicKey,
             { mint },

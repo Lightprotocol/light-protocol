@@ -48,10 +48,6 @@ export type InputTokenDataWithContext = {
      */
     delegateIndex: number | null;
     /**
-     * Optional: The amount of delegated tokens
-     */
-    delegatedAmount: BN | null;
-    /**
      * Optional: Whether the token is native (wSOL)
      */
     isNative: BN | null;
@@ -84,8 +80,9 @@ export type CompressedTokenInstructionDataInvoke = {
     mint: PublicKey;
     /**
      * Whether the signer is a delegate
+     * TODO: implement delegated transfer struct
      */
-    signerIsDelegate: boolean;
+    delegatedTransfer: null;
     /**
      * Input token data with packed merkle context
      */
@@ -130,8 +127,4 @@ export type TokenData = {
      * this threshold.
      */
     isNative: BN | null;
-    /**
-     * The amount delegated
-     */
-    delegatedAmount: BN;
 };

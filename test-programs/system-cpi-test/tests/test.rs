@@ -1,7 +1,7 @@
 #![cfg(feature = "test-sbf")]
 
 use anchor_lang::AnchorDeserialize;
-use light_compressed_token::InputTokenDataWithContext;
+use light_compressed_token::process_transfer::InputTokenDataWithContext;
 use light_hasher::{Hasher, Poseidon};
 use light_system_program::sdk::address::derive_address;
 use light_system_program::sdk::compressed_account::{
@@ -652,7 +652,6 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
             input_token_data_with_context: InputTokenDataWithContext {
                 amount: token_account.token_data.amount,
                 delegate_index: None,
-                delegated_amount: None,
                 is_native: None,
                 root_index: rpc_result.root_indices[0],
                 merkle_context: PackedMerkleContext {

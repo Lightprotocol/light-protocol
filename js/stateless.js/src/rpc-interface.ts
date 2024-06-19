@@ -215,7 +215,6 @@ export const TokenDataResult = pick({
     owner: PublicKeyFromString,
     amount: BNFromInt,
     delegate: nullable(PublicKeyFromString),
-    delegatedAmount: BNFromInt,
     isNative: nullable(BNFromInt),
     state: string(),
 });

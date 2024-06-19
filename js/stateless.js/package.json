@@ -94,5 +94,15 @@
         "build:bundle": "rollup -c",
         "format": "prettier --write .",
         "lint": "eslint ."
+    },
+    "nx": {
+    "targets": {
+      "build": {
+        "inputs": [
+          "{workspaceRoot}/target/idl",
+          "{workspaceRoot}/target/types"
+        ]
+      }
     }
+  }
 }

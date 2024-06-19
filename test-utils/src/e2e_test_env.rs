@@ -814,6 +814,7 @@ where
             &amounts,
             &token_accounts,
             &output_merkle_tree_pubkeys,
+            None,
             Some(TransactionParams {
                 num_new_addresses: 0u8,
                 num_input_compressed_accounts: token_accounts.len() as u8,

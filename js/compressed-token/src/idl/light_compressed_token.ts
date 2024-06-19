@@ -219,6 +219,321 @@ export type LightCompressedToken = {
             ];
         },
         {
+            name: 'approve';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'revoke';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'freeze';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'mint';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'thaw';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'mint';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'burn';
+            accounts: [
+                {
+                    name: 'feePayer';
+                    isMut: true;
+                    isSigner: true;
+                },
+                {
+                    name: 'authority';
+                    isMut: false;
+                    isSigner: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'lightSystemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'registeredProgramPda';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'noopProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'selfProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+                {
+                    name: 'systemProgram';
+                    isMut: false;
+                    isSigner: false;
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
             name: 'stubIdlBuild';
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
@@ -309,6 +624,24 @@ export type LightCompressedToken = {
                     };
                 },
             ];
+        },
+    ];
+    accounts: [
+        {
+            name: 'RegisteredProgram';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'registeredProgramId';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'groupAuthorityPda';
+                        type: 'publicKey';
+                    },
+                ];
+            };
         },
     ];
     types: [
@@ -462,8 +795,17 @@ export type LightCompressedToken = {
                         type: 'publicKey';
                     },
                     {
-                        name: 'signerIsDelegate';
-                        type: 'bool';
+                        name: 'delegatedTransfer';
+                        docs: [
+                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'owner = Some(owner) is the owner of the token account.',
+                            'Is set if the signer is delegate',
+                        ];
+                        type: {
+                            option: {
+                                defined: 'DelegatedTransfer';
+                            };
+                        };
                     },
                     {
                         name: 'inputTokenDataWithContext';
@@ -503,6 +845,22 @@ export type LightCompressedToken = {
             };
         },
         {
+            name: 'DelegatedTransfer';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        type: 'publicKey';
+                    },
+                    {
+                        name: 'delegateChangeAccountIndex';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
             name: 'InputTokenDataWithContext';
             type: {
                 kind: 'struct';
@@ -515,12 +873,6 @@ export type LightCompressedToken = {
                         name: 'delegateIndex';
                         type: {
                             option: 'u8';
-                        };
-                    },
-                    {
-                        name: 'delegatedAmount';
-                        type: {
-                            option: 'u64';
                         };
                     },
                     {
@@ -1001,11 +1353,6 @@ export type LightCompressedToken = {
                             option: 'u64';
                         };
                     },
-                    {
-                        name: 'delegatedAmount';
-                        docs: ['The amount delegated'];
-                        type: 'u64';
-                    },
                 ];
             };
         },
@@ -1020,6 +1367,16 @@ export type LightCompressedToken = {
             code: 6001;
             name: 'CreateTransferInstructionFailed';
             msg: 'Create transfer instruction failed';
+        },
+        {
+            code: 6002;
+            name: 'AccountNotFound';
+            msg: 'Account not found';
+        },
+        {
+            code: 6003;
+            name: 'SerializationError';
+            msg: 'Serialization error';
         },
     ];
 };
@@ -1244,6 +1601,321 @@ export const IDL: LightCompressedToken = {
             ],
         },
         {
+            name: 'approve',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'revoke',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'freeze',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'mint',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'thaw',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'mint',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'burn',
+            accounts: [
+                {
+                    name: 'feePayer',
+                    isMut: true,
+                    isSigner: true,
+                },
+                {
+                    name: 'authority',
+                    isMut: false,
+                    isSigner: true,
+                },
+                {
+                    name: 'cpiAuthorityPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'lightSystemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'registeredProgramPda',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'noopProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionAuthority',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'accountCompressionProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'selfProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+                {
+                    name: 'systemProgram',
+                    isMut: false,
+                    isSigner: false,
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
             name: 'stubIdlBuild',
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
@@ -1334,6 +2006,24 @@ export const IDL: LightCompressedToken = {
                     },
                 },
             ],
+        },
+    ],
+    accounts: [
+        {
+            name: 'RegisteredProgram',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'registeredProgramId',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'groupAuthorityPda',
+                        type: 'publicKey',
+                    },
+                ],
+            },
         },
     ],
     types: [
@@ -1487,8 +2177,17 @@ export const IDL: LightCompressedToken = {
                         type: 'publicKey',
                     },
                     {
-                        name: 'signerIsDelegate',
-                        type: 'bool',
+                        name: 'delegatedTransfer',
+                        docs: [
+                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'owner = Some(owner) is the owner of the token account.',
+                            'Is set if the signer is delegate',
+                        ],
+                        type: {
+                            option: {
+                                defined: 'DelegatedTransfer',
+                            },
+                        },
                     },
                     {
                         name: 'inputTokenDataWithContext',
@@ -1528,6 +2227,22 @@ export const IDL: LightCompressedToken = {
             },
         },
         {
+            name: 'DelegatedTransfer',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        type: 'publicKey',
+                    },
+                    {
+                        name: 'delegateChangeAccountIndex',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
             name: 'InputTokenDataWithContext',
             type: {
                 kind: 'struct',
@@ -1540,12 +2255,6 @@ export const IDL: LightCompressedToken = {
                         name: 'delegateIndex',
                         type: {
                             option: 'u8',
-                        },
-                    },
-                    {
-                        name: 'delegatedAmount',
-                        type: {
-                            option: 'u64',
                         },
                     },
                     {
@@ -2031,11 +2740,6 @@ export const IDL: LightCompressedToken = {
                             option: 'u64',
                         },
                     },
-                    {
-                        name: 'delegatedAmount',
-                        docs: ['The amount delegated'],
-                        type: 'u64',
-                    },
                 ],
             },
         },
@@ -2050,6 +2754,16 @@ export const IDL: LightCompressedToken = {
             code: 6001,
             name: 'CreateTransferInstructionFailed',
             msg: 'Create transfer instruction failed',
+        },
+        {
+            code: 6002,
+            name: 'AccountNotFound',
+            msg: 'Account not found',
+        },
+        {
+            code: 6003,
+            name: 'SerializationError',
+            msg: 'Serialization error',
         },
     ],
 };

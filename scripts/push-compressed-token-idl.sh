@@ -1,5 +1,4 @@
 #!/bin/bash
-
 cd "$(git rev-parse --show-toplevel)"
 
 PDA_FILE="target/idl/light_system_program.json"

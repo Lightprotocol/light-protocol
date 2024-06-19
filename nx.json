@@ -27,7 +27,7 @@
       ]
     },
     "test": {
-      "cache": true,
+      "cache": false,
       "inputs": [
         "noMarkdown",
         "^noMarkdown",
@@ -40,7 +40,7 @@
       ]
     },
     "format": {
-      "cache": true,
+      "cache": false,
       "inputs": [
         "noMarkdown",
         "^noMarkdown",
@@ -49,7 +49,7 @@
       ]
     },
     "format:check": {
-        "cache": true,
+        "cache": false,
         "inputs": [
             "noMarkdown",
             "^noMarkdown",

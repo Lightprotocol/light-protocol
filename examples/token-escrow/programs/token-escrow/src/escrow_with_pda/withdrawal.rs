@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use light_compressed_token::{
+use light_compressed_token::process_transfer::{
     CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
     PackedTokenTransferOutputData,
 };
@@ -57,14 +57,14 @@ pub fn withdrawal_cpi_compressed_token_transfer<'info>(
     bump: u8,
     proof: CompressedProof,
     mint: Pubkey,
-    signer_is_delegate: bool,
+    _signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
     output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
 ) -> Result<()> {
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
         mint,
-        signer_is_delegate,
+        delegated_transfer: None,
         input_token_data_with_context,
         output_compressed_accounts,
         is_compress: false,

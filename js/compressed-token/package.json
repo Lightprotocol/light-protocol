@@ -103,5 +103,15 @@
         "tslib": "^2.6.2",
         "typescript": "^5.4.5",
         "vitest": "^1.6.0"
+    },
+    "nx": {
+    "targets": {
+      "build": {
+        "inputs": [
+          "{workspaceRoot}/target/idl",
+          "{workspaceRoot}/target/types"
+        ]
+      }
     }
+  }
 }

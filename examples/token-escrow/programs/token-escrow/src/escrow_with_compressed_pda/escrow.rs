@@ -2,8 +2,11 @@ use crate::{create_change_output_compressed_token_account, program::TokenEscrow,
 use account_compression::{program::AccountCompression, RegisteredProgram};
 use anchor_lang::prelude::*;
 use light_compressed_token::{
-    program::LightCompressedToken, CompressedTokenInstructionDataTransfer,
-    InputTokenDataWithContext, PackedTokenTransferOutputData,
+    process_transfer::{
+        CompressedTokenInstructionDataTransfer, InputTokenDataWithContext,
+        PackedTokenTransferOutputData,
+    },
+    program::LightCompressedToken,
 };
 use light_hasher::{errors::HasherError, DataHasher, Hasher, Poseidon};
 use light_sdk::{
@@ -174,7 +177,7 @@ impl light_hasher::DataHasher for EscrowTimeLock {
 pub fn cpi_compressed_token_transfer_pda<'info>(
     ctx: &Context<'_, '_, '_, 'info, EscrowCompressedTokensWithCompressedPda<'info>>,
     mint: Pubkey,
-    signer_is_delegate: bool,
+    _signer_is_delegate: bool,
     input_token_data_with_context: Vec<InputTokenDataWithContext>,
     output_compressed_accounts: Vec<PackedTokenTransferOutputData>,
     proof: CompressedProof,
@@ -185,7 +188,7 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
         mint,
-        signer_is_delegate,
+        delegated_transfer: None,
         input_token_data_with_context,
         output_compressed_accounts,
         is_compress: false,

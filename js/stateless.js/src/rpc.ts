@@ -130,7 +130,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
                 _tokenData.state,
             ),
             isNative: _tokenData.isNative,
-            delegatedAmount: _tokenData.delegatedAmount,
         };
 
         if (
@@ -192,7 +191,6 @@ function buildCompressedAccountWithMaybeTokenData(
             tokenDataResult.state,
         ),
         isNative: tokenDataResult.isNative,
-        delegatedAmount: tokenDataResult.delegatedAmount,
     };
 
     return { account: compressedAccount, maybeTokenData: parsed };

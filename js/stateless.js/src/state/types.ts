@@ -92,7 +92,7 @@ export type TokenTransferOutputData = {
 export type CompressedTokenInstructionDataTransfer = {
     proof: CompressedProof | null;
     mint: PublicKey;
-    signerIsDelegate: boolean;
+    delegatedTransfer: null;
     inputTokenDataWithContext: InputTokenDataWithContext[];
     outputCompressedAccounts: TokenTransferOutputData[];
     isCompress: boolean;
@@ -103,7 +103,6 @@ export type CompressedTokenInstructionDataTransfer = {
 export interface InputTokenDataWithContext {
     amount: BN;
     delegateIndex: number | null; // Option<u8>
-    delegatedAmount: BN | null; // Option<u64>
     isNative: BN | null; // Option<u64>
     merkleContext: PackedMerkleContext;
     rootIndex: number; // u16
@@ -125,8 +124,6 @@ export type TokenData = {
     /// used by the Processor to ensure that wrapped SOL accounts do not
     /// drop below this threshold.
     isNative: BN | null;
-    /// The amount delegated
-    delegatedAmount: BN;
     // TODO: validate that we don't need close authority
     // /// Optional authority to close the account.
     // close_authority?: PublicKey,
