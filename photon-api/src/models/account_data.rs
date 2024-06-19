@@ -19,11 +19,11 @@ pub struct AccountData {
     #[serde(rename = "dataHash")]
     pub data_hash: String,
     #[serde(rename = "discriminator")]
-    pub discriminator: i32,
+    pub discriminator: i64,
 }
 
 impl AccountData {
-    pub fn new(data: String, data_hash: String, discriminator: i32) -> AccountData {
+    pub fn new(data: String, data_hash: String, discriminator: i64) -> AccountData {
         AccountData {
             data,
             data_hash,
