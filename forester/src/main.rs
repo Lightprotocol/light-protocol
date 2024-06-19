@@ -4,7 +4,7 @@ use config::Config;
 use env_logger::Env;
 use forester::nqmt::reindex_and_store;
 use log::info;
-use solana_sdk::signature::Keypair;
+use solana_sdk::signature::{Keypair, Signer};
 use std::str::FromStr;
 
 use forester::cli::{Cli, Commands};
@@ -15,6 +15,9 @@ use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
 use light_test_utils::rpc::SolanaRpcConnection;
 use std::env;
+use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -68,7 +71,7 @@ fn init_config() -> ForesterConfig {
             .unwrap(),
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: Keypair::from_bytes(&payer).unwrap(),
-        concurrency_limit: 20,
+        concurrency_limit: 1,
         batch_size: 1000,
         max_retries: 5,
     }
@@ -78,7 +81,16 @@ async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config = init_config();
 
-    let mut rpc = SolanaRpcConnection::new(None);
+    let commitment_config = CommitmentConfig {
+        commitment: CommitmentLevel::Confirmed,
+    };
+
+    let mut rpc = SolanaRpcConnection::new(Some(commitment_config));
+
+    let result = rpc.airdrop_lamports(
+        &config.payer_keypair.pubkey(),
+        10_000_000_000,
+    ).await.unwrap();
 
     let cli = Cli::parse();
     match &cli.command {
