@@ -185,7 +185,7 @@ pub mod sdk {
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut serialized_ix_data = Vec::new();
         CompressedTokenInstructionDataBurn::serialize(&inputs_struct, &mut serialized_ix_data)
-            .unwrap();
+            .map_err(|_| TransferSdkError::SerializationError)?;
 
         let (cpi_authority_pda, _) = get_cpi_authority_pda();
         let data = crate::instruction::Burn {
