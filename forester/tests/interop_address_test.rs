@@ -161,15 +161,15 @@ async fn test_photon_interop_address() {
     let address_2 = generate_pubkey_254();
     // TODO(photon): Test-indexer and photon should return equivalent
     // address-proofs for the same address.
-    // {
-    //     assert_new_address_proofs_for_photon_and_test_indexer(
-    //         &mut env.indexer,
-    //         &trees,
-    //         &[address_2].to_vec(),
-    //         &photon_indexer,
-    //     )
-    //     .await;
-    // }
+    {
+        assert_new_address_proofs_for_photon_and_test_indexer(
+            &mut env.indexer,
+            &trees,
+            &[address_2].to_vec(),
+            &photon_indexer,
+        )
+        .await;
+    }
 
     // Ensure test-indexer returns the correct proof.
     let _ = env.create_address(Some(vec![address_2])).await;

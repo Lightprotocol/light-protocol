@@ -181,7 +181,12 @@ async fn test_photon_interop_nullify_account() {
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
         // TODO(photon): Test-indexer and photon should return equivalent
         // merkleproofs for the same account.
-        // assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
+        assert_account_proofs_for_photon_and_test_indexer(
+            &mut env.indexer,
+            &alice.keypair.pubkey(),
+            &photon_indexer,
+        )
+        .await;
     }
 
     // Ensures test-indexer is creating valid proofs.
