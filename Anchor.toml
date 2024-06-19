@@ -14,3 +14,7 @@ url = "https://anchor.projectserum.com"
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 # --resolveJsonModule ./tsconfig.json 
+
+# [workspace]
+# types = "./js/stateless.js/src/idls"
+# idls = "./js/stateless.js/src/idls"

@@ -14,9 +14,7 @@
         "noMarkdown",
         "^noMarkdown",
         "noTestLedger",
-        "^noTestLedger",
-        "{workspaceRoot}/target/idl/**/*",
-        "{workspaceRoot}/target/types/**/*"
+        "^noTestLedger"
       ],
       "dependsOn": [
         "^build"
