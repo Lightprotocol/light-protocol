@@ -66,5 +66,14 @@
     "tweetnacl": "^1.0.3",
     "vite-plugin-env-compatible": "^1.1.1",
     "vitest": "^1.6.0"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{projectRoot}/dist"
+        ]
+      }
+    }
   }
 }
