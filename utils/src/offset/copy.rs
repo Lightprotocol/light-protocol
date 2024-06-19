@@ -41,7 +41,7 @@ where
     let ptr = bytes[*offset..*offset + size].as_ptr() as *const T;
 
     let mut vec = BoundedVec::with_metadata(metadata);
-    let dst_ptr = vec.as_mut_ptr();
+    let dst_ptr: *mut T = vec.as_mut_ptr();
 
     for i in 0..metadata.length() {
         let val = ptr::read(ptr.add(i));
@@ -74,7 +74,7 @@ where
     let src_ptr = bytes[*offset..*offset + size].as_ptr() as *const T;
 
     let mut vec = CyclicBoundedVec::with_metadata(metadata);
-    let dst_ptr = vec.as_mut_ptr();
+    let dst_ptr: *mut T = vec.as_mut_ptr();
 
     for i in 0..metadata.length() {
         let val = ptr::read(src_ptr.add(i));
