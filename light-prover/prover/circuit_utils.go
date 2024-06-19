@@ -20,13 +20,13 @@ type Proof struct {
 }
 
 type ProvingSystem struct {
-	InclusionTreeDepth        uint32
+	InclusionTreeDepth                     uint32
 	InclusionNumberOfCompressedAccounts    uint32
-	NonInclusionTreeDepth     uint32
+	NonInclusionTreeDepth                  uint32
 	NonInclusionNumberOfCompressedAccounts uint32
-	ProvingKey                groth16.ProvingKey
-	VerifyingKey              groth16.VerifyingKey
-	ConstraintSystem          constraint.ConstraintSystem
+	ProvingKey                             groth16.ProvingKey
+	VerifyingKey                           groth16.VerifyingKey
+	ConstraintSystem                       constraint.ConstraintSystem
 }
 
 // ProveParentHash gadget generates the ParentHash
@@ -51,7 +51,7 @@ type InclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -74,13 +74,13 @@ type NonInclusionProof struct {
 
 	LeafLowerRangeValues  []frontend.Variable
 	LeafHigherRangeValues []frontend.Variable
-	LeafIndices           []frontend.Variable
+	NextIndices           []frontend.Variable
 
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -88,7 +88,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		leaf := LeafHashGadget{
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
-			LeafIndex:            gadget.LeafIndices[proofIndex],
+			NextIndex:            gadget.NextIndices[proofIndex],
 			LeafHigherRangeValue: gadget.LeafHigherRangeValues[proofIndex],
 			Value:                gadget.Values[proofIndex]}
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
@@ -117,7 +117,7 @@ func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
 
 type LeafHashGadget struct {
 	LeafLowerRangeValue  frontend.Variable
-	LeafIndex            frontend.Variable
+	NextIndex            frontend.Variable
 	LeafHigherRangeValue frontend.Variable
 	Value                frontend.Variable
 }

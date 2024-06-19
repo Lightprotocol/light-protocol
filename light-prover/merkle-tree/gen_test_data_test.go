@@ -9,7 +9,7 @@ import (
 )
 
 func TestInclusionParameters_TestTree(t *testing.T) {
-	file, err := os.OpenFile("../test-data/inclusion_tmp.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("../test-data/inclusion.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -45,7 +45,7 @@ func TestInclusionParameters_TestTree(t *testing.T) {
 }
 
 func TestNonInclusionParameters_TestTree(t *testing.T) {
-	file, err := os.OpenFile("../test-data/non-inclusion_tmp.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("../test-data/non_inclusion.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Errorf("Error opening file: %v", err)
 		return
@@ -80,7 +80,7 @@ func TestNonInclusionParameters_TestTree(t *testing.T) {
 }
 
 func TestCombined(t *testing.T) {
-	file, err := os.OpenFile("../test-data/combined_tmp.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile("../test-data/combined.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Errorf("Error opening file: %v", err)
 		return
@@ -293,6 +293,7 @@ func MakeTestNonInclusionTrees(depth int, numberOfCompressedAccounts int) []NonI
 
 	trees = append(trees, validPair)
 	trees = append(trees, invalidRootPair)
+	trees = append(trees, invalidNextIndexPair)
 	trees = append(trees, invalidLowValuePair)
 	trees = append(trees, invalidHighValuePair)
 	trees = append(trees, invalidInPathIndicesPairAddOne)

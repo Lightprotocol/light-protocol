@@ -21,7 +21,7 @@ type NonInclusionInputs struct {
 
 	LeafLowerRangeValue  big.Int
 	LeafHigherRangeValue big.Int
-	LeafIndex            uint32
+	NextIndex            uint32
 }
 
 type NonInclusionParameters struct {
@@ -71,7 +71,7 @@ func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (cons
 		Values:                     values,
 		LeafLowerRangeValues:       leafLowerRangeValues,
 		LeafHigherRangeValues:      leafHigherRangeValues,
-		LeafIndices:                leafIndices,
+		NextIndices:                leafIndices,
 		InPathIndices:              inPathIndices,
 		InPathElements:             inPathElements,
 	}
@@ -110,7 +110,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		values[i] = params.Inputs[i].Value
 		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
 		leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
-		leafIndices[i] = params.Inputs[i].LeafIndex
+		leafIndices[i] = params.Inputs[i].NextIndex
 		inPathIndices[i] = params.Inputs[i].PathIndex
 		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
 		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
@@ -123,7 +123,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		Values:                values,
 		LeafLowerRangeValues:  leafLowerRangeValues,
 		LeafHigherRangeValues: leafHigherRangeValues,
-		LeafIndices:           leafIndices,
+		NextIndices:           leafIndices,
 		InPathIndices:         inPathIndices,
 		InPathElements:        inPathElements,
 	}

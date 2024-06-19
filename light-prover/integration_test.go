@@ -258,7 +258,7 @@ func TestNonInclusionHappyPath26_1_JSON(t *testing.T) {
       ],
       "leafLowerRangeValue": "0x201",
       "leafHigherRangeValue": "0x203",
-      "leafIndex": 46336290
+      "nextIndex": 46336290
     }
   ]
 }
@@ -352,7 +352,7 @@ func TestCombinedHappyPath_JSON(t *testing.T) {
       ],
       "leafLowerRangeValue": "0x201",
       "leafHigherRangeValue": "0x203",
-      "leafIndex": 46336290
+      "nextIndex": 46336290
     }
   ]
 }

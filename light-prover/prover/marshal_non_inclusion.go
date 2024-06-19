@@ -13,7 +13,7 @@ type NonInclusionProofInputsJSON struct {
 	PathElements         []string `json:"pathElements"`
 	LeafLowerRangeValue  string   `json:"leafLowerRangeValue"`
 	LeafHigherRangeValue string   `json:"leafHigherRangeValue"`
-	LeafIndex            uint32   `json:"leafIndex"`
+	NextIndex            uint32   `json:"nextIndex"`
 }
 
 type NonInclusionParametersJSON struct {
@@ -47,7 +47,7 @@ func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusion
 		}
 		paramsJson.Inputs[i].LeafLowerRangeValue = toHex(&p.Inputs[i].LeafLowerRangeValue)
 		paramsJson.Inputs[i].LeafHigherRangeValue = toHex(&p.Inputs[i].LeafHigherRangeValue)
-		paramsJson.Inputs[i].LeafIndex = p.Inputs[i].LeafIndex
+		paramsJson.Inputs[i].NextIndex = p.Inputs[i].NextIndex
 	}
 	return paramsJson
 }
@@ -92,7 +92,7 @@ func (p *NonInclusionParameters) UpdateWithJSON(params NonInclusionParametersJSO
 		if err != nil {
 			return err
 		}
-		p.Inputs[i].LeafIndex = params.Inputs[i].LeafIndex
+		p.Inputs[i].NextIndex = params.Inputs[i].NextIndex
 	}
 	return nil
 }
