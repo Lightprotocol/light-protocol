@@ -811,7 +811,7 @@ mod test {
     }
 
     #[test]
-    fn test_bounded_vec_metadata() {
+    fn test_bounded_vec_metadata_serialization() {
         let mut rng = thread_rng();
 
         for _ in 0..1000 {
@@ -894,6 +894,7 @@ mod test {
         let mut vec = BoundedVec::with_capacity(1000);
 
         for i in 0..1000 {
+            assert!(vec.get(i).is_none());
             vec.push(i).unwrap();
         }
 
@@ -910,6 +911,7 @@ mod test {
         let mut vec = BoundedVec::with_capacity(1000);
 
         for i in 0..1000 {
+            assert!(vec.get_mut(i).is_none());
             vec.push(i).unwrap();
         }
 
@@ -1107,7 +1109,7 @@ mod test {
     }
 
     #[test]
-    fn test_cyclic_bounded_vec_metadata() {
+    fn test_cyclic_bounded_vec_metadata_serialization() {
         let mut rng = thread_rng();
 
         for _ in 0..1000 {
