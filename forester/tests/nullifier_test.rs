@@ -1,4 +1,5 @@
 use std::mem;
+use std::sync::Arc;
 
 use account_compression::StateMerkleTreeAccount;
 use forester::constants::{INDEXER_URL, SERVER_URL};
@@ -31,6 +32,7 @@ fn test_config() -> Config {
         concurrency_limit: 20,
         batch_size: 1000,
         max_retries: 5,
+        max_concurrent_batches: 5,
     }
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -91,15 +93,16 @@ async fn tree_info_test() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_nullify_leaves() {
-    let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None);
-    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+    let rpc = SolanaRpcConnection::new(None);
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(INDEXER_URL.to_string())));
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    rpc.lock().await.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
 
     let time = std::time::Instant::now();
-    match nullify(&mut indexer, &mut rpc, &config).await {
+    match nullify(indexer, rpc, &config).await {
         Ok(_) => {
             info!("Nullify completed");
             info!("Total time elapsed: {:?}", time.elapsed());
@@ -118,5 +121,5 @@ async fn test_subscribe_nullify() {
     rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
-    subscribe_nullify(&config, &mut rpc).await;
+    subscribe_nullify(&config, rpc).await;
 }

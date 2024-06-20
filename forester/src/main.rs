@@ -15,7 +15,7 @@ use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
 use light_test_utils::rpc::SolanaRpcConnection;
 use std::env;
-use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
+use std::sync::Arc;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 
@@ -74,6 +74,7 @@ fn init_config() -> ForesterConfig {
         concurrency_limit: 1,
         batch_size: 1000,
         max_retries: 5,
+        max_concurrent_batches: 5,
     }
 }
 #[tokio::main]
@@ -87,10 +88,11 @@ async fn main() {
 
     let mut rpc = SolanaRpcConnection::new(Some(commitment_config));
 
-    let result = rpc.airdrop_lamports(
+    rpc.airdrop_lamports(
         &config.payer_keypair.pubkey(),
         10_000_000_000,
     ).await.unwrap();
+
 
     let cli = Cli::parse();
     match &cli.command {
@@ -99,7 +101,7 @@ async fn main() {
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
-            subscribe_nullify(&config, &mut rpc).await;
+            subscribe_nullify(&config, rpc.clone()).await;
         }
         Some(Commands::Nullify) => {
             info!(
@@ -107,8 +109,10 @@ async fn main() {
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
 
-            let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-            let result = nullify(&mut indexer, &mut rpc, &config).await;
+            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(INDEXER_URL.to_string())));
+            let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+            let result = nullify(indexer, rpc, &config).await;
             info!("Nullification result: {:?}", result);
         }
         Some(Commands::Index) => {

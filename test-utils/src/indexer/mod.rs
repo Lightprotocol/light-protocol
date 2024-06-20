@@ -17,7 +17,7 @@ use light_indexed_merkle_tree::array::IndexedElement;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
-pub trait Indexer: Sync + Send + 'static {
+pub trait Indexer: Sync + Send + Clone + 'static {
     fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,

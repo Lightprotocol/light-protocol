@@ -18,6 +18,12 @@ pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
 }
 
+impl Clone for ProgramTestRpcConnection {
+    fn clone(&self) -> Self {
+        todo!()
+    }
+}
+
 impl RpcConnection for ProgramTestRpcConnection {
     async fn create_and_send_transaction_with_event<T>(
         &mut self,

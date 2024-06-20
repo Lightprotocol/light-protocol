@@ -27,6 +27,7 @@ async fn empty_address_tree_test() {
         concurrency_limit: 1,
         batch_size: 1,
         max_retries: 5,
+        max_concurrent_batches: 5,
     };
 
     let mut rpc = SolanaRpcConnection::new(None);
