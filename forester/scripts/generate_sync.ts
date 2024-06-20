@@ -31,9 +31,24 @@ async function transferAsync(i: number, rpc: Rpc, payer: Signer, bobPublicKey: P
 }
 
 async function prefillNullifierQueue() {
-    const rpc = createRpc();
+    /*
+        https://zk-testnet.helius.dev:8899 (validator)
+        https://zk-testnet.helius.dev:8784 (photon)
+        https://zk-testnet.helius.dev:3001 (prover)
+    */
+
+    let validatorUrl = 'https://zk-testnet.helius.dev:8899';
+    let photonUrl = 'https://zk-testnet.helius.dev:8784';
+    let proverUrl = 'https://zk-testnet.helius.dev:3001';
+
+    const rpc = createRpc(validatorUrl, photonUrl, proverUrl);
     const payer = Keypair.fromSecretKey(Uint8Array.from(payerKeypair));
     const bob = Keypair.fromSecretKey(Uint8Array.from(bobKeypair));
+
+    const myPubKey = new PublicKey("AfNPKD3s1wmaZ7oRSXf5w2SDVuTsa9UTvVooiifvcXco");
+
+    const tx0 = await airdropSol({connection: rpc, lamports: LAMPORTS, recipientPublicKey: myPubKey});
+    console.log('tx0', tx0);
 
     const tx1 = await airdropSol({connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey});
     console.log('tx1', tx1);
