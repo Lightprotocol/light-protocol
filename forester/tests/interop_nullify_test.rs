@@ -23,14 +23,17 @@ pub async fn assert_accounts_by_owner(
     photon_indexer: &PhotonIndexer,
 )
 {
-    let photon_accs = photon_indexer
+    let mut photon_accs = photon_indexer
         .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
-    let test_accs = indexer
+    photon_accs.sort();
+
+    let mut test_accs = indexer
         .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
         .unwrap();
+    test_accs.sort();
 
     info!(
         "asserting accounts for user: {} Test accs: {:?} Photon accs: {:?}",
@@ -39,6 +42,10 @@ pub async fn assert_accounts_by_owner(
         photon_accs.len()
     );
     assert_eq!(test_accs.len(), photon_accs.len());
+
+    info!("test_accs: {:?}", test_accs);
+    info!("photon_accs: {:?}", photon_accs);
+
     for (test_acc, indexer_acc) in test_accs.iter().zip(photon_accs.iter()) {
         assert_eq!(test_acc, indexer_acc);
     }

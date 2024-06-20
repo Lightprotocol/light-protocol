@@ -17,6 +17,7 @@ use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::{Mutex, Semaphore};
 use tokio_util::sync::CancellationToken;
+use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
 
 #[allow(dead_code)]
 pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
@@ -89,7 +90,7 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
         let max_retries = config.max_retries;
         let mut queue_data = queue_data.unwrap();
         let account = queue_data.compressed_accounts_to_nullify.remove(0);
-        if let Some((proof, leaf_index, _)) = queue_data
+        if let Some((proof, leaf_index, root_seq)) = queue_data
             .compressed_account_proofs
             .remove(&account.hash_string())
         {
@@ -110,6 +111,7 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
                     queue_data.change_log_index,
                     proof_clone,
                     leaf_index,
+                    root_seq,
                     &config_clone,
                     rpc,
                     indexer,
@@ -214,14 +216,22 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
     change_log_index: usize,
     proof: Vec<[u8; 32]>,
     leaf_index: u64,
+    root_seq: i64,
     config: &Config,
     rpc: &mut R,
     indexer: &mut T,
 ) -> Result<(), ForesterError> {
+    info!("Nullifying account: {}...", account.hash_string());
+    info!("Change log index: {}", change_log_index);
+    info!("Leaf index: {}", leaf_index);
+    info!("Root seq: {}", root_seq);
+    let root_seq_mod = root_seq as u64 % STATE_MERKLE_TREE_CHANGELOG;
+    info!("Root seq mod: {}", root_seq_mod);
+
     let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
         nullifier_queue: config.nullifier_queue_pubkey,
         merkle_tree: config.state_merkle_tree_pubkey,
-        change_log_indices: vec![change_log_index as u64],
+        change_log_indices: vec![root_seq_mod as u64],
         leaves_queue_indices: vec![account.index as u16],
         indices: vec![leaf_index],
         proofs: vec![proof],
