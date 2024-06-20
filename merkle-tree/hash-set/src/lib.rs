@@ -124,7 +124,7 @@ impl HashSet {
     }
 
     /// Size which needs to be allocated on Solana account to fit the hash set.
-    pub fn size_in_account(capacity_values: usize) -> Result<usize, HashSetError> {
+    pub fn size_in_account(capacity_values: usize) -> usize {
         let dyn_fields_size = Self::non_dyn_fields_size();
 
         let buckets_size_unaligned = mem::size_of::<Option<HashSetCell>>() * capacity_values;
@@ -132,7 +132,7 @@ impl HashSet {
         let buckets_size = buckets_size_unaligned + mem::align_of::<usize>()
             - (buckets_size_unaligned % mem::align_of::<usize>());
 
-        Ok(dyn_fields_size + buckets_size)
+        dyn_fields_size + buckets_size
     }
 
     // Create a new hash set with the given capacity
@@ -181,7 +181,7 @@ impl HashSet {
         let capacity_values = usize::from_ne_bytes(bytes[0..8].try_into().unwrap());
         let sequence_threshold = usize::from_ne_bytes(bytes[8..16].try_into().unwrap());
 
-        let expected_size = Self::size_in_account(capacity_values)?;
+        let expected_size = Self::size_in_account(capacity_values);
         if bytes.len() != expected_size {
             return Err(HashSetError::BufferSize(expected_size, bytes.len()));
         }
@@ -544,6 +544,14 @@ impl Drop for HashSet {
     }
 }
 
+impl PartialEq for HashSet {
+    fn eq(&self, other: &Self) -> bool {
+        self.capacity.eq(&other.capacity)
+            && self.sequence_threshold.eq(&other.sequence_threshold)
+            && self.iter().eq(other.iter())
+    }
+}
+
 pub struct HashSetIterator<'a> {
     hash_set: &'a HashSet,
     current: usize,
@@ -567,10 +575,13 @@ impl<'a> Iterator for HashSetIterator<'a> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use ark_bn254::Fr;
     use ark_ff::UniformRand;
     use rand::{thread_rng, Rng};
+
+    use crate::zero_copy::HashSetZeroCopy;
+
+    use super::*;
 
     #[test]
     fn test_is_valid() {
@@ -756,17 +767,27 @@ mod test {
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), false);
                 hs.insert(&nullifier, seq as usize).unwrap();
                 assert_eq!(hs.contains(&nullifier, Some(seq)).unwrap(), true);
+
+                let nullifier_bytes = bigint_to_be_bytes_array(&nullifier).unwrap();
+
+                let element = hs
+                    .find_element(&nullifier, Some(seq))
+                    .unwrap()
+                    .unwrap()
+                    .0
+                    .clone();
                 assert_eq!(
-                    hs.find_element(&nullifier, Some(seq))
-                        .unwrap()
-                        .unwrap()
-                        .0
-                        .clone(),
+                    element,
                     HashSetCell {
                         value: bigint_to_be_bytes_array(&nullifier).unwrap(),
                         sequence_number: None,
                     }
                 );
+                assert_eq!(element.value_bytes(), nullifier_bytes);
+                assert_eq!(&element.value_biguint(), nullifier);
+                assert_eq!(element.sequence_number(), None);
+                assert!(!element.is_marked());
+                assert!(element.is_valid(seq));
 
                 hs.mark_with_sequence_number(&nullifier, seq).unwrap();
                 let element = hs
@@ -779,10 +800,15 @@ mod test {
                 assert_eq!(
                     element,
                     HashSetCell {
-                        value: bigint_to_be_bytes_array(&nullifier).unwrap(),
+                        value: nullifier_bytes,
                         sequence_number: Some(2400 + seq)
                     }
                 );
+                assert_eq!(element.value_bytes(), nullifier_bytes);
+                assert_eq!(&element.value_biguint(), nullifier);
+                assert_eq!(element.sequence_number(), Some(2400 + seq));
+                assert!(element.is_marked());
+                assert!(element.is_valid(seq));
 
                 // Trying to insert the same nullifier, before reaching the
                 // sequence threshold, should fail.
@@ -796,11 +822,56 @@ mod test {
         }
     }
 
+    fn hash_set_from_bytes_copy<
+        const CAPACITY: usize,
+        const SEQUENCE_THRESHOLD: usize,
+        const OPERATIONS: usize,
+    >() {
+        let mut hs_1 = HashSet::new(CAPACITY, SEQUENCE_THRESHOLD).unwrap();
+
+        let mut rng = thread_rng();
+
+        // Create a buffer with random bytes.
+        let mut bytes = vec![0u8; HashSet::size_in_account(CAPACITY)];
+        rng.fill(bytes.as_mut_slice());
+
+        // Initialize a hash set on top of a byte slice.
+        {
+            let mut hs_2 = unsafe {
+                HashSetZeroCopy::from_bytes_zero_copy_init(&mut bytes, CAPACITY, SEQUENCE_THRESHOLD)
+                    .unwrap()
+            };
+
+            for seq in 0..OPERATIONS {
+                let value = BigUint::from(Fr::rand(&mut rng));
+                hs_1.insert(&value, seq).unwrap();
+                hs_2.insert(&value, seq).unwrap();
+            }
+
+            assert_eq!(hs_1, *hs_2);
+        }
+
+        // Create a copy on top of a byte slice.
+        {
+            let hs_2 = unsafe { HashSet::from_bytes_copy(&mut bytes).unwrap() };
+            assert_eq!(hs_1, hs_2);
+        }
+    }
+
+    #[test]
+    fn test_hash_set_from_bytes_copy_6857_2400_3600() {
+        hash_set_from_bytes_copy::<6857, 2400, 3600>()
+    }
+
+    #[test]
+    fn test_hash_set_from_bytes_copy_9601_2400_5000() {
+        hash_set_from_bytes_copy::<9601, 2400, 5000>()
+    }
+
     fn hash_set_full<const CAPACITY: usize, const SEQUENCE_THRESHOLD: usize>() {
         for _ in 0..100 {
             let mut hs = HashSet::new(CAPACITY, SEQUENCE_THRESHOLD).unwrap();
 
-            // let mut rng = StdRng::seed_from_u64(1);
             let mut rng = rand::thread_rng();
 
             // Insert as many values as possible. The important point is to
@@ -1001,5 +1072,110 @@ mod test {
     #[test]
     fn test_hash_set_iter_random_9601_2400() {
         hash_set_iter_random::<5000, 9601, 2400>()
+    }
+
+    #[test]
+    fn test_hash_set_get_bucket() {
+        let mut hs = HashSet::new(6857, 2400).unwrap();
+
+        // Insert incremental elements, so they end up being in the same
+        // sequence in the hash set.
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            hs.insert(&bn_i, i).unwrap();
+        }
+
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            let element = hs.get_bucket(i).unwrap().unwrap();
+            assert_eq!(element.value_biguint(), bn_i);
+        }
+        // Unused cells within the capacity should be `Some(None)`.
+        for i in 3600..6857 {
+            assert!(hs.get_bucket(i).unwrap().is_none());
+        }
+        // Cells over the capacity should be `None`.
+        for i in 6857..10_000 {
+            assert!(hs.get_bucket(i).is_none());
+        }
+    }
+
+    #[test]
+    fn test_hash_set_get_bucket_mut() {
+        let mut hs = HashSet::new(6857, 2400).unwrap();
+
+        // Insert incremental elements, so they end up being in the same
+        // sequence in the hash set.
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            hs.insert(&bn_i, i).unwrap();
+        }
+
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            let element = hs.get_bucket_mut(i).unwrap();
+            assert_eq!(element.unwrap().value_biguint(), bn_i);
+
+            // "Nullify" the element.
+            *element = Some(HashSetCell {
+                value: [0_u8; 32],
+                sequence_number: None,
+            });
+        }
+        for i in 0..3600 {
+            let element = hs.get_bucket_mut(i).unwrap().unwrap();
+            assert_eq!(element.value_bytes(), [0_u8; 32]);
+        }
+        // Unused cells within the capacity should be `Some(None)`.
+        for i in 3600..6857 {
+            assert!(hs.get_bucket_mut(i).unwrap().is_none());
+        }
+        // Cells over the capacity should be `None`.
+        for i in 6857..10_000 {
+            assert!(hs.get_bucket_mut(i).is_none());
+        }
+    }
+
+    #[test]
+    fn test_hash_set_get_unmarked_bucket() {
+        let mut hs = HashSet::new(6857, 2400).unwrap();
+
+        // Insert incremental elements, so they end up being in the same
+        // sequence in the hash set.
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            hs.insert(&bn_i, i).unwrap();
+        }
+
+        for i in 0..3600 {
+            let element = hs.get_unmarked_bucket(i);
+            assert!(element.is_some());
+        }
+
+        // Mark the elements.
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            hs.mark_with_sequence_number(&bn_i, i).unwrap();
+        }
+
+        for i in 0..3600 {
+            let element = hs.get_unmarked_bucket(i);
+            assert!(element.is_none());
+        }
+    }
+
+    #[test]
+    fn test_hash_set_first_no_seq() {
+        let mut hs = HashSet::new(6857, 2400).unwrap();
+
+        // Insert incremental elements, so they end up being in the same
+        // sequence in the hash set.
+        for i in 0..3600 {
+            let bn_i = i.to_biguint().unwrap();
+            hs.insert(&bn_i, i).unwrap();
+
+            let element = hs.first_no_seq().unwrap().unwrap();
+            assert_eq!(element.0.value_biguint(), 0.to_biguint().unwrap());
+        }
     }
 }

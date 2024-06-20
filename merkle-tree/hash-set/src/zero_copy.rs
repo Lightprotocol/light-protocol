@@ -1,6 +1,9 @@
-use std::{marker::PhantomData, mem, ptr::NonNull};
-
-use num_bigint::BigUint;
+use std::{
+    marker::PhantomData,
+    mem,
+    ops::{Deref, DerefMut},
+    ptr::NonNull,
+};
 
 use crate::{HashSet, HashSetCell, HashSetError};
 
@@ -114,53 +117,6 @@ impl<'a> HashSetZeroCopy<'a> {
 
         Ok(hash_set)
     }
-
-    /// Returns a reference to a bucket under the given `index`. Does not check
-    /// the validity.
-    pub fn get_bucket(&self, index: usize) -> Option<&Option<HashSetCell>> {
-        self.hash_set.get_bucket(index)
-    }
-
-    /// Returns a mutable reference to a bucket under the given `index`. Does
-    /// not check the validity.
-    pub fn get_bucket_mut(&mut self, index: usize) -> Option<&mut Option<HashSetCell>> {
-        self.hash_set.get_bucket_mut(index)
-    }
-
-    /// Returns a reference to an unmarked bucket under the given index. If the
-    /// bucket is marked, returns `None`.
-    pub fn get_unmarked_bucket(&self, index: usize) -> Option<&Option<HashSetCell>> {
-        self.hash_set.get_unmarked_bucket(index)
-    }
-
-    /// Inserts a value into the hash set.
-    pub fn insert(&mut self, value: &BigUint, sequence_number: usize) -> Result<(), HashSetError> {
-        self.hash_set.insert(value, sequence_number)
-    }
-
-    /// Returns a first available element.
-    pub fn first(&self, sequence_number: usize) -> Result<Option<&HashSetCell>, HashSetError> {
-        self.hash_set.first(sequence_number)
-    }
-
-    /// Check if the hash set contains a value.
-    pub fn contains(
-        &self,
-        value: &BigUint,
-        sequence_number: Option<usize>,
-    ) -> Result<bool, HashSetError> {
-        self.hash_set.contains(value, sequence_number)
-    }
-
-    /// Marks the given element with a given sequence number.
-    pub fn mark_with_sequence_number(
-        &mut self,
-        value: &BigUint,
-        sequence_number: usize,
-    ) -> Result<(), HashSetError> {
-        self.hash_set
-            .mark_with_sequence_number(value, sequence_number)
-    }
 }
 
 impl<'a> Drop for HashSetZeroCopy<'a> {
@@ -178,10 +134,25 @@ impl<'a> Drop for HashSetZeroCopy<'a> {
     }
 }
 
+impl<'a> Deref for HashSetZeroCopy<'a> {
+    type Target = HashSet;
+
+    fn deref(&self) -> &Self::Target {
+        &self.hash_set
+    }
+}
+
+impl<'a> DerefMut for HashSetZeroCopy<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.hash_set
+    }
+}
+
 #[cfg(test)]
 mod test {
     use ark_bn254::Fr;
     use ark_ff::UniformRand;
+    use num_bigint::BigUint;
     use rand::{thread_rng, Rng};
 
     use super::*;
@@ -192,7 +163,7 @@ mod test {
         const SEQUENCE_THRESHOLD: usize = 2400;
 
         // Create a buffer with random bytes.
-        let mut bytes = vec![0u8; HashSet::size_in_account(VALUES).unwrap()];
+        let mut bytes = vec![0u8; HashSet::size_in_account(VALUES)];
         thread_rng().fill(bytes.as_mut_slice());
 
         // Create random nullifiers.

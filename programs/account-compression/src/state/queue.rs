@@ -112,8 +112,7 @@ impl<'info> GroupAccounts<'info> for InsertIntoQueues<'info> {
 
 impl QueueAccount {
     pub fn size(capacity: usize) -> Result<usize> {
-        Ok(8 + mem::size_of::<Self>()
-            + HashSet::size_in_account(capacity).map_err(ProgramError::from)?)
+        Ok(8 + mem::size_of::<Self>() + HashSet::size_in_account(capacity))
     }
 }
 
