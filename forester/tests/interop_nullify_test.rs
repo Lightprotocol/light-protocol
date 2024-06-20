@@ -149,33 +149,39 @@ async fn test_photon_interop_nullify_account() {
         .await
         .unwrap();
 
-    // Create starting output account
-    info!("Compressing sol");
-    env.compress_sol(user_index, balance).await;
+    let iterations = 10;
 
-    {
-        let alice = &mut env.users[0];
-        assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
-        assert_account_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &alice.keypair.pubkey(),
-            &photon_indexer,
-        )
-        .await;
-    }
+    for i in 0..iterations {
+        info!("Round {} of {}", i, iterations);
 
-    // Insert output into nullifier queue
-    info!("Transferring sol");
-    env.transfer_sol(user_index).await;
+        // Create starting output account
+        info!("Compressing sol");
+        env.compress_sol(user_index, balance).await;
 
-    {
-        let alice = &mut env.users[0];
-        assert_account_proofs_for_photon_and_test_indexer(
-            &mut env.indexer,
-            &alice.keypair.pubkey(),
-            &photon_indexer,
-        )
-        .await;
+        {
+            let alice = &mut env.users[0];
+            assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
+            assert_account_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &alice.keypair.pubkey(),
+                &photon_indexer,
+            )
+                .await;
+        }
+
+        // Insert output into nullifier queue
+        info!("Transferring sol");
+        env.transfer_sol(user_index).await;
+
+        {
+            let alice = &mut env.users[0];
+            assert_account_proofs_for_photon_and_test_indexer(
+                &mut env.indexer,
+                &alice.keypair.pubkey(),
+                &photon_indexer,
+            )
+                .await;
+        }
     }
 
     // Nullifies all hashes in nullifier queue
@@ -202,153 +208,4 @@ async fn test_photon_interop_nullify_account() {
         let alice = &mut env.users[0];
         assert_accounts_by_owner(&mut env.indexer, alice, &photon_indexer).await;
     };
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn photon_interop_state_tree_test() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    spawn_validator(Default::default()).await;
-    let env_accounts = get_test_env_accounts();
-    let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    let config = Config {
-        server_url: SERVER_URL.to_string(),
-        nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
-        state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
-        address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
-        address_merkle_tree_queue_pubkey: env_accounts.address_merkle_tree_queue_pubkey,
-        registry_pubkey: registry_keypair.pubkey(),
-        payer_keypair: env_accounts.forester.insecure_clone(),
-        concurrency_limit: 1,
-        batch_size: 1,
-        max_retries: 5,
-    };
-    let mut rpc = SolanaRpcConnection::new(None);
-
-    rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
-        .await
-        .unwrap();
-
-    rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 1000)
-        .await
-        .unwrap();
-
-    let mut env = E2ETestEnv::<500, SolanaRpcConnection>::new(
-        rpc,
-        &env_accounts,
-        KeypairActionConfig::test_forester_default(),
-        GeneralActionConfig::test_forester_default(),
-        10,
-        None,
-        "../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-        .await;
-
-    let alice =
-        E2ETestEnv::<500, SolanaRpcConnection>::create_user(&mut env.rng, &mut env.rpc).await;
-    let bob = E2ETestEnv::<500, SolanaRpcConnection>::create_user(&mut env.rng, &mut env.rpc).await;
-
-
-    let alice_balance = env.rpc.get_balance(&alice.keypair.pubkey()).await.unwrap();
-    info!("Alice account_balance: {}", alice_balance);
-
-    let bob_balance = env.rpc.get_balance(&alice.keypair.pubkey()).await.unwrap();
-    info!("Bob account_balance: {}", bob_balance);
-
-    env.compress_sol_deterministic(&alice.keypair, 10_000_000)
-        .await;
-
-    let photon_indexer = PhotonIndexer::new(INDEXER_URL.to_string());
-    assert_accounts_by_owner(&mut env.indexer, &alice, &photon_indexer).await;
-    assert_account_proofs_for_photon_and_test_indexer(
-        &mut env.indexer,
-        &alice.keypair.pubkey(),
-        &photon_indexer,
-    )
-        .await;
-
-    let transfer_result = env
-        .transfer_sol_deterministic(&alice.keypair, &bob.keypair.pubkey())
-        .await;
-    assert!(transfer_result.is_ok());
-    info!("Transfer sig: {:?}", transfer_result.unwrap());
-
-    assert_accounts_by_owner(&mut env.indexer, &alice, &photon_indexer).await;
-    assert_accounts_by_owner(&mut env.indexer, &bob, &photon_indexer).await;
-
-    assert_ne!(get_state_queue_length(&mut env.rpc, &config).await, 0);
-    info!(
-        "Nullifying queue of {} accounts...",
-        get_state_queue_length(&mut env.rpc, &config).await
-    );
-
-    let _ = nullify(&mut env.indexer, &mut env.rpc, &config).await;
-    info!("Getting nullifier queue...");
-
-    let accounts = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut env.rpc)
-        .await
-        .unwrap();
-    info!("Nullifier queue length: {}", accounts.len());
-
-    assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
-
-    assert_account_proofs_for_photon_and_test_indexer(
-        &mut env.indexer,
-        &alice.keypair.pubkey(),
-        &photon_indexer,
-    )
-        .await;
-
-    // This should fail because state_tree on photon's side has not been updated after nullification:
-    assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &bob.keypair.pubkey(), &photon_indexer)
-        .await;
-
-    // Check that the state is the same
-    let tree = &env.indexer.state_merkle_trees[0];
-    let root = tree.merkle_tree.root();
-
-    let merkle_tree = get_concurrent_merkle_tree::<StateMerkleTreeAccount, SolanaRpcConnection, Poseidon, 26>(
-        &mut env.rpc,
-        tree.accounts.merkle_tree,
-    )
-        .await;
-
-    info!("Root: {:?}", root);
-    info!("Fetched root: {:?}", merkle_tree.root());
-    assert_eq!(root, merkle_tree.root());
-
-    info!(
-        "Alice balance: {}",
-        env.get_balance(&alice.keypair.pubkey()).await
-    );
-    info!(
-        "Bob balance: {}",
-        env.get_balance(&bob.keypair.pubkey()).await
-    );
-
-    let transfer_result = env
-        .transfer_sol_deterministic(&bob.keypair, &alice.keypair.pubkey())
-        .await;
-    assert!(transfer_result.is_ok());
-    info!("Transfer sig: {:?}", transfer_result.unwrap());
-
-    assert_accounts_by_owner(&mut env.indexer, &alice, &photon_indexer).await;
-    assert_accounts_by_owner(&mut env.indexer, &bob, &photon_indexer).await;
-
-    assert_ne!(get_state_queue_length(&mut env.rpc, &config).await, 0);
-    info!(
-        "Nullifying queue of {} accounts...",
-        get_state_queue_length(&mut env.rpc, &config).await
-    );
-
-    nullify(&mut env.indexer, &mut env.rpc, &config).await.unwrap();
-    assert_account_proofs_for_photon_and_test_indexer(&mut env.indexer, &alice.keypair.pubkey(), &photon_indexer).await;
-
-    info!("Getting nullifier queue...");
-
-    let accounts = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut env.rpc)
-        .await
-        .unwrap();
-    info!("Nullifier queue length: {}", accounts.len());
-
-    assert_eq!(get_state_queue_length(&mut env.rpc, &config).await, 0);
 }

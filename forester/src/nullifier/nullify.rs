@@ -60,7 +60,7 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
             {
                 match fetch_queue_data(indexer, rpc, config).await {
                     Ok(data) => {
-                        info!("Fetched queue data: {:?}", data);
+                        // info!("Fetched queue data: {:?}", data);
                         queue_data = data;
                     }
                     Err(e) => match e {
