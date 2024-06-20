@@ -190,7 +190,7 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
             ForesterError::NoProofsFound
         })?;
 
-    let compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, i64)> = proofs
+    let compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, u64)> = proofs
         .into_iter()
         .map(|proof| {
             (
