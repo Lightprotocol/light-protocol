@@ -57,7 +57,7 @@ pub struct MerkleProof {
     pub leaf_index: u32,
     pub merkle_tree: String,
     pub proof: Vec<[u8; 32]>,
-    pub root_seq: i64,
+    pub root_seq: u64,
 }
 
 #[derive(Clone, Default, Debug, PartialEq)]

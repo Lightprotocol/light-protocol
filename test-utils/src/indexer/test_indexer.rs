@@ -1,7 +1,6 @@
 use super::NewAddressProofWithContext;
 use account_compression::AddressMerkleTreeConfig;
 use light_utils::bigint::bigint_to_be_bytes_array;
-use log::info;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
@@ -11,7 +10,6 @@ use {
     crate::{
         create_account_instruction,
         test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts},
-        AccountZeroCopy,
     },
     account_compression::{
         utils::constants::{STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_HEIGHT},
@@ -166,7 +164,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
                         leaf_index: leaf_index as u32,
                         merkle_tree: tree.accounts.merkle_tree.to_string(),
                         proof: proof.to_vec(),
-                        root_seq: tree.merkle_tree.sequence_number as i64,
+                        root_seq: tree.merkle_tree.sequence_number as u64,
                     });
                 }
             })
@@ -255,10 +253,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         let (old_low_address, old_low_address_next_value) = address_tree_bundle
             .indexed_array
             .find_low_element_for_nonexistent(&address_biguint)
-            .unwrap();
-        let address_bundle = address_tree_bundle
-            .indexed_array
-            .new_element_with_low_element_index(old_low_address.index, &address_biguint)
             .unwrap();
 
         // Get the Merkle proof for updating low element.

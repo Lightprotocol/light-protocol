@@ -105,13 +105,13 @@
         "vitest": "^1.6.0"
     },
     "nx": {
-    "targets": {
-      "build": {
-        "inputs": [
-          "{workspaceRoot}/target/idl",
-          "{workspaceRoot}/target/types"
-        ]
-      }
+        "targets": {
+            "build": {
+                "inputs": [
+                    "{workspaceRoot}/target/idl",
+                    "{workspaceRoot}/target/types"
+                ]
+            }
+        }
     }
-  }
 }

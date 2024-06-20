@@ -96,13 +96,13 @@
         "lint": "eslint ."
     },
     "nx": {
-    "targets": {
-      "build": {
-        "inputs": [
-          "{workspaceRoot}/target/idl",
-          "{workspaceRoot}/target/types"
-        ]
-      }
+        "targets": {
+            "build": {
+                "inputs": [
+                    "{workspaceRoot}/target/idl",
+                    "{workspaceRoot}/target/types"
+                ]
+            }
+        }
     }
-  }
 }
