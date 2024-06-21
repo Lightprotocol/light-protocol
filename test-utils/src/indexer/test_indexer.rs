@@ -5,6 +5,9 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use account_compression::AddressMerkleTreeConfig;
+use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+use light_compressed_token::mint_sdk::create_initialize_mint_instruction;
+use light_compressed_token::{get_token_pool_pda, TokenData};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
     crate::{
@@ -16,11 +19,6 @@ use {
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
     },
     anchor_lang::AnchorDeserialize,
-    crate::{
-        create_account_instruction,
-        test_env::{create_state_merkle_tree_and_queue_account, EnvAccounts}
-        ,
-    },
     light_hasher::Poseidon,
     light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
     light_merkle_tree_reference::MerkleTree,
