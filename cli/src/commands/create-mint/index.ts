@@ -4,11 +4,10 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
+  rpc,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 const DEFAULT_DECIMAL_COUNT = 9;
 
@@ -46,10 +45,8 @@ class CreateMintCommand extends Command {
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = await this.getMintKeypair(flags);
       const mintAuthority = await this.getMintAuthority(flags, payer.publicKey);
-      const lightWasm = await WasmFactory.getInstance();
-      const rpc = await getTestRpc(lightWasm);
       const { mint, transactionSignature } = await createMint(
-        rpc,
+        rpc(),
         payer,
         mintAuthority,
         mintDecimals,
@@ -76,8 +73,7 @@ class CreateMintCommand extends Command {
     if (!mintKeypairFilePath) {
       return undefined;
     }
-    const keypair = await getKeypairFromFile(mintKeypairFilePath);
-    return keypair;
+    return await getKeypairFromFile(mintKeypairFilePath);
   }
 
   async getMintAuthority(flags: any, feePayer: PublicKey): Promise<PublicKey> {

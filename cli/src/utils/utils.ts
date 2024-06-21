@@ -4,7 +4,7 @@ import * as path from "path";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
 import { Keypair } from "@solana/web3.js";
-import { confirmConfig } from "@lightprotocol/stateless.js";
+import { confirmConfig, createRpc, Rpc } from "@lightprotocol/stateless.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "./constants";
 import { getKeypairFromFile } from "@solana-developers/helpers";
@@ -38,6 +38,19 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   return anchorProvider;
 };
 
+export function rpc(): Rpc {
+  if (
+    getSolanaRpcUrl() === "" ||
+    getIndexerUrl() === "" ||
+    getProverUrl() === ""
+  ) {
+    throw new Error(
+      "Please set the Solana RPC URL, Indexer URL, and Prover URL in the config file",
+    );
+  }
+  return createRpc(getSolanaRpcUrl(), getProverUrl(), getIndexerUrl());
+}
+
 function getWalletPath(): string {
   return process.env.HOME + "/.config/solana/id.json";
 }
@@ -56,11 +69,23 @@ export function generateSolanaTransactionURL(
 
 type Config = {
   solanaRpcUrl: string;
+  indexerUrl: string;
+  proverUrl: string;
 };
 
 export const getSolanaRpcUrl = (): string => {
   const config = getConfig();
   return config.solanaRpcUrl;
+};
+
+export const getIndexerUrl = (): string => {
+  const config = getConfig();
+  return config.indexerUrl;
+};
+
+export const getProverUrl = (): string => {
+  const config = getConfig();
+  return config.proverUrl;
 };
 
 function getConfigPath(): string {

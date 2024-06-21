@@ -4,6 +4,7 @@ import {
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
   getSolanaRpcUrl,
+  rpc,
 } from "../../utils/utils";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Keypair, PublicKey } from "@solana/web3.js";
@@ -62,10 +63,8 @@ class ApproveAndMintToCommand extends Command {
       if (flags["mint-authority"] !== undefined) {
         mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
       }
-      const lightWasm = await WasmFactory.getInstance();
-      const rpc = await getTestRpc(lightWasm);
       const txId = await approveAndMintTo(
-        rpc,
+        rpc(),
         payer,
         mintPublicKey,
         toPublicKey,

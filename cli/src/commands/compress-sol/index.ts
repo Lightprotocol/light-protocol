@@ -3,11 +3,10 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getSolanaRpcUrl,
+  rpc,
 } from "../../utils/utils";
 import { PublicKey } from "@solana/web3.js";
-import { compress, getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { compress } from "@lightprotocol/stateless.js";
 
 class CompressSolCommand extends Command {
   static summary = "Compress SOL.";
@@ -42,9 +41,7 @@ class CompressSolCommand extends Command {
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
 
-      const lightWasm = await WasmFactory.getInstance();
-      const rpc = await getTestRpc(lightWasm);
-      txId = await compress(rpc, payer, amount, toPublicKey);
+      txId = await compress(rpc(), payer, amount, toPublicKey);
 
       loader.stop(false);
       console.log(
