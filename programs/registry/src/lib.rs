@@ -283,6 +283,7 @@ pub mod light_registry {
     // increment points in registered relayer account
 }
 
+#[derive(Debug)]
 #[account]
 pub struct LightGovernanceAuthority {
     pub authority: Pubkey,

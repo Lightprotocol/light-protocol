@@ -1,7 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use std::str::FromStr;
-
 use account_compression::{
     self, utils::constants::GROUP_AUTHORITY_SEED, GroupAuthority, RegisteredProgram, ID,
 };
@@ -16,6 +14,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use std::str::FromStr;
 
 /// Tests:
 /// 1. Create group authority
