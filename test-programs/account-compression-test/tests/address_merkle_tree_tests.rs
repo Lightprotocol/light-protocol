@@ -1,10 +1,12 @@
 #![cfg(feature = "test-sbf")]
 
+use std::mem;
+
 use account_compression::{
     errors::AccountCompressionErrorCode,
     state::QueueAccount,
     utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeAccount, AddressMerkleTreeConfig, ID,
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, ID,
 };
 use anchor_lang::error::ErrorCode;
 use light_hash_set::{HashSet, HashSetError};
@@ -13,8 +15,8 @@ use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeEr
 use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::{
-    address_tree_rollover::perform_address_merkle_tree_roll_over, rpc::ProgramTestRpcConnection,
-    test_env::NOOP_PROGRAM_ID, test_forester::update_merkle_tree,
+    address_tree_rollover::perform_address_merkle_tree_roll_over, create_account_instruction,
+    rpc::ProgramTestRpcConnection, test_env::NOOP_PROGRAM_ID, test_forester::update_merkle_tree,
 };
 use light_test_utils::{
     address_tree_rollover::{
@@ -32,6 +34,7 @@ use solana_program_test::ProgramTest;
 use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair, Signer},
+    transaction::Transaction,
 };
 
 /// Tests insertion of addresses to the queue, dequeuing and Merkle tree update.
@@ -121,6 +124,97 @@ async fn test_address_queue_and_tree_functional_custom() {
                 close_threshold: None,
             })
             .await;
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_address_queue_and_tree_invalid_sizes() {
+    let mut program_test = ProgramTest::default();
+    program_test.add_program("account_compression", ID, None);
+    program_test.add_program("spl_noop", NOOP_PROGRAM_ID, None);
+    let context = program_test.start_with_context().await;
+    let mut context = ProgramTestRpcConnection { context };
+    let payer = context.get_payer().insecure_clone();
+
+    let address_merkle_tree_keypair = Keypair::new();
+    let address_queue_keypair = Keypair::new();
+
+    let queue_config = AddressQueueConfig::default();
+    let merkle_tree_config = AddressMerkleTreeConfig::default();
+
+    let valid_queue_size = account_compression::state::QueueAccount::size(
+        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
+    )
+    .unwrap();
+    let valid_tree_size = account_compression::state::AddressMerkleTreeAccount::size(
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
+        merkle_tree_config.address_changelog_size as usize,
+    );
+
+    for invalid_queue_size in (8 + mem::size_of::<account_compression::state::QueueAccount>()
+        ..valid_queue_size)
+        .step_by(50_000)
+    {
+        for invalid_tree_size in (8 + mem::size_of::<
+            account_compression::state::AddressMerkleTreeAccount,
+        >()..valid_tree_size)
+            .step_by(200_000)
+        {
+            let queue_account_create_ix = create_account_instruction(
+                &payer.pubkey(),
+                invalid_queue_size,
+                context
+                    .get_minimum_balance_for_rent_exemption(invalid_queue_size)
+                    .await
+                    .unwrap(),
+                &account_compression::ID,
+                Some(&address_queue_keypair),
+            );
+            let mt_account_create_ix = create_account_instruction(
+                &payer.pubkey(),
+                invalid_tree_size,
+                context
+                    .get_minimum_balance_for_rent_exemption(invalid_tree_size)
+                    .await
+                    .unwrap(),
+                &account_compression::ID,
+                Some(&address_merkle_tree_keypair),
+            );
+
+            let instruction =  account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction(
+                0,
+                payer.pubkey(),
+                payer.pubkey(),
+                None,
+                address_merkle_tree_keypair.pubkey(),
+                address_queue_keypair.pubkey(),
+                merkle_tree_config.clone(),
+                queue_config.clone(),
+            );
+            let c_ix = solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(
+                10_000_000,
+            );
+            let transaction = Transaction::new_signed_with_payer(
+                &[
+                    c_ix,
+                    queue_account_create_ix,
+                    mt_account_create_ix,
+                    instruction,
+                ],
+                Some(&payer.pubkey()),
+                &vec![&payer, &address_queue_keypair, &address_merkle_tree_keypair],
+                context.get_latest_blockhash().await.unwrap(),
+            );
+
+            let result = context.process_transaction(transaction.clone()).await;
+            assert_rpc_error(
+                result, 3, 9006, // HashSetError::BufferSize
+            )
+            .unwrap()
         }
     }
 }
