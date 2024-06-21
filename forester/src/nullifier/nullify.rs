@@ -241,7 +241,7 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
     change_log_index: usize,
     proof: Vec<[u8; 32]>,
     leaf_index: u64,
-    root_seq: i64,
+    root_seq: u64,
     config: &Config,
     rpc: &mut R,
     indexer: &mut T,
@@ -250,7 +250,7 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
     info!("Change log index: {}", change_log_index);
     info!("Leaf index: {}", leaf_index);
     info!("Root seq: {}", root_seq);
-    let root_seq_mod = root_seq as u64 % STATE_MERKLE_TREE_CHANGELOG;
+    let root_seq_mod = root_seq % STATE_MERKLE_TREE_CHANGELOG;
     info!("Root seq mod: {}", root_seq_mod);
 
     let ix = create_nullify_instruction(CreateNullifyInstructionInputs {
