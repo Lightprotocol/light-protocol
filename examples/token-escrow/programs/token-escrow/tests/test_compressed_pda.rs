@@ -43,13 +43,7 @@ async fn test_escrow_with_compressed_pda() {
     .await;
     let payer = rpc.get_payer().insecure_clone();
 
-    let test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        true,
-        true,
-        "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    );
+    let test_indexer = TestIndexer::init_from_env(&payer, &env, true, true);
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
 

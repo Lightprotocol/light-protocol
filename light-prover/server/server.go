@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"net/http"
-	"github.com/gorilla/handlers"
 	//"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -89,9 +89,9 @@ func Run(config *Config, provingSystem []*prover.ProvingSystem) RunningJob {
 	// TODO: Enforce strict CORS policy
 	corsHandler := handlers.CORS(
 		handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"}),
-        handlers.AllowedOrigins([]string{"*"}),
-        handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
-    )
+		handlers.AllowedOrigins([]string{"*"}),
+		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
+	)
 
 	proverServer := &http.Server{Addr: config.ProverAddress, Handler: corsHandler(proverMux)}
 	proverJob := spawnServerJob(proverServer, "prover server")

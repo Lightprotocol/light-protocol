@@ -45,14 +45,8 @@ async fn test_program_owned_merkle_tree() {
     let program_owned_nullifier_queue_keypair = Keypair::new();
     let cpi_context_keypair = Keypair::new();
 
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        true,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, true).await;
     test_indexer
         .add_state_merkle_tree(
             &mut rpc,

@@ -1,5 +1,5 @@
 [package]
-name = "light-circuitlib-rs"
+name = "light-prover-client"
 version = "0.1.4"
 description = "Crate for interacting with Light Protocol circuits"
 repository = "https://github.com/Lightprotocol/light-protocol"

@@ -1,3 +1,4 @@
+use log::info;
 use std::{
     fmt::{Display, Formatter},
     process::Command,
@@ -32,30 +33,38 @@ impl Display for ProofType {
     }
 }
 
-pub async fn spawn_gnark_server(path: &str, restart: bool, proof_types: &[ProofType]) {
-    if restart {
-        kill_gnark_server();
-    }
-    if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
-        IS_LOADING.store(true, Ordering::Relaxed);
-        Command::new("sh")
-            .arg("-c")
-            .arg(format!(
-                "{} {}",
-                path,
-                proof_types
-                    .iter()
-                    .map(|p| p.to_string() + " ")
-                    .collect::<String>(),
-            ))
-            .spawn()
-            .expect("Failed to start server process");
-        health_check(20, 5).await;
-        IS_LOADING.store(false, Ordering::Relaxed);
+pub async fn spawn_prover(restart: bool, proof_types: &[ProofType]) {
+    if let Some(project_root) = get_project_root() {
+        let path = "circuit-lib/light-prover-client/scripts/prover.sh";
+        let absolute_path = format!("{}/{}", project_root.trim(), path);
+        if restart {
+            kill_prover();
+        }
+
+        if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
+            IS_LOADING.store(true, Ordering::Relaxed);
+
+            let proof_type_args: Vec<String> = proof_types.iter().map(|p| p.to_string()).collect();
+            let proof_type_str = proof_type_args.join(" ");
+            Command::new("sh")
+                .arg("-c")
+                .arg(format!("{} {}", absolute_path, proof_type_str))
+                .spawn()
+                .expect("Failed to start server process");
+            let health_result = health_check(20, 5).await;
+            if health_result {
+                info!("Prover started successfully");
+            } else {
+                panic!("Prover failed to start");
+            }
+            IS_LOADING.store(false, Ordering::Relaxed);
+        }
+    } else {
+        panic!("Failed to determine the project root directory");
     }
 }
 
-pub fn kill_gnark_server() {
+pub fn kill_prover() {
     let mut system = System::new_all();
     system.refresh_all();
 
@@ -63,31 +72,6 @@ pub fn kill_gnark_server() {
         if process.name() == "light-prover" {
             process.kill_with(Signal::Term);
         }
-    }
-}
-
-pub async fn spawn_prover() {
-    let cmd = "../../cli/test_bin/run start-prover";
-    prover_init_wait(cmd).await;
-}
-
-async fn prover_init_wait(cmd: &str) {
-    println!("Waiting for prover to start");
-    if !health_check(1, 3).await && !IS_LOADING.load(Ordering::Relaxed) {
-        println!("Prover not started yet, waiting...");
-        IS_LOADING.store(true, Ordering::Relaxed);
-        Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
-            .spawn()
-            .expect("Failed to start server process");
-        let result = health_check(20, 5).await;
-        if result {
-            println!("Prover started successfully");
-        } else {
-            panic!("Prover failed to start");
-        }
-        IS_LOADING.store(false, Ordering::Relaxed);
     }
 }
 
@@ -110,6 +94,19 @@ pub async fn health_check(retries: usize, timeout: usize) -> bool {
         }
     }
     result
+}
+
+fn get_project_root() -> Option<String> {
+    let output = Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        String::from_utf8(output.stdout).ok()
+    } else {
+        None
+    }
 }
 
 pub fn big_int_to_string(big_int: &BigInt) -> String {

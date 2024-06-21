@@ -18,7 +18,7 @@ on:
           - light-merkle-tree-reference
           - light-concurrent-merkle-tree
           - light-indexed-merkle-tree
-          - light-circuitlib-rs
+          - light-prover-client
           - light-verifier
           - account-compression
           - light-registry

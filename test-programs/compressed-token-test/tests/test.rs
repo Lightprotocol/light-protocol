@@ -10,13 +10,11 @@ use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
-use light_circuitlib_rs::gnark::helpers::kill_gnark_server;
 use light_compressed_token::get_token_pool_pda;
-use light_compressed_token::process_transfer::get_cpi_authority_pda;
-use light_compressed_token::process_transfer::{
-    transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
-};
+use light_compressed_token::process_transfer::transfer_sdk::create_transfer_instruction;
+use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_compressed_token::{token_data::TokenData, ErrorCode};
+use light_prover_client::gnark::helpers::kill_prover;
 use light_system_program::{
     invoke::processor::CompressedProof,
     sdk::compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -46,14 +44,9 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
 
     let recipient_keypair = Keypair::new();
     let mint = create_mint_helper(&mut rpc, &payer).await;
@@ -70,7 +63,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
         )
         .await;
     }
-    kill_gnark_server();
+    kill_prover();
 }
 
 #[tokio::test]
@@ -175,14 +168,9 @@ async fn perform_transfer_test(inputs: usize, outputs: usize, amount: u64) {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let sender = Keypair::new();
     mint_tokens_helper(
@@ -226,14 +214,9 @@ async fn test_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
         .await
@@ -279,7 +262,7 @@ async fn test_decompression() {
         None,
     )
     .await;
-    kill_gnark_server();
+    kill_prover();
 }
 
 /// Test delegation:
@@ -291,14 +274,9 @@ async fn test_delegation() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -393,7 +371,7 @@ async fn test_delegation() {
         )
         .await;
     }
-    kill_gnark_server();
+    kill_prover();
 }
 
 /// Test revoke:
@@ -404,14 +382,9 @@ async fn test_revoke() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -488,14 +461,9 @@ async fn test_burn() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -627,14 +595,9 @@ async fn test_freeze_and_thaw() {
     let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
         .await
@@ -779,14 +742,9 @@ async fn test_failing_decompression() {
     let (mut context, env) = setup_test_programs_with_accounts(None).await;
     let payer = context.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let sender = Keypair::new();
     airdrop_lamports(&mut context, &sender.pubkey(), 1_000_000_000)
         .await
@@ -988,7 +946,7 @@ async fn test_failing_decompression() {
         None,
     )
     .await;
-    kill_gnark_server();
+    kill_prover();
 }
 
 pub async fn failing_compress_decompress<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
@@ -1123,14 +1081,9 @@ async fn test_invalid_inputs() {
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let nullifier_queue_pubkey = env.nullifier_queue_pubkey;
-    let mut test_indexer = TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    )
-    .await;
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
     let recipient_keypair = Keypair::new();
     airdrop_lamports(&mut rpc, &recipient_keypair.pubkey(), 1_000_000_000)
         .await
@@ -1489,7 +1442,7 @@ async fn test_invalid_inputs() {
         )
         .unwrap();
     }
-    kill_gnark_server();
+    kill_prover();
 }
 
 #[allow(clippy::too_many_arguments)]

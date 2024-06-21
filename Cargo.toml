@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "hasher.rs/src/wasm",
     "heap",
-    "circuit-lib/circuitlib-rs",
+    "circuit-lib/light-prover-client",
     "circuit-lib/verifier",
     "macros/aligned-sized",
     "macros/light",

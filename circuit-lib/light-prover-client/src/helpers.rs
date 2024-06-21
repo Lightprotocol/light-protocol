@@ -20,7 +20,7 @@ pub fn convert_endianness_128(bytes: &[u8]) -> Vec<u8> {
 
 pub fn init_logger() {
     let _ = Builder::new()
-        .filter_module("circuitlib_rs", LevelFilter::Info)
+        .filter_module("light_prover_client", LevelFilter::Info)
         .try_init();
 }
 

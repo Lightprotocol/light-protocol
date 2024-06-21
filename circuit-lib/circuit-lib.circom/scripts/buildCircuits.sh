@@ -80,7 +80,7 @@ function execute_commands {
 
 REPO_TOP_DIR=$(git rev-parse --show-toplevel)
 
-CIRCUIT_RS_DIR="$REPO_TOP_DIR/circuit-lib/circuitlib-rs"
+CIRCUIT_RS_DIR="$REPO_TOP_DIR/circuit-lib/light-prover-client"
 CIRCUIT_RS_VERIFYINGKEY_DIR="$CIRCUIT_RS_DIR/src/verifying_keys"
 
 rm "$CIRCUIT_RS_VERIFYINGKEY_DIR/mod.rs"

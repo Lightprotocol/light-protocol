@@ -1,11 +1,14 @@
-use super::NewAddressProofWithContext;
-use account_compression::AddressMerkleTreeConfig;
-use light_utils::bigint::bigint_to_be_bytes_array;
+use log::warn;
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use account_compression::AddressMerkleTreeConfig;
+use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+use light_compressed_token::mint_sdk::create_initialize_mint_instruction;
+use light_compressed_token::{get_token_pool_pda, TokenData};
+use light_utils::bigint::bigint_to_be_bytes_array;
 use {
     crate::{
         create_account_instruction,
@@ -16,11 +19,14 @@ use {
         AddressMerkleTreeAccount, StateMerkleTreeAccount,
     },
     anchor_lang::AnchorDeserialize,
-    light_circuitlib_rs::{
+    light_hasher::Poseidon,
+    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
+    light_merkle_tree_reference::MerkleTree,
+    light_prover_client::{
         gnark::{
             combined_json_formatter::CombinedJsonStruct,
             constants::{PROVE_PATH, SERVER_ADDRESS},
-            helpers::{spawn_gnark_server, ProofType},
+            helpers::{spawn_prover, ProofType},
             inclusion_json_formatter::BatchInclusionJsonStruct,
             non_inclusion_json_formatter::BatchNonInclusionJsonStruct,
             proof_helpers::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
@@ -32,13 +38,6 @@ use {
             get_non_inclusion_proof_inputs, NonInclusionProofInputs,
         },
     },
-    light_compressed_token::{
-        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, get_token_pool_pda,
-        mint_sdk::create_initialize_mint_instruction, token_data::TokenData,
-    },
-    light_hasher::Poseidon,
-    light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree},
-    light_merkle_tree_reference::MerkleTree,
     light_system_program::{
         invoke::processor::CompressedProof,
         sdk::{
@@ -54,7 +53,9 @@ use {
     std::time::Duration,
 };
 
-use crate::indexer::{Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext};
+use crate::indexer::{
+    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
+};
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
@@ -105,7 +106,6 @@ pub struct TestIndexer<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> {
     pub token_compressed_accounts: Vec<TokenDataWithContext>,
     pub token_nullified_compressed_accounts: Vec<TokenDataWithContext>,
     pub events: Vec<PublicTransactionEvent>,
-    pub path: String,
     pub proof_types: Vec<ProofType>,
     phantom: PhantomData<R>,
 }
@@ -124,7 +124,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> Clone
             token_compressed_accounts: self.token_compressed_accounts.clone(),
             token_nullified_compressed_accounts: self.token_nullified_compressed_accounts.clone(),
             events: self.events.clone(),
-            path: self.path.clone(),
             proof_types: self.proof_types.clone(),
             phantom: Default::default(),
         }
@@ -374,7 +373,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         env: &EnvAccounts,
         inclusion: bool,
         non_inclusion: bool,
-        gnark_bin_path: &str,
     ) -> Self {
         Self::new(
             vec![StateMerkleTreeAccounts {
@@ -390,7 +388,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             env.group_pda,
             inclusion,
             non_inclusion,
-            gnark_bin_path,
         )
         .await
     }
@@ -401,7 +398,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         group_pda: Pubkey,
         inclusion: bool,
         non_inclusion: bool,
-        gnark_bin_path: &str,
     ) -> Self {
         let mut vec_proof_types = vec![];
         if inclusion {
@@ -414,9 +410,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             panic!("At least one proof type must be selected");
         }
 
-        // correct path so that the examples can be run:
-        // "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-        spawn_gnark_server(gnark_bin_path, true, vec_proof_types.as_slice()).await;
+        spawn_prover(true, vec_proof_types.as_slice()).await;
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
@@ -446,7 +440,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             events: vec![],
             token_compressed_accounts: vec![],
             token_nullified_compressed_accounts: vec![],
-            path: String::from(gnark_bin_path),
             proof_types: vec_proof_types,
             phantom: Default::default(),
             group_pda,
@@ -611,8 +604,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         let mut retries = 5;
         while retries > 0 {
             if retries < 3 {
-                spawn_gnark_server(self.path.as_str(), true, self.proof_types.as_slice()).await;
-                tokio::time::sleep(Duration::from_secs(10)).await;
+                spawn_prover(true, self.proof_types.as_slice()).await;
             }
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
@@ -635,9 +627,14 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                         c: proof_c,
                     },
                 };
+            } else {
+                // print error message
+                warn!("Error: {}", response_result.text().await.unwrap());
+
+                // wait for a second before retrying
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                retries -= 1;
             }
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            retries -= 1;
         }
         panic!("Failed to get proof from server");
     }

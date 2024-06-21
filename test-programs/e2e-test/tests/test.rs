@@ -14,7 +14,6 @@ async fn test_10_all() {
         GeneralActionConfig::default(),
         10,
         None,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
     env.execute_rounds().await;
@@ -34,7 +33,6 @@ async fn test_10000_all() {
         GeneralActionConfig::default(),
         10000,
         None,
-        "../../circuit-lib/circuitlib-rs/scripts/prover.sh",
     )
     .await;
     env.execute_rounds().await;

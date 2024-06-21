@@ -175,7 +175,6 @@ where
         general_action_config: GeneralActionConfig,
         rounds: u64,
         seed: Option<u64>,
-        prover_server_path: &str,
     ) -> Self {
         let inclusion = keypair_action_config.transfer_sol.is_some()
             || keypair_action_config.transfer_spl.is_some();
@@ -194,7 +193,6 @@ where
             env_accounts.group_pda,
             inclusion,
             non_inclusion,
-            prover_server_path,
         )
         .await;
         let payer = rpc.get_payer().insecure_clone();

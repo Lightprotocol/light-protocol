@@ -1,5 +1,5 @@
-use light_circuitlib_rs::gnark::helpers::{spawn_gnark_server, ProofType};
-use light_circuitlib_rs::{
+use light_prover_client::gnark::helpers::{spawn_prover, ProofType};
+use light_prover_client::{
     gnark::{
         constants::{PROVE_PATH, SERVER_ADDRESS},
         inclusion_json_formatter::inclusion_inputs_string,
@@ -11,11 +11,10 @@ use reqwest::Client;
 #[tokio::test]
 async fn prove_inclusion() {
     init_logger();
-    spawn_gnark_server("scripts/prover.sh", true, &[ProofType::Inclusion]).await;
+    spawn_prover(false, &[ProofType::Inclusion]).await;
     let client = Client::new();
     for number_of_utxos in &[1, 2, 3, 4, 8] {
         let (inputs, _) = inclusion_inputs_string(*number_of_utxos as usize);
-        println!("Inputs utxo {} inclusion: {}", number_of_utxos, inputs);
         let response_result = client
             .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")

@@ -51,13 +51,7 @@ async fn test_escrow_pda() {
     let payer = rpc.get_payer().insecure_clone();
     let payer_pubkey = payer.pubkey();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
-    let test_indexer = TestIndexer::init_from_env(
-        &payer,
-        &env,
-        true,
-        false,
-        "../../../../circuit-lib/circuitlib-rs/scripts/prover.sh",
-    );
+    let test_indexer = TestIndexer::init_from_env(&payer, &env, true, false);
     let mint = create_mint_helper(&mut rpc, &payer).await;
     let mut test_indexer = test_indexer.await;
 
