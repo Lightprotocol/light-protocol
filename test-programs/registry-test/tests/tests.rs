@@ -5,9 +5,10 @@ use light_registry::{
     get_forester_epoch_pda_address,
     sdk::{
         create_nullify_instruction, create_update_address_merkle_tree_instruction,
-        CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
+        get_governance_authority_pda, CreateNullifyInstructionInputs,
+        UpdateAddressMerkleTreeInstructionInputs,
     },
-    RegistryError,
+    ForesterEpoch, LightGovernanceAuthority, RegistryError,
 };
 use light_test_utils::{
     registry::{
@@ -15,10 +16,20 @@ use light_test_utils::{
         create_rollover_state_merkle_tree_instructions, register_test_forester,
         update_test_forester,
     },
-    rpc::{errors::assert_rpc_error, rpc_connection::RpcConnection},
-    test_env::{register_program_with_registry_program, setup_test_programs_with_accounts},
+    rpc::{errors::assert_rpc_error, rpc_connection::RpcConnection, SolanaRpcConnection},
+    test_env::{
+        get_test_env_accounts, register_program_with_registry_program,
+        setup_test_programs_with_accounts,
+    },
 };
-use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
+use solana_sdk::{
+    instruction::Instruction,
+    native_token::LAMPORTS_PER_SOL,
+    pubkey::Pubkey,
+    signature::{read_keypair_file, Keypair},
+    signer::Signer,
+};
+use std::str::FromStr;
 
 #[tokio::test]
 async fn test_register_program() {
@@ -204,4 +215,89 @@ async fn failing_test_forester() {
             .await;
         assert_rpc_error(result, 2, expected_error_code).unwrap();
     }
+}
+
+// cargo test-sbf -p registry-test -- --test update_registry_governance_on_testnet update_forester_on_testnet --ignored --nocapture
+#[ignore]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn update_forester_on_testnet() {
+    let testnet_url = "https://zk-testnet.helius.dev:8899";
+    let env_accounts = get_test_env_accounts();
+
+    let mut rpc = SolanaRpcConnection::new_with_url(testnet_url, None);
+    rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 100)
+        .await
+        .unwrap();
+    let forester_epoch_account =
+        Pubkey::from_str("8KEKiyAMugpKq9XCGzx81UtTBuytByW8arm9EaBVpD5k").unwrap();
+    let forester_epoch = rpc
+        .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
+        .await;
+    println!("ForesterEpoch: {:?}", forester_epoch_account);
+    assert_eq!(forester_epoch.authority, env_accounts.forester.pubkey());
+
+    let updated_keypair = read_keypair_file("../../target/forester-keypair.json").unwrap();
+    println!("updated keypair: {:?}", updated_keypair.pubkey());
+    update_test_forester(&mut rpc, &env_accounts.forester, &updated_keypair.pubkey())
+        .await
+        .unwrap();
+    let forester_epoch = rpc
+        .get_anchor_account::<ForesterEpoch>(&env_accounts.registered_forester_epoch_pda)
+        .await;
+    println!("ForesterEpoch: {:?}", forester_epoch_account);
+    assert_eq!(forester_epoch.authority, updated_keypair.pubkey());
+}
+
+#[ignore]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn update_registry_governance_on_testnet() {
+    let testnet_url = "https://zk-testnet.helius.dev:8899";
+    let env_accounts = get_test_env_accounts();
+
+    let mut rpc = SolanaRpcConnection::new_with_url(testnet_url, None);
+    rpc.airdrop_lamports(
+        &&env_accounts.governance_authority.pubkey(),
+        LAMPORTS_PER_SOL * 100,
+    )
+    .await
+    .unwrap();
+    let governance_authority = rpc
+        .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
+        .await;
+    println!("GroupAuthority: {:?}", governance_authority);
+    assert_eq!(
+        governance_authority.authority,
+        env_accounts.governance_authority.pubkey()
+    );
+
+    let updated_keypair =
+        read_keypair_file("../../target/governance-authority-keypair.json").unwrap();
+    println!("updated keypair: {:?}", updated_keypair.pubkey());
+    let (_, bump) = get_governance_authority_pda();
+    let instruction = light_registry::instruction::UpdateGovernanceAuthority {
+        new_authority: updated_keypair.pubkey(),
+        bump,
+    };
+    let accounts = light_registry::accounts::UpdateAuthority {
+        authority_pda: env_accounts.governance_authority_pda,
+        authority: env_accounts.governance_authority.pubkey(),
+    };
+    let ix = Instruction {
+        program_id: light_registry::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: instruction.data(),
+    };
+    let signature = rpc
+        .create_and_send_transaction(
+            &[ix],
+            &env_accounts.governance_authority.pubkey(),
+            &[&env_accounts.governance_authority],
+        )
+        .await
+        .unwrap();
+    println!("signature: {:?}", signature);
+    let governance_authority = rpc
+        .get_anchor_account::<LightGovernanceAuthority>(&env_accounts.governance_authority_pda)
+        .await;
+    assert_eq!(governance_authority.authority, updated_keypair.pubkey());
 }
