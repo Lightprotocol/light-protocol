@@ -82,6 +82,7 @@ export async function transfer(
         blockhash,
         additionalSigners,
     );
+
     const txId = await sendAndConfirmTx(rpc, signedTx, confirmOptions);
     return txId;
 }

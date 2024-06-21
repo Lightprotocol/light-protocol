@@ -15,19 +15,23 @@ class ConfigCommand extends Command {
 
   static flags = {
     solanaRpcUrl: Flags.string({
-      char: "r",
-      description: "Solana rpc url.",
+      description: "Solana RPC url",
+    }),
+    indexerUrl: Flags.string({
+      description: "Indexer url",
+    }),
+    proverUrl: Flags.string({
+      description: "Prover url",
     }),
     get: Flags.boolean({
-      char: "g",
-      description: "Gets the current config values.",
+      description: "Gets the current config values",
       required: false,
     }),
   };
 
   async run() {
     const { flags } = await this.parse(ConfigCommand);
-    const { solanaRpcUrl, get } = flags;
+    const { solanaRpcUrl, indexerUrl, proverUrl, get } = flags;
 
     try {
       const config = getConfig();
@@ -42,6 +46,20 @@ class ConfigCommand extends Command {
       if (solanaRpcUrl) {
         if (isValidURL(solanaRpcUrl)) {
           config.solanaRpcUrl = solanaRpcUrl;
+        } else {
+          this.error(`\nInvalid URL format`);
+        }
+      }
+      if (indexerUrl) {
+        if (isValidURL(indexerUrl)) {
+          config.indexerUrl = indexerUrl;
+        } else {
+          this.error(`\nInvalid URL format`);
+        }
+      }
+      if (proverUrl) {
+        if (isValidURL(proverUrl)) {
+          config.proverUrl = proverUrl;
         } else {
           this.error(`\nInvalid URL format`);
         }
@@ -61,8 +79,18 @@ function logConfig(config: any) {
   const tableData = [];
 
   tableData.push({
-    name: "solana rpc url",
+    name: "Solana RPC URL",
     value: config.solanaRpcUrl,
+  });
+
+  tableData.push({
+    name: "Indexer URL",
+    value: config.indexerUrl,
+  });
+
+  tableData.push({
+    name: "Prover URL",
+    value: config.proverUrl,
   });
 
   // space

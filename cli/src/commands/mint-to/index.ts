@@ -3,13 +3,11 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getSolanaRpcUrl,
+  rpc,
 } from "../../utils/utils";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
-import { getTestRpc } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 class MintToCommand extends Command {
   static summary = "Mint tokens to an account.";
@@ -62,10 +60,8 @@ class MintToCommand extends Command {
         mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
       }
 
-      const lightWasm = await WasmFactory.getInstance();
-      const rpc = await getTestRpc(lightWasm);
       const txId = await mintTo(
-        rpc,
+        rpc(),
         payer,
         mintPublicKey,
         toPublicKey,
