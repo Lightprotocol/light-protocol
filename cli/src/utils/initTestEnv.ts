@@ -1,5 +1,5 @@
 import { airdropSol } from "@lightprotocol/stateless.js";
-import { getPayer, setAnchorProvider } from "./utils";
+import { getConfig, getPayer, setAnchorProvider, setConfig } from "./utils";
 import {
   BASE_PATH,
   LIGHT_ACCOUNT_COMPRESSION_TAG,
@@ -67,10 +67,16 @@ export async function initTestEnv({
   await initAccounts();
 
   if (indexer) {
+    const config = getConfig();
+    config.indexerUrl = "http://127.0.0.1:8784";
+    setConfig(config);
     await startIndexer(checkPhotonVersion, photonDatabaseUrl);
   }
 
   if (prover) {
+    const config = getConfig();
+    config.proverUrl = "http://127.0.0.1:3001";
+    setConfig(config);
     await startProver(proveCompressedAccounts, proveNewAddresses);
   }
 

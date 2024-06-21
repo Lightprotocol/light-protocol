@@ -48,7 +48,7 @@ export function rpc(): Rpc {
       "Please set the Solana RPC URL, Indexer URL, and Prover URL in the config file",
     );
   }
-  return createRpc(getSolanaRpcUrl(), getProverUrl(), getIndexerUrl());
+  return createRpc(getSolanaRpcUrl(), getIndexerUrl(), getProverUrl());
 }
 
 function getWalletPath(): string {
