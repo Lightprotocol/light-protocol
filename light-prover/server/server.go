@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/handlers"
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
 	"net/http"
+
+	"github.com/gorilla/handlers"
 	//"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -176,18 +177,18 @@ func (handler proveHandler) inclusionProof(buf []byte) (*prover.Proof, *Error) {
 
 	}
 
-	var numberOfUtxos = uint32(len(params.Inputs))
+	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {
-		if provingSystem.InclusionNumberOfUtxos == numberOfUtxos {
+		if provingSystem.InclusionNumberOfCompressedAccounts == numberOfCompressedAccounts {
 			ps = provingSystem
 			break
 		}
 	}
 
 	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos))
+		return nil, provingError(fmt.Errorf("no proving system for %d compressedAccounts", numberOfCompressedAccounts))
 	}
 
 	proof, err = ps.ProveInclusion(&params)
@@ -208,17 +209,17 @@ func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error
 		logging.Logger().Info().Msg(err.Error())
 		return nil, malformedBodyError(err)
 	}
-	var numberOfUtxos = uint32(len(params.Inputs))
+	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {
-		if provingSystem.NonInclusionNumberOfUtxos == numberOfUtxos {
+		if provingSystem.NonInclusionNumberOfCompressedAccounts == numberOfCompressedAccounts {
 			ps = provingSystem
 			break
 		}
 	}
 
 	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %d utxos", numberOfUtxos))
+		return nil, provingError(fmt.Errorf("no proving system for %d compressedAccounts", numberOfCompressedAccounts))
 	}
 
 	proof, err = ps.ProveNonInclusion(&params)
@@ -241,19 +242,19 @@ func (handler proveHandler) combinedProof(buf []byte) (*prover.Proof, *Error) {
 
 	}
 
-	var inclusionNumberOfUtxos = uint32(len(params.InclusionParameters.Inputs))
-	var nonInclusionNumberOfUtxos = uint32(len(params.NonInclusionParameters.Inputs))
+	var inclusionNumberOfCompressedAccounts = uint32(len(params.InclusionParameters.Inputs))
+	var nonInclusionNumberOfCompressedAccounts = uint32(len(params.NonInclusionParameters.Inputs))
 
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {
-		if provingSystem.InclusionNumberOfUtxos == inclusionNumberOfUtxos && provingSystem.NonInclusionNumberOfUtxos == nonInclusionNumberOfUtxos {
+		if provingSystem.InclusionNumberOfCompressedAccounts == inclusionNumberOfCompressedAccounts && provingSystem.NonInclusionNumberOfCompressedAccounts == nonInclusionNumberOfCompressedAccounts {
 			ps = provingSystem
 			break
 		}
 	}
 
 	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %d inclusion utxos & %d non-inclusion", inclusionNumberOfUtxos, nonInclusionNumberOfUtxos))
+		return nil, provingError(fmt.Errorf("no proving system for %d inclusion compressedAccounts & %d non-inclusion", inclusionNumberOfCompressedAccounts, nonInclusionNumberOfCompressedAccounts))
 	}
 	proof, err = ps.ProveCombined(&params)
 	if err != nil {

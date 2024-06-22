@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/test"
-	"os"
-	"strings"
-	"testing"
 )
 
 // Iterate over data from csv file "inclusion_test_data.tsv", which contains test data for the inclusion proof.
@@ -38,14 +39,14 @@ func TestInclusion(t *testing.T) {
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
-		var numberOfUtxos = params.NumberOfUTXOs()
+		var numberOfCompressedAccounts = params.NumberOfCompressedAccounts()
 		var treeDepth = params.TreeDepth()
 
-		roots := make([]frontend.Variable, numberOfUtxos)
-		leaves := make([]frontend.Variable, numberOfUtxos)
-		inPathIndices := make([]frontend.Variable, numberOfUtxos)
-		inPathElements := make([][]frontend.Variable, numberOfUtxos)
-		for i := 0; i < int(numberOfUtxos); i++ {
+		roots := make([]frontend.Variable, numberOfCompressedAccounts)
+		leaves := make([]frontend.Variable, numberOfCompressedAccounts)
+		inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+		inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
+		for i := 0; i < int(numberOfCompressedAccounts); i++ {
 			inPathElements[i] = make([]frontend.Variable, treeDepth)
 		}
 
@@ -60,15 +61,15 @@ func TestInclusion(t *testing.T) {
 		}
 
 		var circuit InclusionCircuit
-		circuit.Roots = make([]frontend.Variable, numberOfUtxos)
-		circuit.Leaves = make([]frontend.Variable, numberOfUtxos)
-		circuit.InPathIndices = make([]frontend.Variable, numberOfUtxos)
-		circuit.InPathElements = make([][]frontend.Variable, numberOfUtxos)
-		for i := 0; i < int(numberOfUtxos); i++ {
+		circuit.Roots = make([]frontend.Variable, numberOfCompressedAccounts)
+		circuit.Leaves = make([]frontend.Variable, numberOfCompressedAccounts)
+		circuit.InPathIndices = make([]frontend.Variable, numberOfCompressedAccounts)
+		circuit.InPathElements = make([][]frontend.Variable, numberOfCompressedAccounts)
+		for i := 0; i < int(numberOfCompressedAccounts); i++ {
 			circuit.InPathElements[i] = make([]frontend.Variable, treeDepth)
 		}
 
-		circuit.NumberOfUtxos = numberOfUtxos
+		circuit.NumberOfCompressedAccounts = numberOfCompressedAccounts
 		circuit.Depth = treeDepth
 
 		// Check if the expected result is "true" or "false"
@@ -76,22 +77,22 @@ func TestInclusion(t *testing.T) {
 		if expectedResult == "0" {
 			// Run the failing test
 			assert.ProverFailed(&circuit, &InclusionCircuit{
-				Roots:          roots,
-				Leaves:         leaves,
-				InPathIndices:  inPathIndices,
-				InPathElements: inPathElements,
-				NumberOfUtxos:  numberOfUtxos,
-				Depth:          treeDepth,
+				Roots:                      roots,
+				Leaves:                     leaves,
+				InPathIndices:              inPathIndices,
+				InPathElements:             inPathElements,
+				NumberOfCompressedAccounts: numberOfCompressedAccounts,
+				Depth:                      treeDepth,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else if expectedResult == "1" {
 			// Run the passing test
 			assert.ProverSucceeded(&circuit, &InclusionCircuit{
-				Roots:          roots,
-				Leaves:         leaves,
-				InPathIndices:  inPathIndices,
-				InPathElements: inPathElements,
-				NumberOfUtxos:  numberOfUtxos,
-				Depth:          treeDepth,
+				Roots:                      roots,
+				Leaves:                     leaves,
+				InPathIndices:              inPathIndices,
+				InPathElements:             inPathElements,
+				NumberOfCompressedAccounts: numberOfCompressedAccounts,
+				Depth:                      treeDepth,
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
 		} else {
 			fmt.Println("Invalid expected result: ", expectedResult)

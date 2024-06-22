@@ -33,8 +33,8 @@ func (p *InclusionParameters) MarshalJSON() ([]byte, error) {
 
 func (p *InclusionParameters) CreateInclusionParametersJSON() InclusionParametersJSON {
 	paramsJson := InclusionParametersJSON{}
-	paramsJson.Inputs = make([]InclusionProofInputsJSON, p.NumberOfUTXOs())
-	for i := 0; i < int(p.NumberOfUTXOs()); i++ {
+	paramsJson.Inputs = make([]InclusionProofInputsJSON, p.NumberOfCompressedAccounts())
+	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
 		paramsJson.Inputs[i].Leaf = toHex(&p.Inputs[i].Leaf)
 		paramsJson.Inputs[i].PathIndex = p.Inputs[i].PathIndex

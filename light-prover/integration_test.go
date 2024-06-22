@@ -33,8 +33,8 @@ func StartServer() {
 	var pss = make([]*prover.ProvingSystem, len(keys))
 
 	for i, key := range keys {
-		// Another way to instantiate the circuit: prover.SetupInclusion(Depth, NumberOfUtxos)
-		// But we need to know the tree depth and the number of UTXOs
+		// Another way to instantiate the circuit: prover.SetupInclusion(Depth, NumberOfCompressedAccounts)
+		// But we need to know the tree depth and the number of compressed accounts
 		ps, err := prover.ReadSystemFromFile(key)
 		if err != nil {
 			panic(err)
@@ -92,8 +92,8 @@ func TestInclusionHappyPath26_1(t *testing.T) {
 }
 
 func TestInclusionHappyPath26_12348(t *testing.T) {
-	for _, utxos := range []int{1, 2, 3, 4, 8} {
-		tree := merkletree.BuildTestTree(26, utxos, false)
+	for _, compressedAccounts := range []int{1, 2, 3, 4, 8} {
+		tree := merkletree.BuildTestTree(26, compressedAccounts, false)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
 

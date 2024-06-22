@@ -22,11 +22,11 @@ func TestInclusionParameters_TestTree(t *testing.T) {
 	}(file)
 
 	var testTreeDepth = []int{26}
-	var testUtxoCount = []int{1, 2, 3, 4}
+	var testCompressedAccountCount = []int{1, 2, 3, 4}
 
 	for i := 0; i < len(testTreeDepth); i++ {
-		for j := 0; j < len(testUtxoCount); j++ {
-			trees := MakeTestIncludedTrees(testTreeDepth[i], testUtxoCount[j])
+		for j := 0; j < len(testCompressedAccountCount); j++ {
+			trees := MakeTestIncludedTrees(testTreeDepth[i], testCompressedAccountCount[j])
 			for _, tree := range trees {
 				var json, err = tree.Tree.MarshalJSON()
 				if err != nil {
@@ -58,11 +58,11 @@ func TestNonInclusionParameters_TestTree(t *testing.T) {
 	}(file)
 
 	var testTreeDepth = []int{26}
-	var testUtxoCount = []int{1, 2, 3, 4}
+	var testCompressedAccountCount = []int{1, 2, 3, 4}
 
 	for i := 0; i < len(testTreeDepth); i++ {
-		for j := 0; j < len(testUtxoCount); j++ {
-			trees := MakeTestNonInclusionTrees(testTreeDepth[i], testUtxoCount[j])
+		for j := 0; j < len(testCompressedAccountCount); j++ {
+			trees := MakeTestNonInclusionTrees(testTreeDepth[i], testCompressedAccountCount[j])
 			for _, tree := range trees {
 				var json, err = tree.Tree.MarshalJSON()
 				if err != nil {
@@ -93,12 +93,12 @@ func TestCombined(t *testing.T) {
 	}(file)
 
 	var testTreeDepth = []int{26}
-	var testUtxoCount = []int{1, 2, 3, 4}
+	var testCompressedAccountCount = []int{1, 2, 3, 4}
 
 	for i := 0; i < len(testTreeDepth); i++ {
-		for j := 0; j < len(testUtxoCount); j++ {
-			trees1 := MakeTestIncludedTrees(testTreeDepth[i], testUtxoCount[j])
-			trees2 := MakeTestNonInclusionTrees(testTreeDepth[i], testUtxoCount[j])
+		for j := 0; j < len(testCompressedAccountCount); j++ {
+			trees1 := MakeTestIncludedTrees(testTreeDepth[i], testCompressedAccountCount[j])
+			trees2 := MakeTestNonInclusionTrees(testTreeDepth[i], testCompressedAccountCount[j])
 			for k, tree1 := range trees1 {
 				for l, tree2 := range trees2 {
 					var combinedParams = prover.CombinedParameters{
@@ -141,7 +141,7 @@ type InclusionTreeValidPair struct {
 // `MakeTestIncludedTrees`
 //
 // ```go
-// func MakeTestIncludedTrees(depth int, numberOfUtxos int) []InclusionTreeValidPair
+// func MakeTestIncludedTrees(depth int, numberOfCompressedAccounts int) []InclusionTreeValidPair
 // ```
 //
 // # Description
@@ -153,7 +153,7 @@ type InclusionTreeValidPair struct {
 // Parameters:
 //
 //   - `depth (int)`: Defines the depth of each included tree.
-//   - `numberOfUtxos (int)`: Number of unspent transaction outputs (UTXOs) to include in each tree.
+//   - `numberOfCompressedAccounts (int)`: Number of unspent transaction outputs (CompressedAccounts) to include in each tree.
 //
 // Returns:
 // - `[]InclusionTreeValidPair`: An array of `InclusionTreeValidPair` instances, each containing
@@ -178,29 +178,29 @@ type InclusionTreeValidPair struct {
 //	}
 //
 // ```
-func MakeTestIncludedTrees(depth int, numberOfUtxos int) []InclusionTreeValidPair {
+func MakeTestIncludedTrees(depth int, numberOfCompressedAccounts int) []InclusionTreeValidPair {
 	var trees []InclusionTreeValidPair
 
-	validTree := BuildTestTree(depth, numberOfUtxos, false)
+	validTree := BuildTestTree(depth, numberOfCompressedAccounts, false)
 	validPair := InclusionTreeValidPair{Tree: validTree, Valid: true}
 
-	invalidRootTree := BuildTestTree(depth, numberOfUtxos, true)
+	invalidRootTree := BuildTestTree(depth, numberOfCompressedAccounts, true)
 	invalidRootTree.Inputs[0].Root = *big.NewInt(999)
 	invalidRootPair := InclusionTreeValidPair{Tree: invalidRootTree, Valid: false}
 
-	invalidLeafTree := BuildTestTree(depth, numberOfUtxos, true)
+	invalidLeafTree := BuildTestTree(depth, numberOfCompressedAccounts, true)
 	invalidLeafTree.Inputs[0].Leaf = *big.NewInt(999)
 	invalidLeafPair := InclusionTreeValidPair{Tree: invalidLeafTree, Valid: false}
 
-	invalidInPathIndicesTreeAddOne := BuildTestTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeAddOne := BuildTestTree(depth, numberOfCompressedAccounts, true)
 	invalidInPathIndicesTreeAddOne.Inputs[0].PathIndex = invalidInPathIndicesTreeAddOne.Inputs[0].PathIndex + 1
 	invalidInPathIndicesPairAddOne := InclusionTreeValidPair{Tree: invalidInPathIndicesTreeAddOne, Valid: false}
 
-	invalidInPathIndicesTreeSubOne := BuildTestTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeSubOne := BuildTestTree(depth, numberOfCompressedAccounts, true)
 	invalidInPathIndicesTreeSubOne.Inputs[0].PathIndex = invalidInPathIndicesTreeSubOne.Inputs[0].PathIndex - 1
 	invalidInPathIndicesPairSubOne := InclusionTreeValidPair{Tree: invalidInPathIndicesTreeSubOne, Valid: false}
 
-	invalidInPathElementsTree := BuildTestTree(depth, numberOfUtxos, true)
+	invalidInPathElementsTree := BuildTestTree(depth, numberOfCompressedAccounts, true)
 	invalidInPathElementsTree.Inputs[0].PathElements[0] = *big.NewInt(999)
 	invalidInPathElementsPair := InclusionTreeValidPair{Tree: invalidInPathElementsTree, Valid: false}
 
@@ -223,7 +223,7 @@ type NonInclusionTreeValidPair struct {
 // `MakeTestNonInclusionTrees`
 //
 // ```go
-// func MakeTestNonInclusionTrees(depth int, numberOfUtxos int) []NonInclusionTreeValidPair
+// func MakeTestNonInclusionTrees(depth int, numberOfCompressedAccounts int) []NonInclusionTreeValidPair
 // ```
 //
 // # Description
@@ -233,7 +233,7 @@ type NonInclusionTreeValidPair struct {
 // # Parameters
 //
 // - `depth (int)`: Defines the depth of each included tree.
-// - `numberOfUtxos (int)`: Number of unspent transaction outputs (UTXOs) to include in each tree.
+// - `numberOfCompressedAccounts (int)`: Number of unspent transaction outputs (CompressedAccounts) to include in each tree.
 //
 // # Returns
 //
@@ -263,31 +263,31 @@ type NonInclusionTreeValidPair struct {
 //	}
 //
 // ```
-func MakeTestNonInclusionTrees(depth int, numberOfUtxos int) []NonInclusionTreeValidPair {
+func MakeTestNonInclusionTrees(depth int, numberOfCompressedAccounts int) []NonInclusionTreeValidPair {
 	var trees []NonInclusionTreeValidPair
 
-	validTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	validTree := BuildValidTestNonInclusionTree(depth, numberOfCompressedAccounts, true)
 	validPair := NonInclusionTreeValidPair{Tree: validTree, Valid: true}
 
-	invalidRootTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	invalidRootTree := BuildValidTestNonInclusionTree(depth, numberOfCompressedAccounts, true)
 	invalidRootTree.Inputs[0].Root = *big.NewInt(999)
 	invalidRootPair := NonInclusionTreeValidPair{Tree: invalidRootTree, Valid: false}
 
-	invalidLowValueTree := BuildTestNonInclusionTree(depth, numberOfUtxos, true, false, true)
+	invalidLowValueTree := BuildTestNonInclusionTree(depth, numberOfCompressedAccounts, true, false, true)
 	invalidLowValuePair := NonInclusionTreeValidPair{Tree: invalidLowValueTree, Valid: false}
 
-	invalidHighValueTree := BuildTestNonInclusionTree(depth, numberOfUtxos, true, false, false)
+	invalidHighValueTree := BuildTestNonInclusionTree(depth, numberOfCompressedAccounts, true, false, false)
 	invalidHighValuePair := NonInclusionTreeValidPair{Tree: invalidHighValueTree, Valid: false}
 
-	invalidInPathIndicesTreeAddOne := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeAddOne := BuildValidTestNonInclusionTree(depth, numberOfCompressedAccounts, true)
 	invalidInPathIndicesTreeAddOne.Inputs[0].PathIndex += 1
 	invalidInPathIndicesPairAddOne := NonInclusionTreeValidPair{Tree: invalidInPathIndicesTreeAddOne, Valid: false}
 
-	invalidInPathIndicesTreeSubOne := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	invalidInPathIndicesTreeSubOne := BuildValidTestNonInclusionTree(depth, numberOfCompressedAccounts, true)
 	invalidInPathIndicesTreeSubOne.Inputs[0].PathIndex -= 1
 	invalidInPathIndicesPairSubOne := NonInclusionTreeValidPair{Tree: invalidInPathIndicesTreeSubOne, Valid: false}
 
-	invalidInPathElementsTree := BuildValidTestNonInclusionTree(depth, numberOfUtxos, true)
+	invalidInPathElementsTree := BuildValidTestNonInclusionTree(depth, numberOfCompressedAccounts, true)
 	invalidInPathElementsTree.Inputs[0].PathElements[0] = *big.NewInt(999)
 	invalidInPathElementsPair := NonInclusionTreeValidPair{Tree: invalidInPathElementsTree, Valid: false}
 

@@ -16,7 +16,7 @@ type InclusionCircuit struct {
 	InPathIndices  []frontend.Variable   `gnark:"input"`
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
-	NumberOfUtxos uint32
+	NumberOfCompressedAccounts uint32
 	Depth         uint32
 }
 
@@ -27,21 +27,21 @@ func (circuit *InclusionCircuit) Define(api frontend.API) error {
 		InPathElements: circuit.InPathElements,
 		InPathIndices:  circuit.InPathIndices,
 
-		NumberOfUtxos: circuit.NumberOfUtxos,
+		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
 		Depth:         circuit.Depth,
 	})
 	return nil
 }
 
-func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
-	roots := make([]frontend.Variable, numberOfUtxos)
-	leaves := make([]frontend.Variable, numberOfUtxos)
-	inPathIndices := make([]frontend.Variable, numberOfUtxos)
-	inPathElements := make([][]frontend.Variable, numberOfUtxos)
+func ImportInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+	roots := make([]frontend.Variable, numberOfCompressedAccounts)
+	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
 	circuit := InclusionCircuit{
 		Depth:          treeDepth,
-		NumberOfUtxos:  numberOfUtxos,
+		NumberOfCompressedAccounts:  numberOfCompressedAccounts,
 		Roots:          roots,
 		Leaves:         leaves,
 		InPathIndices:  inPathIndices,
@@ -64,5 +64,5 @@ func ImportInclusionSetup(treeDepth uint32, numberOfUtxos uint32, pkPath string,
 		return nil, err
 	}
 
-	return &ProvingSystem{treeDepth, numberOfUtxos, 0, 0, pk, vk, ccs}, nil
+	return &ProvingSystem{treeDepth, numberOfCompressedAccounts, 0, 0, pk, vk, ccs}, nil
 }

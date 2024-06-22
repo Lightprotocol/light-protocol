@@ -138,7 +138,7 @@ func NewTree(depth int) PoseidonTree {
 	return PoseidonTree{root: &PoseidonEmptyNode{dep: depth, emptyTreeValues: initHashes}}
 }
 
-func BuildTestTree(depth int, numberOfUtxos int, random bool) prover.InclusionParameters {
+func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) prover.InclusionParameters {
 	tree := NewTree(depth)
 	var leaf *big.Int
 	var pathIndex int
@@ -150,9 +150,9 @@ func BuildTestTree(depth int, numberOfUtxos int, random bool) prover.InclusionPa
 		pathIndex = 0
 	}
 
-	var inputs = make([]prover.InclusionInputs, numberOfUtxos)
+	var inputs = make([]prover.InclusionInputs, numberOfCompressedAccounts)
 
-	for i := 0; i < numberOfUtxos; i++ {
+	for i := 0; i < numberOfCompressedAccounts; i++ {
 		inputs[i].Leaf = *leaf
 		inputs[i].PathIndex = uint32(pathIndex)
 		inputs[i].PathElements = tree.Update(pathIndex, *leaf)
@@ -168,16 +168,16 @@ func rangeIn(low, hi int) int {
 	return low + rand.Intn(hi-low)
 }
 
-func BuildValidTestNonInclusionTree(depth int, numberOfUtxos int, random bool) prover.NonInclusionParameters {
-	return BuildTestNonInclusionTree(depth, numberOfUtxos, random, true, false)
+func BuildValidTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool) prover.NonInclusionParameters {
+	return BuildTestNonInclusionTree(depth, numberOfCompressedAccounts, random, true, false)
 }
 
-func BuildTestNonInclusionTree(depth int, numberOfUtxos int, random bool, valid bool, lowValue bool) prover.NonInclusionParameters {
+func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool, valid bool, lowValue bool) prover.NonInclusionParameters {
 	tree := NewTree(depth)
 
-	var inputs = make([]prover.NonInclusionInputs, numberOfUtxos)
+	var inputs = make([]prover.NonInclusionInputs, numberOfCompressedAccounts)
 
-	for i := 0; i < numberOfUtxos; i++ {
+	for i := 0; i < numberOfCompressedAccounts; i++ {
 		var value = big.NewInt(0)
 		var leafLower = big.NewInt(0)
 		var leafUpper = big.NewInt(2)

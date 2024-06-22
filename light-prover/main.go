@@ -36,9 +36,9 @@ func runCli() {
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "inclusion-utxos", Usage: "Number of Utxos", Required: false},
+					&cli.UintFlag{Name: "inclusion-compressedAccounts", Usage: "Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-utxos", Usage: "Non-inclusion number of Utxos", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-compressedAccounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
@@ -49,24 +49,24 @@ func runCli() {
 					path := context.String("output")
 					pathVkey := context.String("output-vkey")
 					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
-					inclusionNumberOfUtxos := uint32(context.Uint("inclusion-utxos"))
+					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressedAccounts"))
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
-					nonInclusionNumberOfUtxos := uint32(context.Uint("non-inclusion-utxos"))
+					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressedAccounts"))
 
-					if (inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0) && circuit == prover.Inclusion {
-						return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.Inclusion {
+						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
 					}
 
-					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0) && circuit == prover.NonInclusion {
-						return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == prover.NonInclusion {
+						return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
 					}
 
 					if circuit == prover.Combined {
-						if inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0 {
-							return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+						if inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
 						}
-						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0 {
-							return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
 						}
 					}
 
@@ -74,7 +74,7 @@ func runCli() {
 
 					var system *prover.ProvingSystem
 					var err error
-					system, err = prover.SetupCircuit(circuit, inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
+					system, err = prover.SetupCircuit(circuit, inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
 					if err != nil {
 						return err
 					}
@@ -113,18 +113,18 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "utxos", Usage: "Number of utxos", Required: true},
+					&cli.UintFlag{Name: "compressedAccounts", Usage: "Number of compressed accounts", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
 					treeDepth := uint32(context.Uint("tree-depth"))
-					utxos := uint32(context.Uint("utxos"))
+					compressedAccounts := uint32(context.Uint("compressedAccounts"))
 					logging.Logger().Info().Msg("Building R1CS")
 
 					var cs constraint.ConstraintSystem
 					var err error
 
-					cs, err = prover.R1CSInclusion(treeDepth, utxos)
+					cs, err = prover.R1CSInclusion(treeDepth, compressedAccounts)
 
 					if err != nil {
 						return err
@@ -155,9 +155,9 @@ func runCli() {
 					&cli.StringFlag{Name: "pk", Usage: "Proving key", Required: true},
 					&cli.StringFlag{Name: "vk", Usage: "Verifying key", Required: true},
 					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "inclusion-utxos", Usage: "Number of Utxos", Required: false},
+					&cli.UintFlag{Name: "inclusion-compressedAccounts", Usage: "Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-utxos", Usage: "Non-inclusion number of Utxos", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-compressedAccounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
@@ -170,24 +170,24 @@ func runCli() {
 					vk := context.String("vk")
 
 					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
-					inclusionNumberOfUtxos := uint32(context.Uint("inclusion-utxos"))
+					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressedAccounts"))
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
-					nonInclusionNumberOfUtxos := uint32(context.Uint("non-inclusion-utxos"))
+					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressedAccounts"))
 
-					if (inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0) && circuit == "inclusion" {
-						return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
+						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
 					}
 
-					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0) && circuit == "non-inclusion" {
-						return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+					if (nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == "non-inclusion" {
+						return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
 					}
 
 					if circuit == "combined" {
-						if inclusionTreeDepth == 0 || inclusionNumberOfUtxos == 0 {
-							return fmt.Errorf("inclusion tree depth and number of utxos must be provided")
+						if inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
 						}
-						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfUtxos == 0 {
-							return fmt.Errorf("non-inclusion tree depth and number of utxos must be provided")
+						if nonInclusionTreeDepth == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
+							return fmt.Errorf("non-inclusion tree depth and number of compressed accounts must be provided")
 						}
 					}
 
@@ -197,11 +197,11 @@ func runCli() {
 					logging.Logger().Info().Msg("Importing setup")
 
 					if circuit == "inclusion" {
-						system, err = prover.ImportInclusionSetup(inclusionTreeDepth, inclusionNumberOfUtxos, pk, vk)
+						system, err = prover.ImportInclusionSetup(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, pk, vk)
 					} else if circuit == "non-inclusion" {
-						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeDepth, nonInclusionNumberOfUtxos, pk, vk)
+						system, err = prover.ImportNonInclusionSetup(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk)
 					} else if circuit == "combined " {
-						system, err = prover.ImportCombinedSetup(inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos, pk, vk)
+						system, err = prover.ImportCombinedSetup(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -261,17 +261,17 @@ func runCli() {
 				Name: "gen-test-params",
 				Flags: []cli.Flag{
 					&cli.IntFlag{Name: "tree-depth", Usage: "depth of the mock tree", DefaultText: "26", Value: 26},
-					&cli.IntFlag{Name: "utxos", Usage: "Number of utxos", DefaultText: "1", Value: 1},
+					&cli.IntFlag{Name: "compressedAccounts", Usage: "Number of compressed accounts", DefaultText: "1", Value: 1},
 				},
 				Action: func(context *cli.Context) error {
 					treeDepth := context.Int("tree-depth")
-					utxos := context.Int("utxos")
+					compressedAccounts := context.Int("compressedAccounts")
 					logging.Logger().Info().Msg("Generating test params for the inclusion circuit")
 
 					var r []byte
 					var err error
 
-					params := merkletree.BuildTestTree(treeDepth, utxos, false)
+					params := merkletree.BuildTestTree(treeDepth, compressedAccounts, false)
 
 					r, err = json.Marshal(&params)
 
@@ -354,9 +354,9 @@ func runCli() {
 						}
 
 						treeDepth := params.TreeDepth()
-						utxos := params.NumberOfUTXOs()
+						compressedAccounts := params.NumberOfCompressedAccounts()
 						for _, provingSystem := range ps {
-							if provingSystem.InclusionTreeDepth == treeDepth && provingSystem.InclusionNumberOfUtxos == utxos {
+							if provingSystem.InclusionTreeDepth == treeDepth && provingSystem.InclusionNumberOfCompressedAccounts == compressedAccounts {
 								proof, err = provingSystem.ProveInclusion(&params)
 								if err != nil {
 									return err
@@ -374,10 +374,10 @@ func runCli() {
 						}
 
 						treeDepth := params.TreeDepth()
-						utxos := params.NumberOfUTXOs()
+						compressedAccounts := params.NumberOfCompressedAccounts()
 
 						for _, provingSystem := range ps {
-							if provingSystem.NonInclusionTreeDepth == treeDepth && provingSystem.NonInclusionNumberOfUtxos == utxos {
+							if provingSystem.NonInclusionTreeDepth == treeDepth && provingSystem.NonInclusionNumberOfCompressedAccounts == compressedAccounts {
 								proof, err = provingSystem.ProveNonInclusion(&params)
 								if err != nil {
 									return err
@@ -395,7 +395,7 @@ func runCli() {
 						}
 
 						for _, provingSystem := range ps {
-							if provingSystem.InclusionTreeDepth == params.TreeDepth() && provingSystem.InclusionNumberOfUtxos == params.NumberOfUTXOs() && provingSystem.NonInclusionTreeDepth == params.NonInclusionTreeDepth() && provingSystem.InclusionNumberOfUtxos == params.NonInclusionNumberOfUTXOs() {
+							if provingSystem.InclusionTreeDepth == params.TreeDepth() && provingSystem.InclusionNumberOfCompressedAccounts == params.NumberOfCompressedAccounts() && provingSystem.NonInclusionTreeDepth == params.NonInclusionTreeDepth() && provingSystem.InclusionNumberOfCompressedAccounts == params.NonInclusionNumberOfCompressedAccounts() {
 								proof, err = provingSystem.ProveCombined(&params)
 								if err != nil {
 									return err
@@ -450,9 +450,9 @@ func runCli() {
 					}
 					logging.Logger().Info().
 						Uint32("treeDepth", ps.InclusionTreeDepth).
-						Uint32("utxos", ps.InclusionNumberOfUtxos).
+						Uint32("compressedAccounts", ps.InclusionNumberOfCompressedAccounts).
 						Uint32("nonInclusionTreeDepth", ps.NonInclusionTreeDepth).
-						Uint32("nonInclusionUtxos", ps.NonInclusionNumberOfUtxos).
+						Uint32("nonInclusionCompressedAccounts", ps.NonInclusionNumberOfCompressedAccounts).
 						Msg("Read proving system")
 					logging.Logger().Info().Msg("Reading proof from stdin")
 					proofBytes, err := io.ReadAll(os.Stdin)
@@ -481,14 +481,14 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "utxos", Usage: "Number of utxos", Required: true},
+					&cli.UintFlag{Name: "compressedAccounts", Usage: "Number of compressed accounts", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
 					treeDepth := uint32(context.Uint("tree-depth"))
-					utxos := uint32(context.Uint("utxos"))
+					compressedAccounts := uint32(context.Uint("compressedAccounts"))
 					logging.Logger().Info().Msg("Extracting gnark circuit to Lean")
-					circuitString, err := prover.ExtractLean(treeDepth, utxos)
+					circuitString, err := prover.ExtractLean(treeDepth, compressedAccounts)
 					if err != nil {
 						return err
 					}
@@ -531,9 +531,9 @@ func LoadKeys(context *cli.Context) ([]*prover.ProvingSystem, error) {
 		pss[i] = ps
 		logging.Logger().Info().
 			Uint32("treeDepth", ps.InclusionTreeDepth).
-			Uint32("utxos", ps.InclusionNumberOfUtxos).
+			Uint32("compressedAccounts", ps.InclusionNumberOfCompressedAccounts).
 			Uint32("nonInclusionTreeDepth", ps.NonInclusionTreeDepth).
-			Uint32("nonInclusionUtxos", ps.NonInclusionNumberOfUtxos).
+			Uint32("nonInclusionCompressedAccounts", ps.NonInclusionNumberOfCompressedAccounts).
 			Msg("Read proving system")
 	}
 	return pss, nil

@@ -36,8 +36,8 @@ func (p *NonInclusionParameters) MarshalJSON() ([]byte, error) {
 
 func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusionParametersJSON {
 	paramsJson := NonInclusionParametersJSON{}
-	paramsJson.Inputs = make([]NonInclusionProofInputsJSON, p.NumberOfUTXOs())
-	for i := 0; i < int(p.NumberOfUTXOs()); i++ {
+	paramsJson.Inputs = make([]NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
+	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
 		paramsJson.Inputs[i].Value = toHex(&p.Inputs[i].Value)
 		paramsJson.Inputs[i].PathIndex = p.Inputs[i].PathIndex

@@ -43,14 +43,14 @@ func TestCombined(t *testing.T) {
 		assert.NotEqual(len(params.InclusionParameters.Inputs), 0)
 		assert.NotEqual(len(params.NonInclusionParameters.Inputs), 0)
 
-		var inclusionNumberOfUtxos = params.InclusionParameters.NumberOfUTXOs()
+		var inclusionNumberOfCompressedAccounts = params.InclusionParameters.NumberOfCompressedAccounts()
 		var inclusionTreeDepth = params.InclusionParameters.TreeDepth()
 
-		inclusionRoots := make([]frontend.Variable, inclusionNumberOfUtxos)
-		inclusionLeaves := make([]frontend.Variable, inclusionNumberOfUtxos)
-		inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfUtxos)
-		inclusionInPathElements := make([][]frontend.Variable, inclusionNumberOfUtxos)
-		for i := 0; i < int(inclusionNumberOfUtxos); i++ {
+		inclusionRoots := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		inclusionLeaves := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		inclusionInPathElements := make([][]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		for i := 0; i < int(inclusionNumberOfCompressedAccounts); i++ {
 			inclusionInPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
 		}
 
@@ -63,17 +63,17 @@ func TestCombined(t *testing.T) {
 			}
 		}
 
-		var nonInclusionNumberOfUtxos = params.NonInclusionParameters.NumberOfUTXOs()
+		var nonInclusionNumberOfCompressedAccounts = params.NonInclusionParameters.NumberOfCompressedAccounts()
 		var nonInclusionTreeDepth = params.NonInclusionParameters.TreeDepth()
 
-		nonInclusionRoots := make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		nonInclusionLeafIndices := make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfUtxos)
-		for i := 0; i < int(nonInclusionNumberOfUtxos); i++ {
+		nonInclusionRoots := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		nonInclusionLeafIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
 			nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
 		}
 
@@ -93,50 +93,50 @@ func TestCombined(t *testing.T) {
 		circuit.Inclusion = InclusionCircuit{}
 		circuit.NonInclusion = NonInclusionCircuit{}
 
-		circuit.Inclusion.Roots = make([]frontend.Variable, inclusionNumberOfUtxos)
-		circuit.Inclusion.Leaves = make([]frontend.Variable, inclusionNumberOfUtxos)
-		circuit.Inclusion.InPathIndices = make([]frontend.Variable, inclusionNumberOfUtxos)
-		circuit.Inclusion.InPathElements = make([][]frontend.Variable, inclusionNumberOfUtxos)
-		for i := 0; i < int(inclusionNumberOfUtxos); i++ {
+		circuit.Inclusion.Roots = make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		circuit.Inclusion.Leaves = make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		circuit.Inclusion.InPathIndices = make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		circuit.Inclusion.InPathElements = make([][]frontend.Variable, inclusionNumberOfCompressedAccounts)
+		for i := 0; i < int(inclusionNumberOfCompressedAccounts); i++ {
 			circuit.Inclusion.InPathElements[i] = make([]frontend.Variable, inclusionTreeDepth)
 		}
 
-		circuit.Inclusion.NumberOfUtxos = inclusionNumberOfUtxos
+		circuit.Inclusion.NumberOfCompressedAccounts = inclusionNumberOfCompressedAccounts
 		circuit.Inclusion.Depth = inclusionTreeDepth
 
-		circuit.NonInclusion.Roots = make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		circuit.NonInclusion.Values = make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		circuit.NonInclusion.LeafLowerRangeValues = make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		circuit.NonInclusion.LeafHigherRangeValues = make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		circuit.NonInclusion.LeafIndices = make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		circuit.NonInclusion.InPathIndices = make([]frontend.Variable, nonInclusionNumberOfUtxos)
-		circuit.NonInclusion.InPathElements = make([][]frontend.Variable, nonInclusionNumberOfUtxos)
-		for i := 0; i < int(nonInclusionNumberOfUtxos); i++ {
+		circuit.NonInclusion.Roots = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		circuit.NonInclusion.Values = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		circuit.NonInclusion.LeafLowerRangeValues = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		circuit.NonInclusion.LeafHigherRangeValues = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		circuit.NonInclusion.LeafIndices = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		circuit.NonInclusion.InPathIndices = make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		circuit.NonInclusion.InPathElements = make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+		for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
 			circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, nonInclusionTreeDepth)
 		}
 
-		circuit.NonInclusion.NumberOfUtxos = nonInclusionNumberOfUtxos
+		circuit.NonInclusion.NumberOfCompressedAccounts = nonInclusionNumberOfCompressedAccounts
 		circuit.NonInclusion.Depth = nonInclusionTreeDepth
 
 		assignment := &CombinedCircuit{
 			Inclusion: InclusionCircuit{
-				Roots:          inclusionRoots,
-				Leaves:         inclusionLeaves,
-				InPathIndices:  inclusionInPathIndices,
-				InPathElements: inclusionInPathElements,
-				NumberOfUtxos:  inclusionNumberOfUtxos,
-				Depth:          inclusionTreeDepth,
+				Roots:                      inclusionRoots,
+				Leaves:                     inclusionLeaves,
+				InPathIndices:              inclusionInPathIndices,
+				InPathElements:             inclusionInPathElements,
+				NumberOfCompressedAccounts: inclusionNumberOfCompressedAccounts,
+				Depth:                      inclusionTreeDepth,
 			},
 			NonInclusion: NonInclusionCircuit{
-				Roots:                 nonInclusionRoots,
-				Values:                nonInclusionValues,
-				LeafLowerRangeValues:  nonInclusionLeafLowerRangeValues,
-				LeafHigherRangeValues: nonInclusionLeafHigherRangeValues,
-				LeafIndices:           nonInclusionLeafIndices,
-				InPathIndices:         nonInclusionInPathIndices,
-				InPathElements:        nonInclusionInPathElements,
-				NumberOfUtxos:         nonInclusionNumberOfUtxos,
-				Depth:                 nonInclusionTreeDepth,
+				Roots:                      nonInclusionRoots,
+				Values:                     nonInclusionValues,
+				LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
+				LeafHigherRangeValues:      nonInclusionLeafHigherRangeValues,
+				LeafIndices:                nonInclusionLeafIndices,
+				InPathIndices:              nonInclusionInPathIndices,
+				InPathElements:             nonInclusionInPathElements,
+				NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+				Depth:                      nonInclusionTreeDepth,
 			},
 		}
 
