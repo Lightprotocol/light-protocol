@@ -788,12 +788,10 @@ mod test {
         thread_rng, Rng,
     };
 
-
     use super::*;
 
     use rand::distributions::uniform::{SampleRange, SampleUniform};
-    
-    
+
     /// Generates a random value in the given range, excluding the values provided
     /// in `exclude`.
     fn gen_range_exclude<N, R, T>(rng: &mut N, range: R, exclude: &[T]) -> T
@@ -812,12 +810,11 @@ mod test {
             }
         }
     }
- 
-    
+
     #[test]
     fn test_gen_range_exclude() {
         let mut rng = thread_rng();
-    
+
         for n_excluded in 1..100 {
             let excluded: Vec<u64> = (0..n_excluded).map(|_| rng.gen_range(0..100)).collect();
 
