@@ -135,7 +135,6 @@ export function spawnBinary(command: string, args: string[] = []) {
 
   const out = fs.openSync(`${logDir}/${binaryName}.log`, "a");
   const err = fs.openSync(`${logDir}/${binaryName}.log`, "a");
-  console.log("Spawning binary: ", command, args);
   const spawnedProcess = spawn(command, args, {
     stdio: ["ignore", out, err],
     shell: false,
