@@ -27,6 +27,7 @@ class StartProver extends Command {
     loader.start();
 
     await startProver(
+      3001,
       !flags["skip-prove-compressed-accounts"],
       !flags["skip-prove-new-addresses"],
     );

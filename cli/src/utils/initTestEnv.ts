@@ -4,7 +4,6 @@ import {
   BASE_PATH,
   LIGHT_ACCOUNT_COMPRESSION_TAG,
   LIGHT_COMPRESSED_TOKEN_TAG,
-  LIGHT_MERKLE_TREE_PROGRAM_TAG,
   LIGHT_PROTOCOL_PROGRAMS_DIR_ENV,
   LIGHT_REGISTRY_TAG,
   LIGHT_SYSTEM_PROGRAM_TAG,
@@ -28,6 +27,10 @@ export async function initTestEnv({
   indexer = true,
   prover = true,
   forester = true,
+  rpcPort = 8899,
+  indexerPort = 8784,
+  proverPort = 3001,
+  gossipHost = "127.0.0.1",
   proveCompressedAccounts = true,
   proveNewAddresses = false,
   checkPhotonVersion = true,
@@ -39,6 +42,10 @@ export async function initTestEnv({
   indexer: boolean;
   prover: boolean;
   forester: boolean;
+  rpcPort?: number;
+  indexerPort?: number;
+  proverPort?: number;
+  gossipHost?: string;
   proveCompressedAccounts?: boolean;
   proveNewAddresses?: boolean;
   checkPhotonVersion?: boolean;
@@ -61,23 +68,30 @@ export async function initTestEnv({
     additionalPrograms,
     skipSystemAccounts,
     limitLedgerSize,
+    rpcPort,
+    gossipHost,
   });
-  await waitForServers([{ port: 8899, path: "/health" }]);
-  await confirmServerStability("http://127.0.0.1:8899/health");
+  await waitForServers([{ port: rpcPort, path: "/health" }]);
+  await confirmServerStability(`http://127.0.0.1:${rpcPort}/health`);
   await initAccounts();
 
   if (indexer) {
     const config = getConfig();
-    config.indexerUrl = "http://127.0.0.1:8784";
+    config.indexerUrl = `http://127.0.0.1:${indexerPort}`;
     setConfig(config);
-    await startIndexer(checkPhotonVersion, photonDatabaseUrl);
+    await startIndexer(
+      `http://127.0.0.1:${rpcPort}`,
+      indexerPort,
+      checkPhotonVersion,
+      photonDatabaseUrl,
+    );
   }
 
   if (prover) {
     const config = getConfig();
-    config.proverUrl = "http://127.0.0.1:3001";
+    config.proverUrl = `http://127.0.0.1:${proverPort}`;
     setConfig(config);
-    await startProver(proveCompressedAccounts, proveNewAddresses);
+    await startProver(proverPort, proveCompressedAccounts, proveNewAddresses);
   }
 
   if (forester) {
@@ -155,11 +169,15 @@ export async function getSolanaArgs({
   additionalPrograms,
   skipSystemAccounts,
   limitLedgerSize,
+  rpcPort,
+  gossipHost,
   downloadBinaries = true,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   limitLedgerSize?: number;
+  rpcPort?: number;
+  gossipHost?: string;
   downloadBinaries?: boolean;
 }): Promise<Array<string>> {
   type Program = { id: string; name?: string; tag?: string; path?: string };
@@ -201,6 +219,8 @@ export async function getSolanaArgs({
   const solanaArgs = [
     "--reset",
     `--limit-ledger-size=${limitLedgerSize}`,
+    `--rpc-port=${rpcPort}`,
+    `--gossip-host=${gossipHost}`,
     "--quiet",
   ];
 
@@ -235,16 +255,22 @@ export async function startTestValidator({
   additionalPrograms,
   skipSystemAccounts,
   limitLedgerSize,
+  rpcPort,
+  gossipHost,
 }: {
   additionalPrograms?: { address: string; path: string }[];
   skipSystemAccounts?: boolean;
   limitLedgerSize?: number;
+  rpcPort?: number;
+  gossipHost?: string;
 }) {
   const command = "solana-test-validator";
   const solanaArgs = await getSolanaArgs({
     additionalPrograms,
     skipSystemAccounts,
     limitLedgerSize,
+    rpcPort,
+    gossipHost,
   });
 
   await killTestValidator();

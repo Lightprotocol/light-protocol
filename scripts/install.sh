@@ -208,9 +208,9 @@ cargo install cargo-expand wasm-pack
 
 # check if variable PHOTON_BRANCH is not empty, then install photon-indexer from the branch, otherwise install the version
 if [ -n "$PHOTON_BRANCH" ]; then
-    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH
+    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH --locked
 else
-  cargo install photon-indexer --version ${PHOTON_VERSION}
+  cargo install photon-indexer --version ${PHOTON_VERSION} --locked
 fi
 
 echo "📥 Downloading Node.js"

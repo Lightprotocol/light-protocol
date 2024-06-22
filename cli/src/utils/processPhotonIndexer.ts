@@ -5,6 +5,8 @@ import { exec } from "node:child_process";
 import * as util from "node:util";
 
 export async function startIndexer(
+  rpcUrl: string,
+  indexerPort: number,
   checkPhotonVersion: boolean = true,
   photonDatabaseUrl?: string,
 ) {
@@ -21,10 +23,17 @@ export async function startIndexer(
     console.log("Starting indexer...");
     let args: string[] = [];
     if (photonDatabaseUrl) {
-      args = ["--db-url", photonDatabaseUrl];
+      args = [
+        "--db-url",
+        photonDatabaseUrl,
+        "--port",
+        indexerPort.toString(),
+        "--rpc-url",
+        rpcUrl,
+      ];
     }
     spawnBinary(INDEXER_PROCESS_NAME, args);
-    await waitForServers([{ port: 8784, path: "/getIndexerHealth" }]);
+    await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);
     console.log("Indexer started successfully!");
   }
 }
