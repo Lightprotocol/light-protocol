@@ -19,6 +19,11 @@ class StartProver extends Command {
       default: false,
       char: "n",
     }),
+    "prover-port": Flags.integer({
+      description: "Enable Light Prover server on this port.",
+      required: false,
+      default: 3001,
+    }),
   };
 
   async run() {
@@ -27,7 +32,7 @@ class StartProver extends Command {
     loader.start();
 
     await startProver(
-      3001,
+      flags["prover-port"],
       !flags["skip-prove-compressed-accounts"],
       !flags["skip-prove-new-addresses"],
     );
