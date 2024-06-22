@@ -16,15 +16,15 @@ through [gnark](https://github.com/ConsenSys/gnark)).
 
 This part explains the existing cli commands.
 
-1. setup - builds a circuit with provided number of utxos and depth, compiles it and writes it to a file.  
+1. setup - builds a circuit with provided number of compressed accounts and depth, compiles it and writes it to a file.  
    Flags:  
    1. output *file path* - A path used to output a file  
    2. tree-depth *n* - Merkle tree depth  
-   3. utxos *n* - Number of UTXOs
-2. gen-test-params - Generates test params given the number of utxos and tree depth.
+   3. compressedAccounts *n* - Number of COMPRESSED_ACCOUNTs
+2. gen-test-params - Generates test params given the number of compressedAccounts and tree depth.
    Flags:  
    1. tree-depth *n* - Depth of the mock merkle tree  
-   2. utxos *n* - Number of UTXOs
+   2. compressedAccounts *n* - Number of COMPRESSED_ACCOUNTs
 3. start - starts a api server with /prove and /metrics endpoints  
    Flags:
    1. config: Config file, which may contain the following fields:
