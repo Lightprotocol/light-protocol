@@ -208,9 +208,9 @@ cargo install cargo-expand wasm-pack
 
 # check if variable PHOTON_BRANCH is not empty, then install photon-indexer from the branch, otherwise install the version
 if [ -n "$PHOTON_BRANCH" ]; then
-    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH
+    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH --locked
 else
-  cargo install photon-indexer --version ${PHOTON_VERSION}
+  cargo install photon-indexer --version ${PHOTON_VERSION} --locked
 fi
 
 echo "📥 Downloading Node.js"
@@ -239,14 +239,18 @@ chmod +x "${PREFIX}/bin/pnpm"
 export PATH="${PREFIX}/bin:${PATH}"
 
 echo "📥 Downloading Solana toolchain"
-download_and_extract_github \
+if download_and_extract_github \
     solana-labs \
     solana \
     "v${SOLANA_VERSION}" \
     "solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2" \
     j \
     "${PREFIX}/bin" \
-    2
+    2 > /dev/null 2>&1; then
+    echo "✅ Solana toolchain downloaded and installed successfully"
+else
+    echo "⚠️ Solana toolchain is not available for this architecture. Skipping Solana installation."
+fi
 
 echo "📥 Downloading Anchor"
 download_file_github \
