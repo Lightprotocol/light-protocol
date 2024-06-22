@@ -780,7 +780,7 @@ where
 }
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use std::array;
 
     use rand::{
@@ -796,7 +796,7 @@ pub mod test {
     
     /// Generates a random value in the given range, excluding the values provided
     /// in `exclude`.
-    pub fn gen_range_exclude<N, R, T>(rng: &mut N, range: R, exclude: &[T]) -> T
+    fn gen_range_exclude<N, R, T>(rng: &mut N, range: R, exclude: &[T]) -> T
     where
         N: Rng,
         R: Clone + SampleRange<T>,
