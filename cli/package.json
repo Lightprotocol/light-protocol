@@ -126,10 +126,10 @@
     "targets": {
       "build": {
         "inputs": [
-          "{projectRoot}/js",
-          "{projectRoot}/programs",
-          "{projectRoot}/gnark-prover",
-          "{projectRoot}/forester"
+          "{workspaceRoot}/js",
+          "{workspaceRoot}/programs",
+          "{workspaceRoot}/gnark-prover",
+          "{workspaceRoot}/forester"
         ],
         "outputs": [
           "{projectRoot}/bin",
