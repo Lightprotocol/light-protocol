@@ -27,9 +27,9 @@ jobs:
         include:
           - name: sdk-tests-light-rpc-cli
             sub-tests: '[
+                "@lightprotocol/zk-compression-cli",
                 "@lightprotocol/circuit-lib.js",
                 "@lightprotocol/prover.js",
-                "@lightprotocol/zk-compression-cli",
             ]'
     steps:
       - name: Checkout sources
@@ -37,6 +37,11 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+
+      - name: Build CLI
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
 
       - name: ${{ matrix.name }}
         run: |

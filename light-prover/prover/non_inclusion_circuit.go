@@ -40,7 +40,6 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 		Depth:         circuit.Depth,
 	}
 	roots := abstractor.Call1(api, proof)
-
 	for i := 0; i < int(circuit.NumberOfUtxos); i++ {
 		api.AssertIsEqual(roots[i], circuit.Roots[i])
 	}

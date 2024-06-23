@@ -121,5 +121,23 @@
   "keywords": [
     "oclif"
   ],
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "nx": {
+    "targets": {
+      "build": {
+        "inputs": [
+          "{workspaceRoot}/js",
+          "{workspaceRoot}/programs",
+          "{workspaceRoot}/gnark-prover",
+          "{workspaceRoot}/forester"
+        ],
+        "outputs": [
+          "{projectRoot}/bin",
+          "{projectRoot}/dist",
+          "{projectRoot}/lib",
+          "{projectRoot}/test_bin"
+        ]
+      }
+    }
+  }
 }

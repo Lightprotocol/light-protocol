@@ -1,5 +1,6 @@
 import path from "path";
 import {
+  executeCommand,
   killProcess,
   killProcessByPort,
   spawnBinary,

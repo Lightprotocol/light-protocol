@@ -84,6 +84,17 @@ Bucket           #    %       Histogram
 [100ms,  +Inf]   0    0.00%  
 ```
 
+
+## Unit Tests
+To run specific tests cd into respective folder (merkle-tree/prover) and `go test -v -run <function-name>`
+
+1. Integration tests
+   `go test`
+2. Generate csv Test Data for combined, inclusion, non-inclusion
+   `cd merkle-tree && go test`
+3. Unit Tests
+   `cd prover && go test`
+
 ## Docker
 
 ```shell

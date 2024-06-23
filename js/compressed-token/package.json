@@ -108,6 +108,7 @@
         "targets": {
             "build": {
                 "inputs": [
+                    "{workspaceRoot}/cli",
                     "{workspaceRoot}/target/idl",
                     "{workspaceRoot}/target/types"
                 ]
