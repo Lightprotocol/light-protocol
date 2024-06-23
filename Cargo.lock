@@ -2951,6 +2951,7 @@ dependencies = [
  "light-system-program",
  "light-utils",
  "rand 0.8.5",
+ "solana-program",
  "solana-sdk",
  "solana-security-txt",
 ]
@@ -3078,7 +3079,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
- "borsh 0.9.3",
+ "borsh 0.10.3",
  "bytemuck",
  "color-eyre",
  "duct",
@@ -7378,6 +7379,15 @@ dependencies = [
  "quote",
  "syn 2.0.48",
  "test-case-core",
+]
+
+[[package]]
+name = "test-release"
+version = "0.4.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "rand 0.8.5",
 ]
 
 [[package]]

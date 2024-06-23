@@ -12,6 +12,7 @@ members = [
     "programs/system",
     "programs/compressed-token",
     "programs/registry",
+    "programs/release-test",
     "test-utils",
     "utils",
     "xtask",
