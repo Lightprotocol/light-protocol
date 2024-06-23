@@ -16,6 +16,7 @@ export async function killProver() {
 }
 
 export async function startProver(
+  proverPort: number,
   proveCompressedAccounts: boolean,
   proveNewAddresses: boolean,
 ) {
@@ -27,17 +28,18 @@ export async function startProver(
   }
   console.log("Kill existing prover process...");
   await killProver();
-  await killProcessByPort("3001");
+  await killProcessByPort(proverPort);
 
   const keysDir = path.join(__dirname, "../..", "bin", KEYS_DIR);
   const args = ["start"];
   args.push(`--inclusion=${proveCompressedAccounts ? "true" : "false"}`);
   args.push(`--non-inclusion=${proveNewAddresses ? "true" : "false"}`);
   args.push("--keys-dir", keysDir);
+  args.push("--prover-address", `0.0.0.0:${proverPort}`);
 
   console.log("Starting prover...");
   spawnBinary(getProverNameByArch(), args);
-  await waitForServers([{ port: 3001, path: "/" }]);
+  await waitForServers([{ port: proverPort, path: "/" }]);
   console.log("Prover started successfully!");
 }
 

@@ -51,16 +51,39 @@ class SetupCommand extends Command {
       required: false,
       exclusive: ["skip-indexer"],
     }),
+    "rpc-port": Flags.integer({
+      description:
+        "Enable JSON RPC on this port, and the next port for the RPC websocket.",
+      required: false,
+      default: 8899,
+    }),
+    "indexer-port": Flags.integer({
+      description: "Enable Photon indexer on this port.",
+      required: false,
+      default: 8784,
+      exclusive: ["skip-indexer"],
+    }),
+    "prover-port": Flags.integer({
+      description: "Enable Light Prover server on this port.",
+      required: false,
+      default: 3001,
+      exclusive: ["skip-prover"],
+    }),
     "limit-ledger-size": Flags.integer({
       description: "Keep this amount of shreds in root slots.",
       required: false,
       default: 10000,
     }),
+    "gossip-host": Flags.string({
+      description:
+        "Gossip DNS name or IP address for the validator to advertise in gossip.",
+      required: false,
+      default: "127.0.0.1",
+    }),
   };
 
   async run() {
     const { flags } = await this.parse(SetupCommand);
-
     const loader = new CustomLoader("Performing setup tasks...\n");
     loader.start();
     await initTestEnv({
@@ -69,6 +92,10 @@ class SetupCommand extends Command {
       indexer: !flags["skip-indexer"],
       limitLedgerSize: flags["limit-ledger-size"],
       photonDatabaseUrl: flags["indexer-db-url"],
+      rpcPort: flags["rpc-port"],
+      gossipHost: flags["gossip-host"],
+      indexerPort: flags["indexer-port"],
+      proverPort: flags["prover-port"],
       proveCompressedAccounts: flags["prove-compressed-accounts"],
       proveNewAddresses: flags["prove-new-addresses"],
       prover: !flags["skip-prover"],

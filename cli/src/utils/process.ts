@@ -17,8 +17,8 @@ export async function killProcess(processName: string) {
   });
 }
 
-export async function killProcessByPort(port: string) {
-  await execute("lsof -t -i:3001 | while read line; do kill -9 $line; done");
+export async function killProcessByPort(port: number) {
+  await execute(`lsof -t -i:${port} | while read line; do kill -9 $line; done`);
 }
 
 /**
