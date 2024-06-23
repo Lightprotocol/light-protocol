@@ -28,7 +28,7 @@ type NonInclusionParameters struct {
 	Inputs []NonInclusionInputs
 }
 
-func (p *NonInclusionParameters) NumberOfUTXOs() uint32 {
+func (p *NonInclusionParameters) NumberOfCompressedAccounts() uint32 {
 	return uint32(len(p.Inputs))
 }
 
@@ -39,47 +39,47 @@ func (p *NonInclusionParameters) TreeDepth() uint32 {
 	return uint32(len(p.Inputs[0].PathElements))
 }
 
-func (p *NonInclusionParameters) ValidateShape(treeDepth uint32, numOfUTXOs uint32) error {
-	if p.NumberOfUTXOs() != numOfUTXOs {
-		return fmt.Errorf("wrong number of utxos, p.NumberOfUTXOs: %d, numOfUTXOs = %d", p.NumberOfUTXOs(), numOfUTXOs)
+func (p *NonInclusionParameters) ValidateShape(treeDepth uint32, numOfCompressedAccounts uint32) error {
+	if p.NumberOfCompressedAccounts() != numOfCompressedAccounts {
+		return fmt.Errorf("wrong number of compressed accounts, p.NumberOfCompressedAccounts: %d, numOfCompressedAccounts = %d", p.NumberOfCompressedAccounts(), numOfCompressedAccounts)
 	}
 	if p.TreeDepth() != treeDepth {
-		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfUTXOs(), p.TreeDepth())
+		return fmt.Errorf("wrong size of merkle proof for proof %d: %d", p.NumberOfCompressedAccounts(), p.TreeDepth())
 	}
 	return nil
 }
 
-func R1CSNonInclusion(treeDepth uint32, numberOfUtxos uint32) (constraint.ConstraintSystem, error) {
-	roots := make([]frontend.Variable, numberOfUtxos)
-	values := make([]frontend.Variable, numberOfUtxos)
+func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
+	roots := make([]frontend.Variable, numberOfCompressedAccounts)
+	values := make([]frontend.Variable, numberOfCompressedAccounts)
 
-	leafLowerRangeValues := make([]frontend.Variable, numberOfUtxos)
-	leafHigherRangeValues := make([]frontend.Variable, numberOfUtxos)
-	leafIndices := make([]frontend.Variable, numberOfUtxos)
+	leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
+	leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
+	leafIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 
-	inPathIndices := make([]frontend.Variable, numberOfUtxos)
-	inPathElements := make([][]frontend.Variable, numberOfUtxos)
+	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
-	for i := 0; i < int(numberOfUtxos); i++ {
+	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inPathElements[i] = make([]frontend.Variable, treeDepth)
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                 treeDepth,
-		NumberOfUtxos:         numberOfUtxos,
-		Roots:                 roots,
-		Values:                values,
-		LeafLowerRangeValues:  leafLowerRangeValues,
-		LeafHigherRangeValues: leafHigherRangeValues,
-		LeafIndices:           leafIndices,
-		InPathIndices:         inPathIndices,
-		InPathElements:        inPathElements,
+		Depth:                      treeDepth,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      roots,
+		Values:                     values,
+		LeafLowerRangeValues:       leafLowerRangeValues,
+		LeafHigherRangeValues:      leafHigherRangeValues,
+		LeafIndices:                leafIndices,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
 	}
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func SetupNonInclusion(treeDepth uint32, numberOfUtxos uint32) (*ProvingSystem, error) {
-	ccs, err := R1CSNonInclusion(treeDepth, numberOfUtxos)
+func SetupNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (*ProvingSystem, error) {
+	ccs, err := R1CSNonInclusion(treeDepth, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -87,25 +87,25 @@ func SetupNonInclusion(treeDepth uint32, numberOfUtxos uint32) (*ProvingSystem, 
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystem{0, 0, treeDepth, numberOfUtxos, pk, vk, ccs}, nil
+	return &ProvingSystem{0, 0, treeDepth, numberOfCompressedAccounts, pk, vk, ccs}, nil
 }
 
 func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Proof, error) {
-	if err := params.ValidateShape(ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfUtxos); err != nil {
+	if err := params.ValidateShape(ps.NonInclusionTreeDepth, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
 
-	roots := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	values := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	roots := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
+	values := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
-	leafLowerRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	leafHigherRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	leafIndices := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	leafLowerRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
+	leafHigherRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
+	leafIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
-	inPathElements := make([][]frontend.Variable, ps.NonInclusionNumberOfUtxos)
-	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfUtxos)
+	inPathElements := make([][]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
+	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
-	for i := 0; i < int(ps.NonInclusionNumberOfUtxos); i++ {
+	for i := 0; i < int(ps.NonInclusionNumberOfCompressedAccounts); i++ {
 		roots[i] = params.Inputs[i].Root
 		values[i] = params.Inputs[i].Value
 		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
@@ -133,7 +133,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		return nil, err
 	}
 
-	logging.Logger().Info().Msg("Proof non-inclusion" + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfUtxos)))
+	logging.Logger().Info().Msg("Proof non-inclusion" + strconv.Itoa(int(ps.NonInclusionTreeDepth)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {
 		logging.Logger().Error().Msg("non-inclusion prove error: " + err.Error())

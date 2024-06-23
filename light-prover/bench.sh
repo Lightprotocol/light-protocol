@@ -9,33 +9,33 @@ gnark() {
 }
 
 generate_and_test() {
-    local utxos=$1
+    local compressedAccounts=$1
     mkdir -p circuits
-    CIRCUIT_FILE="/tmp/circuit_${DEPTH}_${utxos}.key"
-    TEST_FILE="/tmp/inputs_${DEPTH}_${utxos}.json"
+    CIRCUIT_FILE="/tmp/circuit_${DEPTH}_${compressedAccounts}.key"
+    TEST_FILE="/tmp/inputs_${DEPTH}_${compressedAccounts}.json"
     if [ ! -f "${CIRCUIT_FILE}" ]; then
         echo "Prover setup..."
-        gnark setup --circuit inclusion --utxos "$utxos" --tree-depth "$DEPTH" --output "${CIRCUIT_FILE}"
+        gnark setup --circuit inclusion --compressedAccounts "$compressedAccounts" --tree-depth "$DEPTH" --output "${CIRCUIT_FILE}"
     fi
     if [ ! -f "${TEST_FILE}" ]; then
         echo "Generating test inputs..."
-        gnark gen-test-params --utxos "$utxos" --tree-depth "$DEPTH" > "${TEST_FILE}"
+        gnark gen-test-params --compressedAccounts "$compressedAccounts" --tree-depth "$DEPTH" > "${TEST_FILE}"
     fi
 }
 
 run_benchmark() {
-    local utxos=$1
-    echo "Benchmarking with $utxos utxos..."
-    TEST_FILE="/tmp/inputs_${DEPTH}_${utxos}.json"
+    local compressedAccounts=$1
+    echo "Benchmarking with $compressedAccounts compressedAccounts..."
+    TEST_FILE="/tmp/inputs_${DEPTH}_${compressedAccounts}.json"
     curl -s -S -X POST -d @"${TEST_FILE}" "$URL" -o /dev/null
     sleep 1
 }
 
 start_server() {
-  utxos_arr=$1
-  for utxos in "${utxos_arr[@]}"
+  compressedAccounts_arr=$1
+  for compressedAccounts in "${compressedAccounts_arr[@]}"
   do
-    keys_file+="--keys-file /tmp/circuit_${DEPTH}_${utxos}.key "
+    keys_file+="--keys-file /tmp/circuit_${DEPTH}_${compressedAccounts}.key "
   done
   echo "Starting server with keys: $keys_file"
   gnark start \
@@ -47,24 +47,24 @@ start_server() {
 }
 
 # Define an array containing the desired values
-declare -a utxos_arr=("1" "2" "3" "4" "8")
+declare -a compressedAccounts_arr=("1" "2" "3" "4" "8")
 
 # Kill the server
 killall light-prover
 
 # Generate keys and test inputs
-for utxos in "${utxos_arr[@]}"
+for compressedAccounts in "${compressedAccounts_arr[@]}"
 do
-    generate_and_test $utxos
+    generate_and_test $compressedAccounts
 done
 
 # Start the server
-start_server "${utxos_arr[@]}"
+start_server "${compressedAccounts_arr[@]}"
 
 # Run the benchmarks
-for utxos in "${utxos_arr[@]}"
+for compressedAccounts in "${compressedAccounts_arr[@]}"
 do
-    run_benchmark $utxos
+    run_benchmark $compressedAccounts
 done
 echo "Done. Benchmarking results are in log.txt."
 

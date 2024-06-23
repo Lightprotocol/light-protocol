@@ -41,7 +41,7 @@ jobs:
       - name: Build CLI
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli --skip-nx-cache
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: ${{ matrix.name }}
         run: |

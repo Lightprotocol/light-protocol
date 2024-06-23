@@ -104,7 +104,7 @@ func (ps *ProvingSystem) WriteTo(w io.Writer) (int64, error) {
 		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.InclusionNumberOfUtxos))
+	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.InclusionNumberOfCompressedAccounts))
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
@@ -118,7 +118,7 @@ func (ps *ProvingSystem) WriteTo(w io.Writer) (int64, error) {
 		return totalWritten, err
 	}
 
-	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.NonInclusionNumberOfUtxos))
+	binary.BigEndian.PutUint32(intBuf[:], uint32(ps.NonInclusionNumberOfCompressedAccounts))
 	written, err = w.Write(intBuf[:])
 	totalWritten += int64(written)
 	if err != nil {
@@ -162,7 +162,7 @@ func (ps *ProvingSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return totalRead, err
 	}
-	ps.InclusionNumberOfUtxos = binary.BigEndian.Uint32(intBuf[:])
+	ps.InclusionNumberOfCompressedAccounts = binary.BigEndian.Uint32(intBuf[:])
 
 	read, err = io.ReadFull(r, intBuf[:])
 	totalRead += int64(read)
@@ -176,7 +176,7 @@ func (ps *ProvingSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return totalRead, err
 	}
-	ps.NonInclusionNumberOfUtxos = binary.BigEndian.Uint32(intBuf[:])
+	ps.NonInclusionNumberOfCompressedAccounts = binary.BigEndian.Uint32(intBuf[:])
 
 	ps.ProvingKey = groth16.NewProvingKey(ecc.BN254)
 	keyRead, err := ps.ProvingKey.UnsafeReadFrom(r)

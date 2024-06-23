@@ -9,19 +9,18 @@ type CircuitType string
 
 const (
 	InputCompressedAccounts             = "input-compressed-accounts"
-	NewAddresses                        = "new-addresses"
 	Combined                CircuitType = "combined"
 	Inclusion               CircuitType = "inclusion"
 	NonInclusion            CircuitType = "non-inclusion"
 )
 
-func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfUtxos uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfUtxos uint32) (*ProvingSystem, error) {
+func SetupCircuit(circuit CircuitType, inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystem, error) {
 	if circuit == Inclusion {
-		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfUtxos)
+		return SetupInclusion(inclusionTreeDepth, inclusionNumberOfCompressedAccounts)
 	} else if circuit == NonInclusion {
-		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
+		return SetupNonInclusion(nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
 	} else if circuit == Combined {
-		return SetupCombined(inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
+		return SetupCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
 	} else {
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)
 	}

@@ -132,10 +132,10 @@
           "{workspaceRoot}/forester"
         ],
         "outputs": [
-          "{projectRoot}/bin",
-          "{projectRoot}/dist",
-          "{projectRoot}/lib",
-          "{projectRoot}/test_bin"
+          "{workspaceRoot}/bin",
+          "{workspaceRoot}/dist",
+          "{workspaceRoot}/lib",
+          "{workspaceRoot}/test_bin"
         ]
       }
     }

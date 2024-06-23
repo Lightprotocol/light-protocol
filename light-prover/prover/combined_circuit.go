@@ -16,7 +16,7 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		Leaves:         circuit.Inclusion.Leaves,
 		InPathElements: circuit.Inclusion.InPathElements,
 		InPathIndices:  circuit.Inclusion.InPathIndices,
-		NumberOfUtxos:  circuit.Inclusion.NumberOfUtxos,
+		NumberOfCompressedAccounts:  circuit.Inclusion.NumberOfCompressedAccounts,
 		Depth:          circuit.Inclusion.Depth,
 	})
 
@@ -28,14 +28,14 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		LeafIndices:           circuit.NonInclusion.LeafIndices,
 		InPathIndices:         circuit.NonInclusion.InPathIndices,
 		InPathElements:        circuit.NonInclusion.InPathElements,
-		NumberOfUtxos:         circuit.NonInclusion.NumberOfUtxos,
+		NumberOfCompressedAccounts:         circuit.NonInclusion.NumberOfCompressedAccounts,
 		Depth:                 circuit.NonInclusion.Depth,
 	})
 	return nil
 }
 
-func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfUtxos uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfUtxos uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
-	ccs, err := R1CSCombined(inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos)
+func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeDepth uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystem, error) {
+	ccs, err := R1CSCombined(inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -52,5 +52,5 @@ func ImportCombinedSetup(inclusionTreeDepth uint32, inclusionNumberOfUtxos uint3
 		return nil, err
 	}
 
-	return &ProvingSystem{inclusionTreeDepth, inclusionNumberOfUtxos, nonInclusionTreeDepth, nonInclusionNumberOfUtxos, pk, vk, ccs}, nil
+	return &ProvingSystem{inclusionTreeDepth, inclusionNumberOfCompressedAccounts, nonInclusionTreeDepth, nonInclusionNumberOfCompressedAccounts, pk, vk, ccs}, nil
 }

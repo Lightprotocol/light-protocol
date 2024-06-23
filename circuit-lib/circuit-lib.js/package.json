@@ -51,7 +51,7 @@
           "{workspaceRoot}/cli"
         ],
         "outputs": [
-          "{projectRoot}/lib"
+          "{workspaceRoot}/lib"
         ]
       }
     }

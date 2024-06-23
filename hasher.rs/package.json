@@ -71,7 +71,7 @@
     "targets": {
       "build": {
         "outputs": [
-          "{projectRoot}/dist"
+          "{workspaceRoot}/dist"
         ]
       }
     }

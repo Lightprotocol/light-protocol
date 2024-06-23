@@ -6,22 +6,22 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v2/extractor"
 )
 
-func ExtractLean(treeDepth uint32, numberOfUtxos uint32) (string, error) {
-	// Not checking for numberOfUtxos === 0 or treeDepth === 0
+func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, error) {
+	// Not checking for numberOfCompressedAccounts === 0 or treeDepth === 0
 
 	// Initialising MerkleProofs slice with correct dimentions
-	roots := make([]frontend.Variable, numberOfUtxos)
-	leaves := make([]frontend.Variable, numberOfUtxos)
-	inPathIndices := make([]frontend.Variable, numberOfUtxos)
-	inPathElements := make([][]frontend.Variable, numberOfUtxos)
+	roots := make([]frontend.Variable, numberOfCompressedAccounts)
+	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
-	for i := 0; i < int(numberOfUtxos); i++ {
+	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inPathElements[i] = make([]frontend.Variable, treeDepth)
 	}
 
 	inclusionCircuit := InclusionCircuit{
 		Depth:          treeDepth,
-		NumberOfUtxos:  numberOfUtxos,
+		NumberOfCompressedAccounts:  numberOfCompressedAccounts,
 		Roots:          roots,
 		Leaves:         leaves,
 		InPathIndices:  inPathIndices,

@@ -21,9 +21,9 @@ type Proof struct {
 
 type ProvingSystem struct {
 	InclusionTreeDepth        uint32
-	InclusionNumberOfUtxos    uint32
+	InclusionNumberOfCompressedAccounts    uint32
 	NonInclusionTreeDepth     uint32
-	NonInclusionNumberOfUtxos uint32
+	NonInclusionNumberOfCompressedAccounts uint32
 	ProvingKey                groth16.ProvingKey
 	VerifyingKey              groth16.VerifyingKey
 	ConstraintSystem          constraint.ConstraintSystem
@@ -50,13 +50,13 @@ type InclusionProof struct {
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
 
-	NumberOfUtxos uint32
+	NumberOfCompressedAccounts uint32
 	Depth         uint32
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
-	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
-	for proofIndex := 0; proofIndex < int(gadget.NumberOfUtxos); proofIndex++ {
+	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
+	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		hash := MerkleRootGadget{
 			Hash:  gadget.Leaves[proofIndex],
 			Index: gadget.InPathIndices[proofIndex],
@@ -79,13 +79,13 @@ type NonInclusionProof struct {
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
 
-	NumberOfUtxos uint32
+	NumberOfCompressedAccounts uint32
 	Depth         uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
-	currentHash := make([]frontend.Variable, gadget.NumberOfUtxos)
-	for proofIndex := 0; proofIndex < int(gadget.NumberOfUtxos); proofIndex++ {
+	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
+	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		leaf := LeafHashGadget{
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
 			LeafIndex:            gadget.LeafIndices[proofIndex],
