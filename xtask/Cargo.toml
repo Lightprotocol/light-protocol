@@ -19,5 +19,5 @@ num-bigint = "0.4"
 rand = "0.8"
 quote = "1.0"
 sha2 = "0.10"
-solana-program = "1.18.11"
+solana-program = { workspace = true }
 tabled = "0.15"

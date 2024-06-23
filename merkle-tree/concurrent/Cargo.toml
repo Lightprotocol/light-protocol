@@ -21,7 +21,7 @@ light-bounded-vec = { path = "../bounded-vec", version = "0.2.0" }
 light-hasher = { path = "../hasher", version = "0.2.0" }
 light-utils = { version = "0.2.0", path = "../../utils" }
 memoffset = "0.8"
-solana-program = { version = "1.18.11", optional = true }
+solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 
 [dev-dependencies]
@@ -30,7 +30,7 @@ ark-ff = "0.4"
 light-merkle-tree-reference = { path = "../reference", version = "0.2.0" }
 light-hash-set = { version = "0.2.0", path = "../hash-set", features = ["solana"] }
 rand = "0.8"
-solana-program = { version = "1.18.11" }
+solana-program = {  workspace = true }
 spl-account-compression = { version = "0.3.0", default-features = false}
 spl-concurrent-merkle-tree = { version = "0.2.0", default-features = false}
 tokio = { version = "1.35", features = ["full"] }

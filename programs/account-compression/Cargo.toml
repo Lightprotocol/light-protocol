@@ -39,4 +39,4 @@ num-traits = "0.2.18"
 solana-security-txt = "1.1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.18.11"
+solana-sdk = { workspace = true }
