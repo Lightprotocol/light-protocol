@@ -22,13 +22,13 @@ import {
  *
  * @return transaction signature
  */
-export async function registerMint(
+export async function createTokenPool(
     rpc: Rpc,
     payer: Signer,
     mintAddress: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
-    const ix = await CompressedTokenProgram.registerMint({
+    const ix = await CompressedTokenProgram.createTokenPool({
         feePayer: payer.publicKey,
         mint: mintAddress,
     });

@@ -3,7 +3,7 @@ export type LightCompressedToken = {
     name: 'light_compressed_token';
     instructions: [
         {
-            name: 'createMint';
+            name: 'createTokenPool';
             docs: [
                 'This instruction expects a mint account to be created in a separate',
                 'token program instruction with token authority as mint authority. This',
@@ -876,12 +876,6 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'isNative';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
                         name: 'merkleContext';
                         type: {
                             defined: 'PackedMerkleContext';
@@ -1341,18 +1335,6 @@ export type LightCompressedToken = {
                             defined: 'AccountState';
                         };
                     },
-                    {
-                        name: 'isNative';
-                        docs: [
-                            'If is_some, this is a native token, and the value logs the rent-exempt',
-                            'reserve. An Account is required to be rent-exempt, so the value is',
-                            'used by the Processor to ensure that wrapped SOL accounts do not',
-                            'drop below this threshold.',
-                        ];
-                        type: {
-                            option: 'u64';
-                        };
-                    },
                 ];
             };
         },
@@ -1470,7 +1452,7 @@ export const IDL: LightCompressedToken = {
     name: 'light_compressed_token',
     instructions: [
         {
-            name: 'createMint',
+            name: 'createTokenPool',
             docs: [
                 'This instruction expects a mint account to be created in a separate',
                 'token program instruction with token authority as mint authority. This',
@@ -2343,12 +2325,6 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'isNative',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
                         name: 'merkleContext',
                         type: {
                             defined: 'PackedMerkleContext',
@@ -2811,18 +2787,6 @@ export const IDL: LightCompressedToken = {
                         docs: ["The account's state"],
                         type: {
                             defined: 'AccountState',
-                        },
-                    },
-                    {
-                        name: 'isNative',
-                        docs: [
-                            'If is_some, this is a native token, and the value logs the rent-exempt',
-                            'reserve. An Account is required to be rent-exempt, so the value is',
-                            'used by the Processor to ensure that wrapped SOL accounts do not',
-                            'drop below this threshold.',
-                        ],
-                        type: {
-                            option: 'u64',
                         },
                     },
                 ],

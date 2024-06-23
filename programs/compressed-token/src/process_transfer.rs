@@ -5,8 +5,8 @@ use crate::{
     ErrorCode, TransferInstruction,
 };
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
-use anchor_lang::{prelude::*, AnchorDeserialize};
-use light_hasher::{DataHasher, Poseidon};
+use anchor_lang::{prelude::*, solana_program::program_error::ProgramError, AnchorDeserialize};
+use light_hasher::Poseidon;
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::{
     invoke::processor::CompressedProof,
@@ -91,7 +91,7 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         None
     };
 
-    create_output_compressed_accounts::<true, false>(
+    create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
         inputs
@@ -159,11 +159,11 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
 /// Creates output compressed accounts.
 /// Steps:
 /// 1. Allocate memory for token data.
-/// 2. Create, hash and serialize token data.  
+/// 2. Create, hash and serialize token data.
 /// 3. Create compressed account data.
 /// 4. Repeat for every pubkey.
 #[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FROZEN: bool>(
+pub fn create_output_compressed_accounts(
     output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
     mint_pubkey: Pubkey,
     pubkeys: &[Pubkey],
@@ -174,18 +174,23 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
     hashed_mint: &[u8; 32],
     merkle_tree_indices: &[u8],
 ) -> Result<()> {
-    let hashed_delegate = if WITH_DELEGATE {
-        if let Some(delegate) = delegate {
-            hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-                .unwrap()
-                .0
-        } else {
-            [0u8; 32]
-        }
+    let hashed_delegate_store = if let Some(delegate) = delegate {
+        hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
+            .unwrap()
+            .0
     } else {
         [0u8; 32]
     };
     for (i, (owner, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
+        let (delegate, hashed_delegate) =
+            if is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
+                (
+                    delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey),
+                    Some(&hashed_delegate_store),
+                )
+            } else {
+                (None, None)
+            };
         // 83 =
         //      32  mint
         // +    32  owner
@@ -194,17 +199,6 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
         // +    1   state
         // +    8   delegated_amount
         let mut token_data_bytes = Vec::with_capacity(83);
-        let delegate =
-            if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
-                delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey)
-            } else {
-                None
-            };
-        let state = if IS_FROZEN {
-            AccountState::Frozen
-        } else {
-            AccountState::Initialized
-        };
 
         // 1,000 CU token data and serialize
         let token_data = TokenData {
@@ -212,31 +206,18 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
             owner: *owner,
             amount: *amount,
             delegate,
-            state,
-            is_native: None,
+            state: AccountState::Initialized,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
         bench_sbf_start!("token_data_hash");
         let owner_hashed = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
         let amount_bytes = amount.to_le_bytes();
-        let data_hash = if IS_FROZEN {
-            token_data.hash::<Poseidon>()
-        } else if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
-            TokenData::hash_with_delegate_hashed_values::<Poseidon>(
-                hashed_mint,
-                &owner_hashed,
-                &amount_bytes,
-                &None,
-                &hashed_delegate,
-            )
-        } else {
-            TokenData::hash_with_hashed_values::<Poseidon>(
-                hashed_mint,
-                &owner_hashed,
-                &amount_bytes,
-                &None,
-            )
-        }
+        let data_hash = TokenData::hash_with_hashed_values::<Poseidon>(
+            hashed_mint,
+            &owner_hashed,
+            &amount_bytes,
+            &hashed_delegate,
+        )
         .map_err(ProgramError::from)?;
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
@@ -245,7 +226,6 @@ pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FRO
         };
         bench_sbf_end!("token_data_hash");
         let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
-
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
                 owner: crate::ID,
@@ -277,49 +257,38 @@ pub fn add_token_data_to_input_compressed_accounts<const FROZEN_INPUTS: bool>(
         let mut data = Vec::new();
         input_token_data[i].serialize(&mut data)?;
         let amount = input_token_data[i].amount.to_le_bytes();
-        if !FROZEN_INPUTS {
-            if input_token_data[i].delegate.is_none() {
-                let data = CompressedAccountData {
-                    discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                    data,
-                    data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
-                        hashed_mint,
-                        &hashed_owner,
-                        &amount,
-                        &input_token_data[i].is_native,
-                    )
-                    .map_err(ProgramError::from)?,
-                };
-                compressed_account_with_context.compressed_account.data = Some(data);
-            } else {
-                let hashed_delegate =
-                    hash_to_bn254_field_size_be(&input_token_data[i].delegate.unwrap().to_bytes())
-                        .unwrap()
-                        .0;
-                let data = CompressedAccountData {
-                    discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-                    data,
-                    data_hash: TokenData::hash_with_delegate_hashed_values::<Poseidon>(
-                        hashed_mint,
-                        &hashed_owner,
-                        &amount,
-                        &input_token_data[i].is_native,
-                        &hashed_delegate,
-                    )
-                    .map_err(ProgramError::from)?,
-                };
-                compressed_account_with_context.compressed_account.data = Some(data);
-            }
+        let delegate_store;
+        let hashed_delegate = if let Some(delegate) = input_token_data[i].delegate {
+            delegate_store = hash_to_bn254_field_size_be(&delegate.to_bytes()).unwrap().0;
+            Some(&delegate_store)
         } else {
-            let data = CompressedAccountData {
+            None
+        };
+        compressed_account_with_context.compressed_account.data = if !FROZEN_INPUTS {
+            Some(CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data,
-                data_hash: input_token_data[i]
-                    .hash::<Poseidon>()
-                    .map_err(ProgramError::from)?,
-            };
-            compressed_account_with_context.compressed_account.data = Some(data);
-        }
+                data_hash: TokenData::hash_with_hashed_values::<Poseidon>(
+                    hashed_mint,
+                    &hashed_owner,
+                    &amount,
+                    &hashed_delegate,
+                )
+                .map_err(ProgramError::from)?,
+            })
+        } else {
+            Some(CompressedAccountData {
+                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                data,
+                data_hash: TokenData::hash_frozen_with_hashed_values::<Poseidon>(
+                    hashed_mint,
+                    &hashed_owner,
+                    &amount,
+                    &hashed_delegate,
+                )
+                .map_err(ProgramError::from)?,
+            })
+        };
     }
     Ok(())
 }
@@ -373,7 +342,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
         cpi_context,
     };
     let mut inputs = Vec::new();
-    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).unwrap();
+    InstructionDataInvokeCpi::serialize(&inputs_struct, &mut inputs).map_err(ProgramError::from)?;
 
     let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.get_fee_payer().to_account_info(),
@@ -447,7 +416,6 @@ pub fn sum_check(
 pub struct InputTokenDataWithContext {
     pub amount: u64,
     pub delegate_index: Option<u8>,
-    pub is_native: Option<u64>,
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
 }
@@ -517,7 +485,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         }
         let compressed_account = CompressedAccount {
             owner: crate::ID,
-            lamports: input_token_data.is_native.unwrap_or_default(),
+            lamports: 0,
             data: None,
             address: None,
         };
@@ -534,7 +502,6 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
                 remaining_accounts[input_token_data.delegate_index.unwrap() as usize].key()
             }),
             state,
-            is_native: input_token_data.is_native,
         };
         input_token_data_vec.push(token_data);
         input_compressed_accounts_with_merkle_context.push(
@@ -643,7 +610,8 @@ pub mod transfer_sdk {
         }
         let remaining_accounts = to_account_metas(remaining_accounts);
         let mut inputs = Vec::new();
-        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
+        CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs)
+            .map_err(|_| TransferSdkError::SerializationError)?;
 
         let (cpi_authority_pda, _) = crate::process_transfer::get_cpi_authority_pda();
         let instruction_data = crate::instruction::Transfer { inputs };
@@ -834,7 +802,6 @@ pub mod transfer_sdk {
             let token_data_with_context = InputTokenDataWithContext {
                 amount: token_data.amount,
                 delegate_index,
-                is_native: token_data.is_native,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: *remaining_accounts
                         .get(&input_merkle_context[i].merkle_tree_pubkey)
@@ -963,7 +930,6 @@ mod test {
                 delegate: None,
                 state: AccountState::Initialized,
                 amount: *i,
-                is_native: None,
             });
         }
         let ref_amount;

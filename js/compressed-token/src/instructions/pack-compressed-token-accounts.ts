@@ -78,7 +78,6 @@ export function packCompressedTokenAccounts(
             packedInputTokenData.push({
                 amount: account.parsed.amount,
                 delegateIndex,
-                isNative: account.parsed.isNative,
                 merkleContext: {
                     merkleTreePubkeyIndex,
                     nullifierQueuePubkeyIndex,

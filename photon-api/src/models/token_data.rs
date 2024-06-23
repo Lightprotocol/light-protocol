@@ -17,8 +17,6 @@ pub struct TokenData {
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "delegate", skip_serializing_if = "Option::is_none")]
     pub delegate: Option<String>,
-    #[serde(rename = "isNative", skip_serializing_if = "Option::is_none")]
-    pub is_native: Option<i64>,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "mint")]
     pub mint: String,
@@ -34,7 +32,6 @@ impl TokenData {
         TokenData {
             amount,
             delegate: None,
-            is_native: None,
             mint,
             owner,
             state,

@@ -48,10 +48,6 @@ export type InputTokenDataWithContext = {
      */
     delegateIndex: number | null;
     /**
-     * Optional: Whether the token is native (wSOL)
-     */
-    isNative: BN | null;
-    /**
      * The index of the merkle tree address in remaining accounts
      */
     merkleTreePubkeyIndex: number;
@@ -120,11 +116,4 @@ export type TokenData = {
      * The account's state
      */
     state: number;
-    /**
-     * If is_some, this is a native token, and the value logs the rent-exempt
-     * reserve. An Account is required to be rent-exempt, so the value is used
-     * by the Processor to ensure that wrapped SOL accounts do not drop below
-     * this threshold.
-     */
-    isNative: BN | null;
 };

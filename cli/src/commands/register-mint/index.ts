@@ -7,7 +7,7 @@ import {
 } from "../../utils/utils";
 
 import { PublicKey } from "@solana/web3.js";
-import { registerMint } from "@lightprotocol/compressed-token";
+import { createTokenPool } from "@lightprotocol/compressed-token";
 
 class RegisterMintCommand extends Command {
   static summary = "Register an existing mint with the CompressedToken program";
@@ -31,7 +31,7 @@ class RegisterMintCommand extends Command {
     try {
       const payer = defaultSolanaWalletKeypair();
       const mintAddress = new PublicKey(flags.mint);
-      const txId = await registerMint(rpc(), payer, mintAddress);
+      const txId = await createTokenPool(rpc(), payer, mintAddress);
       loader.stop(false);
       console.log("\x1b[1mMint public key:\x1b[0m ", mintAddress.toBase58());
       console.log(

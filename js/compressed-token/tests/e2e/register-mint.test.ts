@@ -8,7 +8,7 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { createMint, registerMint } from '../../src/actions';
+import { createMint, createTokenPool } from '../../src/actions';
 import {
     Rpc,
     buildAndSignTx,
@@ -20,7 +20,7 @@ import {
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
- * Assert that registerMint() creates system-pool account for external mint,
+ * Assert that createTokenPool() creates system-pool account for external mint,
  * with external mintAuthority.
  */
 async function assertRegisterMint(
@@ -88,7 +88,7 @@ async function createTestSplMint(
 }
 
 const TEST_TOKEN_DECIMALS = 2;
-describe('registerMint', () => {
+describe('createTokenPool', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mintKeypair: Keypair;
@@ -123,7 +123,7 @@ describe('registerMint', () => {
             ),
         ).rejects.toThrow();
 
-        await registerMint(rpc, payer, mint);
+        await createTokenPool(rpc, payer, mint);
 
         await assertRegisterMint(
             mint,
@@ -134,7 +134,7 @@ describe('registerMint', () => {
         );
 
         /// Mint already registered
-        await expect(registerMint(rpc, payer, mint)).rejects.toThrow();
+        await expect(createTokenPool(rpc, payer, mint)).rejects.toThrow();
     });
 
     it('should create mint with payer as authority', async () => {
@@ -142,7 +142,7 @@ describe('registerMint', () => {
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
         await createTestSplMint(rpc, payer, mintKeypair, payer as Keypair);
-        await registerMint(rpc, payer, mint);
+        await createTokenPool(rpc, payer, mint);
 
         const poolAccount = CompressedTokenProgram.deriveTokenPoolPda(mint);
         await assertRegisterMint(
