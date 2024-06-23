@@ -537,12 +537,10 @@ describe('rpc-interop', () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
             payer.publicKey,
         );
-        console.log(signatures);
 
         const compressedTx = await rpc.getTransactionWithCompressionInfo(
             signatures[0].signature,
         );
-        console.log(compressedTx);
 
         /// is transfer
         assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
