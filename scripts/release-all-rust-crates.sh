@@ -12,7 +12,7 @@ echo "Tagging and releasing all Rust projects..."
 echo "Logging in to crates.io..."
 cargo login "${CRATES_IO_TOKEN}"
 # TODO: allow dynamic releases, and add gh release workflow
-PACKAGES=("aligned-sized" "light-heap" "light-utils" "light-bounded-vec" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-prover-client" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")
+PACKAGES=("aligned-sized" "light-heap" "light-bounded-vec" "light-utils" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-prover-client" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")
 for PACKAGE in "${PACKAGES[@]}"; do
     PKG_VERSION=$(cargo pkgid -p "$PACKAGE" | cut -d "#" -f2)
     VERSION=${PKG_VERSION#*@}
