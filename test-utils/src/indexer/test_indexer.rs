@@ -48,7 +48,10 @@ use {
     num_bigint::BigInt,
     num_traits::ops::bytes::FromBytes,
     reqwest::Client,
-    solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer},
+    solana_sdk::{
+        instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair,
+        signer::Signer,
+    },
     spl_token::instruction::initialize_mint,
     std::time::Duration,
 };
@@ -406,11 +409,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         if non_inclusion {
             vec_proof_types.push(ProofType::NonInclusion);
         }
-        if vec_proof_types.is_empty() {
-            panic!("At least one proof type must be selected");
+        if !vec_proof_types.is_empty() {
+            spawn_prover(true, vec_proof_types.as_slice()).await;
         }
-
-        spawn_prover(true, vec_proof_types.as_slice()).await;
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let merkle_tree = Box::new(MerkleTree::<Poseidon>::new(
@@ -945,15 +946,15 @@ pub fn create_initialize_mint_instructions(
 ) -> ([Instruction; 4], Pubkey) {
     let account_create_ix = create_account_instruction(
         payer,
-        anchor_spl::token::Mint::LEN,
+        spl_token::state::Mint::LEN,
         rent,
-        &anchor_spl::token::ID,
+        &spl_token::ID,
         Some(mint_keypair),
     );
 
     let mint_pubkey = mint_keypair.pubkey();
     let create_mint_instruction = initialize_mint(
-        &anchor_spl::token::ID,
+        &spl_token::ID,
         &mint_keypair.pubkey(),
         authority,
         None,
@@ -979,7 +980,7 @@ pub fn create_initialize_mint_instructions(
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
-        .get_minimum_balance_for_rent_exemption(anchor_spl::token::Mint::LEN)
+        .get_minimum_balance_for_rent_exemption(spl_token::state::Mint::LEN)
         .await
         .unwrap();
     let mint = Keypair::new();

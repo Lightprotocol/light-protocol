@@ -1,19 +1,15 @@
-#[cfg(target_os = "solana")]
-use crate::process_transfer::get_cpi_signer_seeds;
-use crate::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-    token_data::{AccountState, TokenData},
-};
+use crate::anchor_spl::{Mint, Token, TokenAccount};
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-use light_hasher::{DataHasher, Poseidon};
-use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_system_program::{
-    sdk::compressed_account::{CompressedAccount, CompressedAccountData},
-    OutputCompressedAccountWithPackedContext,
+
+use light_system_program::OutputCompressedAccountWithPackedContext;
+#[cfg(target_os = "solana")]
+use {
+    crate::process_transfer::create_output_compressed_accounts,
+    crate::process_transfer::get_cpi_signer_seeds,
+    light_heap::{bench_sbf_end, bench_sbf_start},
+    light_utils::hash_to_bn254_field_size_be,
 };
-use light_utils::hash_to_bn254_field_size_be;
 
 pub const POOL_SEED: &[u8] = b"pool";
 
@@ -22,16 +18,21 @@ pub const POOL_SEED: &[u8] = b"pool";
 pub struct CreateMintInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(init,
-              seeds = [
-                POOL_SEED, &mint.key().to_bytes(),
-              ],
-              bump,
-              payer = fee_payer,
-              token::mint = mint,
-              token::authority = cpi_authority_pda,
-    )]
-    pub token_pool_pda: Account<'info, TokenAccount>,
+    // #[account(
+    //     init,
+    //     seeds = [
+    //     POOL_SEED, &mint.key().to_bytes(),
+    //     ],
+    //     bump,
+    //     payer = fee_payer,
+    //     space = TokenAccount::LEN,
+    //     //   token::mint = mint,
+    //     //   token::authority = cpi_authority_pda,
+    // )]
+    // pub token_pool_pda: Account<'info, TokenAccount>,
+    /// CHECK:
+    #[account(mut)]
+    pub token_pool_pda: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     /// CHECK:
     #[account(mut)]
@@ -131,109 +132,6 @@ pub fn process_mint_to<'info>(
             );
             return err!(crate::ErrorCode::HeapMemoryCheckFailed);
         }
-    }
-    Ok(())
-}
-
-/// Creates output compressed accounts.
-/// Steps:
-/// 1. Allocate memory for token data.
-/// 2. Create, hash and serialize token data.  
-/// 3. Create compressed account data.
-/// 4. Repeat for every pubkey.
-#[allow(clippy::too_many_arguments)]
-pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FROZEN: bool>(
-    output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
-    mint_pubkey: Pubkey,
-    pubkeys: &[Pubkey],
-    delegate: Option<Pubkey>,
-    is_delegate: Option<Vec<bool>>,
-    amounts: &[u64],
-    lamports: Option<&[Option<u64>]>,
-    hashed_mint: &[u8; 32],
-    merkle_tree_indices: &[u8],
-) -> Result<()> {
-    let hashed_delegate = if WITH_DELEGATE {
-        if let Some(delegate) = delegate {
-            hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
-                .unwrap()
-                .0
-        } else {
-            [0u8; 32]
-        }
-    } else {
-        [0u8; 32]
-    };
-    for (i, (owner, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
-        // 83 =
-        //      32  mint
-        // +    32  owner
-        // +    8   amount
-        // +    1   delegate
-        // +    1   state
-        // +    8   delegated_amount
-        let mut token_data_bytes = Vec::with_capacity(83);
-        let delegate =
-            if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
-                delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey)
-            } else {
-                None
-            };
-        let state = if IS_FROZEN {
-            AccountState::Frozen
-        } else {
-            AccountState::Initialized
-        };
-
-        // 1,000 CU token data and serialize
-        let token_data = TokenData {
-            mint: mint_pubkey,
-            owner: *owner,
-            amount: *amount,
-            delegate,
-            state,
-            is_native: None,
-        };
-        token_data.serialize(&mut token_data_bytes).unwrap();
-        bench_sbf_start!("token_data_hash");
-        let owner_hashed = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
-        let amount_bytes = amount.to_le_bytes();
-        let data_hash = if IS_FROZEN {
-            token_data.hash::<Poseidon>()
-        } else if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
-            TokenData::hash_with_delegate_hashed_values::<Poseidon>(
-                hashed_mint,
-                &owner_hashed,
-                &amount_bytes,
-                &None,
-                &hashed_delegate,
-            )
-        } else {
-            TokenData::hash_with_hashed_values::<Poseidon>(
-                hashed_mint,
-                &owner_hashed,
-                &amount_bytes,
-                &None,
-            )
-        }
-        .map_err(ProgramError::from)?;
-        let data: CompressedAccountData = CompressedAccountData {
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-            data: token_data_bytes,
-            data_hash,
-        };
-        bench_sbf_end!("token_data_hash");
-        let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
-
-        output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
-            compressed_account: CompressedAccount {
-                owner: crate::ID,
-                lamports,
-                data: Some(data),
-                address: None,
-            },
-            merkle_tree_index: merkle_tree_indices[i],
-        };
     }
     Ok(())
 }
@@ -391,14 +289,14 @@ pub fn mint_spl_to_pool_pda<'info>(
         mint_amount = mint_amount.checked_add(*amount).unwrap();
     }
     let pre_token_balance = ctx.accounts.token_pool_pda.amount;
-    let cpi_accounts = anchor_spl::token::MintTo {
+    let cpi_accounts = crate::anchor_spl::MintTo {
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
         authority: ctx.accounts.authority.to_account_info(),
     };
     let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
-    anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
+    crate::anchor_spl::mint_to(cpi_ctx, mint_amount)?;
     let post_token_balance = TokenAccount::try_deserialize(
         &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
     )?
@@ -459,7 +357,6 @@ pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
 pub mod mint_sdk {
     use crate::{get_token_pool_pda, process_transfer::get_cpi_authority_pda};
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
-    use anchor_spl;
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     pub fn create_initialize_mint_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
@@ -471,7 +368,7 @@ pub mod mint_sdk {
             token_pool_pda,
             system_program: system_program::ID,
             mint: *mint,
-            token_program: anchor_spl::token::ID,
+            token_program: crate::anchor_spl::ID,
             cpi_authority_pda: get_cpi_authority_pda().0,
         };
 
@@ -503,7 +400,7 @@ pub mod mint_sdk {
             cpi_authority_pda: get_cpi_authority_pda().0,
             mint: *mint,
             token_pool_pda,
-            token_program: anchor_spl::token::ID,
+            token_program: crate::anchor_spl::ID,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(
                 &light_system_program::ID,
@@ -528,74 +425,88 @@ pub mod mint_sdk {
     }
 }
 
-#[test]
-fn test_manual_ix_data_serialization_borsh_compat() {
-    use crate::process_transfer::get_cpi_signer_seeds;
-    let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
-    let amounts = vec![1, 2];
-    let mint_pubkey = Pubkey::new_unique();
-    let mut output_compressed_accounts =
-        vec![OutputCompressedAccountWithPackedContext::default(); pubkeys.len()];
-    for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
-        let mut token_data_bytes = Vec::with_capacity(std::mem::size_of::<TokenData>());
-        let token_data = TokenData {
-            mint: mint_pubkey,
-            owner: *pubkey,
-            amount: *amount,
-            delegate: None,
-            state: AccountState::Initialized,
-            is_native: None,
-        };
-
-        token_data.serialize(&mut token_data_bytes).unwrap();
-        use light_hasher::DataHasher;
-
-        let data: CompressedAccountData = CompressedAccountData {
-            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-            data: token_data_bytes,
-            data_hash: token_data.hash::<Poseidon>().unwrap(),
-        };
-        let lamports = 0;
-
-        output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
-            compressed_account: CompressedAccount {
-                owner: crate::ID,
-                lamports,
-                data: Some(data),
-                address: None,
-            },
-            merkle_tree_index: 0,
-        };
-    }
-
-    let signer_seeds = get_cpi_signer_seeds();
-
-    let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
-    let mut inputs = Vec::<u8>::new();
-    serialize_mint_to_cpi_instruction_data(
-        &mut inputs,
-        &output_compressed_accounts,
-        &signer_seeds_vec,
-    );
-
-    let inputs_struct = light_system_program::InstructionDataInvokeCpi {
-        relay_fee: None,
-        input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
-        output_compressed_accounts: output_compressed_accounts.clone(),
-        proof: None,
-        new_address_params: Vec::with_capacity(0),
-        compress_or_decompress_lamports: None,
-        is_compress: false,
-        signer_seeds: signer_seeds_vec,
-        cpi_context: None,
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{
+        constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+        token_data::{AccountState, TokenData},
     };
-    let mut reference = Vec::<u8>::new();
-    inputs_struct.serialize(&mut reference).unwrap();
+    use light_hasher::Poseidon;
 
-    assert_eq!(inputs.len(), reference.len());
-    for (j, i) in inputs.iter().zip(reference.iter()).enumerate() {
-        println!("j: {} i: {} {}", j, i.0, i.1);
-        assert_eq!(i.0, i.1);
+    use light_system_program::{
+        sdk::compressed_account::{CompressedAccount, CompressedAccountData},
+        OutputCompressedAccountWithPackedContext,
+    };
+    #[test]
+    fn test_manual_ix_data_serialization_borsh_compat() {
+        use crate::process_transfer::get_cpi_signer_seeds;
+        let pubkeys = vec![Pubkey::new_unique(), Pubkey::new_unique()];
+        let amounts = vec![1, 2];
+        let mint_pubkey = Pubkey::new_unique();
+        let mut output_compressed_accounts =
+            vec![OutputCompressedAccountWithPackedContext::default(); pubkeys.len()];
+        for (i, (pubkey, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
+            let mut token_data_bytes = Vec::with_capacity(std::mem::size_of::<TokenData>());
+            let token_data = TokenData {
+                mint: mint_pubkey,
+                owner: *pubkey,
+                amount: *amount,
+                delegate: None,
+                state: AccountState::Initialized,
+                is_native: None,
+            };
+
+            token_data.serialize(&mut token_data_bytes).unwrap();
+            use light_hasher::DataHasher;
+
+            let data: CompressedAccountData = CompressedAccountData {
+                discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                data: token_data_bytes,
+                data_hash: token_data.hash::<Poseidon>().unwrap(),
+            };
+            let lamports = 0;
+
+            output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: crate::ID,
+                    lamports,
+                    data: Some(data),
+                    address: None,
+                },
+                merkle_tree_index: 0,
+            };
+        }
+
+        let signer_seeds = get_cpi_signer_seeds();
+
+        let signer_seeds_vec = signer_seeds.iter().map(|seed| seed.to_vec()).collect();
+        let mut inputs = Vec::<u8>::new();
+        serialize_mint_to_cpi_instruction_data(
+            &mut inputs,
+            &output_compressed_accounts,
+            &signer_seeds_vec,
+        );
+
+        let inputs_struct = light_system_program::InstructionDataInvokeCpi {
+            relay_fee: None,
+            input_compressed_accounts_with_merkle_context: Vec::with_capacity(0),
+            output_compressed_accounts: output_compressed_accounts.clone(),
+            proof: None,
+            new_address_params: Vec::with_capacity(0),
+            compress_or_decompress_lamports: None,
+            is_compress: false,
+            signer_seeds: signer_seeds_vec,
+            cpi_context: None,
+        };
+        let mut reference = Vec::<u8>::new();
+        inputs_struct.serialize(&mut reference).unwrap();
+
+        assert_eq!(inputs.len(), reference.len());
+        for (j, i) in inputs.iter().zip(reference.iter()).enumerate() {
+            println!("j: {} i: {} {}", j, i.0, i.1);
+            assert_eq!(i.0, i.1);
+        }
+        assert_eq!(inputs, reference);
     }
-    assert_eq!(inputs, reference);
 }

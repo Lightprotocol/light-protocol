@@ -1,8 +1,10 @@
+use crate::anchor_spl::{Token, TokenAccount};
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount};
-use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
-
+use light_system_program::{
+    self,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
+};
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
     #[account(mut)]

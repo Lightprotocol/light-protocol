@@ -2959,7 +2959,6 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
- "anchor-spl",
  "light-hasher",
  "light-heap",
  "light-system-program",
@@ -2967,6 +2966,7 @@ dependencies = [
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
+ "spl-token 3.5.0",
 ]
 
 [[package]]
@@ -3192,7 +3192,6 @@ version = "0.2.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
- "anchor-spl",
  "anyhow",
  "ark-ff",
  "light-compressed-token",
