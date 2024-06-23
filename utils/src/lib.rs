@@ -50,11 +50,7 @@ impl From<UtilsError> for solana_program::program_error::ProgramError {
 
 pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
     let bigint = BigUint::from_bytes_be(bytes);
-    if bigint < ark_bn254::Fr::MODULUS.into() {
-        true
-    } else {
-        false
-    }
+    bigint < ark_bn254::Fr::MODULUS.into()
 }
 
 pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> Option<([u8; 32], u8)> {
