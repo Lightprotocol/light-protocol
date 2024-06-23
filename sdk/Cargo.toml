@@ -38,13 +38,13 @@ light-verifier = { path = "../circuit-lib/verifier", version = "0.2.0", features
 borsh = "0.10.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.18.11"
+solana-sdk = { workspace = true }
 
 [dev-dependencies]
-solana-banks-interface = "1.18.11"
-solana-cli-output = "1.18.11"
-solana-program-test = "1.18.11"
-solana-sdk = "1.18.11"
+solana-banks-interface = { workspace = true }
+solana-cli-output = { workspace = true }
+solana-program-test = { workspace = true }
+solana-sdk = { workspace = true }
 serde_json = "1.0.114"
 reqwest = "0.12"
 tokio = "1.36.0"

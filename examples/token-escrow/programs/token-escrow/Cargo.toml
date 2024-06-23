@@ -33,7 +33,7 @@ light-sdk = { path = "../../../../sdk", version = "0.2.0", features = ["cpi", "c
 solana-sdk = "1.18.11"
 
 [dev-dependencies]
-solana-program-test = "1.18.11"
+solana-program-test = { workspace = true }
 light-test-utils = { version = "0.2.0", path = "../../../../test-utils", features = ["cpi-context"] }
 reqwest = "0.12"
 tokio = "1.36.0"

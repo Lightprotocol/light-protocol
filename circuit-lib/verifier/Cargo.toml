@@ -13,7 +13,7 @@ solana = ["solana-program"]
 groth16-solana = "0.0.3"
 thiserror = "1.0"
 borsh = "0.10"
-solana-program = { version = "1.18.11", optional = true }
+solana-program = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["rt", "macros"] }

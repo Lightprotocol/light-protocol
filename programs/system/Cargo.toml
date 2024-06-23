@@ -37,7 +37,7 @@ light-verifier = { path = "../../circuit-lib/verifier", version = "0.2.0", featu
 solana-security-txt = "1.1.0"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.18.11"
+solana-sdk = { workspace = true }
 
 [dev-dependencies]
 rand = "0.8.5"

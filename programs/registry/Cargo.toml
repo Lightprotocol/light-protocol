@@ -31,10 +31,10 @@ light-heap = { version = "0.2.0", path = "../../heap", optional = true }
 account-compression = { version = "0.4.0", path = "../account-compression", features = ["cpi"]  }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-solana-sdk = "1.18.11"
+solana-sdk = { workspace = true }
 
 [dev-dependencies]
-solana-program-test = "1.18.11"
-solana-sdk = "1.18.11"
+solana-program-test = { workspace = true }
+solana-sdk = { workspace = true }
 tokio = "1.36.0"
 light-macros= { version = "0.4.0", path = "../../macros/light" }
