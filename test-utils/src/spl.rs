@@ -8,6 +8,7 @@ use crate::indexer::{TestIndexer, TokenDataWithContext};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 use light_compressed_token::{
+    anchor_spl::TokenAccount,
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
@@ -142,7 +143,7 @@ pub async fn create_mint<R: RpcConnection>(
 pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) -> Pubkey {
     let payer_pubkey = payer.pubkey();
     let rent = rpc
-        .get_minimum_balance_for_rent_exemption(anchor_spl::token::Mint::LEN)
+        .get_minimum_balance_for_rent_exemption(Mint::LEN)
         .await
         .unwrap();
     let mint = Keypair::new();
@@ -163,17 +164,12 @@ pub fn create_initialize_mint_instructions(
     decimals: u8,
     mint_keypair: &Keypair,
 ) -> ([Instruction; 4], Pubkey) {
-    let account_create_ix = create_account_instruction(
-        payer,
-        anchor_spl::token::Mint::LEN,
-        rent,
-        &anchor_spl::token::ID,
-        Some(mint_keypair),
-    );
+    let account_create_ix =
+        create_account_instruction(payer, Mint::LEN, rent, &spl_token::ID, Some(mint_keypair));
 
     let mint_pubkey = mint_keypair.pubkey();
     let create_mint_instruction = initialize_mint(
-        &anchor_spl::token::ID,
+        &spl_token::ID,
         &mint_keypair.pubkey(),
         authority,
         Some(authority),
@@ -205,14 +201,14 @@ pub async fn create_token_account<R: RpcConnection>(
     owner: &Keypair,
 ) -> Result<(), BanksClientError> {
     let rent = rpc
-        .get_minimum_balance_for_rent_exemption(anchor_spl::token::TokenAccount::LEN)
+        .get_minimum_balance_for_rent_exemption(TokenAccount::LEN)
         .await
         .unwrap();
     let account_create_ix = create_account_instruction(
         &owner.pubkey(),
-        anchor_spl::token::TokenAccount::LEN,
+        TokenAccount::LEN,
         rent,
-        &anchor_spl::token::ID,
+        &spl_token::ID,
         Some(account_keypair),
     );
     let instruction = spl_token::instruction::initialize_account(
@@ -546,7 +542,7 @@ pub async fn compress_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         merkle_tree: *output_merkle_tree_pubkey,
     };
     let approve_instruction = spl_token::instruction::approve(
-        &anchor_spl::token::ID,
+        &spl_token::ID,
         sender_token_account,
         &get_cpi_authority_pda().0,
         &payer.pubkey(),

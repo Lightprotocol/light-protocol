@@ -1,6 +1,5 @@
 use crate::{
     constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
-    create_output_compressed_accounts,
     spl_compression::process_compression_or_decompression,
     token_data::{AccountState, TokenData},
     ErrorCode, TransferInstruction,
@@ -154,6 +153,109 @@ pub fn process_transfer<'a, 'b, 'c, 'info: 'b + 'c>(
         ctx.accounts.self_program.to_account_info(),
         ctx.remaining_accounts,
     )?;
+    Ok(())
+}
+
+/// Creates output compressed accounts.
+/// Steps:
+/// 1. Allocate memory for token data.
+/// 2. Create, hash and serialize token data.  
+/// 3. Create compressed account data.
+/// 4. Repeat for every pubkey.
+#[allow(clippy::too_many_arguments)]
+pub fn create_output_compressed_accounts<const WITH_DELEGATE: bool, const IS_FROZEN: bool>(
+    output_compressed_accounts: &mut [OutputCompressedAccountWithPackedContext],
+    mint_pubkey: Pubkey,
+    pubkeys: &[Pubkey],
+    delegate: Option<Pubkey>,
+    is_delegate: Option<Vec<bool>>,
+    amounts: &[u64],
+    lamports: Option<&[Option<u64>]>,
+    hashed_mint: &[u8; 32],
+    merkle_tree_indices: &[u8],
+) -> Result<()> {
+    let hashed_delegate = if WITH_DELEGATE {
+        if let Some(delegate) = delegate {
+            hash_to_bn254_field_size_be(delegate.to_bytes().as_slice())
+                .unwrap()
+                .0
+        } else {
+            [0u8; 32]
+        }
+    } else {
+        [0u8; 32]
+    };
+    for (i, (owner, amount)) in pubkeys.iter().zip(amounts.iter()).enumerate() {
+        // 83 =
+        //      32  mint
+        // +    32  owner
+        // +    8   amount
+        // +    1   delegate
+        // +    1   state
+        // +    8   delegated_amount
+        let mut token_data_bytes = Vec::with_capacity(83);
+        let delegate =
+            if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
+                delegate.as_ref().map(|delegate_pubkey| *delegate_pubkey)
+            } else {
+                None
+            };
+        let state = if IS_FROZEN {
+            AccountState::Frozen
+        } else {
+            AccountState::Initialized
+        };
+
+        // 1,000 CU token data and serialize
+        let token_data = TokenData {
+            mint: mint_pubkey,
+            owner: *owner,
+            amount: *amount,
+            delegate,
+            state,
+            is_native: None,
+        };
+        token_data.serialize(&mut token_data_bytes).unwrap();
+        bench_sbf_start!("token_data_hash");
+        let owner_hashed = hash_to_bn254_field_size_be(owner.as_ref()).unwrap().0;
+        let amount_bytes = amount.to_le_bytes();
+        let data_hash = if IS_FROZEN {
+            token_data.hash::<Poseidon>()
+        } else if WITH_DELEGATE && is_delegate.as_ref().unwrap_or(&vec![false; amounts.len()])[i] {
+            TokenData::hash_with_delegate_hashed_values::<Poseidon>(
+                hashed_mint,
+                &owner_hashed,
+                &amount_bytes,
+                &None,
+                &hashed_delegate,
+            )
+        } else {
+            TokenData::hash_with_hashed_values::<Poseidon>(
+                hashed_mint,
+                &owner_hashed,
+                &amount_bytes,
+                &None,
+            )
+        }
+        .map_err(ProgramError::from)?;
+        let data: CompressedAccountData = CompressedAccountData {
+            discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+            data: token_data_bytes,
+            data_hash,
+        };
+        bench_sbf_end!("token_data_hash");
+        let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
+
+        output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
+            compressed_account: CompressedAccount {
+                owner: crate::ID,
+                lamports,
+                data: Some(data),
+                address: None,
+            },
+            merkle_tree_index: merkle_tree_indices[i],
+        };
+    }
     Ok(())
 }
 
@@ -473,8 +575,8 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 pub mod transfer_sdk {
     use std::collections::HashMap;
 
+    use crate::anchor_spl::Token;
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
-    use anchor_spl::token::Token;
     use light_system_program::{
         invoke::processor::CompressedProof,
         sdk::compressed_account::{MerkleContext, PackedMerkleContext},

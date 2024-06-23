@@ -11,7 +11,9 @@ pub mod delegation;
 pub mod freeze;
 pub mod instructions;
 pub use instructions::*;
+pub mod anchor_spl;
 pub mod burn;
+pub mod create_mint;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
 declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
@@ -28,6 +30,8 @@ solana_security_txt::security_txt! {
 #[program]
 pub mod light_compressed_token {
 
+    use create_mint::create_token_account;
+
     use super::*;
 
     /// This instruction expects a mint account to be created in a separate
@@ -37,9 +41,13 @@ pub mod light_compressed_token {
     pub fn create_mint<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
     ) -> Result<()> {
-        if ctx.accounts.token_pool_pda.is_native() {
-            unimplemented!("Compressed wrapped SOL is not supported.");
-        }
+        // let token_pool = &mut ctx.accounts.token_pool_pda;
+        // if token_pool.mint != ctx.accounts.mint.key() {
+        //     return err!(crate::ErrorCode::InvalidMint);
+        // }
+        // token_pool.mint = ctx.accounts.mint.key();
+        // token_pool.owner = ctx.accounts.cpi_authority_pda.key();
+        create_token_account(ctx)?;
         Ok(())
     }
 
@@ -152,4 +160,6 @@ pub enum ErrorCode {
     InvalidDelegate,
     #[msg("HashToFieldError")]
     HashToFieldError,
+    #[msg("InvalidMint")]
+    InvalidMint,
 }

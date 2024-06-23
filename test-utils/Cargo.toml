@@ -34,7 +34,6 @@ reqwest = "0.11.26"
 light-hasher = { version = "0.2.0", path = "../merkle-tree/hasher" }
 light-merkle-tree-reference = { version = "0.2.0", path = "../merkle-tree/reference" }
 light-concurrent-merkle-tree = { version = "0.2.0", path = "../merkle-tree/concurrent" }
-anchor-spl = "0.29.0"
 light-indexed-merkle-tree = { path = "../merkle-tree/indexed/", version = "0.2.0" }
 light-verifier = { path = "../circuit-lib/verifier", version = "0.2.0" }
 light-utils = { path = "../utils", version = "0.2.0" }

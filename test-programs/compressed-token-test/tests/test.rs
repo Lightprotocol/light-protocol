@@ -45,7 +45,7 @@ async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
     let payer = rpc.get_payer().insecure_clone();
     let merkle_tree_pubkey = env.merkle_tree_pubkey;
     let mut test_indexer =
-        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, false, false)
             .await;
 
     let recipient_keypair = Keypair::new();
