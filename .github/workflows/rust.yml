@@ -46,10 +46,26 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --workspace --exclude light-concurrent-merkle-tree --exclude photon-api --exclude forester
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo llvm-cov --all-targets --workspace \
+            --exclude light-concurrent-merkle-tree \
+            --exclude photon-api \
+            --exclude forester \
+            --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
 
       - name: Test light-concurrent-merkle-tree
         run: |
           source ./scripts/devenv.sh
           echo "Rust version: $(rustc --version)"
-          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo test --all-targets --package light-concurrent-merkle-tree
+          RUST_MIN_STACK=8388608 RUSTFLAGS="-D warnings" cargo llvm-cov --all-targets \
+            --package light-concurrent-merkle-tree \
+            --lcov --output-path lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info

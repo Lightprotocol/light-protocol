@@ -111,6 +111,7 @@ check_flag() {
 GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
 PNPM_VERSION="9.2.0"
+CARGO_BINSTALL_VERSION=$(latest_release cargo-bins cargo-binstall)
 SOLANA_VERSION="1.18.11"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
@@ -125,6 +126,7 @@ case "${OS}" in
         case "${ARCH}" in
             "x86_64")
                 ARCH_SUFFIX_GO="darwin-amd64"
+                ARCH_SUFFIX_CARGO_BINS="x86_64-apple-darwin"
                 ARCH_SUFFIX_SOLANA="x86_64-apple-darwin"
                 ARCH_SUFFIX_LP="macos-amd64"
                 ARCH_SUFFIX_NODE="darwin-x64"
@@ -133,6 +135,7 @@ case "${OS}" in
                 ;;
             "aarch64"|"arm64")
                 ARCH_SUFFIX_GO="darwin-arm64"
+                ARCH_SUFFIX_CARGO_BINS="aarch64-apple-darwin"
                 ARCH_SUFFIX_SOLANA="aarch64-apple-darwin"
                 ARCH_SUFFIX_LP="macos-arm64"
                 ARCH_SUFFIX_NODE="darwin-arm64"
@@ -149,6 +152,7 @@ case "${OS}" in
         case "${ARCH}" in
             "x86_64")
                 ARCH_SUFFIX_GO="linux-amd64"
+                ARCH_SUFFIX_CARGO_BINS="x86_64-unknown-linux-musl"
                 ARCH_SUFFIX_SOLANA="x86_64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-amd64"
                 ARCH_SUFFIX_NODE="linux-x64"
@@ -157,6 +161,7 @@ case "${OS}" in
                 ;;
             "aarch64"|"arch64"|"arm64")
                 ARCH_SUFFIX_GO="linux-arm64"
+                ARCH_SUFFIX_CARGO_BINS="aarch64-unknown-linux-musl"
                 ARCH_SUFFIX_SOLANA="aarch64-unknown-linux-gnu"
                 ARCH_SUFFIX_LP="linux-arm64"
                 ARCH_SUFFIX_NODE="linux-arm64"
@@ -204,7 +209,12 @@ export PATH="${PREFIX}/cargo/bin:${PATH}"
 rustup component add clippy
 rustup component add rustfmt
 
-cargo install cargo-expand wasm-pack
+echo "🦀 Installing cargo plugins"
+curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+cargo binstall -y \
+    cargo-expand \
+    cargo-llvm-cov \
+    wasm-pack
 
 # check if variable PHOTON_BRANCH is not empty, then install photon-indexer from the branch, otherwise install the version
 if [ -n "$PHOTON_BRANCH" ]; then
