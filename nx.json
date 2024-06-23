@@ -20,7 +20,6 @@
         "^build"
       ],
       "outputs": [
-        "{workspaceRoot}/{workspaceRoot}",
         "{workspaceRoot}/target/deploy",
         "{workspaceRoot}/target/idl",
         "{workspaceRoot}/target/types"
