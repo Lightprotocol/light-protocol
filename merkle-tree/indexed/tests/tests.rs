@@ -4,6 +4,7 @@ use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
+    errors::ConcurrentMerkleTreeError,
     event::IndexedMerkleTreeUpdate,
     light_hasher::{Hasher, Poseidon},
 };
@@ -838,7 +839,7 @@ fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -854,7 +855,7 @@ fn functional_changelog_test_2() {
     let address_1 = 10_u32.to_biguint().unwrap();
     let address_2 = 30_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -875,7 +876,7 @@ fn functional_changelog_test_3() {
     let address_2 = 10_u32.to_biguint().unwrap();
     let address_3 = 20_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2, address_3]);
+    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2, address_3]);
 }
 
 /// Performs conflicting Merkle tree updates where two parties try to insert
@@ -884,7 +885,7 @@ fn functional_changelog_test_3() {
 fn functional_changelog_test_double_spend() {
     let address = 10_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<true, 10, 16, 16, 0, 16>(&[address.clone(), address.clone()]);
+    perform_change_log_test::<true, false, 10, 16, 16, 0, 16>(&[address.clone(), address.clone()]);
 }
 
 #[test]
@@ -897,6 +898,30 @@ fn functional_changelog_test_random_8_512_512_0_512() {
     const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
 
     functional_changelog_test_random::<
+        false,
+        HEIGHT,
+        CHANGELOG,
+        ROOTS,
+        CANOPY,
+        INDEXED_CHANGELOG,
+        N_OPERATIONS,
+    >()
+}
+
+/// Performs concurrent updates, where the indexed changelog eventually wraps
+/// around. Updates with an old proof and old changelog index are expected to
+/// fail.
+#[test]
+fn functional_changelog_test_random_wrap_around_8_128_512_0_512() {
+    const HEIGHT: usize = 8;
+    const CHANGELOG: usize = 512;
+    const ROOTS: usize = 512;
+    const CANOPY: usize = 0;
+    const INDEXED_CHANGELOG: usize = 128;
+    const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
+
+    functional_changelog_test_random::<
+        true,
         HEIGHT,
         CHANGELOG,
         ROOTS,
@@ -910,6 +935,7 @@ fn functional_changelog_test_random_8_512_512_0_512() {
 /// updating the changelog indices. All of them should result in using indexed changelog
 /// for patching the proof.
 fn functional_changelog_test_random<
+    const WRAP_AROUND: bool,
     const HEIGHT: usize,
     const CHANGELOG: usize,
     const ROOTS: usize,
@@ -923,7 +949,15 @@ fn functional_changelog_test_random<
         .map(|_| BigUint::from_bytes_be(&Fr::rand(&mut rng).into_bigint().to_bytes_be()))
         .collect();
 
-    perform_change_log_test::<false, HEIGHT, CHANGELOG, ROOTS, CANOPY, INDEXED_CHANGELOG>(&leaves);
+    perform_change_log_test::<
+        false,
+        WRAP_AROUND,
+        HEIGHT,
+        CHANGELOG,
+        ROOTS,
+        CANOPY,
+        INDEXED_CHANGELOG,
+    >(&leaves);
 }
 
 /// Performs conflicting Merkle tree updates where multiple actors try to add
@@ -948,6 +982,7 @@ fn functional_changelog_test_random<
 /// subsequent updates to fail.
 fn perform_change_log_test<
     const DOUBLE_SPEND: bool,
+    const WRAP_AROUND: bool,
     const HEIGHT: usize,
     const CHANGELOG: usize,
     const ROOTS: usize,
@@ -1010,6 +1045,23 @@ fn perform_change_log_test<
             assert!(matches!(
                 res,
                 Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
+            ));
+        } else if WRAP_AROUND && (i + 1) * 2 > INDEXED_CHANGELOG {
+            // After a wrap-around of the indexed changelog, we expect leaf
+            // updates to break immediately.
+            let res = onchain_indexed_merkle_tree.update(
+                changelog_index,
+                indexed_changelog_index,
+                address_bundle.new_element,
+                old_low_address,
+                old_low_address_next_value,
+                &mut low_element_proof,
+            );
+            assert!(matches!(
+                res,
+                Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
+                    ConcurrentMerkleTreeError::CannotUpdateLeaf
+                ))
             ));
         } else {
             onchain_indexed_merkle_tree
