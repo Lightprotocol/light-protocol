@@ -39,7 +39,7 @@ light-verifier = { path = "../circuit-lib/verifier", version = "0.2.0" }
 light-utils = { path = "../utils", version = "0.2.0" }
 memoffset = "0.9.1"
 rand = "0.8"
-photon-api = { path = "../photon-api" }
+photon-api = { path = "../photon-api", version = "0.27.0" }
 log = "0.4"
 
 [dev-dependencies]
