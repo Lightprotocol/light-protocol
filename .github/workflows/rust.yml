@@ -56,6 +56,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
 
       - name: Test light-concurrent-merkle-tree
         run: |
@@ -69,3 +71,5 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
