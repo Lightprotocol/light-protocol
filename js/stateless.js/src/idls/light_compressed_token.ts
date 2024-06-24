@@ -1458,6 +1458,11 @@ export type LightCompressedToken = {
             name: 'HashToFieldError';
             msg: 'HashToFieldError';
         },
+        {
+            code: 6020;
+            name: 'InvalidMint';
+            msg: 'InvalidMint';
+        },
     ];
 };
 export const IDL: LightCompressedToken = {
@@ -2924,6 +2929,11 @@ export const IDL: LightCompressedToken = {
             code: 6019,
             name: 'HashToFieldError',
             msg: 'HashToFieldError',
+        },
+        {
+            code: 6020,
+            name: 'InvalidMint',
+            msg: 'InvalidMint',
         },
     ],
 };

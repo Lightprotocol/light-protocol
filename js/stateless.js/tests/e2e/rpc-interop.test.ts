@@ -368,14 +368,7 @@ describe('rpc-interop', () => {
 
             assert.isTrue(bn(proofs[0].root).eq(bn(testProofs[0].root)));
 
-            /// TODO: replace for Rpc once 'getValidityProof' is working.
-            await transfer(
-                testRpc,
-                payer,
-                transferAmount,
-                payer,
-                bob.publicKey,
-            );
+            await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
             executedTxs++;
             const postSenderAccs = await rpc.getCompressedAccountsByOwner(
                 payer.publicKey,
@@ -540,7 +533,7 @@ describe('rpc-interop', () => {
     });
 
     /// TODO: add getCompressedTransaction, getSignaturesForAddress3
-    it.skip('[test-rpc missing] getCompressedTransaction should match', async () => {
+    it('[test-rpc missing] getCompressedTransaction should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
             payer.publicKey,
         );
@@ -549,8 +542,8 @@ describe('rpc-interop', () => {
             signatures[0].signature,
         );
 
-        /// is compress
-        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 0);
-        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 1);
+        /// is transfer
+        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
+        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
     });
 });

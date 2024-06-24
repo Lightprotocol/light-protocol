@@ -159,9 +159,9 @@ describe('test-rpc', () => {
         assert.equal(compressedAccount.data, null);
     });
 
-    it.skip('getCompressedBalance', async () => {
+    it('getCompressedBalance', async () => {
         const compressedAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
+            refPayer.publicKey,
         );
         const refHash = compressedAccounts[0].hash;
         /// getCompressedBalance

@@ -147,7 +147,7 @@ describe('rpc-interop token', () => {
         });
     });
 
-    it.skip('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
+    it('[test-rpc missing] getSignaturesForTokenOwner should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForTokenOwner(
             bob.publicKey,
         );
@@ -160,7 +160,7 @@ describe('rpc-interop token', () => {
         assert.equal(signaturesReceiver.length, 1);
     });
 
-    it.skip('[delegate unused] getCompressedTokenAccountsByDelegate should match', async () => {
+    it('[delegate unused] getCompressedTokenAccountsByDelegate should match', async () => {
         const accs = await rpc.getCompressedTokenAccountsByDelegate(
             bob.publicKey,
             { mint },
