@@ -92,8 +92,8 @@ where
 
     // Appending the 2nd leaf should result in recomputing the root due to the
     // change of the `h1`, which now is a hash of the two non-zero leafs. So
-    // when computing all hashes up to the root, we are still going to use
-    // zero bytes from 1 to 8.
+    // when computing hashes from H2 up to the root, we are still going to use
+    // zero bytes.
     //
     // The other subtrees still remain the same.
     //

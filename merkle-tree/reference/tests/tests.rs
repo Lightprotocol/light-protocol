@@ -2,6 +2,336 @@ use light_bounded_vec::BoundedVec;
 use light_hasher::{Hasher, Keccak, Poseidon, Sha256};
 use light_merkle_tree_reference::MerkleTree;
 
+fn append<H>(canopy_depth: usize)
+where
+    H: Hasher,
+{
+    const HEIGHT: usize = 4;
+
+    let mut mt = MerkleTree::<H>::new(4, canopy_depth);
+
+    let leaf_1 = [1_u8; 32];
+    mt.append(&leaf_1).unwrap();
+
+    // The hash of our new leaf and its sibling (a zero value).
+    //
+    //    H1
+    //  /    \
+    // L1   Z[0]
+    let h1 = H::hashv(&[&leaf_1, &H::zero_bytes()[0]]).unwrap();
+
+    // The hash of `h1` and its sibling (a subtree represented by `Z[1]`).
+    //
+    //          H2
+    //      /-/    \-\
+    //    H1          Z[1]
+    //  /    \      /      \
+    // L1   Z[0]   Z[0]   Z[0]
+    //
+    // `Z[1]` represents the whole subtree on the right from `h2`. In the next
+    // examples, we are just going to show empty subtrees instead of the whole
+    // hierarchy.
+    let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
+
+    // The hash of `h3` and its sibling (a subtree represented by `Z[2]`).
+    //
+    //          H3
+    //        /    \
+    //       H2   Z[2]
+    //     /    \
+    //    H1   Z[1]
+    //  /    \
+    // L1   Z[0]
+    let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
+
+    // The hash of `h4` and its sibling (a subtree represented by `Z[3]`),
+    // which is the root.
+    //
+    //              R
+    //           /     \
+    //          H3    Z[3]
+    //        /    \
+    //       H2   Z[2]
+    //     /    \
+    //    H1   Z[1]
+    //  /    \
+    // L1   Z[0]
+    let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
+    assert_eq!(mt.root(), expected_root);
+
+    // The Merkle path of L1 consists of nodes from L1 up to the root.
+    // In this case: L1, H1, H2, H3.
+    //
+    //               R
+    //            /     \
+    //          *H3*    Z[3]
+    //         /    \
+    //       *H2*   Z[2]
+    //      /    \
+    //    *H1*   Z[1]
+    //   /    \
+    // *L1*   Z[0]
+    let expected_merkle_path = &[leaf_1, h1, h2, h3];
+
+    let full_merkle_path = mt.get_path_of_leaf(0, true).unwrap();
+    assert_eq!(full_merkle_path.as_slice(), expected_merkle_path);
+
+    let partial_merkle_path = mt.get_path_of_leaf(0, false).unwrap();
+    assert_eq!(
+        partial_merkle_path.as_slice(),
+        &expected_merkle_path[..HEIGHT - canopy_depth]
+    );
+
+    // The Merkle proof consists of siblings of L1 and all its parent
+    // nodes. In this case, these are just zero bytes: Z[0], Z[1], Z[2],
+    // Z[3].
+    //
+    //              R
+    //           /     \
+    //          H3   *Z[3]*
+    //        /    \
+    //       H2  *Z[2]*
+    //     /    \
+    //    H1  *Z[1]*
+    //  /    \
+    // L1  *Z[0]*
+    let expected_merkle_proof = &H::zero_bytes()[..HEIGHT];
+
+    let full_merkle_proof = mt.get_proof_of_leaf(0, true).unwrap();
+    assert_eq!(full_merkle_proof.as_slice(), expected_merkle_proof);
+
+    let partial_merkle_proof = mt.get_proof_of_leaf(0, false).unwrap();
+    assert_eq!(
+        partial_merkle_proof.as_slice(),
+        &expected_merkle_proof[..HEIGHT - canopy_depth]
+    );
+
+    // Appending the 2nd leaf should result in recomputing the root due to the
+    // change of the `h1`, which now is a hash of the two non-zero leafs. So
+    // when computing hashes from H2 up to the root, we are still going to use
+    // zero bytes.
+    //
+    // The other subtrees still remain the same.
+    //
+    //              R
+    //           /     \
+    //          H3    Z[3]
+    //        /    \
+    //       H2   Z[2]
+    //     /    \
+    //   H1    Z[1]
+    //  /  \
+    // L1  L2
+    let leaf_2 = H::hash(&[2u8; 32]).unwrap();
+    mt.append(&leaf_2).unwrap();
+
+    let h1 = H::hashv(&[&leaf_1, &leaf_2]).unwrap();
+    let h2 = H::hashv(&[&h1, &H::zero_bytes()[1]]).unwrap();
+    let h3 = H::hashv(&[&h2, &H::zero_bytes()[2]]).unwrap();
+
+    let expected_root = H::hashv(&[&h3, &H::zero_bytes()[3]]).unwrap();
+    assert_eq!(mt.root(), expected_root);
+
+    // The Merkle path of L2 consists of nodes from L2 up to the root.
+    // In this case: L2, H1, H2, H3.
+    //
+    //               R
+    //            /     \
+    //          *H3*    Z[3]
+    //         /    \
+    //       *H2*   Z[2]
+    //      /    \
+    //    *H1*   Z[1]
+    //   /    \
+    //  L1   *L2*
+    let expected_merkle_path = &[leaf_2, h1, h2, h3];
+
+    let full_merkle_path = mt.get_path_of_leaf(1, true).unwrap();
+    assert_eq!(full_merkle_path.as_slice(), expected_merkle_path);
+
+    let partial_merkle_path = mt.get_path_of_leaf(1, false).unwrap();
+    assert_eq!(
+        partial_merkle_path.as_slice(),
+        &expected_merkle_path[..HEIGHT - canopy_depth]
+    );
+
+    // The Merkle proof consists of siblings of L2 and all its parent
+    // nodes. In this case, these are: L1, Z[1], Z[2], Z[3].
+    //
+    //               R
+    //            /     \
+    //           H3   *Z[3]*
+    //         /    \
+    //        H2  *Z[2]*
+    //      /    \
+    //     H1  *Z[1]*
+    //   /    \
+    // *L1*    L2
+    let expected_merkle_proof = &[
+        leaf_1,
+        H::zero_bytes()[1],
+        H::zero_bytes()[2],
+        H::zero_bytes()[3],
+    ];
+
+    let full_merkle_proof = mt.get_proof_of_leaf(1, true).unwrap();
+    assert_eq!(full_merkle_proof.as_slice(), expected_merkle_proof);
+
+    let partial_merkle_proof = mt.get_proof_of_leaf(1, false).unwrap();
+    assert_eq!(
+        partial_merkle_proof.as_slice(),
+        &expected_merkle_proof[..HEIGHT - canopy_depth]
+    );
+
+    // Appending the 3rd leaf alters the next subtree on the right.
+    // Instead of using Z[1], we will end up with the hash of the new leaf and
+    // Z[0].
+    //
+    // The other subtrees still remain the same.
+    //
+    //               R
+    //            /     \
+    //           H4    Z[3]
+    //         /    \
+    //       H3    Z[2]
+    //     /    \
+    //   H1      H2
+    //  /  \    /  \
+    // L1  L2  L3  Z[0]
+    let leaf_3 = H::hash(&[3u8; 32]).unwrap();
+    mt.append(&leaf_3).unwrap();
+
+    let h1 = H::hashv(&[&leaf_1, &leaf_2]).unwrap();
+    let h2 = H::hashv(&[&leaf_3, &H::zero_bytes()[0]]).unwrap();
+    let h3 = H::hashv(&[&h1, &h2]).unwrap();
+    let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
+
+    let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
+    assert_eq!(mt.root(), expected_root);
+
+    // The Merkle path of L3 consists of nodes from L3 up to the root.
+    // In this case: L3, H2, H3, H4.
+    //
+    //               R
+    //            /     \
+    //          *H4*   Z[3]
+    //         /    \
+    //      *H3*   Z[2]
+    //     /    \
+    //   H1     *H2*
+    //  /  \    /  \
+    // L1  L2 *L3*  Z[0]
+    let expected_merkle_path = &[leaf_3, h2, h3, h4];
+
+    let full_merkle_path = mt.get_path_of_leaf(2, true).unwrap();
+    assert_eq!(full_merkle_path.as_slice(), expected_merkle_path);
+
+    let partial_merkle_path = mt.get_path_of_leaf(2, false).unwrap();
+    assert_eq!(
+        partial_merkle_path.as_slice(),
+        &expected_merkle_path[..HEIGHT - canopy_depth]
+    );
+
+    // The Merkle proof consists of siblings of L2 and all its parent
+    // nodes. In this case, these are: Z[0], H1, Z[2], Z[3].
+    //
+    //               R
+    //            /     \
+    //           H4   *Z[3]*
+    //         /    \
+    //       H3   *Z[2]*
+    //     /    \
+    //  *H1*     H2
+    //  /  \    /  \
+    // L1  L2  L3 *Z[0]*
+    let expected_merkle_proof = &[
+        H::zero_bytes()[0],
+        h1,
+        H::zero_bytes()[2],
+        H::zero_bytes()[3],
+    ];
+
+    let full_merkle_proof = mt.get_proof_of_leaf(2, true).unwrap();
+    assert_eq!(full_merkle_proof.as_slice(), expected_merkle_proof);
+
+    let partial_merkle_proof = mt.get_proof_of_leaf(2, false).unwrap();
+    assert_eq!(
+        partial_merkle_proof.as_slice(),
+        &expected_merkle_proof[..HEIGHT - canopy_depth]
+    );
+
+    // Appending the 4th leaf alters the next subtree on the right.
+    // Instead of using Z[1], we will end up with the hash of the new leaf and
+    // Z[0].
+    //
+    // The other subtrees still remain the same.
+    //
+    //               R
+    //            /     \
+    //           H4    Z[3]
+    //         /    \
+    //       H3    Z[2]
+    //     /    \
+    //   H1      H2
+    //  /  \    /  \
+    // L1  L2  L3  L4
+    let leaf_4 = H::hash(&[4u8; 32]).unwrap();
+    mt.append(&leaf_4).unwrap();
+
+    let h1 = H::hashv(&[&leaf_1, &leaf_2]).unwrap();
+    let h2 = H::hashv(&[&leaf_3, &leaf_4]).unwrap();
+    let h3 = H::hashv(&[&h1, &h2]).unwrap();
+    let h4 = H::hashv(&[&h3, &H::zero_bytes()[2]]).unwrap();
+
+    let expected_root = H::hashv(&[&h4, &H::zero_bytes()[3]]).unwrap();
+    assert_eq!(mt.root(), expected_root);
+}
+
+#[test]
+fn test_append_keccak_4_0() {
+    append::<Keccak>(0)
+}
+
+#[test]
+fn test_append_poseidon_4_0() {
+    append::<Poseidon>(0)
+}
+
+#[test]
+fn test_append_sha256_4_0() {
+    append::<Sha256>(0)
+}
+
+#[test]
+fn test_append_keccak_4_1() {
+    append::<Keccak>(1)
+}
+
+#[test]
+fn test_append_poseidon_4_1() {
+    append::<Poseidon>(1)
+}
+
+#[test]
+fn test_append_sha256_4_1() {
+    append::<Sha256>(1)
+}
+
+#[test]
+fn test_append_keccak_4_2() {
+    append::<Keccak>(2)
+}
+
+#[test]
+fn test_append_poseidon_4_2() {
+    append::<Poseidon>(2)
+}
+
+#[test]
+fn test_append_sha256_4_2() {
+    append::<Sha256>(2)
+}
+
 fn update<H>()
 where
     H: Hasher,
