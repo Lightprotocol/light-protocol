@@ -88,6 +88,35 @@ solana balance
 
 Now you're all set up to run CLI commands :)
 
+#### Using ZK Testnet
+
+By default, the CLI interacts with localnet. You can view the current config by running:
+
+```bash
+light config --get
+```
+
+To switch to ZK Testnet, run:
+
+```bash
+  light config --indexerUrl "https://zk-testnet.helius.dev:8784" \
+    --proverUrl "https://zk-testnet.helius.dev:3001" \
+    --solanaRpcUrl "https://zk-testnet.helius.dev:8899"
+```
+
+Also adjust your solana config:
+
+```bash
+# Set config
+solana config set --url "https://zk-testnet.helius.dev:8899"
+
+# Airdrop 1 SOL
+solana airdrop 1
+
+# Print your address
+solana address
+```
+
 ### Commands
 
 #### Create a compressed token mint
