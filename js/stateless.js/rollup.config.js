@@ -26,6 +26,11 @@ const rolls = (fmt, env) => ({
         }),
         env === 'browser' ? nodePolyfills() : undefined,
     ].filter(Boolean),
+    onwarn(warning, warn) {
+        if (warning.code !== 'CIRCULAR_DEPENDENCY') {
+            warn(warning);
+        }
+    },
 });
 
 const typesConfig = {

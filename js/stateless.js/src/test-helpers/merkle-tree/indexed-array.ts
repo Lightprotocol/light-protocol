@@ -500,11 +500,6 @@ if (import.meta.vitest) {
     const refIndexedArrayElem2 = new IndexedElement(2, bn(30), 1);
 
     describe('IndexedArray', () => {
-        // it("init should match ref", () => {
-        //     const indexedArray = new IndexedArray(refIndexedArrayElem0, refIndexedArrayElem1, refIndexedArrayElem2);
-        //     expect(indexedArray.root).toEqual(refIndexedMerkleTreeInitedRoot);
-        // });
-
         beforeAll(async () => {
             WasmFactory = (await import('@lightprotocol/hasher.rs'))
                 .WasmFactory;
