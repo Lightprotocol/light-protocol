@@ -3,9 +3,7 @@ import { BN } from '@coral-xyz/anchor';
 import { bn } from '../../state';
 import { MerkleTree } from './merkle-tree';
 import { beforeAll } from 'vitest';
-
-const FIELD_SIZE_SUB_ONE: string =
-    '21888242871839275222246405745257275088548364400416034343698204186575808495616';
+import { HIGHEST_ADDRESS_PLUS_ONE } from '../../constants';
 
 export class IndexedElement {
     public index: number;
@@ -99,7 +97,7 @@ export class IndexedArray {
 
     public init(): IndexedElementBundle {
         try {
-            const init_value = new BN(FIELD_SIZE_SUB_ONE);
+            const init_value = HIGHEST_ADDRESS_PLUS_ONE;
             return this.append(init_value);
         } catch (error) {
             throw new Error(`Failed to initialize IndexedArray: ${error}`);
@@ -316,185 +314,31 @@ if (import.meta.vitest) {
 
     let WasmFactory: any;
     const refIndexedMerkleTreeInitedRoot = [
-        14, 189, 9, 35, 134, 65, 9, 119, 107, 233, 168, 103, 222, 227, 207, 119,
-        88, 137, 200, 189, 52, 117, 226, 207, 91, 63, 70, 253, 103, 91, 73, 117,
-    ];
+        33, 133, 56, 184, 142, 166, 110, 161, 4, 140, 169, 247, 115, 33, 15,
+        181, 76, 89, 48, 126, 58, 86, 204, 81, 16, 121, 185, 77, 75, 152, 43,
+        15,
+    ]; // [30, 164, 22, 238, 180, 2, 24, 181, 64, 193, 207, 184, 219, 233, 31, 109, 84, 232, 162, 158, 220, 48, 163, 158, 50, 107, 64, 87, 167, 217, 99, 245];
 
     const refIndexedMerkleTreeRootWithOneAppend = [
-        26, 218, 104, 100, 17, 147, 90, 196, 182, 90, 15, 100, 24, 36, 207, 133,
-        170, 188, 191, 9, 56, 50, 85, 155, 198, 213, 143, 67, 210, 228, 102,
-        251,
+        31, 159, 196, 171, 68, 16, 213, 28, 158, 200, 223, 91, 244, 193, 188,
+        162, 50, 68, 54, 244, 116, 44, 153, 65, 209, 9, 47, 98, 126, 89, 131,
+        158,
     ];
 
     const refIndexedMerkleTreeRootWithTwoAppends = [
-        45, 235, 123, 55, 121, 64, 246, 38, 138, 51, 143, 120, 23, 137, 129,
-        116, 87, 55, 17, 251, 72, 171, 182, 91, 226, 15, 94, 53, 242, 140, 171,
-        163,
+        1, 185, 99, 233, 59, 202, 51, 222, 224, 31, 119, 180, 76, 104, 72, 27,
+        152, 12, 236, 78, 81, 60, 87, 158, 237, 1, 176, 9, 155, 166, 108, 89,
     ];
     const refIndexedMerkleTreeRootWithThreeAppends = [
-        9, 226, 16, 16, 135, 140, 213, 205, 247, 163, 245, 160, 135, 6, 12, 61,
-        53, 32, 89, 69, 23, 22, 108, 242, 97, 209, 63, 239, 12, 20, 217, 155,
+        41, 143, 181, 2, 66, 117, 37, 226, 134, 212, 45, 95, 114, 60, 189, 18,
+        44, 155, 132, 148, 41, 54, 131, 106, 61, 120, 237, 168, 118, 198, 63,
+        116,
     ];
-
-    const refNonInclusionProofAddress1 = {
-        root: [
-            26, 218, 104, 100, 17, 147, 90, 196, 182, 90, 15, 100, 24, 36, 207,
-            133, 170, 188, 191, 9, 56, 50, 85, 155, 198, 213, 143, 67, 210, 228,
-            102, 251,
-        ],
-        value: [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 30,
-        ],
-        leaf_lower_range_value: [
-            48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88,
-            93, 40, 51, 232, 72, 121, 185, 112, 145, 67, 225, 245, 147, 240, 0,
-            0, 0,
-        ],
-        leaf_higher_range_value: [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ],
-        leaf_index: 1,
-        next_index: 0,
-        merkle_proof: [
-            [
-                26, 50, 171, 206, 227, 183, 227, 32, 10, 169, 16, 37, 85, 40,
-                53, 64, 210, 75, 86, 126, 228, 12, 77, 212, 132, 165, 199, 160,
-                92, 129, 206, 31,
-            ],
-            [
-                15, 72, 55, 99, 47, 211, 74, 96, 126, 190, 2, 253, 166, 137,
-                188, 165, 172, 110, 165, 253, 25, 166, 128, 195, 140, 105, 116,
-                247, 87, 49, 214, 70,
-            ],
-            [
-                16, 105, 103, 61, 205, 177, 34, 99, 223, 48, 26, 111, 245, 132,
-                167, 236, 38, 26, 68, 203, 157, 198, 141, 240, 103, 164, 119,
-                68, 96, 177, 241, 225,
-            ],
-            [
-                24, 244, 51, 49, 83, 126, 226, 175, 46, 61, 117, 141, 80, 247,
-                33, 6, 70, 124, 110, 234, 80, 55, 29, 213, 40, 213, 126, 178,
-                184, 86, 210, 56,
-            ],
-            [
-                7, 249, 216, 55, 203, 23, 176, 211, 99, 32, 255, 233, 59, 165,
-                35, 69, 241, 183, 40, 87, 26, 86, 130, 101, 202, 172, 151, 85,
-                157, 188, 149, 42,
-            ],
-            [
-                43, 148, 207, 94, 135, 70, 179, 245, 201, 99, 31, 76, 93, 243,
-                41, 7, 166, 153, 197, 140, 148, 178, 173, 77, 123, 92, 236, 22,
-                57, 24, 63, 85,
-            ],
-            [
-                45, 238, 147, 197, 166, 102, 69, 150, 70, 234, 125, 34, 204,
-                169, 225, 188, 254, 215, 30, 105, 81, 185, 83, 97, 29, 17, 221,
-                163, 46, 160, 157, 120,
-            ],
-            [
-                7, 130, 149, 229, 162, 43, 132, 233, 130, 207, 96, 30, 182, 57,
-                89, 123, 139, 5, 21, 168, 140, 181, 172, 127, 168, 164, 170,
-                190, 60, 135, 52, 157,
-            ],
-            [
-                47, 165, 229, 241, 143, 96, 39, 166, 80, 27, 236, 134, 69, 100,
-                71, 42, 97, 107, 46, 39, 74, 65, 33, 26, 68, 76, 190, 58, 153,
-                243, 204, 97,
-            ],
-            [
-                14, 136, 67, 118, 208, 216, 253, 33, 236, 183, 128, 56, 158,
-                148, 31, 102, 228, 94, 122, 204, 227, 226, 40, 171, 62, 33, 86,
-                166, 20, 252, 215, 71,
-            ],
-            [
-                27, 114, 1, 218, 114, 73, 79, 30, 40, 113, 122, 209, 165, 46,
-                180, 105, 249, 88, 146, 249, 87, 113, 53, 51, 222, 97, 117, 229,
-                218, 25, 10, 242,
-            ],
-            [
-                31, 141, 136, 34, 114, 94, 54, 56, 82, 0, 192, 178, 1, 36, 152,
-                25, 166, 230, 225, 228, 101, 8, 8, 181, 190, 188, 107, 250, 206,
-                125, 118, 54,
-            ],
-            [
-                44, 93, 130, 246, 108, 145, 75, 175, 185, 112, 21, 137, 186,
-                140, 252, 251, 97, 98, 176, 161, 42, 207, 136, 168, 208, 135,
-                154, 4, 113, 181, 248, 90,
-            ],
-            [
-                20, 197, 65, 72, 160, 148, 11, 184, 32, 149, 127, 90, 223, 63,
-                161, 19, 78, 245, 196, 170, 161, 19, 244, 100, 100, 88, 242,
-                112, 224, 191, 191, 208,
-            ],
-            [
-                25, 13, 51, 177, 47, 152, 111, 150, 30, 16, 192, 238, 68, 216,
-                185, 175, 17, 190, 37, 88, 140, 173, 137, 212, 22, 17, 142, 75,
-                244, 235, 232, 12,
-            ],
-            [
-                34, 249, 138, 169, 206, 112, 65, 82, 172, 23, 53, 73, 20, 173,
-                115, 237, 17, 103, 174, 101, 150, 175, 81, 10, 165, 179, 100,
-                147, 37, 224, 108, 146,
-            ],
-            [
-                42, 124, 124, 155, 108, 229, 136, 11, 159, 111, 34, 141, 114,
-                191, 106, 87, 90, 82, 111, 41, 198, 110, 204, 238, 248, 183, 83,
-                211, 139, 186, 115, 35,
-            ],
-            [
-                46, 129, 134, 229, 88, 105, 142, 193, 198, 122, 249, 193, 77,
-                70, 63, 252, 71, 0, 67, 201, 194, 152, 139, 149, 77, 117, 221,
-                100, 63, 54, 185, 146,
-            ],
-            [
-                15, 87, 197, 87, 30, 154, 78, 171, 73, 226, 200, 207, 5, 13,
-                174, 148, 138, 239, 110, 173, 100, 115, 146, 39, 53, 70, 36,
-                157, 28, 31, 241, 15,
-            ],
-            [
-                24, 48, 238, 103, 181, 251, 85, 74, 213, 246, 61, 67, 136, 128,
-                14, 28, 254, 120, 227, 16, 105, 125, 70, 228, 60, 156, 227, 97,
-                52, 247, 44, 202,
-            ],
-            [
-                33, 52, 231, 106, 197, 210, 26, 171, 24, 108, 43, 225, 221, 143,
-                132, 238, 136, 10, 30, 70, 234, 247, 18, 249, 211, 113, 182,
-                223, 34, 25, 31, 62,
-            ],
-            [
-                25, 223, 144, 236, 132, 78, 188, 79, 254, 235, 216, 102, 243,
-                56, 89, 176, 192, 81, 216, 201, 88, 238, 58, 168, 143, 143, 141,
-                243, 219, 145, 165, 177,
-            ],
-            [
-                24, 204, 162, 166, 107, 92, 7, 135, 152, 30, 105, 174, 253, 132,
-                133, 45, 116, 175, 14, 147, 239, 73, 18, 180, 100, 140, 5, 247,
-                34, 239, 229, 43,
-            ],
-            [
-                35, 136, 144, 148, 21, 35, 13, 27, 77, 19, 4, 210, 213, 79, 71,
-                58, 98, 131, 56, 242, 239, 173, 131, 250, 223, 5, 100, 69, 73,
-                210, 83, 141,
-            ],
-            [
-                39, 23, 31, 180, 169, 123, 108, 192, 233, 232, 245, 67, 181, 41,
-                77, 232, 102, 162, 175, 44, 156, 141, 11, 29, 150, 230, 115,
-                228, 82, 158, 213, 64,
-            ],
-            [
-                47, 246, 101, 5, 64, 246, 41, 253, 87, 17, 160, 188, 116, 252,
-                13, 40, 220, 178, 48, 185, 57, 37, 131, 229, 248, 213, 150, 150,
-                221, 230, 174, 33,
-            ],
-        ],
-    };
 
     const refIndexedArrayElem0 = new IndexedElement(0, bn(0), 2);
     const refIndexedArrayElem1 = new IndexedElement(
         1,
-        bn(FIELD_SIZE_SUB_ONE),
+        HIGHEST_ADDRESS_PLUS_ONE,
         0,
     );
     const refIndexedArrayElem2 = new IndexedElement(2, bn(30), 1);
@@ -545,14 +389,14 @@ if (import.meta.vitest) {
                 bn(31),
             );
             expect(lowElement2).toEqual(refIndexedArrayElem2);
-            expect(nextValue2).toEqual(bn(FIELD_SIZE_SUB_ONE));
+            expect(nextValue2).toEqual(HIGHEST_ADDRESS_PLUS_ONE);
         });
 
         it('should appendWithLowElementIndex', () => {
             const indexedArray = new IndexedArray(
                 [
                     new IndexedElement(0, bn(0), 1),
-                    new IndexedElement(1, bn(FIELD_SIZE_SUB_ONE), 0),
+                    new IndexedElement(1, HIGHEST_ADDRESS_PLUS_ONE, 0),
                 ],
                 1,
                 1,
@@ -564,7 +408,7 @@ if (import.meta.vitest) {
             expect(newElement.newElement).toEqual(refIndexedArrayElem2);
             expect(newElement.newLowElement).toEqual(refIndexedArrayElem0);
             expect(newElement.newElementNextValue).toEqual(
-                bn(FIELD_SIZE_SUB_ONE),
+                HIGHEST_ADDRESS_PLUS_ONE,
             );
         });
 
@@ -572,7 +416,7 @@ if (import.meta.vitest) {
             const indexedArray = new IndexedArray(
                 [
                     new IndexedElement(0, bn(0), 1),
-                    new IndexedElement(1, bn(FIELD_SIZE_SUB_ONE), 0),
+                    new IndexedElement(1, HIGHEST_ADDRESS_PLUS_ONE, 0),
                 ],
                 1,
                 1,
@@ -581,7 +425,7 @@ if (import.meta.vitest) {
             expect(newElement.newElement).toEqual(refIndexedArrayElem2);
             expect(newElement.newLowElement).toEqual(refIndexedArrayElem0);
             expect(newElement.newElementNextValue).toEqual(
-                bn(FIELD_SIZE_SUB_ONE),
+                HIGHEST_ADDRESS_PLUS_ONE,
             );
         });
 
@@ -604,7 +448,7 @@ if (import.meta.vitest) {
             expect(newElement.newElement).toEqual(refIndexedArrayElem2);
             expect(newElement.newLowElement).toEqual(refIndexedArrayElem0);
             expect(newElement.newElementNextValue).toEqual(
-                bn(FIELD_SIZE_SUB_ONE),
+                HIGHEST_ADDRESS_PLUS_ONE,
             );
             hash0 = indexedArray.hashElement(lightWasm, 0);
             hash1 = indexedArray.hashElement(lightWasm, 1);
@@ -617,7 +461,7 @@ if (import.meta.vitest) {
 
             // 2nd
             let refItems0 = new IndexedElement(0, bn(0), 2);
-            let refItems1 = new IndexedElement(1, bn(FIELD_SIZE_SUB_ONE), 0);
+            let refItems1 = new IndexedElement(1, HIGHEST_ADDRESS_PLUS_ONE, 0);
             let refItems2 = new IndexedElement(2, bn(30), 3);
             let refItems3 = new IndexedElement(3, bn(42), 1);
 
@@ -626,7 +470,7 @@ if (import.meta.vitest) {
             expect(newElement2.newElement).toEqual(refItems3);
             expect(newElement2.newLowElement).toEqual(refItems2);
             expect(newElement2.newElementNextValue).toEqual(
-                bn(FIELD_SIZE_SUB_ONE),
+                HIGHEST_ADDRESS_PLUS_ONE,
             );
             expect(indexedArray.elements[0].equals(refItems0)).toBeTruthy();
             expect(indexedArray.elements[1].equals(refItems1)).toBeTruthy();
@@ -648,7 +492,7 @@ if (import.meta.vitest) {
 
             // 3rd
             refItems0 = new IndexedElement(0, bn(0), 4);
-            refItems1 = new IndexedElement(1, bn(FIELD_SIZE_SUB_ONE), 0);
+            refItems1 = new IndexedElement(1, HIGHEST_ADDRESS_PLUS_ONE, 0);
             refItems2 = new IndexedElement(2, bn(30), 3);
             refItems3 = new IndexedElement(3, bn(42), 1);
             const refItems4 = new IndexedElement(4, bn(12), 2);

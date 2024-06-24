@@ -57,6 +57,5 @@ pub fn process_initialize_address_merkle_tree(
     merkle_tree
         .add_highest_element()
         .map_err(ProgramError::from)?;
-
     Ok(())
 }

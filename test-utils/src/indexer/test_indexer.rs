@@ -630,7 +630,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             } else {
                 // print error message
                 warn!("Error: {}", response_result.text().await.unwrap());
-
                 // wait for a second before retrying
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 retries -= 1;
@@ -721,10 +720,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                 &non_inclusion_proof_inputs,
             );
-        println!(
-            "batch_non_inclusion_proof_inputs: {:?}",
-            batch_non_inclusion_proof_inputs
-        );
         (batch_non_inclusion_proof_inputs, address_root_indices)
     }
 

@@ -39,7 +39,6 @@ pub fn get_non_inclusion_proof_inputs<const INDEXED_ARRAY_SIZE: usize>(
     let non_inclusion_proof = merkle_tree
         .get_non_inclusion_proof(&BigUint::from_be_bytes(value), indexed_array)
         .unwrap();
-    println!("non_inclusion_proof: {:?}", non_inclusion_proof);
     let proof = non_inclusion_proof
         .merkle_proof
         .iter()
@@ -54,6 +53,6 @@ pub fn get_non_inclusion_proof_inputs<const INDEXED_ARRAY_SIZE: usize>(
         ),
         next_index: BigInt::from(non_inclusion_proof.next_index),
         merkle_proof_hashed_indexed_element_leaf: proof,
-        index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.next_index),
+        index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
     }
 }

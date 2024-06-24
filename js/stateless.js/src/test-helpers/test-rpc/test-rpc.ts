@@ -646,7 +646,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .map(proof => proof.leafIndex)
                     .concat(
                         newAddressProofs.map(
-                            proof => proof.indexHashedIndexedElementLeaf.toNumber(), // TODO: support >32bit
+                            proof =>
+                                proof.indexHashedIndexedElementLeaf.toNumber(), // TODO: support >32bit
                         ),
                     ),
                 leaves: merkleProofsWithContext

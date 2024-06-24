@@ -27,8 +27,8 @@ pub mod zero_copy;
 
 use crate::errors::IndexedMerkleTreeError;
 
-pub const FIELD_SIZE_SUB_ONE: &str =
-    "21888242871839275222246405745257275088548364400416034343698204186575808495616";
+pub const HIGHEST_ADDRESS_PLUS_ONE: &str =
+    "452312848583266388373324160190187140051835877600158453279131187530910662655";
 
 #[derive(Debug)]
 #[repr(C)]
@@ -156,7 +156,7 @@ where
     /// However, it comes with a tradeoff - the space available in the tree
     /// becomes lower by 1.
     pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
-        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
 
         let mut indexed_array = IndexedArray::<H, I, 2>::default();
         let element_bundle = indexed_array.append(&init_value)?;
@@ -376,7 +376,9 @@ where
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
         let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
+
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
+
         let (new_changelog_index, _) = self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
@@ -397,6 +399,7 @@ where
             proof: low_leaf_proof.clone(),
             changelog_index: new_changelog_index,
         };
+
         self.indexed_changelog.push(low_element_changelog_entry);
 
         // New element is always the newest one in the tree. Since we

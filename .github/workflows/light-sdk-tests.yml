@@ -27,7 +27,6 @@ jobs:
         include:
           - name: sdk-tests-light-rpc-cli
             sub-tests: '[
-                "@lightprotocol/zk-compression-cli",
                 "@lightprotocol/circuit-lib.js",
                 "@lightprotocol/prover.js",
             ]'
