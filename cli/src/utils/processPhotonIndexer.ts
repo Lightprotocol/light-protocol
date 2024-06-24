@@ -16,7 +16,7 @@ export async function startIndexer(
     resolvedOrNull === null ||
     (checkPhotonVersion && !(await isExpectedPhotonVersion(PHOTON_VERSION)))
   ) {
-    const message = `Photon indexer not found. Please install it by running "cargo install photon-indexer --version ${PHOTON_VERSION}"`;
+    const message = `Photon indexer not found. Please install it by running "cargo install photon-indexer --version ${PHOTON_VERSION} --locked"`;
     console.log(message);
     throw new Error(message);
   } else {
