@@ -27,13 +27,13 @@ generate() {
     CIRCUIT_VKEY_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${COMPRESSED_ACCOUNTS}.vkey"
     CIRCUIT_VKEY_RS_FILE="../circuit-lib/verifier/src/verifying_keys/${CIRCUIT_TYPE_RS}_${DEPTH}_${COMPRESSED_ACCOUNTS}.rs"
 
-    echo "Generating ${CIRCUIT_TYPE} circuit for ${COMPRESSED_ACCOUNTS} COMPRESSED_ACCOUNTs..."
-    echo "go run . setup --circuit ${CIRCUIT_TYPE} --inclusion-compressedAccounts ${INCLUSION_COMPRESSED_ACCOUNTS} --non-inclusion-compressedAccounts ${NON_INCLUSION_COMPRESSED_ACCOUNTS} --inclusion-tree-depth ${DEPTH} --non-inclusion-tree-depth ${DEPTH} --output ${CIRCUIT_FILE} --output-vkey ${CIRCUIT_VKEY_FILE}"
+    echo "Generating ${CIRCUIT_TYPE} circuit for ${COMPRESSED_ACCOUNTS} COMPRESSED_ACCOUNTS..."
+    echo "go run . setup --circuit ${CIRCUIT_TYPE} --inclusion-utxos ${INCLUSION_COMPRESSED_ACCOUNTS} --non-inclusion-utxos ${NON_INCLUSION_COMPRESSED_ACCOUNTS} --inclusion-tree-depth ${DEPTH} --non-inclusion-tree-depth ${DEPTH} --output ${CIRCUIT_FILE} --output-vkey ${CIRCUIT_VKEY_FILE}"
 
     gnark setup \
       --circuit "${CIRCUIT_TYPE}" \
-      --inclusion-compressedAccounts "$INCLUSION_COMPRESSED_ACCOUNTS" \
-      --non-inclusion-compressedAccounts "$NON_INCLUSION_COMPRESSED_ACCOUNTS" \
+      --inclusion-utxos "$INCLUSION_COMPRESSED_ACCOUNTS" \
+      --non-inclusion-utxos "$NON_INCLUSION_COMPRESSED_ACCOUNTS" \
       --inclusion-tree-depth "$DEPTH" \
       --non-inclusion-tree-depth "$DEPTH" \
       --output "${CIRCUIT_FILE}" \

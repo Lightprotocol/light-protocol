@@ -3,12 +3,11 @@
 ROOT_DIR="$(git rev-parse --show-toplevel)";
 KEYS_DIR="${ROOT_DIR}/light-prover/proving-keys"
 
-# if KEY_DIR does not exist, create it
 if [ ! -d "$KEYS_DIR" ]; then
   mkdir -p "$KEYS_DIR"
 fi
 
-BUCKET="bafybeifkk342zfx56wlzhyh4cspnzjnd5dqvrgarb5xfhsuotjwmgt4jha"
+BUCKET="bafybeibir7au5eu4dtfuprigqx7tcbrqpe5c6wrsu5npzm2s34kioeshku"
 FILES=(
   "inclusion_26_1.key"
   "inclusion_26_1.vkey"
