@@ -47,7 +47,7 @@ impl TokenData {
     /// The sol value in the compressed account is independent from
     /// the wrapped sol amount.
     pub fn is_native(&self) -> bool {
-        self.mint == anchor_spl::token::spl_token::native_mint::id()
+        self.mint == spl_token::native_mint::id()
     }
     pub fn hash_with_hashed_values<H: light_hasher::Hasher>(
         hashed_mint: &[u8; 32],

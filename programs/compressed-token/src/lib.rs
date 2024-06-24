@@ -39,7 +39,7 @@ pub mod light_compressed_token {
     /// instruction creates a token pool account for that mint owned by token
     /// authority.
     pub fn create_token_pool<'info>(
-        _ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
+        ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
     ) -> Result<()> {
         // let token_pool = &mut ctx.accounts.token_pool_pda;
         // if token_pool.mint != ctx.accounts.mint.key() {
