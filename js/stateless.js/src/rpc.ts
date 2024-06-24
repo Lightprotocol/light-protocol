@@ -300,7 +300,7 @@ export type NonInclusionMerkleProofInputs = {
     value: BN;
     leaf_lower_range_value: BN;
     leaf_higher_range_value: BN;
-    leaf_index: BN;
+    nextIndex: BN;
     merkle_proof_hashed_indexed_element_leaf: BN[];
     index_hashed_indexed_element_leaf: BN;
 };
@@ -310,7 +310,7 @@ export type MerkleContextWithNewAddressProof = {
     value: BN;
     leafLowerRangeValue: BN;
     leafHigherRangeValue: BN;
-    leafIndex: BN;
+    nextIndex: BN;
     merkleProofHashedIndexedElementLeaf: BN[];
     indexHashedIndexedElementLeaf: BN;
     merkleTree: PublicKey;
@@ -324,7 +324,7 @@ export type NonInclusionJsonStruct = {
     pathElements: string[];
     leafLowerRangeValue: string;
     leafHigherRangeValue: string;
-    leafIndex: number;
+    nextIndex: number;
 };
 
 export function convertMerkleProofsWithContextToHex(
@@ -362,7 +362,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
             pathElements: nonInclusionMerkleProofInputs[
                 i
             ].merkleProofHashedIndexedElementLeaf.map(hex => toHex(hex)),
-            leafIndex: nonInclusionMerkleProofInputs[i].leafIndex.toNumber(),
+            nextIndex: nonInclusionMerkleProofInputs[i].nextIndex.toNumber(),
             leafLowerRangeValue: toHex(
                 nonInclusionMerkleProofInputs[i].leafLowerRangeValue,
             ),
@@ -1031,7 +1031,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 value: proof.address,
                 leafLowerRangeValue: proof.lowerRangeAddress,
                 leafHigherRangeValue: proof.higherRangeAddress,
-                leafIndex: bn(proof.leafIndex),
+                nextIndex: bn(proof.nextIndex),
                 merkleProofHashedIndexedElementLeaf: proof.proof,
                 indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
                 merkleTree: proof.merkleTree,
@@ -1119,7 +1119,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(
-                    proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                    proof => proof.nextIndex.toNumber(), // TODO: support >32bit
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
@@ -1162,7 +1162,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     .map(proof => proof.leafIndex)
                     .concat(
                         newAddressProofs.map(
-                            proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                            proof => proof.nextIndex.toNumber(), // TODO: support >32bit
                         ),
                     ),
                 leaves: merkleProofsWithContext

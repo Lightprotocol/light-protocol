@@ -209,6 +209,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error
 		logging.Logger().Info().Msg(err.Error())
 		return nil, malformedBodyError(err)
 	}
+	fmt.Printf("%v", params)
 	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {

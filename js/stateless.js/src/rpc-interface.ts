@@ -277,7 +277,7 @@ export const MerkeProofResult = pick({
  */
 export const NewAddressProofResult = pick({
     address: BN254FromString,
-    leafIndex: number(),
+    nextIndex: number(),
     merkleTree: PublicKeyFromString,
     proof: array(BN254FromString), // this is: merkleProofHashedIndexedElementLeaf
     rootSeq: number(),

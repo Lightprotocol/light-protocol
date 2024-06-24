@@ -721,6 +721,10 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             BatchNonInclusionJsonStruct::from_non_inclusion_proof_inputs(
                 &non_inclusion_proof_inputs,
             );
+        println!(
+            "batch_non_inclusion_proof_inputs: {:?}",
+            batch_non_inclusion_proof_inputs
+        );
         (batch_non_inclusion_proof_inputs, address_root_indices)
     }
 

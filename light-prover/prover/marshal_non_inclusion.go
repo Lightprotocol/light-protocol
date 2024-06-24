@@ -13,8 +13,7 @@ type NonInclusionProofInputsJSON struct {
 	PathElements         []string `json:"pathElements"`
 	LeafLowerRangeValue  string   `json:"leafLowerRangeValue"`
 	LeafHigherRangeValue string   `json:"leafHigherRangeValue"`
-	// TODO: replace leafIndex with nextIndex
-	NextIndex uint32 `json:"leafIndex"`
+	NextIndex            uint32   `json:"nextIndex"`
 }
 
 type NonInclusionParametersJSON struct {

@@ -55,7 +55,7 @@ func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (cons
 
 	leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
 	leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
-	leafIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	nextIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
@@ -71,7 +71,7 @@ func R1CSNonInclusion(treeDepth uint32, numberOfCompressedAccounts uint32) (cons
 		Values:                     values,
 		LeafLowerRangeValues:       leafLowerRangeValues,
 		LeafHigherRangeValues:      leafHigherRangeValues,
-		NextIndices:                leafIndices,
+		NextIndices:                nextIndices,
 		InPathIndices:              inPathIndices,
 		InPathElements:             inPathElements,
 	}
@@ -100,7 +100,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 
 	leafLowerRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 	leafHigherRangeValues := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
-	leafIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
+	nextIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
 	inPathElements := make([][]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
@@ -110,7 +110,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		values[i] = params.Inputs[i].Value
 		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
 		leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
-		leafIndices[i] = params.Inputs[i].NextIndex
+		nextIndices[i] = params.Inputs[i].NextIndex
 		inPathIndices[i] = params.Inputs[i].PathIndex
 		inPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
 		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {
@@ -123,7 +123,7 @@ func (ps *ProvingSystem) ProveNonInclusion(params *NonInclusionParameters) (*Pro
 		Values:                values,
 		LeafLowerRangeValues:  leafLowerRangeValues,
 		LeafHigherRangeValues: leafHigherRangeValues,
-		NextIndices:           leafIndices,
+		NextIndices:           nextIndices,
 		InPathIndices:         inPathIndices,
 		InPathElements:        inPathElements,
 	}
