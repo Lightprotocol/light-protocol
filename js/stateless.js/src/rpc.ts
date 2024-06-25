@@ -788,18 +788,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Returns confirmed signatures for transactions involving the specified
+     * Returns confirmed compression signatures for transactions involving the specified
      * account hash forward in time from genesis to the most recent confirmed
      * block
      *
      * @param hash queried account hash
      */
-    async getSignaturesForCompressedAccount(
+    async getCompressionSignaturesForAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getCompressionSignaturesForAccount', // TODO: update
+            'getCompressionSignaturesForAccount',
             { hash: encodeBN254toBase58(hash) },
         );
         const res = create(
@@ -864,7 +864,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
 
     /**
      * @deprecated This method is currently not available. Please use
-     * {@link getSignaturesForCompressedAccount} instead.
+     * {@link getCompressionSignaturesForAccount} instead.
      *
      * Returns confirmed signatures for transactions involving the specified
      * address forward in time from genesis to the most recent confirmed block

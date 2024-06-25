@@ -393,11 +393,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      *
      * @param hash queried account hash
      */
-    async getSignaturesForCompressedAccount(
+    async getCompressionSignaturesForAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error(
-            'getSignaturesForCompressedAccount not implemented in test-rpc',
+            'getCompressionSignaturesForAccount not implemented in test-rpc',
         );
     }
 

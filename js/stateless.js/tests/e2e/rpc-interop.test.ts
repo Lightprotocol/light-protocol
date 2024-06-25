@@ -499,11 +499,11 @@ describe('rpc-interop', () => {
         });
     });
 
-    it('[test-rpc missing] getSignaturesForCompressedAccount should match', async () => {
+    it('[test-rpc missing] getCompressionSignaturesForAccount should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const signaturesUnspent = await rpc.getSignaturesForCompressedAccount(
+        const signaturesUnspent = await rpc.getCompressionSignaturesForAccount(
             bn(senderAccounts[0].hash),
         );
 
@@ -518,7 +518,7 @@ describe('rpc-interop', () => {
         await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
-        const signaturesSpent = await rpc.getSignaturesForCompressedAccount(
+        const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
             bn(largestAccount.hash),
         );
 

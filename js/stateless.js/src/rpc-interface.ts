@@ -440,7 +440,7 @@ export interface CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<{ balance: BN; mint: PublicKey }[]>;
 
-    getSignaturesForCompressedAccount(
+    getCompressionSignaturesForAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]>;
 
