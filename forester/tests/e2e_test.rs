@@ -1,4 +1,5 @@
 use env_logger::Env;
+use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::{get_nullifier_queue, nullify, Config};
 use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
@@ -10,7 +11,6 @@ use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
 use std::sync::Arc;
-use forester::external_services_config::ExternalServicesConfig;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {

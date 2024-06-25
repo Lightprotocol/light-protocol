@@ -1,4 +1,5 @@
 use env_logger::Env;
+use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
@@ -11,7 +12,6 @@ use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
-use forester::external_services_config::ExternalServicesConfig;
 
 // truncate to <254 bit
 pub fn generate_pubkey_254() -> Pubkey {

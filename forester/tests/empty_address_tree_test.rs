@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
+use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::{empty_address_queue, get_nullifier_queue, Config};
 use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
@@ -10,7 +10,7 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
 use solana_sdk::signature::{Keypair, Signer};
-use forester::external_services_config::ExternalServicesConfig;
+use std::sync::Arc;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn empty_address_tree_test() {

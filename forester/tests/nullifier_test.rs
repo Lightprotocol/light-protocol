@@ -2,7 +2,7 @@ use std::mem;
 use std::sync::Arc;
 
 use account_compression::StateMerkleTreeAccount;
-use forester::external_services_config::{INDEXER_URL, SERVER_URL};
+use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
 use forester::utils::u8_arr_to_hex_string;
@@ -23,7 +23,7 @@ fn test_config() -> Config {
 
     let env_accounts = get_test_env_accounts();
     Config {
-        server_url: SERVER_URL.to_string(),
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
@@ -72,7 +72,7 @@ async fn tree_info_test() {
         nullifier_queue_pubkey, merkle_tree_pubkey
     );
 
-    let client = RpcClient::new(SERVER_URL);
+    let client = RpcClient::new(test_config().external_services.rpc_url);
     client
         .request_airdrop(&payer_pubkey, LAMPORTS_PER_SOL * 1000)
         .unwrap();
@@ -94,10 +94,10 @@ async fn tree_info_test() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore]
 async fn test_nullify_leaves() {
-    let config = test_config();
+    let config = Arc::new(test_config());
     let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-        INDEXER_URL.to_string(),
+        config.external_services.indexer_url.to_string(),
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
     rpc.lock()
@@ -107,7 +107,7 @@ async fn test_nullify_leaves() {
         .unwrap();
 
     let time = std::time::Instant::now();
-    match nullify(indexer, rpc, &config).await {
+    match nullify(indexer, rpc, config).await {
         Ok(_) => {
             info!("Nullify completed");
             info!("Total time elapsed: {:?}", time.elapsed());
