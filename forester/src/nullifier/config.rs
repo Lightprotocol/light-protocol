@@ -1,8 +1,9 @@
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
+use crate::external_services_config::ExternalServicesConfig;
 
 pub struct Config {
-    pub server_url: String,
+    pub external_services: ExternalServicesConfig,
     pub nullifier_queue_pubkey: Pubkey,
     pub state_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_pubkey: Pubkey,
@@ -18,7 +19,7 @@ pub struct Config {
 impl Clone for Config {
     fn clone(&self) -> Self {
         Self {
-            server_url: self.server_url.clone(),
+            external_services: self.external_services.clone(),
             nullifier_queue_pubkey: self.nullifier_queue_pubkey,
             state_merkle_tree_pubkey: self.state_merkle_tree_pubkey,
             address_merkle_tree_pubkey: self.address_merkle_tree_pubkey,

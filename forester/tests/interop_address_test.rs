@@ -1,5 +1,5 @@
 use env_logger::Env;
-use forester::constants::INDEXER_URL;
+use forester::external_services_config::INDEXER_URL;
 use forester::indexer::PhotonIndexer;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};

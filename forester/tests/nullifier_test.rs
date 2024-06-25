@@ -2,7 +2,7 @@ use std::mem;
 use std::sync::Arc;
 
 use account_compression::StateMerkleTreeAccount;
-use forester::constants::{INDEXER_URL, SERVER_URL};
+use forester::external_services_config::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{get_nullifier_queue, nullify, subscribe_nullify, Config};
 use forester::utils::u8_arr_to_hex_string;

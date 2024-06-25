@@ -1,5 +1,5 @@
 pub mod cli;
-pub mod constants;
+pub mod external_services_config;
 pub mod errors;
 pub mod indexer;
 pub mod nqmt;

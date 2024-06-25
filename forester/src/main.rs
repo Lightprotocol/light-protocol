@@ -8,7 +8,7 @@ use solana_sdk::signature::{Keypair, Signer};
 use std::str::FromStr;
 use serde_json::Result;
 use forester::cli::{Cli, Commands};
-use forester::constants::{INDEXER_URL, SERVER_URL};
+use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::nullifier::{Config as ForesterConfig, empty_address_queue};
 use forester::nullifier::{nullify, subscribe_nullify};
@@ -64,7 +64,7 @@ fn init_config() -> ForesterConfig {
     let payer: Vec<u8> = convert(&payer).unwrap();
 
     ForesterConfig {
-        server_url: SERVER_URL.to_string(),
+        external_services: ExternalServicesConfig::zktestnet(),
         nullifier_queue_pubkey: Pubkey::from_str(&nullifier_queue_pubkey).unwrap(),
         state_merkle_tree_pubkey: Pubkey::from_str(&state_merkle_tree_pubkey).unwrap(),
         address_merkle_tree_pubkey: Pubkey::from_str(&address_merkle_tree_pubkey).unwrap(),
@@ -87,7 +87,7 @@ async fn main() {
         commitment: CommitmentLevel::Confirmed,
     };
 
-    let mut rpc = SolanaRpcConnection::new(SERVER_URL, Some(commitment_config));
+    let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), Some(commitment_config));
 
     rpc.airdrop_lamports(
         &config.payer_keypair.pubkey(),
@@ -110,7 +110,7 @@ async fn main() {
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
 
-            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(INDEXER_URL.to_string())));
+            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
             let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
             let result = nullify(indexer, rpc, &config).await;
@@ -122,7 +122,7 @@ async fn main() {
                 config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
             );
 
-            let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+            let mut indexer = PhotonIndexer::new(config.external_services.rpc_url.to_string());
 
             let result = empty_address_queue(&mut indexer, &mut rpc, &config).await;
             info!("Nullification result: {:?}", result);

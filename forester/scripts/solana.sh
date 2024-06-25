@@ -1,4 +1,4 @@
 #!/bin/sh
 
-solana-test-validator \
-  --account-dir /Users/tsv/Developer/light-protocol/cli/accounts
+ROOT_DIR=$(git rev-parse --show-toplevel)
+solana-test-validator --account-dir "$ROOT_DIR"/cli/accounts

@@ -1,6 +1,6 @@
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
-use forester::constants::SERVER_URL;
+use forester::external_services_config::SERVER_URL;
 use forester::nullifier::{empty_address_queue, get_nullifier_queue, Config};
 use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
