@@ -885,6 +885,12 @@ export type LightCompressedToken = {
                         name: 'rootIndex';
                         type: 'u16';
                     },
+                    {
+                        name: 'lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
                 ];
             };
         },
@@ -2248,6 +2254,12 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'rootIndex',
                         type: 'u16',
+                    },
+                    {
+                        name: 'lamports',
+                        type: {
+                            option: 'u64',
+                        },
                     },
                 ],
             },

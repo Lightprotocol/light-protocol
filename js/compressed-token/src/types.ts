@@ -59,6 +59,10 @@ export type InputTokenDataWithContext = {
      * The index of the leaf in the merkle tree
      */
     leafIndex: number;
+    /**
+     * Lamports in the input token account.
+     */
+    lamports: BN | null;
 };
 
 export type CompressedTokenInstructionDataInvoke = {

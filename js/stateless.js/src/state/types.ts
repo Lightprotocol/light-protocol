@@ -105,6 +105,7 @@ export interface InputTokenDataWithContext {
     delegateIndex: number | null; // Option<u8>
     merkleContext: PackedMerkleContext;
     rootIndex: number; // u16
+    lamports: BN | null;
 }
 export type TokenData = {
     /// The mint associated with this account
