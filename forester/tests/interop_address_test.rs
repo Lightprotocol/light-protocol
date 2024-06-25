@@ -87,6 +87,7 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
     }
 }
 
+#[ignore = "Photon is broken because of leafIndex to nextIndex renaming"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop_address() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();

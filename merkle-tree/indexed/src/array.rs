@@ -5,7 +5,7 @@ use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::BigUint;
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
-use crate::{errors::IndexedMerkleTreeError, FIELD_SIZE_SUB_ONE};
+use crate::{errors::IndexedMerkleTreeError, HIGHEST_ADDRESS_PLUS_ONE};
 
 #[derive(Clone, Debug, Default)]
 pub struct IndexedElement<I>
@@ -167,7 +167,7 @@ where
 
     pub fn init(&mut self) -> Result<IndexedElementBundle<I>, IndexedMerkleTreeError> {
         use num_traits::Num;
-        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10)
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10)
             .map_err(|_| IndexedMerkleTreeError::IntegerOverflow)?;
         self.append(&init_value)
     }

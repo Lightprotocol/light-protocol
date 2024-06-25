@@ -507,7 +507,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 value: addresses[i],
                 leafLowerRangeValue: lowElement.value,
                 leafHigherRangeValue: higherRangeValue,
-                leafIndex: bn(lowElement.nextIndex),
+                nextIndex: bn(lowElement.nextIndex),
                 merkleProofHashedIndexedElementLeaf: bnPathElements,
                 indexHashedIndexedElementLeaf: bn(lowElement.index),
                 merkleTree: this.addressTreeAddress,
@@ -603,7 +603,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                 // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(
-                    proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                    proof => proof.indexHashedIndexedElementLeaf.toNumber(), // TODO: support >32bit
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
@@ -646,7 +646,8 @@ export class TestRpc extends Connection implements CompressionApiInterface {
                     .map(proof => proof.leafIndex)
                     .concat(
                         newAddressProofs.map(
-                            proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                            proof =>
+                                proof.indexHashedIndexedElementLeaf.toNumber(), // TODO: support >32bit
                         ),
                     ),
                 leaves: merkleProofsWithContext

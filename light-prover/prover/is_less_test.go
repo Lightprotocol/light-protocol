@@ -38,6 +38,11 @@ func TestAssertIsLess(t *testing.T) {
 	edgeValue249bit := new(big.Int).Lsh(big.NewInt(1), 248)
 	edgeValue248bit := new(big.Int).Sub(edgeValue249bit, big.NewInt(1))
 	edgeValue248bitSubOne := new(big.Int).Sub(edgeValue248bit, big.NewInt(1))
+	low_range := big.NewInt(0)
+	high_range := new(big.Int)
+	high_range.SetString("30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000", 16)
+	value := new(big.Int)
+	value.SetString("69785880290080757662711965351793407854352282886293293941974851767353317742", 10)
 	// Test cases
 	testCases := []struct {
 		a        *big.Int
@@ -56,6 +61,8 @@ func TestAssertIsLess(t *testing.T) {
 		{fieldSize, fieldSizeSub2, false},              // fieldSize < fieldSize - 2
 		{edgeValue248bit, edgeValue249bit, true},       // 2^248 - 1 < 2^248
 		{edgeValue248bitSubOne, edgeValue248bit, true}, // 2^248 - 2 < 2^248 - 1
+		{low_range, value, true},                       // 0 < value
+		{value, edgeValue248bit, true},                 // value < high_range
 	}
 
 	for _, tc := range testCases {

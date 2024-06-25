@@ -276,7 +276,6 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 address_merkle_tree_pubkey,
             )
             .await;
-
         assert_eq!(relayer_merkle_tree.root(), address_merkle_tree.root());
         let address_queue =
             unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };

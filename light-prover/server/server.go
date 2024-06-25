@@ -145,6 +145,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if proofError != nil {
+		println(proofError.Message)
 		logging.Logger().Err(err)
 		proofError.send(w)
 		return
@@ -209,6 +210,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte) (*prover.Proof, *Error
 		logging.Logger().Info().Msg(err.Error())
 		return nil, malformedBodyError(err)
 	}
+
 	var numberOfCompressedAccounts = uint32(len(params.Inputs))
 	var ps *prover.ProvingSystem
 	for _, provingSystem := range handler.provingSystem {

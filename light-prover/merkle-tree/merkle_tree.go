@@ -182,12 +182,12 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		var leafLower = big.NewInt(0)
 		var leafUpper = big.NewInt(2)
 		var pathIndex int
-		var leafIndex int
+		var nextIndex int
 		if random {
 			leafLower = big.NewInt(int64(rangeIn(0, 1000)))
 			leafUpper.Add(leafUpper, leafLower)
 			numberOfLeaves := 1 << depth
-			leafIndex = rand.Intn(numberOfLeaves)
+			nextIndex = rand.Intn(numberOfLeaves)
 			if valid {
 				value.Add(leafLower, big.NewInt(1))
 			} else {
@@ -201,7 +201,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		} else {
 			leafLower = big.NewInt(1)
 			leafUpper = big.NewInt(123)
-			leafIndex = 1
+			nextIndex = 1
 			if valid {
 				value = big.NewInt(2)
 			} else {
@@ -210,7 +210,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 			pathIndex = 0
 		}
 
-		leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(leafIndex)), leafUpper})
+		leaf, err := poseidon.Hash([]*big.Int{leafLower, big.NewInt(int64(nextIndex)), leafUpper})
 		if err != nil {
 			fmt.Println("error: ", err)
 		}
@@ -221,7 +221,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 		inputs[i].Root = tree.Root()
 		inputs[i].LeafLowerRangeValue = *leafLower
 		inputs[i].LeafHigherRangeValue = *leafUpper
-		inputs[i].LeafIndex = uint32(leafIndex)
+		inputs[i].NextIndex = uint32(nextIndex)
 	}
 
 	return prover.NonInclusionParameters{

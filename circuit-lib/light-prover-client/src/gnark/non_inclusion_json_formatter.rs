@@ -32,8 +32,8 @@ pub struct NonInclusionJsonStruct {
     #[serde(rename(serialize = "leafHigherRangeValue"))]
     leaf_higher_range_value: String,
 
-    #[serde(rename(serialize = "leafIndex"))]
-    leaf_index: u32,
+    #[serde(rename(serialize = "nextIndex"))]
+    next_index: u32,
 }
 
 impl BatchNonInclusionJsonStruct {
@@ -52,7 +52,7 @@ impl BatchNonInclusionJsonStruct {
                 .index_hashed_indexed_element_leaf
                 .to_u32()
                 .unwrap(),
-            leaf_index: merkle_inputs.leaf_index.to_u32().unwrap(),
+            next_index: merkle_inputs.next_index.to_u32().unwrap(),
             leaf_lower_range_value: big_int_to_string(&merkle_inputs.leaf_lower_range_value),
             leaf_higher_range_value: big_int_to_string(&merkle_inputs.leaf_higher_range_value),
         };
@@ -77,7 +77,7 @@ impl BatchNonInclusionJsonStruct {
                     .iter()
                     .map(big_int_to_string)
                     .collect(),
-                leaf_index: input.leaf_index.to_u32().unwrap(),
+                next_index: input.next_index.to_u32().unwrap(),
                 leaf_lower_range_value: big_int_to_string(&input.leaf_lower_range_value),
                 leaf_higher_range_value: big_int_to_string(&input.leaf_higher_range_value),
             };

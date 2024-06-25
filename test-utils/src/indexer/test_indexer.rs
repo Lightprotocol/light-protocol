@@ -631,7 +631,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             } else {
                 // print error message
                 warn!("Error: {}", response_result.text().await.unwrap());
-
                 // wait for a second before retrying
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 retries -= 1;

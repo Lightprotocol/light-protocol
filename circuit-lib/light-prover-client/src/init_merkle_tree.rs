@@ -98,7 +98,7 @@ pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
     non_included_value[31] = 2;
 
     let leaf_lower_range_value = new_low_element.value.to_bytes_be();
-    let leaf_index = new_element.index;
+    let next_index = new_element.next_index;
     let leaf_higher_range_value = new_element.value.to_bytes_be();
     let merkle_proof_hashed_indexed_element_leaf = indexed_tree
         .get_proof_of_leaf(new_low_element.index, true)
@@ -117,7 +117,7 @@ pub fn non_inclusion_merkle_tree_inputs_26() -> NonInclusionMerkleProofInputs {
         value: BigInt::from_bytes_be(Sign::Plus, &non_included_value),
         leaf_lower_range_value: BigInt::from_bytes_be(Sign::Plus, &leaf_lower_range_value),
         leaf_higher_range_value: BigInt::from_bytes_be(Sign::Plus, &leaf_higher_range_value),
-        leaf_index: BigInt::from(leaf_index),
+        next_index: BigInt::from(next_index),
         merkle_proof_hashed_indexed_element_leaf,
         index_hashed_indexed_element_leaf: BigInt::from(index_hashed_indexed_element_leaf),
     }

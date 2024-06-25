@@ -15,13 +15,13 @@ type NonInclusionCircuit struct {
 	// private inputs
 	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
 	LeafHigherRangeValues []frontend.Variable `gnark:"input"`
-	LeafIndices           []frontend.Variable `gnark:"input"`
+	NextIndices           []frontend.Variable `gnark:"input"`
 
 	InPathIndices  []frontend.Variable   `gnark:"input"`
 	InPathElements [][]frontend.Variable `gnark:"input"`
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
@@ -31,13 +31,13 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 
 		LeafLowerRangeValues:  circuit.LeafLowerRangeValues,
 		LeafHigherRangeValues: circuit.LeafHigherRangeValues,
-		LeafIndices:           circuit.LeafIndices,
+		NextIndices:           circuit.NextIndices,
 
 		InPathElements: circuit.InPathElements,
 		InPathIndices:  circuit.InPathIndices,
 
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		Depth:         circuit.Depth,
+		Depth:                      circuit.Depth,
 	}
 	roots := abstractor.Call1(api, proof)
 	for i := 0; i < int(circuit.NumberOfCompressedAccounts); i++ {
@@ -62,15 +62,15 @@ func ImportNonInclusionSetup(treeDepth uint32, numberOfCompressedAccounts uint32
 	}
 
 	circuit := NonInclusionCircuit{
-		Depth:                 treeDepth,
-		NumberOfCompressedAccounts:         numberOfCompressedAccounts,
-		Roots:                 roots,
-		Values:                values,
-		LeafLowerRangeValues:  leafLowerRangeValues,
-		LeafHigherRangeValues: leafHigherRangeValues,
-		LeafIndices:           leafIndices,
-		InPathIndices:         inPathIndices,
-		InPathElements:        inPathElements,
+		Depth:                      treeDepth,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      roots,
+		Values:                     values,
+		LeafLowerRangeValues:       leafLowerRangeValues,
+		LeafHigherRangeValues:      leafHigherRangeValues,
+		NextIndices:                leafIndices,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
 	}
 
 	ccs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)

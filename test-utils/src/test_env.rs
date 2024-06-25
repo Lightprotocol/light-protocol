@@ -11,6 +11,7 @@ use account_compression::{
 use account_compression::{AddressMerkleTreeConfig, QueueType};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
+use light_hasher::Poseidon;
 use light_macros::pubkey;
 use light_registry::get_forester_epoch_pda_address;
 use light_registry::sdk::{
@@ -491,10 +492,23 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     let expected_change_log_length = 4;
     let expected_roots_length = 4;
     let expected_next_index = 2;
-    let expected_right_most_leaf = [
-        44, 52, 197, 107, 177, 35, 22, 127, 107, 74, 169, 250, 166, 2, 228, 145, 220, 126, 40, 237,
-        196, 176, 110, 41, 32, 173, 159, 91, 143, 216, 66, 32,
+    let mut reference_tree =
+        light_indexed_merkle_tree::reference::IndexedMerkleTree::<Poseidon, usize>::new(
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_HEIGHT as usize,
+            account_compression::utils::constants::ADDRESS_MERKLE_TREE_CANOPY_DEPTH as usize,
+        )
+        .unwrap();
+    reference_tree.init().unwrap();
+
+    let expected_right_most_leaf = reference_tree
+        .merkle_tree
+        .leaf(reference_tree.merkle_tree.rightmost_index - 1);
+
+    let _expected_right_most_leaf = [
+        30, 164, 22, 238, 180, 2, 24, 181, 64, 193, 207, 184, 219, 233, 31, 109, 84, 232, 162, 158,
+        220, 48, 163, 158, 50, 107, 64, 87, 167, 217, 99, 245,
     ];
+    assert_eq!(expected_right_most_leaf, _expected_right_most_leaf);
     assert_address_merkle_tree_initialized(
         context,
         &address_merkle_tree_keypair.pubkey(),

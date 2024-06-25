@@ -11,11 +11,11 @@ use light_concurrent_merkle_tree::{
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
-    reference, IndexedMerkleTree,
+    reference, IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, ToBigUint};
-use num_traits::FromBytes;
+use num_traits::{FromBytes, Num};
 use rand::thread_rng;
 use thiserror::Error;
 
@@ -552,6 +552,25 @@ where
 #[test]
 pub fn test_insert_invalid_low_element_poseidon() {
     insert_invalid_low_element::<Poseidon>()
+}
+
+#[test]
+pub fn hash_reference_indexed_element() {
+    let element = IndexedElement::<usize> {
+        value: 0.to_biguint().unwrap(),
+        index: 0,
+        next_index: 1,
+    };
+
+    let next_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+    let hash = element.hash::<Poseidon>(&next_value).unwrap();
+    assert_eq!(
+        hash,
+        [
+            40, 8, 192, 134, 75, 198, 77, 187, 129, 249, 133, 121, 54, 189, 242, 28, 117, 71, 255,
+            32, 155, 52, 136, 196, 99, 146, 204, 174, 160, 238, 0, 110
+        ]
+    );
 }
 
 #[test]

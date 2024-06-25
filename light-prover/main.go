@@ -36,9 +36,9 @@ func runCli() {
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "inclusion-compressedAccounts", Usage: "Number of compressed accounts", Required: false},
+					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-compressedAccounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := prover.CircuitType(context.String("circuit"))
@@ -49,9 +49,9 @@ func runCli() {
 					path := context.String("output")
 					pathVkey := context.String("output-vkey")
 					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
-					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressedAccounts"))
+					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
-					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressedAccounts"))
+					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 
 					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.Inclusion {
 						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
@@ -113,12 +113,12 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "compressedAccounts", Usage: "Number of compressed accounts", Required: true},
+					&cli.UintFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
 					treeDepth := uint32(context.Uint("tree-depth"))
-					compressedAccounts := uint32(context.Uint("compressedAccounts"))
+					compressedAccounts := uint32(context.Uint("compressed-accounts"))
 					logging.Logger().Info().Msg("Building R1CS")
 
 					var cs constraint.ConstraintSystem
@@ -155,9 +155,9 @@ func runCli() {
 					&cli.StringFlag{Name: "pk", Usage: "Proving key", Required: true},
 					&cli.StringFlag{Name: "vk", Usage: "Verifying key", Required: true},
 					&cli.UintFlag{Name: "inclusion-tree-depth", Usage: "Merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "inclusion-compressedAccounts", Usage: "Number of compressed accounts", Required: false},
+					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-depth", Usage: "Non-inclusion merkle tree depth", Required: false},
-					&cli.UintFlag{Name: "non-inclusion-compressedAccounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
+					&cli.UintFlag{Name: "non-inclusion-compressed-accounts", Usage: "Non-inclusion number of compressed accounts", Required: false},
 				},
 				Action: func(context *cli.Context) error {
 					circuit := context.String("circuit")
@@ -170,9 +170,9 @@ func runCli() {
 					vk := context.String("vk")
 
 					inclusionTreeDepth := uint32(context.Uint("inclusion-tree-depth"))
-					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressedAccounts"))
+					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
 					nonInclusionTreeDepth := uint32(context.Uint("non-inclusion-tree-depth"))
-					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressedAccounts"))
+					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
 
 					if (inclusionTreeDepth == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == "inclusion" {
 						return fmt.Errorf("inclusion tree depth and number of compressed accounts must be provided")
@@ -261,11 +261,11 @@ func runCli() {
 				Name: "gen-test-params",
 				Flags: []cli.Flag{
 					&cli.IntFlag{Name: "tree-depth", Usage: "depth of the mock tree", DefaultText: "26", Value: 26},
-					&cli.IntFlag{Name: "compressedAccounts", Usage: "Number of compressed accounts", DefaultText: "1", Value: 1},
+					&cli.IntFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", DefaultText: "1", Value: 1},
 				},
 				Action: func(context *cli.Context) error {
 					treeDepth := context.Int("tree-depth")
-					compressedAccounts := context.Int("compressedAccounts")
+					compressedAccounts := context.Int("compressed-accounts")
 					logging.Logger().Info().Msg("Generating test params for the inclusion circuit")
 
 					var r []byte
@@ -481,12 +481,12 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.UintFlag{Name: "tree-depth", Usage: "Merkle tree depth", Required: true},
-					&cli.UintFlag{Name: "compressedAccounts", Usage: "Number of compressed accounts", Required: true},
+					&cli.UintFlag{Name: "compressed-accounts", Usage: "Number of compressed accounts", Required: true},
 				},
 				Action: func(context *cli.Context) error {
 					path := context.String("output")
 					treeDepth := uint32(context.Uint("tree-depth"))
-					compressedAccounts := uint32(context.Uint("compressedAccounts"))
+					compressedAccounts := uint32(context.Uint("compressed-accounts"))
 					logging.Logger().Info().Msg("Extracting gnark circuit to Lean")
 					circuitString, err := prover.ExtractLean(treeDepth, compressedAccounts)
 					if err != nil {

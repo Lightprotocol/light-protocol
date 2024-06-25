@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
-    FIELD_SIZE_SUB_ONE,
+    HIGHEST_ADDRESS_PLUS_ONE,
 };
 
 #[derive(Debug, Error)]
@@ -64,7 +64,7 @@ where
     /// Inserts the ranges 0 - BN254 Field Size - 1 into the tree.
     pub fn init(&mut self) -> Result<(), IndexedReferenceMerkleTreeError> {
         let mut indexed_array = IndexedArray::<H, I, 2>::default();
-        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
         let nullifier_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = nullifier_bundle
             .new_low_element
