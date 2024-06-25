@@ -863,9 +863,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated This method is currently not available. Please use
+     * {@link getSignaturesForCompressedAccount} instead.
+     *
      * Returns confirmed signatures for transactions involving the specified
-     * address forward in time from genesis to the most recent confirmed
-     * block
+     * address forward in time from genesis to the most recent confirmed block
      *
      * @param address queried compressed account address
      */
