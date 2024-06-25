@@ -10,6 +10,7 @@ use light_registry::{
     },
     ForesterEpoch, LightGovernanceAuthority, RegistryError,
 };
+use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::{
     registry::{
         create_rollover_address_merkle_tree_instructions,
@@ -41,7 +42,7 @@ async fn test_register_program() {
 }
 
 /// Test:
-/// 1. SUCESS: Register a forester
+/// 1. SUCCESS: Register a forester
 /// 2. SUCCESS: Update forester authority
 #[tokio::test]
 async fn test_register_and_update_forester_pda() {
@@ -221,10 +222,8 @@ async fn failing_test_forester() {
 #[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_forester_on_testnet() {
-    let testnet_url = "https://zk-testnet.helius.dev:8899";
     let env_accounts = get_test_env_accounts();
-
-    let mut rpc = SolanaRpcConnection::new_with_url(testnet_url, None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::ZKTestnet, None);
     rpc.airdrop_lamports(&env_accounts.forester.pubkey(), LAMPORTS_PER_SOL * 100)
         .await
         .unwrap();
@@ -251,12 +250,10 @@ async fn update_forester_on_testnet() {
 #[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn update_registry_governance_on_testnet() {
-    let testnet_url = "https://zk-testnet.helius.dev:8899";
     let env_accounts = get_test_env_accounts();
-
-    let mut rpc = SolanaRpcConnection::new_with_url(testnet_url, None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::ZKTestnet, None);
     rpc.airdrop_lamports(
-        &&env_accounts.governance_authority.pubkey(),
+        &env_accounts.governance_authority.pubkey(),
         LAMPORTS_PER_SOL * 100,
     )
     .await

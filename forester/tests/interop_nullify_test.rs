@@ -6,6 +6,7 @@ use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairAct
 use light_test_utils::indexer::Indexer;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
 use log::info;
@@ -103,7 +104,7 @@ async fn test_photon_interop_nullify_account() {
 
     let env_accounts = get_test_env_accounts();
 
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
     // Airdrop because currently TestEnv.new() transfers funds from get_payer.
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
