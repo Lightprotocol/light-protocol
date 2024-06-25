@@ -5,6 +5,7 @@ use forester::nullifier::{empty_address_queue, get_nullifier_queue, Config};
 use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
@@ -29,7 +30,7 @@ async fn empty_address_tree_test() {
         max_retries: 5,
     };
 
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
         .await

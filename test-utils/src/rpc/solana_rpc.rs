@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
@@ -20,7 +20,22 @@ use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
 
-pub const SERVER_URL: &str = "http://127.0.0.1:8899";
+pub enum SolanaRpcUrl {
+    Localnet,
+    ZKTestnet,
+    Custom(String),
+}
+
+impl Display for SolanaRpcUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            SolanaRpcUrl::Localnet => "http://localhost:8899".to_string(),
+            SolanaRpcUrl::ZKTestnet => "https://zk-testnet.helius.dev:8899".to_string(),
+            SolanaRpcUrl::Custom(url) => url.clone(),
+        };
+        write!(f, "{}", str)
+    }
+}
 
 #[allow(dead_code)]
 pub struct SolanaRpcConnection {
@@ -29,11 +44,7 @@ pub struct SolanaRpcConnection {
 }
 
 impl SolanaRpcConnection {
-    pub fn new(commitment_config: Option<CommitmentConfig>) -> Self {
-        Self::new_with_url(SERVER_URL, commitment_config)
-    }
-
-    pub fn new_with_url<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
+    pub fn new<U: ToString>(url: U, commitment_config: Option<CommitmentConfig>) -> Self {
         let payer = Keypair::new();
         let commitment_config = commitment_config.unwrap_or(CommitmentConfig::confirmed());
         let client = RpcClient::new_with_commitment(url, commitment_config);
