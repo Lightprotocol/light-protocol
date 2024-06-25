@@ -41,8 +41,8 @@ pub async fn subscribe_nullify<R: RpcConnection + Clone + Send + Sync + 'static>
 
                     let indexer_clone = Arc::clone(&indexer);
                     let rpc_clone = Arc::clone(&rpc);
-
-                    match nullify(indexer_clone, rpc_clone, &config).await {
+                    let config = Arc::clone(&config);
+                    match nullify(indexer_clone, rpc_clone, config).await {
                         Ok(_) => {
                             info!("Nullify completed");
                             info!("Time elapsed: {:?}", time.elapsed());

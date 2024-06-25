@@ -17,6 +17,7 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use std::env;
 use std::sync::Arc;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use tokio::try_join;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 
 fn locate_config_file() -> String {
@@ -81,7 +82,7 @@ fn init_config() -> ForesterConfig {
 #[tokio::main]
 async fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let config: ForesterConfig = init_config();
+    let config: Arc<ForesterConfig> = Arc::new(init_config());
     let cli = Cli::parse();
     match &cli.command {
         Some(Commands::Subscribe) => {
@@ -93,17 +94,25 @@ async fn main() {
             subscribe_nullify(&config, rpc).await;
         }
         Some(Commands::NullifyState) => {
-            nullify_state(&config).await;
+            nullify_state(config).await;
         }
         Some(Commands::NullifyAddresses) => {
-            nullify_addresses(&config).await;
+            nullify_addresses(config).await;
         }
         Some(Commands::Nullify) => {
-            nullify_addresses(&config).await;
-            let state_t = tokio::spawn(async move {
-                nullify_state(&config).await;
+            let config_clone = config.clone();
+            let task_clear_addresses = tokio::spawn({
+                async move { nullify_addresses(config_clone).await }
             });
-            state_t.await.unwrap();
+
+            let config_clone = config.clone();
+            let task_clear_state = tokio::spawn({
+                async move { nullify_state(config_clone).await }
+            });
+
+            try_join!(task_clear_addresses, task_clear_state)
+                .expect("Failed to join tasks");
+
         }
         Some(Commands::Index) => {
             info!("Reindex merkle tree & nullifier queue accounts");
@@ -119,24 +128,38 @@ async fn main() {
     }
 }
 
-async fn nullify_state(config: &ForesterConfig) {
+async fn nullify_state(config: Arc<ForesterConfig>) {
     info!("Run state tree nullifier. Queue: {}. Merkle tree: {}", config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey);
-    let rpc = init_rpc(config).await;
+    let rpc = init_rpc(&config).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    let config = config.clone();
     let result = nullify(indexer, rpc, config).await;
     info!("State nullifier result: {:?}", result);
 }
 
-async fn nullify_addresses(config: &ForesterConfig) {
+async fn nullify_addresses(config: Arc<ForesterConfig>) {
     info!("Run address tree nullifier. Queue: {}. Merkle tree: {}", config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey);
-    let mut rpc = init_rpc(config).await;
-    let mut indexer = PhotonIndexer::new(config.external_services.rpc_url.to_string());
-    let result = empty_address_queue(&mut indexer, &mut rpc, config).await;
+    // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
+    // let rpc = init_rpc(&config).await;
+    // let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+    // let config = config.clone();
+    // let result = empty_address_queue(indexer, rpc, config).await;
+
+    let result = tokio::task::spawn_blocking(move || {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        runtime.block_on(async {
+            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
+            let rpc = init_rpc(&config).await;
+            let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+            empty_address_queue(indexer, rpc, config).await
+        })
+    }).await.unwrap();
+
     info!("Address nullifier result: {:?}", result);
 }
 
-async fn init_rpc(config: &ForesterConfig) -> SolanaRpcConnection {
+async fn init_rpc(config: &Arc<ForesterConfig>) -> SolanaRpcConnection {
     let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), Some(CommitmentConfig {
         commitment: CommitmentLevel::Confirmed,
     }));

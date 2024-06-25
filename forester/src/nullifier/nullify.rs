@@ -26,7 +26,7 @@ use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
 pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
-    config: &Config,
+    config: Arc<Config>,
 ) -> Result<(), ForesterError> {
     // TODO: check that our part of the queue is not empty before starting
     // fetch the queue data, pass the data to the nullify function and nullify the accounts
@@ -36,7 +36,7 @@ pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
 pub async fn nullify<T: Indexer, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
-    config: &Config,
+    config: Arc<Config>,
 ) -> Result<(), ForesterError> {
     // let concurrency_limit = config.concurrency_limit;
     // let semaphore = Arc::new(Semaphore::new(concurrency_limit));
@@ -63,6 +63,8 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
         // Process completed tasks
         handles.retain(|h: &JoinHandle<Result<(), ForesterError>>| !h.is_finished());
 
+        let config = Arc::clone(&config);
+        let config_clone = config.clone();
         while handles.len() >= config.max_concurrent_batches {
             // Wait for at least one task to complete before spawning more
             let (result, index, remaining) = select_all(handles).await;
@@ -83,7 +85,6 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
         let queue_data = queue_data.unwrap();
         let successful_nullifications_clone = Arc::clone(&successful_nullifications);
         let cancellation_token_clone = cancellation_token.clone();
-        let config_clone = config.clone();
         let indexer_clone = Arc::clone(&indexer);
         let rpc_clone = Arc::clone(&rpc);
         let handle: JoinHandle<Result<(), ForesterError>> = tokio::spawn(async move {
@@ -120,7 +121,7 @@ async fn process_batch<T: Indexer, R: RpcConnection>(
     mut queue_data: StateQueueData,
     successful_nullifications: &Arc<Mutex<usize>>,
     cancellation_token: &CancellationToken,
-    config: &Config,
+    config: &Arc<Config>,
     rpc: &Arc<Mutex<R>>,
     indexer: &Arc<Mutex<T>>,
 ) -> Result<(), ForesterError> {
@@ -186,7 +187,7 @@ async fn process_batch<T: Indexer, R: RpcConnection>(
 async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
     indexer: &Arc<Mutex<T>>,
     rpc: &Arc<Mutex<R>>,
-    config: &Config,
+    config: Arc<Config>,
 ) -> Result<Option<StateQueueData>, ForesterError> {
     let (change_log_index, sequence_number) =
         { get_changelog_index(&config.state_merkle_tree_pubkey, &mut *rpc.lock().await).await? };
