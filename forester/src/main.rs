@@ -67,7 +67,7 @@ fn init_config() -> ForesterConfig {
     let payer: Vec<u8> = convert(&payer).unwrap();
 
     ForesterConfig {
-        external_services: ExternalServicesConfig::zktestnet(),
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: Pubkey::from_str(&nullifier_queue_pubkey).unwrap(),
         state_merkle_tree_pubkey: Pubkey::from_str(&state_merkle_tree_pubkey).unwrap(),
         address_merkle_tree_pubkey: Pubkey::from_str(&address_merkle_tree_pubkey).unwrap(),
@@ -132,7 +132,7 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
     );
     let rpc = init_rpc(&config).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-        config.external_services.rpc_url.to_string(),
+        config.external_services.indexer_url.to_string(),
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
     let config = config.clone();
@@ -150,7 +150,7 @@ async fn nullify_addresses(config: Arc<ForesterConfig>) {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
             let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-                config.external_services.rpc_url.to_string(),
+                config.external_services.indexer_url.to_string(),
             )));
             let rpc = init_rpc(&config).await;
             let rpc = Arc::new(tokio::sync::Mutex::new(rpc));

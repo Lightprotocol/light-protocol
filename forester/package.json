@@ -9,7 +9,7 @@
     "start-validator": "../cli/test_bin/run test-validator --indexer-db-url=postgres://photon:photon@localhost:5432/postgres",
     "restart-validator": "pnpm restart-db && pnpm wait-for-db && pnpm migrate-db && pnpm start-validator",
     "build": "cargo build",
-    "test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --nocapture --test-threads=1",
+    "test": "RUST_MIN_STACK=98388608 RUSTFLAGS=\"-D warnings\" cargo test --package forester -- --nocapture",
 
     "test-sync": "pnpm restart-validator && pnpm transfer-sync && pnpm nullify",
 
