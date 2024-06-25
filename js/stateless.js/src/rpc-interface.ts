@@ -263,6 +263,19 @@ export const HealthResult = string();
 /**
  * @internal
  */
+export const LatestNonVotingSignaturesResult = pick({
+    items: array(
+        pick({
+            signature: string(),
+            slot: number(),
+            blockTime: number(),
+        }),
+    ),
+});
+
+/**
+ * @internal
+ */
 export const MerkeProofResult = pick({
     hash: BN254FromString,
     leafIndex: number(),
@@ -451,8 +464,20 @@ export interface CompressionApiInterface {
 
     getIndexerSlot(): Promise<number>;
 
+    getLatestNonVotingSignatures(
+        cursor?: string,
+        limit?: number,
+    ): Promise<LatestNonVotingSignaturesResult>;
+
     getValidityProof(
         hashes: BN254[],
         newAddresses: BN254[],
     ): Promise<CompressedProofWithContext>;
+}
+
+export interface LatestNonVotingSignaturesResult {
+    context: { slot: number };
+    value: {
+        items: { signature: string; slot: number; blockTime: number }[];
+    };
 }

@@ -31,6 +31,7 @@ import {
     HexBatchInputsForProver,
     ValidityProofResult,
     NewAddressProofResult,
+    LatestNonVotingSignaturesResult,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -986,6 +987,30 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const res = create(unsafeRes, jsonRpcResult(SlotResult));
         if ('error' in res) {
             throw new SolanaJSONRPCError(res.error, 'failed to get slot');
+        }
+        return res.result;
+    }
+    /**
+     * Fetch all non-voting signatures
+     */
+    async getLatestNonVotingSignatures(
+        cursor?: string,
+        limit?: number,
+    ): Promise<LatestNonVotingSignaturesResult> {
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getLatestNonVotingSignatures',
+            { cursor, limit },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(LatestNonVotingSignaturesResult),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                'failed to get latest non-voting signatures',
+            );
         }
         return res.result;
     }

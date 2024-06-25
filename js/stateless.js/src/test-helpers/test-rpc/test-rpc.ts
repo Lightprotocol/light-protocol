@@ -14,10 +14,9 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
-import { toHex } from '../../utils/conversion';
 import {
     CompressedTransaction,
-    HexInputsForProver,
+    LatestNonVotingSignaturesResult,
     SignatureWithMetadata,
 } from '../../rpc-interface';
 import {
@@ -29,12 +28,10 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
-    CompressedProof,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     bn,
 } from '../../state';
-import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
 import { IndexedArray } from '../merkle-tree';
 import {
     MerkleContextWithNewAddressProof,
@@ -321,6 +318,17 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return accounts;
     }
 
+    /**
+     * Fetch the current indexer health status
+     */
+    async getLatestNonVotingSignatures(
+        _cursor?: string,
+        _limit?: number,
+    ): Promise<LatestNonVotingSignaturesResult> {
+        throw new Error(
+            'getLatestNonVotingSignaturesWithContext not supported in test-rpc',
+        );
+    }
     /**
      * Fetch all the compressed token accounts owned by the specified public
      * key. Owner can be a program or user account
