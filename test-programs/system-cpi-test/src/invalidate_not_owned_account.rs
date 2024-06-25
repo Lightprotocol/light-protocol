@@ -17,7 +17,7 @@ pub enum WithInputAccountsMode {
     NotOwnedCompressedAccount,
     CpiContextMissing,
     CpiContextAccountMissing,
-    CpiContextProofMismatch,
+    CpiContextFeePayerMismatch,
     CpiContextEmpty,
     CpiContextInvalidInvokingProgram,
     CpiContextInvalidSignerSeeds,
@@ -62,7 +62,7 @@ pub fn process_with_input_accounts<'info>(
                 cpi_context,
             )
         }
-        WithInputAccountsMode::CpiContextProofMismatch => cpi_context_tx(
+        WithInputAccountsMode::CpiContextFeePayerMismatch => cpi_context_tx(
             &ctx,
             compressed_account,
             proof.unwrap(),
@@ -94,12 +94,12 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     });
     let cpi_context = match mode {
         WithInputAccountsMode::CpiContextMissing => None,
-        WithInputAccountsMode::CpiContextEmpty | WithInputAccountsMode::CpiContextProofMismatch => {
-            Some(CompressedCpiContext {
-                cpi_context_account_index: cpi_context.unwrap().cpi_context_account_index,
-                set_context: false,
-            })
-        }
+        WithInputAccountsMode::CpiContextEmpty
+        | WithInputAccountsMode::CpiContextFeePayerMismatch => Some(CompressedCpiContext {
+            cpi_context_account_index: cpi_context.unwrap().cpi_context_account_index,
+            set_context: false,
+            first_set_context: false,
+        }),
         _ => cpi_context,
     };
     let cpi_context_account = match mode {
@@ -197,6 +197,8 @@ pub struct InvalidateNotOwnedCompressedAccount<'info> {
     pub system_program: Program<'info, System>,
     pub compressed_token_program:
         Program<'info, light_compressed_token::program::LightCompressedToken>,
+    #[account(mut)]
+    pub invalid_fee_payer: Signer<'info>,
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct TokenTransferData {
@@ -237,16 +239,22 @@ pub fn cpi_compressed_token_transfer<'info>(
     mode: WithInputAccountsMode,
     cpi_context: Option<CompressedCpiContext>,
 ) -> Result<()> {
-    let proof = match mode {
-        WithInputAccountsMode::CpiContextProofMismatch => {
-            // This does not fail because the proof is not verified in the cpi call.
-            // It will fail in the next cpi call because the proofs will not match.
-            let mut proof = proof;
-            proof.a = proof.c;
-            proof
+    let fee_payer = match mode {
+        WithInputAccountsMode::CpiContextFeePayerMismatch => {
+            // This does not fail because the cpi context is initialized with this fee payer
+            ctx.accounts.invalid_fee_payer.to_account_info()
         }
-        _ => proof,
+        _ => ctx.accounts.signer.to_account_info(),
     };
+    msg!("cpi_context: {:?}", cpi_context);
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize].key()
+    );
+    msg!(
+        "cpi context account: {:?}",
+        ctx.remaining_accounts[cpi_context.unwrap().cpi_context_account_index as usize]
+    );
     let mint = token_transfer_data.mint;
     let input_token_data_with_context = token_transfer_data.input_token_data_with_context;
     let output_token = PackedTokenTransferOutputData {
@@ -272,7 +280,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
 
     let cpi_accounts = light_compressed_token::cpi::accounts::TransferInstruction {
-        fee_payer: ctx.accounts.signer.to_account_info(),
+        fee_payer,
         authority: ctx.accounts.signer.to_account_info(),
         registered_program_pda: ctx.accounts.registered_program_pda.to_account_info(),
         noop_program: ctx.accounts.noop_program.to_account_info(),

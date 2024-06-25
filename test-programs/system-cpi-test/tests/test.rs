@@ -40,7 +40,7 @@ use system_cpi_test::{CreatePdaMode, ID};
 /// 7. provide cpi context account but cpi context is empty (CpiContextEmpty)
 /// 8. test signer checks trying to insert into cpi context account (invalid invoking program)
 /// 9. test signer checks trying to insert into cpi context account (invalid signer seeds)
-/// 10. provide cpi context account but cpi context has a different proof (CpiContextProofMismatch)
+/// 10. provide cpi context account but cpi context has a different fee payer (CpiContextFeePayerMismatch)
 /// 11. write data to an account that it doesn't own (WriteAccessCheckFailed)
 #[tokio::test]
 async fn only_test_create_pda() {
@@ -161,7 +161,6 @@ async fn only_test_create_pda() {
     )
     .await
     .unwrap();
-    #[cfg(feature = "cpi-context")]
     {
         let compressed_account =
             test_indexer.get_compressed_accounts_by_owner(&system_cpi_test::ID)[0].clone();
@@ -227,15 +226,15 @@ async fn only_test_create_pda() {
         .unwrap();
         let compressed_token_account_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
-        // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
+        // // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,
             &payer,
             &compressed_account,
             Some(compressed_token_account_data),
-            light_system_program::errors::SystemProgramError::CpiContextProofMismatch.into(),
-            WithInputAccountsMode::CpiContextProofMismatch,
+            light_system_program::errors::SystemProgramError::CpiContextFeePayerMismatch.into(),
+            WithInputAccountsMode::CpiContextFeePayerMismatch,
         )
         .await
         .unwrap();
@@ -410,31 +409,6 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         &data,
     )
     .await;
-
-    // let payer_pubkey = payer.pubkey();
-    // let instruction = perform_create_pda(
-    //     &env_with_program_owned_address_merkle_tree,
-    //     seed,
-    //     &mut test_indexer,
-    //     &mut rpc,
-    //     &data,
-    //     payer_pubkey,
-    //     &ID,
-    //     CreatePdaMode::ProgramIsSigner,
-    // )
-    // .await;
-    // let tx = Transaction::new_signed_with_payer(
-    //     &[instruction],
-    //     Some(&payer_pubkey),
-    //     &[&payer],
-    //     rpc.get_latest_blockhash().await.unwrap(),
-    // );
-    // let res = rpc.process_transaction(tx).await;
-    // assert_custom_error_or_program_error(
-    //     res,
-    //     light_system_program::errors::SystemProgramError::InvalidMerkleTreeOwner.into(),
-    // )
-    // .unwrap();
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -494,6 +468,7 @@ pub async fn perform_create_pda_with_event<R: RpcConnection>(
         signer_is_program,
     )
     .await;
+
     let event = rpc
         .create_and_send_transaction_with_event(&[instruction], &payer_pubkey, &[payer], None)
         .await?
@@ -539,7 +514,7 @@ async fn perform_create_pda<R: RpcConnection>(
         new_address_params,
         cpi_context_account: &env.cpi_context_account_pubkey,
         owner_program,
-        signer_is_program,
+        signer_is_program: signer_is_program.clone(),
         registered_program_pda: &env.registered_program_pda,
     };
     create_pda_instruction(create_ix_inputs.clone())
@@ -605,13 +580,18 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
     let cpi_context = match mode {
         WithInputAccountsMode::CpiContextMissing
         | WithInputAccountsMode::CpiContextAccountMissing
-        | WithInputAccountsMode::CpiContextEmpty
         | WithInputAccountsMode::CpiContextInvalidInvokingProgram
         | WithInputAccountsMode::CpiContextInvalidSignerSeeds
-        | WithInputAccountsMode::CpiContextProofMismatch
+        | WithInputAccountsMode::CpiContextFeePayerMismatch
         | WithInputAccountsMode::CpiContextWriteToNotOwnedAccount => Some(CompressedCpiContext {
             cpi_context_account_index: 2,
             set_context: true,
+            first_set_context: true,
+        }),
+        WithInputAccountsMode::CpiContextEmpty => Some(CompressedCpiContext {
+            cpi_context_account_index: 2,
+            set_context: false,
+            first_set_context: false,
         }),
         _ => None,
     };
@@ -654,6 +634,7 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
         }),
         _ => None,
     };
+    let invalid_fee_payer = Keypair::new();
     let create_ix_inputs = InvalidateNotOwnedCompressedAccountInstructionInputs {
         signer: &payer_pubkey,
         input_merkle_tree_pubkey: &merkle_tree_pubkey,
@@ -671,13 +652,14 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
             root_index: rpc_result.root_indices[0],
         },
         token_transfer_data,
+        invalid_fee_payer: &invalid_fee_payer.pubkey(),
     };
     let instruction =
         create_invalidate_not_owned_account_instruction(create_ix_inputs.clone(), mode);
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&payer_pubkey),
-        &[&payer],
+        &[&payer, &invalid_fee_payer],
         rpc.get_latest_blockhash().await.unwrap(),
     );
     let result = rpc.process_transaction(transaction).await;

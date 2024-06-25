@@ -521,7 +521,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             StateMerkleTreeConfig::default(),
         )
         .await;
-        #[cfg(feature = "cpi-context")]
         crate::test_env::init_cpi_context_account(
             rpc,
             &merkle_tree_keypair.pubkey(),

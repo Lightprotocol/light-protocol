@@ -320,13 +320,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
 
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
-    #[cfg(not(feature = "cpi-context"))]
-    if cpi_context.is_some() {
-        unimplemented!("cpi-context feature is not enabled");
-    }
-    #[cfg(not(feature = "cpi-context"))]
-    let cpi_context_account = None;
-    #[cfg(feature = "cpi-context")]
+
     let cpi_context_account = cpi_context.map(|cpi_context| {
         remaining_accounts[cpi_context.cpi_context_account_index as usize].to_account_info()
     });

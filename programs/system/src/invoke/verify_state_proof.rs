@@ -134,7 +134,6 @@ pub fn hash_input_compressed_accounts<'a, 'b, 'c: 'info, 'info>(
         }
 
         // Without cpi context all input compressed accounts have the same owner.
-        #[cfg(feature = "cpi-context")]
         if owner_pubkey
             != input_compressed_account_with_context
                 .compressed_account

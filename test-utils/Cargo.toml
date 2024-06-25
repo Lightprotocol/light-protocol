@@ -8,7 +8,6 @@ edition = "2021"
 
 [features]
 default = []
-cpi-context = []
 
 [dependencies]
 anchor-lang = "0.29.0"

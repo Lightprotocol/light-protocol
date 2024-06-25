@@ -16,7 +16,6 @@ cpi = ["no-entrypoint"]
 test-sbf = []
 custom-heap = []
 default = ["custom-heap"]
-cpi-context = []
 
 [dependencies]
 anchor-lang ={ version="0.29.0" }

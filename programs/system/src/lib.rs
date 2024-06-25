@@ -34,23 +34,15 @@ pub mod light_system_program {
     use super::*;
 
     pub fn init_cpi_context_account(_ctx: Context<InitializeCpiContextAccount>) -> Result<()> {
-        #[cfg(not(feature = "cpi-context"))]
-        {
-            unimplemented!("CPI context is not enabled");
-        }
+        use account_compression::state_merkle_tree_from_bytes_zero_copy_mut;
 
-        #[cfg(feature = "cpi-context")]
-        {
-            use account_compression::state_merkle_tree_from_bytes_zero_copy_mut;
-
-            let merkle_tree_account = _ctx.accounts.associated_merkle_tree.to_account_info();
-            let mut data = merkle_tree_account.try_borrow_mut_data()?;
-            state_merkle_tree_from_bytes_zero_copy_mut(&mut data)?;
-            _ctx.accounts
-                .cpi_context_account
-                .init(_ctx.accounts.associated_merkle_tree.key());
-            Ok(())
-        }
+        let merkle_tree_account = _ctx.accounts.associated_merkle_tree.to_account_info();
+        let mut data = merkle_tree_account.try_borrow_mut_data()?;
+        state_merkle_tree_from_bytes_zero_copy_mut(&mut data)?;
+        _ctx.accounts
+            .cpi_context_account
+            .init(_ctx.accounts.associated_merkle_tree.key());
+        Ok(())
     }
 
     pub fn invoke<'a, 'b, 'c: 'info, 'info>(

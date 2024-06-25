@@ -13,6 +13,7 @@ use crate::InstructionDataInvokeCpi;
 #[derive(Debug, PartialEq, Default)]
 #[account]
 pub struct CpiContextAccount {
+    pub fee_payer: Pubkey,
     pub associated_merkle_tree: Pubkey,
     pub context: Vec<InstructionDataInvokeCpi>,
 }
