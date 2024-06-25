@@ -4,6 +4,7 @@ pub struct ExternalServicesConfig {
     pub ws_rpc_url: String,
     pub indexer_url: String,
     pub prover_url: String,
+    pub derivation: String
 }
 
 impl ExternalServicesConfig {
@@ -13,6 +14,9 @@ impl ExternalServicesConfig {
             ws_rpc_url: "ws://localhost:8900".to_string(),
             indexer_url: "http://localhost:8784".to_string(),
             prover_url: "http://localhost:3001".to_string(),
+            // derivation: "H7ZzJngDRtAGCV8Y9HwJrMpsxeNZQyYkjxw4GE8YcUG2".to_string(),
+            derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
+            // derivation: "ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k".to_string()
         }
     }
 
@@ -22,6 +26,7 @@ impl ExternalServicesConfig {
             ws_rpc_url: "ws://zk-testnet.helius.dev:8900".to_string(),
             indexer_url: "https://zk-testnet.helius.dev:8784".to_string(),
             prover_url: "https://zk-testnet.helius.dev:3001".to_string(),
+            derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string()
         }
     }
 }

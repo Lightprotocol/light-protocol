@@ -271,7 +271,7 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
         indices: vec![leaf_index],
         proofs: vec![proof],
         authority: config.payer_keypair.pubkey(),
-        derivation: Pubkey::from_str("En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP").unwrap(),
+        derivation: Pubkey::from_str(&config.external_services.derivation).unwrap(),
     });
     let instructions = [
         solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_000_000),
