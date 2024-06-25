@@ -425,6 +425,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1),
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -436,6 +437,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: None,
+                lamports: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataApprove {
@@ -522,6 +524,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -533,6 +536,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
+                lamports: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataRevoke {

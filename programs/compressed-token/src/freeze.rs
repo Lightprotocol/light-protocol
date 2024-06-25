@@ -353,6 +353,7 @@ pub mod test_freeze {
                 },
                 root_index: 0,
                 delegate_index: None,
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -364,6 +365,7 @@ pub mod test_freeze {
                 },
                 root_index: 0,
                 delegate_index: Some(2),
+                lamports: None,
             },
         ];
         // Freeze

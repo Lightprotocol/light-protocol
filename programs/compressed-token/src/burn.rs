@@ -269,7 +269,6 @@ mod test {
         let input_token_data_with_context = vec![
             InputTokenDataWithContext {
                 amount: 100,
-
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -277,6 +276,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1),
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
@@ -288,6 +288,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: None,
+                lamports: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataBurn {

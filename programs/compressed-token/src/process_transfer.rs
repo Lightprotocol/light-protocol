@@ -418,6 +418,7 @@ pub struct InputTokenDataWithContext {
     pub delegate_index: Option<u8>,
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
+    pub lamports: Option<u64>,
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -485,7 +486,7 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         }
         let compressed_account = CompressedAccount {
             owner: crate::ID,
-            lamports: 0,
+            lamports: input_token_data.lamports.unwrap_or_default(),
             data: None,
             address: None,
         };
@@ -810,6 +811,7 @@ pub mod transfer_sdk {
                     leaf_index: input_merkle_context[i].leaf_index,
                 },
                 root_index: root_indices[i],
+                lamports: None, // TODO: test
             };
             input_token_data_with_context.push(token_data_with_context);
         }
