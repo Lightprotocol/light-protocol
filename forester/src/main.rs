@@ -120,19 +120,19 @@ async fn main() {
 }
 
 async fn nullify_state(config: &ForesterConfig) {
-    info!("Run state tree nullifer. Queue: {}. Merkle tree: {}", config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey);
-    let rpc = init_rpc(&config).await;
+    info!("Run state tree nullifier. Queue: {}. Merkle tree: {}", config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey);
+    let rpc = init_rpc(config).await;
     let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-    let result = nullify(indexer, rpc, &config).await;
+    let result = nullify(indexer, rpc, config).await;
     info!("State nullifier result: {:?}", result);
 }
 
 async fn nullify_addresses(config: &ForesterConfig) {
-    info!("Run address tree nullifer. Queue: {}. Merkle tree: {}", config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey);
-    let mut rpc = init_rpc(&config).await;
+    info!("Run address tree nullifier. Queue: {}. Merkle tree: {}", config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey);
+    let mut rpc = init_rpc(config).await;
     let mut indexer = PhotonIndexer::new(config.external_services.rpc_url.to_string());
-    let result = empty_address_queue(&mut indexer, &mut rpc, &config).await;
+    let result = empty_address_queue(&mut indexer, &mut rpc, config).await;
     info!("Address nullifier result: {:?}", result);
 }
 
