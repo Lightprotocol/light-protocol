@@ -143,7 +143,7 @@ mod tests {
         let max_input = [u8::MAX; 32];
         let (hashed_value, bump) = hash_to_bn254_field_size_be(max_input.as_slice())
             .expect("Failed to find a hash within BN254 field size");
-        assert_eq!(bump, 255, "Bump seed should be 0");
+        assert_eq!(bump, 255, "Bump seed should be 255");
         assert!(
             is_smaller_than_bn254_field_size_be(&hashed_value),
             "Hashed value should be within BN254 field size"
