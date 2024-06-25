@@ -140,12 +140,7 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
 
 async fn nullify_addresses(config: Arc<ForesterConfig>) {
     info!("Run address tree nullifier. Queue: {}. Merkle tree: {}", config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey);
-    // let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
-    // let rpc = init_rpc(&config).await;
-    // let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-    // let config = config.clone();
-    // let result = empty_address_queue(indexer, rpc, config).await;
-
+    
     let result = tokio::task::spawn_blocking(move || {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
