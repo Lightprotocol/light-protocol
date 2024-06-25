@@ -465,7 +465,6 @@ export interface CompressionApiInterface {
     getIndexerSlot(): Promise<number>;
 
     getLatestNonVotingSignatures(
-        cursor?: string,
         limit?: number,
     ): Promise<LatestNonVotingSignaturesResult>;
 

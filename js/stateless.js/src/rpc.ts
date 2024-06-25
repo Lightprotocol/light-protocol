@@ -999,13 +999,12 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Fetch all non-voting signatures
      */
     async getLatestNonVotingSignatures(
-        cursor?: string,
         limit?: number,
     ): Promise<LatestNonVotingSignaturesResult> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getLatestNonVotingSignatures',
-            { cursor, limit },
+            { limit },
         );
         const res = create(
             unsafeRes,

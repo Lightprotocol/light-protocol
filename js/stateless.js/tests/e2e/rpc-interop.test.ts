@@ -537,15 +537,8 @@ describe('rpc-interop', () => {
         let signatures = (await rpc.getLatestNonVotingSignatures()).value.items;
         assert.equal(signatures.length, executedTxs + testEnvSetupTxs);
 
-        signatures = (await rpc.getLatestNonVotingSignatures(undefined, 2))
-            .value.items;
+        signatures = (await rpc.getLatestNonVotingSignatures(2)).value.items;
         assert.equal(signatures.length, 2);
-
-        // TODO: Test usage of cursor
-        // signatures = (
-        //     await rpc.getLatestNonVotingSignatures(signatures[0].signature, 1)
-        // ).value.items;
-        // assert.equal(signatures.length, 1);
     });
 
     /// TODO: add getCompressedTransaction, getSignaturesForAddress3

@@ -322,7 +322,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * Fetch the current indexer health status
      */
     async getLatestNonVotingSignatures(
-        _cursor?: string,
         _limit?: number,
     ): Promise<LatestNonVotingSignaturesResult> {
         throw new Error(
