@@ -168,4 +168,35 @@ describe('rpc-interop token', () => {
 
         assert.equal(accs.length, 0);
     });
+
+    it('[rpc] getCompressedTokenAccountsByOwner with 2 mints should return both mints', async () => {
+        // additional mint
+        const mint2 = (
+            await createMint(
+                rpc,
+                payer,
+                mintAuthority.publicKey,
+                TEST_TOKEN_DECIMALS,
+            )
+        ).mint;
+
+        await mintTo(rpc, payer, mint2, bob.publicKey, mintAuthority, bn(1000));
+
+        const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
+            bob.publicKey,
+            {},
+        );
+
+        // check that mint and mint2 exist in list of senderaccounts at least once
+        assert.isTrue(
+            senderAccounts.some(
+                account => account.parsed.mint.toBase58() === mint.toBase58(),
+            ),
+        );
+        assert.isTrue(
+            senderAccounts.some(
+                account => account.parsed.mint.toBase58() === mint2.toBase58(),
+            ),
+        );
+    });
 });
