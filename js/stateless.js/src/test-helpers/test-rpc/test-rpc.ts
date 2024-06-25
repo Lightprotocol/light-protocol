@@ -419,7 +419,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * @param address queried compressed account address
      */
     async getCompressionSignaturesForAddress(
-        address: PublicKey,
+        _address: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error('getSignaturesForAddress3 not implemented');
     }

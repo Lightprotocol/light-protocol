@@ -1,5 +1,5 @@
 import { describe, it, assert, beforeAll } from 'vitest';
-import { Signer } from '@solana/web3.js';
+import { PublicKey, Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
@@ -8,6 +8,7 @@ import {
     compress,
     createAccount,
     createAccountWithLamports,
+    defaultTestStateTreeAccounts,
     deriveAddress,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
@@ -513,8 +514,8 @@ describe('rpc-interop', () => {
         const largestAccount = senderAccounts.reduce((acc, account) =>
             account.lamports.gt(acc.lamports) ? account : acc,
         );
-        /// assert for Rpc once getValidityProof is working again.
-        await transfer(testRpc, payer, 1, payer, bob.publicKey);
+
+        await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
         const signaturesSpent = await rpc.getSignaturesForCompressedAccount(
@@ -554,5 +555,33 @@ describe('rpc-interop', () => {
         /// is transfer
         assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
         assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
+    });
+
+    // TODO(photon): Fix 'internal server error'
+    it.skip('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
+        const seed = new Uint8Array([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+            20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+        ]);
+        const addressTree = defaultTestStateTreeAccounts().addressTree;
+        const address = await deriveAddress(seed, addressTree);
+
+        await createAccount(rpc, payer, seed, LightSystemProgram.programId);
+
+        // fetch the owners latest account
+        const accounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const latestAccount = accounts[0];
+
+        // assert the address was indexed
+        assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
+
+        const signaturesUnspent = await rpc.getCompressionSignaturesForAddress(
+            new PublicKey(latestAccount.address!),
+        );
+
+        /// most recent therefore unspent account
+        assert.equal(signaturesUnspent.length, 1);
     });
 });
