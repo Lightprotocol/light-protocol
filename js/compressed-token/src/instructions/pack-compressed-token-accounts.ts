@@ -84,7 +84,9 @@ export function packCompressedTokenAccounts(
                     leafIndex: account.compressedAccount.leafIndex,
                 },
                 rootIndex: rootIndices[index],
-                lamports: account.compressedAccount.lamports.eq(bn(0)) ? null : account.compressedAccount.lamports,
+                lamports: account.compressedAccount.lamports.eq(bn(0))
+                    ? null
+                    : account.compressedAccount.lamports,
             });
         },
     );

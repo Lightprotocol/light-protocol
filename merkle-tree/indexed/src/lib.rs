@@ -261,7 +261,7 @@ where
             .enumerate()
             .filter_map(|(index, changelog_entry)| {
                 if changelog_entry.element.index == low_element.index {
-                    Some(indexed_changelog_index + 1 + index)
+                    Some((indexed_changelog_index + 1 + index) % self.indexed_changelog.len())
                 } else {
                     None
                 }
@@ -279,7 +279,10 @@ where
                 // that it should become the low element.
                 //
                 // Save it and break the loop.
-                new_low_element = Some((next_indexed_changelog_index + 1, next_element_value));
+                new_low_element = Some((
+                    (next_indexed_changelog_index + 1) % self.indexed_changelog.len(),
+                    next_element_value,
+                ));
                 break;
             }
 

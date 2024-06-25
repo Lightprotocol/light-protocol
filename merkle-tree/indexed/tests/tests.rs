@@ -936,16 +936,17 @@ fn functional_changelog_test_random_wrap_around_8_128_512_0_512() {
     const CANOPY: usize = 0;
     const INDEXED_CHANGELOG: usize = 128;
     const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
-
-    functional_changelog_test_random::<
-        true,
-        HEIGHT,
-        CHANGELOG,
-        ROOTS,
-        CANOPY,
-        INDEXED_CHANGELOG,
-        N_OPERATIONS,
-    >()
+    for _ in 0..100 {
+        functional_changelog_test_random::<
+            true,
+            HEIGHT,
+            CHANGELOG,
+            ROOTS,
+            CANOPY,
+            INDEXED_CHANGELOG,
+            N_OPERATIONS,
+        >()
+    }
 }
 
 /// Performs `N_OPERATIONS` concurrent updates with random elements. All of them without

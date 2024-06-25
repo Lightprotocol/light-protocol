@@ -101,6 +101,7 @@ where
 #[cfg(test)]
 mod test {
     use light_hasher::Poseidon;
+    use light_utils::bigint::bigint_to_be_bytes_array;
     use num_bigint::RandBigInt;
     use rand::thread_rng;
 
@@ -163,7 +164,7 @@ mod test {
                 )
                 .unwrap();
 
-            let leaf: [u8; 32] = rng.gen_biguint(256).to_be_bytes().try_into().unwrap();
+            let leaf: [u8; 32] = bigint_to_be_bytes_array::<32>(&rng.gen_biguint(248)).unwrap();
             mt_1.append(&leaf).unwrap();
             mt_2.append(&leaf).unwrap();
 
