@@ -243,9 +243,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use ark_bn254::Fr;
-    use ark_ff::{BigInteger, PrimeField, UniformRand};
     use light_hasher::Poseidon;
+    use num_bigint::RandBigInt;
     use rand::thread_rng;
 
     use super::*;
@@ -305,11 +304,8 @@ mod test {
                 )
                 .unwrap();
 
-            let leaf: [u8; 32] = Fr::rand(&mut rng)
-                .into_bigint()
-                .to_bytes_be()
-                .try_into()
-                .unwrap();
+            let leaf: [u8; 32] = rng.gen_biguint(256).to_be_bytes().try_into().unwrap();
+
             mt_1.append(&leaf).unwrap();
             mt_2.append(&leaf).unwrap();
 

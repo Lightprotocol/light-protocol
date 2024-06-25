@@ -3019,8 +3019,6 @@ dependencies = [
 name = "light-indexed-merkle-tree"
 version = "0.2.0"
 dependencies = [
- "ark-bn254",
- "ark-ff",
  "borsh 0.10.3",
  "light-bounded-vec",
  "light-concurrent-merkle-tree",

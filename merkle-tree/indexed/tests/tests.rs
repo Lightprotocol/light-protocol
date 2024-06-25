@@ -1,7 +1,5 @@
 use std::cell::{RefCell, RefMut};
 
-use ark_bn254::Fr;
-use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
     errors::ConcurrentMerkleTreeError,
@@ -14,7 +12,7 @@ use light_indexed_merkle_tree::{
     reference, IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
-use num_bigint::{BigUint, ToBigUint};
+use num_bigint::{BigUint, RandBigInt, ToBigUint};
 use num_traits::{FromBytes, Num};
 use rand::thread_rng;
 use thiserror::Error;
@@ -964,10 +962,7 @@ fn functional_changelog_test_random<
 >() {
     let mut rng = thread_rng();
 
-    let leaves: Vec<BigUint> = (0..N_OPERATIONS)
-        .map(|_| BigUint::from_bytes_be(&Fr::rand(&mut rng).into_bigint().to_bytes_be()))
-        .collect();
-
+    let leaves: Vec<BigUint> = (0..N_OPERATIONS).map(|_| rng.gen_biguint(248)).collect();
     perform_change_log_test::<
         false,
         WRAP_AROUND,
@@ -1016,7 +1011,7 @@ fn perform_change_log_test<
     relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
-    let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, 10>::new(
+    let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, HEIGHT>::new(
         HEIGHT,
         CHANGELOG,
         ROOTS,
@@ -1071,11 +1066,24 @@ fn perform_change_log_test<
             let res = onchain_indexed_merkle_tree.update(
                 changelog_index,
                 indexed_changelog_index,
-                address_bundle.new_element,
-                old_low_address,
+                address_bundle.new_element.clone(),
+                old_low_address.clone(),
                 old_low_address_next_value,
                 &mut low_element_proof,
             );
+            println!("changelog_index {:?}", changelog_index);
+            println!("indexed_changelog_index {:?}", indexed_changelog_index);
+            println!(
+                "address_bundle new_element_next_value{:?}",
+                address_bundle.new_element_next_value
+            );
+            println!(
+                "address_bundle new_element {:?}",
+                address_bundle.new_element
+            );
+
+            println!("old_low_address {:?}", old_low_address);
+            println!("res {:?}", res);
             assert!(matches!(
                 res,
                 Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
