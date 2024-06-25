@@ -96,9 +96,13 @@ async fn tree_info_test() {
 async fn test_nullify_leaves() {
     let config = test_config();
     let rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
-    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(INDEXER_URL.to_string())));
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+        INDEXER_URL.to_string(),
+    )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-    rpc.lock().await.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
+    rpc.lock()
+        .await
+        .airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
 

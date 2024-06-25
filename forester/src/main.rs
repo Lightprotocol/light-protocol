@@ -2,23 +2,23 @@ use anchor_lang::prelude::Pubkey;
 use clap::Parser;
 use config::Config;
 use env_logger::Env;
-use forester::nqmt::reindex_and_store;
-use log::info;
-use solana_sdk::signature::{Keypair, Signer};
-use std::str::FromStr;
-use serde_json::Result;
 use forester::cli::{Cli, Commands};
 use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
-use forester::nullifier::{Config as ForesterConfig, empty_address_queue};
+use forester::nqmt::reindex_and_store;
+use forester::nullifier::{empty_address_queue, Config as ForesterConfig};
 use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
-use light_test_utils::rpc::SolanaRpcConnection;
-use std::env;
-use std::sync::Arc;
-use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-use tokio::try_join;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::SolanaRpcConnection;
+use log::info;
+use serde_json::Result;
+use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
+use solana_sdk::signature::{Keypair, Signer};
+use std::env;
+use std::str::FromStr;
+use std::sync::Arc;
+use tokio::try_join;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -61,7 +61,9 @@ fn init_config() -> ForesterConfig {
     let registry_pubkey = settings
         .get_string(&SettingsKey::RegistryPubkey.to_string())
         .unwrap();
-    let payer = settings.get_string(&SettingsKey::Payer.to_string()).unwrap();
+    let payer = settings
+        .get_string(&SettingsKey::Payer.to_string())
+        .unwrap();
     let payer: Vec<u8> = convert(&payer).unwrap();
 
     ForesterConfig {
@@ -101,18 +103,13 @@ async fn main() {
         }
         Some(Commands::Nullify) => {
             let config_clone = config.clone();
-            let task_clear_addresses = tokio::spawn({
-                async move { nullify_addresses(config_clone).await }
-            });
+            let task_clear_addresses =
+                tokio::spawn(async move { nullify_addresses(config_clone).await });
 
             let config_clone = config.clone();
-            let task_clear_state = tokio::spawn({
-                async move { nullify_state(config_clone).await }
-            });
+            let task_clear_state = tokio::spawn(async move { nullify_state(config_clone).await });
 
-            try_join!(task_clear_addresses, task_clear_state)
-                .expect("Failed to join tasks");
-
+            try_join!(task_clear_addresses, task_clear_state).expect("Failed to join tasks");
         }
         Some(Commands::Index) => {
             info!("Reindex merkle tree & nullifier queue accounts");
@@ -129,9 +126,14 @@ async fn main() {
 }
 
 async fn nullify_state(config: Arc<ForesterConfig>) {
-    info!("Run state tree nullifier. Queue: {}. Merkle tree: {}", config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey);
+    info!(
+        "Run state tree nullifier. Queue: {}. Merkle tree: {}",
+        config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
+    );
     let rpc = init_rpc(&config).await;
-    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+        config.external_services.rpc_url.to_string(),
+    )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
     let config = config.clone();
     let result = nullify(indexer, rpc, config).await;
@@ -139,30 +141,39 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
 }
 
 async fn nullify_addresses(config: Arc<ForesterConfig>) {
-    info!("Run address tree nullifier. Queue: {}. Merkle tree: {}", config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey);
-    
+    info!(
+        "Run address tree nullifier. Queue: {}. Merkle tree: {}",
+        config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
+    );
+
     let result = tokio::task::spawn_blocking(move || {
         let runtime = tokio::runtime::Runtime::new().unwrap();
         runtime.block_on(async {
-            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.rpc_url.to_string())));
+            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+                config.external_services.rpc_url.to_string(),
+            )));
             let rpc = init_rpc(&config).await;
             let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
             empty_address_queue(indexer, rpc, config).await
         })
-    }).await.unwrap();
+    })
+    .await
+    .unwrap();
 
     info!("Address nullifier result: {:?}", result);
 }
 
 async fn init_rpc(config: &Arc<ForesterConfig>) -> SolanaRpcConnection {
-    let mut rpc = SolanaRpcConnection::new(config.external_services.rpc_url.clone(), Some(CommitmentConfig {
-        commitment: CommitmentLevel::Confirmed,
-    }));
+    let mut rpc = SolanaRpcConnection::new(
+        config.external_services.rpc_url.clone(),
+        Some(CommitmentConfig {
+            commitment: CommitmentLevel::Confirmed,
+        }),
+    );
 
-    rpc.airdrop_lamports(
-        &config.payer_keypair.pubkey(),
-        10_000_000_000,
-    ).await.unwrap();
+    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
 
     rpc
 }

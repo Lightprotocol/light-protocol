@@ -1,18 +1,17 @@
 use env_logger::Env;
-use forester::external_services_config::INDEXER_URL;
 use forester::indexer::PhotonIndexer;
 use forester::utils::{spawn_validator, LightValidatorConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
+use forester::external_services_config::ExternalServicesConfig;
 
 // truncate to <254 bit
 pub fn generate_pubkey_254() -> Pubkey {
@@ -24,8 +23,8 @@ pub fn generate_pubkey_254() -> Pubkey {
 
 pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
-    trees: &Vec<Pubkey>,
-    addresses: &Vec<Pubkey>,
+    trees: &[Pubkey],
+    addresses: &[Pubkey],
     photon_indexer: &PhotonIndexer,
 ) {
     for (tree, address) in trees.iter().zip(addresses.iter()) {
@@ -103,7 +102,9 @@ async fn test_photon_interop_address() {
     spawn_validator(validator_config).await;
 
     let env_accounts = get_test_env_accounts();
-    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
+
+    let services_config = ExternalServicesConfig::local();
+    let mut rpc = SolanaRpcConnection::new(services_config.rpc_url, None);
 
     // Airdrop because currently TestEnv.new() transfers funds from get_payer.
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
@@ -133,7 +134,7 @@ async fn test_photon_interop_address() {
     )
     .await;
 
-    let photon_indexer = PhotonIndexer::new(INDEXER_URL.to_string());
+    let photon_indexer = PhotonIndexer::new(services_config.indexer_url.to_string());
 
     // Insert value into address queue
     info!("Creating address 1");
@@ -148,10 +149,10 @@ async fn test_photon_interop_address() {
             assert_new_address_proofs_for_photon_and_test_indexer(
                 &mut env.indexer,
                 &trees,
-                &[address_1].to_vec(),
+                [address_1].as_ref(),
                 &photon_indexer,
             )
-                .await;
+            .await;
         }
         let _created_addresses = env.create_address(Some(vec![address_1])).await;
         trees = env.get_address_merkle_tree_pubkeys(1).0;
@@ -170,7 +171,7 @@ async fn test_photon_interop_address() {
         assert_new_address_proofs_for_photon_and_test_indexer(
             &mut env.indexer,
             &trees,
-            &[address_2].to_vec(),
+            [address_2].as_ref(),
             &photon_indexer,
         )
         .await;

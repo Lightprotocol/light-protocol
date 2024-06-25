@@ -1,7 +1,9 @@
 use crate::errors::ForesterError;
 use crate::nullifier::queue_data::Account;
 use crate::nullifier::{Config, StateQueueData};
+use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
 use account_compression::{QueueAccount, StateMerkleTreeAccount};
+use futures::future::select_all;
 use light_hash_set::HashSet;
 use light_hasher::Poseidon;
 use light_registry::sdk::{create_nullify_instruction, CreateNullifyInstructionInputs};
@@ -10,17 +12,15 @@ use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{info, warn};
 use solana_sdk::pubkey::Pubkey;
-use std::str::FromStr;
 use solana_sdk::signature::Signer;
 use std::collections::HashMap;
 use std::mem;
+use std::str::FromStr;
 use std::sync::Arc;
-use futures::future::select_all;
 use tokio::signal;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
 
 #[allow(dead_code)]
 pub async fn pub_nullify<T: Indexer, R: RpcConnection>(
@@ -95,7 +95,8 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
                 &config_clone,
                 &rpc_clone,
                 &indexer_clone,
-            ).await
+            )
+            .await
         });
 
         handles.push(handle);
@@ -149,7 +150,7 @@ async fn process_batch<T: Indexer, R: RpcConnection>(
                     &mut *rpc.lock().await,
                     &mut *indexer.lock().await,
                 )
-                    .await
+                .await
                 {
                     Ok(_) => {
                         let mut successful_nullifications = successful_nullifications.lock().await;
@@ -192,7 +193,8 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
     let (change_log_index, sequence_number) =
         { get_changelog_index(&config.state_merkle_tree_pubkey, &mut *rpc.lock().await).await? };
     let compressed_accounts_to_nullify = {
-        let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut *rpc.lock().await).await?;
+        let queue =
+            get_nullifier_queue(&config.nullifier_queue_pubkey, &mut *rpc.lock().await).await?;
         info!(
             "Queue length: {}. Trimming to batch size of {}...",
             queue.len(),
@@ -213,8 +215,13 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
         .map(|account| account.hash_string())
         .collect::<Vec<_>>();
 
-    info!("Fetching proofs for accounts: {:?}", compressed_account_list);
-    let proofs = &mut *indexer.lock().await
+    info!(
+        "Fetching proofs for accounts: {:?}",
+        compressed_account_list
+    );
+    let proofs = &mut *indexer
+        .lock()
+        .await
         .get_multiple_compressed_account_proofs(compressed_account_list.clone())
         .await
         .map_err(|e| {
@@ -222,7 +229,7 @@ async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
             ForesterError::NoProofsFound
         })?;
     let compressed_account_proofs: HashMap<String, (Vec<[u8; 32]>, u64, u64)> = proofs
-        .into_iter()
+        .iter_mut()
         .map(|proof| {
             (
                 proof.hash.clone(),
@@ -327,6 +334,6 @@ pub async fn get_changelog_index<R: RpcConnection>(
         rpc,
         *merkle_tree_pubkey,
     )
-        .await;
+    .await;
     Ok((merkle_tree.changelog_index(), merkle_tree.sequence_number()))
 }

@@ -1,7 +1,4 @@
-use std::sync::Arc;
 use env_logger::Env;
-use futures::stream::iter;
-use forester::external_services_config::{INDEXER_URL, SERVER_URL};
 use forester::nullifier::{get_nullifier_queue, nullify, Config};
 use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
@@ -12,7 +9,8 @@ use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
-use forester::indexer::PhotonIndexer;
+use std::sync::Arc;
+use forester::external_services_config::ExternalServicesConfig;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {
@@ -21,7 +19,7 @@ async fn test_state_tree_nullifier() {
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let config = Config {
-        server_url: SERVER_URL.to_string(),
+        external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,
@@ -71,10 +69,8 @@ async fn test_state_tree_nullifier() {
 
     let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer));
     let rpc = Arc::new(tokio::sync::Mutex::new(env.rpc));
-
-    nullify(indexer, rpc, &config)
-        .await
-        .unwrap();
+    let config = Arc::new(config);
+    nullify(indexer, rpc, config).await.unwrap();
     // assert_eq!(get_state_queue_length(&mut *rpc.lock().await, &config).await, 0);
 }
 

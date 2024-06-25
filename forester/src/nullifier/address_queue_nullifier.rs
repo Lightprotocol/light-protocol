@@ -1,3 +1,5 @@
+use crate::errors::ForesterError;
+use crate::nullifier::Config;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use light_hash_set::HashSet;
@@ -9,15 +11,13 @@ use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::errors::RpcError;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use log::{info};
+use log::info;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use std::mem;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
-use crate::errors::ForesterError;
-use crate::nullifier::Config;
 
 pub async fn empty_address_queue<I: Indexer, R: RpcConnection>(
     indexer: Arc<Mutex<I>>,
@@ -40,16 +40,17 @@ pub async fn empty_address_queue<I: Indexer, R: RpcConnection>(
 
 async fn fetch_address_queue_data<R: RpcConnection>(
     config: &Arc<Config>,
-    rpc: &Arc<Mutex<R>>
+    rpc: &Arc<Mutex<R>>,
 ) -> Result<Vec<crate::nullifier::queue_data::Account>, ForesterError> {
     // let address_merkle_tree_pubkey = config.address_merkle_tree_pubkey;
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
 
-    let mut account = (*rpc.lock().await).get_account(address_queue_pubkey).await?.unwrap();
+    let mut account = (*rpc.lock().await)
+        .get_account(address_queue_pubkey)
+        .await?
+        .unwrap();
     let address_queue: HashSet = unsafe {
-        HashSet::from_bytes_copy(
-            &mut account.data[8 + mem::size_of::<QueueAccount>()..],
-        )?
+        HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
     let mut address_queue_vec = Vec::new();
     let address = address_queue.first_no_seq().unwrap();
@@ -71,7 +72,7 @@ async fn process_address_queue<I: Indexer, R: RpcConnection>(
     queue_data: Vec<crate::nullifier::queue_data::Account>,
     indexer: &Arc<Mutex<I>>,
     rpc: &Arc<Mutex<R>>,
-    config: &Arc<Config>
+    config: &Arc<Config>,
 ) {
     for account in queue_data {
         let address_merkle_tree_pubkey = config.address_merkle_tree_pubkey;
@@ -81,50 +82,50 @@ async fn process_address_queue<I: Indexer, R: RpcConnection>(
         let address_hashset_index = account.index;
         let mut update_errors: Vec<RpcError> = Vec::new();
         let rpc_clone = Arc::clone(rpc);
-        let rpc_clone =  &mut *rpc_clone.lock().await;
+        let rpc_clone = &mut *rpc_clone.lock().await;
 
-        let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
-            rpc_clone,
-            address_merkle_tree_pubkey,
-        ).await;
+        let merkle_tree =
+            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                rpc_clone,
+                address_merkle_tree_pubkey,
+            )
+            .await;
         info!("address merkle_tree root: {:?}", merkle_tree.root());
-                 let proof = (*indexer.lock().await)
-                    .get_address_tree_proof(address_merkle_tree_pubkey.to_bytes(), address)
-                    .await
-                    .unwrap();
-                info!("proof: {:?}", proof);
-                info!("updating merkle tree...");
+        let proof = (*indexer.lock().await)
+            .get_address_tree_proof(address_merkle_tree_pubkey.to_bytes(), address)
+            .await
+            .unwrap();
+        info!("proof: {:?}", proof);
+        info!("updating merkle tree...");
 
-
-                let update_successful = match update_merkle_tree(
-                    rpc,
-                    &config.payer_keypair,
-                    address_queue_pubkey,
-                    address_merkle_tree_pubkey,
-                    address_hashset_index as u16,
-                    proof.low_address_index,
-                    proof.low_address_value,
-                    proof.low_address_next_index,
-                    proof.low_address_next_value,
-                    proof.low_address_proof,
-                )
-                .await
-                {
-                    Ok(event) => {
-                        info!("event: {:?}", event);
-                        true
-                    }
-                    Err(e) => {
-                        update_errors.push(e);
-                        break;
-                    }
-                };
-                info!("update_successful: {:?}", update_successful);
-                if update_successful {
-                    (*indexer.lock().await).address_tree_updated(address_merkle_tree_pubkey.to_bytes(), proof)
-                }
-
-
+        let update_successful = match update_merkle_tree(
+            rpc,
+            &config.payer_keypair,
+            address_queue_pubkey,
+            address_merkle_tree_pubkey,
+            address_hashset_index as u16,
+            proof.low_address_index,
+            proof.low_address_value,
+            proof.low_address_next_index,
+            proof.low_address_next_value,
+            proof.low_address_proof,
+        )
+        .await
+        {
+            Ok(event) => {
+                info!("event: {:?}", event);
+                true
+            }
+            Err(e) => {
+                update_errors.push(e);
+                break;
+            }
+        };
+        info!("update_successful: {:?}", update_successful);
+        if update_successful {
+            (*indexer.lock().await)
+                .address_tree_updated(address_merkle_tree_pubkey.to_bytes(), proof)
+        }
     }
 }
 

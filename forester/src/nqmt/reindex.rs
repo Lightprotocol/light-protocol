@@ -11,7 +11,10 @@ use std::collections::LinkedList;
 const INVALID_MT_PUBKEY: &str = "11111111111111111111111111111111";
 
 pub fn reindex_and_store(config: &Config) -> Result<(), ForesterError> {
-    match reindex(&config.state_merkle_tree_pubkey, &config.external_services.rpc_url) {
+    match reindex(
+        &config.state_merkle_tree_pubkey,
+        &config.external_services.rpc_url,
+    ) {
         Ok(list) => {
             info!("Indexed {} merkle trees", list.len());
             serialize_indexed_mt(list)?;

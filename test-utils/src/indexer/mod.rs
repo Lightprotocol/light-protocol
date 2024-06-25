@@ -42,9 +42,7 @@ pub trait Indexer: Sync + Send + Clone + 'static {
         address: [u8; 32],
     ) -> impl std::future::Future<Output = Result<NewAddressProofWithContext, IndexerError>> + Send + Sync;
 
-
-    fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {
-    }
+    fn account_nullified(&mut self, _merkle_tree_pubkey: Pubkey, _account_hash: &str) {}
 
     fn address_tree_updated(
         &mut self,

@@ -1,6 +1,6 @@
+use crate::external_services_config::ExternalServicesConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
-use crate::external_services_config::ExternalServicesConfig;
 
 pub struct Config {
     pub external_services: ExternalServicesConfig,
@@ -29,7 +29,7 @@ impl Clone for Config {
             concurrency_limit: self.concurrency_limit,
             batch_size: self.batch_size,
             max_retries: self.max_retries,
-            max_concurrent_batches: self.max_concurrent_batches
+            max_concurrent_batches: self.max_concurrent_batches,
         }
     }
 }

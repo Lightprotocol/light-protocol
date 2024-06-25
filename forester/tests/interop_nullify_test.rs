@@ -1,8 +1,12 @@
+use account_compression::StateMerkleTreeAccount;
 use env_logger::Env;
 use forester::external_services_config::{INDEXER_URL, SERVER_URL};
 use forester::indexer::PhotonIndexer;
-use forester::utils::{spawn_validator, LightValidatorConfig, get_state_queue_length};
+use forester::nullifier::{get_nullifier_queue, nullify, Config};
+use forester::utils::{get_state_queue_length, spawn_validator, LightValidatorConfig};
+use light_hasher::Poseidon;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig, User};
+use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -13,17 +17,12 @@ use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
-use account_compression::StateMerkleTreeAccount;
-use forester::nullifier::{Config, get_nullifier_queue, nullify};
-use light_hasher::Poseidon;
-use light_test_utils::get_concurrent_merkle_tree;
 
 pub async fn assert_accounts_by_owner(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
     user: &User,
     photon_indexer: &PhotonIndexer,
-)
-{
+) {
     let mut photon_accs = photon_indexer
         .get_rpc_compressed_accounts_by_owner(&user.keypair.pubkey())
         .await
@@ -56,8 +55,7 @@ pub async fn assert_account_proofs_for_photon_and_test_indexer(
     indexer: &mut TestIndexer<500, SolanaRpcConnection>,
     user_pubkey: &Pubkey,
     photon_indexer: &PhotonIndexer,
-)
-{
+) {
     let accs: Result<Vec<String>, light_test_utils::indexer::IndexerError> = indexer
         .get_rpc_compressed_accounts_by_owner(user_pubkey)
         .await;
@@ -173,7 +171,7 @@ async fn test_photon_interop_nullify_account() {
                 &alice.keypair.pubkey(),
                 &photon_indexer,
             )
-                .await;
+            .await;
         }
 
         // Insert output into nullifier queue
@@ -187,7 +185,7 @@ async fn test_photon_interop_nullify_account() {
                 &alice.keypair.pubkey(),
                 &photon_indexer,
             )
-                .await;
+            .await;
         }
     }
 

@@ -169,7 +169,7 @@ pub struct CreateNullifyInstructionInputs {
     pub leaves_queue_indices: Vec<u16>,
     pub indices: Vec<u64>,
     pub proofs: Vec<Vec<[u8; 32]>>,
-    pub derivation: Pubkey
+    pub derivation: Pubkey,
 }
 
 pub fn create_nullify_instruction(inputs: CreateNullifyInstructionInputs) -> Instruction {

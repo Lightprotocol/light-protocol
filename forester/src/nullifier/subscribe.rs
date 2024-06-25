@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use super::{nullify, Config};
 use crate::indexer::PhotonIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -6,10 +5,16 @@ use log::{info, warn};
 use solana_client::pubsub_client::PubsubClient;
 use solana_client::rpc_config::RpcAccountInfoConfig;
 use solana_sdk::commitment_config::CommitmentConfig;
+use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-pub async fn subscribe_nullify<R: RpcConnection + Clone + Send + Sync + 'static>(config: &Config, rpc: R) {
-    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(config.external_services.indexer_url.to_string())));
+pub async fn subscribe_nullify<R: RpcConnection + Clone + Send + Sync + 'static>(
+    config: &Config,
+    rpc: R,
+) {
+    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
+        config.external_services.indexer_url.to_string(),
+    )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
     let config = Arc::new(config.clone());
 

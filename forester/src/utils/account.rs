@@ -1,5 +1,5 @@
+use crate::nullifier::{get_nullifier_queue, Config};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use crate::nullifier::{Config, get_nullifier_queue};
 
 pub fn decode_hash(account: &str) -> [u8; 32] {
     let bytes = bs58::decode(account).into_vec().unwrap();
