@@ -645,6 +645,11 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
                 },
+                lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
+                    Some(token_account.compressed_account.compressed_account.lamports)
+                } else {
+                    None
+                },
             },
         }),
         _ => None,
