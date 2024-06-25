@@ -74,71 +74,65 @@ mod test {
         let s = buf.as_mut_ptr() as *mut TestStruct;
 
         unsafe {
-            (*s).a = -9223372036854771632;
-            (*s).b = 9223372036854771632;
-            (*s).c = -9223372036854771632;
-            (*s).d = 9223372036854771632;
-            (*s).e = -2147483623;
-            (*s).f = 2147483623;
-            (*s).g = -32721;
-            (*s).h = 32721;
-            (*s).i = -127;
-            (*s).j = 127;
+            (*s).a = isize::MIN;
+            (*s).b = usize::MAX;
+            (*s).c = i64::MIN;
+            (*s).d = u64::MAX;
+            (*s).e = i32::MIN;
+            (*s).f = u32::MAX;
+            (*s).g = i16::MIN;
+            (*s).h = u16::MAX;
+            (*s).i = i8::MIN;
+            (*s).j = u8::MAX;
 
             let mut offset = offset_of!(TestStruct, a);
             assert_eq!(offset, 0);
-            assert_eq!(
-                *read_ptr_at::<isize>(&buf, &mut offset),
-                -9223372036854771632
-            );
+            assert_eq!(*read_ptr_at::<isize>(&buf, &mut offset), isize::MIN);
             assert_eq!(offset, 8);
 
             let mut offset = offset_of!(TestStruct, b);
             assert_eq!(offset, 8);
-            assert_eq!(
-                *read_ptr_at::<usize>(&buf, &mut offset),
-                9223372036854771632
-            );
+            assert_eq!(*read_ptr_at::<usize>(&buf, &mut offset), usize::MAX);
             assert_eq!(offset, 16);
 
             let mut offset = offset_of!(TestStruct, c);
             assert_eq!(offset, 16);
-            assert_eq!(*read_ptr_at::<i64>(&buf, &mut offset), -9223372036854771632);
+            assert_eq!(*read_ptr_at::<i64>(&buf, &mut offset), i64::MIN);
             assert_eq!(offset, 24);
 
             let mut offset = offset_of!(TestStruct, d);
             assert_eq!(offset, 24);
-            assert_eq!(*read_ptr_at::<u64>(&buf, &mut offset), 9223372036854771632);
+            assert_eq!(*read_ptr_at::<u64>(&buf, &mut offset), u64::MAX);
             assert_eq!(offset, 32);
 
             let mut offset = offset_of!(TestStruct, e);
             assert_eq!(offset, 32);
-            assert_eq!(*read_ptr_at::<i32>(&buf, &mut offset), -2147483623);
+            assert_eq!(*read_ptr_at::<i32>(&buf, &mut offset), i32::MIN);
             assert_eq!(offset, 36);
 
             let mut offset = offset_of!(TestStruct, f);
             assert_eq!(offset, 36);
-            assert_eq!(*read_ptr_at::<u32>(&buf, &mut offset), 2147483623);
+            assert_eq!(*read_ptr_at::<u32>(&buf, &mut offset), u32::MAX);
             assert_eq!(offset, 40);
 
             let mut offset = offset_of!(TestStruct, g);
             assert_eq!(offset, 40);
-            assert_eq!(*read_ptr_at::<i16>(&buf, &mut offset), -32721);
+            assert_eq!(*read_ptr_at::<i16>(&buf, &mut offset), i16::MIN);
             assert_eq!(offset, 42);
 
             let mut offset = offset_of!(TestStruct, h);
             assert_eq!(offset, 44);
-            assert_eq!(*read_ptr_at::<u16>(&buf, &mut offset), 32721);
+            assert_eq!(*read_ptr_at::<u16>(&buf, &mut offset), u16::MAX);
             assert_eq!(offset, 46);
 
             let mut offset = offset_of!(TestStruct, i);
             assert_eq!(offset, 48);
-            assert_eq!(*read_ptr_at::<i8>(&buf, &mut offset), -127);
+            assert_eq!(*read_ptr_at::<i8>(&buf, &mut offset), i8::MIN);
             assert_eq!(offset, 49);
 
             let mut offset = offset_of!(TestStruct, j);
             assert_eq!(offset, 52);
-            assert_eq!(*read_ptr_at::<u8>(&buf, &mut offset), 127);
+            assert_eq!(*read_ptr_at::<u8>(&buf, &mut offset), u8::MAX);
             assert_eq!(offset, 53);
         }
     }
@@ -204,16 +198,16 @@ mod test {
 
         let mut buf = vec![0_u8; mem::size_of::<TestStruct>()];
 
-        let a: isize = -9223372036854771632;
-        let b: usize = 9223372036854771632;
-        let c: i64 = -9223372036854771632;
-        let d: u64 = 9223372036854771632;
-        let e: i32 = -2147483623;
-        let f: u32 = 2147483623;
-        let g: i16 = -32721;
-        let h: u16 = 32721;
-        let i: i8 = -127;
-        let j: u8 = 127;
+        let a: isize = isize::MIN;
+        let b: usize = usize::MAX;
+        let c: i64 = i64::MIN;
+        let d: u64 = u64::MAX;
+        let e: i32 = i32::MIN;
+        let f: u32 = u32::MAX;
+        let g: i16 = i16::MIN;
+        let h: u16 = u16::MAX;
+        let i: i8 = i8::MIN;
+        let j: u8 = u8::MAX;
 
         let mut offset = offset_of!(TestStruct, a);
         assert_eq!(offset, 0);
