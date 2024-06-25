@@ -86,7 +86,9 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 
     const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {
         [propertyToCheck]: ownerOrDelegate.toBase58(),
-        mint: options.mint.toBase58(),
+        mint: options.mint?.toBase58(),
+        limit: options.limit,
+        cursor: options.cursor,
     });
 
     const res = create(
@@ -753,7 +755,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
             'getCompressedTokenBalancesByOwner',
             {
                 owner: owner.toBase58(),
-                mint: options.mint.toBase58(),
+                mint: options.mint?.toBase58(),
+                limit: options.limit,
+                cursor: options.cursor,
             },
         );
 
@@ -773,13 +777,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        /// filter by mint
-        const filtered = res.result.value.tokenBalances.filter(
-            tokenBalance =>
-                tokenBalance.mint.toBase58() === options.mint.toBase58(),
-        );
+        const maybeFiltered = options.mint
+            ? res.result.value.tokenBalances.filter(
+                  tokenBalance =>
+                      tokenBalance.mint.toBase58() === options.mint!.toBase58(),
+              )
+            : res.result.value.tokenBalances;
 
-        return filtered;
+        return maybeFiltered;
     }
 
     /**

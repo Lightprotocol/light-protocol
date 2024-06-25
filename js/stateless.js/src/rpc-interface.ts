@@ -68,7 +68,7 @@ export type CompressedProofWithContext = {
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-    mint: PublicKey;
+    mint?: PublicKey;
     cursor?: string;
     limit?: BN;
 }
