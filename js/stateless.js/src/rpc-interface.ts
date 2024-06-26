@@ -26,6 +26,21 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+export interface LatestNonVotingSignatures {
+    context: { slot: number };
+    value: {
+        items: { signature: string; slot: number; blockTime: number }[];
+    };
+}
+
+export interface LatestNonVotingSignaturesPaginated {
+    context: { slot: number };
+    value: {
+        items: { signature: string; slot: number; blockTime: number }[];
+        cursor: string | null;
+    };
+}
+
 export interface SignatureWithMetadata {
     blockTime: number;
     signature: string;
@@ -492,19 +507,4 @@ export interface CompressionApiInterface {
         hashes: BN254[],
         newAddresses: BN254[],
     ): Promise<CompressedProofWithContext>;
-}
-
-export interface LatestNonVotingSignatures {
-    context: { slot: number };
-    value: {
-        items: { signature: string; slot: number; blockTime: number }[];
-    };
-}
-
-export interface LatestNonVotingSignaturesPaginated {
-    context: { slot: number };
-    value: {
-        items: { signature: string; slot: number; blockTime: number }[];
-        cursor: string | null;
-    };
 }
