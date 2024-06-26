@@ -1,360 +1,139 @@
 import ProvenZk
-import FormalVerification
-import FormalVerification.Insertion
-import FormalVerification.Deletion
-import FormalVerification.Common
-import FormalVerification.Poseidon
-import FormalVerification.InputHashing
-import FormalVerification.ReducednessCheck
-import FormalVerification.BinaryDecompositions
+import FormalVerification.Circuit
 
-open SemaphoreMTB (F Order)
+open LightProver (F Order)
+variable [Fact (Nat.Prime Order)]
+
+lemma x : (2:F)^248 = 452312848583266388373324160190187140051835877600158453279131187530910662656 := by rfl
+lemma pow2_248_val : ((2:F)^248).val = 2^248 := by rfl
+
+def ZMod.toInt (n : ZMod N): ℤ := n.val
+lemma pow2_248_toInt : ((2:F)^248).toInt = 2^248 := by rfl
 
 
-namespace Poseidon
+lemma ZMod.toInt_nonneg [NeZero N] {n : ZMod N}: 0 ≤ n.toInt := by
+  rw [toInt]
+  apply Int.ofNat_nonneg
 
-/--
-Tests the Poseidon implementation automatically derived from the circuit, by
-comparing its output on an arbitrary value to a reference value.
+lemma ZMod.toInt_lt [NeZero N] {n : ZMod N}: n.toInt < N := by
+  rw [toInt]
+  rw [Nat.cast_lt]
+  apply ZMod.val_lt
 
-The reference value is taken from
-<https://extgit.iaik.tugraz.at/krypto/hadeshash/blob/master/code/test_vectors.txt>
--/
-theorem poseidon₂_test:
-    poseidon₂ vec![1,2] = 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a
-  := by native_decide
+lemma ZMod.toInt_neg [NeZero N] {n : ZMod N}: (-n).toInt = -(n.toInt) % N := by
+  simp [toInt, neg_val]
+  split
+  . simp [*]
+  . rw [Nat.cast_sub]
+    . rw [←Int.add_emod_self_left]
+      rw [Int.emod_eq_of_lt]
+      . congr; simp
+      . simp
+        apply le_of_lt
+        rw [ZMod.cast_eq_val, Int.ofNat_lt]
+        apply ZMod.val_lt
+      . simp
+        rw [ZMod.cast_eq_val, ←Int.ofNat_zero, Int.ofNat_lt]
+        apply Nat.zero_lt_of_ne_zero
+        simp [*]
+    . exact Nat.le_of_lt (ZMod.val_lt _)
 
-end Poseidon
+lemma ZMod.toInt_add [NeZero N] {n m : ZMod N}: (n + m).toInt = (m.toInt + n.toInt) % N := by
+  simp [toInt, val_add, add_comm]
 
-namespace Deletion
+lemma ZMod.toInt_sub [NeZero N] {n m : ZMod N}: (n - m).toInt = (n.toInt - m.toInt) % N := by
+  simp [sub_eq_add_neg, toInt_add, toInt_neg, add_comm]
 
-/--
-States the exact semantics of the deletion circuit.
-Whenever the circuit is satisfied, there exists a Merkle tree, such that:
-1. its root is equal to the one given as the `postRoot` input;
-2. for every index `i` in `deletionIndices`, the value at index `i` is zero;
-3. for every index `i` not in `deletionIndices`, the value at index `i` is
-   unchanged.
--/
-theorem root_transformation_correct
-  [Fact (CollisionResistant poseidon₂)]
-  {tree : MerkleTree F poseidon₂ D}:
-    SemaphoreMTB.DeletionMbuCircuit_4_4_30_4_4_30 inputHash deletionIndices tree.root postRoot identities merkleProofs →
-    ∃(postTree : MerkleTree F poseidon₂ D),
-    postTree.root = postRoot ∧
-    (∀ i ∈ deletionIndices, postTree[i.val]! = 0) ∧
-    (∀ i, i ∉ deletionIndices → postTree[i.val]! = tree[i.val]!)
-  := by
-  intro hp
-  replace hp := Deletion_skipHashing hp
-  rw [deletionProofCircuit_eq_deletionRoundsSemantics] at hp
-  replace hp := deletionRounds_rootTransformation hp
-  rcases hp with ⟨postTree, treeTrans, rootTrans⟩
-  exists postTree
-  refine ⟨rootTrans, ?inrange, ?outrange⟩
-  . intro i hi
-    apply treeTranform_get_present treeTrans hi
-  . intro i hi
-    simp [getElem!_eq_getElem?_get!]
-    apply congrArg
-    apply treeTransform_get_absent treeTrans hi
+@[simp]
+lemma Gates.to_binary_succ_of_snoc_zero {n A R} : Gates.to_binary A n.succ (R.snoc (0:F)) ↔ Gates.to_binary A n R := by
+  rw [Gates.to_binary_iff_eq_Fin_ofBitsLE]
+  rw [Vector.exists_succ_iff_exists_snoc]
+  unfold Fin.ofBitsLE
+  unfold Fin.ofBitsBE
+  simp [Bool.toNat, Gates.to_binary_iff_eq_Fin_ofBitsLE]
+  tauto
 
-/--
-States that for any given tree and list of valid indices, there exists a choice
-of other parameters, such that the deletion circuit is satisfied. As a corollary,
-we can be certain that the system will always be able to remove any identity from
-the tree.
-NB indices are consider valid if they are less than 2ᴰ⁺¹, where D is the merkle
-tree depth. This allows the circuit to use indices larger than the tree size to
-pad batches.
--/
-theorem assignment_exists
-  [Fact (CollisionResistant poseidon₂)]
-  {tree : MerkleTree F poseidon₂ D}
-  {indices : Vector F B}:
-    (∀i ∈ indices, i.val < 2^(D+1)) →
-    ∃inputHash identities proofs postRoot, SemaphoreMTB.DeletionMbuCircuit_4_4_30_4_4_30 inputHash indices tree.root postRoot identities proofs
-  := by
-  intro h;
-  simp only [DeletionCircuit_folded, DeletionMbuCircuit_4_4_30_4_4_30_Fold]
-  simp only [
-    Vector.ofFnGet_id,
-    ToReducedBigEndian_32_uncps,
-    ToReducedBigEndian_256_uncps,
-    RCBitsField_def,
-    ←Vector.map_permute,
-    Vector.map_hAppend,
-    (KeccakGadget_640_64_24_640_256_24_1088_1_uniqueAssignment _ _).equiv,
-    FromBinaryBigEndian_256_uncps,
-    Gates.eq,
-    deletionProofCircuit_eq_deletionRoundsSemantics
-  ]
-  have := exists_assignment (tree := tree) h
-  rcases this with ⟨_, _, _, hp⟩
-  repeat apply Exists.intro
-  apply And.intro (Eq.refl _)
-  simp
-  apply hp
-  simp only [D] at h
-  all_goals {
-    apply Nat.lt_trans _ ((by decide) : 2 ^ 31 < 2 ^ 32)
-    apply h
-    simp [getElem]
-  }
+lemma Int.ofNat_pow {a b : ℕ} : (a^b : ℤ) = (OfNat.ofNat a)^b := by simp [OfNat.ofNat]
 
-/--
-Establishes that the deletion circuit's InputHash parameter is uniquely
-determined by DeletionIndices, PreRoot and PostRoot. That is done by showing
-that any two valid assigments that agree on those parameters, must also agree
-on InputHash.
--/
-theorem inputHash_deterministic:
-    (SemaphoreMTB.DeletionMbuCircuit_4_4_30_4_4_30 InputHash₁ DeletionIndices PreRoot PostRoot IdComms₁ MerkleProofs₁ ∧
-     SemaphoreMTB.DeletionMbuCircuit_4_4_30_4_4_30 InputHash₂ DeletionIndices PreRoot PostRoot IdComms₂ MerkleProofs₂)
-    → InputHash₁ = InputHash₂
-  := Deletion_InputHash_deterministic
+-- TODO: This can be done better – remove the zero assert in circuit!
+theorem AssertIsLess_248_semantics {A B : F} : LightProver.AssertIsLess_248 A B ↔ (A + (2^248 - B)).toInt < 2^248 := by
+  unfold LightProver.AssertIsLess_248
+  simp (config := { singlePass := true }) only [Gates.eq, Vector.exists_succ_iff_exists_snoc]
+  simp only [Vector.getElem_snoc_at_length]
+  simp [Gates.add, Gates.to_binary_succ_of_snoc_zero]
+  simp [Gates.to_binary_iff_eq_Fin_ofBitsLE]
+  apply Iff.intro
+  . rintro ⟨vs, v', ⟨_⟩, h⟩
+    have := congrArg ZMod.toInt h
+    simp at this
+    rw [x, this, ZMod.toInt, ZMod.val_nat_cast]
+    rw [Nat.mod_eq_of_lt]
+    . apply Int.lt_of_toNat_lt
+      rw [Int.toNat_ofNat, ←Int.ofNat_pow, Int.toNat_ofNat]
+      apply Fin.prop
+    . apply Nat.lt_trans (m:=2^248) <;> simp
+  . intro h
+    rw [ZMod.toInt, ←Int.ofNat_pow, Nat.cast_lt] at h
+    let v := Fin.toBitsLE $ Fin.mk (A + (2^248 - B)).val h
+    refine ⟨v.map Bool.toZMod, v, Eq.refl _, ?r⟩
+    simp [x]
 
-/--
-Arbitrary string used for testing the 640-bit keccak hash implementation.
--/
-def testString80 : String :=
-  "This string is exactly 80 bytes long, which is unbelievably lucky for this test."
+theorem negSucc_le_negSucc (m n : Nat) : Int.negSucc m ≤ Int.negSucc n ↔ n ≤ m := by
+  rw [Int.le_def]
+  apply Iff.intro
+  conv => lhs; arg 1; whnf
+  split
+  . rename_i h; intro; rw [Nat.succ_sub_succ_eq_sub] at h; exact Nat.le_of_sub_eq_zero h
+  . intro; contradiction
 
-/--
-An embedding of the test string into a vector of bits, by taking the little-endian
-bit decomposition of the ASCII value of each character.
--/
-def testVector640 : Vector Bool 640 :=
-  Subtype.mk (testString80.toUTF8.toList.map (fun b => Vector.toList $ Fin.toBitsLE (d := 8) b.val)).join (by native_decide)
+theorem emod_negSucc (m : Nat) (n : Int) :
+  (Int.negSucc m) % n = Int.subNatNat (Int.natAbs n) (Nat.succ (m % Int.natAbs n)) := rfl
 
-/--
-Tests the Keccak implementation automatically derived from the circuit, by
-comparing its output on an arbitrary value to a reference value computed using
-solidity.
+theorem Int.mod_one_below {a : ℤ} {mod : ℤ} (hp : mod > 0) : a < 0 → a ≥ -mod → a % mod = a + mod := by
+  intro hlt hge
+  have := Int.eq_negSucc_of_lt_zero hlt
+  rcases this with ⟨b, ⟨_⟩⟩
+  have := Int.eq_succ_of_zero_lt hp
+  rcases this with ⟨m, ⟨_⟩⟩
+  conv at hge => rhs; whnf
+  rw [emod_negSucc]
+  simp [natAbs]
+  rw [Nat.mod_eq_of_lt]
+  rfl
+  simp [negSucc_le_negSucc] at hge
+  exact Nat.lt_succ_of_le hge
 
-The reference number is obtained by hashing the test string using the following Solidity code:
-```solidity
-string memory data = "This string is exactly 80 bytes long, which is unbelievably lucky for this test.";
-uint256 result;
-assembly {
-  result := mod(keccak256(add(data, 0x20), mload(data)), 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001)
-}
-```
--/
-theorem reducedKeccak640_test :
-  reducedKeccak640 testVector640 = 0x799e635101207dc20689c342be25dc6f5a2f25b51d2a5ac3c9fee51694b3609 := by native_decide
+theorem Int.mod_pos_below {a : ℤ} {mod : ℤ} : 0 ≤ a → a < mod → a % mod = a := by
+  intros
+  simp [Int.emod_eq_of_lt, *]
 
-/--
-This axiom is necessary for the proof of the injectivity of the input hash
-parameter. It is obviously not true (e.g. by the pigeonhole principle), but it
-captures the usual intuition behind hash functions.
--/
-axiom reducedKeccak640_collision_resistant :
-  ∀x y, reducedKeccak640 x = reducedKeccak640 y → x = y
+theorem AssertIsLess_bounds { A B : F} (A_range : A.toInt ≤ 2 ^ 249): LightProver.AssertIsLess_248 A B → A.toInt < B.toInt ∧ B.toInt ≤ A.toInt + 2^248 := by
+  rw [AssertIsLess_248_semantics, ZMod.toInt_add, ZMod.toInt_sub]
+  simp [pow2_248_toInt]
+  have hge : (2^248 - B.toInt + A.toInt) ≥ -Order := by
+    . linarith [ZMod.toInt_nonneg (n:=A), ZMod.toInt_lt (n:=B)]
+  have hle : (2^248 - B.toInt + A.toInt) < Order := by
+      have : A.toInt + 2^248 < Order := by
+        calc
+          A.toInt + (2:ℤ)^248 ≤ ((2:ℤ)^249 + (2:ℤ)^248 : ℤ) := by linarith
+          _ < Order := by decide
+      linarith [ZMod.toInt_nonneg (n:=B)]
+  cases lt_or_ge (2^248 - B.toInt + A.toInt) 0 with
+  | inl h =>
+    rw [Int.mod_one_below (by decide) h hge]
+    intro hp
+    linarith [ZMod.toInt_lt (n:=B), ZMod.toInt_nonneg (n:=A)]
+  | inr h =>
+    rw [Int.mod_pos_below h hle]
+    intro hp
+    apply And.intro
+    . linarith
+    . linarith
 
-/--
-States that the input hash parameter is injective. That is, if two valid
-assignments share the same input hash, then they must agree on all other public
-parameters.
--/
-theorem inputHash_injective:
-    SemaphoreMTB.DeletionMbuCircuit_4_4_30_4_4_30 InputHash DeletionIndices₁ PreRoot₁ PostRoot₁ IdComms₁ MerkleProofs₁ ∧
-    SemaphoreMTB.DeletionMbuCircuit_4_4_30_4_4_30 InputHash DeletionIndices₂ PreRoot₂ PostRoot₂ IdComms₂ MerkleProofs₂ →
-    DeletionIndices₁ = DeletionIndices₂ ∧ PreRoot₁ = PreRoot₂ ∧ PostRoot₁ = PostRoot₂
-  := Deletion_InputHash_injective reducedKeccak640_collision_resistant
-
-end Deletion
-
-namespace Insertion
-
-/--
-Checks input validation on the insertion circuit. The circuit being satisfied
-implies that all items at modified indices are zero, therefore it is impossible
-to use this circuit to, either accidentally or malicious, overwrite existing
-data.
--/
-theorem before_insertion_all_items_zero
-  [Fact (CollisionResistant poseidon₂)]
-  {tree: MerkleTree F poseidon₂ D}
-  {startIndex : F}:
-    SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 InputHash startIndex tree.root PostRoot IdComms MerkleProofs →
-    ∀ i ∈ [startIndex.val:startIndex.val + B], tree[i]! = 0
-  := by
-  intro hp i hir
-  have hp := Insertion_skipHashing hp
-  rw [Insertion.insertionRoundsCircuit_eq_insertionRoundsSemantics] at hp
-  have hp'' := ix_bound hp
-  rw [getElem!_eq_getElem?_get!]
-  rw [before_insertion_all_zero hp]; rfl
-  apply And.intro
-  . exact hir.1
-  . apply Nat.lt_of_lt_of_eq hir.2
-    rw [ZMod.val_add, Nat.mod_eq_of_lt]
-    rfl
-    calc
-      startIndex.val + 4 = (startIndex.val + 3) + 1 := by ring
-      _ < 2^D + 1 := Nat.add_lt_add_right hp'' (k := 1)
-      _ < Order := by decide
-
-/--
-States the exact semantics of the insertion circuit.
-Whenever the circuit is satisfied, there exists a Merkle tree, such that:
-1. its root is equal to the one given as the `postRoot` input;
-2. for every index `i` such that `startIndex ≤ i < startIndex + B`, the value
-   at index `i` is equal to `idComms[i-startIndex]`;
-3. for every index `i` outside the specified range, the value at index `i`
-   remains unchanged.
--/
-theorem root_transformation_correct
-    [Fact (CollisionResistant poseidon₂)]
-    {Tree : MerkleTree F poseidon₂ D}:
-    SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 InputHash StartIndex Tree.root PostRoot IdComms MerkleProofs →
-    ∃(postTree : MerkleTree F poseidon₂ D),
-    postTree.root = PostRoot ∧
-    (∀ i, i ∈ [StartIndex.val:StartIndex.val + B] → postTree[i]! = IdComms[i-StartIndex.val]!) ∧
-    (∀ i, i ∉ [StartIndex.val:StartIndex.val + B] → postTree[i]! = Tree[i]!)
-  := by
-  intro hp
-  have hp := Insertion_skipHashing hp
-  rw [insertionRoundsCircuit_eq_insertionRoundsSemantics] at hp
-  have hp := insertionRoundsRootTransformation hp
-  rcases hp with ⟨postTree, treeTrans, rootTrans⟩
-  exists postTree
-  simp_rw [getElem!_eq_getElem?_get!]
-  refine ⟨rootTrans, ?inrange, ?outrange⟩
-  case inrange =>
-    intro i hi
-    have : i = StartIndex.val + (i - StartIndex.val) := by
-      rw [add_comm, Nat.sub_add_cancel hi.1]
-    have i_off_inrange : i - StartIndex.val ∈ [0:B] := by
-      refine ⟨Nat.zero_le _, ?_⟩
-      cases hi
-      linarith
-    rw [this, treeTransform_get_inrange treeTrans i_off_inrange, ←this]
-    apply congrArg
-    apply eq_comm.mp
-    apply getElem?_eq_some_getElem_of_valid_index
-  case outrange =>
-    intro i hi
-    cases Nat.lt_or_ge i StartIndex.val with
-    | inl h =>
-      apply congrArg
-      apply eq_comm.mp
-      apply treeTransform_get_lt treeTrans h
-    | inr h =>
-      cases Nat.lt_or_ge i (StartIndex.val + B) with
-      | inl h' =>
-        exfalso
-        exact hi ⟨h, h'⟩
-      | inr h =>
-        apply congrArg
-        apply eq_comm.mp
-        apply treeTransform_get_gt treeTrans h
-
-/--
-States that for any given tree, a valid start index, and a list of identities,
-there exists a choice of the other parameters such that the insertion circuit
-is satisfied. As a corollary, we can be certain that the system will always be
-able to progress, as long as there is enough free space in the tree.
-
-NB a start index is considered valid if it denotes the beginning of a length-B
-block of empty leaves.
--/
-theorem assignment_exists [Fact (CollisionResistant poseidon₂)] {tree : MerkleTree F poseidon₂ D}:
-    startIndex + B < 2 ^ D ∧
-    (∀i ∈ [startIndex : startIndex + B], tree[i]! = 0) →
-    ∃proofs postRoot inputHash, SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 inputHash startIndex tree.root postRoot idComms proofs
-  := by
-  rintro ⟨ix_ok, items_zero⟩
-  simp only [InsertionMbuCircuit_4_30_4_4_30_folded]
-  unfold InsertionMbuCircuit_4_30_4_4_30_Fold
-  simp only [
-    Vector.ofFnGet_id,
-    ToReducedBigEndian_32_uncps,
-    ToReducedBigEndian_256_uncps,
-    RCBitsField_def,
-    ←Vector.map_permute,
-    Vector.map_hAppend,
-    (KeccakGadget_1568_64_24_1568_256_24_1088_1_uniqueAssignment _ _).equiv,
-    FromBinaryBigEndian_256_uncps,
-    Gates.eq
-  ]
-  simp [insertionRoundsCircuit_eq_insertionRoundsSemantics]
-  have := exists_assignment (identities := idComms) ix_ok (by
-    intro i h
-    apply getElem_of_getElem!
-    apply items_zero
-    assumption
-  )
-  rcases this with ⟨proofs, postRoot, h⟩
-  exists proofs, postRoot
-  apply And.intro
-  . apply Exists.intro
-    apply Exists.intro
-    . rfl
-    . simp only [D, B] at ix_ok
-      rw [ZMod.val_cast_of_lt]
-      . linarith
-      . simp only [Order]; linarith
-  . exact h
-
-/--
-Establishes that the insertion circuit's InputHash parameter is uniquely
-determined by StartIndex, PreRoot, PostRoot and the identity commitments. That
-is done by showing that any two valid assigments that agree on those
-parameters, must also agree on InputHash.
--/
-theorem inputHash_deterministic:
-    SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 InputHash₁ StartIndex PreRoot PostRoot IdComms MerkleProofs₁ ∧
-    SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 InputHash₂ StartIndex PreRoot PostRoot IdComms MerkleProofs₂ →
-    InputHash₁ = InputHash₂
-  := Insertion_InputHash_deterministic
-
-/--
-Arbitrary string used for testing the 1568-bit keccak hash implementation.
--/
-def testString196 : String :=
-  "This is string is exactly 196 bytes long, which happens to be exactly the length we need to test the 1568-bit keccak hash implementation, that can be found in the SemaphoreMTB Insertion Circuit..."
-
-/--
-An embedding of the test string into a vector of bits, by taking the little-endian
-bit decomposition of the ASCII value of each character.
--/
-def testVector1568 : Vector Bool 1568 :=
-  Subtype.mk (testString196.toUTF8.toList.map (fun b => Vector.toList $ Fin.toBitsLE (d := 8) b.val)).join (by native_decide)
-
-/--
-The reference number is obtained by hashing the test string using the following Solidity code:
-```solidity
-string memory data = "This is string is exactly 196 bytes long, which happens to be exactly the length we need to test the 1568-bit keccak hash implementation, that can be found in the SemaphoreMTB Insertion Circuit...";
-uint256 result;
-assembly {
-  result := mod(keccak256(add(data, 0x20), mload(data)), 0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000001)
-}
-```
--/
-theorem reducedKeccak1568_test :
-  reducedKeccak1568 testVector1568 = 0x204e42742e70b563e147bca3aac705534bfae2e7d17691127dd6425b23f5ba43 := by native_decide
-
-/--
-This axiom is necessary for the proof of the injectivity of the input hash
-parameter. It is obviously not true (e.g. by the pigeonhole principle), but it
-captures the usual intuition behind hash functions.
--/
-axiom reducedKeccak1568_collision_resistant :
-  ∀x y, reducedKeccak1568 x = reducedKeccak1568 y → x = y
-
-/--
-States that the input hash parameter is injective. That is, if two valid
-assignments share the same input hash, then they must agree on all other public
-parameters.
--/
-theorem inputHash_injective:
-  SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 InputHash StartIndex₁ PreRoot₁ PostRoot₁ IdComms₁ MerkleProofs₁ ∧
-  SemaphoreMTB.InsertionMbuCircuit_4_30_4_4_30 InputHash StartIndex₂ PreRoot₂ PostRoot₂ IdComms₂ MerkleProofs₂ →
-  StartIndex₁ = StartIndex₂ ∧ PreRoot₁ = PreRoot₂ ∧ PostRoot₁ = PostRoot₂ ∧ IdComms₁ = IdComms₂ :=
-  Insertion_InputHash_injective reducedKeccak1568_collision_resistant
-
-end Insertion
-
-def main (_ : List String): IO UInt32 := pure 0
+theorem AssertIsLess_range {hi lo val : F} {lo_range : lo.toInt < 2^248} :
+  LightProver.AssertIsLess_248 lo val ∧ LightProver.AssertIsLess_248 val hi → lo.toInt < val.toInt ∧ val.toInt < hi.toInt := by
+  rintro ⟨hlo, hhi⟩
+  have ⟨hl, nextRange⟩ := AssertIsLess_bounds (by linarith) hlo
+  have val_range : val.toInt ≤ 2^249 := by linarith
+  have ⟨hv, _⟩ := AssertIsLess_bounds val_range hhi
+  exact ⟨hl, hv⟩

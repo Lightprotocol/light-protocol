@@ -20,13 +20,13 @@ type Proof struct {
 }
 
 type ProvingSystem struct {
-	InclusionTreeDepth        uint32
+	InclusionTreeDepth                     uint32
 	InclusionNumberOfCompressedAccounts    uint32
-	NonInclusionTreeDepth     uint32
+	NonInclusionTreeDepth                  uint32
 	NonInclusionNumberOfCompressedAccounts uint32
-	ProvingKey                groth16.ProvingKey
-	VerifyingKey              groth16.VerifyingKey
-	ConstraintSystem          constraint.ConstraintSystem
+	ProvingKey                             groth16.ProvingKey
+	VerifyingKey                           groth16.VerifyingKey
+	ConstraintSystem                       constraint.ConstraintSystem
 }
 
 // ProveParentHash gadget generates the ParentHash
@@ -51,7 +51,7 @@ type InclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (gadget InclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -80,7 +80,7 @@ type NonInclusionProof struct {
 	InPathElements [][]frontend.Variable
 
 	NumberOfCompressedAccounts uint32
-	Depth         uint32
+	Depth                      uint32
 }
 
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
@@ -127,9 +127,9 @@ type LeafHashGadget struct {
 func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	api.AssertIsDifferent(gadget.LeafLowerRangeValue, gadget.Value)
 	// Lower bound is less than value
-	AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248}.DefineGadget(api)
+	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
 	// Value is less than upper bound
-	AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248}.DefineGadget(api)
+	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
 	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafIndex, In3: gadget.LeafHigherRangeValue})
 }
 
@@ -145,7 +145,7 @@ type AssertIsLess struct {
 func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 	// Add 2^N to B to ensure a positive number
 	oneShifted := new(big.Int).Lsh(big.NewInt(1), uint(gadget.N))
-	num := api.Add(gadget.A, api.Sub(oneShifted, gadget.B))
+	num := api.Add(gadget.A, api.Sub(*oneShifted, gadget.B))
 	bin := api.ToBinary(num, gadget.N+1)
 	api.AssertIsEqual(0, bin[gadget.N])
 	return nil

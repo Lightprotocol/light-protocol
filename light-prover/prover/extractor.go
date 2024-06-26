@@ -20,13 +20,25 @@ func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, e
 	}
 
 	inclusionCircuit := InclusionCircuit{
-		Depth:          treeDepth,
-		NumberOfCompressedAccounts:  numberOfCompressedAccounts,
-		Roots:          roots,
-		Leaves:         leaves,
-		InPathIndices:  inPathIndices,
-		InPathElements: inPathElements,
+		Depth:                      treeDepth,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      roots,
+		Leaves:                     leaves,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
 	}
 
-	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit)
+	nonInclusionCircuit := NonInclusionCircuit{
+		Depth:                      treeDepth,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Roots:                      roots,
+		Values:                     leaves,
+		LeafLowerRangeValues:       leaves,
+		LeafHigherRangeValues:      leaves,
+		LeafIndices:                leaves,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
+	}
+
+	return extractor.ExtractCircuits("LightProver", ecc.BN254, &inclusionCircuit, &nonInclusionCircuit)
 }
