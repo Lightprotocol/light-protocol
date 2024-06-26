@@ -256,10 +256,11 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
+    let initial_merkle_tree_state = address_tree_bundle.merkle_tree.clone();
+    let initial_indexed_array_state = address_tree_bundle.indexed_array.clone();
     let relayer_merkle_tree = &mut address_tree_bundle.merkle_tree;
     let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
     let mut update_errors: Vec<RpcError> = Vec::new();
-
     loop {
         let pre_forester_counter = if !signer_is_owner {
             rpc.get_anchor_account::<ForesterEpoch>(
@@ -286,15 +287,15 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         }
         let (address, address_hashset_index) = address.unwrap();
         // Create new element from the dequeued value.
-        let (old_low_address, old_low_address_next_value) = relayer_indexing_array
+        let (old_low_address, old_low_address_next_value) = initial_indexed_array_state
             .find_low_element_for_nonexistent(&address.value_biguint())
             .unwrap();
-        let address_bundle = relayer_indexing_array
+        let address_bundle = initial_indexed_array_state
             .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
             .unwrap();
 
         // Get the Merkle proof for updating low element.
-        let low_address_proof = relayer_merkle_tree
+        let low_address_proof = initial_merkle_tree_state
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
