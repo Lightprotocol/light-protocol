@@ -206,7 +206,7 @@ describe('rpc-interop', () => {
             ),
         );
         assert.isTrue(
-            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+            newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(
@@ -292,8 +292,8 @@ describe('rpc-interop', () => {
             `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
         );
         assert.isTrue(
-            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
-            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafIndex} got: ${newAddressProof.leafIndex}`,
+            newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.nextIndex} got: ${newAddressProof.nextIndex}`,
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(

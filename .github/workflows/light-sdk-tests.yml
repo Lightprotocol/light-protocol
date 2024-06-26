@@ -29,6 +29,7 @@ jobs:
             sub-tests: '[
                 "@lightprotocol/circuit-lib.js",
                 "@lightprotocol/prover.js",
+                "@lightprotocol/zk-compression-cli"
             ]'
     steps:
       - name: Checkout sources

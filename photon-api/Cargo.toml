@@ -1,14 +1,10 @@
 [package]
 name = "photon-api"
-version = "0.27.0"
+version = "0.28.0"
 authors = ["OpenAPI Generator team and contributors"]
-description = "Auto-generated API for Helius Labs' Photon Compression Indexer"
+description = "Solana indexer for general compression"
 license = "Apache-2.0"
 edition = "2018"
-documentation = "https://docs.rs/photon-api"
-homepage = "https://github.com/lightprotocol/lightprotocol"
-repository = "https://github.com/lightprotocol/lightprotocol"
-
 
 [dependencies]
 serde = "^1.0"

@@ -148,7 +148,7 @@ impl Indexer for PhotonIndexer {
             merkle_tree: tree_pubkey.to_bytes(),
             low_address_index: proofs.low_element_leaf_index as u64,
             low_address_value: low_address_value.to_bytes(),
-            low_address_next_index: proofs.leaf_index as u64,
+            low_address_next_index: proofs.next_index as u64,
             low_address_next_value: next_address_value.to_bytes(),
             low_address_proof: {
                 let proof_vec: Vec<[u8; 32]> = proofs
