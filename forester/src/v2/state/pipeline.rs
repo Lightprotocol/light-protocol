@@ -1,14 +1,13 @@
-use std::sync::{Arc};
-use log::{info, warn};
+use std::sync::Arc;
+use log::info;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use crate::errors::ForesterError;
 use crate::nullifier::Config;
-use crate::v2::backpressure::BackpressureControl;
-use crate::v2::queue_data::{AccountData, QueueData};
-use crate::v2::stream_processor::StreamProcessor;
+use crate::v2::state::backpressure::BackpressureControl;
+use crate::v2::state::queue_data::{AccountData, QueueData};
+use crate::v2::state::stream_processor::StreamProcessor;
 
 #[derive(Debug)]
 pub enum PipelineStage<T: Indexer, R: RpcConnection> {
@@ -31,31 +30,6 @@ impl<T: Indexer, R: RpcConnection> Clone for PipelineContext<T, R> {
             indexer: Arc::clone(&self.indexer),
             rpc: Arc::clone(&self.rpc),
             config: Arc::clone(&self.config),
-        }
-    }
-}
-
-// Function to fetch queue data and send to processor
-async fn fetch_and_send<T: Indexer, R: RpcConnection>(
-    context: PipelineContext<T, R>,
-    input_tx: &mpsc::Sender<PipelineStage<T, R>>,
-    command_tx: &mpsc::Sender<Result<(), ForesterError>>,
-) -> Result<(), ForesterError> {
-    match StreamProcessor::<T, R>::fetch_queue_data(context.clone()).await {
-        Ok(PipelineStage::FetchProofs(_, queue_data)) if !queue_data.accounts_to_nullify.is_empty() => {
-            input_tx.send(PipelineStage::FetchProofs(context, queue_data)).await.unwrap();
-            Ok(())
-        }
-        Ok(_) => {
-            info!("No accounts to nullify. Exiting.");
-            command_tx.send(Ok(())).await.unwrap();
-            Err(ForesterError::Custom("No accounts to nullify".to_string()))
-        }
-        Err(e) => {
-            warn!("Error fetching queue data: {:?}", e);
-            let owned_error = e.to_owned();
-            command_tx.send(Err(owned_error)).await.unwrap();
-            Err(e)
         }
     }
 }

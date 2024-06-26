@@ -13,9 +13,9 @@ use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use crate::errors::ForesterError;
-use crate::v2::backpressure::BackpressureControl;
-use crate::v2::pipeline::{PipelineContext, PipelineStage};
-use crate::v2::queue_data::{AccountData, QueueData};
+use crate::v2::state::backpressure::BackpressureControl;
+use crate::v2::state::pipeline::{PipelineContext, PipelineStage};
+use crate::v2::state::queue_data::{AccountData, QueueData};
 
 pub struct StreamProcessor<T: Indexer, R: RpcConnection> {
     pub input: mpsc::Receiver<PipelineStage<T, R>>,
@@ -101,12 +101,7 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
     pub(crate) async fn fetch_queue_data(context: PipelineContext<T, R>)
                                          -> Result<PipelineStage<T, R>, ForesterError> {
         let PipelineContext { indexer: _, rpc, config } = &context;
-
-        let (change_log_index, sequence_number) = {
-            let mut rpc_lock = rpc.lock().await;
-            get_changelog_index(&config.state_merkle_tree_pubkey, &mut *rpc_lock).await?
-        };
-
+        
         let accounts_to_nullify: Vec<AccountData> = {
             let mut rpc_lock = rpc.lock().await;
             let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut *rpc_lock).await?;
@@ -115,10 +110,10 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
 
         if accounts_to_nullify.is_empty() {
             info!("No accounts to nullify found in queue");
-            return Ok(PipelineStage::FetchProofs(context.clone(), QueueData::new(change_log_index, sequence_number, vec![])));
+            return Ok(PipelineStage::FetchProofs(context.clone(), QueueData::new(vec![])));
         }
 
-        let queue_data = QueueData::new(change_log_index, sequence_number, accounts_to_nullify);
+        let queue_data = QueueData::new(accounts_to_nullify);
         Ok(PipelineStage::FetchProofs(context, queue_data))
     }
 
@@ -159,7 +154,7 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
 
     async fn nullify_account(&self, context: PipelineContext<T, R>, account_data: AccountData)
                              -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext { indexer, rpc, config } = &context;
+        let PipelineContext { indexer: _, rpc, config } = &context;
 
         info!("Nullifying account: {}", account_data.account.hash_string());
         info!("Leaf index: {}", account_data.leaf_index);
@@ -251,7 +246,7 @@ pub async fn get_nullifier_queue<R: RpcConnection>(
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                let account = crate::v2::queue_data::Account {
+                let account = crate::v2::state::queue_data::Account {
                     hash: bucket.value_bytes(),
                     index: i,
                 };

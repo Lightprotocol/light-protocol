@@ -7,7 +7,7 @@ use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::nqmt::reindex_and_store;
 use forester::nullifier::{empty_address_queue, Config as ForesterConfig};
-use forester::nullifier::{nullify, subscribe_nullify};
+use forester::nullifier::subscribe_nullify;
 use forester::settings::SettingsKey;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -18,8 +18,7 @@ use solana_sdk::signature::{Keypair, Signer};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
-use tokio::try_join;
-use forester::v2::pipeline::{PipelineContext, setup_pipeline};
+use forester::v2::state::pipeline::setup_pipeline;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -152,7 +151,7 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
-    let (input_tx, mut completion_rx) = setup_pipeline(indexer, rpc, config).await;
+    let (_, mut completion_rx) = setup_pipeline(indexer, rpc, config).await;
     // Wait for the pipeline to complete
     if let Some(()) = completion_rx.recv().await {
         info!("State nullifier completed successfully");
