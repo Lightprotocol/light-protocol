@@ -855,8 +855,9 @@ pub fn functional_non_inclusion_test() {
 fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
+    let address_3 = 11_u32.to_biguint().unwrap();
 
-    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2, address_3]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -1102,6 +1103,131 @@ fn perform_change_log_test<
                     &mut low_element_proof,
                 )
                 .unwrap();
+            for i in onchain_indexed_merkle_tree.changelog.iter() {
+                println!("indexed array state element {:?} ", i);
+            }
         }
     }
+}
+
+fn perform_change_log_test_2<
+    const DOUBLE_SPEND: bool,
+    const WRAP_AROUND: bool,
+    const HEIGHT: usize,
+    const CHANGELOG: usize,
+    const ROOTS: usize,
+    const CANOPY: usize,
+    const INDEXED_CHANGELOG: usize,
+>(
+    addresses: &[BigUint],
+) {
+    // Initialize the trees and indexed array.
+    let mut relayer_indexed_array =
+        IndexedArray::<Poseidon, usize, INDEXING_ARRAY_ELEMENTS>::default();
+    relayer_indexed_array.init().unwrap();
+    let mut relayer_merkle_tree =
+        reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
+    let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, HEIGHT>::new(
+        HEIGHT,
+        CHANGELOG,
+        ROOTS,
+        CANOPY,
+        INDEXED_CHANGELOG,
+    )
+    .unwrap();
+    onchain_indexed_merkle_tree.init().unwrap();
+    onchain_indexed_merkle_tree.add_highest_element().unwrap();
+    relayer_merkle_tree.init().unwrap();
+    assert_eq!(
+        relayer_merkle_tree.root(),
+        onchain_indexed_merkle_tree.root(),
+        "environment setup failed relayer and onchain indexed Merkle tree roots are inconsistent"
+    );
+
+    // Perform updates for each actor, where every of them is using the same
+    // changelog indices, generating a conflict which needs to be solved by
+    // patching from changelog.
+    let mut indexed_arrays = vec![relayer_indexed_array.clone(); addresses.len()];
+    let changelog_index = onchain_indexed_merkle_tree.changelog_index();
+    let indexed_changelog_index = onchain_indexed_merkle_tree.indexed_changelog_index();
+    for (i, (address, indexed_array)) in addresses.iter().zip(indexed_arrays.iter_mut()).enumerate()
+    {
+        let (old_low_address, old_low_address_next_value) = indexed_array
+            .find_low_element_for_nonexistent(&address)
+            .unwrap();
+        let address_bundle = indexed_array
+            .new_element_with_low_element_index(old_low_address.index, address)
+            .unwrap();
+
+        let mut low_element_proof = relayer_merkle_tree
+            .get_proof_of_leaf(old_low_address.index, false)
+            .unwrap();
+
+        if DOUBLE_SPEND && i > 0 {
+            let res = onchain_indexed_merkle_tree.update(
+                changelog_index,
+                indexed_changelog_index,
+                address_bundle.new_element,
+                old_low_address,
+                old_low_address_next_value,
+                &mut low_element_proof,
+            );
+            assert!(matches!(
+                res,
+                Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
+            ));
+        } else if WRAP_AROUND && (i + 1) * 2 > INDEXED_CHANGELOG {
+            // After a wrap-around of the indexed changelog, we expect leaf
+            // updates to break immediately.
+            let res = onchain_indexed_merkle_tree.update(
+                changelog_index,
+                indexed_changelog_index,
+                address_bundle.new_element.clone(),
+                old_low_address.clone(),
+                old_low_address_next_value,
+                &mut low_element_proof,
+            );
+            println!("changelog_index {:?}", changelog_index);
+            println!("indexed_changelog_index {:?}", indexed_changelog_index);
+            println!(
+                "address_bundle new_element_next_value{:?}",
+                address_bundle.new_element_next_value
+            );
+            println!(
+                "address_bundle new_element {:?}",
+                address_bundle.new_element
+            );
+
+            println!("old_low_address {:?}", old_low_address);
+            println!("res {:?}", res);
+            assert!(matches!(
+                res,
+                Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
+                    ConcurrentMerkleTreeError::CannotUpdateLeaf
+                ))
+            ));
+        } else {
+            onchain_indexed_merkle_tree
+                .update(
+                    changelog_index,
+                    indexed_changelog_index,
+                    address_bundle.new_element,
+                    old_low_address,
+                    old_low_address_next_value,
+                    &mut low_element_proof,
+                )
+                .unwrap();
+        }
+    }
+}
+
+///
+#[test]
+fn debug_changelog() {
+    let address = 10_u32.to_biguint().unwrap();
+
+    perform_change_log_test_2::<true, false, 10, 16, 16, 0, 16>(&[
+        address.clone(),
+        address.clone(),
+    ]);
 }

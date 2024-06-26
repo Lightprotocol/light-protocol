@@ -261,6 +261,14 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
     let relayer_merkle_tree = &mut address_tree_bundle.merkle_tree;
     let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
     let mut update_errors: Vec<RpcError> = Vec::new();
+    let address_merkle_tree =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+            rpc,
+            address_merkle_tree_pubkey,
+        )
+        .await;
+    let indexed_changelog_index = address_merkle_tree.indexed_changelog_index() as u16;
+    let changelog_index = address_merkle_tree.changelog_index() as u16;
     loop {
         let pre_forester_counter = if !signer_is_owner {
             rpc.get_anchor_account::<ForesterEpoch>(
@@ -282,6 +290,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
         let address = address_queue.first_no_seq().unwrap();
+        println!("address: {:?}", address);
         if address.is_none() {
             break;
         }
@@ -298,6 +307,9 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         let low_address_proof = initial_merkle_tree_state
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
+        // print:
+        // - state of onchain indexed array
+        // - local element
 
         let old_sequence_number = address_merkle_tree.sequence_number();
         let old_root = address_merkle_tree.root();
@@ -313,8 +325,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             old_low_address.next_index as u64,
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap(),
             low_address_proof.to_array().unwrap(),
-            None,
-            None,
+            Some(changelog_index),
+            Some(indexed_changelog_index),
             signer_is_owner,
         )
         .await

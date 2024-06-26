@@ -254,12 +254,29 @@ where
         low_element_next_value: &mut BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<(), IndexedMerkleTreeError> {
+        #[cfg(target_os = "solana")]
+        {
+            solana_program::msg!("patch_elements_and_proof");
+            solana_program::msg!("new_element: {:?}", new_element);
+            solana_program::msg!("low_element: {:?}", low_element);
+            solana_program::msg!("low_element_next_value: {:?}", low_element_next_value);
+            solana_program::msg!("indexed_changelog_index: {:?}", indexed_changelog_index);
+            // for (i, entry) in self.indexed_changelog.iter().enumerate() {
+            //     solana_program::msg!("entry {}: {:?}", i, entry.element);
+
+            //     if i == 7 {
+            //         break;
+            //     }
+            // }
+        }
         let next_indexed_changelog_indices: Vec<usize> = self
             .indexed_changelog
             .iter_from(indexed_changelog_index)?
             .skip(1)
             .enumerate()
             .filter_map(|(index, changelog_entry)| {
+                // #[cfg(target_os = "solana")]
+                // solana_program::msg!("changelog_entry: {:?}", changelog_entry);
                 if changelog_entry.element.index == low_element.index {
                     Some((indexed_changelog_index + 1 + index) % self.indexed_changelog.len())
                 } else {
@@ -267,12 +284,18 @@ where
                 }
             })
             .collect();
+        #[cfg(target_os = "solana")]
+        solana_program::msg!(
+            "next_indexed_changelog_indices: {:?}",
+            next_indexed_changelog_indices
+        );
 
         let mut new_low_element = None;
 
         for next_indexed_changelog_index in next_indexed_changelog_indices {
             let changelog_entry = &mut self.indexed_changelog[next_indexed_changelog_index];
-
+            // #[cfg(target_os = "solana")]
+            // solana_program::msg!("patching with: changelog_entry: {:?}", changelog_entry);
             let next_element_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
             if next_element_value < new_element.value {
                 // If the next element is lower than the current element, it means
@@ -304,14 +327,53 @@ where
         if let Some((new_low_element_changelog_index, new_low_element)) = new_low_element {
             let new_low_element_changelog_entry =
                 &self.indexed_changelog[new_low_element_changelog_index];
-
+            // #[cfg(target_os = "solana")]
+            // solana_program::msg!(
+            //     "new_low_element_changelog_entry: {:?}",
+            //     new_low_element_changelog_entry
+            // );
             *changelog_index = new_low_element_changelog_entry.changelog_index;
             *low_element = IndexedElement {
                 index: new_low_element_changelog_entry.element.index,
                 value: new_low_element.clone(),
                 next_index: new_low_element_changelog_entry.element.next_index,
             };
+            #[cfg(target_os = "solana")]
+            solana_program::msg!("low_leaf_proof len: {:?}", low_leaf_proof.len());
+            #[cfg(target_os = "solana")]
+            {
+                solana_program::msg!(
+                    "new_low_element_changelog_entry len: {:?}",
+                    new_low_element_changelog_entry.proof.len()
+                );
+                solana_program::msg!(
+                    "new_low_element_changelog_entry proof: {:?}",
+                    new_low_element_changelog_entry.proof
+                );
+                solana_program::msg!(
+                    "new_low_element_changelog_entry element: {:?}",
+                    new_low_element_changelog_entry.element
+                );
+            }
+            #[cfg(not(target_os = "solana"))]
+            {
+                println!(
+                    "new_low_element_changelog_entry len: {:?}",
+                    new_low_element_changelog_entry.proof.len()
+                );
+                println!(
+                    "new_low_element_changelog_entry proof: {:?}",
+                    new_low_element_changelog_entry.proof
+                );
+                println!(
+                    "new_low_element_changelog_entry element: {:?}",
+                    new_low_element_changelog_entry.element
+                );
+            }
+
             low_leaf_proof.clone_from(&new_low_element_changelog_entry.proof);
+            #[cfg(target_os = "solana")]
+            solana_program::msg!("low_leaf_proof len: {:?}", low_leaf_proof.len());
             new_element.next_index = low_element.next_index;
 
             // Start the patching process from scratch for the new low element.
@@ -416,7 +478,16 @@ where
         let mut proof = BoundedVec::with_capacity(self.height);
         let new_leaf = new_element.hash::<H>(&low_element_next_value)?;
         let (new_changelog_index, _) = self.merkle_tree.append_with_proof(&new_leaf, &mut proof)?;
-
+        #[cfg(target_os = "solana")]
+        {
+            solana_program::msg!(" appeneded with proof");
+            solana_program::msg!("proof: {:?}", proof);
+        }
+        #[cfg(not(target_os = "solana"))]
+        {
+            println!(" appeneded with proof");
+            println!("proof: {:?}", proof);
+        }
         // Prepare raw new element to save in changelog.
         let raw_new_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&new_element.value).unwrap(),
