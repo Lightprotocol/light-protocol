@@ -409,7 +409,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the compressed account for the specified account hash
+     * Fetch the compressed account for the specified account address or hash
      */
     async getCompressedAccount(
         address?: BN254,
@@ -459,7 +459,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the compressed balance for the specified account hash
+     * Fetch the compressed balance for the specified account address or hash
      */
     async getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN> {
         if (!hash && !address) {
