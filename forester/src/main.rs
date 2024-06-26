@@ -11,7 +11,7 @@ use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
-use log::info;
+use log::{error, info};
 use serde_json::Result;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use solana_sdk::signature::{Keypair, Signer};
@@ -19,6 +19,7 @@ use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::try_join;
+use forester::v2::pipeline::{PipelineContext, setup_pipeline};
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -135,9 +136,19 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
         config.external_services.indexer_url.to_string(),
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-    let config = config.clone();
-    let result = nullify(indexer, rpc, config).await;
-    info!("State nullifier result: {:?}", result);
+
+    match setup_pipeline(indexer, rpc, config).await {
+        Ok(_) => info!("State nullifier completed successfully"),
+        Err(e) => {
+            error!("State nullifier encountered an error: {:?}", e);
+            // Optionally, you can exit the program here if you want
+            // std::process::exit(1);
+        }
+    }
+    
+    // let config = config.clone();
+    // let result = nullify(indexer, rpc, config).await;
+    // info!("State nullifier result: {:?}", result);
 }
 
 async fn nullify_addresses(config: Arc<ForesterConfig>) {

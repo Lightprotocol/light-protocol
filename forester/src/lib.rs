@@ -6,3 +6,4 @@ pub mod nqmt;
 pub mod nullifier;
 pub mod settings;
 pub mod utils;
+pub mod v2;
