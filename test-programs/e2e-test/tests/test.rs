@@ -29,7 +29,7 @@ async fn test_10000_all() {
     let mut env = E2ETestEnv::<500, ProgramTestRpcConnection>::new(
         rpc,
         &env_accounts,
-        KeypairActionConfig::all_default(),
+        KeypairActionConfig::all_default_no_fee_assert(),
         GeneralActionConfig::default(),
         10000,
         None,

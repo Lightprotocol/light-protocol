@@ -91,6 +91,7 @@ async fn test_1_all() {
             mint_spl: Some(1.0),
             transfer_spl: Some(1.0),
             max_output_accounts: Some(3),
+            fee_assert: true,
         },
         GeneralActionConfig {
             add_keypair: Some(1.0),

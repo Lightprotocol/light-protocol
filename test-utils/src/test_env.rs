@@ -205,6 +205,7 @@ pub async fn setup_test_programs_with_accounts(
         &nullifier_queue_keypair,
         None,
         1,
+        StateMerkleTreeConfig::default(),
     )
     .await;
 
@@ -347,6 +348,7 @@ pub fn get_test_env_accounts() -> EnvAccounts {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     payer: &Keypair,
     owner: &Pubkey,
@@ -355,12 +357,13 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     nullifier_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
     index: u64,
+    config: StateMerkleTreeConfig,
 ) {
     let size = account_compression::state::StateMerkleTreeAccount::size(
-        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
-        account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG as usize,
-        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
-        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+        config.height as usize,
+        config.changelog_size as usize,
+        config.roots_size as usize,
+        config.canopy_depth as usize,
     );
 
     let merkle_tree_account_create_ix = create_account_instruction(
@@ -391,7 +394,7 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         *owner,
         merkle_tree_keypair.pubkey(),
         nullifier_queue_keypair.pubkey(),
-        StateMerkleTreeConfig::default(),
+        config,
         NullifierQueueConfig::default(),
         program_owner,
         index,
@@ -471,7 +474,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         queue_config.clone(),
     );
     let c_ix =
-        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(10_000_000);
+        solana_sdk::compute_budget::ComputeBudgetInstruction::set_compute_unit_limit(1_400_000);
     let transaction = Transaction::new_signed_with_payer(
         &[c_ix, account_create_ix, mt_account_create_ix, instruction],
         Some(&payer.pubkey()),

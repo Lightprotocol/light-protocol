@@ -100,22 +100,18 @@ pub async fn assert_address_queue<R: RpcConnection>(
         .unwrap()
         .lamports;
     // The address queue is the only account that collects the rollover fees.
-    let expected_rollover_fee = compute_rollover_fee(
-        associated_tree_config
-            .rollover_threshold
-            .unwrap_or_default(),
-        associated_tree_config.height,
-        balance_queue,
-    )
-    .unwrap()
-        + compute_rollover_fee(
-            associated_tree_config
-                .rollover_threshold
-                .unwrap_or_default(),
-            associated_tree_config.height,
-            balance_merkle_tree,
-        )
-        .unwrap();
+    let expected_rollover_fee = match associated_tree_config.rollover_threshold {
+        Some(threshold) => {
+            compute_rollover_fee(threshold, associated_tree_config.height, balance_queue).unwrap()
+                + compute_rollover_fee(
+                    threshold,
+                    associated_tree_config.height,
+                    balance_merkle_tree,
+                )
+                .unwrap()
+        }
+        None => 0,
+    };
     assert_queue(
         rpc,
         queue_pubkey,
