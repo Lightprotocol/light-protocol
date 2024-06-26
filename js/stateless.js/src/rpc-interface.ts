@@ -25,6 +25,21 @@ import {
 } from './state';
 import { BN } from '@coral-xyz/anchor';
 
+export interface LatestNonVotingSignatures {
+    context: { slot: number };
+    value: {
+        items: { signature: string; slot: number; blockTime: number }[];
+    };
+}
+
+export interface LatestNonVotingSignaturesPaginated {
+    context: { slot: number };
+    value: {
+        items: { signature: string; slot: number; blockTime: number }[];
+        cursor: string | null;
+    };
+}
+
 export interface SignatureWithMetadata {
     blockTime: number;
     signature: string;
@@ -68,7 +83,7 @@ export type CompressedProofWithContext = {
 };
 
 export interface GetCompressedTokenAccountsByOwnerOrDelegateOptions {
-    mint: PublicKey;
+    mint?: PublicKey;
     cursor?: string;
     limit?: BN;
 }
@@ -262,6 +277,33 @@ export const HealthResult = string();
 /**
  * @internal
  */
+export const LatestNonVotingSignaturesResult = pick({
+    items: array(
+        pick({
+            signature: string(),
+            slot: number(),
+            blockTime: number(),
+        }),
+    ),
+});
+
+/**
+ * @internal
+ */
+export const LatestNonVotingSignaturesResultPaginated = pick({
+    items: array(
+        pick({
+            signature: string(),
+            slot: number(),
+            blockTime: number(),
+        }),
+    ),
+    cursor: nullable(string()),
+});
+
+/**
+ * @internal
+ */
 export const MerkeProofResult = pick({
     hash: BN254FromString,
     leafIndex: number(),
@@ -386,10 +428,11 @@ export const CompressedTransactionResult = pick({
 
 export interface CompressionApiInterface {
     getCompressedAccount(
-        hash: BN254,
+        address?: BN254,
+        hash?: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null>;
 
-    getCompressedBalance(hash: BN254): Promise<BN | null>;
+    getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN | null>;
 
     getCompressedBalanceByOwner(owner: PublicKey): Promise<BN>;
 
@@ -404,6 +447,11 @@ export interface CompressionApiInterface {
     getMultipleCompressedAccountProofs(
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]>;
+
+    getValidityProof(
+        hashes: BN254[],
+        newAddresses: BN254[],
+    ): Promise<CompressedProofWithContext>;
 
     getCompressedAccountsByOwner(
         owner: PublicKey,
@@ -426,13 +474,13 @@ export interface CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<{ balance: BN; mint: PublicKey }[]>;
 
-    getSignaturesForCompressedAccount(
-        hash: BN254,
-    ): Promise<SignatureWithMetadata[]>;
-
     getTransactionWithCompressionInfo(
         signature: string,
     ): Promise<CompressedTransaction | null>;
+
+    getCompressionSignaturesForAccount(
+        hash: BN254,
+    ): Promise<SignatureWithMetadata[]>;
 
     getCompressionSignaturesForAddress(
         address: PublicKey,
@@ -446,12 +494,16 @@ export interface CompressionApiInterface {
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]>;
 
+    getLatestNonVotingSignatures(
+        limit?: number,
+    ): Promise<LatestNonVotingSignatures>;
+
+    getLatestCompressionSignatures(
+        cursor?: string,
+        limit?: number,
+    ): Promise<LatestNonVotingSignaturesPaginated>;
+
     getIndexerHealth(): Promise<string>;
 
     getIndexerSlot(): Promise<number>;
-
-    getValidityProof(
-        hashes: BN254[],
-        newAddresses: BN254[],
-    ): Promise<CompressedProofWithContext>;
 }

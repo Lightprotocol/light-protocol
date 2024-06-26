@@ -150,7 +150,10 @@ describe('test-rpc', () => {
         );
         const refHash = compressedAccounts[0].hash;
         /// getCompressedAccount
-        const compressedAccount = await rpc.getCompressedAccount(bn(refHash));
+        const compressedAccount = await rpc.getCompressedAccount(
+            undefined,
+            bn(refHash),
+        );
         assert(compressedAccount !== null);
         assert.equal(
             compressedAccount.owner.toBase58(),
@@ -165,7 +168,15 @@ describe('test-rpc', () => {
         );
         const refHash = compressedAccounts[0].hash;
         /// getCompressedBalance
-        const compressedBalance = await rpc.getCompressedBalance(bn(refHash));
+        await expect(rpc.getCompressedBalance(bn(refHash))).rejects.toThrow(
+            'address is not supported in test-rpc',
+        );
+
+        const compressedBalance = await rpc.getCompressedBalance(
+            undefined,
+            bn(refHash),
+        );
+
         expect(compressedBalance?.eq(bn(refCompressLamports))).toBeTruthy();
     });
 });

@@ -14,10 +14,10 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
-import { toHex } from '../../utils/conversion';
 import {
     CompressedTransaction,
-    HexInputsForProver,
+    LatestNonVotingSignatures,
+    LatestNonVotingSignaturesPaginated,
     SignatureWithMetadata,
 } from '../../rpc-interface';
 import {
@@ -29,12 +29,10 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
-    CompressedProof,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
     bn,
 } from '../../state';
-import { proofFromJsonStruct, negateAndCompressProof } from '../../utils';
 import { IndexedArray } from '../merkle-tree';
 import {
     MerkleContextWithNewAddressProof,
@@ -195,8 +193,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * Fetch the compressed account for the specified account hash
      */
     async getCompressedAccount(
-        hash: BN254,
+        address?: BN254,
+        hash?: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
+        if (address) {
+            throw new Error('address is not supported in test-rpc');
+        }
+        if (!hash) {
+            throw new Error('hash is required');
+        }
         const account = await getCompressedAccountByHashTest(this, hash);
         return account ?? null;
     }
@@ -204,7 +209,13 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the compressed balance for the specified account hash
      */
-    async getCompressedBalance(hash: BN254): Promise<BN> {
+    async getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN> {
+        if (address) {
+            throw new Error('address is not supported in test-rpc');
+        }
+        if (!hash) {
+            throw new Error('hash is required');
+        }
         const account = await getCompressedAccountByHashTest(this, hash);
         if (!account) {
             throw new Error('Account not found');
@@ -322,6 +333,29 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * Fetch the latest compression signatures on the cluster. Results are
+     * paginated.
+     */
+    async getLatestCompressionSignatures(
+        _cursor?: string,
+        _limit?: number,
+    ): Promise<LatestNonVotingSignaturesPaginated> {
+        throw new Error(
+            'getLatestNonVotingSignaturesWithContext not supported in test-rpc',
+        );
+    }
+    /**
+     * Fetch the latest non-voting signatures on the cluster. Results are
+     * not paginated.
+     */
+    async getLatestNonVotingSignatures(
+        _limit?: number,
+    ): Promise<LatestNonVotingSignatures> {
+        throw new Error(
+            'getLatestNonVotingSignaturesWithContext not supported in test-rpc',
+        );
+    }
+    /**
      * Fetch all the compressed token accounts owned by the specified public
      * key. Owner can be a program or user account
      */
@@ -386,11 +420,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      *
      * @param hash queried account hash
      */
-    async getSignaturesForCompressedAccount(
+    async getCompressionSignaturesForAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error(
-            'getSignaturesForCompressedAccount not implemented in test-rpc',
+            'getCompressionSignaturesForAccount not implemented in test-rpc',
         );
     }
 
@@ -412,7 +446,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * @param address queried compressed account address
      */
     async getCompressionSignaturesForAddress(
-        address: PublicKey,
+        _address: PublicKey,
     ): Promise<SignatureWithMetadata[]> {
         throw new Error('getSignaturesForAddress3 not implemented');
     }
@@ -518,7 +552,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return newAddressProofs;
     }
 
-    /// TODO: remove once photon 'getValidityProof' is fixed
+    /**
+     * @deprecated This method is not available. Please use
+     * {@link getValidityProof} instead.
+     */
     async getValidityProof_direct(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
