@@ -106,35 +106,53 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         let address = account.hash;
         let address_hashset_index = account.index;
 
-                let proof = indexer
+        let proof = indexer
             .lock()
             .await
             .get_multiple_new_address_proofs(config.address_merkle_tree_pubkey.to_bytes(), address)
             .await
             .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
 
-        let update_successful = update_merkle_tree(
-            rpc,
-            &config.payer_keypair,
-            config.address_merkle_tree_queue_pubkey,
-            config.address_merkle_tree_pubkey,
-            address_hashset_index as u16,
-            proof.low_address_index,
-            proof.low_address_value,
-            proof.low_address_next_index,
-            proof.low_address_next_value,
-            proof.low_address_proof,
-        )
-        .await?;
 
-        if update_successful {
-            Ok(vec![AddressPipelineStage::UpdateIndexer(context, proof.into())])
-            // Ok(vec![])
-        } else {
-            Err(ForesterError::Custom(
-                "Failed to update address merkle tree".to_string(),
-            ))
+        let mut retry_count = 0;
+        let max_retries = 3;
+
+        while retry_count < max_retries {
+            match update_merkle_tree(
+                rpc,
+                &config.payer_keypair,
+                config.address_merkle_tree_queue_pubkey,
+                config.address_merkle_tree_pubkey,
+                address_hashset_index as u16,
+                proof.low_address_index,
+                proof.low_address_value,
+                proof.low_address_next_index,
+                proof.low_address_next_value,
+                proof.low_address_proof,
+            )
+                .await {
+                Ok(true) => {
+                    info!("Successfully updated merkle tree for address: {:?}", address);
+                    return Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)]);
+                }
+                Ok(false) => {
+                    warn!("Failed to update merkle tree for address: {:?}", address);
+                    retry_count += 1;
+                }
+                Err(e) => {
+                    warn!("Error updating merkle tree for address {:?}: {:?}", address, e);
+                    retry_count += 1;
+                }
+            }
+
+            if retry_count < max_retries {
+                info!("Retrying update for address: {:?} (Attempt {} of {})", address, retry_count + 1, max_retries);
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
         }
+
+        warn!("Max retries reached for address: {:?}. Moving to next address.", address);
+        Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)])
     }
 
     async fn update_indexer(
@@ -182,20 +200,6 @@ async fn fetch_address_queue_data<R: RpcConnection>(
     }
 
     Ok(address_queue_vec)
-
-    // let address = address_queue.first_no_seq().unwrap();
-    // info!("address_queue: {:?}", address);
-    // if address.is_none() {
-    //     return Ok(address_queue_vec);
-    // }
-    // let (address, address_hashset_index) = address.unwrap();
-    // info!("address: {:?}", address);
-    // info!("address_hashset_index: {:?}", address_hashset_index);
-    // address_queue_vec.push(crate::v2::address::Account {
-    //     hash: address.value_bytes(),
-    //     index: address_hashset_index as usize,
-    // });
-    // Ok(address_queue_vec)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -257,7 +261,7 @@ pub async fn get_changelog_indices<R: RpcConnection>(
         client,
         *merkle_tree_pubkey,
     )
-    .await;
+        .await;
     let changelog_index = merkle_tree.changelog_index();
     let indexed_changelog_index = merkle_tree.indexed_changelog_index();
     Ok((changelog_index, indexed_changelog_index))

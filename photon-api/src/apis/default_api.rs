@@ -9,7 +9,7 @@
  */
 
 use reqwest;
-
+use log::info;
 use super::{configuration, Error};
 use crate::{apis::ResponseContent, models};
 

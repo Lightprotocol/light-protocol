@@ -61,7 +61,7 @@ fn init_config() -> ForesterConfig {
     let payer: Vec<u8> = convert(&payer).unwrap();
 
     ForesterConfig {
-        external_services: ExternalServicesConfig::local(),
+        external_services: ExternalServicesConfig::zktestnet(),
         nullifier_queue_pubkey: Pubkey::from_str(&nullifier_queue_pubkey).unwrap(),
         state_merkle_tree_pubkey: Pubkey::from_str(&state_merkle_tree_pubkey).unwrap(),
         address_merkle_tree_pubkey: Pubkey::from_str(&address_merkle_tree_pubkey).unwrap(),
