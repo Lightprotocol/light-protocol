@@ -13,7 +13,7 @@ use light_test_utils::get_concurrent_merkle_tree;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use crate::errors::ForesterError;
-use crate::v2::state::backpressure::BackpressureControl;
+use crate::v2::BackpressureControl;
 use crate::v2::state::pipeline::{PipelineContext, PipelineStage};
 use crate::v2::state::queue_data::{AccountData, QueueData};
 

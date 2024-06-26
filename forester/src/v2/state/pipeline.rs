@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use crate::nullifier::Config;
-use crate::v2::state::backpressure::BackpressureControl;
+use crate::v2::BackpressureControl;
 use crate::v2::state::queue_data::{AccountData, QueueData};
 use crate::v2::state::stream_processor::StreamProcessor;
 
