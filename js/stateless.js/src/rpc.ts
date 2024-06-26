@@ -412,12 +412,22 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Fetch the compressed account for the specified account hash
      */
     async getCompressedAccount(
-        hash: BN254,
+        address?: BN254,
+        hash?: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
+        if (!hash && !address) {
+            throw new Error('Either hash or address must be provided');
+        }
+        if (hash && address) {
+            throw new Error('Only one of hash or address must be provided');
+        }
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccount',
-            { hash: encodeBN254toBase58(hash) },
+            {
+                hash: hash ? encodeBN254toBase58(hash) : undefined,
+                address: address ? encodeBN254toBase58(address) : undefined,
+            },
         );
         const res = create(
             unsafeRes,
@@ -426,7 +436,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,
-                `failed to get info for compressed account ${hash.toString()}`,
+                `failed to get info for compressed account ${hash ? hash.toString() : address ? address.toString() : ''}`,
             );
         }
         if (res.result.value === null) {
@@ -451,11 +461,20 @@ export class Rpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the compressed balance for the specified account hash
      */
-    async getCompressedBalance(hash: BN254): Promise<BN> {
+    async getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN> {
+        if (!hash && !address) {
+            throw new Error('Either hash or address must be provided');
+        }
+        if (hash && address) {
+            throw new Error('Only one of hash or address must be provided');
+        }
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedBalance',
-            { hash: encodeBN254toBase58(hash) },
+            {
+                hash: hash ? encodeBN254toBase58(hash) : undefined,
+                address: address ? encodeBN254toBase58(address) : undefined,
+            },
         );
         const res = create(
             unsafeRes,
@@ -464,7 +483,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,
-                `failed to get balance for compressed account ${hash.toString()}`,
+                `failed to get balance for compressed account ${hash ? hash.toString() : address ? address.toString() : ''}`,
             );
         }
         if (res.result.value === null) {

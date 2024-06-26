@@ -193,8 +193,15 @@ export class TestRpc extends Connection implements CompressionApiInterface {
      * Fetch the compressed account for the specified account hash
      */
     async getCompressedAccount(
-        hash: BN254,
+        address?: BN254,
+        hash?: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
+        if (address) {
+            throw new Error('address is not supported in test-rpc');
+        }
+        if (!hash) {
+            throw new Error('hash is required');
+        }
         const account = await getCompressedAccountByHashTest(this, hash);
         return account ?? null;
     }
@@ -202,7 +209,13 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     /**
      * Fetch the compressed balance for the specified account hash
      */
-    async getCompressedBalance(hash: BN254): Promise<BN> {
+    async getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN> {
+        if (address) {
+            throw new Error('address is not supported in test-rpc');
+        }
+        if (!hash) {
+            throw new Error('hash is required');
+        }
         const account = await getCompressedAccountByHashTest(this, hash);
         if (!account) {
             throw new Error('Account not found');

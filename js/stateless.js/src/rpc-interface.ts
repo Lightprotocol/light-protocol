@@ -429,10 +429,11 @@ export const CompressedTransactionResult = pick({
 
 export interface CompressionApiInterface {
     getCompressedAccount(
-        hash: BN254,
+        address?: BN254,
+        hash?: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null>;
 
-    getCompressedBalance(hash: BN254): Promise<BN | null>;
+    getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN | null>;
 
     getCompressedBalanceByOwner(owner: PublicKey): Promise<BN>;
 

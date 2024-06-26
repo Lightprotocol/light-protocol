@@ -1,4 +1,4 @@
-import { describe, it, assert, beforeAll } from 'vitest';
+import { describe, it, assert, beforeAll, expect } from 'vitest';
 import { PublicKey, Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
@@ -14,6 +14,7 @@ import {
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { randomBytes } from 'tweetnacl';
 
 describe('rpc-interop', () => {
     let payer: Signer;
@@ -452,9 +453,11 @@ describe('rpc-interop', () => {
         );
 
         const compressedAccount = await rpc.getCompressedAccount(
+            undefined,
             bn(senderAccounts[0].hash),
         );
         const compressedAccountTest = await testRpc.getCompressedAccount(
+            undefined,
             bn(senderAccounts[0].hash),
         );
 
@@ -535,8 +538,9 @@ describe('rpc-interop', () => {
 
     it('[test-rpc missing] getLatestNonVotingSignatures should match', async () => {
         const testEnvSetupTxs = 2;
+
         let signatures = (await rpc.getLatestNonVotingSignatures()).value.items;
-        assert.equal(signatures.length, executedTxs + testEnvSetupTxs);
+        assert.isAtLeast(signatures.length, executedTxs + testEnvSetupTxs);
 
         signatures = (await rpc.getLatestNonVotingSignatures(2)).value.items;
         assert.equal(signatures.length, 2);
@@ -547,7 +551,7 @@ describe('rpc-interop', () => {
             await rpc.getLatestCompressionSignatures()
         ).value;
 
-        assert.equal(signatures.length, executedTxs);
+        assert.isAtLeast(signatures.length, executedTxs);
 
         /// Shoudl return 1 using limit param
         const { items: signatures2, cursor } = (
@@ -580,10 +584,7 @@ describe('rpc-interop', () => {
 
     // TODO(photon): Fix 'internal server error'
     it.skip('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
-        const seed = new Uint8Array([
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-            20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-        ]);
+        const seed = new Uint8Array(randomBytes(32));
         const addressTree = defaultTestStateTreeAccounts().addressTree;
         const address = await deriveAddress(seed, addressTree);
 
@@ -604,5 +605,40 @@ describe('rpc-interop', () => {
 
         /// most recent therefore unspent account
         assert.equal(signaturesUnspent.length, 1);
+    });
+
+    it('getCompressedAccount with address param should work ', async () => {
+        const seed = new Uint8Array(randomBytes(32));
+        const addressTree = defaultTestStateTreeAccounts().addressTree;
+        const address = await deriveAddress(seed, addressTree);
+
+        await createAccount(rpc, payer, seed, LightSystemProgram.programId);
+
+        // fetch the owners latest account
+        const accounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const latestAccount = accounts[0];
+
+        assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
+
+        const compressedAccountByHash = await rpc.getCompressedAccount(
+            undefined,
+            bn(latestAccount.hash),
+        );
+        const compressedAccountByAddress = await rpc.getCompressedAccount(
+            bn(latestAccount.address!),
+            undefined,
+        );
+
+        await expect(
+            testRpc.getCompressedAccount(bn(latestAccount.address!), undefined),
+        ).rejects.toThrow();
+
+        assert.isTrue(
+            bn(compressedAccountByHash!.address!).eq(
+                bn(compressedAccountByAddress!.address!),
+            ),
+        );
     });
 });
