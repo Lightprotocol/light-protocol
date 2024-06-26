@@ -57,7 +57,6 @@ class TransferCommand extends Command {
       if (flags["fee-payer"] !== undefined) {
         payer = await getKeypairFromFile(flags["fee-payer"]);
       }
-
       const txId = await transfer(
         rpc(),
         payer,

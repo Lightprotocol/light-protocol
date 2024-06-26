@@ -15,7 +15,7 @@ pub const POOL_SEED: &[u8] = b"pool";
 
 /// creates a token pool account which is owned by the token authority pda
 #[derive(Accounts)]
-pub struct CreateMintInstruction<'info> {
+pub struct CreateTokenPoolInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
     // #[account(
@@ -100,7 +100,7 @@ pub fn process_mint_to<'info>(
             );
             compression_public_keys.len()
         ];
-        create_output_compressed_accounts::<false, false>(
+        create_output_compressed_accounts(
             &mut output_compressed_accounts,
             ctx.accounts.mint.to_account_info().key(),
             compression_public_keys.as_slice(),
@@ -359,11 +359,11 @@ pub mod mint_sdk {
     use anchor_lang::{system_program, InstructionData, ToAccountMetas};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
-    pub fn create_initialize_mint_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
+    pub fn create_create_token_pool_instruction(fee_payer: &Pubkey, mint: &Pubkey) -> Instruction {
         let token_pool_pda = get_token_pool_pda(mint);
-        let instruction_data = crate::instruction::CreateMint {};
+        let instruction_data = crate::instruction::CreateTokenPool {};
 
-        let accounts = crate::accounts::CreateMintInstruction {
+        let accounts = crate::accounts::CreateTokenPoolInstruction {
             fee_payer: *fee_payer,
             token_pool_pda,
             system_program: system_program::ID,
@@ -454,7 +454,6 @@ mod test {
                 amount: *amount,
                 delegate: None,
                 state: AccountState::Initialized,
-                is_native: None,
             };
 
             token_data.serialize(&mut token_data_bytes).unwrap();

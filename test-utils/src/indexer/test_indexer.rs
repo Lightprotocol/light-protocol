@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use account_compression::AddressMerkleTreeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::mint_sdk::create_initialize_mint_instruction;
+use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
@@ -963,7 +963,7 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_initialize_mint_instruction(payer, &mint_pubkey);
+    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [

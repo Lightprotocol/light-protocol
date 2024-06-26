@@ -1,9 +1,9 @@
-use crate::{CreateMintInstruction, POOL_SEED};
+use crate::{CreateTokenPoolInstruction, POOL_SEED};
 use anchor_lang::prelude::*;
 
 // TODO: remove this once the anchor-lang issue is fixed
 pub fn create_token_account<'info>(
-    ctx: Context<'_, '_, '_, 'info, CreateMintInstruction<'info>>,
+    ctx: Context<'_, '_, '_, 'info, CreateTokenPoolInstruction<'info>>,
 ) -> Result<()> {
     let (_, bump) = anchor_lang::solana_program::pubkey::Pubkey::find_program_address(
         &[POOL_SEED, ctx.accounts.mint.key().to_bytes().as_ref()],

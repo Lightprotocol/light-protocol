@@ -196,6 +196,7 @@ mod test {
                 .to_bytes_be()
                 .try_into()
                 .unwrap();
+
             mt_1.append(&leaf).unwrap();
             mt_2.append(&leaf).unwrap();
 

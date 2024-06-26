@@ -1,5 +1,3 @@
-use std::cmp;
-
 use ark_bn254::Fr;
 use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::{BoundedVec, BoundedVecError, CyclicBoundedVec};
@@ -15,6 +13,7 @@ use num_bigint::BigUint;
 use num_traits::FromBytes;
 use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use solana_program::pubkey::Pubkey;
+use std::cmp;
 
 /// Tests whether append operations work as expected.
 fn append<H, const CANOPY: usize>()

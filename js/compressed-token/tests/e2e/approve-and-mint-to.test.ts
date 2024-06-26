@@ -5,7 +5,7 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { approveAndMintTo, registerMint } from '../../src/actions';
+import { approveAndMintTo, createTokenPool } from '../../src/actions';
 import {
     Rpc,
     bn,
@@ -74,7 +74,7 @@ describe('approveAndMintTo', () => {
         await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
         /// Register mint
-        await registerMint(rpc, payer, mint);
+        await createTokenPool(rpc, payer, mint);
     });
 
     it('should mintTo compressed account with external spl mint', async () => {

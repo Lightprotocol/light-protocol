@@ -2,10 +2,12 @@
 
 use anchor_lang::AnchorDeserialize;
 use anchor_lang::AnchorSerialize;
+use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::token_data::AccountState;
 use light_test_utils::spl::approve_test;
 use light_test_utils::spl::burn_test;
 use light_test_utils::spl::freeze_test;
+use light_test_utils::spl::mint_wrapped_sol;
 use light_test_utils::spl::revoke_test;
 use light_test_utils::spl::thaw_test;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
@@ -38,6 +40,66 @@ async fn test_create_mint() {
     let (mut rpc, _) = setup_test_programs_with_accounts(None).await;
     let payer = rpc.get_payer().insecure_clone();
     create_mint_helper(&mut rpc, &payer).await;
+}
+
+#[tokio::test]
+async fn test_wrapped_sol() {
+    let (mut rpc, env) = setup_test_programs_with_accounts(None).await;
+    let payer = rpc.get_payer().insecure_clone();
+    let mut test_indexer =
+        TestIndexer::<200, ProgramTestRpcConnection>::init_from_env(&payer, &env, true, false)
+            .await;
+    let native_mint = spl_token::native_mint::ID;
+    let token_account_keypair = Keypair::new();
+    create_token_account(&mut rpc, &native_mint, &token_account_keypair, &payer)
+        .await
+        .unwrap();
+    let amount = 1_000_000_000u64;
+    mint_wrapped_sol(&mut rpc, &payer, &token_account_keypair.pubkey(), amount)
+        .await
+        .unwrap();
+    let fetched_token_account = rpc
+        .get_account(token_account_keypair.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    use anchor_lang::solana_program::program_pack::Pack;
+    let upacked_token_account: spl_token::state::Account =
+        spl_token::state::Account::unpack(&fetched_token_account.data).unwrap();
+    assert_eq!(upacked_token_account.amount, amount);
+    assert_eq!(upacked_token_account.owner, payer.pubkey());
+    assert_eq!(upacked_token_account.mint, native_mint);
+    assert!(upacked_token_account.is_native.is_some());
+    let instruction = create_create_token_pool_instruction(&payer.pubkey(), &native_mint);
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    compress_test(
+        &payer,
+        &mut rpc,
+        &mut test_indexer,
+        amount,
+        &native_mint,
+        &env.merkle_tree_pubkey,
+        &token_account_keypair.pubkey(),
+        None,
+    )
+    .await;
+    let input_compressed_accounts =
+        test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey());
+    decompress_test(
+        &payer,
+        &mut rpc,
+        &mut test_indexer,
+        input_compressed_accounts,
+        amount,
+        &env.merkle_tree_pubkey,
+        &token_account_keypair.pubkey(),
+        None,
+    )
+    .await;
+    kill_prover();
 }
 
 async fn test_mint_to<const MINTS: usize, const ITER: usize>() {
@@ -1338,38 +1400,6 @@ async fn test_invalid_inputs() {
             &merkle_tree_pubkey,
             &nullifier_queue_pubkey,
             &invalid_payer,
-            &Some(proof_rpc_result.proof.clone()),
-            &proof_rpc_result.root_indices,
-            &input_compressed_accounts,
-            false,
-        )
-        .await;
-        assert_custom_error_or_program_error(res, VerifierError::ProofVerificationFailed.into())
-            .unwrap();
-    }
-    // Test 8: invalid is native
-    {
-        let mut input_compressed_account_token_data =
-            test_indexer.token_compressed_accounts[0].token_data;
-        input_compressed_account_token_data.is_native = Some(0);
-        let mut input_compressed_accounts = vec![test_indexer.token_compressed_accounts[0]
-            .compressed_account
-            .clone()];
-        let mut vec = Vec::new();
-        crate::TokenData::serialize(&input_compressed_account_token_data, &mut vec).unwrap();
-        input_compressed_accounts[0]
-            .compressed_account
-            .data
-            .as_mut()
-            .unwrap()
-            .data = vec;
-        let res = perform_transfer_failing_test(
-            &mut rpc,
-            change_out_compressed_account_0,
-            transfer_recipient_out_compressed_account_0,
-            &merkle_tree_pubkey,
-            &nullifier_queue_pubkey,
-            &recipient_keypair,
             &Some(proof_rpc_result.proof.clone()),
             &proof_rpc_result.root_indices,
             &input_compressed_accounts,

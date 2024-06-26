@@ -109,6 +109,8 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
 
+/// This is a separate function from create_output_compressed_accounts to allow
+/// for a flexible number of delegates.
 fn create_token_output_accounts<const IS_FROZEN: bool>(
     input_token_data_with_context: &[InputTokenDataWithContext],
     remaining_accounts: &[AccountInfo],
@@ -141,7 +143,6 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             amount: token_data.amount,
             delegate,
             state,
-            is_native: None,
         };
         token_data.serialize(&mut token_data_bytes).unwrap();
 
@@ -151,8 +152,6 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             data: token_data_bytes,
             data_hash,
         };
-        // TODO: support wrapped sol
-        // let lamports = lamports.and_then(|lamports| lamports[i]).unwrap_or(0);
 
         output_compressed_accounts[i] = OutputCompressedAccountWithPackedContext {
             compressed_account: CompressedAccount {
@@ -346,7 +345,7 @@ pub mod test_freeze {
         let input_token_data_with_context = vec![
             InputTokenDataWithContext {
                 amount: 100,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -354,10 +353,11 @@ pub mod test_freeze {
                 },
                 root_index: 0,
                 delegate_index: None,
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -365,6 +365,7 @@ pub mod test_freeze {
                 },
                 root_index: 0,
                 delegate_index: Some(2),
+                lamports: None,
             },
         ];
         // Freeze
@@ -391,7 +392,6 @@ pub mod test_freeze {
                 amount: 100,
                 delegate: None,
                 state: AccountState::Frozen,
-                is_native: None,
             };
             let expected_delegated_token_data = TokenData {
                 mint,
@@ -399,7 +399,6 @@ pub mod test_freeze {
                 amount: 101,
                 delegate: Some(delegate),
                 state: AccountState::Frozen,
-                is_native: None,
             };
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -435,7 +434,6 @@ pub mod test_freeze {
                 amount: 100,
                 delegate: None,
                 state: AccountState::Initialized,
-                is_native: None,
             };
             let expected_delegated_token_data = TokenData {
                 mint,
@@ -443,7 +441,6 @@ pub mod test_freeze {
                 amount: 101,
                 delegate: Some(delegate),
                 state: AccountState::Initialized,
-                is_native: None,
             };
 
             let expected_compressed_output_accounts = create_expected_token_output_accounts(

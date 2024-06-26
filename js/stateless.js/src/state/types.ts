@@ -103,9 +103,9 @@ export type CompressedTokenInstructionDataTransfer = {
 export interface InputTokenDataWithContext {
     amount: BN;
     delegateIndex: number | null; // Option<u8>
-    isNative: BN | null; // Option<u64>
     merkleContext: PackedMerkleContext;
     rootIndex: number; // u16
+    lamports: BN | null;
 }
 export type TokenData = {
     /// The mint associated with this account
@@ -119,12 +119,4 @@ export type TokenData = {
     delegate: PublicKey | null;
     /// The account's state
     state: number; // AccountState_IdlType;
-    /// If is_some, this is a native token, and the value logs the rent-exempt
-    /// reserve. An Account is required to be rent-exempt, so the value is
-    /// used by the Processor to ensure that wrapped SOL accounts do not
-    /// drop below this threshold.
-    isNative: BN | null;
-    // TODO: validate that we don't need close authority
-    // /// Optional authority to close the account.
-    // close_authority?: PublicKey,
 };
