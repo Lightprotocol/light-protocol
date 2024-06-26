@@ -449,6 +449,11 @@ export interface CompressionApiInterface {
         hashes: BN254[],
     ): Promise<MerkleContextWithMerkleProof[]>;
 
+    getValidityProof(
+        hashes: BN254[],
+        newAddresses: BN254[],
+    ): Promise<CompressedProofWithContext>;
+
     getCompressedAccountsByOwner(
         owner: PublicKey,
     ): Promise<CompressedAccountWithMerkleContext[]>;
@@ -470,13 +475,13 @@ export interface CompressionApiInterface {
         options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<{ balance: BN; mint: PublicKey }[]>;
 
-    getCompressionSignaturesForAccount(
-        hash: BN254,
-    ): Promise<SignatureWithMetadata[]>;
-
     getTransactionWithCompressionInfo(
         signature: string,
     ): Promise<CompressedTransaction | null>;
+
+    getCompressionSignaturesForAccount(
+        hash: BN254,
+    ): Promise<SignatureWithMetadata[]>;
 
     getCompressionSignaturesForAddress(
         address: PublicKey,
@@ -490,10 +495,6 @@ export interface CompressionApiInterface {
         owner: PublicKey,
     ): Promise<SignatureWithMetadata[]>;
 
-    getIndexerHealth(): Promise<string>;
-
-    getIndexerSlot(): Promise<number>;
-
     getLatestNonVotingSignatures(
         limit?: number,
     ): Promise<LatestNonVotingSignatures>;
@@ -503,8 +504,7 @@ export interface CompressionApiInterface {
         limit?: number,
     ): Promise<LatestNonVotingSignaturesPaginated>;
 
-    getValidityProof(
-        hashes: BN254[],
-        newAddresses: BN254[],
-    ): Promise<CompressedProofWithContext>;
+    getIndexerHealth(): Promise<string>;
+
+    getIndexerSlot(): Promise<number>;
 }

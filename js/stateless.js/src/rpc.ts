@@ -291,7 +291,6 @@ export const proverRequest = async (
     if (!response.ok) {
         throw new Error(`Error fetching proof: ${response.statusText}`);
     }
-    /// TODO: Move compression into the gnark prover to save bandwidth.
     const data: any = await response.json();
     const parsed = proofFromJsonStruct(data);
     const compressedProof = negateAndCompressProof(parsed);
@@ -530,18 +529,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        // const proofWithoutRoot = res.result.value.proof.slice(0, -1);
-
-        // const root = res.result.value.proof[res.result.value.proof.length - 1];
-
         const value: MerkleContextWithMerkleProof = {
             hash: res.result.value.hash.toArray('be', 32),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
-            merkleProof: res.result.value.proof, //proofWithoutRoot,
-            nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
-            rootIndex: res.result.value.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
-            root: res.result.value.root, // TODO: validate correct root
+            merkleProof: res.result.value.proof,
+            nullifierQueue: mockNullifierQueue, // TODO(photon): support nullifierQueue in response.
+            rootIndex: res.result.value.rootSeq % 2400,
+            root: res.result.value.root,
         };
         return value;
     }
@@ -937,7 +932,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value.items;
     }
 
-    /// TODO: needs mint
+    /// TODO(photon): needs mint
     /**
      * Returns confirmed signatures for compression transactions involving the
      * specified token account owner forward in time from genesis to the most
@@ -1103,6 +1098,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated This method is not available. Please use
+     * {@link getValidityProof} instead.
+     *
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses.
@@ -1174,8 +1172,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                // TODO(crank): make dynamic to enable forester support in
-                // test-rpc.ts. Currently this is a static root because the
+                // This is a static root because the
                 // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(
@@ -1214,8 +1211,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.root)),
                 rootIndices: merkleProofsWithContext
                     .map(proof => proof.rootIndex)
-                    // TODO(crank): make dynamic to enable forester support in
-                    // test-rpc.ts. Currently this is a static root because the
+                    // This is a static root because the
                     // address tree doesn't advance.
                     .concat(newAddressProofs.map(_ => 3)),
                 leafIndices: merkleProofsWithContext
@@ -1256,8 +1252,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * @param newAddresses  Array of BN254 new addresses.
      * @returns             validity proof with context
      */
-    // FIXME: debug photon zkp. For debugging use either
-    // testRpc.getValidityProof or rpc.getValidityProof to test against
     async getValidityProof(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],

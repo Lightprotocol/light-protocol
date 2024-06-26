@@ -540,7 +540,10 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return newAddressProofs;
     }
 
-    /// TODO: remove once photon 'getValidityProof' is fixed
+    /**
+     * @deprecated This method is not available. Please use
+     * {@link getValidityProof} instead.
+     */
     async getValidityProof_direct(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],
