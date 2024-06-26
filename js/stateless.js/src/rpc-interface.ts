@@ -12,6 +12,7 @@ import {
     unknown,
     any,
     nullable,
+    optional,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
 import {
@@ -276,6 +277,20 @@ export const LatestNonVotingSignaturesResult = pick({
 /**
  * @internal
  */
+export const LatestNonVotingSignaturesResultPaginated = pick({
+    items: array(
+        pick({
+            signature: string(),
+            slot: number(),
+            blockTime: number(),
+        }),
+    ),
+    cursor: nullable(string()),
+});
+
+/**
+ * @internal
+ */
 export const MerkeProofResult = pick({
     hash: BN254FromString,
     leafIndex: number(),
@@ -466,7 +481,12 @@ export interface CompressionApiInterface {
 
     getLatestNonVotingSignatures(
         limit?: number,
-    ): Promise<LatestNonVotingSignaturesResult>;
+    ): Promise<LatestNonVotingSignatures>;
+
+    getLatestCompressionSignatures(
+        cursor?: string,
+        limit?: number,
+    ): Promise<LatestNonVotingSignaturesPaginated>;
 
     getValidityProof(
         hashes: BN254[],
@@ -474,9 +494,17 @@ export interface CompressionApiInterface {
     ): Promise<CompressedProofWithContext>;
 }
 
-export interface LatestNonVotingSignaturesResult {
+export interface LatestNonVotingSignatures {
     context: { slot: number };
     value: {
         items: { signature: string; slot: number; blockTime: number }[];
+    };
+}
+
+export interface LatestNonVotingSignaturesPaginated {
+    context: { slot: number };
+    value: {
+        items: { signature: string; slot: number; blockTime: number }[];
+        cursor: string | null;
     };
 }

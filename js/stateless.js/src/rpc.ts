@@ -32,6 +32,9 @@ import {
     ValidityProofResult,
     NewAddressProofResult,
     LatestNonVotingSignaturesResult,
+    LatestNonVotingSignatures,
+    LatestNonVotingSignaturesResultPaginated,
+    LatestNonVotingSignaturesPaginated,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -997,12 +1000,38 @@ export class Rpc extends Connection implements CompressionApiInterface {
         }
         return res.result;
     }
+
+    /**
+     * Fetch the latest compression signatures on the cluster. Results are
+     * paginated.
+     */
+    async getLatestCompressionSignatures(
+        cursor?: string,
+        limit?: number,
+    ): Promise<LatestNonVotingSignaturesPaginated> {
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getLatestCompressionSignatures',
+            { limit, cursor },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(LatestNonVotingSignaturesResultPaginated),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                'failed to get latest non-voting signatures',
+            );
+        }
+        return res.result;
+    }
     /**
      * Fetch all non-voting signatures
      */
     async getLatestNonVotingSignatures(
         limit?: number,
-    ): Promise<LatestNonVotingSignaturesResult> {
+    ): Promise<LatestNonVotingSignatures> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getLatestNonVotingSignatures',

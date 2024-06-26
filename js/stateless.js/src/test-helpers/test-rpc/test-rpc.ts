@@ -16,6 +16,8 @@ import { getParsedEvents } from './get-parsed-events';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import {
     CompressedTransaction,
+    LatestNonVotingSignatures,
+    LatestNonVotingSignaturesPaginated,
     LatestNonVotingSignaturesResult,
     SignatureWithMetadata,
 } from '../../rpc-interface';
@@ -319,11 +321,24 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the current indexer health status
+     * Fetch the latest compression signatures on the cluster. Results are
+     * paginated.
+     */
+    async getLatestCompressionSignatures(
+        _cursor?: string,
+        _limit?: number,
+    ): Promise<LatestNonVotingSignaturesPaginated> {
+        throw new Error(
+            'getLatestNonVotingSignaturesWithContext not supported in test-rpc',
+        );
+    }
+    /**
+     * Fetch the latest non-voting signatures on the cluster. Results are
+     * not paginated.
      */
     async getLatestNonVotingSignatures(
         _limit?: number,
-    ): Promise<LatestNonVotingSignaturesResult> {
+    ): Promise<LatestNonVotingSignatures> {
         throw new Error(
             'getLatestNonVotingSignaturesWithContext not supported in test-rpc',
         );
