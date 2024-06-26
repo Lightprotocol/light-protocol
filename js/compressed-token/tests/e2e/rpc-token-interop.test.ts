@@ -184,7 +184,6 @@ describe('rpc-interop token', () => {
 
         const senderAccounts = await rpc.getCompressedTokenAccountsByOwner(
             bob.publicKey,
-            {},
         );
 
         // check that mint and mint2 exist in list of senderaccounts at least once

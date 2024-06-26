@@ -706,8 +706,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
+        if (!options) options = {};
+
         return await getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             owner,
@@ -721,8 +723,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
+        if (!options) options = {};
+
         return getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             delegate,
@@ -764,8 +768,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedTokenBalancesByOwner(
         owner: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<{ balance: BN; mint: PublicKey }[]> {
+        if (!options) options = {};
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedTokenBalancesByOwner',
