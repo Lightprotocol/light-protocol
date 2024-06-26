@@ -1,15 +1,11 @@
 #[derive(Debug)]
 pub struct QueueData {
-    // change_log_index: usize,
-    // sequence_number: usize,
     pub(crate) accounts_to_nullify: Vec<AccountData>,
 }
 
 impl QueueData {
     pub(crate) fn new(accounts_to_nullify: Vec<AccountData>) -> Self {
         Self {
-            // change_log_index,
-            // sequence_number,
             accounts_to_nullify,
         }
     }

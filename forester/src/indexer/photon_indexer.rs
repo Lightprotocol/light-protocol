@@ -1,12 +1,13 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
-    Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
+    Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
 };
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 use solana_sdk::bs58;
 use std::fmt::Debug;
+use log::info;
 
 pub struct PhotonIndexer {
     configuration: Configuration,
@@ -117,14 +118,6 @@ impl Indexer for PhotonIndexer {
         Ok(hashes)
     }
 
-    async fn get_address_tree_proof(
-        &self,
-        _merkle_tree_pubkey: [u8; 32],
-        _address: [u8; 32],
-    ) -> Result<MerkleProofWithAddressContext, IndexerError> {
-        unimplemented!("only needed for testing")
-    }
-
     async fn get_multiple_new_address_proofs(
         &self,
         _merkle_tree_pubkey: [u8; 32],
@@ -134,6 +127,8 @@ impl Indexer for PhotonIndexer {
             params: vec![bs58::encode(address).into_string()],
             ..Default::default()
         };
+
+        info!("Request: {:?}", request);
 
         let result = photon_api::apis::default_api::get_multiple_new_address_proofs_post(
             &self.configuration,
@@ -145,8 +140,8 @@ impl Indexer for PhotonIndexer {
             return Err(IndexerError::Custom(result.err().unwrap().to_string()));
         }
 
-        let proofs: photon_api::models::MerkleContextWithNewAddressProof =
-            result.unwrap().result.unwrap().value[0].clone();
+        info!("Result: {:?}", result);
+        let proofs: photon_api::models::MerkleContextWithNewAddressProof = result.unwrap().result.unwrap().value[0].clone();
 
         let tree_pubkey = decode_hash(&proofs.merkle_tree);
         let low_address_value = decode_hash(&proofs.lower_range_address);
@@ -158,15 +153,21 @@ impl Indexer for PhotonIndexer {
             low_address_next_index: proofs.next_index as u64,
             low_address_next_value,
             low_address_proof: {
-                let proof_vec: Vec<[u8; 32]> = proofs
+                let mut proof_vec: Vec<[u8; 32]> = proofs
                     .proof
                     .iter()
                     .map(|x: &String| decode_hash(x))
                     .collect();
-                proof_vec
+                proof_vec.truncate(proof_vec.len() - 10); // Remove canopy
+                let mut proof_arr = [[0u8; 32]; 16];
+                proof_arr.copy_from_slice(&proof_vec);
+                proof_arr
             },
             root: decode_hash(&proofs.root),
             root_seq: proofs.root_seq as i64,
+            new_low_element: None,
+            new_element: None,
+            new_element_next_value: None
         })
     }
 }

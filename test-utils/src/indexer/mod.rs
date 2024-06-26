@@ -1,7 +1,6 @@
 pub mod test_indexer;
 
 use num_bigint::BigUint;
-use photon_api::models::MerkleContextWithNewAddressProof;
 use std::fmt::Debug;
 pub use test_indexer::create_mint_helper;
 pub use test_indexer::AddressMerkleTreeAccounts;
@@ -18,6 +17,7 @@ use light_hash_set::HashSetError;
 use light_indexed_merkle_tree::array::IndexedElement;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
+use crate::rpc::rpc_connection::RpcConnection;
 
 pub trait Indexer: Sync + Send + Clone + Debug + 'static {
     fn get_multiple_compressed_account_proofs(
@@ -30,14 +30,6 @@ pub trait Indexer: Sync + Send + Clone + Debug + 'static {
         owner: &Pubkey,
     ) -> impl std::future::Future<Output = Result<Vec<String>, IndexerError>> + Send + Sync;
 
-    fn get_address_tree_proof(
-        &self,
-        merkle_tree_pubkey: [u8; 32],
-        address: [u8; 32],
-    ) -> impl std::future::Future<Output = Result<MerkleProofWithAddressContext, IndexerError>>
-           + Send
-           + Sync;
-
     fn get_multiple_new_address_proofs(
         &self,
         merkle_tree_pubkey: [u8; 32],
@@ -49,7 +41,7 @@ pub trait Indexer: Sync + Send + Clone + Debug + 'static {
     fn address_tree_updated(
         &mut self,
         _merkle_tree_pubkey: [u8; 32],
-        _context: MerkleProofWithAddressContext,
+        _context: NewAddressProofWithContext,
     ) {
     }
 }
@@ -63,40 +55,6 @@ pub struct MerkleProof {
     pub root_seq: u64,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct MerkleProofWithAddressContext {
-    // pub hash: String,
-    // pub leaf_index: u32,
-    pub merkle_tree: [u8; 32],
-    // pub proof: Vec<String>,
-    // pub root: String,
-    // pub root_seq: i64,
-    pub low_address_index: u64,
-    pub low_address_value: [u8; 32],
-    pub low_address_next_index: u64,
-    pub low_address_next_value: [u8; 32],
-    pub low_address_proof: [[u8; 32]; 16],
-    pub new_low_element: IndexedElement<usize>,
-    pub new_element: IndexedElement<usize>,
-    pub new_element_next_value: BigUint,
-}
-
-impl From<MerkleContextWithNewAddressProof> for MerkleProofWithAddressContext {
-    fn from(proof: MerkleContextWithNewAddressProof) -> Self {
-        MerkleProofWithAddressContext {
-            merkle_tree: todo!(),
-            low_address_index: todo!(),
-            low_address_value: todo!(),
-            low_address_next_index: todo!(),
-            low_address_next_value: todo!(),
-            low_address_proof: todo!(),
-            new_low_element: todo!(),
-            new_element: todo!(),
-            new_element_next_value: todo!(),
-        }
-    }
-}
-
 // For consistency with the Photon API.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NewAddressProofWithContext {
@@ -107,7 +65,10 @@ pub struct NewAddressProofWithContext {
     pub low_address_value: [u8; 32],
     pub low_address_next_index: u64,
     pub low_address_next_value: [u8; 32],
-    pub low_address_proof: Vec<[u8; 32]>,
+    pub low_address_proof: [[u8; 32]; 16],
+    pub new_low_element: Option<IndexedElement<usize>>,
+    pub new_element: Option<IndexedElement<usize>>,
+    pub new_element_next_value: Option<BigUint>
 }
 
 #[derive(Error, Debug)]

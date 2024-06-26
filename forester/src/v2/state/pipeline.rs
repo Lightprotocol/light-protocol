@@ -1,4 +1,4 @@
-use crate::nullifier::Config;
+use crate::config::ForesterConfig;
 use crate::v2::state::{AccountData, QueueData, StateProcessor};
 use crate::v2::BackpressureControl;
 use light_test_utils::indexer::Indexer;
@@ -21,7 +21,7 @@ pub enum PipelineStage<T: Indexer, R: RpcConnection> {
 pub struct PipelineContext<T: Indexer, R: RpcConnection> {
     pub indexer: Arc<Mutex<T>>,
     pub rpc: Arc<Mutex<R>>,
-    pub config: Arc<Config>,
+    pub config: Arc<ForesterConfig>,
 }
 
 impl<T: Indexer, R: RpcConnection> Clone for PipelineContext<T, R> {
@@ -34,10 +34,10 @@ impl<T: Indexer, R: RpcConnection> Clone for PipelineContext<T, R> {
     }
 }
 
-pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
+pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
-    config: Arc<Config>,
+    config: Arc<ForesterConfig>,
 ) -> (mpsc::Sender<PipelineStage<T, R>>, mpsc::Receiver<()>) {
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);

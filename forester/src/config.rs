@@ -3,7 +3,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 
 #[derive(Debug)]
-pub struct Config {
+pub struct ForesterConfig {
     pub external_services: ExternalServicesConfig,
     pub nullifier_queue_pubkey: Pubkey,
     pub state_merkle_tree_pubkey: Pubkey,
@@ -17,7 +17,7 @@ pub struct Config {
     pub max_concurrent_batches: usize,
 }
 
-impl Clone for Config {
+impl Clone for ForesterConfig {
     fn clone(&self) -> Self {
         Self {
             external_services: self.external_services.clone(),

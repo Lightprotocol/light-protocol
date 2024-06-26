@@ -19,12 +19,6 @@ pub struct ProgramTestRpcConnection {
     pub context: ProgramTestContext,
 }
 
-impl Clone for ProgramTestRpcConnection {
-    fn clone(&self) -> Self {
-        todo!()
-    }
-}
-
 impl Debug for ProgramTestRpcConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "ProgramTestRpcConnection")

@@ -1,5 +1,5 @@
+use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
-use crate::nullifier::Config;
 use account_compression::StateMerkleTreeAccount;
 use anchor_lang::AccountDeserialize;
 use light_test_utils::rpc::errors::RpcError;
@@ -10,7 +10,7 @@ use std::collections::LinkedList;
 
 const INVALID_MT_PUBKEY: &str = "11111111111111111111111111111111";
 
-pub fn reindex_and_store(config: &Config) -> Result<(), ForesterError> {
+pub fn reindex_and_store(config: &ForesterConfig) -> Result<(), ForesterError> {
     match reindex(
         &config.state_merkle_tree_pubkey,
         &config.external_services.rpc_url,

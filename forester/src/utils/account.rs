@@ -1,4 +1,4 @@
-use crate::nullifier::Config;
+use crate::config::ForesterConfig;
 use crate::v2::state::get_nullifier_queue;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 
@@ -16,7 +16,10 @@ pub fn u8_arr_to_hex_string(arr: &[u8]) -> String {
         .join("")
 }
 
-pub async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) -> usize {
+pub async fn get_state_queue_length<R: RpcConnection>(
+    rpc: &mut R,
+    config: &ForesterConfig,
+) -> usize {
     let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc)
         .await
         .unwrap();

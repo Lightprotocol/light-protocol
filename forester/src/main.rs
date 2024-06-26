@@ -4,18 +4,12 @@ use config::Config;
 use env_logger::Env;
 use forester::cli::{Cli, Commands};
 use forester::external_services_config::ExternalServicesConfig;
-use forester::indexer::PhotonIndexer;
 use forester::nqmt::reindex_and_store;
-use forester::nullifier::subscribe_nullify;
-use forester::nullifier::{empty_address_queue, Config as ForesterConfig};
 use forester::settings::SettingsKey;
-use forester::v2::state::setup_pipeline;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use light_test_utils::rpc::SolanaRpcConnection;
-use log::{error, info, warn};
+use forester::{nullify_addresses, nullify_state, subscribe_state, ForesterConfig};
+use log::{error, info};
 use serde_json::Result;
-use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
-use solana_sdk::signature::{Keypair, Signer};
+use solana_sdk::signature::Keypair;
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -88,12 +82,11 @@ async fn main() {
     let cli = Cli::parse();
     match &cli.command {
         Some(Commands::Subscribe) => {
-            let rpc = init_rpc(&config).await;
             info!(
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
-            subscribe_nullify(&config, rpc).await;
+            subscribe_state(config.clone()).await;
         }
         Some(Commands::NullifyState) => {
             nullify_state(config).await;
@@ -130,69 +123,4 @@ async fn main() {
             return;
         }
     }
-}
-
-async fn nullify_state(config: Arc<ForesterConfig>) {
-    info!(
-        "Run state tree nullifier. Queue: {}. Merkle tree: {}",
-        config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
-    );
-    let rpc = init_rpc(&config).await;
-    let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-        config.external_services.indexer_url.to_string(),
-    )));
-    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-
-    let (input_tx, mut completion_rx) = setup_pipeline(indexer, rpc, config).await;
-    let result = completion_rx.recv().await;
-    drop(input_tx);
-
-    match result {
-        Some(()) => {
-            info!("State nullifier completed successfully");
-        }
-        None => {
-            warn!("State nullifier stopped unexpectedly");
-        }
-    }
-    // Optional: Add a small delay to allow the StreamProcessor to shut down gracefully
-    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-}
-
-async fn nullify_addresses(config: Arc<ForesterConfig>) {
-    info!(
-        "Run address tree nullifier. Queue: {}. Merkle tree: {}",
-        config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey
-    );
-
-    let result = tokio::task::spawn_blocking(move || {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(async {
-            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-                config.external_services.indexer_url.to_string(),
-            )));
-            let rpc = init_rpc(&config).await;
-            let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
-            empty_address_queue(indexer, rpc, config).await
-        })
-    })
-    .await
-    .unwrap();
-
-    info!("Address nullifier result: {:?}", result);
-}
-
-async fn init_rpc(config: &Arc<ForesterConfig>) -> SolanaRpcConnection {
-    let mut rpc = SolanaRpcConnection::new(
-        config.external_services.rpc_url.clone(),
-        Some(CommitmentConfig {
-            commitment: CommitmentLevel::Confirmed,
-        }),
-    );
-
-    rpc.airdrop_lamports(&config.payer_keypair.pubkey(), 10_000_000_000)
-        .await
-        .unwrap();
-
-    rpc
 }

@@ -1,7 +1,8 @@
 use env_logger::Env;
 use forester::external_services_config::ExternalServicesConfig;
-use forester::nullifier::{get_nullifier_queue, nullify, Config};
+use forester::{ForesterConfig, nullify_state};
 use forester::utils::spawn_validator;
+use forester::v2::state::get_nullifier_queue;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
@@ -18,7 +19,7 @@ async fn test_state_tree_nullifier() {
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
-    let config = Config {
+    let config = ForesterConfig {
         external_services: ExternalServicesConfig::local(),
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
@@ -67,10 +68,8 @@ async fn test_state_tree_nullifier() {
         get_state_queue_length(&mut env.rpc, &config).await
     );
 
-    let indexer = Arc::new(tokio::sync::Mutex::new(env.indexer));
-    let rpc = Arc::new(tokio::sync::Mutex::new(env.rpc));
     let config = Arc::new(config);
-    nullify(indexer, rpc, config).await.unwrap();
+    nullify_state(config).await;
     // assert_eq!(get_state_queue_length(&mut *rpc.lock().await, &config).await, 0);
 }
 
@@ -113,7 +112,7 @@ async fn test_1_all() {
     env.execute_rounds().await;
 }
 
-async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &Config) -> usize {
+async fn get_state_queue_length<R: RpcConnection>(rpc: &mut R, config: &ForesterConfig) -> usize {
     let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, rpc)
         .await
         .unwrap();

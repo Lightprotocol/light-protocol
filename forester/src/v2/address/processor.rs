@@ -1,5 +1,5 @@
+use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
-use crate::nullifier::Config;
 use crate::v2::address::pipeline::{AddressPipelineStage, PipelineContext};
 use crate::v2::BackpressureControl;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
@@ -9,7 +9,7 @@ use light_registry::sdk::{
     create_update_address_merkle_tree_instruction, UpdateAddressMerkleTreeInstructionInputs,
 };
 use light_test_utils::get_indexed_merkle_tree;
-use light_test_utils::indexer::{Indexer, MerkleProofWithAddressContext};
+use light_test_utils::indexer::{Indexer, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{info, warn};
 use solana_sdk::pubkey::Pubkey;
@@ -106,15 +106,10 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         let address = account.hash;
         let address_hashset_index = account.index;
 
-        // let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
-        //     &mut *rpc.lock().await,
-        //     config.address_merkle_tree_pubkey,
-        // ).await;
-
-        let proof = indexer
+                let proof = indexer
             .lock()
             .await
-            .get_address_tree_proof(config.address_merkle_tree_pubkey.to_bytes(), address)
+            .get_multiple_new_address_proofs(config.address_merkle_tree_pubkey.to_bytes(), address)
             .await
             .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
 
@@ -133,8 +128,8 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         .await?;
 
         if update_successful {
-            // Ok(vec![AddressPipelineStage::UpdateIndexer(context, proof.into())])
-            Ok(vec![])
+            Ok(vec![AddressPipelineStage::UpdateIndexer(context, proof.into())])
+            // Ok(vec![])
         } else {
             Err(ForesterError::Custom(
                 "Failed to update address merkle tree".to_string(),
@@ -145,7 +140,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
     async fn update_indexer(
         &self,
         context: PipelineContext<T, R>,
-        proof: MerkleProofWithAddressContext,
+        proof: NewAddressProofWithContext,
     ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let indexer = &context.indexer;
@@ -160,10 +155,9 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
 }
 
 async fn fetch_address_queue_data<R: RpcConnection>(
-    config: &Arc<Config>,
+    config: &Arc<ForesterConfig>,
     rpc: &Arc<Mutex<R>>,
 ) -> Result<Vec<crate::v2::address::Account>, ForesterError> {
-    // let address_merkle_tree_pubkey = config.address_merkle_tree_pubkey;
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
 
     let mut account = (*rpc.lock().await)
@@ -174,19 +168,34 @@ async fn fetch_address_queue_data<R: RpcConnection>(
         HashSet::from_bytes_copy(&mut account.data[8 + mem::size_of::<QueueAccount>()..])?
     };
     let mut address_queue_vec = Vec::new();
-    let address = address_queue.first_no_seq().unwrap();
-    info!("address_queue: {:?}", address);
-    if address.is_none() {
-        return Ok(address_queue_vec);
+
+    for i in 0..address_queue.capacity {
+        let bucket = address_queue.get_bucket(i).unwrap();
+        if let Some(bucket) = bucket {
+            if bucket.sequence_number.is_none() {
+                address_queue_vec.push(crate::v2::address::Account {
+                    hash: bucket.value_bytes(),
+                    index: i,
+                });
+            }
+        }
     }
-    let (address, address_hashset_index) = address.unwrap();
-    info!("address: {:?}", address);
-    info!("address_hashset_index: {:?}", address_hashset_index);
-    address_queue_vec.push(crate::v2::address::Account {
-        hash: address.value_bytes(),
-        index: address_hashset_index as usize,
-    });
+
     Ok(address_queue_vec)
+
+    // let address = address_queue.first_no_seq().unwrap();
+    // info!("address_queue: {:?}", address);
+    // if address.is_none() {
+    //     return Ok(address_queue_vec);
+    // }
+    // let (address, address_hashset_index) = address.unwrap();
+    // info!("address: {:?}", address);
+    // info!("address_hashset_index: {:?}", address_hashset_index);
+    // address_queue_vec.push(crate::v2::address::Account {
+    //     hash: address.value_bytes(),
+    //     index: address_hashset_index as usize,
+    // });
+    // Ok(address_queue_vec)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -234,7 +243,9 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     );
 
     let signature = rpc.process_transaction(transaction).await?;
+    info!("signature: {:?}", signature);
     let confirmed = rpc.confirm_transaction(signature).await?;
+    info!("confirmed: {:?}", confirmed);
     Ok(confirmed)
 }
 
