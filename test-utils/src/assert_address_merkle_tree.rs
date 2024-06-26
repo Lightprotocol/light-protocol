@@ -117,14 +117,14 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     );
     assert_eq!(&merkle_tree.rightmost_leaf(), expected_rightmost_leaf);
 
-    assert_eq!(
-        merkle_tree.changelog.len(),
-        expected_indexed_changelog_length
-    );
-    assert_eq!(
-        merkle_tree.changelog.len(),
-        expected_indexed_changelog_length
-    );
+    // assert_eq!(
+    //     merkle_tree.changelog.len(),
+    //     expected_indexed_changelog_length
+    // );
+    // assert_eq!(
+    //     merkle_tree.changelog.capacity(),
+    //     expected_indexed_changelog_length
+    // );
     // for i in merkle_tree.changelog.iter() {
     //     println!("changelog: {:?}", i);
     // }

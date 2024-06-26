@@ -29,7 +29,7 @@ use crate::errors::IndexedMerkleTreeError;
 
 pub const HIGHEST_ADDRESS_PLUS_ONE: &str =
     "452312848583266388373324160190187140051835877600158453279131187530910662655";
-
+// , const NET_HEIGHT: usize
 #[derive(Debug)]
 #[repr(C)]
 pub struct IndexedMerkleTree<H, I, const HEIGHT: usize>
@@ -47,7 +47,7 @@ where
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
-    pub indexed_changelog: CyclicBoundedVec<IndexedChangelogEntry<I>>,
+    pub indexed_changelog: CyclicBoundedVec<IndexedChangelogEntry<I, HEIGHT>>,
 
     _index: PhantomData<I>,
 }
@@ -96,7 +96,7 @@ where
         // indexed_changelog (metadata)
         + mem::size_of::<CyclicBoundedVecMetadata>()
         // indexed_changelog
-        + mem::size_of::<IndexedChangelogEntry<I>>() * indexed_changelog_size
+        + mem::size_of::<IndexedChangelogEntry<I, HEIGHT>>() * indexed_changelog_size
     }
 
     pub fn new(
@@ -135,9 +135,16 @@ where
             next_value: [0_u8; 32],
             index: I::zero(),
         };
+        #[cfg(target_os = "solana")]
+        {
+            use solana_program::msg;
+            msg!("height: {}", self.height);
+            msg!("canopy_depth: {}", self.merkle_tree.canopy_depth);
+            msg!("height - canopy_depth: {}", self.height);
+        }
         let changelog_entry = IndexedChangelogEntry {
             element,
-            proof: BoundedVec::from_slice(&H::zero_bytes()[..self.height]),
+            proof: H::zero_bytes()[..self.height].try_into().unwrap(),
             changelog_index: 0,
         };
         self.indexed_changelog.push(changelog_entry);
@@ -180,7 +187,7 @@ where
         )?;
 
         // Emit changelog for low element.
-        let proof = BoundedVec::from_slice(&H::zero_bytes()[..self.height]);
+        // let proof = BoundedVec::from_slice(&);
         let low_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&element_bundle.new_low_element.value)?,
             next_index: element_bundle.new_low_element.next_index,
@@ -189,7 +196,7 @@ where
         };
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: low_element,
-            proof,
+            proof: H::zero_bytes()[..self.height].try_into().unwrap(),
             changelog_index,
         };
         self.indexed_changelog.push(low_element_changelog_entry);
@@ -209,7 +216,7 @@ where
         };
         let new_element_changelog_entry = IndexedChangelogEntry {
             element: new_element,
-            proof,
+            proof: proof.to_array()?,
             changelog_index,
         };
         self.indexed_changelog.push(new_element_changelog_entry);
@@ -320,7 +327,12 @@ where
             // Patch the next value.
             *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
             // Patch the proof.
-            low_leaf_proof.clone_from(&changelog_entry.proof);
+            // low_leaf_proof.clone_from(&BoundedVec::from_slice(&changelog_entry.proof[0..len]));
+            for i in 0..low_leaf_proof.len() {
+                low_leaf_proof[i] = changelog_entry.proof[i];
+            }
+            #[cfg(target_os = "solana")]
+            solana_program::msg!("low_leaf_proof len: {:?}", low_leaf_proof.len());
         }
 
         // If we found a new low element.
@@ -342,18 +354,18 @@ where
             solana_program::msg!("low_leaf_proof len: {:?}", low_leaf_proof.len());
             #[cfg(target_os = "solana")]
             {
-                solana_program::msg!(
-                    "new_low_element_changelog_entry len: {:?}",
-                    new_low_element_changelog_entry.proof.len()
-                );
-                solana_program::msg!(
-                    "new_low_element_changelog_entry proof: {:?}",
-                    new_low_element_changelog_entry.proof
-                );
-                solana_program::msg!(
-                    "new_low_element_changelog_entry element: {:?}",
-                    new_low_element_changelog_entry.element
-                );
+                // solana_program::msg!(
+                //     "new_low_element_changelog_entry len: {:?}",
+                //     new_low_element_changelog_entry.proof.len()
+                // );
+                // solana_program::msg!(
+                //     "new_low_element_changelog_entry proof: {:?}",
+                //     new_low_element_changelog_entry.proof
+                // );
+                // solana_program::msg!(
+                //     "new_low_element_changelog_entry element: {:?}",
+                //     new_low_element_changelog_entry.element
+                // );
             }
             #[cfg(not(target_os = "solana"))]
             {
@@ -371,7 +383,12 @@ where
                 );
             }
 
-            low_leaf_proof.clone_from(&new_low_element_changelog_entry.proof);
+            // low_leaf_proof.clone_from(&BoundedVec::from_slice(
+            //     &new_low_element_changelog_entry.proof[0..len],
+            // ));
+            for i in 0..low_leaf_proof.len() {
+                low_leaf_proof[i] = new_low_element_changelog_entry.proof[i];
+            }
             #[cfg(target_os = "solana")]
             solana_program::msg!("low_leaf_proof len: {:?}", low_leaf_proof.len());
             new_element.next_index = low_element.next_index;
@@ -399,6 +416,10 @@ where
         mut low_element_next_value: BigUint,
         low_leaf_proof: &mut BoundedVec<[u8; 32]>,
     ) -> Result<IndexedMerkleTreeUpdate<I>, IndexedMerkleTreeError> {
+        #[cfg(target_os = "solana")]
+        {
+            solana_program::msg!("low leaf proof capacity {:?}", low_leaf_proof.capacity());
+        }
         self.patch_elements_and_proof(
             indexed_changelog_index,
             &mut changelog_index,
@@ -407,7 +428,10 @@ where
             &mut low_element_next_value,
             low_leaf_proof,
         )?;
-
+        #[cfg(target_os = "solana")]
+        {
+            solana_program::msg!("low leaf proof capacity {:?}", low_leaf_proof.capacity());
+        }
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -461,7 +485,7 @@ where
         };
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element,
-            proof: low_leaf_proof.clone(),
+            proof: low_leaf_proof.to_array()?,
             changelog_index: new_changelog_index,
         };
 
@@ -499,7 +523,7 @@ where
         // Emit changelog entry for new element.
         let new_element_changelog_entry = IndexedChangelogEntry {
             element: raw_new_element,
-            proof,
+            proof: proof.to_array()?,
             changelog_index: new_changelog_index,
         };
         self.indexed_changelog.push(new_element_changelog_entry);

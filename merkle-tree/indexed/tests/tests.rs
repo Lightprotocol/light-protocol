@@ -1108,6 +1108,12 @@ fn perform_change_log_test<
             }
         }
     }
+    let mut bytes = vec![
+        0u8;
+        IndexedMerkleTree::<Poseidon, usize, HEIGHT>::size_in_account(
+            HEIGHT, 1400, ROOTS, 10, 256
+        )
+    ];
 }
 
 fn perform_change_log_test_2<

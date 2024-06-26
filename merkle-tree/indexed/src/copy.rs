@@ -65,9 +65,13 @@ where
                 ConcurrentMerkleTreeError::BufferSize(expected_size, bytes.len()),
             ));
         }
+        println!("pre offset   {} ", offset);
 
         let indexed_changelog =
             unsafe { read_cyclic_bounded_vec_at(bytes, &mut offset, &indexed_changelog_metadata) };
+        println!("pre offset   {} ", offset);
+        println!("meta data {:?}", indexed_changelog_metadata);
+        println!("bytes len {}", bytes.len());
 
         Ok(Self(IndexedMerkleTree {
             merkle_tree,
