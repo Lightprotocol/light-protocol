@@ -1,6 +1,6 @@
 [package]
 name = "compressed-token-test"
-version = "0.2.0"
+version = "0.2.1"
 description = "Created with Anchor"
 edition = "2021"
 
@@ -34,7 +34,7 @@ solana-sdk = { workspace = true }
 
 [dev-dependencies]
 solana-program-test = { workspace = true }
-light-test-utils = { version = "0.2.0", path = "../../test-utils" }
+light-test-utils = { version = "0.2.1", path = "../../test-utils" }
 reqwest = "0.11.26"
 tokio = "1.36.0"
 light-prover-client = {path = "../../circuit-lib/light-prover-client" }
