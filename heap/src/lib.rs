@@ -18,6 +18,7 @@ pub enum HeapError {
     #[msg("The provided position to free is invalid.")]
     InvalidHeapPos,
 }
+
 pub struct BumpAllocator {
     pub start: usize,
     pub len: usize,
@@ -54,7 +55,7 @@ impl BumpAllocator {
     }
 
     pub fn total_heap(&self) -> u64 {
-        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS as u64 + HEAP_LENGTH as u64;
+        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS + HEAP_LENGTH as u64;
         let heap_start = unsafe { self.pos() } as u64;
         HEAP_END_ADDRESS - heap_start
     }
@@ -66,8 +67,7 @@ impl BumpAllocator {
     }
 
     pub fn get_heap_pos(&self) -> usize {
-        let heap_start = unsafe { self.pos() } as usize;
-        heap_start
+        unsafe { self.pos() } as usize;
     }
 
     pub fn free_heap(&self, pos: usize) -> Result<()> {
@@ -89,6 +89,15 @@ impl BumpAllocator {
             #[cfg(feature = "mem-profiling")]
             msg,
             pos,
+        }
+    }
+}
+
+impl Default for BumpAllocator {
+    fn default() -> Self {
+        Self {
+            start: HEAP_START_ADDRESS as usize,
+            len: HEAP_LENGTH,
         }
     }
 }
