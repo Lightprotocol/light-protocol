@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
@@ -12,6 +13,7 @@ use solana_sdk::transaction::{Transaction, TransactionError};
 
 use crate::rpc::errors::RpcError;
 use crate::rpc::rpc_connection::RpcConnection;
+use crate::rpc::SolanaRpcConnection;
 use crate::transaction_params::TransactionParams;
 
 pub struct ProgramTestRpcConnection {
@@ -21,6 +23,12 @@ pub struct ProgramTestRpcConnection {
 impl Clone for ProgramTestRpcConnection {
     fn clone(&self) -> Self {
         todo!()
+    }
+}
+
+impl Debug for ProgramTestRpcConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ProgramTestRpcConnection")
     }
 }
 

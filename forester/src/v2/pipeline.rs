@@ -10,14 +10,15 @@ use crate::v2::backpressure::BackpressureControl;
 use crate::v2::queue_data::{AccountData, QueueData};
 use crate::v2::stream_processor::StreamProcessor;
 
+#[derive(Debug)]
 pub enum PipelineStage<T: Indexer, R: RpcConnection> {
     FetchQueueData(PipelineContext<T, R>),
     FetchProofs(PipelineContext<T, R>, QueueData),
-    ProcessAccount(PipelineContext<T, R>, AccountData),
     NullifyAccount(PipelineContext<T, R>, AccountData),
     UpdateIndexer(PipelineContext<T, R>, AccountData),
 }
 
+#[derive(Debug)]
 pub struct PipelineContext<T: Indexer, R: RpcConnection> {
     pub indexer: Arc<Mutex<T>>,
     pub rpc: Arc<Mutex<R>>,
@@ -34,14 +35,39 @@ impl<T: Indexer, R: RpcConnection> Clone for PipelineContext<T, R> {
     }
 }
 
+// Function to fetch queue data and send to processor
+async fn fetch_and_send<T: Indexer, R: RpcConnection>(
+    context: PipelineContext<T, R>,
+    input_tx: &mpsc::Sender<PipelineStage<T, R>>,
+    command_tx: &mpsc::Sender<Result<(), ForesterError>>,
+) -> Result<(), ForesterError> {
+    match StreamProcessor::<T, R>::fetch_queue_data(context.clone()).await {
+        Ok(PipelineStage::FetchProofs(_, queue_data)) if !queue_data.accounts_to_nullify.is_empty() => {
+            input_tx.send(PipelineStage::FetchProofs(context, queue_data)).await.unwrap();
+            Ok(())
+        }
+        Ok(_) => {
+            info!("No accounts to nullify. Exiting.");
+            command_tx.send(Ok(())).await.unwrap();
+            Err(ForesterError::Custom("No accounts to nullify".to_string()))
+        }
+        Err(e) => {
+            warn!("Error fetching queue data: {:?}", e);
+            let owned_error = e.to_owned();
+            command_tx.send(Err(owned_error)).await.unwrap();
+            Err(e)
+        }
+    }
+}
+
 pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
     indexer: Arc<Mutex<T>>,
     rpc: Arc<Mutex<R>>,
     config: Arc<Config>,
-) -> Result<(), ForesterError> {
+) -> (mpsc::Sender<PipelineStage<T, R>>, mpsc::Receiver<()>) {
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);
-    let (command_tx, mut command_rx) = mpsc::channel(100);
+    let (completion_tx, completion_rx) = mpsc::channel(1);
 
     let mut processor = StreamProcessor {
         input: input_rx,
@@ -49,75 +75,54 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
         backpressure: BackpressureControl::new(config.concurrency_limit),
     };
 
-    let processor_handle = tokio::spawn(async move {
-        processor.process().await;
-    });
-
+    let input_tx_clone = input_tx.clone();
     let context = PipelineContext {
         indexer: indexer.clone(),
         rpc: rpc.clone(),
         config: config.clone(),
     };
 
-    // Function to fetch queue data and send to processor
-    async fn fetch_and_send<T: Indexer, R: RpcConnection>(
-        context: PipelineContext<T, R>,
-        input_tx: &mpsc::Sender<PipelineStage<T, R>>,
-        command_tx: &mpsc::Sender<Result<(), ForesterError>>,
-    ) -> Result<(), ForesterError> {
-        match StreamProcessor::<T, R>::fetch_queue_data(context.clone()).await {
-            Ok(PipelineStage::FetchProofs(_, queue_data)) if !queue_data.accounts_to_nullify.is_empty() => {
-                input_tx.send(PipelineStage::FetchProofs(context, queue_data)).await.unwrap();
-                Ok(())
-            },
-            Ok(_) => {
-                info!("No accounts to nullify. Exiting.");
-                command_tx.send(Ok(())).await.unwrap();
-                Err(ForesterError::Custom("No accounts to nullify".to_string()))
-            },
-            Err(e) => {
-                warn!("Error fetching queue data: {:?}", e);
-                let owned_error = e.to_owned();
-                command_tx.send(Err(owned_error)).await.unwrap();
-                Err(e)
-            }
-        }
-    }
+    tokio::spawn(async move {
+        let processor_handle = tokio::spawn(async move {
+            processor.process().await;
+        });
 
-    // Initial fetch
-    fetch_and_send(context.clone(), &input_tx, &command_tx).await?;
+        // Feed initial data into the pipeline
+        input_tx_clone.send(PipelineStage::FetchQueueData(context.clone())).await.unwrap();
 
-    loop {
-        tokio::select! {
-            Some(result) = output_rx.recv() => {
-                if let PipelineStage::FetchQueueData(_) = result {
-                    // We've completed a full cycle, check if there are more accounts to nullify
-                    match fetch_and_send(context.clone(), &input_tx, &command_tx).await {
-                        Ok(_) => {},
-                        Err(ref e) => {
-                            if let ForesterError::Custom(ref msg) = e {
-                                if msg == "No accounts to nullify" {
-                                    break;
-                                }
-                            }
-                             let owned_error = e.to_owned();
-                            return Err(owned_error);
-                        }
+        info!("Starting to process output in setup_pipeline");
+        while let Some(result) = output_rx.recv().await {
+            info!("Received result in setup_pipeline: {:?}", result);
+            match result {
+                PipelineStage::FetchQueueData(_) => {
+                    info!("Received FetchQueueData, restarting pipeline");
+                    input_tx_clone.send(PipelineStage::FetchQueueData(context.clone())).await.unwrap();
+                }
+                PipelineStage::FetchProofs(_, queue_data) => {
+                    if queue_data.accounts_to_nullify.is_empty() {
+                        info!("No more accounts to nullify after 3 consecutive empty fetches. Signaling completion.");
+                        break;
+                    } else {
+                        info!("Received FetchProofs in setup_pipeline, processing {} accounts", queue_data.accounts_to_nullify.len());
+                        input_tx_clone.send(PipelineStage::FetchProofs(context.clone(), queue_data)).await.unwrap();
                     }
                 }
-            }
-            Some(command) = command_rx.recv() => {
-                match command {
-                    Ok(_) => break,
-                    Err(e) => return Err(e),
+                PipelineStage::NullifyAccount(_, account_data) => {
+                    info!("Received NullifyAccount for account: {} in setup_pipeline", account_data.account.hash_string());
+                    input_tx_clone.send(PipelineStage::NullifyAccount(context.clone(), account_data)).await.unwrap();
+                }
+                PipelineStage::UpdateIndexer(_, account_data) => {
+                    info!("Received UpdateIndexer for account: {} in setup_pipeline", account_data.account.hash_string());
+                    input_tx_clone.send(PipelineStage::UpdateIndexer(context.clone(), account_data)).await.unwrap();
                 }
             }
-            else => break,
         }
-    }
+        // Ensure the processor task is properly shut down
+        processor_handle.abort();
 
-    // Ensure the processor task is properly shut down
-    processor_handle.abort();
+        let _ = completion_tx.send(()).await;
+        info!("Pipeline process completed.");
+    });
 
-    Ok(())
+    (input_tx, completion_rx)
 }

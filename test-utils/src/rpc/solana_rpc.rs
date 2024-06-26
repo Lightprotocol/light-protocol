@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Formatter};
 
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
@@ -41,6 +41,12 @@ impl Display for SolanaRpcUrl {
 pub struct SolanaRpcConnection {
     pub client: RpcClient,
     payer: Keypair,
+}
+
+impl Debug for SolanaRpcConnection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SolanaRpcConnection {{ client: {:?} }}", self.client.url())
+    }
 }
 
 impl SolanaRpcConnection {

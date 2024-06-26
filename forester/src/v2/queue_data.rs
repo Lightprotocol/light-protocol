@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct QueueData {
     change_log_index: usize,
     sequence_number: usize,
@@ -14,6 +15,7 @@ impl QueueData {
     }
 }
 
+#[derive(Debug)]
 pub struct AccountData {
     pub account: Account,
     pub proof: Vec<[u8; 32]>,

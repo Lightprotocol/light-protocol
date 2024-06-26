@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
@@ -21,6 +22,15 @@ impl PhotonIndexer {
         };
 
         PhotonIndexer { configuration }
+    }
+}
+
+impl Debug for PhotonIndexer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PhotonIndexer")
+            .field("configuration", &self.configuration)
+            .field("configuration", &self.configuration)
+            .finish()
     }
 }
 
@@ -50,7 +60,7 @@ impl Indexer for PhotonIndexer {
 
         match result {
             Ok(response) => {
-                info!("Response: {:?}", response);
+                // info!("Response: {:?}", response);
                 match response.result {
                     Some(result) => {
                         let proofs = result

@@ -2,6 +2,7 @@ use crate::external_services_config::ExternalServicesConfig;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 
+#[derive(Debug)]
 pub struct Config {
     pub external_services: ExternalServicesConfig,
     pub nullifier_queue_pubkey: Pubkey,

@@ -11,7 +11,7 @@ use forester::nullifier::{nullify, subscribe_nullify};
 use forester::settings::SettingsKey;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
-use log::{error, info};
+use log::{error, info, warn};
 use serde_json::Result;
 use solana_sdk::commitment_config::{CommitmentConfig, CommitmentLevel};
 use solana_sdk::signature::{Keypair, Signer};
@@ -103,14 +103,29 @@ async fn main() {
             nullify_addresses(config).await;
         }
         Some(Commands::Nullify) => {
-            let config_clone = config.clone();
-            let task_clear_addresses =
-                tokio::spawn(async move { nullify_addresses(config_clone).await });
+            // let config_clone = config.clone();
+            // let task_clear_addresses =
+            //     tokio::spawn(async move { nullify_addresses(config_clone).await });
+            // 
+            // let config_clone = config.clone();
+            // let task_clear_state = tokio::spawn(async move { nullify_state(config_clone).await });
+            // 
+            // try_join!(task_clear_addresses, task_clear_state).expect("Failed to join tasks");
+            let state_nullifier = tokio::spawn(nullify_state(config.clone()));
+            let address_nullifier = tokio::spawn(nullify_addresses(config.clone()));
 
-            let config_clone = config.clone();
-            let task_clear_state = tokio::spawn(async move { nullify_state(config_clone).await });
+            // Wait for both nullifiers to complete
+            let (state_result, address_result) = tokio::join!(state_nullifier, address_nullifier);
 
-            try_join!(task_clear_addresses, task_clear_state).expect("Failed to join tasks");
+            if let Err(e) = state_result {
+                error!("State nullifier encountered an error: {:?}", e);
+            }
+
+            if let Err(e) = address_result {
+                error!("Address nullifier encountered an error: {:?}", e);
+            }
+
+            info!("All nullification processes completed");
         }
         Some(Commands::Index) => {
             info!("Reindex merkle tree & nullifier queue accounts");
@@ -137,13 +152,12 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
-    match setup_pipeline(indexer, rpc, config).await {
-        Ok(_) => info!("State nullifier completed successfully"),
-        Err(e) => {
-            error!("State nullifier encountered an error: {:?}", e);
-            // Optionally, you can exit the program here if you want
-            // std::process::exit(1);
-        }
+    let (input_tx, mut completion_rx) = setup_pipeline(indexer, rpc, config).await;
+    // Wait for the pipeline to complete
+    if let Some(()) = completion_rx.recv().await {
+        info!("State nullifier completed successfully");
+    } else {
+        warn!("State nullifier stopped unexpectedly");
     }
     
     // let config = config.clone();

@@ -1,5 +1,6 @@
 pub mod test_indexer;
 
+use std::fmt::Debug;
 use num_bigint::BigUint;
 pub use test_indexer::create_mint_helper;
 pub use test_indexer::AddressMerkleTreeAccounts;
@@ -17,7 +18,7 @@ use light_indexed_merkle_tree::array::IndexedElement;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
 
-pub trait Indexer: Sync + Send + Clone + 'static {
+pub trait Indexer: Sync + Send + Clone + Debug + 'static {
     fn get_multiple_compressed_account_proofs(
         &self,
         hashes: Vec<String>,

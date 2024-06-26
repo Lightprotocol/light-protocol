@@ -25,12 +25,18 @@ pub struct StreamProcessor<T: Indexer, R: RpcConnection> {
 
 impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
+        info!("Starting StreamProcessor process");
         while let Some(item) = self.input.recv().await {
+            info!("Received item in StreamProcessor"); //: {:?}", item);
             let _permit = self.backpressure.acquire().await;
             let result = match item {
                 PipelineStage::FetchQueueData(context) => {
+                    info!("Processing FetchQueueData");
                     match StreamProcessor::fetch_queue_data(context).await {
-                        Ok(next_stage) => vec![next_stage],
+                        Ok(next_stage) => {
+                            info!("FetchQueueData successful");
+                            vec![next_stage]
+                        },
                         Err(e) => {
                             warn!("Error in FetchQueueData: {:?}", e);
                             vec![]
@@ -38,47 +44,58 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
                     }
                 },
                 PipelineStage::FetchProofs(context, queue_data) => {
+                    info!("Processing FetchProofs");
                     match self.fetch_proofs(context, queue_data).await {
-                        Ok(next_stages) => next_stages,
+                        Ok(next_stages) => {
+                            info!("FetchProofs successful, generated {} next stages", next_stages.len());
+                            next_stages
+                        },
                         Err(e) => {
                             warn!("Error in FetchProofs: {:?}", e);
                             vec![]
                         }
                     }
                 },
-                PipelineStage::ProcessAccount(context, account_data) => {
-                    match self.process_account(context, account_data).await {
-                        Ok(next_stage) => vec![next_stage],
-                        Err(e) => {
-                            warn!("Error in ProcessAccount: {:?}", e);
-                            vec![]
-                        }
-                    }
-                },
                 PipelineStage::NullifyAccount(context, account_data) => {
+                    let hash = account_data.account.hash_string();
+                    info!("Processing NullifyAccount for account: {}", hash);
                     match self.nullify_account(context, account_data).await {
-                        Ok(next_stage) => vec![next_stage],
+                        Ok(next_stage) => {
+                            info!("NullifyAccount successful for account: {}, moving to next stage", hash);
+                            vec![next_stage]
+                        },
                         Err(e) => {
-                            warn!("Error in NullifyAccount: {:?}", e);
+                            warn!("Error in NullifyAccount for account: {}: {:?}", hash, e);
                             vec![]
                         }
                     }
                 },
                 PipelineStage::UpdateIndexer(context, account_data) => {
+                    let hash = account_data.account.hash_string();
+                    info!("Processing UpdateIndexer for account: {}", hash);
                     match self.update_indexer(context, account_data).await {
-                        Ok(next_stage) => vec![next_stage],
+                        Ok(next_stage) => {
+                            info!("UpdateIndexer successful for account: {}, moving to next stage", hash);
+                            vec![next_stage]
+                        },
                         Err(e) => {
-                            warn!("Error in UpdateIndexer: {:?}", e);
+                            warn!("Error in UpdateIndexer for account: {}: {:?}", hash, e);
                             vec![]
                         }
                     }
                 },
-
             };
+
+            info!("Number of next stages: {}", result.len());
             for next_stage in result {
-                self.output.send(next_stage).await.unwrap();
+                info!("Attempting to send next stage to output"); //: {:?}", next_stage);
+                match self.output.send(next_stage).await {
+                    Ok(_) => info!("Successfully sent next stage to output"),
+                    Err(e) => warn!("Failed to send next stage to output: {:?}", e),
+                }
             }
         }
+        info!("StreamProcessor process completed");
     }
 
     pub(crate) async fn fetch_queue_data(context: PipelineContext<T, R>)
@@ -97,11 +114,11 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
         };
 
         if accounts_to_nullify.is_empty() {
-            return Err(ForesterError::Custom("No accounts to nullify".to_string()));
+            info!("No accounts to nullify found in queue");
+            return Ok(PipelineStage::FetchProofs(context.clone(), QueueData::new(change_log_index, sequence_number, vec![])));
         }
 
         let queue_data = QueueData::new(change_log_index, sequence_number, accounts_to_nullify);
-
         Ok(PipelineStage::FetchProofs(context, queue_data))
     }
 
@@ -123,6 +140,8 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
                 ForesterError::NoProofsFound
             })?;
 
+        info!("Received {} proofs", proofs.len());
+
         for (account, proof) in queue_data.accounts_to_nullify.into_iter().zip(proofs.into_iter()) {
             let account_data = AccountData {
                 account: account.account,
@@ -130,46 +149,12 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
                 leaf_index: proof.leaf_index as u64,
                 root_seq: proof.root_seq,
             };
-            next_stages.push(PipelineStage::ProcessAccount(context.clone(), account_data));
+            info!("Creating NullifyAccount stage for account: {}", account_data.account.hash_string());
+            next_stages.push(PipelineStage::NullifyAccount(context.clone(), account_data));
         }
 
+        info!("Created {} NullifyAccount stages", next_stages.len());
         Ok(next_stages)
-    }
-
-    async fn process_account(&self, context: PipelineContext<T, R>, account_data: AccountData)
-                             -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext { indexer: _, rpc: _, config } = &context;
-        let mut retries = 0;
-
-        loop {
-            info!("Processing account: {}", account_data.account.hash_string());
-
-            // Check if we've reached the maximum number of retries
-            if retries >= config.max_retries {
-                warn!(
-                "Max retries reached for account {}",
-                account_data.account.hash_string()
-            );
-                return Err(ForesterError::MaxRetriesReached);
-            }
-
-            // Here you would put any processing logic that might fail
-            // For now, we'll just simulate success
-            let processing_result: Result<(), ForesterError> = Ok(());
-
-            match processing_result {
-                Ok(_) => return Ok(PipelineStage::NullifyAccount(context.clone(), account_data)),
-                Err(e) => {
-                    warn!(
-                    "Error processing account {}: {:?}. Retrying...",
-                    account_data.account.hash_string(),
-                    e
-                );
-                    retries += 1;
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                }
-            }
-        }
     }
 
     async fn nullify_account(&self, context: PipelineContext<T, R>, account_data: AccountData)
@@ -200,7 +185,7 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
         ];
 
         info!("Authority: {:?}", config.payer_keypair.pubkey());
-
+        info!("Sending nullification transaction for account: {}", account_data.account.hash_string());
         let signature = rpc.lock().await
             .create_and_send_transaction(
                 &instructions,
@@ -209,12 +194,18 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
             )
             .await;
 
-        info!("Transaction: {:?}", signature);
-
-        // Here, you might want to check if the transaction was successful
-        // For now, we'll assume it was and move to the next stage
-
-        Ok(PipelineStage::UpdateIndexer(context.clone(), account_data))
+        match signature {
+            Ok(sig) => {
+                info!("Nullification transaction sent successfully for account: {}. Signature: {}", account_data.account.hash_string(), sig);
+                info!("Moving to UpdateIndexer stage for account: {}", account_data.account.hash_string());
+                Ok(PipelineStage::UpdateIndexer(context.clone(), account_data))
+            },
+            Err(e) => {
+                // TODO: Retry logic
+                warn!("Failed to send nullification transaction for account: {}. Error: {:?}", account_data.account.hash_string(), e);
+                Err(ForesterError::Custom(format!("Nullification transaction failed: {:?}", e)))
+            }
+        }
     }
 
     async fn update_indexer(&self, context: PipelineContext<T, R>, account_data: AccountData)
@@ -229,6 +220,7 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
         );
 
         info!("Indexer updated successfully for account: {}", account_data.account.hash_string());
+        info!("Completed processing for account: {}, returning to FetchQueueData", account_data.account.hash_string());
 
         // Since this is the last stage, we'll return to FetchQueueData to start the process again
         Ok(PipelineStage::FetchQueueData(context))
