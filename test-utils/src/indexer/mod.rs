@@ -2,6 +2,7 @@ pub mod test_indexer;
 
 use std::fmt::Debug;
 use num_bigint::BigUint;
+use photon_api::models::MerkleContextWithNewAddressProof;
 pub use test_indexer::create_mint_helper;
 pub use test_indexer::AddressMerkleTreeAccounts;
 pub use test_indexer::AddressMerkleTreeBundle;
@@ -78,6 +79,22 @@ pub struct MerkleProofWithAddressContext {
     pub new_low_element: IndexedElement<usize>,
     pub new_element: IndexedElement<usize>,
     pub new_element_next_value: BigUint,
+}
+
+impl From <MerkleContextWithNewAddressProof> for MerkleProofWithAddressContext {
+    fn from(proof: MerkleContextWithNewAddressProof) -> Self {
+        MerkleProofWithAddressContext {
+            merkle_tree: todo!(),
+            low_address_index: todo!(),
+            low_address_value: todo!(),
+            low_address_next_index: todo!(),
+            low_address_next_value: todo!(),
+            low_address_proof: todo!(),
+            new_low_element: todo!(),
+            new_element: todo!(),
+            new_element_next_value: todo!(),
+        }
+    }
 }
 
 // For consistency with the Photon API.
