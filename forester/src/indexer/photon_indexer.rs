@@ -151,7 +151,7 @@ impl Indexer for PhotonIndexer {
             low_address_index: proofs.low_element_leaf_index as u64,
             low_address_value,
             low_address_next_index: proofs.next_index as u64,
-            low_address_next_value,
+            low_address_next_value: next_address_value,
             low_address_proof: {
                 let mut proof_vec: Vec<[u8; 32]> = proofs
                     .proof
