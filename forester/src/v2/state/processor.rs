@@ -13,93 +13,115 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
 use std::mem;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 
 pub struct StateProcessor<T: Indexer, R: RpcConnection> {
     pub input: mpsc::Receiver<PipelineStage<T, R>>,
     pub output: mpsc::Sender<PipelineStage<T, R>>,
     pub backpressure: BackpressureControl,
+    pub shutdown: Arc<AtomicBool>,
+    pub close_output: mpsc::Receiver<()>,
 }
 
 impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         info!("Starting StreamProcessor process");
-        while let Some(item) = self.input.recv().await {
-            info!("Received item in StreamProcessor"); //: {:?}", item);
-            let _permit = self.backpressure.acquire().await;
-            let result = match item {
-                PipelineStage::FetchQueueData(context) => {
-                    info!("Processing FetchQueueData");
-                    match StateProcessor::fetch_queue_data(context).await {
-                        Ok(next_stage) => {
-                            info!("FetchQueueData successful");
-                            vec![next_stage]
+        loop {
+            tokio::select! {
+                Some(item) = self.input.recv() => {
+                    info!("Received item in StreamProcessor");
+                    let _permit = self.backpressure.acquire().await;
+                    let result = match item {
+                        PipelineStage::FetchQueueData(context) => {
+                            info!("Processing FetchQueueData");
+                            match StateProcessor::fetch_queue_data(context).await {
+                                Ok(next_stage) => {
+                                    info!("FetchQueueData successful");
+                                    vec![next_stage]
+                                }
+                                Err(e) => {
+                                    warn!("Error in FetchQueueData: {:?}", e);
+                                    vec![]
+                                }
+                            }
                         }
-                        Err(e) => {
-                            warn!("Error in FetchQueueData: {:?}", e);
-                            vec![]
+                        PipelineStage::FetchProofs(context, queue_data) => {
+                            info!("Processing FetchProofs");
+                            match self.fetch_proofs(context, queue_data).await {
+                                Ok(next_stages) => {
+                                    info!(
+                                        "FetchProofs successful, generated {} next stages",
+                                        next_stages.len()
+                                    );
+                                    next_stages
+                                }
+                                Err(e) => {
+                                    warn!("Error in FetchProofs: {:?}", e);
+                                    vec![]
+                                }
+                            }
                         }
-                    }
-                }
-                PipelineStage::FetchProofs(context, queue_data) => {
-                    info!("Processing FetchProofs");
-                    match self.fetch_proofs(context, queue_data).await {
-                        Ok(next_stages) => {
-                            info!(
-                                "FetchProofs successful, generated {} next stages",
-                                next_stages.len()
-                            );
-                            next_stages
+                        PipelineStage::NullifyAccount(context, account_data) => {
+                            let hash = account_data.account.hash_string();
+                            info!("Processing NullifyAccount for account: {}", hash);
+                            match self.nullify_account(context, account_data).await {
+                                Ok(next_stage) => {
+                                    info!(
+                                        "NullifyAccount successful for account: {}, moving to next stage",
+                                        hash
+                                    );
+                                    vec![next_stage]
+                                }
+                                Err(e) => {
+                                    warn!("Error in NullifyAccount for account: {}: {:?}", hash, e);
+                                    vec![]
+                                }
+                            }
                         }
-                        Err(e) => {
-                            warn!("Error in FetchProofs: {:?}", e);
-                            vec![]
+                        PipelineStage::UpdateIndexer(context, account_data) => {
+                            let hash = account_data.account.hash_string();
+                            info!("Processing UpdateIndexer for account: {}", hash);
+                            match self.update_indexer(context, account_data).await {
+                                Ok(next_stage) => {
+                                    info!(
+                                        "UpdateIndexer successful for account: {}, moving to next stage",
+                                        hash
+                                    );
+                                    vec![next_stage]
+                                }
+                                Err(e) => {
+                                    warn!("Error in UpdateIndexer for account: {}: {:?}", hash, e);
+                                    vec![]
+                                }
+                            }
                         }
-                    }
-                }
-                PipelineStage::NullifyAccount(context, account_data) => {
-                    let hash = account_data.account.hash_string();
-                    info!("Processing NullifyAccount for account: {}", hash);
-                    match self.nullify_account(context, account_data).await {
-                        Ok(next_stage) => {
-                            info!(
-                                "NullifyAccount successful for account: {}, moving to next stage",
-                                hash
-                            );
-                            vec![next_stage]
-                        }
-                        Err(e) => {
-                            warn!("Error in NullifyAccount for account: {}: {:?}", hash, e);
-                            vec![]
-                        }
-                    }
-                }
-                PipelineStage::UpdateIndexer(context, account_data) => {
-                    let hash = account_data.account.hash_string();
-                    info!("Processing UpdateIndexer for account: {}", hash);
-                    match self.update_indexer(context, account_data).await {
-                        Ok(next_stage) => {
-                            info!(
-                                "UpdateIndexer successful for account: {}, moving to next stage",
-                                hash
-                            );
-                            vec![next_stage]
-                        }
-                        Err(e) => {
-                            warn!("Error in UpdateIndexer for account: {}: {:?}", hash, e);
-                            vec![]
-                        }
-                    }
-                }
-            };
+                    };
 
-            info!("Number of next stages: {}", result.len());
-            for next_stage in result {
-                info!("Attempting to send next stage to output"); //: {:?}", next_stage);
-                match self.output.send(next_stage).await {
-                    Ok(_) => info!("Successfully sent next stage to output"),
-                    Err(e) => warn!("Failed to send next stage to output: {:?}", e),
+                    info!("Number of next stages: {}", result.len());
+                    for next_stage in result {
+                        info!("Attempting to send next stage to output");
+                        match self.output.send(next_stage).await {
+                            Ok(_) => info!("Successfully sent next stage to output"),
+                            Err(e) => {
+                                warn!("Failed to send next stage to output: {:?}", e);
+                                // If we can't send, the receiver is probably closed. We should stop.
+                                return;
+                            }
+                        }
+                    }
                 }
+                _ = self.close_output.recv() => {
+                    info!("Received signal to close output channel");
+                    break;
+                }
+                else => break,
+            }
+
+            if self.shutdown.load(Ordering::Relaxed) {
+                info!("Shutdown signal received, stopping StreamProcessor");
+                break;
             }
         }
         info!("StreamProcessor process completed");

@@ -4,6 +4,7 @@ use crate::v2::BackpressureControl;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::info;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
@@ -41,11 +42,16 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
     let (input_tx, input_rx) = mpsc::channel(100);
     let (output_tx, mut output_rx) = mpsc::channel(100);
     let (completion_tx, completion_rx) = mpsc::channel(1);
+    let (close_output_tx, close_output_rx) = mpsc::channel(1);
+
+    let shutdown = Arc::new(AtomicBool::new(false));
 
     let mut processor = StateProcessor {
         input: input_rx,
-        output: output_tx,
+        output: output_tx.clone(), // Clone output_tx here
         backpressure: BackpressureControl::new(config.concurrency_limit),
+        shutdown: shutdown.clone(),
+        close_output: close_output_rx,
     };
 
     let input_tx_clone = input_tx.clone();
@@ -79,7 +85,9 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
                 }
                 PipelineStage::FetchProofs(_, queue_data) => {
                     if queue_data.accounts_to_nullify.is_empty() {
-                        info!("No more accounts to nullify after 3 consecutive empty fetches. Signaling completion.");
+                        info!("No more accounts to nullify. Signaling completion.");
+                        shutdown.store(true, Ordering::Relaxed);
+                        let _ = close_output_tx.send(()).await;
                         break;
                     } else {
                         info!(
@@ -117,6 +125,11 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
         // Ensure the processor task is properly shut down
         processor_handle.abort();
 
+        // Close the output channel
+        drop(output_tx);
+
+        shutdown.store(true, Ordering::Relaxed);
+        let _ = close_output_tx.send(()).await;
         let _ = completion_tx.send(()).await;
         info!("Pipeline process completed.");
     });

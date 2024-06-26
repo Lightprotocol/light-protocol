@@ -102,14 +102,6 @@ async fn main() {
             nullify_addresses(config).await;
         }
         Some(Commands::Nullify) => {
-            // let config_clone = config.clone();
-            // let task_clear_addresses =
-            //     tokio::spawn(async move { nullify_addresses(config_clone).await });
-            //
-            // let config_clone = config.clone();
-            // let task_clear_state = tokio::spawn(async move { nullify_state(config_clone).await });
-            //
-            // try_join!(task_clear_addresses, task_clear_state).expect("Failed to join tasks");
             let state_nullifier = tokio::spawn(nullify_state(config.clone()));
             let address_nullifier = tokio::spawn(nullify_addresses(config.clone()));
 
@@ -151,17 +143,20 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
-    let (_, mut completion_rx) = setup_pipeline(indexer, rpc, config).await;
-    // Wait for the pipeline to complete
-    if let Some(()) = completion_rx.recv().await {
-        info!("State nullifier completed successfully");
-    } else {
-        warn!("State nullifier stopped unexpectedly");
-    }
+    let (input_tx, mut completion_rx) = setup_pipeline(indexer, rpc, config).await;
+    let result = completion_rx.recv().await;
+    drop(input_tx);
 
-    // let config = config.clone();
-    // let result = nullify(indexer, rpc, config).await;
-    // info!("State nullifier result: {:?}", result);
+    match result {
+        Some(()) => {
+            info!("State nullifier completed successfully");
+        }
+        None => {
+            warn!("State nullifier stopped unexpectedly");
+        }
+    }
+    // Optional: Add a small delay to allow the StreamProcessor to shut down gracefully
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 }
 
 async fn nullify_addresses(config: Arc<ForesterConfig>) {
