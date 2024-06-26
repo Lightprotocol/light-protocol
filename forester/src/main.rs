@@ -18,7 +18,7 @@ use solana_sdk::signature::{Keypair, Signer};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
-use forester::v2::state::pipeline::setup_pipeline;
+use forester::v2::state::setup_pipeline;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";

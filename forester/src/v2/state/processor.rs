@@ -17,13 +17,13 @@ use crate::v2::BackpressureControl;
 use crate::v2::state::pipeline::{PipelineContext, PipelineStage};
 use crate::v2::state::queue_data::{AccountData, QueueData};
 
-pub struct StreamProcessor<T: Indexer, R: RpcConnection> {
+pub struct StateProcessor<T: Indexer, R: RpcConnection> {
     pub input: mpsc::Receiver<PipelineStage<T, R>>,
     pub output: mpsc::Sender<PipelineStage<T, R>>,
     pub backpressure: BackpressureControl,
 }
 
-impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
+impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
         info!("Starting StreamProcessor process");
         while let Some(item) = self.input.recv().await {
@@ -32,7 +32,7 @@ impl<T: Indexer, R: RpcConnection> StreamProcessor<T, R> {
             let result = match item {
                 PipelineStage::FetchQueueData(context) => {
                     info!("Processing FetchQueueData");
-                    match StreamProcessor::fetch_queue_data(context).await {
+                    match StateProcessor::fetch_queue_data(context).await {
                         Ok(next_stage) => {
                             info!("FetchQueueData successful");
                             vec![next_stage]

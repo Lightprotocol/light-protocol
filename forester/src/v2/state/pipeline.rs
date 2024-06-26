@@ -6,8 +6,7 @@ use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use crate::nullifier::Config;
 use crate::v2::BackpressureControl;
-use crate::v2::state::queue_data::{AccountData, QueueData};
-use crate::v2::state::stream_processor::StreamProcessor;
+use crate::v2::state::{StateProcessor, AccountData, QueueData};
 
 #[derive(Debug)]
 pub enum PipelineStage<T: Indexer, R: RpcConnection> {
@@ -43,7 +42,7 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
     let (output_tx, mut output_rx) = mpsc::channel(100);
     let (completion_tx, completion_rx) = mpsc::channel(1);
 
-    let mut processor = StreamProcessor {
+    let mut processor = StateProcessor {
         input: input_rx,
         output: output_tx,
         backpressure: BackpressureControl::new(config.concurrency_limit),
