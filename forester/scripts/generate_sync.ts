@@ -48,7 +48,7 @@ function zkTestnetRpc(): Rpc {
 
 async function prefillNullifierQueue() {
 
-    const rpc = localRpc();
+        const rpc = localRpc();
     const payer = Keypair.fromSecretKey(Uint8Array.from(payerKeypair));
     const tx1 = await airdropSol({connection: rpc, lamports: LAMPORTS, recipientPublicKey: payer.publicKey});
 

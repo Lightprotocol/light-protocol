@@ -72,7 +72,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
                                         "NullifyAccount successful for account: {}, moving to next stage",
                                         hash
                                     );
-                                    vec![next_stage]
+                                    next_stage
                                 }
                                 Err(e) => {
                                     warn!("Error in NullifyAccount for account: {}: {:?}", hash, e);
@@ -210,12 +210,9 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
         &self,
         context: PipelineContext<T, R>,
         account_data: AccountData,
-    ) -> Result<PipelineStage<T, R>, ForesterError> {
-        let PipelineContext {
-            indexer: _,
-            rpc,
-            config,
-        } = &context;
+    ) -> Result<Vec<PipelineStage<T, R>>, ForesterError> {
+        let config = &context.config;
+        let rpc = &context.rpc;
 
         info!("Nullifying account: {}", account_data.account.hash_string());
         info!("Leaf index: {}", account_data.leaf_index);
@@ -241,46 +238,29 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
         ];
 
         info!("Authority: {:?}", config.payer_keypair.pubkey());
-        info!(
-            "Sending nullification transaction for account: {}",
-            account_data.account.hash_string()
-        );
-        let signature = rpc
-            .lock()
-            .await
+
+        match rpc.lock().await
             .create_and_send_transaction(
                 &instructions,
                 &config.payer_keypair.pubkey(),
                 &[&config.payer_keypair],
             )
-            .await;
-
-        match signature {
+            .await
+        {
             Ok(sig) => {
-                info!(
-                    "Nullification transaction sent successfully for account: {}. Signature: {}",
-                    account_data.account.hash_string(),
-                    sig
-                );
-                info!(
-                    "Moving to UpdateIndexer stage for account: {}",
-                    account_data.account.hash_string()
-                );
-                Ok(PipelineStage::UpdateIndexer(context.clone(), account_data))
-            }
+                info!("Nullification transaction sent successfully for account: {}. Signature: {}", account_data.account.hash_string(), sig);
+                sig
+            },
             Err(e) => {
-                // TODO: Retry logic
-                warn!(
-                    "Failed to send nullification transaction for account: {}. Error: {:?}",
-                    account_data.account.hash_string(),
-                    e
-                );
-                Err(ForesterError::Custom(format!(
-                    "Nullification transaction failed: {:?}",
-                    e
-                )))
+                warn!("Failed to send nullification transaction for account: {}. Error: {:?}", account_data.account.hash_string(), e);
+                return Ok(vec![PipelineStage::FetchQueueData(context.clone())]);
             }
-        }
+        };
+
+        // We're not waiting for confirmation here. In a production environment, you might want to.
+        // For now, we'll assume it succeeded and move on.
+
+        Ok(vec![PipelineStage::UpdateIndexer(context, account_data)])
     }
 
     async fn update_indexer(

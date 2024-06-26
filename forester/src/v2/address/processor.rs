@@ -17,47 +17,77 @@ use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use std::mem;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{mpsc, Mutex};
 
 pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
     pub output: mpsc::Sender<AddressPipelineStage<T, R>>,
     pub backpressure: BackpressureControl,
+    pub shutdown: Arc<AtomicBool>,
+    pub close_output: mpsc::Receiver<()>,
 }
 
 impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
+
     pub(crate) async fn process(&mut self) {
         info!("Starting AddressProcessor process");
-        while let Some(item) = self.input.recv().await {
-            info!("Received item in AddressProcessor"); //: {:?}", item);
-            let _permit = self.backpressure.acquire().await;
-            let result = match item {
-                AddressPipelineStage::FetchAddressQueueData(context) => {
-                    self.fetch_address_queue_data(&context).await
-                }
-                AddressPipelineStage::ProcessAddressQueue(context, queue_data) => {
-                    self.process_address_queue(context, queue_data).await
-                }
-                AddressPipelineStage::UpdateAddressMerkleTree(context, account) => {
-                    self.update_address_merkle_tree(context, account).await
-                }
-                AddressPipelineStage::UpdateIndexer(context, proof) => {
-                    self.update_indexer(context, *proof).await
-                }
-            };
+        loop {
+            tokio::select! {
+            Some(item) = self.input.recv() => {
+                info!("Received item in AddressProcessor");
+                let _permit = self.backpressure.acquire().await;
+                let result = match item {
+                    AddressPipelineStage::FetchAddressQueueData(ref context) => {
+                        self.fetch_address_queue_data(context).await
+                    }
+                    AddressPipelineStage::ProcessAddressQueue(ref context, ref queue_data) => {
+                        self.process_address_queue(context.clone(), queue_data.clone()).await
+                    }
+                    AddressPipelineStage::UpdateAddressMerkleTree(ref context, ref account) => {
+                        self.update_address_merkle_tree(context.clone(), account.clone()).await
+                    }
+                    AddressPipelineStage::UpdateIndexer(ref context, ref proof) => {
+                            let proof = *(proof.clone());
+                            self.update_indexer(context.clone(), proof).await
+                    }
+                };
 
-            match result {
-                Ok(next_stages) => {
-                    for next_stage in next_stages {
-                        self.output.send(next_stage).await.unwrap();
+                match result {
+                    Ok(next_stages) => {
+                        for next_stage in next_stages {
+                            if let Err(e) = self.output.send(next_stage).await {
+                                warn!("Failed to send next stage to output: {:?}", e);
+                                // If we can't send, the receiver is probably closed. We should stop.
+                                return;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Error in AddressProcessor: {:?}", e);
+                        // Instead of breaking, let's continue to the next item
+                        let context = item.context();
+                        if let Err(e) = self.output.send(AddressPipelineStage::FetchAddressQueueData(context)).await {
+                            warn!("Failed to send FetchAddressQueueData stage after error: {:?}", e);
+                            // If we can't send, the receiver is probably closed. We should stop.
+                            return;
+                        }
                     }
                 }
-                Err(e) => {
-                    warn!("Error in AddressStreamProcessor: {:?}", e);
-                }
+            }
+            _ = self.close_output.recv() => {
+                info!("Received signal to close output channel");
+                break;
+            }
+            else => break,
+        }
+
+            if self.shutdown.load(Ordering::Relaxed) {
+                info!("Shutdown signal received, stopping AddressProcessor");
+                break;
             }
         }
-        info!("StreamProcessor process completed");
+        info!("AddressProcessor process completed");
     }
 
     async fn fetch_address_queue_data(
@@ -70,7 +100,10 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         let queue_data = fetch_address_queue_data(config, rpc).await?;
         if queue_data.is_empty() {
             info!("Address queue is empty");
-            Ok(vec![])
+            Ok(vec![AddressPipelineStage::ProcessAddressQueue(
+                context.clone(),
+                vec![],
+            )])
         } else {
             Ok(vec![AddressPipelineStage::ProcessAddressQueue(
                 context.clone(),
@@ -78,7 +111,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             )])
         }
     }
-
+    
     async fn process_address_queue(
         &self,
         context: PipelineContext<T, R>,
@@ -106,52 +139,56 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         let address = account.hash;
         let address_hashset_index = account.index;
 
-        let proof = indexer
+        let proof_result = indexer
             .lock()
             .await
             .get_multiple_new_address_proofs(config.address_merkle_tree_pubkey.to_bytes(), address)
-            .await
-            .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
+            .await;
 
+        match proof_result {
+            Ok(proof) => {
+                let mut retry_count = 0;
+                let max_retries = 3;
 
-        let mut retry_count = 0;
-        let max_retries = 3;
+                while retry_count < max_retries {
+                    match update_merkle_tree(
+                        rpc,
+                        &config.payer_keypair,
+                        config.address_merkle_tree_queue_pubkey,
+                        config.address_merkle_tree_pubkey,
+                        address_hashset_index as u16,
+                        proof.low_address_index,
+                        proof.low_address_value,
+                        proof.low_address_next_index,
+                        proof.low_address_next_value,
+                        proof.low_address_proof,
+                    )
+                        .await {
+                        Ok(true) => {
+                            info!("Successfully updated merkle tree for address: {:?}", address);
+                            return Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)]);
+                        }
+                        Ok(false) => {
+                            warn!("Failed to update merkle tree for address: {:?}", address);
+                            retry_count += 1;
+                        }
+                        Err(e) => {
+                            warn!("Error updating merkle tree for address {:?}: {:?}", address, e);
+                            retry_count += 1;
+                        }
+                    }
 
-        while retry_count < max_retries {
-            match update_merkle_tree(
-                rpc,
-                &config.payer_keypair,
-                config.address_merkle_tree_queue_pubkey,
-                config.address_merkle_tree_pubkey,
-                address_hashset_index as u16,
-                proof.low_address_index,
-                proof.low_address_value,
-                proof.low_address_next_index,
-                proof.low_address_next_value,
-                proof.low_address_proof,
-            )
-                .await {
-                Ok(true) => {
-                    info!("Successfully updated merkle tree for address: {:?}", address);
-                    return Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)]);
+                    if retry_count < max_retries {
+                        info!("Retrying update for address: {:?} (Attempt {} of {})", address, retry_count + 1, max_retries);
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    }
                 }
-                Ok(false) => {
-                    warn!("Failed to update merkle tree for address: {:?}", address);
-                    retry_count += 1;
-                }
-                Err(e) => {
-                    warn!("Error updating merkle tree for address {:?}: {:?}", address, e);
-                    retry_count += 1;
-                }
+                warn!("Max retries reached for address: {:?}. Moving to next address.", address);
             }
-
-            if retry_count < max_retries {
-                info!("Retrying update for address: {:?} (Attempt {} of {})", address, retry_count + 1, max_retries);
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            Err(e) => {
+                warn!("Failed to get address tree proof for address {:?}: {:?}", address, e);
             }
         }
-
-        warn!("Max retries reached for address: {:?}. Moving to next address.", address);
         Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)])
     }
 

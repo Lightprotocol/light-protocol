@@ -79,7 +79,6 @@ pub async fn nullify_state(config: Arc<ForesterConfig>) {
     // Optional: Add a small delay to allow the StreamProcessor to shut down gracefully
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
-
 pub async fn nullify_addresses(config: Arc<ForesterConfig>) {
     info!(
         "Run address tree nullifier. Queue: {}. Merkle tree: {}",
@@ -92,20 +91,13 @@ pub async fn nullify_addresses(config: Arc<ForesterConfig>) {
     )));
     let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
 
-    let (input_tx, mut completion_rx) = setup_address_pipeline(indexer, rpc, config).await;
-    let result = completion_rx.recv().await;
-    drop(input_tx);
+    let (_, mut completion_rx) = setup_address_pipeline(indexer, rpc, config).await;
 
-    match result {
-        Some(()) => {
-            info!("State nullifier completed successfully");
-        }
-        None => {
-            warn!("State nullifier stopped unexpectedly");
-        }
+    if let Some(()) = completion_rx.recv().await {
+        info!("Address nullifier completed successfully");
+    } else {
+        warn!("Address nullifier stopped unexpectedly");
     }
-    // Optional: Add a small delay to allow the StreamProcessor to shut down gracefully
-    tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
 pub async fn init_rpc(config: &Arc<ForesterConfig>) -> SolanaRpcConnection {
