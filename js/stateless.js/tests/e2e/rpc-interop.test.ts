@@ -206,7 +206,7 @@ describe('rpc-interop', () => {
             ),
         );
         assert.isTrue(
-            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+            newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(
