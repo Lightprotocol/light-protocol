@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use account_compression::StateMerkleTreeAccount;
 use forester::external_services_config::ExternalServicesConfig;
-use forester::{ForesterConfig, nullify_state, subscribe_state};
 use forester::utils::u8_arr_to_hex_string;
-use forester::v2::state::get_nullifier_queue;
+use forester::nullifier::state::get_nullifier_queue;
+use forester::{nullify_state, subscribe_state, ForesterConfig};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hasher::Poseidon;
 use light_test_utils::rpc::rpc_connection::RpcConnection;

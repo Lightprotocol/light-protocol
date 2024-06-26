@@ -1,13 +1,11 @@
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
-use light_test_utils::indexer::{
-    Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
-};
+use light_test_utils::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
+use log::info;
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
 use solana_sdk::bs58;
 use std::fmt::Debug;
-use log::info;
 
 pub struct PhotonIndexer {
     configuration: Configuration,
@@ -141,7 +139,8 @@ impl Indexer for PhotonIndexer {
         }
 
         info!("Result: {:?}", result);
-        let proofs: photon_api::models::MerkleContextWithNewAddressProof = result.unwrap().result.unwrap().value[0].clone();
+        let proofs: photon_api::models::MerkleContextWithNewAddressProof =
+            result.unwrap().result.unwrap().value[0].clone();
 
         let tree_pubkey = decode_hash(&proofs.merkle_tree);
         let low_address_value = decode_hash(&proofs.lower_range_address);
@@ -167,7 +166,7 @@ impl Indexer for PhotonIndexer {
             root_seq: proofs.root_seq as i64,
             new_low_element: None,
             new_element: None,
-            new_element_next_value: None
+            new_element_next_value: None,
         })
     }
 }

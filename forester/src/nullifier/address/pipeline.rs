@@ -1,19 +1,18 @@
 use crate::config::ForesterConfig;
-use crate::v2::address::AddressProcessor;
-use crate::v2::BackpressureControl;
+use crate::nullifier::address::{Account, AddressProcessor};
+use crate::nullifier::BackpressureControl;
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::info;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
-
 #[derive(Debug)]
 pub enum AddressPipelineStage<T: Indexer, R: RpcConnection> {
     FetchAddressQueueData(PipelineContext<T, R>),
-    ProcessAddressQueue(PipelineContext<T, R>, Vec<crate::v2::address::Account>),
-    UpdateAddressMerkleTree(PipelineContext<T, R>, crate::v2::address::Account),
+    ProcessAddressQueue(PipelineContext<T, R>, Vec<Account>),
+    UpdateAddressMerkleTree(PipelineContext<T, R>, Account),
     UpdateIndexer(PipelineContext<T, R>, Box<NewAddressProofWithContext>),
 }
 

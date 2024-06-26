@@ -56,9 +56,7 @@ use {
     std::time::Duration,
 };
 
-use crate::indexer::{
-    Indexer, IndexerError, MerkleProof, NewAddressProofWithContext,
-};
+use crate::indexer::{Indexer, IndexerError, MerkleProof, NewAddressProofWithContext};
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
@@ -285,18 +283,11 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         let new_element_next_value = context.new_element_next_value.unwrap();
         address_tree_bundle
             .merkle_tree
-            .update(
-                &new_low_element,
-                &new_element,
-                &new_element_next_value,
-            )
+            .update(&new_low_element, &new_element, &new_element_next_value)
             .unwrap();
         address_tree_bundle
             .indexed_array
-            .append_with_low_element_index(
-                new_low_element.index,
-                &new_element.value,
-            )
+            .append_with_low_element_index(new_low_element.index, &new_element.value)
             .unwrap();
     }
 }

@@ -10,6 +10,7 @@ pub use test_indexer::StateMerkleTreeBundle;
 pub use test_indexer::TestIndexer;
 pub use test_indexer::TokenDataWithContext;
 
+use crate::rpc::rpc_connection::RpcConnection;
 use account_compression::initialize_address_merkle_tree::{
     Error as AccountCompressionError, Pubkey,
 };
@@ -17,7 +18,6 @@ use light_hash_set::HashSetError;
 use light_indexed_merkle_tree::array::IndexedElement;
 use photon_api::apis::{default_api::GetCompressedAccountProofPostError, Error as PhotonApiError};
 use thiserror::Error;
-use crate::rpc::rpc_connection::RpcConnection;
 
 pub trait Indexer: Sync + Send + Clone + Debug + 'static {
     fn get_multiple_compressed_account_proofs(
@@ -68,7 +68,7 @@ pub struct NewAddressProofWithContext {
     pub low_address_proof: [[u8; 32]; 16],
     pub new_low_element: Option<IndexedElement<usize>>,
     pub new_element: Option<IndexedElement<usize>>,
-    pub new_element_next_value: Option<BigUint>
+    pub new_element_next_value: Option<BigUint>,
 }
 
 #[derive(Error, Debug)]

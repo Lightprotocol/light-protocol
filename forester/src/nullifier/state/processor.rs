@@ -1,7 +1,7 @@
 use crate::errors::ForesterError;
-use crate::v2::state::pipeline::{PipelineContext, PipelineStage};
-use crate::v2::state::queue_data::{AccountData, QueueData};
-use crate::v2::BackpressureControl;
+use crate::nullifier::state::pipeline::{PipelineContext, PipelineStage};
+use crate::nullifier::state::queue_data::{AccountData, QueueData};
+use crate::nullifier::BackpressureControl;
 use account_compression::utils::constants::STATE_MERKLE_TREE_CHANGELOG;
 use account_compression::QueueAccount;
 use light_hash_set::HashSet;
@@ -239,7 +239,9 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
 
         info!("Authority: {:?}", config.payer_keypair.pubkey());
 
-        match rpc.lock().await
+        match rpc
+            .lock()
+            .await
             .create_and_send_transaction(
                 &instructions,
                 &config.payer_keypair.pubkey(),
@@ -248,11 +250,19 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
             .await
         {
             Ok(sig) => {
-                info!("Nullification transaction sent successfully for account: {}. Signature: {}", account_data.account.hash_string(), sig);
+                info!(
+                    "Nullification transaction sent successfully for account: {}. Signature: {}",
+                    account_data.account.hash_string(),
+                    sig
+                );
                 sig
-            },
+            }
             Err(e) => {
-                warn!("Failed to send nullification transaction for account: {}. Error: {:?}", account_data.account.hash_string(), e);
+                warn!(
+                    "Failed to send nullification transaction for account: {}. Error: {:?}",
+                    account_data.account.hash_string(),
+                    e
+                );
                 return Ok(vec![PipelineStage::FetchQueueData(context.clone())]);
             }
         };
@@ -321,7 +331,7 @@ pub async fn get_nullifier_queue<R: RpcConnection>(
         let bucket = nullifier_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                let account = crate::v2::state::queue_data::Account {
+                let account = crate::nullifier::state::queue_data::Account {
                     hash: bucket.value_bytes(),
                     index: i,
                 };

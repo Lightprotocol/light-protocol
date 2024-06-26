@@ -1,7 +1,7 @@
 use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
-use crate::v2::address::pipeline::{AddressPipelineStage, PipelineContext};
-use crate::v2::BackpressureControl;
+use crate::nullifier::address::pipeline::{AddressPipelineStage, PipelineContext};
+use crate::nullifier::BackpressureControl;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use light_hash_set::HashSet;
 use light_hasher::Poseidon;
@@ -16,8 +16,8 @@ use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 use std::mem;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
 pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
@@ -29,58 +29,57 @@ pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
 }
 
 impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
-
     pub(crate) async fn process(&mut self) {
         info!("Starting AddressProcessor process");
         loop {
             tokio::select! {
-            Some(item) = self.input.recv() => {
-                info!("Received item in AddressProcessor");
-                let _permit = self.backpressure.acquire().await;
-                let result = match item {
-                    AddressPipelineStage::FetchAddressQueueData(ref context) => {
-                        self.fetch_address_queue_data(context).await
-                    }
-                    AddressPipelineStage::ProcessAddressQueue(ref context, ref queue_data) => {
-                        self.process_address_queue(context.clone(), queue_data.clone()).await
-                    }
-                    AddressPipelineStage::UpdateAddressMerkleTree(ref context, ref account) => {
-                        self.update_address_merkle_tree(context.clone(), account.clone()).await
-                    }
-                    AddressPipelineStage::UpdateIndexer(ref context, ref proof) => {
-                            let proof = *(proof.clone());
-                            self.update_indexer(context.clone(), proof).await
-                    }
-                };
+                Some(item) = self.input.recv() => {
+                    info!("Received item in AddressProcessor");
+                    let _permit = self.backpressure.acquire().await;
+                    let result = match item {
+                        AddressPipelineStage::FetchAddressQueueData(ref context) => {
+                            self.fetch_address_queue_data(context).await
+                        }
+                        AddressPipelineStage::ProcessAddressQueue(ref context, ref queue_data) => {
+                            self.process_address_queue(context.clone(), queue_data.clone()).await
+                        }
+                        AddressPipelineStage::UpdateAddressMerkleTree(ref context, ref account) => {
+                            self.update_address_merkle_tree(context.clone(), *account).await
+                        }
+                        AddressPipelineStage::UpdateIndexer(ref context, ref proof) => {
+                                let proof = *(proof.clone());
+                                self.update_indexer(context.clone(), proof).await
+                        }
+                    };
 
-                match result {
-                    Ok(next_stages) => {
-                        for next_stage in next_stages {
-                            if let Err(e) = self.output.send(next_stage).await {
-                                warn!("Failed to send next stage to output: {:?}", e);
+                    match result {
+                        Ok(next_stages) => {
+                            for next_stage in next_stages {
+                                if let Err(e) = self.output.send(next_stage).await {
+                                    warn!("Failed to send next stage to output: {:?}", e);
+                                    // If we can't send, the receiver is probably closed. We should stop.
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Error in AddressProcessor: {:?}", e);
+                            // Instead of breaking, let's continue to the next item
+                            let context = item.context();
+                            if let Err(e) = self.output.send(AddressPipelineStage::FetchAddressQueueData(context)).await {
+                                warn!("Failed to send FetchAddressQueueData stage after error: {:?}", e);
                                 // If we can't send, the receiver is probably closed. We should stop.
                                 return;
                             }
                         }
                     }
-                    Err(e) => {
-                        warn!("Error in AddressProcessor: {:?}", e);
-                        // Instead of breaking, let's continue to the next item
-                        let context = item.context();
-                        if let Err(e) = self.output.send(AddressPipelineStage::FetchAddressQueueData(context)).await {
-                            warn!("Failed to send FetchAddressQueueData stage after error: {:?}", e);
-                            // If we can't send, the receiver is probably closed. We should stop.
-                            return;
-                        }
-                    }
                 }
+                _ = self.close_output.recv() => {
+                    info!("Received signal to close output channel");
+                    break;
+                }
+                else => break,
             }
-            _ = self.close_output.recv() => {
-                info!("Received signal to close output channel");
-                break;
-            }
-            else => break,
-        }
 
             if self.shutdown.load(Ordering::Relaxed) {
                 info!("Shutdown signal received, stopping AddressProcessor");
@@ -111,11 +110,11 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             )])
         }
     }
-    
+
     async fn process_address_queue(
         &self,
         context: PipelineContext<T, R>,
-        queue_data: Vec<crate::v2::address::Account>,
+        queue_data: Vec<crate::nullifier::address::Account>,
     ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let mut next_stages = Vec::new();
         for account in queue_data {
@@ -130,7 +129,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
     async fn update_address_merkle_tree(
         &self,
         context: PipelineContext<T, R>,
-        account: crate::v2::address::Account,
+        account: crate::nullifier::address::Account,
     ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let rpc = &context.rpc;
@@ -163,9 +162,13 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                         proof.low_address_next_value,
                         proof.low_address_proof,
                     )
-                        .await {
+                    .await
+                    {
                         Ok(true) => {
-                            info!("Successfully updated merkle tree for address: {:?}", address);
+                            info!(
+                                "Successfully updated merkle tree for address: {:?}",
+                                address
+                            );
                             return Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)]);
                         }
                         Ok(false) => {
@@ -173,20 +176,34 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                             retry_count += 1;
                         }
                         Err(e) => {
-                            warn!("Error updating merkle tree for address {:?}: {:?}", address, e);
+                            warn!(
+                                "Error updating merkle tree for address {:?}: {:?}",
+                                address, e
+                            );
                             retry_count += 1;
                         }
                     }
 
                     if retry_count < max_retries {
-                        info!("Retrying update for address: {:?} (Attempt {} of {})", address, retry_count + 1, max_retries);
+                        info!(
+                            "Retrying update for address: {:?} (Attempt {} of {})",
+                            address,
+                            retry_count + 1,
+                            max_retries
+                        );
                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
-                warn!("Max retries reached for address: {:?}. Moving to next address.", address);
+                warn!(
+                    "Max retries reached for address: {:?}. Moving to next address.",
+                    address
+                );
             }
             Err(e) => {
-                warn!("Failed to get address tree proof for address {:?}: {:?}", address, e);
+                warn!(
+                    "Failed to get address tree proof for address {:?}: {:?}",
+                    address, e
+                );
             }
         }
         Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)])
@@ -212,7 +229,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
 async fn fetch_address_queue_data<R: RpcConnection>(
     config: &Arc<ForesterConfig>,
     rpc: &Arc<Mutex<R>>,
-) -> Result<Vec<crate::v2::address::Account>, ForesterError> {
+) -> Result<Vec<crate::nullifier::address::Account>, ForesterError> {
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
 
     let mut account = (*rpc.lock().await)
@@ -228,7 +245,7 @@ async fn fetch_address_queue_data<R: RpcConnection>(
         let bucket = address_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                address_queue_vec.push(crate::v2::address::Account {
+                address_queue_vec.push(crate::nullifier::address::Account {
                     hash: bucket.value_bytes(),
                     index: i,
                 });
@@ -298,7 +315,7 @@ pub async fn get_changelog_indices<R: RpcConnection>(
         client,
         *merkle_tree_pubkey,
     )
-        .await;
+    .await;
     let changelog_index = merkle_tree.changelog_index();
     let indexed_changelog_index = merkle_tree.indexed_changelog_index();
     Ok((changelog_index, indexed_changelog_index))

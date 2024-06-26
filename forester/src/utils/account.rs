@@ -1,5 +1,5 @@
 use crate::config::ForesterConfig;
-use crate::v2::state::get_nullifier_queue;
+use crate::nullifier::state::get_nullifier_queue;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 
 pub fn decode_hash(account: &str) -> [u8; 32] {

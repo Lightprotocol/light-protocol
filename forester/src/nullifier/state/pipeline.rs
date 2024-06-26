@@ -1,6 +1,6 @@
 use crate::config::ForesterConfig;
-use crate::v2::state::{AccountData, QueueData, StateProcessor};
-use crate::v2::BackpressureControl;
+use crate::nullifier::state::{AccountData, QueueData, StateProcessor};
+use crate::nullifier::BackpressureControl;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::info;

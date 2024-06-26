@@ -1,8 +1,8 @@
 use env_logger::Env;
 use forester::external_services_config::ExternalServicesConfig;
-use forester::{ForesterConfig, nullify_state};
 use forester::utils::spawn_validator;
-use forester::v2::state::get_nullifier_queue;
+use forester::nullifier::state::get_nullifier_queue;
+use forester::{nullify_state, ForesterConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;

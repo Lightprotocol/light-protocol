@@ -1,7 +1,7 @@
 use crate::config::ForesterConfig;
 use crate::indexer::PhotonIndexer;
-use crate::v2::address::setup_address_pipeline;
-use crate::v2::state::setup_state_pipeline;
+use crate::nullifier::address::setup_address_pipeline;
+use crate::nullifier::state::setup_state_pipeline;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use log::{info, warn};

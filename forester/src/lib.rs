@@ -3,9 +3,9 @@ pub mod errors;
 pub mod external_services_config;
 pub mod indexer;
 pub mod nqmt;
+pub mod nullifier;
 pub mod settings;
 pub mod utils;
-pub mod v2;
 
 mod config;
 mod operations;

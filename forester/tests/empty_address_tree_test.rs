@@ -2,7 +2,8 @@ use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use env_logger::Env;
 use forester::external_services_config::ExternalServicesConfig;
 use forester::utils::spawn_validator;
-use forester::v2::state::get_nullifier_queue;
+use forester::nullifier::state::get_nullifier_queue;
+use forester::{nullify_addresses, ForesterConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
@@ -11,7 +12,6 @@ use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR
 use log::info;
 use solana_sdk::signature::{Keypair, Signer};
 use std::sync::Arc;
-use forester::{ForesterConfig, nullify_addresses};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn empty_address_tree_test() {
