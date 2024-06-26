@@ -97,7 +97,7 @@ export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(185);
  *
  * Is charged per newly created address.
  */
-export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(188);
+export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(202);
 
 /**
  * Is charged if the transaction nullifies at least one compressed account.

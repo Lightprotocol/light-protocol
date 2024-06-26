@@ -32,7 +32,7 @@ async fn test_10000_all() {
         KeypairActionConfig::all_default(),
         GeneralActionConfig::default(),
         10000,
-        Some(17695267035445945231),
+        None,
     )
     .await;
     env.execute_rounds().await;

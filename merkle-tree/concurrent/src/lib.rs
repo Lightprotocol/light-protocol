@@ -442,7 +442,7 @@ where
             return Err(ConcurrentMerkleTreeError::CannotUpdateEmpty);
         }
 
-        if self.canopy_depth > 0 && proof.len() != self.height {
+        if self.canopy_depth > 0 {
             self.update_proof_from_canopy(leaf_index, proof)?;
         }
         if changelog_index != self.changelog_index() {

@@ -707,7 +707,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             );
             non_inclusion_proofs.push(proof_inputs);
             let fetched_address_merkle_tree = unsafe {
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkeys[i],
                 )

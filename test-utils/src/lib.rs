@@ -96,10 +96,10 @@ where
 // TODO: do discriminator check
 /// Fetches the fiven account, then copies and serializes it as an
 /// `IndexedMerkleTree`.
-pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize>(
+pub async fn get_indexed_merkle_tree<T, R, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
     rpc: &mut R,
     pubkey: Pubkey,
-) -> IndexedMerkleTreeCopy<H, I, HEIGHT>
+) -> IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>
 where
     R: RpcConnection,
     H: Hasher,

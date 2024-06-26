@@ -36,7 +36,7 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
 ) {
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
-        &mut IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26>::from_bytes_zero_copy_mut(
+        &mut IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26, 16>::from_bytes_zero_copy_mut(
             &mut merkle_tree.data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
         )
         .unwrap();
@@ -48,7 +48,7 @@ pub async fn set_address_merkle_tree_next_index<R: RpcConnection>(
     rpc.set_account(merkle_tree_pubkey, &account_share_data);
     let mut merkle_tree = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
     let merkle_tree_deserialized =
-        IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26>::from_bytes_zero_copy_mut(
+        IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, 26, 16>::from_bytes_zero_copy_mut(
             &mut merkle_tree.data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
         )
         .unwrap();
@@ -185,16 +185,18 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
     drop(new_loaded_mt_account);
     drop(old_loaded_mt_account);
 
-    let struct_old = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
-        rpc,
-        old_mt_account.key(),
-    )
-    .await;
-    let struct_new = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
-        rpc,
-        new_mt_account.key(),
-    )
-    .await;
+    let struct_old =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+            rpc,
+            old_mt_account.key(),
+        )
+        .await;
+    let struct_new =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+            rpc,
+            new_mt_account.key(),
+        )
+        .await;
     assert_rolledover_merkle_trees(&struct_old.merkle_tree, &struct_new.merkle_tree);
 
     {

@@ -263,7 +263,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
     let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
     let mut update_errors: Vec<RpcError> = Vec::new();
     let address_merkle_tree =
-        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
             rpc,
             address_merkle_tree_pubkey,
         )
@@ -282,7 +282,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             0
         };
         let address_merkle_tree =
-            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                 rpc,
                 address_merkle_tree_pubkey,
             )
@@ -292,7 +292,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
         let address = address_queue.first_no_seq().unwrap();
-        println!("address: {:?}", address);
+
         if address.is_none() {
             break;
         }
@@ -309,9 +309,6 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
         let low_address_proof = initial_merkle_tree_state
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
-        // print:
-        // - state of onchain indexed array
-        // - local element
 
         let old_sequence_number = address_merkle_tree.sequence_number();
         let old_root = address_merkle_tree.root();
@@ -433,34 +430,12 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 .unwrap();
             }
             let merkle_tree =
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
                 .await;
-            let account = rpc
-                .get_account(address_merkle_tree_pubkey)
-                .await
-                .unwrap()
-                .unwrap();
-            let account_data = account.data.clone();
-            println!("account data len {:?}", account_data.len());
-            println!(
-                "std::mem::size_of::<AddressMerkleTreeAccount>() {:?}",
-                std::mem::size_of::<AddressMerkleTreeAccount>()
-            );
-            let merkle_tree = IndexedMerkleTreeCopy::<Poseidon, usize, 26>::from_bytes_copy(
-                &account_data[8 + std::mem::size_of::<AddressMerkleTreeAccount>()..],
-            )
-            .unwrap();
-            // println!(
-            //     "merkle_tree.indexed_changelog_index(): {:?}",
-            //     merkle_tree.indexed_changelog_index()
-            // );
-            // println!("merkle_tree[0]: {:?}", merkle_tree.indexed_changelog[0]);
-            // println!("merkle_tree[1]: {:?}", merkle_tree.indexed_changelog[1]);
-            // println!("merkle_tree[2]: {:?}", merkle_tree.indexed_changelog[2]);
-            // println!("merkle_tree[3]: {:?}", merkle_tree.indexed_changelog[3]);
+
             let (old_low_address, old_low_address_next_value) = relayer_indexing_array
                 .find_low_element_for_nonexistent(&address.value_biguint())
                 .unwrap();
@@ -530,7 +505,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         Some(changelog_index) => changelog_index,
         None => {
             let address_merkle_tree =
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
@@ -543,7 +518,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         Some(indexed_changelog_index) => indexed_changelog_index,
         None => {
             let address_merkle_tree =
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )

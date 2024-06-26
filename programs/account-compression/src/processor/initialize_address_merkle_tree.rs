@@ -48,8 +48,9 @@ pub fn process_initialize_address_merkle_tree(
         roots_size as usize,
         address_changelog_size as usize,
     )?;
+    msg!("Initialized address merkle tree");
     merkle_tree.init().map_err(ProgramError::from)?;
-
+    msg!("inited");
     // Initialize the address merkle tree with the bn254 Fr field size - 1
     // This is the highest value that you can poseidon hash with poseidon syscalls.
     // Initializing the indexed Merkle tree enables non-inclusion proofs without handling the first case specifically.
@@ -57,5 +58,7 @@ pub fn process_initialize_address_merkle_tree(
     merkle_tree
         .add_highest_element()
         .map_err(ProgramError::from)?;
+    msg!("added_highest_element");
+
     Ok(())
 }
