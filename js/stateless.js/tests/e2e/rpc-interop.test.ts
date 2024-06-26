@@ -543,13 +543,14 @@ describe('rpc-interop', () => {
     });
 
     it('[test-rpc missing] getLatestCompressionSignatures should match', async () => {
-        let { items: signatures } = (await rpc.getLatestCompressionSignatures())
-            .value;
+        const { items: signatures } = (
+            await rpc.getLatestCompressionSignatures()
+        ).value;
 
         assert.equal(signatures.length, executedTxs);
 
         /// Shoudl return 1 using limit param
-        let { items: signatures2, cursor } = (
+        const { items: signatures2, cursor } = (
             await rpc.getLatestCompressionSignatures(undefined, 1)
         ).value;
 
@@ -563,7 +564,6 @@ describe('rpc-interop', () => {
         assert.notEqual(signatures2[0].signature, signatures3[0].signature);
     });
 
-    /// TODO: add getCompressedTransaction, getSignaturesForAddress3
     it('[test-rpc missing] getCompressedTransaction should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
             payer.publicKey,

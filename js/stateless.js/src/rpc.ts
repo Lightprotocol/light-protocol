@@ -28,7 +28,6 @@ import {
     TokenBalanceListResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
-    HexBatchInputsForProver,
     ValidityProofResult,
     NewAddressProofResult,
     LatestNonVotingSignaturesResult,

@@ -12,7 +12,6 @@ import {
     unknown,
     any,
     nullable,
-    optional,
 } from 'superstruct';
 import type { Struct } from 'superstruct';
 import {

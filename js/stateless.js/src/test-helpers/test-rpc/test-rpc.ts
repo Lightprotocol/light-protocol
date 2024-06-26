@@ -18,7 +18,6 @@ import {
     CompressedTransaction,
     LatestNonVotingSignatures,
     LatestNonVotingSignaturesPaginated,
-    LatestNonVotingSignaturesResult,
     SignatureWithMetadata,
 } from '../../rpc-interface';
 import {
