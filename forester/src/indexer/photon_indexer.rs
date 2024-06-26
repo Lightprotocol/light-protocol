@@ -1,14 +1,12 @@
-use std::fmt::Debug;
 use crate::utils::decode_hash;
 use account_compression::initialize_address_merkle_tree::Pubkey;
 use light_test_utils::indexer::{
     Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
 };
-use log::info;
-use solana_sdk::bs58;
-
 use photon_api::apis::configuration::Configuration;
 use photon_api::models::GetCompressedAccountsByOwnerPostRequestParams;
+use solana_sdk::bs58;
+use std::fmt::Debug;
 
 pub struct PhotonIndexer {
     configuration: Configuration,

@@ -1,8 +1,8 @@
 pub mod test_indexer;
 
-use std::fmt::Debug;
 use num_bigint::BigUint;
 use photon_api::models::MerkleContextWithNewAddressProof;
+use std::fmt::Debug;
 pub use test_indexer::create_mint_helper;
 pub use test_indexer::AddressMerkleTreeAccounts;
 pub use test_indexer::AddressMerkleTreeBundle;
@@ -81,7 +81,7 @@ pub struct MerkleProofWithAddressContext {
     pub new_element_next_value: BigUint,
 }
 
-impl From <MerkleContextWithNewAddressProof> for MerkleProofWithAddressContext {
+impl From<MerkleContextWithNewAddressProof> for MerkleProofWithAddressContext {
     fn from(proof: MerkleContextWithNewAddressProof) -> Self {
         MerkleProofWithAddressContext {
             merkle_tree: todo!(),

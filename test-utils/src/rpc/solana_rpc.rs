@@ -45,7 +45,11 @@ pub struct SolanaRpcConnection {
 
 impl Debug for SolanaRpcConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SolanaRpcConnection {{ client: {:?} }}", self.client.url())
+        write!(
+            f,
+            "SolanaRpcConnection {{ client: {:?} }}",
+            self.client.url()
+        )
     }
 }
 

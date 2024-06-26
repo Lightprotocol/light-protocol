@@ -1,22 +1,23 @@
-use std::mem;
-use std::sync::Arc;
+use crate::errors::ForesterError;
+use crate::nullifier::Config;
+use crate::v2::address::pipeline::{AddressPipelineStage, PipelineContext};
+use crate::v2::BackpressureControl;
+use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use light_hash_set::HashSet;
+use light_hasher::Poseidon;
+use light_registry::sdk::{
+    create_update_address_merkle_tree_instruction, UpdateAddressMerkleTreeInstructionInputs,
+};
+use light_test_utils::get_indexed_merkle_tree;
+use light_test_utils::indexer::{Indexer, MerkleProofWithAddressContext};
+use light_test_utils::rpc::rpc_connection::RpcConnection;
 use log::{info, warn};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
+use std::mem;
+use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
-use account_compression::{AddressMerkleTreeAccount, QueueAccount};
-use light_hash_set::HashSet;
-use light_hasher::Poseidon;
-use light_registry::sdk::{create_nullify_instruction, create_update_address_merkle_tree_instruction, CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs};
-use light_test_utils::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
-use light_test_utils::indexer::{Indexer, MerkleProofWithAddressContext};
-use light_test_utils::rpc::rpc_connection::RpcConnection;
-use crate::errors::ForesterError;
-use crate::nullifier::Config;
-use crate::v2::BackpressureControl;
-use crate::v2::address::pipeline::{PipelineContext, AddressPipelineStage};
-use crate::v2::address::queue_data::{AccountData, QueueData};
 
 pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
     pub input: mpsc::Receiver<AddressPipelineStage<T, R>>,
@@ -41,7 +42,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                     self.update_address_merkle_tree(context, account).await
                 }
                 AddressPipelineStage::UpdateIndexer(context, proof) => {
-                    self.update_indexer(context, proof).await
+                    self.update_indexer(context, *proof).await
                 }
             };
 
@@ -59,9 +60,10 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         info!("StreamProcessor process completed");
     }
 
-
-    async fn fetch_address_queue_data(&self, context: &PipelineContext<T, R>) 
-        -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
+    async fn fetch_address_queue_data(
+        &self,
+        context: &PipelineContext<T, R>,
+    ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let rpc = &context.rpc;
 
@@ -70,21 +72,33 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             info!("Address queue is empty");
             Ok(vec![])
         } else {
-            Ok(vec![AddressPipelineStage::ProcessAddressQueue(context.clone(), queue_data)])
+            Ok(vec![AddressPipelineStage::ProcessAddressQueue(
+                context.clone(),
+                queue_data,
+            )])
         }
     }
 
-    async fn process_address_queue(&self, context: PipelineContext<T, R>, queue_data: Vec<crate::v2::address::Account>) 
-        -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
+    async fn process_address_queue(
+        &self,
+        context: PipelineContext<T, R>,
+        queue_data: Vec<crate::v2::address::Account>,
+    ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let mut next_stages = Vec::new();
         for account in queue_data {
-            next_stages.push(AddressPipelineStage::UpdateAddressMerkleTree(context.clone(), account));
+            next_stages.push(AddressPipelineStage::UpdateAddressMerkleTree(
+                context.clone(),
+                account,
+            ));
         }
         Ok(next_stages)
     }
 
-    async fn update_address_merkle_tree(&self, context: PipelineContext<T, R>, account: crate::v2::address::Account) 
-        -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
+    async fn update_address_merkle_tree(
+        &self,
+        context: PipelineContext<T, R>,
+        account: crate::v2::address::Account,
+    ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let rpc = &context.rpc;
         let indexer = &context.indexer;
@@ -92,16 +106,18 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         let address = account.hash;
         let address_hashset_index = account.index;
 
-        let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
-            &mut *rpc.lock().await,
-            config.address_merkle_tree_pubkey,
-        ).await;
+        // let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+        //     &mut *rpc.lock().await,
+        //     config.address_merkle_tree_pubkey,
+        // ).await;
 
-        let proof = indexer.lock().await
+        let proof = indexer
+            .lock()
+            .await
             .get_address_tree_proof(config.address_merkle_tree_pubkey.to_bytes(), address)
             .await
             .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
-            
+
         let update_successful = update_merkle_tree(
             rpc,
             &config.payer_keypair,
@@ -113,30 +129,35 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             proof.low_address_next_index,
             proof.low_address_next_value,
             proof.low_address_proof,
-        ).await?;
+        )
+        .await?;
 
         if update_successful {
             // Ok(vec![AddressPipelineStage::UpdateIndexer(context, proof.into())])
             Ok(vec![])
         } else {
-            Err(ForesterError::Custom("Failed to update address merkle tree".to_string()))
+            Err(ForesterError::Custom(
+                "Failed to update address merkle tree".to_string(),
+            ))
         }
     }
 
-    async fn update_indexer(&self, context: PipelineContext<T, R>, proof: MerkleProofWithAddressContext) 
-        -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
+    async fn update_indexer(
+        &self,
+        context: PipelineContext<T, R>,
+        proof: MerkleProofWithAddressContext,
+    ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let indexer = &context.indexer;
 
-        indexer.lock().await.address_tree_updated(
-            config.address_merkle_tree_pubkey.to_bytes(),
-            proof,
-        );
+        indexer
+            .lock()
+            .await
+            .address_tree_updated(config.address_merkle_tree_pubkey.to_bytes(), proof);
 
         Ok(vec![AddressPipelineStage::FetchAddressQueueData(context)])
     }
 }
-
 
 async fn fetch_address_queue_data<R: RpcConnection>(
     config: &Arc<Config>,
@@ -167,7 +188,6 @@ async fn fetch_address_queue_data<R: RpcConnection>(
     });
     Ok(address_queue_vec)
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub async fn update_merkle_tree<R: RpcConnection>(

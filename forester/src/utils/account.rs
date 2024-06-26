@@ -1,4 +1,5 @@
-use crate::nullifier::{get_nullifier_queue, Config};
+use crate::nullifier::Config;
+use crate::v2::state::get_nullifier_queue;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 
 pub fn decode_hash(account: &str) -> [u8; 32] {

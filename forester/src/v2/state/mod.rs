@@ -1,7 +1,7 @@
 mod pipeline;
-mod queue_data;
 mod processor;
+mod queue_data;
 
-pub use pipeline::{PipelineContext, PipelineStage, setup_pipeline};
+pub use pipeline::{setup_pipeline, PipelineContext, PipelineStage};
+pub use processor::{get_nullifier_queue, StateProcessor};
 pub use queue_data::{Account, AccountData, QueueData};
-pub use processor::StateProcessor;

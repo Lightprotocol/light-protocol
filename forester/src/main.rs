@@ -6,9 +6,10 @@ use forester::cli::{Cli, Commands};
 use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::nqmt::reindex_and_store;
-use forester::nullifier::{empty_address_queue, Config as ForesterConfig};
 use forester::nullifier::subscribe_nullify;
+use forester::nullifier::{empty_address_queue, Config as ForesterConfig};
 use forester::settings::SettingsKey;
+use forester::v2::state::setup_pipeline;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use log::{error, info, warn};
@@ -18,7 +19,6 @@ use solana_sdk::signature::{Keypair, Signer};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
-use forester::v2::state::setup_pipeline;
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -105,10 +105,10 @@ async fn main() {
             // let config_clone = config.clone();
             // let task_clear_addresses =
             //     tokio::spawn(async move { nullify_addresses(config_clone).await });
-            // 
+            //
             // let config_clone = config.clone();
             // let task_clear_state = tokio::spawn(async move { nullify_state(config_clone).await });
-            // 
+            //
             // try_join!(task_clear_addresses, task_clear_state).expect("Failed to join tasks");
             let state_nullifier = tokio::spawn(nullify_state(config.clone()));
             let address_nullifier = tokio::spawn(nullify_addresses(config.clone()));
@@ -158,7 +158,7 @@ async fn nullify_state(config: Arc<ForesterConfig>) {
     } else {
         warn!("State nullifier stopped unexpectedly");
     }
-    
+
     // let config = config.clone();
     // let result = nullify(indexer, rpc, config).await;
     // info!("State nullifier result: {:?}", result);

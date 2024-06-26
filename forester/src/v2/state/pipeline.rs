@@ -1,12 +1,12 @@
-use std::sync::Arc;
-use log::info;
-use tokio::sync::Mutex;
-use tokio::sync::mpsc;
+use crate::nullifier::Config;
+use crate::v2::state::{AccountData, QueueData, StateProcessor};
+use crate::v2::BackpressureControl;
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use crate::nullifier::Config;
-use crate::v2::BackpressureControl;
-use crate::v2::state::{StateProcessor, AccountData, QueueData};
+use log::info;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub enum PipelineStage<T: Indexer, R: RpcConnection> {
@@ -61,7 +61,10 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
         });
 
         // Feed initial data into the pipeline
-        input_tx_clone.send(PipelineStage::FetchQueueData(context.clone())).await.unwrap();
+        input_tx_clone
+            .send(PipelineStage::FetchQueueData(context.clone()))
+            .await
+            .unwrap();
 
         info!("Starting to process output in setup_pipeline");
         while let Some(result) = output_rx.recv().await {
@@ -69,24 +72,45 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
             match result {
                 PipelineStage::FetchQueueData(_) => {
                     info!("Received FetchQueueData, restarting pipeline");
-                    input_tx_clone.send(PipelineStage::FetchQueueData(context.clone())).await.unwrap();
+                    input_tx_clone
+                        .send(PipelineStage::FetchQueueData(context.clone()))
+                        .await
+                        .unwrap();
                 }
                 PipelineStage::FetchProofs(_, queue_data) => {
                     if queue_data.accounts_to_nullify.is_empty() {
                         info!("No more accounts to nullify after 3 consecutive empty fetches. Signaling completion.");
                         break;
                     } else {
-                        info!("Received FetchProofs in setup_pipeline, processing {} accounts", queue_data.accounts_to_nullify.len());
-                        input_tx_clone.send(PipelineStage::FetchProofs(context.clone(), queue_data)).await.unwrap();
+                        info!(
+                            "Received FetchProofs in setup_pipeline, processing {} accounts",
+                            queue_data.accounts_to_nullify.len()
+                        );
+                        input_tx_clone
+                            .send(PipelineStage::FetchProofs(context.clone(), queue_data))
+                            .await
+                            .unwrap();
                     }
                 }
                 PipelineStage::NullifyAccount(_, account_data) => {
-                    info!("Received NullifyAccount for account: {} in setup_pipeline", account_data.account.hash_string());
-                    input_tx_clone.send(PipelineStage::NullifyAccount(context.clone(), account_data)).await.unwrap();
+                    info!(
+                        "Received NullifyAccount for account: {} in setup_pipeline",
+                        account_data.account.hash_string()
+                    );
+                    input_tx_clone
+                        .send(PipelineStage::NullifyAccount(context.clone(), account_data))
+                        .await
+                        .unwrap();
                 }
                 PipelineStage::UpdateIndexer(_, account_data) => {
-                    info!("Received UpdateIndexer for account: {} in setup_pipeline", account_data.account.hash_string());
-                    input_tx_clone.send(PipelineStage::UpdateIndexer(context.clone(), account_data)).await.unwrap();
+                    info!(
+                        "Received UpdateIndexer for account: {} in setup_pipeline",
+                        account_data.account.hash_string()
+                    );
+                    input_tx_clone
+                        .send(PipelineStage::UpdateIndexer(context.clone(), account_data))
+                        .await
+                        .unwrap();
                 }
             }
         }

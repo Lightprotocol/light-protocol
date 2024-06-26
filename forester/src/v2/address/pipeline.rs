@@ -1,21 +1,20 @@
-use std::sync::Arc;
-use light_test_utils::indexer::MerkleProofWithAddressContext;
-use log::info;
-use tokio::sync::Mutex;
-use tokio::sync::mpsc;
-use light_test_utils::indexer::Indexer;
-use light_test_utils::rpc::rpc_connection::RpcConnection;
 use crate::nullifier::Config;
-use crate::v2::BackpressureControl;
 use crate::v2::address::AddressProcessor;
+use crate::v2::BackpressureControl;
+use light_test_utils::indexer::Indexer;
+use light_test_utils::indexer::MerkleProofWithAddressContext;
+use light_test_utils::rpc::rpc_connection::RpcConnection;
+use log::info;
+use std::sync::Arc;
+use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub enum AddressPipelineStage<T: Indexer, R: RpcConnection> {
     FetchAddressQueueData(PipelineContext<T, R>),
     ProcessAddressQueue(PipelineContext<T, R>, Vec<crate::v2::address::Account>),
     UpdateAddressMerkleTree(PipelineContext<T, R>, crate::v2::address::Account),
-    UpdateIndexer(PipelineContext<T, R>, MerkleProofWithAddressContext),
-
+    UpdateIndexer(PipelineContext<T, R>, Box<MerkleProofWithAddressContext>),
 }
 
 #[derive(Debug)]
@@ -58,13 +57,15 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
     };
 
     tokio::spawn(async move {
-        // TODO: uncomment this:        
-        // let processor_handle = tokio::spawn(async move {
-        //     processor.process().await;
-        // });
+        let processor_handle = tokio::spawn(async move {
+            processor.process().await;
+        });
 
         // Feed initial data into the pipeline
-        input_tx_clone.send(AddressPipelineStage::FetchAddressQueueData(context.clone())).await.unwrap();
+        input_tx_clone
+            .send(AddressPipelineStage::FetchAddressQueueData(context.clone()))
+            .await
+            .unwrap();
 
         let mut consecutive_empty_fetches = 0;
         while let Some(result) = output_rx.recv().await {
@@ -75,7 +76,10 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
                         info!("No more addresses to process after 3 consecutive empty fetches. Signaling completion.");
                         break;
                     }
-                    input_tx_clone.send(AddressPipelineStage::FetchAddressQueueData(context.clone())).await.unwrap();
+                    input_tx_clone
+                        .send(AddressPipelineStage::FetchAddressQueueData(context.clone()))
+                        .await
+                        .unwrap();
                 }
                 stage => {
                     consecutive_empty_fetches = 0;
@@ -83,8 +87,8 @@ pub async fn setup_pipeline<T: Indexer, R: RpcConnection>(
                 }
             }
         }
-        // TODO: uncomment this:
-        // processor_handle.abort();
+
+        processor_handle.abort();
         let _ = completion_tx.send(()).await;
         info!("Address pipeline process completed.");
     });
