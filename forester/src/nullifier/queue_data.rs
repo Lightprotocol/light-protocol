@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StateQueueData {
     pub change_log_index: usize,
     pub sequence_number: usize,

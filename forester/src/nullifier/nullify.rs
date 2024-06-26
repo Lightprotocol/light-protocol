@@ -18,7 +18,7 @@ use std::mem;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::signal;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -38,8 +38,6 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
     rpc: Arc<Mutex<R>>,
     config: Arc<Config>,
 ) -> Result<(), ForesterError> {
-    // let concurrency_limit = config.concurrency_limit;
-    // let semaphore = Arc::new(Semaphore::new(concurrency_limit));
     let successful_nullifications = Arc::new(Mutex::new(0));
     let cancellation_token = CancellationToken::new();
     let cancellation_token_clone = cancellation_token.clone();
@@ -96,7 +94,7 @@ pub async fn nullify<T: Indexer, R: RpcConnection>(
                 &rpc_clone,
                 &indexer_clone,
             )
-            .await
+                .await
         });
 
         handles.push(handle);
@@ -126,63 +124,116 @@ async fn process_batch<T: Indexer, R: RpcConnection>(
     rpc: &Arc<Mutex<R>>,
     indexer: &Arc<Mutex<T>>,
 ) -> Result<(), ForesterError> {
-    while !queue_data.compressed_accounts_to_nullify.is_empty() {
-        let account = queue_data.compressed_accounts_to_nullify.remove(0);
+    let concurrency_limit = config.concurrency_limit;
+    let semaphore = Arc::new(Semaphore::new(concurrency_limit));
+    let mut tasks = Vec::new();
+    info!(
+        "Processing batch of {} accounts...",
+        queue_data.compressed_accounts_to_nullify.len()
+    );
+    for account in queue_data.compressed_accounts_to_nullify.iter() {
+        // while !queue_data.compressed_accounts_to_nullify.is_empty() {
+        // let permit = Arc::clone(&semaphore).acquire_owned().await;
+
+        let config_clone = config.clone();
+        let cancellation_token_clone = cancellation_token.clone();
+        let successful_nullifications_clone = Arc::clone(&successful_nullifications);
+        let arc_indexer_clone = Arc::clone(&indexer);
+        let arc_rpc_clone = Arc::clone(&rpc);
+        // let queue_data_clone = queue_data.clone();
+        let account_clone = *account;
+
         if let Some((proof, leaf_index, root_seq)) = queue_data
             .compressed_account_proofs
             .remove(&account.hash_string())
         {
-            let mut retries = 0;
-            loop {
-                if cancellation_token.is_cancelled() {
-                    info!("Task cancelled for account {}", account.hash_string());
-                    return Ok(());
-                }
-                let proof_clone = proof.clone();
-                info!("Nullifying account: {}", account.hash_string());
-                match nullify_compressed_account(
-                    account,
-                    queue_data.change_log_index,
-                    proof_clone,
+            let task = tokio::spawn(async move {
+                // let _permit = permit;
+                process_account(
+                    account_clone,
+                    proof,
                     leaf_index,
                     root_seq,
-                    config,
-                    &mut *rpc.lock().await,
-                    &mut *indexer.lock().await,
-                )
-                .await
-                {
-                    Ok(_) => {
-                        let mut successful_nullifications = successful_nullifications.lock().await;
-                        *successful_nullifications += 1;
-                        break;
-                    }
-                    Err(e) => {
-                        if retries >= config.max_retries {
-                            warn!(
+                    queue_data.change_log_index,
+                    &cancellation_token_clone,
+                    &successful_nullifications_clone,
+                    &config_clone,
+                    &arc_rpc_clone,
+                    &arc_indexer_clone,
+                ).await
+            });
+            tasks.push(task);
+        } else {
+            warn!("No proof found for account: {}", account.hash_string());
+        }
+    }
+
+    let results = futures::future::join_all(tasks).await;
+    for result in results {
+        if let Err(e) = result {
+            warn!("Task failed with error: {:?}", e);
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn process_account<T: Indexer, R: RpcConnection>(
+    account: Account,
+    proof: Vec<[u8; 32]>,
+    leaf_index: u64,
+    root_seq: u64,
+    change_log_index: usize,
+    cancellation_token: &CancellationToken,
+    successful_nullifications: &Arc<Mutex<usize>>,
+    config: &Arc<Config>,
+    rpc: &Arc<Mutex<R>>,
+    indexer: &Arc<Mutex<T>>) -> Result<(), ForesterError> {
+    let mut retries = 0;
+    loop {
+        if cancellation_token.is_cancelled() {
+            info!("Task cancelled for account {}", account.hash_string());
+            return Ok(());
+        }
+
+        let proof_clone = proof.clone();
+        info!("Nullifying account: {}", account.hash_string());
+        match nullify_compressed_account(
+            account,
+            change_log_index,
+            proof_clone,
+            leaf_index,
+            root_seq,
+            config,
+            &mut *rpc.lock().await,
+            &mut *indexer.lock().await,
+        )
+            .await
+        {
+            Ok(_) => {
+                let mut successful_nullifications = successful_nullifications.lock().await;
+                *successful_nullifications += 1;
+                return Ok(());
+            }
+            Err(e) => {
+                if retries >= config.max_retries {
+                    warn!(
                                 "Max retries reached for account {}: {:?}",
                                 account.hash_string(),
                                 e
                             );
-                            break;
-                        }
-                        retries += 1;
-                        warn!(
+                    return Err(e);
+                }
+                retries += 1;
+                warn!(
                             "Retrying account {} due to error: {:?}",
                             account.hash_string(),
                             e
                         );
-                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                    }
-                }
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
-        } else {
-            warn!("No proof found for account: {}", account.hash_string());
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-            continue;
         }
     }
-    Ok(())
 }
 
 async fn fetch_queue_data<T: Indexer, R: RpcConnection>(
@@ -288,7 +339,6 @@ pub async fn nullify_compressed_account<T: Indexer, R: RpcConnection>(
     info!("Transaction: {:?}", signature);
 
     // TODO: check if the transaction was successful and implement retry logic
-
     indexer.account_nullified(config.state_merkle_tree_pubkey, &account.hash_string());
     Ok(())
 }
@@ -334,6 +384,6 @@ pub async fn get_changelog_index<R: RpcConnection>(
         rpc,
         *merkle_tree_pubkey,
     )
-    .await;
+        .await;
     Ok((merkle_tree.changelog_index(), merkle_tree.sequence_number()))
 }

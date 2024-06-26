@@ -75,8 +75,8 @@ fn init_config() -> ForesterConfig {
             .unwrap(),
         registry_pubkey: Pubkey::from_str(&registry_pubkey).unwrap(),
         payer_keypair: Keypair::from_bytes(&payer).unwrap(),
-        concurrency_limit: 1,
-        batch_size: 1,
+        concurrency_limit: 10,
+        batch_size: 10,
         max_retries: 5,
         max_concurrent_batches: 1,
     }
