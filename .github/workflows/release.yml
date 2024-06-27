@@ -159,7 +159,7 @@ jobs:
           pnpm publish --access public --no-git-checks
 
       - name: GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: steps.extract-project.outputs.language != ''
         with:
           token: ${{ secrets.PAT_TOKEN }}
