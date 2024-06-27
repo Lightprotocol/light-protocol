@@ -21,7 +21,7 @@ impl Default for FeeConfig {
         Self {
             // rollover fee plus additonal lamports for the cpi account
             state_merkle_tree_rollover: 185,
-            address_queue_rollover: 188,
+            address_queue_rollover: 202,
             network_fee: 5000,
             address_network_fee: 5000,
             solana_network_fee: 5000,

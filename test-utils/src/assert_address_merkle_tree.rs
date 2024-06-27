@@ -15,6 +15,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
     expected_next_index: usize,
     expected_rightmost_leaf: &[u8; 32],
     owner_pubkey: &Pubkey,
+    _expected_indexed_changelog_length: usize,
 ) {
     let merkle_tree = AccountZeroCopy::<account_compression::AddressMerkleTreeAccount>::new(
         rpc,
@@ -80,6 +81,7 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         Poseidon,
         usize,
         26,
+        16,
     >(rpc, *merkle_tree_pubkey)
     .await;
 
@@ -115,4 +117,5 @@ pub async fn assert_address_merkle_tree_initialized<R: RpcConnection>(
         expected_roots_length.saturating_sub(1)
     );
     assert_eq!(&merkle_tree.rightmost_leaf(), expected_rightmost_leaf);
+    // TODO: complete asserts
 }

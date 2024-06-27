@@ -29,7 +29,7 @@ pub async fn empty_address_queue<T: Indexer, R: RpcConnection>(
 
     loop {
         let merkle_tree =
-            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                 rpc,
                 address_merkle_tree_pubkey,
             )
@@ -97,11 +97,12 @@ pub async fn get_changelog_indices<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     client: &mut R,
 ) -> Result<(usize, usize), ForesterError> {
-    let merkle_tree = get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
-        client,
-        *merkle_tree_pubkey,
-    )
-    .await;
+    let merkle_tree =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+            client,
+            *merkle_tree_pubkey,
+        )
+        .await;
     let changelog_index = merkle_tree.changelog_index();
     let indexed_changelog_index = merkle_tree.indexed_changelog_index();
     Ok((changelog_index, indexed_changelog_index))

@@ -69,10 +69,11 @@ pub fn fetch_roots_address_merkle_tree<
             .to_account_info();
         let merkle_tree = merkle_tree.try_borrow_data()?;
         check_discriminator::<AddressMerkleTreeAccount>(&merkle_tree)?;
-        let merkle_tree = IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26>::from_bytes_zero_copy(
-            &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
-        )
-        .map_err(ProgramError::from)?;
+        let merkle_tree =
+            IndexedMerkleTreeZeroCopy::<Poseidon, usize, 26, 16>::from_bytes_zero_copy(
+                &merkle_tree[8 + mem::size_of::<AddressMerkleTreeAccount>()..],
+            )
+            .map_err(ProgramError::from)?;
         let fetched_roots = &merkle_tree.roots;
 
         roots[j] = fetched_roots[index_mt_account.address_merkle_tree_root_index as usize];

@@ -18,7 +18,7 @@ use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 
 #[derive(Debug)]
-pub struct IndexedMerkleTreeZeroCopy<'a, H, I, const HEIGHT: usize>
+pub struct IndexedMerkleTreeZeroCopy<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>
 where
     H: Hasher,
     I: CheckedAdd
@@ -32,13 +32,14 @@ where
         + Unsigned,
     usize: From<I>,
 {
-    pub merkle_tree: mem::ManuallyDrop<IndexedMerkleTree<H, I, HEIGHT>>,
+    pub merkle_tree: mem::ManuallyDrop<IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>>,
     // The purpose of this field is ensuring that the wrapper does not outlive
     // the buffer.
     _bytes: &'a [u8],
 }
 
-impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>
+    IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -61,7 +62,7 @@ where
         let indexed_changelog_metadata: *mut CyclicBoundedVecMetadata =
             unsafe { read_ptr_at(bytes, &mut offset) };
 
-        let expected_size = IndexedMerkleTree::<H, I, HEIGHT>::size_in_account(
+        let expected_size = IndexedMerkleTree::<H, I, HEIGHT, NET_HEIGHT>::size_in_account(
             merkle_tree.height,
             merkle_tree.changelog.capacity(),
             merkle_tree.roots.capacity(),
@@ -96,7 +97,8 @@ where
     }
 }
 
-impl<'a, H, I, const HEIGHT: usize> Deref for IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
+    for IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -110,7 +112,7 @@ where
         + Unsigned,
     usize: From<I>,
 {
-    type Target = IndexedMerkleTree<H, I, HEIGHT>;
+    type Target = IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>;
 
     fn deref(&self) -> &Self::Target {
         &self.merkle_tree
@@ -118,8 +120,8 @@ where
 }
 
 #[derive(Debug)]
-pub struct IndexedMerkleTreeZeroCopyMut<'a, H, I, const HEIGHT: usize>(
-    IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT>,
+pub struct IndexedMerkleTreeZeroCopyMut<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
+    IndexedMerkleTreeZeroCopy<'a, H, I, HEIGHT, NET_HEIGHT>,
 )
 where
     H: Hasher,
@@ -134,7 +136,8 @@ where
         + Unsigned,
     usize: From<I>;
 
-impl<'a, H, I, const HEIGHT: usize> IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize>
+    IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -170,7 +173,7 @@ where
             roots_capacity,
         )?;
 
-        let expected_size = IndexedMerkleTree::<H, I, HEIGHT>::size_in_account(
+        let expected_size = IndexedMerkleTree::<H, I, HEIGHT, NET_HEIGHT>::size_in_account(
             height,
             changelog_capacity,
             roots_capacity,
@@ -201,7 +204,8 @@ where
     }
 }
 
-impl<'a, H, I, const HEIGHT: usize> Deref for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
+    for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -215,14 +219,15 @@ where
         + Unsigned,
     usize: From<I>,
 {
-    type Target = IndexedMerkleTree<H, I, HEIGHT>;
+    type Target = IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>;
 
     fn deref(&self) -> &Self::Target {
         &self.0.merkle_tree
     }
 }
 
-impl<'a, H, I, const HEIGHT: usize> DerefMut for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT>
+impl<'a, H, I, const HEIGHT: usize, const NET_HEIGHT: usize> DerefMut
+    for IndexedMerkleTreeZeroCopyMut<'a, H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -252,13 +257,14 @@ mod test {
 
     fn from_bytes_zero_copy<
         const HEIGHT: usize,
+        const NET_HEIGHT: usize,
         const CHANGELOG_SIZE: usize,
         const ROOTS: usize,
         const CANOPY_DEPTH: usize,
         const INDEXED_CHANGELOG_SIZE: usize,
         const OPERATIONS: usize,
     >() {
-        let mut mt_1 = IndexedMerkleTree::<Poseidon, usize, HEIGHT>::new(
+        let mut mt_1 = IndexedMerkleTree::<Poseidon, usize, HEIGHT, NET_HEIGHT>::new(
             HEIGHT,
             CHANGELOG_SIZE,
             ROOTS,
@@ -270,7 +276,7 @@ mod test {
 
         let mut bytes = vec![
             0u8;
-            IndexedMerkleTree::<Poseidon, usize, HEIGHT>::size_in_account(
+            IndexedMerkleTree::<Poseidon, usize, HEIGHT, NET_HEIGHT>::size_in_account(
                 HEIGHT,
                 CHANGELOG_SIZE,
                 ROOTS,
@@ -281,7 +287,7 @@ mod test {
 
         {
             let mut mt_2 =
-                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT>::from_bytes_zero_copy_init(
+                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT, NET_HEIGHT>::from_bytes_zero_copy_init(
                     &mut bytes,
                     HEIGHT,
                     CANOPY_DEPTH,
@@ -300,7 +306,7 @@ mod test {
         for _ in 0..OPERATIONS {
             // Reload the tree from bytes on each iteration.
             let mut mt_2 =
-                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT>::from_bytes_zero_copy_mut(
+                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT,NET_HEIGHT>::from_bytes_zero_copy_mut(
                     &mut bytes,
                 )
                 .unwrap();
@@ -316,6 +322,7 @@ mod test {
     #[test]
     fn test_from_bytes_zero_copy_26_1400_2400_10_256_1024() {
         const HEIGHT: usize = 26;
+        const NET_HEIGHT: usize = 16;
         const CHANGELOG_SIZE: usize = 1400;
         const ROOTS: usize = 2400;
         const CANOPY_DEPTH: usize = 10;
@@ -325,6 +332,7 @@ mod test {
 
         from_bytes_zero_copy::<
             HEIGHT,
+            NET_HEIGHT,
             CHANGELOG_SIZE,
             ROOTS,
             CANOPY_DEPTH,

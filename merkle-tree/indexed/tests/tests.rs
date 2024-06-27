@@ -22,6 +22,7 @@ const MERKLE_TREE_CHANGELOG: usize = 256;
 const MERKLE_TREE_ROOTS: usize = 1024;
 const MERKLE_TREE_CANOPY: usize = 0;
 const MERKLE_TREE_INDEXED_CHANGELOG: usize = 64;
+const NET_HEIGHT: usize = MERKLE_TREE_HEIGHT - MERKLE_TREE_CANOPY;
 
 const QUEUE_ELEMENTS: usize = 1024;
 
@@ -58,7 +59,7 @@ enum RelayerUpdateError {
 fn program_update<H>(
     // PDAs
     queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
-    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>>,
+    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
     // Instruction data
     changelog_index: u16,
     indexed_changelog_index: u16,
@@ -100,7 +101,7 @@ where
 fn relayer_update<H>(
     // PDAs
     queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
-    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>>,
+    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
 ) -> Result<(), RelayerUpdateError>
 where
     H: Hasher,
@@ -267,16 +268,17 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
-        IndexedMerkleTree::new(
-            MERKLE_TREE_HEIGHT,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            MERKLE_TREE_CANOPY,
-            MERKLE_TREE_INDEXED_CHANGELOG,
-        )
-        .unwrap(),
-    );
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
+        RefCell::new(
+            IndexedMerkleTree::new(
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_CHANGELOG,
+                MERKLE_TREE_ROOTS,
+                MERKLE_TREE_CANOPY,
+                MERKLE_TREE_INDEXED_CHANGELOG,
+            )
+            .unwrap(),
+        );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nullifiers.
@@ -325,16 +327,17 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
-        IndexedMerkleTree::new(
-            MERKLE_TREE_HEIGHT,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            MERKLE_TREE_CANOPY,
-            MERKLE_TREE_INDEXED_CHANGELOG,
-        )
-        .unwrap(),
-    );
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
+        RefCell::new(
+            IndexedMerkleTree::new(
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_CHANGELOG,
+                MERKLE_TREE_ROOTS,
+                MERKLE_TREE_CANOPY,
+                MERKLE_TREE_INDEXED_CHANGELOG,
+            )
+            .unwrap(),
+        );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nulifiers.
@@ -400,16 +403,17 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
-        IndexedMerkleTree::new(
-            MERKLE_TREE_HEIGHT,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            MERKLE_TREE_CANOPY,
-            MERKLE_TREE_INDEXED_CHANGELOG,
-        )
-        .unwrap(),
-    );
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
+        RefCell::new(
+            IndexedMerkleTree::new(
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_CHANGELOG,
+                MERKLE_TREE_ROOTS,
+                MERKLE_TREE_CANOPY,
+                MERKLE_TREE_INDEXED_CHANGELOG,
+            )
+            .unwrap(),
+        );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Local artifacts.
@@ -855,8 +859,11 @@ pub fn functional_non_inclusion_test() {
 fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
-
-    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    let address_3 = 11_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
+    perform_change_log_test::<false, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[
+        address_1, address_2, address_3,
+    ]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -871,8 +878,9 @@ fn functional_changelog_test_1() {
 fn functional_changelog_test_2() {
     let address_1 = 10_u32.to_biguint().unwrap();
     let address_2 = 30_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
 
-    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    perform_change_log_test::<false, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[address_1, address_2]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -892,8 +900,11 @@ fn functional_changelog_test_3() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
     let address_3 = 20_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
 
-    perform_change_log_test::<false, false, 10, 16, 16, 0, 16>(&[address_1, address_2, address_3]);
+    perform_change_log_test::<false, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[
+        address_1, address_2, address_3,
+    ]);
 }
 
 /// Performs conflicting Merkle tree updates where two parties try to insert
@@ -901,8 +912,12 @@ fn functional_changelog_test_3() {
 #[test]
 fn functional_changelog_test_double_spend() {
     let address = 10_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
 
-    perform_change_log_test::<true, false, 10, 16, 16, 0, 16>(&[address.clone(), address.clone()]);
+    perform_change_log_test::<true, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[
+        address.clone(),
+        address.clone(),
+    ]);
 }
 
 #[test]
@@ -913,6 +928,7 @@ fn functional_changelog_test_random_8_512_512_0_512() {
     const CANOPY: usize = 0;
     const INDEXED_CHANGELOG: usize = 512;
     const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
+    const NET_HEIGHT: usize = HEIGHT - CANOPY;
 
     functional_changelog_test_random::<
         false,
@@ -922,6 +938,7 @@ fn functional_changelog_test_random_8_512_512_0_512() {
         CANOPY,
         INDEXED_CHANGELOG,
         N_OPERATIONS,
+        NET_HEIGHT,
     >()
 }
 
@@ -936,6 +953,7 @@ fn functional_changelog_test_random_wrap_around_8_128_512_0_512() {
     const CANOPY: usize = 0;
     const INDEXED_CHANGELOG: usize = 128;
     const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
+    const NET_HEIGHT: usize = HEIGHT - CANOPY;
     for _ in 0..100 {
         functional_changelog_test_random::<
             true,
@@ -945,6 +963,7 @@ fn functional_changelog_test_random_wrap_around_8_128_512_0_512() {
             CANOPY,
             INDEXED_CHANGELOG,
             N_OPERATIONS,
+            NET_HEIGHT,
         >()
     }
 }
@@ -960,6 +979,7 @@ fn functional_changelog_test_random<
     const CANOPY: usize,
     const INDEXED_CHANGELOG: usize,
     const N_OPERATIONS: usize,
+    const NET_HEIGHT: usize,
 >() {
     let mut rng = thread_rng();
 
@@ -972,6 +992,7 @@ fn functional_changelog_test_random<
         ROOTS,
         CANOPY,
         INDEXED_CHANGELOG,
+        NET_HEIGHT,
     >(&leaves);
 }
 
@@ -1003,6 +1024,7 @@ fn perform_change_log_test<
     const ROOTS: usize,
     const CANOPY: usize,
     const INDEXED_CHANGELOG: usize,
+    const NET_HEIGHT: usize,
 >(
     addresses: &[BigUint],
 ) {
@@ -1012,14 +1034,15 @@ fn perform_change_log_test<
     relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
-    let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, HEIGHT>::new(
-        HEIGHT,
-        CHANGELOG,
-        ROOTS,
-        CANOPY,
-        INDEXED_CHANGELOG,
-    )
-    .unwrap();
+    let mut onchain_indexed_merkle_tree =
+        IndexedMerkleTree::<Poseidon, usize, HEIGHT, NET_HEIGHT>::new(
+            HEIGHT,
+            CHANGELOG,
+            ROOTS,
+            CANOPY,
+            INDEXED_CHANGELOG,
+        )
+        .unwrap();
     onchain_indexed_merkle_tree.init().unwrap();
     onchain_indexed_merkle_tree.add_highest_element().unwrap();
     relayer_merkle_tree.init().unwrap();
@@ -1102,6 +1125,9 @@ fn perform_change_log_test<
                     &mut low_element_proof,
                 )
                 .unwrap();
+            for i in onchain_indexed_merkle_tree.changelog.iter() {
+                println!("indexed array state element {:?} ", i);
+            }
         }
     }
 }

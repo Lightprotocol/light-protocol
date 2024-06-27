@@ -521,6 +521,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         expected_next_index,
         &expected_right_most_leaf,
         owner,
+        merkle_tree_config.address_changelog_size as usize,
     )
     .await;
 
