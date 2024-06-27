@@ -36,3 +36,5 @@ jobs:
             aligned-sized
             macro-circom
             merkle-tree
+            deps
+            deps-dev
