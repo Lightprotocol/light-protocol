@@ -4,7 +4,7 @@ use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use account_compression::AddressMerkleTreeConfig;
+use account_compression::{AddressMerkleTreeConfig, StateMerkleTreeConfig};
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
@@ -59,6 +59,7 @@ use {
 use crate::indexer::{
     Indexer, IndexerError, MerkleProof, MerkleProofWithAddressContext, NewAddressProofWithContext,
 };
+use crate::transaction_params::FeeConfig;
 use crate::{get_concurrent_merkle_tree, get_indexed_merkle_tree};
 use crate::{
     rpc::rpc_connection::RpcConnection, test_env::create_address_merkle_tree_and_queue_account,
@@ -86,12 +87,14 @@ pub struct AddressMerkleTreeAccounts {
 
 #[derive(Debug, Clone)]
 pub struct StateMerkleTreeBundle {
+    pub rollover_fee: i64,
     pub merkle_tree: Box<MerkleTree<Poseidon>>,
     pub accounts: StateMerkleTreeAccounts,
 }
 
 #[derive(Debug, Clone)]
 pub struct AddressMerkleTreeBundle<const INDEXED_ARRAY_SIZE: usize> {
+    pub rollover_fee: i64,
     pub merkle_tree: Box<IndexedMerkleTree<Poseidon, usize>>,
     pub indexed_array: Box<IndexedArray<Poseidon, usize, INDEXED_ARRAY_SIZE>>,
     pub accounts: AddressMerkleTreeAccounts,
@@ -421,6 +424,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
                 merkle_tree,
+                rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
             });
         }
 
@@ -449,6 +453,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
 
     pub fn add_address_merkle_tree_bundle(
         address_merkle_tree_accounts: AddressMerkleTreeAccounts,
+        // TODO: add config here
     ) -> AddressMerkleTreeBundle<INDEXED_ARRAY_SIZE> {
         let mut merkle_tree = Box::new(
             IndexedMerkleTree::<Poseidon, usize>::new(
@@ -464,6 +469,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             merkle_tree,
             indexed_array,
             accounts: address_merkle_tree_accounts,
+            rollover_fee: FeeConfig::default().address_queue_rollover as i64,
         }
     }
 
@@ -512,6 +518,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             nullifier_queue_keypair,
             owning_program_id,
             self.state_merkle_trees.len() as u64,
+            StateMerkleTreeConfig::default(),
         )
         .await;
         #[cfg(feature = "cpi-context")]
@@ -536,6 +543,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
         self.state_merkle_trees.push(StateMerkleTreeBundle {
             merkle_tree,
             accounts: state_merkle_tree_account,
+            rollover_fee: FeeConfig::default().state_merkle_tree_rollover as i64,
         });
     }
 

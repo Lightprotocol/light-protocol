@@ -49,6 +49,7 @@ async fn empty_address_tree_test() {
             mint_spl: None,
             transfer_spl: None,
             max_output_accounts: Some(3),
+            fee_assert: true,
         },
         GeneralActionConfig {
             add_keypair: Some(1.0),

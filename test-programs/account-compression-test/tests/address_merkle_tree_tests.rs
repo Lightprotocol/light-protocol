@@ -12,7 +12,6 @@ use anchor_lang::error::ErrorCode;
 use light_hash_set::{HashSet, HashSetError};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, errors::IndexedMerkleTreeError, reference};
-use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::rpc::errors::assert_rpc_error;
 use light_test_utils::{
     address_tree_rollover::perform_address_merkle_tree_roll_over, create_account_instruction,
@@ -28,6 +27,7 @@ use light_test_utils::{
     test_forester::{empty_address_queue_test, insert_addresses},
 };
 use light_test_utils::{airdrop_lamports, rpc::rpc_connection::RpcConnection};
+use light_test_utils::{get_indexed_merkle_tree, transaction_params::FeeConfig};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::ToBigUint;
 use solana_program_test::ProgramTest;
@@ -959,6 +959,7 @@ pub async fn test_setup_with_address_merkle_tree(
             merkle_tree: address_merkle_tree_keypair.pubkey(),
             queue: address_queue_keypair.pubkey(),
         },
+        rollover_fee: FeeConfig::default().address_queue_rollover as i64,
     };
     (context, payer, address_merkle_tree_bundle)
 }
