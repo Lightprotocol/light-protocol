@@ -4,6 +4,7 @@ use forester::nullifier::{get_nullifier_queue, nullify, Config};
 use forester::utils::spawn_validator;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::info;
@@ -28,7 +29,7 @@ async fn test_state_tree_nullifier() {
         max_retries: 5,
     };
 
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
@@ -71,7 +72,7 @@ async fn test_1_all() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     spawn_validator(Default::default()).await;
     let env_accounts = get_test_env_accounts();
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
     rpc.airdrop_lamports(&rpc.get_payer().pubkey(), LAMPORTS_PER_SOL * 1000)
         .await

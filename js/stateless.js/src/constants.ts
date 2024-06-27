@@ -5,6 +5,9 @@ import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 export const FIELD_SIZE = new BN(
     '21888242871839275222246405745257275088548364400416034343698204186575808495617',
 );
+export const HIGHEST_ADDRESS_PLUS_ONE = new BN(
+    '452312848583266388373324160190187140051835877600158453279131187530910662655',
+);
 
 // TODO: implement properly
 export const noopProgram = 'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV';
@@ -94,7 +97,7 @@ export const STATE_MERKLE_TREE_ROLLOVER_FEE = new BN(185);
  *
  * Is charged per newly created address.
  */
-export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(188);
+export const ADDRESS_QUEUE_ROLLOVER_FEE = new BN(202);
 
 /**
  * Is charged if the transaction nullifies at least one compressed account.

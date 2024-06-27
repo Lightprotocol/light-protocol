@@ -28,9 +28,12 @@ import {
     TokenBalanceListResult,
     jsonRpcResult,
     jsonRpcResultAndContext,
-    HexBatchInputsForProver,
     ValidityProofResult,
     NewAddressProofResult,
+    LatestNonVotingSignaturesResult,
+    LatestNonVotingSignatures,
+    LatestNonVotingSignaturesResultPaginated,
+    LatestNonVotingSignaturesPaginated,
 } from './rpc-interface';
 import {
     MerkleContextWithMerkleProof,
@@ -85,7 +88,9 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
 
     const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {
         [propertyToCheck]: ownerOrDelegate.toBase58(),
-        mint: options.mint.toBase58(),
+        mint: options.mint?.toBase58(),
+        limit: options.limit,
+        cursor: options.cursor,
     });
 
     const res = create(
@@ -129,7 +134,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             state: ['uninitialized', 'initialized', 'frozen'].indexOf(
                 _tokenData.state,
             ),
-            isNative: _tokenData.isNative,
         };
 
         if (
@@ -190,7 +194,6 @@ function buildCompressedAccountWithMaybeTokenData(
         state: ['uninitialized', 'initialized', 'frozen'].indexOf(
             tokenDataResult.state,
         ),
-        isNative: tokenDataResult.isNative,
     };
 
     return { account: compressedAccount, maybeTokenData: parsed };
@@ -285,7 +288,6 @@ export const proverRequest = async (
     if (!response.ok) {
         throw new Error(`Error fetching proof: ${response.statusText}`);
     }
-    /// TODO: Move compression into the gnark prover to save bandwidth.
     const data: any = await response.json();
     const parsed = proofFromJsonStruct(data);
     const compressedProof = negateAndCompressProof(parsed);
@@ -300,7 +302,7 @@ export type NonInclusionMerkleProofInputs = {
     value: BN;
     leaf_lower_range_value: BN;
     leaf_higher_range_value: BN;
-    leaf_index: BN;
+    nextIndex: BN;
     merkle_proof_hashed_indexed_element_leaf: BN[];
     index_hashed_indexed_element_leaf: BN;
 };
@@ -310,7 +312,7 @@ export type MerkleContextWithNewAddressProof = {
     value: BN;
     leafLowerRangeValue: BN;
     leafHigherRangeValue: BN;
-    leafIndex: BN;
+    nextIndex: BN;
     merkleProofHashedIndexedElementLeaf: BN[];
     indexHashedIndexedElementLeaf: BN;
     merkleTree: PublicKey;
@@ -324,7 +326,7 @@ export type NonInclusionJsonStruct = {
     pathElements: string[];
     leafLowerRangeValue: string;
     leafHigherRangeValue: string;
-    leafIndex: number;
+    nextIndex: number;
 };
 
 export function convertMerkleProofsWithContextToHex(
@@ -362,7 +364,7 @@ export function convertNonInclusionMerkleProofInputsToHex(
             pathElements: nonInclusionMerkleProofInputs[
                 i
             ].merkleProofHashedIndexedElementLeaf.map(hex => toHex(hex)),
-            leafIndex: nonInclusionMerkleProofInputs[i].leafIndex.toNumber(),
+            nextIndex: nonInclusionMerkleProofInputs[i].nextIndex.toNumber(),
             leafLowerRangeValue: toHex(
                 nonInclusionMerkleProofInputs[i].leafLowerRangeValue,
             ),
@@ -405,15 +407,25 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the compressed account for the specified account hash
+     * Fetch the compressed account for the specified account address or hash
      */
     async getCompressedAccount(
-        hash: BN254,
+        address?: BN254,
+        hash?: BN254,
     ): Promise<CompressedAccountWithMerkleContext | null> {
+        if (!hash && !address) {
+            throw new Error('Either hash or address must be provided');
+        }
+        if (hash && address) {
+            throw new Error('Only one of hash or address must be provided');
+        }
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedAccount',
-            { hash: encodeBN254toBase58(hash) },
+            {
+                hash: hash ? encodeBN254toBase58(hash) : undefined,
+                address: address ? encodeBN254toBase58(address) : undefined,
+            },
         );
         const res = create(
             unsafeRes,
@@ -422,7 +434,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,
-                `failed to get info for compressed account ${hash.toString()}`,
+                `failed to get info for compressed account ${hash ? hash.toString() : address ? address.toString() : ''}`,
             );
         }
         if (res.result.value === null) {
@@ -445,13 +457,22 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
-     * Fetch the compressed balance for the specified account hash
+     * Fetch the compressed balance for the specified account address or hash
      */
-    async getCompressedBalance(hash: BN254): Promise<BN> {
+    async getCompressedBalance(address?: BN254, hash?: BN254): Promise<BN> {
+        if (!hash && !address) {
+            throw new Error('Either hash or address must be provided');
+        }
+        if (hash && address) {
+            throw new Error('Only one of hash or address must be provided');
+        }
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedBalance',
-            { hash: encodeBN254toBase58(hash) },
+            {
+                hash: hash ? encodeBN254toBase58(hash) : undefined,
+                address: address ? encodeBN254toBase58(address) : undefined,
+            },
         );
         const res = create(
             unsafeRes,
@@ -460,7 +481,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         if ('error' in res) {
             throw new SolanaJSONRPCError(
                 res.error,
-                `failed to get balance for compressed account ${hash.toString()}`,
+                `failed to get balance for compressed account ${hash ? hash.toString() : address ? address.toString() : ''}`,
             );
         }
         if (res.result.value === null) {
@@ -524,18 +545,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        // const proofWithoutRoot = res.result.value.proof.slice(0, -1);
-
-        // const root = res.result.value.proof[res.result.value.proof.length - 1];
-
         const value: MerkleContextWithMerkleProof = {
             hash: res.result.value.hash.toArray('be', 32),
             merkleTree: res.result.value.merkleTree,
             leafIndex: res.result.value.leafIndex,
-            merkleProof: res.result.value.proof, //proofWithoutRoot,
-            nullifierQueue: mockNullifierQueue, // TODO: use nullifierQueue from indexer
-            rootIndex: res.result.value.rootSeq % 2400, // TODO: rootSeq % rootHistoryArray.length
-            root: res.result.value.root, // TODO: validate correct root
+            merkleProof: res.result.value.proof,
+            nullifierQueue: mockNullifierQueue, // TODO(photon): support nullifierQueue in response.
+            rootIndex: res.result.value.rootSeq % 2400,
+            root: res.result.value.root,
         };
         return value;
     }
@@ -687,8 +704,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedTokenAccountsByOwner(
         owner: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
+        if (!options) options = {};
+
         return await getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             owner,
@@ -702,8 +721,10 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedTokenAccountsByDelegate(
         delegate: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<ParsedTokenAccount[]> {
+        if (!options) options = {};
+
         return getCompressedTokenAccountsByOwnerOrDelegate(
             this,
             delegate,
@@ -745,14 +766,18 @@ export class Rpc extends Connection implements CompressionApiInterface {
      */
     async getCompressedTokenBalancesByOwner(
         owner: PublicKey,
-        options: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
+        options?: GetCompressedTokenAccountsByOwnerOrDelegateOptions,
     ): Promise<{ balance: BN; mint: PublicKey }[]> {
+        if (!options) options = {};
+
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
             'getCompressedTokenBalancesByOwner',
             {
                 owner: owner.toBase58(),
-                mint: options.mint.toBase58(),
+                mint: options.mint?.toBase58(),
+                limit: options.limit,
+                cursor: options.cursor,
             },
         );
 
@@ -772,28 +797,29 @@ export class Rpc extends Connection implements CompressionApiInterface {
             );
         }
 
-        /// filter by mint
-        const filtered = res.result.value.tokenBalances.filter(
-            tokenBalance =>
-                tokenBalance.mint.toBase58() === options.mint.toBase58(),
-        );
+        const maybeFiltered = options.mint
+            ? res.result.value.tokenBalances.filter(
+                  tokenBalance =>
+                      tokenBalance.mint.toBase58() === options.mint!.toBase58(),
+              )
+            : res.result.value.tokenBalances;
 
-        return filtered;
+        return maybeFiltered;
     }
 
     /**
-     * Returns confirmed signatures for transactions involving the specified
+     * Returns confirmed compression signatures for transactions involving the specified
      * account hash forward in time from genesis to the most recent confirmed
      * block
      *
      * @param hash queried account hash
      */
-    async getSignaturesForCompressedAccount(
+    async getCompressionSignaturesForAccount(
         hash: BN254,
     ): Promise<SignatureWithMetadata[]> {
         const unsafeRes = await rpcRequest(
             this.compressionApiEndpoint,
-            'getCompressionSignaturesForAccount', // TODO: update
+            'getCompressionSignaturesForAccount',
             { hash: encodeBN254toBase58(hash) },
         );
         const res = create(
@@ -857,9 +883,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated This method is currently not available. Please use
+     * {@link getCompressionSignaturesForAccount} instead.
+     *
      * Returns confirmed signatures for transactions involving the specified
-     * address forward in time from genesis to the most recent confirmed
-     * block
+     * address forward in time from genesis to the most recent confirmed block
      *
      * @param address queried compressed account address
      */
@@ -926,7 +954,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return res.result.value.items;
     }
 
-    /// TODO: needs mint
+    /// TODO(photon): needs mint
     /**
      * Returns confirmed signatures for compression transactions involving the
      * specified token account owner forward in time from genesis to the most
@@ -991,6 +1019,55 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * Fetch the latest compression signatures on the cluster. Results are
+     * paginated.
+     */
+    async getLatestCompressionSignatures(
+        cursor?: string,
+        limit?: number,
+    ): Promise<LatestNonVotingSignaturesPaginated> {
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getLatestCompressionSignatures',
+            { limit, cursor },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(LatestNonVotingSignaturesResultPaginated),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                'failed to get latest non-voting signatures',
+            );
+        }
+        return res.result;
+    }
+    /**
+     * Fetch all non-voting signatures
+     */
+    async getLatestNonVotingSignatures(
+        limit?: number,
+    ): Promise<LatestNonVotingSignatures> {
+        const unsafeRes = await rpcRequest(
+            this.compressionApiEndpoint,
+            'getLatestNonVotingSignatures',
+            { limit },
+        );
+        const res = create(
+            unsafeRes,
+            jsonRpcResultAndContext(LatestNonVotingSignaturesResult),
+        );
+        if ('error' in res) {
+            throw new SolanaJSONRPCError(
+                res.error,
+                'failed to get latest non-voting signatures',
+            );
+        }
+        return res.result;
+    }
+
+    /**
      * Fetch the latest address proofs for new unique addresses specified by an
      * array of addresses.
      *
@@ -1031,7 +1108,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 value: proof.address,
                 leafLowerRangeValue: proof.lowerRangeAddress,
                 leafHigherRangeValue: proof.higherRangeAddress,
-                leafIndex: bn(proof.leafIndex),
+                nextIndex: bn(proof.nextIndex),
                 merkleProofHashedIndexedElementLeaf: proof.proof,
                 indexHashedIndexedElementLeaf: bn(proof.lowElementLeafIndex),
                 merkleTree: proof.merkleTree,
@@ -1043,6 +1120,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
     }
 
     /**
+     * @deprecated This method is not available. Please use
+     * {@link getValidityProof} instead.
+     *
      * Fetch the latest validity proof for (1) compressed accounts specified by
      * an array of account hashes. (2) new unique addresses specified by an
      * array of addresses.
@@ -1114,12 +1194,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
             validityProof = {
                 compressedProof,
                 roots: newAddressProofs.map(proof => proof.root),
-                // TODO(crank): make dynamic to enable forester support in
-                // test-rpc.ts. Currently this is a static root because the
+                // This is a static root because the
                 // address tree doesn't advance.
                 rootIndices: newAddressProofs.map(_ => 3),
                 leafIndices: newAddressProofs.map(
-                    proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                    proof => proof.nextIndex.toNumber(), // TODO: support >32bit
                 ),
                 leaves: newAddressProofs.map(proof => bn(proof.value)),
                 merkleTrees: newAddressProofs.map(proof => proof.merkleTree),
@@ -1154,15 +1233,14 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     .concat(newAddressProofs.map(proof => proof.root)),
                 rootIndices: merkleProofsWithContext
                     .map(proof => proof.rootIndex)
-                    // TODO(crank): make dynamic to enable forester support in
-                    // test-rpc.ts. Currently this is a static root because the
+                    // This is a static root because the
                     // address tree doesn't advance.
                     .concat(newAddressProofs.map(_ => 3)),
                 leafIndices: merkleProofsWithContext
                     .map(proof => proof.leafIndex)
                     .concat(
                         newAddressProofs.map(
-                            proof => proof.leafIndex.toNumber(), // TODO: support >32bit
+                            proof => proof.nextIndex.toNumber(), // TODO: support >32bit
                         ),
                     ),
                 leaves: merkleProofsWithContext
@@ -1196,8 +1274,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * @param newAddresses  Array of BN254 new addresses.
      * @returns             validity proof with context
      */
-    // FIXME: debug photon zkp. For debugging use either
-    // testRpc.getValidityProof or rpc.getValidityProof to test against
     async getValidityProof(
         hashes: BN254[] = [],
         newAddresses: BN254[] = [],

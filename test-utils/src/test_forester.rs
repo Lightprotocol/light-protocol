@@ -12,6 +12,7 @@ use anchor_lang::system_program;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::event::MerkleTreeEvent;
 use light_hasher::Poseidon;
+use light_indexed_merkle_tree::copy::IndexedMerkleTreeCopy;
 use light_registry::sdk::{
     create_nullify_instruction, create_update_address_merkle_tree_instruction,
     CreateNullifyInstructionInputs, UpdateAddressMerkleTreeInstructionInputs,
@@ -256,10 +257,20 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
 ) -> Result<(), RelayerUpdateError> {
     let address_merkle_tree_pubkey = address_tree_bundle.accounts.merkle_tree;
     let address_queue_pubkey = address_tree_bundle.accounts.queue;
+    let initial_merkle_tree_state = address_tree_bundle.merkle_tree.clone();
+    let initial_indexed_array_state = address_tree_bundle.indexed_array.clone();
     let relayer_merkle_tree = &mut address_tree_bundle.merkle_tree;
     let relayer_indexing_array = &mut address_tree_bundle.indexed_array;
     let mut update_errors: Vec<RpcError> = Vec::new();
-
+    let address_merkle_tree =
+        get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
+            rpc,
+            address_merkle_tree_pubkey,
+        )
+        .await;
+    let indexed_changelog_index = address_merkle_tree.indexed_changelog_index() as u16;
+    let changelog_index = address_merkle_tree.changelog_index() as u16;
+    let mut counter = 0;
     loop {
         let pre_forester_counter = if !signer_is_owner {
             rpc.get_anchor_account::<ForesterEpoch>(
@@ -271,31 +282,31 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             0
         };
         let address_merkle_tree =
-            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                 rpc,
                 address_merkle_tree_pubkey,
             )
             .await;
-
         assert_eq!(relayer_merkle_tree.root(), address_merkle_tree.root());
         let address_queue =
             unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
         let address = address_queue.first_no_seq().unwrap();
+
         if address.is_none() {
             break;
         }
         let (address, address_hashset_index) = address.unwrap();
         // Create new element from the dequeued value.
-        let (old_low_address, old_low_address_next_value) = relayer_indexing_array
+        let (old_low_address, old_low_address_next_value) = initial_indexed_array_state
             .find_low_element_for_nonexistent(&address.value_biguint())
             .unwrap();
-        let address_bundle = relayer_indexing_array
+        let address_bundle = initial_indexed_array_state
             .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
             .unwrap();
 
         // Get the Merkle proof for updating low element.
-        let low_address_proof = relayer_merkle_tree
+        let low_address_proof = initial_merkle_tree_state
             .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
@@ -313,8 +324,8 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
             old_low_address.next_index as u64,
             bigint_to_be_bytes_array(&old_low_address_next_value).unwrap(),
             low_address_proof.to_array().unwrap(),
-            None,
-            None,
+            Some(changelog_index),
+            Some(indexed_changelog_index),
             signer_is_owner,
         )
         .await
@@ -323,74 +334,82 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 let event = event.unwrap();
                 match event.0 {
                     MerkleTreeEvent::V3(event) => {
-                        assert_eq!(event.id, address_merkle_tree_pubkey.to_bytes());
-                        assert_eq!(event.seq, old_sequence_number as u64 + 1);
-                        assert_eq!(event.updates.len(), 1);
-                        let event = &event.updates[0];
-                        assert_eq!(
-                            event.new_low_element.index, address_bundle.new_low_element.index,
-                            "Empty Address Queue Test: invalid new_low_element.index"
-                        );
-                        assert_eq!(
-                            event.new_low_element.next_index,
-                            address_bundle.new_low_element.next_index,
-                            "Empty Address Queue Test: invalid new_low_element.next_index"
-                        );
-                        assert_eq!(
-                            event.new_low_element.value,
-                            bigint_to_be_bytes_array::<32>(&address_bundle.new_low_element.value)
+                        // Only assert for the first update since the other updates might be patched
+                        // the asserts are likely to fail
+                        if counter == 0 {
+                            assert_eq!(event.id, address_merkle_tree_pubkey.to_bytes());
+                            assert_eq!(event.seq, old_sequence_number as u64 + 1);
+                            assert_eq!(event.updates.len(), 1);
+                            let event = &event.updates[0];
+                            assert_eq!(
+                                event.new_low_element.index, address_bundle.new_low_element.index,
+                                "Empty Address Queue Test: invalid new_low_element.index"
+                            );
+                            assert_eq!(
+                                event.new_low_element.next_index,
+                                address_bundle.new_low_element.next_index,
+                                "Empty Address Queue Test: invalid new_low_element.next_index"
+                            );
+                            assert_eq!(
+                                event.new_low_element.value,
+                                bigint_to_be_bytes_array::<32>(
+                                    &address_bundle.new_low_element.value
+                                )
                                 .unwrap(),
-                            "Empty Address Queue Test: invalid new_low_element.value"
-                        );
-                        assert_eq!(
-                            event.new_low_element.next_value,
-                            bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
+                                "Empty Address Queue Test: invalid new_low_element.value"
+                            );
+                            assert_eq!(
+                                event.new_low_element.next_value,
+                                bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
+                                    .unwrap(),
+                                "Empty Address Queue Test: invalid new_low_element.next_value"
+                            );
+                            let leaf_hash = address_bundle
+                                .new_low_element
+                                .hash::<Poseidon>(&address_bundle.new_element.value)
+                                .unwrap();
+                            assert_eq!(
+                                event.new_low_element_hash, leaf_hash,
+                                "Empty Address Queue Test: invalid new_low_element_hash"
+                            );
+                            let leaf_hash = address_bundle
+                                .new_element
+                                .hash::<Poseidon>(&address_bundle.new_element_next_value)
+                                .unwrap();
+                            assert_eq!(
+                                event.new_high_element_hash, leaf_hash,
+                                "Empty Address Queue Test: invalid new_high_element_hash"
+                            );
+                            assert_eq!(
+                                event.new_high_element.index, address_bundle.new_element.index,
+                                "Empty Address Queue Test: invalid new_high_element.index"
+                            );
+                            assert_eq!(
+                                event.new_high_element.next_index,
+                                address_bundle.new_element.next_index,
+                                "Empty Address Queue Test: invalid new_high_element.next_index"
+                            );
+                            assert_eq!(
+                                event.new_high_element.value,
+                                bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
+                                    .unwrap(),
+                                "Empty Address Queue Test: invalid new_high_element.value"
+                            );
+                            assert_eq!(
+                                event.new_high_element.next_value,
+                                bigint_to_be_bytes_array::<32>(
+                                    &address_bundle.new_element_next_value
+                                )
                                 .unwrap(),
-                            "Empty Address Queue Test: invalid new_low_element.next_value"
-                        );
-                        let leaf_hash = address_bundle
-                            .new_low_element
-                            .hash::<Poseidon>(&address_bundle.new_element.value)
-                            .unwrap();
-                        assert_eq!(
-                            event.new_low_element_hash, leaf_hash,
-                            "Empty Address Queue Test: invalid new_low_element_hash"
-                        );
-                        let leaf_hash = address_bundle
-                            .new_element
-                            .hash::<Poseidon>(&address_bundle.new_element_next_value)
-                            .unwrap();
-                        assert_eq!(
-                            event.new_high_element_hash, leaf_hash,
-                            "Empty Address Queue Test: invalid new_high_element_hash"
-                        );
-                        assert_eq!(
-                            event.new_high_element.index, address_bundle.new_element.index,
-                            "Empty Address Queue Test: invalid new_high_element.index"
-                        );
-                        assert_eq!(
-                            event.new_high_element.next_index,
-                            address_bundle.new_element.next_index,
-                            "Empty Address Queue Test: invalid new_high_element.next_index"
-                        );
-                        assert_eq!(
-                            event.new_high_element.value,
-                            bigint_to_be_bytes_array::<32>(&address_bundle.new_element.value)
-                                .unwrap(),
-                            "Empty Address Queue Test: invalid new_high_element.value"
-                        );
-                        assert_eq!(
-                            event.new_high_element.next_value,
-                            bigint_to_be_bytes_array::<32>(&address_bundle.new_element_next_value)
-                                .unwrap(),
-                            "Empty Address Queue Test: invalid new_high_element.next_value"
-                        );
+                                "Empty Address Queue Test: invalid new_high_element.next_value"
+                            );
+                        }
                     }
                     _ => {
                         panic!("Wrong event type.");
                     }
                 }
-
+                counter += 1;
                 true
             }
             Err(e) => {
@@ -411,11 +430,18 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 .unwrap();
             }
             let merkle_tree =
-                get_indexed_merkle_tree::<StateMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
                 .await;
+
+            let (old_low_address, old_low_address_next_value) = relayer_indexing_array
+                .find_low_element_for_nonexistent(&address.value_biguint())
+                .unwrap();
+            let address_bundle = relayer_indexing_array
+                .new_element_with_low_element_index(old_low_address.index, &address.value_biguint())
+                .unwrap();
             let address_queue =
                 unsafe { get_hash_set::<QueueAccount, R>(rpc, address_queue_pubkey).await };
 
@@ -479,7 +505,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         Some(changelog_index) => changelog_index,
         None => {
             let address_merkle_tree =
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )
@@ -492,7 +518,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
         Some(indexed_changelog_index) => indexed_changelog_index,
         None => {
             let address_merkle_tree =
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkey,
                 )

@@ -5,13 +5,15 @@ use light_concurrent_merkle_tree::{
     copy::ConcurrentMerkleTreeCopy, errors::ConcurrentMerkleTreeError,
 };
 use light_hasher::Hasher;
-use light_utils::offset::{read_cyclic_bounded_vec_at, read_value_at};
+use light_utils::offset::copy::{read_cyclic_bounded_vec_at, read_value_at};
 use num_traits::{CheckedAdd, CheckedSub, ToBytes, Unsigned};
 
 use crate::{errors::IndexedMerkleTreeError, IndexedMerkleTree};
 
 #[derive(Debug)]
-pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize>(IndexedMerkleTree<H, I, HEIGHT>)
+pub struct IndexedMerkleTreeCopy<H, I, const HEIGHT: usize, const NET_HEIGHT: usize>(
+    IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>,
+)
 where
     H: Hasher,
     I: CheckedAdd
@@ -25,7 +27,8 @@ where
         + Unsigned,
     usize: From<I>;
 
-impl<H, I, const HEIGHT: usize> IndexedMerkleTreeCopy<H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize>
+    IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -53,7 +56,7 @@ where
         let indexed_changelog_metadata: CyclicBoundedVecMetadata =
             unsafe { read_value_at(bytes, &mut offset) };
 
-        let expected_size = IndexedMerkleTree::<H, I, HEIGHT>::size_in_account(
+        let expected_size = IndexedMerkleTree::<H, I, HEIGHT, NET_HEIGHT>::size_in_account(
             merkle_tree.height,
             merkle_tree.changelog.capacity(),
             merkle_tree.roots.capacity(),
@@ -65,7 +68,6 @@ where
                 ConcurrentMerkleTreeError::BufferSize(expected_size, bytes.len()),
             ));
         }
-
         let indexed_changelog =
             unsafe { read_cyclic_bounded_vec_at(bytes, &mut offset, &indexed_changelog_metadata) };
 
@@ -77,7 +79,8 @@ where
     }
 }
 
-impl<H, I, const HEIGHT: usize> Deref for IndexedMerkleTreeCopy<H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
+    for IndexedMerkleTreeCopy<H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -91,7 +94,7 @@ where
         + Unsigned,
     usize: From<I>,
 {
-    type Target = IndexedMerkleTree<H, I, HEIGHT>;
+    type Target = IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -100,9 +103,9 @@ where
 
 #[cfg(test)]
 mod test {
-    use ark_bn254::Fr;
-    use ark_ff::{BigInteger, PrimeField, UniformRand};
     use light_hasher::Poseidon;
+    use light_utils::bigint::bigint_to_be_bytes_array;
+    use num_bigint::RandBigInt;
     use rand::thread_rng;
 
     use crate::zero_copy::IndexedMerkleTreeZeroCopyMut;
@@ -116,8 +119,9 @@ mod test {
         const CANOPY_DEPTH: usize,
         const INDEXED_CHANGELOG_SIZE: usize,
         const OPERATIONS: usize,
+        const NET_HEIGHT: usize,
     >() {
-        let mut mt_1 = IndexedMerkleTree::<Poseidon, usize, HEIGHT>::new(
+        let mut mt_1 = IndexedMerkleTree::<Poseidon, usize, HEIGHT, NET_HEIGHT>::new(
             HEIGHT,
             CHANGELOG_SIZE,
             ROOTS,
@@ -129,7 +133,7 @@ mod test {
 
         let mut bytes = vec![
             0u8;
-            IndexedMerkleTree::<Poseidon, usize, HEIGHT>::size_in_account(
+            IndexedMerkleTree::<Poseidon, usize, HEIGHT, NET_HEIGHT>::size_in_account(
                 HEIGHT,
                 CHANGELOG_SIZE,
                 ROOTS,
@@ -140,7 +144,7 @@ mod test {
 
         {
             let mut mt_2 =
-                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT>::from_bytes_zero_copy_init(
+                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT, NET_HEIGHT>::from_bytes_zero_copy_init(
                     &mut bytes,
                     HEIGHT,
                     CANOPY_DEPTH,
@@ -159,16 +163,12 @@ mod test {
         for _ in 0..OPERATIONS {
             // Reload the tree from bytes on each iteration.
             let mut mt_2 =
-                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT>::from_bytes_zero_copy_mut(
+                IndexedMerkleTreeZeroCopyMut::<Poseidon, usize, HEIGHT,NET_HEIGHT>::from_bytes_zero_copy_mut(
                     &mut bytes,
                 )
                 .unwrap();
 
-            let leaf: [u8; 32] = Fr::rand(&mut rng)
-                .into_bigint()
-                .to_bytes_be()
-                .try_into()
-                .unwrap();
+            let leaf: [u8; 32] = bigint_to_be_bytes_array::<32>(&rng.gen_biguint(248)).unwrap();
             mt_1.append(&leaf).unwrap();
             mt_2.append(&leaf).unwrap();
 
@@ -177,7 +177,8 @@ mod test {
 
         // Read a copy of that Merkle tree.
         let mt_2 =
-            IndexedMerkleTreeCopy::<Poseidon, usize, HEIGHT>::from_bytes_copy(&bytes).unwrap();
+            IndexedMerkleTreeCopy::<Poseidon, usize, HEIGHT, NET_HEIGHT>::from_bytes_copy(&bytes)
+                .unwrap();
 
         assert_eq!(mt_1, *mt_2);
     }
@@ -189,7 +190,7 @@ mod test {
         const ROOTS: usize = 2400;
         const CANOPY_DEPTH: usize = 10;
         const INDEXED_CHANGELOG_SIZE: usize = 256;
-
+        const NET_HEIGHT: usize = 16;
         const OPERATIONS: usize = 1024;
 
         from_bytes_copy::<
@@ -199,6 +200,7 @@ mod test {
             CANOPY_DEPTH,
             INDEXED_CHANGELOG_SIZE,
             OPERATIONS,
+            NET_HEIGHT,
         >()
     }
 }

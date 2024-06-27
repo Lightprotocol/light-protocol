@@ -1,5 +1,5 @@
-import { describe, it, assert, beforeAll } from 'vitest';
-import { Signer } from '@solana/web3.js';
+import { describe, it, assert, beforeAll, expect } from 'vitest';
+import { PublicKey, Signer } from '@solana/web3.js';
 import { newAccountWithLamports } from '../../src/utils/test-utils';
 import { Rpc, createRpc } from '../../src/rpc';
 import {
@@ -8,11 +8,13 @@ import {
     compress,
     createAccount,
     createAccountWithLamports,
+    defaultTestStateTreeAccounts,
     deriveAddress,
 } from '../../src';
 import { getTestRpc, TestRpc } from '../../src/test-helpers/test-rpc';
 import { transfer } from '../../src/actions/transfer';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { randomBytes } from 'tweetnacl';
 
 describe('rpc-interop', () => {
     let payer: Signer;
@@ -204,7 +206,7 @@ describe('rpc-interop', () => {
             ),
         );
         assert.isTrue(
-            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
+            newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(
@@ -290,8 +292,8 @@ describe('rpc-interop', () => {
             `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafHigherRangeValue} got: ${newAddressProof.leafHigherRangeValue}`,
         );
         assert.isTrue(
-            newAddressProof.leafIndex.eq(newAddressProofTest.leafIndex),
-            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.leafIndex} got: ${newAddressProof.leafIndex}`,
+            newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
+            `Mismatch in leafHigherRangeValue expected: ${newAddressProofTest.nextIndex} got: ${newAddressProof.nextIndex}`,
         );
         assert.isTrue(
             newAddressProof.leafLowerRangeValue.eq(
@@ -451,9 +453,11 @@ describe('rpc-interop', () => {
         );
 
         const compressedAccount = await rpc.getCompressedAccount(
+            undefined,
             bn(senderAccounts[0].hash),
         );
         const compressedAccountTest = await testRpc.getCompressedAccount(
+            undefined,
             bn(senderAccounts[0].hash),
         );
 
@@ -498,11 +502,11 @@ describe('rpc-interop', () => {
         });
     });
 
-    it('[test-rpc missing] getSignaturesForCompressedAccount should match', async () => {
+    it('[test-rpc missing] getCompressionSignaturesForAccount should match', async () => {
         const senderAccounts = await rpc.getCompressedAccountsByOwner(
             payer.publicKey,
         );
-        const signaturesUnspent = await rpc.getSignaturesForCompressedAccount(
+        const signaturesUnspent = await rpc.getCompressionSignaturesForAccount(
             bn(senderAccounts[0].hash),
         );
 
@@ -513,11 +517,11 @@ describe('rpc-interop', () => {
         const largestAccount = senderAccounts.reduce((acc, account) =>
             account.lamports.gt(acc.lamports) ? account : acc,
         );
-        /// assert for Rpc once getValidityProof is working again.
-        await transfer(testRpc, payer, 1, payer, bob.publicKey);
+
+        await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
-        const signaturesSpent = await rpc.getSignaturesForCompressedAccount(
+        const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
             bn(largestAccount.hash),
         );
 
@@ -532,7 +536,38 @@ describe('rpc-interop', () => {
         assert.equal(signatures.length, executedTxs);
     });
 
-    /// TODO: add getCompressedTransaction, getSignaturesForAddress3
+    it('[test-rpc missing] getLatestNonVotingSignatures should match', async () => {
+        const testEnvSetupTxs = 2;
+
+        let signatures = (await rpc.getLatestNonVotingSignatures()).value.items;
+        assert.isAtLeast(signatures.length, executedTxs + testEnvSetupTxs);
+
+        signatures = (await rpc.getLatestNonVotingSignatures(2)).value.items;
+        assert.equal(signatures.length, 2);
+    });
+
+    it('[test-rpc missing] getLatestCompressionSignatures should match', async () => {
+        const { items: signatures } = (
+            await rpc.getLatestCompressionSignatures()
+        ).value;
+
+        assert.isAtLeast(signatures.length, executedTxs);
+
+        /// Shoudl return 1 using limit param
+        const { items: signatures2, cursor } = (
+            await rpc.getLatestCompressionSignatures(undefined, 1)
+        ).value;
+
+        assert.equal(signatures2.length, 1);
+
+        const signatures3 = (
+            await rpc.getLatestCompressionSignatures(cursor!, 1)
+        ).value.items;
+
+        /// cursor should work
+        assert.notEqual(signatures2[0].signature, signatures3[0].signature);
+    });
+
     it('[test-rpc missing] getCompressedTransaction should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
             payer.publicKey,
@@ -545,5 +580,65 @@ describe('rpc-interop', () => {
         /// is transfer
         assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
         assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
+    });
+
+    // TODO(photon): Fix 'internal server error'
+    it.skip('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
+        const seed = new Uint8Array(randomBytes(32));
+        const addressTree = defaultTestStateTreeAccounts().addressTree;
+        const address = await deriveAddress(seed, addressTree);
+
+        await createAccount(rpc, payer, seed, LightSystemProgram.programId);
+
+        // fetch the owners latest account
+        const accounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const latestAccount = accounts[0];
+
+        // assert the address was indexed
+        assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
+
+        const signaturesUnspent = await rpc.getCompressionSignaturesForAddress(
+            new PublicKey(latestAccount.address!),
+        );
+
+        /// most recent therefore unspent account
+        assert.equal(signaturesUnspent.length, 1);
+    });
+
+    it('getCompressedAccount with address param should work ', async () => {
+        const seed = new Uint8Array(randomBytes(32));
+        const addressTree = defaultTestStateTreeAccounts().addressTree;
+        const address = await deriveAddress(seed, addressTree);
+
+        await createAccount(rpc, payer, seed, LightSystemProgram.programId);
+
+        // fetch the owners latest account
+        const accounts = await rpc.getCompressedAccountsByOwner(
+            payer.publicKey,
+        );
+        const latestAccount = accounts[0];
+
+        assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
+
+        const compressedAccountByHash = await rpc.getCompressedAccount(
+            undefined,
+            bn(latestAccount.hash),
+        );
+        const compressedAccountByAddress = await rpc.getCompressedAccount(
+            bn(latestAccount.address!),
+            undefined,
+        );
+
+        await expect(
+            testRpc.getCompressedAccount(bn(latestAccount.address!), undefined),
+        ).rejects.toThrow();
+
+        assert.isTrue(
+            bn(compressedAccountByHash!.address!).eq(
+                bn(compressedAccountByAddress!.address!),
+            ),
+        );
     });
 });

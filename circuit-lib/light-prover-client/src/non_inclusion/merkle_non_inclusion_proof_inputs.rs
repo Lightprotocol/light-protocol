@@ -10,7 +10,7 @@ pub struct NonInclusionMerkleProofInputs {
 
     pub leaf_lower_range_value: BigInt,
     pub leaf_higher_range_value: BigInt,
-    pub leaf_index: BigInt,
+    pub next_index: BigInt,
 
     pub merkle_proof_hashed_indexed_element_leaf: Vec<BigInt>,
     pub index_hashed_indexed_element_leaf: BigInt,
@@ -51,7 +51,7 @@ pub fn get_non_inclusion_proof_inputs<const INDEXED_ARRAY_SIZE: usize>(
         leaf_higher_range_value: BigInt::from_be_bytes(
             &non_inclusion_proof.leaf_higher_range_value,
         ),
-        leaf_index: BigInt::from(non_inclusion_proof.next_index),
+        next_index: BigInt::from(non_inclusion_proof.next_index),
         merkle_proof_hashed_indexed_element_leaf: proof,
         index_hashed_indexed_element_leaf: BigInt::from(non_inclusion_proof.leaf_index),
     }

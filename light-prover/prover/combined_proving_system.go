@@ -83,7 +83,7 @@ func InitializeCombinedCircuit(inclusionTreeDepth uint32, inclusionNumberOfCompr
 			Values:                     nonInclusionValues,
 			LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
 			LeafHigherRangeValues:      nonInclusionLeafHigherRangeValues,
-			LeafIndices:                nonInclusionLeafIndices,
+			NextIndices:                nonInclusionLeafIndices,
 			InPathIndices:              nonInclusionInPathIndices,
 			InPathElements:             nonInclusionInPathElements,
 			NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
@@ -127,7 +127,7 @@ func (ps *ProvingSystem) ProveCombined(params *CombinedParameters) (*Proof, erro
 		circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
 		circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue
 		circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue
-		circuit.NonInclusion.LeafIndices[i] = params.NonInclusionParameters.Inputs[i].LeafIndex
+		circuit.NonInclusion.NextIndices[i] = params.NonInclusionParameters.Inputs[i].NextIndex
 		circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.Inputs[i].PathIndex
 		circuit.NonInclusion.InPathElements[i] = make([]frontend.Variable, ps.NonInclusionTreeDepth)
 		for j := 0; j < int(ps.NonInclusionTreeDepth); j++ {

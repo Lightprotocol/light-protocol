@@ -35,7 +35,7 @@ func ExtractLean(treeDepth uint32, numberOfCompressedAccounts uint32) (string, e
 		Values:                     leaves,
 		LeafLowerRangeValues:       leaves,
 		LeafHigherRangeValues:      leaves,
-		LeafIndices:                leaves,
+		NextIndices:                leaves,
 		InPathIndices:              inPathIndices,
 		InPathElements:             inPathElements,
 	}

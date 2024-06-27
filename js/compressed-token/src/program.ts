@@ -462,7 +462,7 @@ export class CompressedTokenProgram {
             TOKEN_PROGRAM_ID,
         );
 
-        const ix = await this.registerMint({
+        const ix = await this.createTokenPool({
             feePayer,
             mint,
         });
@@ -474,7 +474,7 @@ export class CompressedTokenProgram {
      * Enable compression for an existing SPL mint, creating an omnibus account.
      * For new mints, use `CompressedTokenProgram.createMint`.
      */
-    static async registerMint(
+    static async createTokenPool(
         params: RegisterMintParams,
     ): Promise<TransactionInstruction> {
         const { mint, feePayer } = params;
@@ -482,7 +482,7 @@ export class CompressedTokenProgram {
         const tokenPoolPda = this.deriveTokenPoolPda(mint);
 
         const ix = await this.program.methods
-            .createMint()
+            .createTokenPool()
             .accounts({
                 mint,
                 feePayer,

@@ -27,6 +27,7 @@ pub struct CompressedTokenInstructionDataBurn {
     pub delegated_transfer: Option<DelegatedTransfer>,
 }
 
+// TODO: use spl burn instruction to actually burn the tokens
 pub fn process_burn<'a, 'b, 'c, 'info: 'b + 'c>(
     ctx: Context<'a, 'b, 'c, 'info, GenericInstruction<'info>>,
     inputs: Vec<u8>,
@@ -90,7 +91,8 @@ pub fn create_input_and_output_accounts_burn(
             };
         let mut output_compressed_accounts =
             vec![OutputCompressedAccountWithPackedContext::default(); 1];
-        create_output_compressed_accounts::<true, false>(
+
+        create_output_compressed_accounts(
             &mut output_compressed_accounts,
             inputs.mint,
             &[authority; 1],
@@ -267,7 +269,6 @@ mod test {
         let input_token_data_with_context = vec![
             InputTokenDataWithContext {
                 amount: 100,
-                is_native: None,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -275,10 +276,11 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1),
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -286,6 +288,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: None,
+                lamports: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataBurn {
@@ -308,7 +311,6 @@ mod test {
             amount: 151,
             delegate: None,
             state: AccountState::Initialized,
-            is_native: None,
         };
         let expected_compressed_output_accounts =
             create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);

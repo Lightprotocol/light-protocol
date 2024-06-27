@@ -2,6 +2,7 @@ use crate::{
     assert_compressed_tx::get_merkle_tree_snapshots,
     assert_token_tx::{assert_create_mint, assert_mint_to, assert_transfer},
     create_account_instruction,
+    rpc::errors::RpcError,
 };
 
 use crate::indexer::{TestIndexer, TokenDataWithContext};
@@ -16,7 +17,7 @@ use light_compressed_token::{
     },
     freeze::sdk::{create_instruction, CreateInstructionInputs},
     get_token_pool_pda,
-    mint_sdk::{create_initialize_mint_instruction, create_mint_to_instruction},
+    mint_sdk::{create_create_token_pool_instruction, create_mint_to_instruction},
     process_transfer::{
         get_cpi_authority_pda, transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
     },
@@ -30,7 +31,7 @@ use solana_sdk::{
     instruction::Instruction,
     program_pack::Pack,
     pubkey::Pubkey,
-    signature::{Keypair, Signer},
+    signature::{Keypair, Signature, Signer},
 };
 use spl_token::instruction::initialize_mint;
 use spl_token::state::Mint;
@@ -95,7 +96,7 @@ pub async fn mint_tokens_helper<const INDEXED_ARRAY_SIZE: usize, R: RpcConnectio
     .await;
 }
 
-pub async fn create_mint<R: RpcConnection>(
+pub async fn create_token_pool<R: RpcConnection>(
     rpc: &mut R,
     payer: &Keypair,
     mint_authority: &Pubkey,
@@ -157,6 +158,25 @@ pub async fn create_mint_helper<R: RpcConnection>(rpc: &mut R, payer: &Keypair) 
     assert_create_mint(rpc, &payer_pubkey, &mint.pubkey(), &pool).await;
     mint.pubkey()
 }
+
+pub async fn mint_wrapped_sol<R: RpcConnection>(
+    rpc: &mut R,
+    payer: &Keypair,
+    token_account: &Pubkey,
+    amount: u64,
+) -> Result<Signature, RpcError> {
+    let transfer_ix = anchor_lang::solana_program::system_instruction::transfer(
+        &payer.pubkey(),
+        token_account,
+        amount,
+    );
+    let sync_native_ix = spl_token::instruction::sync_native(&spl_token::ID, token_account)
+        .map_err(|e| RpcError::CustomError(format!("{:?}", e)))?;
+
+    rpc.create_and_send_transaction(&[transfer_ix, sync_native_ix], &payer.pubkey(), &[payer])
+        .await
+}
+
 pub fn create_initialize_mint_instructions(
     payer: &Pubkey,
     authority: &Pubkey,
@@ -179,7 +199,7 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_initialize_mint_instruction(payer, &mint_pubkey);
+    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [
@@ -723,7 +743,6 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         amount: delegated_amount,
         delegate: Some(*delegate),
         state: AccountState::Initialized,
-        is_native: None,
     };
     let expected_change_token_data = TokenData {
         mint,
@@ -731,7 +750,6 @@ pub async fn approve_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         amount: change_amount,
         delegate: None,
         state: AccountState::Initialized,
-        is_native: None,
     };
     assert_eq!(
         expected_delegated_token_data,
@@ -853,7 +871,6 @@ pub async fn revoke_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
         amount: input_amount,
         delegate: None,
         state: AccountState::Initialized,
-        is_native: None,
     };
     assert_eq!(expected_token_data, created_output_accounts[0].token_data);
     let expected_compressed_output_accounts =
@@ -1005,7 +1022,6 @@ pub async fn freeze_or_thaw_test<
             amount: account.token_data.amount,
             delegate: account.token_data.delegate,
             state,
-            is_native: account.token_data.is_native,
         };
         if let Some(delegate) = account.token_data.delegate {
             delegates.push(Some(delegate));
@@ -1134,7 +1150,6 @@ pub async fn burn_test<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection>(
             amount: output_amount,
             delegate,
             state: AccountState::Initialized,
-            is_native: input_compressed_accounts[0].token_data.is_native,
         };
         if let Some(delegate) = expected_token_data.delegate {
             delegates.push(Some(delegate));

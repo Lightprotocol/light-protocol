@@ -36,7 +36,6 @@ pub fn process_initialize_address_queue<'info>(
         } else {
             0
         };
-
         address_queue.init(
             AccessMetadata::new(owner, program_owner),
             RolloverMetadata::new(

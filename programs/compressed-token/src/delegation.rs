@@ -90,14 +90,15 @@ pub fn create_input_and_output_accounts_approve(
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
     };
-    create_output_compressed_accounts::<true, false>(
+
+    create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
         &[*authority; 2],
         Some(inputs.delegate),
         Some(vec![true, false]),
         &[inputs.delegated_amount, change_amount],
-        None, // TODO: add wrapped sol support
+        None,
         &hashed_mint,
         &[
             inputs.delegate_merkle_tree_index,
@@ -170,7 +171,8 @@ pub fn create_input_and_output_accounts_revoke(
         Some(hashed_mint) => hashed_mint.0,
         None => return err!(ErrorCode::HashToFieldError),
     };
-    create_output_compressed_accounts::<false, false>(
+
+    create_output_compressed_accounts(
         &mut output_compressed_accounts,
         inputs.mint,
         &[*authority; 1],
@@ -415,7 +417,7 @@ mod test {
         let input_token_data_with_context = vec![
             InputTokenDataWithContext {
                 amount: 100,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -423,10 +425,11 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1),
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -434,6 +437,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: None,
+                lamports: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataApprove {
@@ -457,7 +461,6 @@ mod test {
             amount: 151,
             delegate: None,
             state: AccountState::Initialized,
-            is_native: None,
         };
         let expected_delegated_token_data = TokenData {
             mint,
@@ -465,7 +468,6 @@ mod test {
             amount: 50,
             delegate: Some(delegate),
             state: AccountState::Initialized,
-            is_native: None,
         };
         let expected_compressed_output_accounts = create_expected_token_output_accounts(
             vec![expected_delegated_token_data, expected_change_token_data],
@@ -514,7 +516,7 @@ mod test {
         let input_token_data_with_context = vec![
             InputTokenDataWithContext {
                 amount: 100,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -522,10 +524,11 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
+                lamports: None,
             },
             InputTokenDataWithContext {
                 amount: 101,
-                is_native: None,
+
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
@@ -533,6 +536,7 @@ mod test {
                 },
                 root_index: 0,
                 delegate_index: Some(1), // Doesn't matter it is not checked if the proof is not verified
+                lamports: None,
             },
         ];
         let inputs = CompressedTokenInstructionDataRevoke {
@@ -553,7 +557,6 @@ mod test {
             amount: 201,
             delegate: None,
             state: AccountState::Initialized,
-            is_native: None,
         };
         let expected_compressed_output_accounts =
             create_expected_token_output_accounts(vec![expected_change_token_data], vec![1]);

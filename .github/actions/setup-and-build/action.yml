@@ -22,7 +22,7 @@ runs:
         path: |
           .local
           light-prover/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'light-prover/scripts/download_keys.sh') }}
 
     - name: Install dependencies
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
@@ -76,7 +76,7 @@ runs:
         path: |
           .local
           light-prover/proving-keys
-        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh') }}
+        key: ${{ runner.os }}-local-${{ hashFiles('scripts/install.sh', 'light-prover/scripts/download_keys.sh') }}
 
     - name: Check for git changes
       shell: bash

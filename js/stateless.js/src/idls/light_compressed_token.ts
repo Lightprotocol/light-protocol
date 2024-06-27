@@ -1,9 +1,9 @@
 export type LightCompressedToken = {
-    version: '0.4.0';
+    version: '0.4.1';
     name: 'light_compressed_token';
     instructions: [
         {
-            name: 'createMint';
+            name: 'createTokenPool';
             docs: [
                 'This instruction expects a mint account to be created in a separate',
                 'token program instruction with token authority as mint authority. This',
@@ -876,12 +876,6 @@ export type LightCompressedToken = {
                         };
                     },
                     {
-                        name: 'isNative';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
                         name: 'merkleContext';
                         type: {
                             defined: 'PackedMerkleContext';
@@ -890,6 +884,12 @@ export type LightCompressedToken = {
                     {
                         name: 'rootIndex';
                         type: 'u16';
+                    },
+                    {
+                        name: 'lamports';
+                        type: {
+                            option: 'u64';
+                        };
                     },
                 ];
             };
@@ -1341,18 +1341,6 @@ export type LightCompressedToken = {
                             defined: 'AccountState';
                         };
                     },
-                    {
-                        name: 'isNative';
-                        docs: [
-                            'If is_some, this is a native token, and the value logs the rent-exempt',
-                            'reserve. An Account is required to be rent-exempt, so the value is',
-                            'used by the Processor to ensure that wrapped SOL accounts do not',
-                            'drop below this threshold.',
-                        ];
-                        type: {
-                            option: 'u64';
-                        };
-                    },
                 ];
             };
         },
@@ -1360,117 +1348,32 @@ export type LightCompressedToken = {
     errors: [
         {
             code: 6000;
-            name: 'PublicKeyAmountMissmatch';
-            msg: 'public keys and amounts must be of same length';
+            name: 'SignerCheckFailed';
+            msg: 'Signer check failed';
         },
         {
             code: 6001;
-            name: 'SignerCheckFailed';
-            msg: 'SignerCheckFailed';
+            name: 'CreateTransferInstructionFailed';
+            msg: 'Create transfer instruction failed';
         },
         {
             code: 6002;
-            name: 'ComputeInputSumFailed';
-            msg: 'ComputeInputSumFailed';
+            name: 'AccountNotFound';
+            msg: 'Account not found';
         },
         {
             code: 6003;
-            name: 'ComputeOutputSumFailed';
-            msg: 'ComputeOutputSumFailed';
-        },
-        {
-            code: 6004;
-            name: 'ComputeCompressSumFailed';
-            msg: 'ComputeCompressSumFailed';
-        },
-        {
-            code: 6005;
-            name: 'ComputeDecompressSumFailed';
-            msg: 'ComputeDecompressSumFailed';
-        },
-        {
-            code: 6006;
-            name: 'SumCheckFailed';
-            msg: 'SumCheckFailed';
-        },
-        {
-            code: 6007;
-            name: 'DecompressRecipientUndefinedForDecompress';
-            msg: 'DecompressRecipientUndefinedForDecompress';
-        },
-        {
-            code: 6008;
-            name: 'CompressedPdaUndefinedForDecompress';
-            msg: 'CompressedPdaUndefinedForDecompress';
-        },
-        {
-            code: 6009;
-            name: 'DeCompressAmountUndefinedForDecompress';
-            msg: 'DeCompressAmountUndefinedForDecompress';
-        },
-        {
-            code: 6010;
-            name: 'CompressedPdaUndefinedForCompress';
-            msg: 'CompressedPdaUndefinedForCompress';
-        },
-        {
-            code: 6011;
-            name: 'DeCompressAmountUndefinedForCompress';
-            msg: 'DeCompressAmountUndefinedForCompress';
-        },
-        {
-            code: 6012;
-            name: 'DelegateUndefined';
-            msg: 'DelegateUndefined while delegated amount is defined';
-        },
-        {
-            code: 6013;
-            name: 'DelegateSignerCheckFailed';
-            msg: 'DelegateSignerCheckFailed';
-        },
-        {
-            code: 6014;
-            name: 'SplTokenSupplyMismatch';
-            msg: 'SplTokenSupplyMismatch';
-        },
-        {
-            code: 6015;
-            name: 'HeapMemoryCheckFailed';
-            msg: 'HeapMemoryCheckFailed';
-        },
-        {
-            code: 6016;
-            name: 'InstructionNotCallable';
-            msg: 'The instruction is not callable';
-        },
-        {
-            code: 6017;
-            name: 'ArithmeticUnderflow';
-            msg: 'ArithmeticUnderflow';
-        },
-        {
-            code: 6018;
-            name: 'InvalidDelegate';
-            msg: 'InvalidDelegate';
-        },
-        {
-            code: 6019;
-            name: 'HashToFieldError';
-            msg: 'HashToFieldError';
-        },
-        {
-            code: 6020;
-            name: 'InvalidMint';
-            msg: 'InvalidMint';
+            name: 'SerializationError';
+            msg: 'Serialization error';
         },
     ];
 };
 export const IDL: LightCompressedToken = {
-    version: '0.4.0',
+    version: '0.4.1',
     name: 'light_compressed_token',
     instructions: [
         {
-            name: 'createMint',
+            name: 'createTokenPool',
             docs: [
                 'This instruction expects a mint account to be created in a separate',
                 'token program instruction with token authority as mint authority. This',
@@ -2343,12 +2246,6 @@ export const IDL: LightCompressedToken = {
                         },
                     },
                     {
-                        name: 'isNative',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
                         name: 'merkleContext',
                         type: {
                             defined: 'PackedMerkleContext',
@@ -2357,6 +2254,12 @@ export const IDL: LightCompressedToken = {
                     {
                         name: 'rootIndex',
                         type: 'u16',
+                    },
+                    {
+                        name: 'lamports',
+                        type: {
+                            option: 'u64',
+                        },
                     },
                 ],
             },
@@ -2813,18 +2716,6 @@ export const IDL: LightCompressedToken = {
                             defined: 'AccountState',
                         },
                     },
-                    {
-                        name: 'isNative',
-                        docs: [
-                            'If is_some, this is a native token, and the value logs the rent-exempt',
-                            'reserve. An Account is required to be rent-exempt, so the value is',
-                            'used by the Processor to ensure that wrapped SOL accounts do not',
-                            'drop below this threshold.',
-                        ],
-                        type: {
-                            option: 'u64',
-                        },
-                    },
                 ],
             },
         },
@@ -2832,108 +2723,23 @@ export const IDL: LightCompressedToken = {
     errors: [
         {
             code: 6000,
-            name: 'PublicKeyAmountMissmatch',
-            msg: 'public keys and amounts must be of same length',
+            name: 'SignerCheckFailed',
+            msg: 'Signer check failed',
         },
         {
             code: 6001,
-            name: 'SignerCheckFailed',
-            msg: 'SignerCheckFailed',
+            name: 'CreateTransferInstructionFailed',
+            msg: 'Create transfer instruction failed',
         },
         {
             code: 6002,
-            name: 'ComputeInputSumFailed',
-            msg: 'ComputeInputSumFailed',
+            name: 'AccountNotFound',
+            msg: 'Account not found',
         },
         {
             code: 6003,
-            name: 'ComputeOutputSumFailed',
-            msg: 'ComputeOutputSumFailed',
-        },
-        {
-            code: 6004,
-            name: 'ComputeCompressSumFailed',
-            msg: 'ComputeCompressSumFailed',
-        },
-        {
-            code: 6005,
-            name: 'ComputeDecompressSumFailed',
-            msg: 'ComputeDecompressSumFailed',
-        },
-        {
-            code: 6006,
-            name: 'SumCheckFailed',
-            msg: 'SumCheckFailed',
-        },
-        {
-            code: 6007,
-            name: 'DecompressRecipientUndefinedForDecompress',
-            msg: 'DecompressRecipientUndefinedForDecompress',
-        },
-        {
-            code: 6008,
-            name: 'CompressedPdaUndefinedForDecompress',
-            msg: 'CompressedPdaUndefinedForDecompress',
-        },
-        {
-            code: 6009,
-            name: 'DeCompressAmountUndefinedForDecompress',
-            msg: 'DeCompressAmountUndefinedForDecompress',
-        },
-        {
-            code: 6010,
-            name: 'CompressedPdaUndefinedForCompress',
-            msg: 'CompressedPdaUndefinedForCompress',
-        },
-        {
-            code: 6011,
-            name: 'DeCompressAmountUndefinedForCompress',
-            msg: 'DeCompressAmountUndefinedForCompress',
-        },
-        {
-            code: 6012,
-            name: 'DelegateUndefined',
-            msg: 'DelegateUndefined while delegated amount is defined',
-        },
-        {
-            code: 6013,
-            name: 'DelegateSignerCheckFailed',
-            msg: 'DelegateSignerCheckFailed',
-        },
-        {
-            code: 6014,
-            name: 'SplTokenSupplyMismatch',
-            msg: 'SplTokenSupplyMismatch',
-        },
-        {
-            code: 6015,
-            name: 'HeapMemoryCheckFailed',
-            msg: 'HeapMemoryCheckFailed',
-        },
-        {
-            code: 6016,
-            name: 'InstructionNotCallable',
-            msg: 'The instruction is not callable',
-        },
-        {
-            code: 6017,
-            name: 'ArithmeticUnderflow',
-            msg: 'ArithmeticUnderflow',
-        },
-        {
-            code: 6018,
-            name: 'InvalidDelegate',
-            msg: 'InvalidDelegate',
-        },
-        {
-            code: 6019,
-            name: 'HashToFieldError',
-            msg: 'HashToFieldError',
-        },
-        {
-            code: 6020,
-            name: 'InvalidMint',
-            msg: 'InvalidMint',
+            name: 'SerializationError',
+            msg: 'Serialization error',
         },
     ],
 };

@@ -42,7 +42,6 @@ export async function transfer(
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     lamports = bn(lamports);
-
     const compressedAccounts = await rpc.getCompressedAccountsByOwner(
         owner.publicKey,
     );

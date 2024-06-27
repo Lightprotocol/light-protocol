@@ -78,13 +78,15 @@ export function packCompressedTokenAccounts(
             packedInputTokenData.push({
                 amount: account.parsed.amount,
                 delegateIndex,
-                isNative: account.parsed.isNative,
                 merkleContext: {
                     merkleTreePubkeyIndex,
                     nullifierQueuePubkeyIndex,
                     leafIndex: account.compressedAccount.leafIndex,
                 },
                 rootIndex: rootIndices[index],
+                lamports: account.compressedAccount.lamports.eq(bn(0))
+                    ? null
+                    : account.compressedAccount.lamports,
             });
         },
     );

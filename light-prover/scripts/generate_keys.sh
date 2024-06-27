@@ -27,13 +27,13 @@ generate() {
     CIRCUIT_VKEY_FILE="./proving-keys/${CIRCUIT_TYPE}_${DEPTH}_${COMPRESSED_ACCOUNTS}.vkey"
     CIRCUIT_VKEY_RS_FILE="../circuit-lib/verifier/src/verifying_keys/${CIRCUIT_TYPE_RS}_${DEPTH}_${COMPRESSED_ACCOUNTS}.rs"
 
-    echo "Generating ${CIRCUIT_TYPE} circuit for ${COMPRESSED_ACCOUNTS} COMPRESSED_ACCOUNTs..."
-    echo "go run . setup --circuit ${CIRCUIT_TYPE} --inclusion-compressedAccounts ${INCLUSION_COMPRESSED_ACCOUNTS} --non-inclusion-compressedAccounts ${NON_INCLUSION_COMPRESSED_ACCOUNTS} --inclusion-tree-depth ${DEPTH} --non-inclusion-tree-depth ${DEPTH} --output ${CIRCUIT_FILE} --output-vkey ${CIRCUIT_VKEY_FILE}"
+    echo "Generating ${CIRCUIT_TYPE} circuit for ${COMPRESSED_ACCOUNTS} COMPRESSED_ACCOUNTS..."
+    echo "go run . setup --circuit ${CIRCUIT_TYPE} --inclusion-compressed-accounts ${INCLUSION_COMPRESSED_ACCOUNTS} --non-inclusion-compressed-accounts ${NON_INCLUSION_COMPRESSED_ACCOUNTS} --inclusion-tree-depth ${DEPTH} --non-inclusion-tree-depth ${DEPTH} --output ${CIRCUIT_FILE} --output-vkey ${CIRCUIT_VKEY_FILE}"
 
     gnark setup \
       --circuit "${CIRCUIT_TYPE}" \
-      --inclusion-compressedAccounts "$INCLUSION_COMPRESSED_ACCOUNTS" \
-      --non-inclusion-compressedAccounts "$NON_INCLUSION_COMPRESSED_ACCOUNTS" \
+      --inclusion-compressed-accounts "$INCLUSION_COMPRESSED_ACCOUNTS" \
+      --non-inclusion-compressed-accounts "$NON_INCLUSION_COMPRESSED_ACCOUNTS" \
       --inclusion-tree-depth "$DEPTH" \
       --non-inclusion-tree-depth "$DEPTH" \
       --output "${CIRCUIT_FILE}" \
@@ -41,27 +41,27 @@ generate() {
     cargo xtask generate-vkey-rs --input-path "${CIRCUIT_VKEY_FILE}" --output-path "${CIRCUIT_VKEY_RS_FILE}"
 }
 
-declare -a inclusion_compressedAccounts_arr=("1" "2" "3" "4" "8")
+declare -a inclusion_compressed_accounts_arr=("1" "2" "3" "4" "8")
 
-for compressedAccounts in "${inclusion_compressedAccounts_arr[@]}"
+for compressed_accounts in "${inclusion_compressed_accounts_arr[@]}"
 do
-    generate "$compressedAccounts" "0" "inclusion"
+    generate "$compressed_accounts" "0" "inclusion"
 done
 
-declare -a non_inclusion_compressedAccounts_arr=("1" "2")
+declare -a non_inclusion_compressed_accounts_arr=("1" "2")
 
-for compressedAccounts in "${non_inclusion_compressedAccounts_arr[@]}"
+for compressed_accounts in "${non_inclusion_compressed_accounts_arr[@]}"
 do
-    generate "0" "$compressedAccounts" "non-inclusion"
+    generate "0" "$compressed_accounts" "non-inclusion"
 done
 
-declare -a combined_inclusion_compressedAccounts_arr=("1" "2" "3" "4")
-declare -a combined_non_inclusion_compressedAccounts_arr=("1" "2")
+declare -a combined_inclusion_compressed_accounts_arr=("1" "2" "3" "4")
+declare -a combined_non_inclusion_compressed_accounts_arr=("1" "2")
 
-for i_compressedAccounts in "${combined_inclusion_compressedAccounts_arr[@]}"
+for i_compressed_accounts in "${combined_inclusion_compressed_accounts_arr[@]}"
 do
-  for ni_compressedAccounts in "${combined_non_inclusion_compressedAccounts_arr[@]}"
+  for ni_compressed_accounts in "${combined_non_inclusion_compressed_accounts_arr[@]}"
   do
-    generate "$i_compressedAccounts" "$ni_compressedAccounts" "combined"
+    generate "$i_compressed_accounts" "$ni_compressed_accounts" "combined"
   done
 done

@@ -74,7 +74,7 @@ type NonInclusionProof struct {
 
 	LeafLowerRangeValues  []frontend.Variable
 	LeafHigherRangeValues []frontend.Variable
-	LeafIndices           []frontend.Variable
+	NextIndices           []frontend.Variable
 
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
@@ -88,7 +88,7 @@ func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
 		leaf := LeafHashGadget{
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
-			LeafIndex:            gadget.LeafIndices[proofIndex],
+			NextIndex:            gadget.NextIndices[proofIndex],
 			LeafHigherRangeValue: gadget.LeafHigherRangeValues[proofIndex],
 			Value:                gadget.Values[proofIndex]}
 		currentHash[proofIndex] = abstractor.Call(api, leaf)
@@ -117,7 +117,7 @@ func (gadget CombinedProof) DefineGadget(api frontend.API) interface{} {
 
 type LeafHashGadget struct {
 	LeafLowerRangeValue  frontend.Variable
-	LeafIndex            frontend.Variable
+	NextIndex            frontend.Variable
 	LeafHigherRangeValue frontend.Variable
 	Value                frontend.Variable
 }
@@ -130,7 +130,7 @@ func (gadget LeafHashGadget) DefineGadget(api frontend.API) interface{} {
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.LeafLowerRangeValue, B: gadget.Value, N: 248})
 	// Value is less than upper bound
 	abstractor.CallVoid(api, AssertIsLess{A: gadget.Value, B: gadget.LeafHigherRangeValue, N: 248})
-	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.LeafIndex, In3: gadget.LeafHigherRangeValue})
+	return abstractor.Call(api, poseidon.Poseidon3{In1: gadget.LeafLowerRangeValue, In2: gadget.NextIndex, In3: gadget.LeafHigherRangeValue})
 }
 
 // Assert A is less than B.

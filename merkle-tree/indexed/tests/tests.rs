@@ -1,20 +1,19 @@
 use std::cell::{RefCell, RefMut};
 
-use ark_bn254::Fr;
-use ark_ff::{BigInteger, PrimeField, UniformRand};
 use light_bounded_vec::BoundedVec;
 use light_concurrent_merkle_tree::{
+    errors::ConcurrentMerkleTreeError,
     event::IndexedMerkleTreeUpdate,
     light_hasher::{Hasher, Poseidon},
 };
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
-    reference, IndexedMerkleTree,
+    reference, IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
 use light_utils::bigint::bigint_to_be_bytes_array;
-use num_bigint::{BigUint, ToBigUint};
-use num_traits::FromBytes;
+use num_bigint::{BigUint, RandBigInt, ToBigUint};
+use num_traits::{FromBytes, Num};
 use rand::thread_rng;
 use thiserror::Error;
 
@@ -23,6 +22,7 @@ const MERKLE_TREE_CHANGELOG: usize = 256;
 const MERKLE_TREE_ROOTS: usize = 1024;
 const MERKLE_TREE_CANOPY: usize = 0;
 const MERKLE_TREE_INDEXED_CHANGELOG: usize = 64;
+const NET_HEIGHT: usize = MERKLE_TREE_HEIGHT - MERKLE_TREE_CANOPY;
 
 const QUEUE_ELEMENTS: usize = 1024;
 
@@ -59,7 +59,7 @@ enum RelayerUpdateError {
 fn program_update<H>(
     // PDAs
     queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
-    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>>,
+    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
     // Instruction data
     changelog_index: u16,
     indexed_changelog_index: u16,
@@ -101,7 +101,7 @@ where
 fn relayer_update<H>(
     // PDAs
     queue: &mut RefMut<'_, IndexedArray<H, u16, QUEUE_ELEMENTS>>,
-    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>>,
+    merkle_tree: &mut RefMut<'_, IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>>,
 ) -> Result<(), RelayerUpdateError>
 where
     H: Hasher,
@@ -268,16 +268,17 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
-        IndexedMerkleTree::new(
-            MERKLE_TREE_HEIGHT,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            MERKLE_TREE_CANOPY,
-            MERKLE_TREE_INDEXED_CHANGELOG,
-        )
-        .unwrap(),
-    );
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
+        RefCell::new(
+            IndexedMerkleTree::new(
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_CHANGELOG,
+                MERKLE_TREE_ROOTS,
+                MERKLE_TREE_CANOPY,
+                MERKLE_TREE_INDEXED_CHANGELOG,
+            )
+            .unwrap(),
+        );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nullifiers.
@@ -326,16 +327,17 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
-        IndexedMerkleTree::new(
-            MERKLE_TREE_HEIGHT,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            MERKLE_TREE_CANOPY,
-            MERKLE_TREE_INDEXED_CHANGELOG,
-        )
-        .unwrap(),
-    );
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
+        RefCell::new(
+            IndexedMerkleTree::new(
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_CHANGELOG,
+                MERKLE_TREE_ROOTS,
+                MERKLE_TREE_CANOPY,
+                MERKLE_TREE_INDEXED_CHANGELOG,
+            )
+            .unwrap(),
+        );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Insert a pair of nulifiers.
@@ -401,16 +403,17 @@ where
     // On-chain PDAs.
     let onchain_queue: RefCell<IndexedArray<H, u16, QUEUE_ELEMENTS>> =
         RefCell::new(IndexedArray::default());
-    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT>> = RefCell::new(
-        IndexedMerkleTree::new(
-            MERKLE_TREE_HEIGHT,
-            MERKLE_TREE_CHANGELOG,
-            MERKLE_TREE_ROOTS,
-            MERKLE_TREE_CANOPY,
-            MERKLE_TREE_INDEXED_CHANGELOG,
-        )
-        .unwrap(),
-    );
+    let onchain_tree: RefCell<IndexedMerkleTree<H, usize, MERKLE_TREE_HEIGHT, NET_HEIGHT>> =
+        RefCell::new(
+            IndexedMerkleTree::new(
+                MERKLE_TREE_HEIGHT,
+                MERKLE_TREE_CHANGELOG,
+                MERKLE_TREE_ROOTS,
+                MERKLE_TREE_CANOPY,
+                MERKLE_TREE_INDEXED_CHANGELOG,
+            )
+            .unwrap(),
+        );
     onchain_tree.borrow_mut().init().unwrap();
 
     // Local artifacts.
@@ -551,6 +554,25 @@ where
 #[test]
 pub fn test_insert_invalid_low_element_poseidon() {
     insert_invalid_low_element::<Poseidon>()
+}
+
+#[test]
+pub fn hash_reference_indexed_element() {
+    let element = IndexedElement::<usize> {
+        value: 0.to_biguint().unwrap(),
+        index: 0,
+        next_index: 1,
+    };
+
+    let next_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+    let hash = element.hash::<Poseidon>(&next_value).unwrap();
+    assert_eq!(
+        hash,
+        [
+            40, 8, 192, 134, 75, 198, 77, 187, 129, 249, 133, 121, 54, 189, 242, 28, 117, 71, 255,
+            32, 155, 52, 136, 196, 99, 146, 204, 174, 160, 238, 0, 110
+        ]
+    );
 }
 
 #[test]
@@ -837,8 +859,11 @@ pub fn functional_non_inclusion_test() {
 fn functional_changelog_test_1() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
-
-    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    let address_3 = 11_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
+    perform_change_log_test::<false, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[
+        address_1, address_2, address_3,
+    ]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -853,8 +878,9 @@ fn functional_changelog_test_1() {
 fn functional_changelog_test_2() {
     let address_1 = 10_u32.to_biguint().unwrap();
     let address_2 = 30_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
 
-    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2]);
+    perform_change_log_test::<false, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[address_1, address_2]);
 }
 
 /// Performs conflicting Merkle tree updates where:
@@ -874,8 +900,11 @@ fn functional_changelog_test_3() {
     let address_1 = 30_u32.to_biguint().unwrap();
     let address_2 = 10_u32.to_biguint().unwrap();
     let address_3 = 20_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
 
-    perform_change_log_test::<false, 10, 16, 16, 0, 16>(&[address_1, address_2, address_3]);
+    perform_change_log_test::<false, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[
+        address_1, address_2, address_3,
+    ]);
 }
 
 /// Performs conflicting Merkle tree updates where two parties try to insert
@@ -883,8 +912,12 @@ fn functional_changelog_test_3() {
 #[test]
 fn functional_changelog_test_double_spend() {
     let address = 10_u32.to_biguint().unwrap();
+    const HEIGHT: usize = 10;
 
-    perform_change_log_test::<true, 10, 16, 16, 0, 16>(&[address.clone(), address.clone()]);
+    perform_change_log_test::<true, false, HEIGHT, 16, 16, 0, 16, HEIGHT>(&[
+        address.clone(),
+        address.clone(),
+    ]);
 }
 
 #[test]
@@ -895,35 +928,72 @@ fn functional_changelog_test_random_8_512_512_0_512() {
     const CANOPY: usize = 0;
     const INDEXED_CHANGELOG: usize = 512;
     const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
+    const NET_HEIGHT: usize = HEIGHT - CANOPY;
 
     functional_changelog_test_random::<
+        false,
         HEIGHT,
         CHANGELOG,
         ROOTS,
         CANOPY,
         INDEXED_CHANGELOG,
         N_OPERATIONS,
+        NET_HEIGHT,
     >()
+}
+
+/// Performs concurrent updates, where the indexed changelog eventually wraps
+/// around. Updates with an old proof and old changelog index are expected to
+/// fail.
+#[test]
+fn functional_changelog_test_random_wrap_around_8_128_512_0_512() {
+    const HEIGHT: usize = 8;
+    const CHANGELOG: usize = 512;
+    const ROOTS: usize = 512;
+    const CANOPY: usize = 0;
+    const INDEXED_CHANGELOG: usize = 128;
+    const N_OPERATIONS: usize = (1 << HEIGHT) / 2;
+    const NET_HEIGHT: usize = HEIGHT - CANOPY;
+    for _ in 0..100 {
+        functional_changelog_test_random::<
+            true,
+            HEIGHT,
+            CHANGELOG,
+            ROOTS,
+            CANOPY,
+            INDEXED_CHANGELOG,
+            N_OPERATIONS,
+            NET_HEIGHT,
+        >()
+    }
 }
 
 /// Performs `N_OPERATIONS` concurrent updates with random elements. All of them without
 /// updating the changelog indices. All of them should result in using indexed changelog
 /// for patching the proof.
 fn functional_changelog_test_random<
+    const WRAP_AROUND: bool,
     const HEIGHT: usize,
     const CHANGELOG: usize,
     const ROOTS: usize,
     const CANOPY: usize,
     const INDEXED_CHANGELOG: usize,
     const N_OPERATIONS: usize,
+    const NET_HEIGHT: usize,
 >() {
     let mut rng = thread_rng();
 
-    let leaves: Vec<BigUint> = (0..N_OPERATIONS)
-        .map(|_| BigUint::from_bytes_be(&Fr::rand(&mut rng).into_bigint().to_bytes_be()))
-        .collect();
-
-    perform_change_log_test::<false, HEIGHT, CHANGELOG, ROOTS, CANOPY, INDEXED_CHANGELOG>(&leaves);
+    let leaves: Vec<BigUint> = (0..N_OPERATIONS).map(|_| rng.gen_biguint(248)).collect();
+    perform_change_log_test::<
+        false,
+        WRAP_AROUND,
+        HEIGHT,
+        CHANGELOG,
+        ROOTS,
+        CANOPY,
+        INDEXED_CHANGELOG,
+        NET_HEIGHT,
+    >(&leaves);
 }
 
 /// Performs conflicting Merkle tree updates where multiple actors try to add
@@ -948,11 +1018,13 @@ fn functional_changelog_test_random<
 /// subsequent updates to fail.
 fn perform_change_log_test<
     const DOUBLE_SPEND: bool,
+    const WRAP_AROUND: bool,
     const HEIGHT: usize,
     const CHANGELOG: usize,
     const ROOTS: usize,
     const CANOPY: usize,
     const INDEXED_CHANGELOG: usize,
+    const NET_HEIGHT: usize,
 >(
     addresses: &[BigUint],
 ) {
@@ -962,14 +1034,15 @@ fn perform_change_log_test<
     relayer_indexed_array.init().unwrap();
     let mut relayer_merkle_tree =
         reference::IndexedMerkleTree::<Poseidon, usize>::new(HEIGHT, CANOPY).unwrap();
-    let mut onchain_indexed_merkle_tree = IndexedMerkleTree::<Poseidon, usize, 10>::new(
-        HEIGHT,
-        CHANGELOG,
-        ROOTS,
-        CANOPY,
-        INDEXED_CHANGELOG,
-    )
-    .unwrap();
+    let mut onchain_indexed_merkle_tree =
+        IndexedMerkleTree::<Poseidon, usize, HEIGHT, NET_HEIGHT>::new(
+            HEIGHT,
+            CHANGELOG,
+            ROOTS,
+            CANOPY,
+            INDEXED_CHANGELOG,
+        )
+        .unwrap();
     onchain_indexed_merkle_tree.init().unwrap();
     onchain_indexed_merkle_tree.add_highest_element().unwrap();
     relayer_merkle_tree.init().unwrap();
@@ -1011,6 +1084,36 @@ fn perform_change_log_test<
                 res,
                 Err(IndexedMerkleTreeError::NewElementGreaterOrEqualToNextElement)
             ));
+        } else if WRAP_AROUND && (i + 1) * 2 > INDEXED_CHANGELOG {
+            // After a wrap-around of the indexed changelog, we expect leaf
+            // updates to break immediately.
+            let res = onchain_indexed_merkle_tree.update(
+                changelog_index,
+                indexed_changelog_index,
+                address_bundle.new_element.clone(),
+                old_low_address.clone(),
+                old_low_address_next_value,
+                &mut low_element_proof,
+            );
+            println!("changelog_index {:?}", changelog_index);
+            println!("indexed_changelog_index {:?}", indexed_changelog_index);
+            println!(
+                "address_bundle new_element_next_value{:?}",
+                address_bundle.new_element_next_value
+            );
+            println!(
+                "address_bundle new_element {:?}",
+                address_bundle.new_element
+            );
+
+            println!("old_low_address {:?}", old_low_address);
+            println!("res {:?}", res);
+            assert!(matches!(
+                res,
+                Err(IndexedMerkleTreeError::ConcurrentMerkleTree(
+                    ConcurrentMerkleTreeError::CannotUpdateLeaf
+                ))
+            ));
         } else {
             onchain_indexed_merkle_tree
                 .update(
@@ -1022,6 +1125,9 @@ fn perform_change_log_test<
                     &mut low_element_proof,
                 )
                 .unwrap();
+            for i in onchain_indexed_merkle_tree.changelog.iter() {
+                println!("indexed array state element {:?} ", i);
+            }
         }
     }
 }

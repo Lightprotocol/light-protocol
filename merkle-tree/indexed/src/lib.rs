@@ -27,12 +27,12 @@ pub mod zero_copy;
 
 use crate::errors::IndexedMerkleTreeError;
 
-pub const FIELD_SIZE_SUB_ONE: &str =
-    "21888242871839275222246405745257275088548364400416034343698204186575808495616";
+pub const HIGHEST_ADDRESS_PLUS_ONE: &str =
+    "452312848583266388373324160190187140051835877600158453279131187530910662655";
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct IndexedMerkleTree<H, I, const HEIGHT: usize>
+pub struct IndexedMerkleTree<H, I, const HEIGHT: usize, const NET_HEIGHT: usize>
 where
     H: Hasher,
     I: CheckedAdd
@@ -47,17 +47,17 @@ where
     usize: From<I>,
 {
     pub merkle_tree: ConcurrentMerkleTree<H, HEIGHT>,
-    pub indexed_changelog: CyclicBoundedVec<IndexedChangelogEntry<I>>,
+    pub indexed_changelog: CyclicBoundedVec<IndexedChangelogEntry<I, NET_HEIGHT>>,
 
     _index: PhantomData<I>,
 }
 
-pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22>;
-pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26>;
-pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32>;
-pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40>;
+pub type IndexedMerkleTree22<H, I> = IndexedMerkleTree<H, I, 22, 12>;
+pub type IndexedMerkleTree26<H, I> = IndexedMerkleTree<H, I, 26, 16>;
+pub type IndexedMerkleTree32<H, I> = IndexedMerkleTree<H, I, 32, 22>;
+pub type IndexedMerkleTree40<H, I> = IndexedMerkleTree<H, I, 40, 30>;
 
-impl<H, I, const HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -96,7 +96,7 @@ where
         // indexed_changelog (metadata)
         + mem::size_of::<CyclicBoundedVecMetadata>()
         // indexed_changelog
-        + mem::size_of::<IndexedChangelogEntry<I>>() * indexed_changelog_size
+        + mem::size_of::<IndexedChangelogEntry<I, NET_HEIGHT>>() * indexed_changelog_size
     }
 
     pub fn new(
@@ -137,11 +137,10 @@ where
         };
         let changelog_entry = IndexedChangelogEntry {
             element,
-            proof: BoundedVec::from_slice(&H::zero_bytes()[..self.height]),
+            proof: H::zero_bytes()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index: 0,
         };
         self.indexed_changelog.push(changelog_entry);
-
         Ok(())
     }
 
@@ -156,7 +155,7 @@ where
     /// However, it comes with a tradeoff - the space available in the tree
     /// becomes lower by 1.
     pub fn add_highest_element(&mut self) -> Result<(), IndexedMerkleTreeError> {
-        let init_value = BigUint::from_str_radix(FIELD_SIZE_SUB_ONE, 10).unwrap();
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
 
         let mut indexed_array = IndexedArray::<H, I, 2>::default();
         let element_bundle = indexed_array.append(&init_value)?;
@@ -180,16 +179,16 @@ where
         )?;
 
         // Emit changelog for low element.
-        let proof = BoundedVec::from_slice(&H::zero_bytes()[..self.height]);
         let low_element = RawIndexedElement {
             value: bigint_to_be_bytes_array::<32>(&element_bundle.new_low_element.value)?,
             next_index: element_bundle.new_low_element.next_index,
             next_value: bigint_to_be_bytes_array::<32>(&element_bundle.new_element.value)?,
             index: element_bundle.new_low_element.index,
         };
+
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: low_element,
-            proof,
+            proof: H::zero_bytes()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index,
         };
         self.indexed_changelog.push(low_element_changelog_entry);
@@ -209,9 +208,10 @@ where
         };
         let new_element_changelog_entry = IndexedChangelogEntry {
             element: new_element,
-            proof,
+            proof: proof.as_slice()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index,
         };
+
         self.indexed_changelog.push(new_element_changelog_entry);
 
         Ok(())
@@ -261,7 +261,7 @@ where
             .enumerate()
             .filter_map(|(index, changelog_entry)| {
                 if changelog_entry.element.index == low_element.index {
-                    Some(indexed_changelog_index + 1 + index)
+                    Some((indexed_changelog_index + 1 + index) % self.indexed_changelog.len())
                 } else {
                     None
                 }
@@ -279,7 +279,10 @@ where
                 // that it should become the low element.
                 //
                 // Save it and break the loop.
-                new_low_element = Some((next_indexed_changelog_index + 1, next_element_value));
+                new_low_element = Some((
+                    (next_indexed_changelog_index + 1) % self.indexed_changelog.len(),
+                    next_element_value,
+                ));
                 break;
             }
 
@@ -294,21 +297,25 @@ where
             // Patch the next value.
             *low_element_next_value = BigUint::from_bytes_be(&changelog_entry.element.next_value);
             // Patch the proof.
-            low_leaf_proof.clone_from(&changelog_entry.proof);
+            for i in 0..low_leaf_proof.len() {
+                low_leaf_proof[i] = changelog_entry.proof[i];
+            }
         }
 
         // If we found a new low element.
         if let Some((new_low_element_changelog_index, new_low_element)) = new_low_element {
             let new_low_element_changelog_entry =
                 &self.indexed_changelog[new_low_element_changelog_index];
-
             *changelog_index = new_low_element_changelog_entry.changelog_index;
             *low_element = IndexedElement {
                 index: new_low_element_changelog_entry.element.index,
                 value: new_low_element.clone(),
                 next_index: new_low_element_changelog_entry.element.next_index,
             };
-            low_leaf_proof.clone_from(&new_low_element_changelog_entry.proof);
+
+            for i in 0..low_leaf_proof.len() {
+                low_leaf_proof[i] = new_low_element_changelog_entry.proof[i];
+            }
             new_element.next_index = low_element.next_index;
 
             // Start the patching process from scratch for the new low element.
@@ -342,7 +349,6 @@ where
             &mut low_element_next_value,
             low_leaf_proof,
         )?;
-
         // Check that the value of `new_element` belongs to the range
         // of `old_low_element`.
         if low_element.next_index == I::zero() {
@@ -376,7 +382,9 @@ where
         // Update low element. If the `old_low_element` does not belong to the
         // tree, validating the proof is going to fail.
         let old_low_leaf = low_element.hash::<H>(&low_element_next_value)?;
+
         let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
+
         let (new_changelog_index, _) = self.merkle_tree.update(
             changelog_index,
             &old_low_leaf,
@@ -394,9 +402,10 @@ where
         };
         let low_element_changelog_entry = IndexedChangelogEntry {
             element: new_low_element,
-            proof: low_leaf_proof.clone(),
+            proof: low_leaf_proof.as_slice()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index: new_changelog_index,
         };
+
         self.indexed_changelog.push(low_element_changelog_entry);
 
         // New element is always the newest one in the tree. Since we
@@ -422,7 +431,7 @@ where
         // Emit changelog entry for new element.
         let new_element_changelog_entry = IndexedChangelogEntry {
             element: raw_new_element,
-            proof,
+            proof: proof.as_slice()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index: new_changelog_index,
         };
         self.indexed_changelog.push(new_element_changelog_entry);
@@ -438,7 +447,8 @@ where
     }
 }
 
-impl<H, I, const HEIGHT: usize> Deref for IndexedMerkleTree<H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> Deref
+    for IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -459,7 +469,8 @@ where
     }
 }
 
-impl<H, I, const HEIGHT: usize> DerefMut for IndexedMerkleTree<H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> DerefMut
+    for IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd
@@ -478,7 +489,8 @@ where
     }
 }
 
-impl<H, I, const HEIGHT: usize> PartialEq for IndexedMerkleTree<H, I, HEIGHT>
+impl<H, I, const HEIGHT: usize, const NET_HEIGHT: usize> PartialEq
+    for IndexedMerkleTree<H, I, HEIGHT, NET_HEIGHT>
 where
     H: Hasher,
     I: CheckedAdd

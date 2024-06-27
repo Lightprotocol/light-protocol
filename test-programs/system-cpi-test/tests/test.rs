@@ -638,12 +638,17 @@ pub async fn perform_with_input_accounts<R: RpcConnection>(
             input_token_data_with_context: InputTokenDataWithContext {
                 amount: token_account.token_data.amount,
                 delegate_index: None,
-                is_native: None,
+
                 root_index: rpc_result.root_indices[0],
                 merkle_context: PackedMerkleContext {
                     leaf_index: token_account.compressed_account.merkle_context.leaf_index,
                     merkle_tree_pubkey_index: 0,
                     nullifier_queue_pubkey_index: 1,
+                },
+                lamports: if token_account.compressed_account.compressed_account.lamports != 0 {
+                    Some(token_account.compressed_account.compressed_account.lamports)
+                } else {
+                    None
                 },
             },
         }),

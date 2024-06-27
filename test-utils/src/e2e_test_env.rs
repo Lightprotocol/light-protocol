@@ -68,6 +68,7 @@
 // indexer trait: get_compressed_accounts_by_owner -> return compressed accounts,
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
+use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
 use solana_sdk::signature::Signature;
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
@@ -387,11 +388,7 @@ where
             self.indexer.address_merkle_trees.len() as u64,
         )
         .await;
-        let init_value = BigUint::from_str_radix(
-            "21888242871839275222246405745257275088548364400416034343698204186575808495616",
-            10,
-        )
-        .unwrap();
+        let init_value = BigUint::from_str_radix(HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
         let mut merkle_tree = Box::new(
             IndexedMerkleTree::<Poseidon, usize>::new(
                 STATE_MERKLE_TREE_HEIGHT as usize,
@@ -1154,8 +1151,8 @@ impl Default for GeneralActionConfig {
             add_keypair: Some(0.3),
             create_state_mt: Some(1.0),
             create_address_mt: Some(1.0),
-            nullify_compressed_accounts: Some(1.0),
-            empty_address_queue: Some(1.0),
+            nullify_compressed_accounts: Some(0.2),
+            empty_address_queue: Some(0.2),
         }
     }
 }

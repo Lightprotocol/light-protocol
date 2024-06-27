@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use account_compression::AddressMerkleTreeConfig;
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
-use light_compressed_token::mint_sdk::create_initialize_mint_instruction;
+use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
 use light_utils::bigint::bigint_to_be_bytes_array;
 use {
@@ -631,7 +631,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             } else {
                 // print error message
                 warn!("Error: {}", response_result.text().await.unwrap());
-
                 // wait for a second before retrying
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 retries -= 1;
@@ -708,7 +707,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             );
             non_inclusion_proofs.push(proof_inputs);
             let fetched_address_merkle_tree = unsafe {
-                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26>(
+                get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
                     rpc,
                     address_merkle_tree_pubkeys[i],
                 )
@@ -964,7 +963,7 @@ pub fn create_initialize_mint_instructions(
     let transfer_ix =
         anchor_lang::solana_program::system_instruction::transfer(payer, &mint_pubkey, rent);
 
-    let instruction = create_initialize_mint_instruction(payer, &mint_pubkey);
+    let instruction = create_create_token_pool_instruction(payer, &mint_pubkey);
     let pool_pubkey = get_token_pool_pda(&mint_pubkey);
     (
         [

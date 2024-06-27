@@ -8,6 +8,7 @@ use forester::utils::u8_arr_to_hex_string;
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hasher::Poseidon;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
+use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 use log::{info, warn};
@@ -37,7 +38,7 @@ fn test_config() -> Config {
 #[ignore]
 async fn queue_info_test() {
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     let queue = get_nullifier_queue(&config.nullifier_queue_pubkey, &mut rpc)
         .await
         .unwrap();
@@ -93,7 +94,7 @@ async fn tree_info_test() {
 async fn test_nullify_leaves() {
     let mut indexer = PhotonIndexer::new(INDEXER_URL.to_string());
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();
@@ -114,7 +115,7 @@ async fn test_nullify_leaves() {
 #[ignore]
 async fn test_subscribe_nullify() {
     let config = test_config();
-    let mut rpc = SolanaRpcConnection::new(None);
+    let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
     rpc.airdrop_lamports(&config.payer_keypair.pubkey(), LAMPORTS_PER_SOL * 1000)
         .await
         .unwrap();

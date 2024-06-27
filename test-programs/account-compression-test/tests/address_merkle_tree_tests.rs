@@ -514,6 +514,7 @@ async fn update_address_merkle_tree_failing_tests(merkle_tree_config: &AddressMe
         Poseidon,
         usize,
         26,
+        16,
     >(&mut context, address_merkle_tree_pubkey)
     .await;
     let changelog_index = address_merkle_tree.changelog_index();

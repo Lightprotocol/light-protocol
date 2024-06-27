@@ -34,6 +34,7 @@ pub struct TransferInstruction<'info> {
     pub system_program: Program<'info, System>,
 }
 
+// TODO: transform all to account info
 impl<'info> InvokeAccounts<'info> for TransferInstruction<'info> {
     fn get_registered_program_pda(
         &self,
