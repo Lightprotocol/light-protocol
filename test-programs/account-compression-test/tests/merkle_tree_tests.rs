@@ -200,7 +200,7 @@ async fn test_init_and_insert_into_nullifier_queue_custom() {
                 },
                 &NullifierQueueConfig {
                     capacity: queue_capacity,
-                    sequence_threshold: roots_size,
+                    sequence_threshold: roots_size + SAFETY_MARGIN,
                     network_fee: None,
                 },
             )
@@ -222,6 +222,7 @@ async fn test_full_nullifier_queue(
     merkle_tree_config: &StateMerkleTreeConfig,
     queue_config: &NullifierQueueConfig,
 ) {
+    println!("SEQUENCE THRESHOLD: {}", queue_config.sequence_threshold);
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -333,11 +334,12 @@ async fn test_full_nullifier_queue(
         vec![element],
     )
     .await;
-    // advance to sequence number minus one
+    // Advance to sequence threshold + 1 (expected sequence number of the last
+    // element - 1).
     set_state_merkle_tree_sequence(
         &mut rpc,
         &merkle_tree_pubkey,
-        2402 + SAFETY_MARGIN,
+        queue_config.sequence_threshold + 1,
         lamports_queue_accounts,
     )
     .await;
@@ -350,10 +352,12 @@ async fn test_full_nullifier_queue(
     )
     .await;
     // TODO: add e2e test in compressed pda program for this
+    // Advance to sequence threshold + 2 (expected sequence number of the last
+    // element).
     set_state_merkle_tree_sequence(
         &mut rpc,
         &merkle_tree_pubkey,
-        2403 + SAFETY_MARGIN,
+        queue_config.sequence_threshold + 2,
         lamports_queue_accounts,
     )
     .await;
@@ -422,7 +426,7 @@ async fn test_full_nullifier_queue_custom() {
                 },
                 &NullifierQueueConfig {
                     capacity: queue_capacity,
-                    sequence_threshold: roots_size,
+                    sequence_threshold: roots_size + SAFETY_MARGIN,
                     network_fee: None,
                 },
             )
@@ -637,7 +641,7 @@ async fn test_failing_queue_custom() {
                 },
                 &NullifierQueueConfig {
                     capacity: queue_capacity,
-                    sequence_threshold: roots_size,
+                    sequence_threshold: roots_size + SAFETY_MARGIN,
                     network_fee: None,
                 },
             )
@@ -883,7 +887,7 @@ async fn test_init_and_rollover_state_merkle_tree_custom() {
                 },
                 &NullifierQueueConfig {
                     capacity: queue_capacity,
-                    sequence_threshold: roots_size,
+                    sequence_threshold: roots_size + SAFETY_MARGIN,
                     network_fee: None,
                 },
             )
@@ -1044,7 +1048,7 @@ async fn test_append_functional_and_failing_custom() {
                 },
                 &NullifierQueueConfig {
                     capacity: queue_capacity,
-                    sequence_threshold: roots_size,
+                    sequence_threshold: roots_size + SAFETY_MARGIN,
                     network_fee: None,
                 },
             )
@@ -1270,7 +1274,7 @@ async fn test_nullify_leaves_custom() {
                 },
                 &NullifierQueueConfig {
                     capacity: queue_capacity,
-                    sequence_threshold: roots_size,
+                    sequence_threshold: roots_size + SAFETY_MARGIN,
                     network_fee: None,
                 },
             )
@@ -1846,6 +1850,10 @@ pub async fn nullify<R: RpcConnection>(
     assert_eq!(
         array_element.sequence_number(),
         Some(merkle_tree.sequence_number() + nullifier_queue_config.sequence_threshold as usize)
+    );
+    println!(
+        "ARRAY ELEMENT SEQ NUM: {}",
+        array_element.sequence_number().unwrap()
     );
     let event = event.unwrap().0;
     match event {

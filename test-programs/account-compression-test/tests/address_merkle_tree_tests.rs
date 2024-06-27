@@ -6,7 +6,7 @@ use account_compression::{
     errors::AccountCompressionErrorCode,
     state::QueueAccount,
     utils::constants::{ADDRESS_MERKLE_TREE_CANOPY_DEPTH, ADDRESS_MERKLE_TREE_HEIGHT},
-    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, ID,
+    AddressMerkleTreeAccount, AddressMerkleTreeConfig, AddressQueueConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::error::ErrorCode;
 use light_hash_set::{HashSet, HashSetError};
@@ -134,7 +134,7 @@ async fn test_address_queue_and_tree_functional_custom() {
                     },
                     &AddressQueueConfig {
                         capacity: queue_capacity,
-                        sequence_threshold: roots_size,
+                        sequence_threshold: roots_size + SAFETY_MARGIN,
                         network_fee: None,
                     },
                 )
@@ -706,7 +706,7 @@ async fn update_address_merkle_tree_failing_tests_custom() {
                     },
                     &AddressQueueConfig {
                         capacity: queue_capacity,
-                        sequence_threshold: roots_size,
+                        sequence_threshold: roots_size + SAFETY_MARGIN,
                         network_fee: None,
                     },
                 )
@@ -946,7 +946,7 @@ async fn test_address_merkle_tree_and_queue_rollover_custom() {
                     },
                     &AddressQueueConfig {
                         capacity: queue_capacity,
-                        sequence_threshold: roots_size,
+                        sequence_threshold: roots_size + SAFETY_MARGIN,
                         network_fee: None,
                     },
                 )
