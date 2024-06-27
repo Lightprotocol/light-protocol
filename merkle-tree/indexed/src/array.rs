@@ -535,9 +535,64 @@ where
 #[cfg(test)]
 mod test {
     use light_concurrent_merkle_tree::light_hasher::Poseidon;
-    use num_bigint::ToBigUint;
+    use num_bigint::{RandBigInt, ToBigUint};
+    use rand::thread_rng;
 
     use super::*;
+
+    #[test]
+    fn test_indexed_element_cmp() {
+        let mut rng = thread_rng();
+
+        for _ in 0..1000 {
+            let value = rng.gen_biguint(128);
+            let element_1 = IndexedElement::<u16> {
+                index: 0,
+                value: value.clone(),
+                next_index: 1,
+            };
+            let element_2 = IndexedElement::<u16> {
+                index: 1,
+                value,
+                next_index: 2,
+            };
+            assert_eq!(element_1, element_2);
+            assert_eq!(element_2, element_1);
+            assert!(matches!(element_1.cmp(&element_2), Ordering::Equal));
+            assert!(matches!(element_2.cmp(&element_1), Ordering::Equal));
+
+            let value_higher = rng.gen_biguint(128);
+            if value_higher == 0.to_biguint().unwrap() {
+                continue;
+            }
+            let value_lower = rng.gen_biguint_below(&value_higher);
+            let element_lower = IndexedElement::<u16> {
+                index: 0,
+                value: value_lower,
+                next_index: 1,
+            };
+            let element_higher = IndexedElement::<u16> {
+                index: 1,
+                value: value_higher,
+                next_index: 2,
+            };
+            assert_ne!(element_lower, element_higher);
+            assert_ne!(element_higher, element_lower);
+            assert!(matches!(element_lower.cmp(&element_higher), Ordering::Less));
+            assert!(matches!(
+                element_higher.cmp(&element_lower),
+                Ordering::Greater
+            ));
+            assert!(matches!(
+                element_lower.partial_cmp(&element_higher),
+                Some(Ordering::Less)
+            ));
+            assert!(matches!(
+                element_higher.partial_cmp(&element_lower),
+                Some(Ordering::Greater)
+            ));
+        }
+    }
 
     /// Tests the insertion of elements to the indexing array.
     #[test]
@@ -548,10 +603,12 @@ mod test {
         // value      = [0] [0] [0] [0] [0] [0] [0] [0]
         // next_index = [0] [0] [0] [0] [0] [0] [0] [0]
         // ```
-        let mut indexing_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
+        let mut indexed_array: IndexedArray<Poseidon, usize, 8> = IndexedArray::default();
 
         let nullifier1 = 30_u32.to_biguint().unwrap();
-        indexing_array.append(&nullifier1).unwrap();
+        let bundle1 = indexed_array.new_element(&nullifier1).unwrap();
+        assert!(indexed_array.find_element(&nullifier1).is_none());
+        indexed_array.append(&nullifier1).unwrap();
 
         // After adding a new value 30, it should look like:
         //
@@ -569,7 +626,22 @@ mod test {
         // * `next_*` fields of the low nullifier are updated to point to the new
         //   nullifier.
         assert_eq!(
-            indexing_array.elements[0],
+            indexed_array.find_element(&nullifier1),
+            Some(&bundle1.new_element),
+        );
+        let expected_hash = Poseidon::hashv(&[
+            bigint_to_be_bytes_array::<32>(&nullifier1)
+                .unwrap()
+                .as_ref(),
+            0_usize.to_be_bytes().as_ref(),
+            bigint_to_be_bytes_array::<32>(&(0.to_biguint().unwrap()))
+                .unwrap()
+                .as_ref(),
+        ])
+        .unwrap();
+        assert_eq!(indexed_array.hash_element(1).unwrap(), expected_hash);
+        assert_eq!(
+            indexed_array.elements[0],
             IndexedElement {
                 index: 0,
                 value: 0_u32.to_biguint().unwrap(),
@@ -577,16 +649,33 @@ mod test {
             },
         );
         assert_eq!(
-            indexing_array.elements[1],
+            indexed_array.elements[1],
             IndexedElement {
                 index: 1,
                 value: 30_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
         );
+        assert_eq!(
+            indexed_array.iter().collect::<Vec<_>>().as_slice(),
+            &[
+                &IndexedElement {
+                    index: 0,
+                    value: 0_u32.to_biguint().unwrap(),
+                    next_index: 1,
+                },
+                &IndexedElement {
+                    index: 1,
+                    value: 30_u32.to_biguint().unwrap(),
+                    next_index: 0
+                }
+            ]
+        );
 
         let nullifier2 = 10_u32.to_biguint().unwrap();
-        indexing_array.append(&nullifier2).unwrap();
+        let bundle2 = indexed_array.new_element(&nullifier2).unwrap();
+        assert!(indexed_array.find_element(&nullifier2).is_none());
+        indexed_array.append(&nullifier2).unwrap();
 
         // After adding an another value 10, it should look like:
         //
@@ -607,7 +696,22 @@ mod test {
         //   after update it looks like: `[value = 0, next_index = 2]`.
         // * The previously inserted nullifier, the node 1, remains unchanged.
         assert_eq!(
-            indexing_array.elements[0],
+            indexed_array.find_element(&nullifier2),
+            Some(&bundle2.new_element),
+        );
+        let expected_hash = Poseidon::hashv(&[
+            bigint_to_be_bytes_array::<32>(&nullifier2)
+                .unwrap()
+                .as_ref(),
+            1_usize.to_be_bytes().as_ref(),
+            bigint_to_be_bytes_array::<32>(&(30.to_biguint().unwrap()))
+                .unwrap()
+                .as_ref(),
+        ])
+        .unwrap();
+        assert_eq!(indexed_array.hash_element(2).unwrap(), expected_hash);
+        assert_eq!(
+            indexed_array.elements[0],
             IndexedElement {
                 index: 0,
                 value: 0_u32.to_biguint().unwrap(),
@@ -615,7 +719,7 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[1],
+            indexed_array.elements[1],
             IndexedElement {
                 index: 1,
                 value: 30_u32.to_biguint().unwrap(),
@@ -623,16 +727,38 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[2],
+            indexed_array.elements[2],
             IndexedElement {
                 index: 2,
                 value: 10_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
+        assert_eq!(
+            indexed_array.iter().collect::<Vec<_>>().as_slice(),
+            &[
+                &IndexedElement {
+                    index: 0,
+                    value: 0_u32.to_biguint().unwrap(),
+                    next_index: 2,
+                },
+                &IndexedElement {
+                    index: 1,
+                    value: 30_u32.to_biguint().unwrap(),
+                    next_index: 0,
+                },
+                &IndexedElement {
+                    index: 2,
+                    value: 10_u32.to_biguint().unwrap(),
+                    next_index: 1,
+                }
+            ]
+        );
 
         let nullifier3 = 20_u32.to_biguint().unwrap();
-        indexing_array.append(&nullifier3).unwrap();
+        let bundle3 = indexed_array.new_element(&nullifier3).unwrap();
+        assert!(indexed_array.find_element(&nullifier3).is_none());
+        indexed_array.append(&nullifier3).unwrap();
 
         // After adding an another value 20, it should look like:
         //
@@ -650,7 +776,22 @@ mod test {
         // * Low nullifier is updated to point to the new nullifier. Therefore,
         //   after update it looks like: `[value = 10, next_index = 3]`.
         assert_eq!(
-            indexing_array.elements[0],
+            indexed_array.find_element(&nullifier3),
+            Some(&bundle3.new_element),
+        );
+        let expected_hash = Poseidon::hashv(&[
+            bigint_to_be_bytes_array::<32>(&nullifier3)
+                .unwrap()
+                .as_ref(),
+            1_usize.to_be_bytes().as_ref(),
+            bigint_to_be_bytes_array::<32>(&(30.to_biguint().unwrap()))
+                .unwrap()
+                .as_ref(),
+        ])
+        .unwrap();
+        assert_eq!(indexed_array.hash_element(3).unwrap(), expected_hash);
+        assert_eq!(
+            indexed_array.elements[0],
             IndexedElement {
                 index: 0,
                 value: 0_u32.to_biguint().unwrap(),
@@ -658,7 +799,7 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[1],
+            indexed_array.elements[1],
             IndexedElement {
                 index: 1,
                 value: 30_u32.to_biguint().unwrap(),
@@ -666,7 +807,7 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[2],
+            indexed_array.elements[2],
             IndexedElement {
                 index: 2,
                 value: 10_u32.to_biguint().unwrap(),
@@ -674,16 +815,43 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[3],
+            indexed_array.elements[3],
             IndexedElement {
                 index: 3,
                 value: 20_u32.to_biguint().unwrap(),
                 next_index: 1,
             }
         );
+        assert_eq!(
+            indexed_array.iter().collect::<Vec<_>>().as_slice(),
+            &[
+                &IndexedElement {
+                    index: 0,
+                    value: 0_u32.to_biguint().unwrap(),
+                    next_index: 2,
+                },
+                &IndexedElement {
+                    index: 1,
+                    value: 30_u32.to_biguint().unwrap(),
+                    next_index: 0,
+                },
+                &IndexedElement {
+                    index: 2,
+                    value: 10_u32.to_biguint().unwrap(),
+                    next_index: 3,
+                },
+                &IndexedElement {
+                    index: 2,
+                    value: 20_u32.to_biguint().unwrap(),
+                    next_index: 1
+                }
+            ]
+        );
 
         let nullifier4 = 50_u32.to_biguint().unwrap();
-        indexing_array.append(&nullifier4).unwrap();
+        let bundle4 = indexed_array.new_element(&nullifier4).unwrap();
+        assert!(indexed_array.find_element(&nullifier4).is_none());
+        indexed_array.append(&nullifier4).unwrap();
 
         // After adding an another value 50, it should look like:
         //
@@ -703,7 +871,22 @@ mod test {
         // * Low nullifier is updated to point to the new nullifier. Therefore,
         //   after update it looks like: `[value = 30, next_index = 4]`.
         assert_eq!(
-            indexing_array.elements[0],
+            indexed_array.find_element(&nullifier4),
+            Some(&bundle4.new_element),
+        );
+        let expected_hash = Poseidon::hashv(&[
+            bigint_to_be_bytes_array::<32>(&nullifier4)
+                .unwrap()
+                .as_ref(),
+            0_usize.to_be_bytes().as_ref(),
+            bigint_to_be_bytes_array::<32>(&(0.to_biguint().unwrap()))
+                .unwrap()
+                .as_ref(),
+        ])
+        .unwrap();
+        assert_eq!(indexed_array.hash_element(4).unwrap(), expected_hash);
+        assert_eq!(
+            indexed_array.elements[0],
             IndexedElement {
                 index: 0,
                 value: 0_u32.to_biguint().unwrap(),
@@ -711,7 +894,7 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[1],
+            indexed_array.elements[1],
             IndexedElement {
                 index: 1,
                 value: 30_u32.to_biguint().unwrap(),
@@ -719,7 +902,7 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[2],
+            indexed_array.elements[2],
             IndexedElement {
                 index: 2,
                 value: 10_u32.to_biguint().unwrap(),
@@ -727,7 +910,7 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[3],
+            indexed_array.elements[3],
             IndexedElement {
                 index: 3,
                 value: 20_u32.to_biguint().unwrap(),
@@ -735,12 +918,42 @@ mod test {
             }
         );
         assert_eq!(
-            indexing_array.elements[4],
+            indexed_array.elements[4],
             IndexedElement {
                 index: 4,
                 value: 50_u32.to_biguint().unwrap(),
                 next_index: 0,
             }
+        );
+        assert_eq!(
+            indexed_array.iter().collect::<Vec<_>>().as_slice(),
+            &[
+                &IndexedElement {
+                    index: 0,
+                    value: 0_u32.to_biguint().unwrap(),
+                    next_index: 2,
+                },
+                &IndexedElement {
+                    index: 1,
+                    value: 30_u32.to_biguint().unwrap(),
+                    next_index: 4,
+                },
+                &IndexedElement {
+                    index: 2,
+                    value: 10_u32.to_biguint().unwrap(),
+                    next_index: 3,
+                },
+                &IndexedElement {
+                    index: 3,
+                    value: 20_u32.to_biguint().unwrap(),
+                    next_index: 1,
+                },
+                &IndexedElement {
+                    index: 4,
+                    value: 50_u32.to_biguint().unwrap(),
+                    next_index: 0,
+                }
+            ]
         );
     }
 
