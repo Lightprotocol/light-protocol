@@ -731,6 +731,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         merkle_tree_config,
+        queue_config,
         None,
     )
     .await;
@@ -749,6 +750,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         merkle_tree_config,
+        queue_config,
         Some(StateMerkleTreeRolloverMode::QueueInvalidSize),
     )
     .await;
@@ -761,6 +763,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         merkle_tree_config,
+        queue_config,
         Some(StateMerkleTreeRolloverMode::TreeInvalidSize),
     )
     .await;
@@ -781,6 +784,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey,
         &nullifier_queue_keypair_2.pubkey(),
         merkle_tree_config,
+        queue_config,
         None,
     )
     .await;
@@ -799,6 +803,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey_2,
         &nullifier_queue_keypair.pubkey(),
         merkle_tree_config,
+        queue_config,
         None,
     )
     .await;
@@ -824,6 +829,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         merkle_tree_config,
+        queue_config,
         None,
     )
     .await
@@ -849,6 +855,7 @@ async fn test_init_and_rollover_state_merkle_tree(
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
         merkle_tree_config,
+        queue_config,
         None,
     )
     .await;
