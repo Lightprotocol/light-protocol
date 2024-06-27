@@ -1,4 +1,9 @@
 use env_logger::Env;
+use log::info;
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::Signer;
+
 use forester::external_services_config::ExternalServicesConfig;
 use forester::indexer::PhotonIndexer;
 use forester::utils::{spawn_validator, LightValidatorConfig};
@@ -8,10 +13,18 @@ use light_test_utils::indexer::{Indexer, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
-use log::info;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signer;
+
+async fn init() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let validator_config = LightValidatorConfig {
+        enable_forester: true,
+        enable_prover: true,
+        enable_indexer: true,
+        wait_time: 25,
+        ..LightValidatorConfig::default()
+    };
+    spawn_validator(validator_config).await;
+}
 
 // truncate to <254 bit
 pub fn generate_pubkey_254() -> Pubkey {
@@ -89,18 +102,7 @@ pub async fn assert_new_address_proofs_for_photon_and_test_indexer(
 #[ignore = "TokenData breaking changes break photon 0.26.0 and because of leafIndex to nextIndex renaming"]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_photon_interop_address() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
-    let validator_config = LightValidatorConfig {
-        enable_forester: true,
-        enable_prover: true,
-        enable_indexer: true,
-        wait_time: 25,
-        ..LightValidatorConfig::default()
-    };
-
-    spawn_validator(validator_config).await;
-
+    init().await;
     let env_accounts = get_test_env_accounts();
 
     let services_config = ExternalServicesConfig::local();

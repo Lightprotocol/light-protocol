@@ -1,10 +1,16 @@
 use std::mem;
 use std::sync::Arc;
 
+use log::info;
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::signature::Keypair;
+use solana_sdk::signer::Signer;
+
 use account_compression::StateMerkleTreeAccount;
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
-use forester::utils::u8_arr_to_hex_string;
+use forester::utils::{spawn_validator, u8_arr_to_hex_string};
 use forester::{nullify_state, subscribe_state, ForesterConfig};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hasher::Poseidon;
@@ -12,11 +18,6 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
-use log::info;
-use solana_client::rpc_client::RpcClient;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
 
 fn test_config() -> ForesterConfig {
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();

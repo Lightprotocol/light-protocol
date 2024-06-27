@@ -1,4 +1,10 @@
+use std::sync::Arc;
+
 use env_logger::Env;
+use log::info;
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
+use solana_sdk::signature::{Keypair, Signer};
+
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::spawn_validator;
@@ -8,15 +14,15 @@ use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
-use log::info;
-use solana_sdk::native_token::LAMPORTS_PER_SOL;
-use solana_sdk::signature::{Keypair, Signer};
-use std::sync::Arc;
+
+async fn init() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    spawn_validator(Default::default()).await;
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    spawn_validator(Default::default()).await;
+    init().await;
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let config = ForesterConfig {
@@ -75,8 +81,7 @@ async fn test_state_tree_nullifier() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_1_all() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    spawn_validator(Default::default()).await;
+    init();
     let env_accounts = get_test_env_accounts();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 
