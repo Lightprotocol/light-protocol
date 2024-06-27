@@ -8,8 +8,8 @@ use crate::{
 use crate::indexer::{TestIndexer, TokenDataWithContext};
 use crate::rpc::rpc_connection::RpcConnection;
 use crate::transaction_params::TransactionParams;
+use anchor_spl::token::TokenAccount;
 use light_compressed_token::{
-    anchor_spl::TokenAccount,
     burn::sdk::{create_burn_instruction, CreateBurnInstructionInputs},
     delegation::sdk::{
         create_approve_instruction, create_revoke_instruction, CreateApproveInstructionInputs,
@@ -24,6 +24,7 @@ use light_compressed_token::{
     token_data::AccountState,
     TokenData,
 };
+
 use light_hasher::Poseidon;
 use light_system_program::sdk::{compressed_account::MerkleContext, event::PublicTransactionEvent};
 use solana_program_test::BanksClientError;

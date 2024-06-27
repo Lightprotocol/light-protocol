@@ -543,8 +543,8 @@ pub fn get_cpi_authority_pda() -> (Pubkey, u8) {
 pub mod transfer_sdk {
     use std::collections::HashMap;
 
-    use crate::anchor_spl::Token;
     use anchor_lang::{AnchorSerialize, Id, InstructionData, ToAccountMetas};
+    use anchor_spl::token::Token;
     use light_system_program::{
         invoke::processor::CompressedProof,
         sdk::compressed_account::{MerkleContext, PackedMerkleContext},

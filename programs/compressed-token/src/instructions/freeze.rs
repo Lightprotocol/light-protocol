@@ -1,6 +1,6 @@
-use crate::anchor_spl::Mint;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
+use anchor_spl::token::Mint;
 use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
 
 #[derive(Accounts)]

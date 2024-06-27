@@ -12,6 +12,7 @@ cpi-context = []
 
 [dependencies]
 anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"
 anyhow = "1.0"
 ark-ff = "0.4"
 light-hash-set = { path = "../merkle-tree/hash-set", version = "0.2.1" }
