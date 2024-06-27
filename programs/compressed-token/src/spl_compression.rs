@@ -1,6 +1,6 @@
-use crate::anchor_spl::Transfer;
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::{prelude::*, solana_program::account_info::AccountInfo};
+use anchor_spl::token::Transfer;
 
 use crate::{CompressedTokenInstructionDataTransfer, TransferInstruction};
 
@@ -93,5 +93,5 @@ pub fn transfer<'info>(
         authority: authority.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(token_program.to_account_info(), accounts, seeds);
-    crate::anchor_spl::transfer(cpi_ctx, amount)
+    anchor_spl::token::transfer(cpi_ctx, amount)
 }

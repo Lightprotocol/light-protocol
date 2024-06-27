@@ -1,6 +1,6 @@
-use crate::anchor_spl::{Mint, Token, TokenAccount};
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
+use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use light_system_program::OutputCompressedAccountWithPackedContext;
 #[cfg(target_os = "solana")]
@@ -18,21 +18,17 @@ pub const POOL_SEED: &[u8] = b"pool";
 pub struct CreateTokenPoolInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    // #[account(
-    //     init,
-    //     seeds = [
-    //     POOL_SEED, &mint.key().to_bytes(),
-    //     ],
-    //     bump,
-    //     payer = fee_payer,
-    //     space = TokenAccount::LEN,
-    //     //   token::mint = mint,
-    //     //   token::authority = cpi_authority_pda,
-    // )]
-    // pub token_pool_pda: Account<'info, TokenAccount>,
-    /// CHECK:
-    #[account(mut)]
-    pub token_pool_pda: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [
+        POOL_SEED, &mint.key().to_bytes(),
+        ],
+        bump,
+        payer = fee_payer,
+          token::mint = mint,
+          token::authority = cpi_authority_pda,
+    )]
+    pub token_pool_pda: Account<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
     /// CHECK:
     #[account(mut)]
@@ -289,14 +285,14 @@ pub fn mint_spl_to_pool_pda<'info>(
         mint_amount = mint_amount.checked_add(*amount).unwrap();
     }
     let pre_token_balance = ctx.accounts.token_pool_pda.amount;
-    let cpi_accounts = crate::anchor_spl::MintTo {
+    let cpi_accounts = anchor_spl::token::MintTo {
         mint: ctx.accounts.mint.to_account_info(),
         to: ctx.accounts.token_pool_pda.to_account_info(),
         authority: ctx.accounts.authority.to_account_info(),
     };
     let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
 
-    crate::anchor_spl::mint_to(cpi_ctx, mint_amount)?;
+    anchor_spl::token::mint_to(cpi_ctx, mint_amount)?;
     let post_token_balance = TokenAccount::try_deserialize(
         &mut &ctx.accounts.token_pool_pda.to_account_info().data.borrow()[..],
     )?
@@ -368,7 +364,7 @@ pub mod mint_sdk {
             token_pool_pda,
             system_program: system_program::ID,
             mint: *mint,
-            token_program: crate::anchor_spl::ID,
+            token_program: anchor_spl::token::ID,
             cpi_authority_pda: get_cpi_authority_pda().0,
         };
 
@@ -400,7 +396,7 @@ pub mod mint_sdk {
             cpi_authority_pda: get_cpi_authority_pda().0,
             mint: *mint,
             token_pool_pda,
-            token_program: crate::anchor_spl::ID,
+            token_program: anchor_spl::token::ID,
             light_system_program: light_system_program::ID,
             registered_program_pda: light_system_program::utils::get_registered_program_pda(
                 &light_system_program::ID,

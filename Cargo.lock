@@ -2945,6 +2945,7 @@ dependencies = [
  "account-compression",
  "aligned-sized",
  "anchor-lang",
+ "anchor-spl",
  "light-hasher",
  "light-heap",
  "light-system-program",
@@ -3176,6 +3177,7 @@ version = "0.2.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anchor-spl",
  "anyhow",
  "ark-ff",
  "light-compressed-token",
