@@ -146,8 +146,7 @@ func (gadget AssertIsLess) DefineGadget(api frontend.API) interface{} {
 	// Add 2^N to B to ensure a positive number
 	oneShifted := new(big.Int).Lsh(big.NewInt(1), uint(gadget.N))
 	num := api.Add(gadget.A, api.Sub(*oneShifted, gadget.B))
-	bin := api.ToBinary(num, gadget.N+1)
-	api.AssertIsEqual(0, bin[gadget.N])
+	api.ToBinary(num, gadget.N)
 	return nil
 }
 

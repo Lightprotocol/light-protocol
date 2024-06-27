@@ -183,8 +183,7 @@ def InclusionProof_10_10_10_20_10_10_20 (Roots: Vector F 10) (Leaves: Vector F 1
 def AssertIsLess_248 (A: F) (B: F) : Prop :=
     ∃gate_0, gate_0 = Gates.sub (452312848583266388373324160190187140051835877600158453279131187530910662656:F) B ∧
     ∃gate_1, gate_1 = Gates.add A gate_0 ∧
-    ∃gate_2, Gates.to_binary gate_1 249 gate_2 ∧
-    Gates.eq (0:F) gate_2[248] ∧
+    ∃_ignored_, Gates.to_binary gate_1 248 _ignored_ ∧
     True
 
 def mds_4 (Inp: Vector F 4) (k: Vector F 4 -> Prop): Prop :=
