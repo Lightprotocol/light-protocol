@@ -19,7 +19,7 @@
     "test-indexer": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test test_indexer -- --nocapture",
     "address-tree-test": "RUST_BACKTRACE=1 RUST_MIN_STACK=98388608 cargo test empty_address_tree_test -- --nocapture",
     "rebuild-photon": "pkill photon && cd ../../photon && cargo build && cp ./target/debug/photon ./target/debug/photon-migration ../light-protocol/.local/cargo/bin",
-    "tree-info": "RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
+    "tree-info": "RUST_LOG=info RUST_MIN_STACK=8388608 cargo test tree_info_test -- --nocapture",
     "queue-info": "RUST_MIN_STACK=8388608 cargo test queue_info_test -- --nocapture",
     "test-1000": "pnpm restart-validator && pnpm transfer && pnpm nullify && pnpm transfer && pnpm nullify",
     "transfer-100k": "ts-node scripts/generate_100k.ts",

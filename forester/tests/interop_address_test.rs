@@ -1,4 +1,4 @@
-use log::info;
+use log::{info, LevelFilter};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Signer;
@@ -14,7 +14,9 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::get_test_env_accounts;
 
 async fn init() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string())).is_test(true)
+        .try_init();
+
     let validator_config = LightValidatorConfig {
         enable_forester: true,
         enable_prover: true,

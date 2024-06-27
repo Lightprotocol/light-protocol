@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::info;
+use log::{info, LevelFilter};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
 
@@ -15,13 +15,16 @@ use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{get_test_env_accounts, REGISTRY_ID_TEST_KEYPAIR};
 
 async fn init() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(LevelFilter::Info.to_string())).is_test(true)
+        .try_init();
+
     spawn_validator(Default::default()).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_state_tree_nullifier() {
     init().await;
+    info!("Starting test_state_tree_nullifier");
     let env_accounts = get_test_env_accounts();
     let registry_keypair = Keypair::from_bytes(&REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let config = ForesterConfig {
