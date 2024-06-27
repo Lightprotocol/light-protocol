@@ -9,10 +9,10 @@ use account_compression::{
     state::{queue_from_bytes_zero_copy_mut, QueueAccount},
     utils::constants::{
         STATE_MERKLE_TREE_CANOPY_DEPTH, STATE_MERKLE_TREE_CHANGELOG, STATE_MERKLE_TREE_HEIGHT,
-        STATE_MERKLE_TREE_ROOTS, STATE_NULLIFIER_QUEUE_VALUES,
+        STATE_MERKLE_TREE_ROOTS,
     },
-    AddressMerkleTreeConfig, NullifierQueueConfig, QueueType, StateMerkleTreeAccount,
-    StateMerkleTreeConfig, ID, SAFETY_MARGIN,
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, QueueType,
+    StateMerkleTreeAccount, StateMerkleTreeConfig, ID, SAFETY_MARGIN,
 };
 use anchor_lang::{error::ErrorCode, system_program, InstructionData, ToAccountMetas};
 use light_concurrent_merkle_tree::{
@@ -58,7 +58,10 @@ use solana_sdk::{account::WritableAccount, pubkey::Pubkey};
 /// 3. Failing: Insert the same elements into nullifier queue again (3 and 1 element(s))
 /// 4. Failing: Insert into nullifier queue with invalid authority
 /// 5. Functional: Insert one element into nullifier queue
-async fn test_init_and_insert_into_nullifier_queue(merkle_tree_config: &StateMerkleTreeConfig) {
+async fn test_init_and_insert_into_nullifier_queue(
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -80,6 +83,7 @@ async fn test_init_and_insert_into_nullifier_queue(merkle_tree_config: &StateMer
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
     functional_1_initialize_state_merkle_tree_and_nullifier_queue(
@@ -88,6 +92,7 @@ async fn test_init_and_insert_into_nullifier_queue(merkle_tree_config: &StateMer
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
     let merkle_tree_keypair_2 = Keypair::new();
@@ -98,6 +103,7 @@ async fn test_init_and_insert_into_nullifier_queue(merkle_tree_config: &StateMer
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
         merkle_tree_config,
+        queue_config,
     )
     .await;
     functional_2_test_insert_into_nullifier_queues(
@@ -170,23 +176,36 @@ async fn test_init_and_insert_into_nullifier_queue(merkle_tree_config: &StateMer
 
 #[tokio::test]
 async fn test_init_and_insert_into_nullifier_queue_default() {
-    test_init_and_insert_into_nullifier_queue(&StateMerkleTreeConfig::default()).await
+    test_init_and_insert_into_nullifier_queue(
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_init_and_insert_into_nullifier_queue_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
-        let roots_size = changelog_size * 2;
-        test_init_and_insert_into_nullifier_queue(&StateMerkleTreeConfig {
-            height: STATE_MERKLE_TREE_HEIGHT as u32,
-            changelog_size,
-            roots_size,
-            canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        })
-        .await;
+    for changelog_size in (1000..5000).step_by(1000) {
+        for queue_capacity in [5003, 6857, 7901] {
+            let roots_size = changelog_size * 2;
+            test_init_and_insert_into_nullifier_queue(
+                &StateMerkleTreeConfig {
+                    height: STATE_MERKLE_TREE_HEIGHT as u32,
+                    changelog_size,
+                    roots_size,
+                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                    network_fee: Some(5000),
+                    rollover_threshold: Some(95),
+                    close_threshold: None,
+                },
+                &NullifierQueueConfig {
+                    capacity: queue_capacity,
+                    sequence_threshold: roots_size,
+                    network_fee: None,
+                },
+            )
+            .await;
+        }
     }
 }
 
@@ -199,7 +218,10 @@ async fn test_init_and_insert_into_nullifier_queue_custom() {
 /// 4. advance Merkle tree seq until one before it would work check that it still fails
 /// 5. advance Merkle tree seq by one and check that inserting works now
 /// 6.try inserting again it should fail with full error
-async fn test_full_nullifier_queue(merkle_tree_config: &StateMerkleTreeConfig) {
+async fn test_full_nullifier_queue(
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -221,6 +243,7 @@ async fn test_full_nullifier_queue(merkle_tree_config: &StateMerkleTreeConfig) {
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
     let leaf: [u8; 32] = bigint_to_be_bytes_array(&1.to_biguint().unwrap()).unwrap();
@@ -293,6 +316,7 @@ async fn test_full_nullifier_queue(merkle_tree_config: &StateMerkleTreeConfig) {
         &mut rpc,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        queue_config,
         &mut reference_merkle_tree,
         &leaf,
         merkle_tree.changelog_index() as u64,
@@ -374,23 +398,36 @@ async fn test_full_nullifier_queue(merkle_tree_config: &StateMerkleTreeConfig) {
 
 #[tokio::test]
 async fn test_full_nullifier_queue_default() {
-    test_full_nullifier_queue(&StateMerkleTreeConfig::default()).await
+    test_full_nullifier_queue(
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_full_nullifier_queue_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
-        let roots_size = changelog_size * 2;
-        test_full_nullifier_queue(&StateMerkleTreeConfig {
-            height: STATE_MERKLE_TREE_HEIGHT as u32,
-            changelog_size,
-            roots_size,
-            canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        })
-        .await;
+    for changelog_size in (1000..5000).step_by(1000) {
+        for queue_capacity in [5003, 6857, 7901] {
+            let roots_size = changelog_size * 2;
+            test_full_nullifier_queue(
+                &StateMerkleTreeConfig {
+                    height: STATE_MERKLE_TREE_HEIGHT as u32,
+                    changelog_size,
+                    roots_size,
+                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                    network_fee: Some(5000),
+                    rollover_threshold: Some(95),
+                    close_threshold: None,
+                },
+                &NullifierQueueConfig {
+                    capacity: queue_capacity,
+                    sequence_threshold: roots_size,
+                    network_fee: None,
+                },
+            )
+            .await;
+        }
     }
 }
 
@@ -405,7 +442,10 @@ async fn test_full_nullifier_queue_custom() {
 /// 4. invalid Merkle tree accounts:
 /// 4.1 pass non Merkle tree account as Merkle tree account
 /// 4.2 pass non associated Merkle tree account
-async fn failing_queue(merkle_tree_config: &StateMerkleTreeConfig) {
+async fn failing_queue(
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -428,6 +468,7 @@ async fn failing_queue(merkle_tree_config: &StateMerkleTreeConfig) {
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
     let merkle_tree_keypair_2 = Keypair::new();
@@ -438,6 +479,7 @@ async fn failing_queue(merkle_tree_config: &StateMerkleTreeConfig) {
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -451,6 +493,7 @@ async fn failing_queue(merkle_tree_config: &StateMerkleTreeConfig) {
         &address_queue_keypair,
         None,
         &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
         1,
     )
     .await;
@@ -570,23 +613,36 @@ async fn failing_queue(merkle_tree_config: &StateMerkleTreeConfig) {
 
 #[tokio::test]
 async fn test_failing_queue_default() {
-    failing_queue(&StateMerkleTreeConfig::default()).await
+    failing_queue(
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_failing_queue_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
-        let roots_size = changelog_size * 2;
-        failing_queue(&StateMerkleTreeConfig {
-            height: STATE_MERKLE_TREE_HEIGHT as u32,
-            changelog_size,
-            roots_size,
-            canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        })
-        .await;
+    for changelog_size in (1000..5000).step_by(1000) {
+        for queue_capacity in [5003, 6857, 7901] {
+            let roots_size = changelog_size * 2;
+            failing_queue(
+                &StateMerkleTreeConfig {
+                    height: STATE_MERKLE_TREE_HEIGHT as u32,
+                    changelog_size,
+                    roots_size,
+                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                    network_fee: Some(5000),
+                    rollover_threshold: Some(95),
+                    close_threshold: None,
+                },
+                &NullifierQueueConfig {
+                    capacity: queue_capacity,
+                    sequence_threshold: roots_size,
+                    network_fee: None,
+                },
+            )
+            .await;
+        }
     }
 }
 
@@ -596,7 +652,10 @@ async fn test_failing_queue_custom() {
 /// 3. Should fail: merkle tree and queue not associated (invalid queue)
 /// 4. Should succeed: rollover state merkle tree
 /// 5. Should fail: merkle tree already rolled over
-async fn test_init_and_rollover_state_merkle_tree(merkle_tree_config: &StateMerkleTreeConfig) {
+async fn test_init_and_rollover_state_merkle_tree(
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -618,6 +677,7 @@ async fn test_init_and_rollover_state_merkle_tree(merkle_tree_config: &StateMerk
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -630,6 +690,7 @@ async fn test_init_and_rollover_state_merkle_tree(merkle_tree_config: &StateMerk
         &merkle_tree_keypair_2,
         &nullifier_queue_keypair_2,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -798,23 +859,36 @@ async fn test_init_and_rollover_state_merkle_tree(merkle_tree_config: &StateMerk
 
 #[tokio::test]
 async fn test_init_and_rollover_state_merkle_tree_default() {
-    test_init_and_rollover_state_merkle_tree(&StateMerkleTreeConfig::default()).await
+    test_init_and_rollover_state_merkle_tree(
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_init_and_rollover_state_merkle_tree_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
-        let roots_size = changelog_size * 2;
-        test_init_and_rollover_state_merkle_tree(&StateMerkleTreeConfig {
-            height: STATE_MERKLE_TREE_HEIGHT as u32,
-            changelog_size,
-            roots_size,
-            canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        })
-        .await;
+    for changelog_size in (1000..5000).step_by(1000) {
+        for queue_capacity in [5003, 6857, 7901] {
+            let roots_size = changelog_size * 2;
+            test_init_and_rollover_state_merkle_tree(
+                &StateMerkleTreeConfig {
+                    height: STATE_MERKLE_TREE_HEIGHT as u32,
+                    changelog_size,
+                    roots_size,
+                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                    network_fee: Some(5000),
+                    rollover_threshold: Some(95),
+                    close_threshold: None,
+                },
+                &NullifierQueueConfig {
+                    capacity: queue_capacity,
+                    sequence_threshold: roots_size,
+                    network_fee: None,
+                },
+            )
+            .await;
+        }
     }
 }
 
@@ -825,7 +899,10 @@ async fn test_init_and_rollover_state_merkle_tree_custom() {
 /// 4. Functional: Append leaves to merkle tree
 /// 5. Functional: Append leaves to multiple merkle trees not-ordered
 /// 6. Failing: Append leaves with invalid authority
-async fn test_append_functional_and_failing(merkle_tree_config: &StateMerkleTreeConfig) {
+async fn test_append_functional_and_failing(
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -847,6 +924,7 @@ async fn test_append_functional_and_failing(merkle_tree_config: &StateMerkleTree
         &merkle_tree_keypair,
         &queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
     let merkle_tree_keypair_2 = Keypair::new();
@@ -857,6 +935,7 @@ async fn test_append_functional_and_failing(merkle_tree_config: &StateMerkleTree
         &merkle_tree_keypair_2,
         &queue_keypair_2,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -941,23 +1020,36 @@ async fn test_append_functional_and_failing(merkle_tree_config: &StateMerkleTree
 
 #[tokio::test]
 async fn test_append_functional_and_failing_default() {
-    test_append_functional_and_failing(&StateMerkleTreeConfig::default()).await
+    test_append_functional_and_failing(
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_append_functional_and_failing_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
-        let roots_size = changelog_size * 2;
-        test_append_functional_and_failing(&StateMerkleTreeConfig {
-            height: STATE_MERKLE_TREE_HEIGHT as u32,
-            changelog_size,
-            roots_size,
-            canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        })
-        .await;
+    for changelog_size in (1000..5000).step_by(1000) {
+        for queue_capacity in [5003, 6857, 7901] {
+            let roots_size = changelog_size * 2;
+            test_append_functional_and_failing(
+                &StateMerkleTreeConfig {
+                    height: STATE_MERKLE_TREE_HEIGHT as u32,
+                    changelog_size,
+                    roots_size,
+                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                    network_fee: Some(5000),
+                    rollover_threshold: Some(95),
+                    close_threshold: None,
+                },
+                &NullifierQueueConfig {
+                    capacity: queue_capacity,
+                    sequence_threshold: roots_size,
+                    network_fee: None,
+                },
+            )
+            .await;
+        }
     }
 }
 
@@ -968,7 +1060,10 @@ async fn test_append_functional_and_failing_custom() {
 /// 4. Failing: nullify leaf with invalid change log index
 /// 5. Functional: nullify other leaf
 /// 6. Failing: nullify leaf with nullifier queue that is not associated with the merkle tree
-async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
+async fn test_nullify_leaves(
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
+) {
     let mut program_test = ProgramTest::default();
     program_test.add_program("account_compression", ID, None);
     program_test.add_program(
@@ -991,6 +1086,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &merkle_tree_keypair,
         &nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -1003,6 +1099,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &other_merkle_tree_keypair,
         &invalid_nullifier_queue_keypair,
         merkle_tree_config,
+        queue_config,
     )
     .await;
 
@@ -1063,6 +1160,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        queue_config,
         &mut reference_merkle_tree,
         &elements[0].1,
         2,
@@ -1093,6 +1191,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        queue_config,
         &mut reference_merkle_tree,
         &elements[1].1,
         valid_changelog_index,
@@ -1107,6 +1206,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        queue_config,
         &mut reference_merkle_tree,
         &elements[1].1,
         valid_changelog_index,
@@ -1119,6 +1219,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &mut context,
         &merkle_tree_pubkey,
         &nullifier_queue_pubkey,
+        queue_config,
         &mut reference_merkle_tree,
         &elements[1].1,
         valid_changelog_index,
@@ -1132,6 +1233,7 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
         &mut context,
         &merkle_tree_pubkey,
         &invalid_nullifier_queue_pubkey,
+        queue_config,
         &mut reference_merkle_tree,
         &elements[0].1,
         2,
@@ -1144,23 +1246,36 @@ async fn test_nullify_leaves(merkle_tree_config: &StateMerkleTreeConfig) {
 
 #[tokio::test]
 async fn test_nullify_leaves_default() {
-    test_nullify_leaves(&StateMerkleTreeConfig::default()).await
+    test_nullify_leaves(
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn test_nullify_leaves_custom() {
-    for changelog_size in (500..10_000).step_by(500) {
-        let roots_size = changelog_size * 2;
-        test_nullify_leaves(&StateMerkleTreeConfig {
-            height: STATE_MERKLE_TREE_HEIGHT as u32,
-            changelog_size,
-            roots_size,
-            canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
-            network_fee: Some(5000),
-            rollover_threshold: Some(95),
-            close_threshold: None,
-        })
-        .await;
+    for changelog_size in (1000..5000).step_by(1000) {
+        for queue_capacity in [5003, 6857, 7901] {
+            let roots_size = changelog_size * 2;
+            test_nullify_leaves(
+                &StateMerkleTreeConfig {
+                    height: STATE_MERKLE_TREE_HEIGHT as u32,
+                    changelog_size,
+                    roots_size,
+                    canopy_depth: STATE_MERKLE_TREE_CANOPY_DEPTH,
+                    network_fee: Some(5000),
+                    rollover_threshold: Some(95),
+                    close_threshold: None,
+                },
+                &NullifierQueueConfig {
+                    capacity: queue_capacity,
+                    sequence_threshold: roots_size,
+                    network_fee: None,
+                },
+            )
+            .await;
+        }
     }
 }
 
@@ -1348,6 +1463,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
     merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
 ) {
     let valid_tree_size = account_compression::state::StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
@@ -1355,7 +1471,7 @@ pub async fn fail_initialize_state_merkle_tree_and_nullifier_queue_invalid_sizes
         merkle_tree_config.roots_size as usize,
         merkle_tree_config.canopy_depth as usize,
     );
-    let valid_queue_size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
+    let valid_queue_size = QueueAccount::size(queue_config.capacity as usize).unwrap();
 
     // NOTE: Starting from 0 to the account struct size triggers a panic in Anchor
     // macros (sadly, not assertable...), which happens earlier than our
@@ -1427,6 +1543,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     merkle_tree_keypair: &Keypair,
     queue_keypair: &Keypair,
     merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
 ) -> Pubkey {
     let size = account_compression::state::StateMerkleTreeAccount::size(
         merkle_tree_config.height as usize,
@@ -1444,7 +1561,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         Some(merkle_tree_keypair),
     );
 
-    let size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
+    let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     let nullifier_queue_account_create_ix = create_account_instruction(
         payer_pubkey,
         size,
@@ -1462,7 +1579,7 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
         merkle_tree_pubkey,
         queue_keypair.pubkey(),
         merkle_tree_config.clone(),
-        NullifierQueueConfig::default(),
+        queue_config.clone(),
         None,
         1,
         0,
@@ -1501,9 +1618,9 @@ async fn functional_1_initialize_state_merkle_tree_and_nullifier_queue<R: RpcCon
     assert_nullifier_queue_initialized(
         rpc,
         &queue_keypair.pubkey(),
-        &NullifierQueueConfig::default(),
+        queue_config,
         &merkle_tree_pubkey,
-        &StateMerkleTreeConfig::default(),
+        merkle_tree_config,
         QueueType::NullifierQueue,
         1,
         None,
@@ -1666,6 +1783,7 @@ pub async fn nullify<R: RpcConnection>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
+    nullifier_queue_config: &NullifierQueueConfig,
     reference_merkle_tree: &mut MerkleTree<Poseidon>,
     element: &[u8; 32],
     change_log_index: u64,
@@ -1727,11 +1845,7 @@ pub async fn nullify<R: RpcConnection>(
     assert_eq!(&array_element.value_bytes(), element);
     assert_eq!(
         array_element.sequence_number(),
-        Some(
-            merkle_tree.sequence_number()
-                + STATE_MERKLE_TREE_ROOTS as usize
-                + SAFETY_MARGIN as usize
-        )
+        Some(merkle_tree.sequence_number() + nullifier_queue_config.sequence_threshold as usize)
     );
     let event = event.unwrap().0;
     match event {

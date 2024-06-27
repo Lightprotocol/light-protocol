@@ -99,7 +99,7 @@ use account_compression::utils::constants::{
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTree};
 
-use account_compression::{AddressMerkleTreeConfig, StateMerkleTreeConfig};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, StateMerkleTreeConfig};
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
 use num_bigint::{BigUint, RandBigInt};
@@ -438,6 +438,7 @@ where
             &nullifier_queue_keypair,
             None,
             &config,
+            &AddressQueueConfig::default(),
             self.indexer.address_merkle_trees.len() as u64,
         )
         .await;

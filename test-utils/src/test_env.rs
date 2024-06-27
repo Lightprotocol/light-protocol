@@ -8,7 +8,7 @@ use account_compression::utils::constants::GROUP_AUTHORITY_SEED;
 use account_compression::{
     sdk::create_initialize_merkle_tree_instruction, GroupAuthority, RegisteredProgram,
 };
-use account_compression::{AddressMerkleTreeConfig, QueueType};
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, QueueType};
 use account_compression::{NullifierQueueConfig, StateMerkleTreeConfig};
 use anchor_lang::{system_program, InstructionData, ToAccountMetas};
 use light_hasher::Poseidon;
@@ -223,6 +223,7 @@ pub async fn setup_test_programs_with_accounts(
         &address_merkle_tree_queue_keypair,
         None,
         &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
         1,
     )
     .await;
@@ -424,16 +425,13 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     address_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
     merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
     index: u64,
 ) {
-    use account_compression::{
-        sdk::create_initialize_address_merkle_tree_and_queue_instruction, AddressQueueConfig,
-    };
+    use account_compression::sdk::create_initialize_address_merkle_tree_and_queue_instruction;
 
-    let size = account_compression::state::QueueAccount::size(
-        account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize,
-    )
-    .unwrap();
+    let size =
+        account_compression::state::QueueAccount::size(queue_config.capacity as usize).unwrap();
     let account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
@@ -462,7 +460,6 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(address_merkle_tree_keypair),
     );
-    let queue_config = AddressQueueConfig::default();
     let instruction = create_initialize_address_merkle_tree_and_queue_instruction(
         index,
         payer.pubkey(),
@@ -531,7 +528,7 @@ pub async fn create_address_merkle_tree_and_queue_account<R: RpcConnection>(
     assert_address_queue_initialized(
         context,
         &address_queue_keypair.pubkey(),
-        &queue_config,
+        queue_config,
         &address_merkle_tree_keypair.pubkey(),
         merkle_tree_config,
         QueueType::AddressQueue,

@@ -7,7 +7,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction
 use account_compression::sdk::create_insert_leaves_instruction;
 use account_compression::utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES};
 use account_compression::{
-    AddressMerkleTreeConfig, QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
+    AddressMerkleTreeConfig, AddressQueueConfig, QueueAccount, StateMerkleTreeAccount, StateMerkleTreeConfig,
 };
 use light_compressed_token::mint_sdk::create_mint_to_instruction;
 use light_hasher::Poseidon;
@@ -210,6 +210,7 @@ async fn test_invalid_registered_program() {
         &invalid_group_address_queue,
         None,
         &AddressMerkleTreeConfig::default(),
+        &AddressQueueConfig::default(),
         3,
     )
     .await;
