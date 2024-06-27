@@ -30,136 +30,6 @@ importers:
         specifier: ^5.4.5
         version: 5.4.5
 
-  circuit-lib/circuit-lib.circom:
-    devDependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.30.0
-        version: 0.30.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@types/chai':
-        specifier: ^4.3.14
-        version: 4.3.14
-      '@types/chai-as-promised':
-        specifier: ^7.1.6
-        version: 7.1.6
-      '@types/mocha':
-        specifier: ^10.0.6
-        version: 10.0.6
-      '@types/node':
-        specifier: ^20.12.8
-        version: 20.12.11
-      '@types/node-fetch':
-        specifier: ^2.6.11
-        version: 2.6.11
-      chai:
-        specifier: ^4.4.1
-        version: 4.4.1
-      chai-as-promised:
-        specifier: ^7.1.1
-        version: 7.1.1(chai@4.4.1)
-      circom_tester:
-        specifier: ^0.0.19
-        version: 0.0.19
-      circomlib:
-        specifier: ^2.0.5
-        version: 2.0.5
-      ffjavascript:
-        specifier: ^0.3.0
-        version: 0.3.0
-      mocha:
-        specifier: ^10.2.0
-        version: 10.2.0
-      mocha-suppress-logs:
-        specifier: ^0.3.1
-        version: 0.3.1
-      prettier:
-        specifier: ^3.3.2
-        version: 3.3.2
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@10.2.0)
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.12.11)(typescript@5.4.5)
-      typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
-      typescript-collections:
-        specifier: ^1.3.3
-        version: 1.3.3
-
-  circuit-lib/circuit-lib.js:
-    dependencies:
-      '@lightprotocol/hasher.rs':
-        specifier: workspace:*
-        version: link:../../hasher.rs
-      '@noble/curves':
-        specifier: ^1.4.0
-        version: 1.4.0
-      '@noble/hashes':
-        specifier: ^1.4.0
-        version: 1.4.0
-      blake-hash:
-        specifier: ^2.0.0
-        version: 2.0.0
-      ffjavascript:
-        specifier: ^0.3.0
-        version: 0.3.0
-    devDependencies:
-      '@coral-xyz/anchor':
-        specifier: ^0.30.0
-        version: 0.30.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@lightprotocol/zk-compression-cli':
-        specifier: workspace:*
-        version: link:../../cli
-      '@solana/web3.js':
-        specifier: ^1.91.8
-        version: 1.91.8(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@types/chai':
-        specifier: ^4.3.14
-        version: 4.3.14
-      '@types/chai-as-promised':
-        specifier: ^7.1.6
-        version: 7.1.6
-      '@types/mocha':
-        specifier: ^10.0.6
-        version: 10.0.6
-      '@types/node-fetch':
-        specifier: ^2.6.11
-        version: 2.6.11
-      axios:
-        specifier: ^1.6.8
-        version: 1.6.8
-      chai:
-        specifier: ^4.4.1
-        version: 4.4.1
-      chai-as-promised:
-        specifier: ^7.1.1
-        version: 7.1.1(chai@4.4.1)
-      circom_tester:
-        specifier: ^0.0.19
-        version: 0.0.19
-      cli-progress:
-        specifier: ^3.12.0
-        version: 3.12.0
-      mocha:
-        specifier: ^10.2.0
-        version: 10.2.0
-      prettier:
-        specifier: ^3.3.2
-        version: 3.3.2
-      rimraf:
-        specifier: ^5.0.7
-        version: 5.0.7
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@10.2.0)
-      typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
-      typescript-collections:
-        specifier: ^1.3.3
-        version: 1.3.3
-
   cli:
     dependencies:
       '@coral-xyz/anchor':
@@ -731,94 +601,6 @@ importers:
         version: 1.6.0(@types/node@20.12.11)(@vitest/browser@1.6.0)(terser@5.31.0)
 
   programs: {}
-
-  prover.js:
-    dependencies:
-      '@coral-xyz/anchor':
-        specifier: 0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      circomlibjs:
-        specifier: ^0.1.7
-        version: 0.1.7(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      ffjavascript:
-        specifier: ^0.3.0
-        version: 0.3.0
-      snarkjs:
-        specifier: ^0.7.4
-        version: 0.7.4
-    devDependencies:
-      '@esbuild-plugins/node-globals-polyfill':
-        specifier: ^0.2.3
-        version: 0.2.3(esbuild@0.21.1)
-      '@lightprotocol/hasher.rs':
-        specifier: workspace:*
-        version: link:../hasher.rs
-      '@lightprotocol/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@rollup/plugin-typescript':
-        specifier: ^11.1.5
-        version: 11.1.5(rollup@4.6.1)(tslib@2.6.2)(typescript@5.4.5)
-      '@solana/web3.js':
-        specifier: ^1.91.8
-        version: 1.91.8(bufferutil@4.0.8)(utf-8-validate@5.0.10)
-      '@types/chai':
-        specifier: ^4.3.14
-        version: 4.3.14
-      '@types/chai-as-promised':
-        specifier: ^7.1.6
-        version: 7.1.6
-      '@types/mocha':
-        specifier: ^10.0.6
-        version: 10.0.6
-      '@types/node':
-        specifier: ^20.12.8
-        version: 20.12.11
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^7.6.0
-        version: 7.6.0(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@5.4.5)
-      '@vitest/browser':
-        specifier: ^1.6.0
-        version: 1.6.0(playwright@1.44.1)(vitest@1.6.0)
-      circomlib:
-        specifier: ^2.0.5
-        version: 2.0.5
-      eslint:
-        specifier: 8.57.0
-        version: 8.57.0
-      eslint-plugin-import:
-        specifier: ^2.25.2
-        version: 2.28.1(@typescript-eslint/parser@7.13.1(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)
-      eslint-plugin-n:
-        specifier: '^15.0.0 || ^16.0.0 '
-        version: 16.1.0(eslint@8.57.0)
-      eslint-plugin-promise:
-        specifier: ^6.0.0
-        version: 6.1.1(eslint@8.57.0)
-      mocha:
-        specifier: ^10.2.0
-        version: 10.2.0
-      playwright:
-        specifier: ^1.44.1
-        version: 1.44.1
-      rollup:
-        specifier: ^4.6.1
-        version: 4.6.1
-      rollup-plugin-polyfill-node:
-        specifier: ^0.13.0
-        version: 0.13.0(rollup@4.6.1)
-      ts-mocha:
-        specifier: ^10.0.0
-        version: 10.0.0(mocha@10.2.0)
-      ts-node:
-        specifier: ^10.9.2
-        version: 10.9.2(@types/node@20.12.11)(typescript@5.4.5)
-      typescript:
-        specifier: ^5.4.5
-        version: 5.4.5
-      vitest:
-        specifier: ^1.6.0
-        version: 1.6.0(@types/node@20.12.11)(@vitest/browser@1.6.0)(terser@5.31.0)
 
   tsconfig: {}
 
@@ -2323,9 +2105,6 @@ packages:
   '@iden3/bigarray@0.0.2':
     resolution: {integrity: sha512-Xzdyxqm1bOFF6pdIsiHLLl3HkSLjbhqJHVyqaTxXt3RqXBEnmsUmEW47H7VOi/ak7TdkRpNkxjyK5Zbkm+y52g==}
 
-  '@iden3/binfileutils@0.0.11':
-    resolution: {integrity: sha512-LylnJoZ0CTdgErnKY8OxohvW4K+p6UHD3sxt+3P9AmMyBQjYR4IpoqoYZZ+9aMj89cmCQ21UvdhndAx04er3NA==}
-
   '@iden3/binfileutils@0.0.12':
     resolution: {integrity: sha512-naAmzuDufRIcoNfQ1d99d7hGHufLA3wZSibtr4dMe6ZeiOPV1KwOZWTJ1YVz4HbaWlpDuzVU72dS4ATQS4PXBQ==}
 
@@ -3218,9 +2997,6 @@ packages:
   '@types/bn.js@5.1.5':
     resolution: {integrity: sha512-V46N0zwKRF5Q00AZ6hWtN0T8gGmDUaUzLWQvHFo5yThtVwK/VCenFY3wXVbOvNfajEpsTfQM4IN9k/d6gUVX3A==}
 
-  '@types/chai-as-promised@7.1.6':
-    resolution: {integrity: sha512-cQLhk8fFarRVZAXUQV1xEnZgMoPxqKojBvRkqPCKPQCzEhpbbSKl1Uu75kDng7k5Ln6LQLUmNBjLlFthCgm1NA==}
-
   '@types/chai@4.3.14':
     resolution: {integrity: sha512-Wj71sXE4Q4AkGdG9Tvq1u/fquNz9EdG4LIJMwVVII7ashjD/8cf8fyIfJAjRr6YcsXnSE8cOGQPq1gqeR8z+3w==}
 
@@ -3271,9 +3047,6 @@ packages:
 
   '@types/mute-stream@0.0.4':
     resolution: {integrity: sha512-CPM9nzrCPPJHQNA9keH9CVkVI+WR5kMa+7XEs5jcGQ0VoAGnLv242w8lIVgwAEfmE4oufJRaTc9PNLQl0ioAow==}
-
-  '@types/node-fetch@2.6.11':
-    resolution: {integrity: sha512-24xFj9R5+rfQJLRyM56qh+wnVSYhyXC2tkoBndtY0U+vubqNsYXGjufB2nn8Q6gt0LrARwL6UBtMCSVCwl4B1g==}
 
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
@@ -4032,11 +3805,6 @@ packages:
     resolution: {integrity: sha512-zlOQ80VrQ2Ue+ymH5OuM/DlDq64mEm+B9UTdHULv5osUMD6HalNTblf2b1u/m6QecjsnOkBpqVZ+XPwIVsy7Ng==}
     engines: {node: '>=12.13'}
 
-  chai-as-promised@7.1.1:
-    resolution: {integrity: sha512-azL6xMoi+uxu6z4rhWQ1jbdUhOMhis2PvscD/xjLqNMkv3BPPp2JyyuTHOrf9BOosGpNQ11v6BKv/g57RXbiaA==}
-    peerDependencies:
-      chai: '>= 2.1.2 < 5'
-
   chai@4.4.1:
     resolution: {integrity: sha512-13sOfMv2+DWduEU+/xbun3LScLoqN17nBeTLUsmDfKdoiC1fr0n9PU4guu4AhRcOVFk/sW8LyZWHuhWtQZiF+g==}
     engines: {node: '>=4'}
@@ -4062,9 +3830,6 @@ packages:
   check-types@11.2.3:
     resolution: {integrity: sha512-+67P1GkJRaxQD6PKK0Et9DhwQB+vGg3PM5+aavopCpZT1lj9jeqfvpgTLAWErNj8qApkkmXlu/Ug74kmhagkXg==}
 
-  child_process@1.0.2:
-    resolution: {integrity: sha512-Wmza/JzL0SiWz7kl6MhIKT5ceIlnFPJX+lwUGj7Clhy5MMldsSoJR0+uvRzOS5Kv45Mq7t1PoE8TsOA9bzvb6g==}
-
   chokidar@3.5.3:
     resolution: {integrity: sha512-Dr3sfKRP6oTcjf2JmUmFJfeVMvXBdegxB0iVQ5eb2V10uFJUCAS8OByZdVAyVb8xXNz3GjjTgj9kLWsZTqE6kw==}
     engines: {node: '>= 8.10.0'}
@@ -4087,19 +3852,9 @@ packages:
   cipher-base@1.0.4:
     resolution: {integrity: sha512-Kkht5ye6ZGmwv40uUDZztayT2ThLQGfnj/T71N/XzeZeo3nf8foyW7zGTsPYkEya3m5f3cAypH+qe7YOrM1U2Q==}
 
-  circom_runtime@0.1.21:
-    resolution: {integrity: sha512-qTkud630B/GK8y76hnOaaS1aNuF6prfV0dTrkeRsiJKnlP1ryQbP2FWLgDOPqn6aKyaPlam+Z+DTbBhkEzh8dA==}
-    hasBin: true
-
   circom_runtime@0.1.25:
     resolution: {integrity: sha512-xBGsBFF5Uv6AKvbpgExYqpHfmfawH2HKe+LyjfKSRevqEV8u63i9KGHVIILsbJNW+0c5bm/66f0PUYQ7qZSkJA==}
     hasBin: true
-
-  circom_tester@0.0.19:
-    resolution: {integrity: sha512-SNHaBsGxcBH6XsVWfsRbRPA7NF8m8AMKJI9dtJJCFGUtOTT2+zsoIqAwi50z6XCnO4TtjyXq7AeXa1PLHqT0tw==}
-
-  circomlib@2.0.5:
-    resolution: {integrity: sha512-O7NQ8OS+J4eshBuoy36z/TwQU0YHw8W3zxZcs4hVwpEll3e4hDm3mgkIPqItN8FDeLEKZFK3YeT/+k8TiLF3/A==}
 
   circomlibjs@0.1.7:
     resolution: {integrity: sha512-GRAUoAlKAsiiTa+PA725G9RmEmJJRc8tRFxw/zKktUxlQISGznT4hH4ESvW8FNTsrGg/nNd06sGP/Wlx0LUHVg==}
@@ -4918,9 +4673,6 @@ packages:
     resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
     engines: {node: ^12.20 || >= 14.13}
 
-  ffjavascript@0.2.56:
-    resolution: {integrity: sha512-em6G5Lrj7ucIqj4TYEgyoHs/j99Urwwqa4+YxEVY2hggnpRimVj+noX5pZQTxI1pvtiekZI4rG65JBf0xraXrg==}
-
   ffjavascript@0.2.63:
     resolution: {integrity: sha512-dBgdsfGks58b66JnUZeZpGxdMIDQ4QsD3VYlRJyFVrKQHb2kJy4R2gufx5oetrTxXPT+aEjg0dOvOLg1N0on4A==}
 
@@ -4989,9 +4741,6 @@ packages:
   flow-parser@0.206.0:
     resolution: {integrity: sha512-HVzoK3r6Vsg+lKvlIZzaWNBVai+FXTX1wdYhz/wVlH13tb/gOdLXmlTqy6odmTBhT5UoWUbq0k8263Qhr9d88w==}
     engines: {node: '>=0.4.0'}
-
-  fnv-plus@1.3.1:
-    resolution: {integrity: sha512-Gz1EvfOneuFfk4yG458dJ3TLJ7gV19q3OM/vVvvHf7eT02Hm1DleB4edsia6ahbKgAYxO9gvyQ1ioWZR+a00Yw==}
 
   follow-redirects@1.15.6:
     resolution: {integrity: sha512-wWN62YITEaOpSK584EZXJafH1AGpO8RVgElfkuXbTOrPX4fIfOyEpW/CsiNd8JdYrAoOvafRTOEnvsO++qCqFA==}
@@ -5360,10 +5109,6 @@ packages:
 
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
-
-  is-arguments@1.1.1:
-    resolution: {integrity: sha512-8Q7EARjzEnKpt/PCD7e1cgUS0a6X8u5tdSiMqXhojOdoV9TsMsiO+9VLC5vAmO8N7/GmXn7yjR8qnA6bVAEzfA==}
-    engines: {node: '>= 0.4'}
 
   is-array-buffer@3.0.2:
     resolution: {integrity: sha512-y+FyyR/w8vfIRq4eQcM1EYgSTnmHXPqaF+IgzgraytCFq5Xh8lllDVmAZolPJiZttZLeFSINPYMaEJ7/vWUa1w==}
@@ -6051,9 +5796,6 @@ packages:
   mlly@1.4.2:
     resolution: {integrity: sha512-i/Ykufi2t1EZ6NaPLdfnZk2AX8cs0d+mTzVKuPfqPKPatxLApaBoxJQ9x1/uckXtrS/U5oisPMDkNs0yQTaBRg==}
 
-  mocha-suppress-logs@0.3.1:
-    resolution: {integrity: sha512-Iu6jyTguAtFzmt7l4Agfnve0v+cQNbH92iMau1kjWwom7MNn18/Mzo1EaVhwDrH24cQ87RDKAMse2rDUkuXy8A==}
-
   mocha@10.2.0:
     resolution: {integrity: sha512-IDY7fl/BecMwFHzoqF2sg/SHHANeBoMMXFlS9r0OXKDssYE1M5O43wUY/9BVPeIvfH2zmEbBfseqN9gBQZzXkg==}
     engines: {node: '>= 14.0.0'}
@@ -6631,9 +6373,6 @@ packages:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
     engines: {node: '>=10'}
 
-  r1csfile@0.0.41:
-    resolution: {integrity: sha512-Q1WDF3u1vYeAwjHo4YuddkA8Aq0TulbKjmGm99+Atn13Lf5fTsMZBnBV9T741w8iSyPFG6Uh6sapQby77sREqA==}
-
   r1csfile@0.0.48:
     resolution: {integrity: sha512-kHRkKUJNaor31l05f2+RFzvcH5XSa7OfEfd/l4hzjte6NL6fjRkSMfZ4BjySW9wmfdwPOtq3mXurzPvPGEf5Tw==}
 
@@ -7041,10 +6780,6 @@ packages:
   snake-case@3.0.4:
     resolution: {integrity: sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==}
 
-  snarkjs@0.5.0:
-    resolution: {integrity: sha512-KWz8mZ2Y+6wvn6GGkQo6/ZlKwETdAGohd40Lzpwp5TUZCn6N6O4Az1SuX1rw/qREGL6Im+ycb19suCFE8/xaKA==}
-    hasBin: true
-
   snarkjs@0.7.4:
     resolution: {integrity: sha512-x4cOCR4YXSyBlLtfnUUwfbZrw8wFd/Y0lk83eexJzKwZB8ELdpH+10ts8YtDsm2/a3WK7c7p514bbE8NpqxW8w==}
     hasBin: true
@@ -7311,9 +7046,6 @@ packages:
     resolution: {integrity: sha512-d2eda04AN/cPOR89F7Xv5bK/jrQEhmcLFe6HFldoeO9AJtps+fqEnh486vnT/8y4bw38pSyxDcTCAq+Ks2aJTg==}
     engines: {node: '>=14.0.0'}
 
-  tmp-promise@3.0.3:
-    resolution: {integrity: sha512-RwM7MoPojPxsOBYnyd2hy0bxtIlVrihNs9pj5SUvY8Zz1sQcQG2tG1hSr8PDxfgEB8RNKDhqbIlroIarSNDNsQ==}
-
   tmp@0.2.1:
     resolution: {integrity: sha512-76SUhtfqR2Ijn+xllcI5P1oyannHNHByD80W1q447gU3mp9G9PSpGdWmjUOHRDPiHYacIk66W7ubDTuPF3BEtQ==}
     engines: {node: '>=8.17.0'}
@@ -7461,9 +7193,6 @@ packages:
   typed-array-length@1.0.4:
     resolution: {integrity: sha512-KjZypGq+I/H7HI5HlOoGHkWUUGq+Q0TPhQurLbyrVrvnKTBgzLhIJ7j6J/XTQOi0d1RjyZ0wdas8bKs2p0x3Ng==}
 
-  typescript-collections@1.3.3:
-    resolution: {integrity: sha512-7sI4e/bZijOzyURng88oOFZCISQPTHozfE2sUu5AviFYk5QV7fYGb6YiDl+vKjF/pICA354JImBImL9XJWUvdQ==}
-
   typescript@5.4.5:
     resolution: {integrity: sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==}
     engines: {node: '>=14.17'}
@@ -7548,9 +7277,6 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
-
-  util@0.12.5:
-    resolution: {integrity: sha512-kZf/K6hEIrWHI6XqOFUiiMa+79wE/D8Q+NCNAWclkyg3b4d2k7s0QGepNjiABc+aR3N1PAyHL7p6UcLY6LmrnA==}
 
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
@@ -7653,9 +7379,6 @@ packages:
   wasmbuilder@0.0.16:
     resolution: {integrity: sha512-Qx3lEFqaVvp1cEYW7Bfi+ebRJrOiwz2Ieu7ZG2l7YyeSJIok/reEQCQCuicj/Y32ITIJuGIM9xZQppGx5LrQdA==}
 
-  wasmcurves@0.2.0:
-    resolution: {integrity: sha512-3e2rbxdujOwaod657gxgmdhZNn+i1qKdHO3Y/bK+8E7bV8ttV/fu5FO4/WLBACF375cK0QDLOP+65Na63qYuWA==}
-
   wasmcurves@0.2.2:
     resolution: {integrity: sha512-JRY908NkmKjFl4ytnTu5ED6AwPD+8VJ9oc94kdq7h5bIwbj0L4TDJ69mG+2aLs2SoCmGfqIesMWTEJjtYsoQXQ==}
 
@@ -7668,9 +7391,6 @@ packages:
 
   web-worker@1.2.0:
     resolution: {integrity: sha512-PgF341avzqyx60neE9DD+XS26MMNMoUQRz9NOZwW32nPQrF6p77f1htcnjBSEV8BGMKZ16choqUG4hyI0Hx7mA==}
-
-  web-worker@1.3.0:
-    resolution: {integrity: sha512-BSR9wyRsy/KOValMgd5kMyr3JzpdeoR9KVId8u5GVlTTAtNChlsE4yTxeY7zMdNSyOmoKBv8NH2qeRY9Tg+IaA==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -9882,11 +9602,6 @@ snapshots:
 
   '@iden3/bigarray@0.0.2': {}
 
-  '@iden3/binfileutils@0.0.11':
-    dependencies:
-      fastfile: 0.0.20
-      ffjavascript: 0.2.63
-
   '@iden3/binfileutils@0.0.12':
     dependencies:
       fastfile: 0.0.20
@@ -11169,10 +10884,6 @@ snapshots:
     dependencies:
       '@types/node': 20.12.11
 
-  '@types/chai-as-promised@7.1.6':
-    dependencies:
-      '@types/chai': 4.3.14
-
   '@types/chai@4.3.14': {}
 
   '@types/cli-progress@3.11.5':
@@ -11221,11 +10932,6 @@ snapshots:
   '@types/mute-stream@0.0.4':
     dependencies:
       '@types/node': 20.12.11
-
-  '@types/node-fetch@2.6.11':
-    dependencies:
-      '@types/node': 20.12.11
-      form-data: 4.0.0
 
   '@types/node@12.20.55': {}
 
@@ -12162,11 +11868,6 @@ snapshots:
 
   case-anything@2.1.13: {}
 
-  chai-as-promised@7.1.1(chai@4.4.1):
-    dependencies:
-      chai: 4.4.1
-      check-error: 1.0.3
-
   chai@4.4.1:
     dependencies:
       assertion-error: 1.1.0
@@ -12211,8 +11912,6 @@ snapshots:
 
   check-types@11.2.3: {}
 
-  child_process@1.0.2: {}
-
   chokidar@3.5.3:
     dependencies:
       anymatch: 3.1.3
@@ -12238,26 +11937,9 @@ snapshots:
       inherits: 2.0.4
       safe-buffer: 5.2.1
 
-  circom_runtime@0.1.21:
-    dependencies:
-      ffjavascript: 0.2.56
-
   circom_runtime@0.1.25:
     dependencies:
       ffjavascript: 0.3.0
-
-  circom_tester@0.0.19:
-    dependencies:
-      chai: 4.4.1
-      child_process: 1.0.2
-      ffjavascript: 0.2.63
-      fnv-plus: 1.3.1
-      r1csfile: 0.0.41
-      snarkjs: 0.5.0
-      tmp-promise: 3.0.3
-      util: 0.12.5
-
-  circomlib@2.0.5: {}
 
   circomlibjs@0.1.7(bufferutil@4.0.8)(utf-8-validate@5.0.10):
     dependencies:
@@ -13447,12 +13129,6 @@ snapshots:
       node-domexception: 1.0.0
       web-streams-polyfill: 3.2.1
 
-  ffjavascript@0.2.56:
-    dependencies:
-      wasmbuilder: 0.0.16
-      wasmcurves: 0.2.0
-      web-worker: 1.3.0
-
   ffjavascript@0.2.63:
     dependencies:
       wasmbuilder: 0.0.16
@@ -13540,8 +13216,6 @@ snapshots:
   flow-enums-runtime@0.0.5: {}
 
   flow-parser@0.206.0: {}
-
-  fnv-plus@1.3.1: {}
 
   follow-redirects@1.15.6: {}
 
@@ -13944,11 +13618,6 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
 
-  is-arguments@1.1.1:
-    dependencies:
-      call-bind: 1.0.2
-      has-tostringtag: 1.0.0
-
   is-array-buffer@3.0.2:
     dependencies:
       call-bind: 1.0.2
@@ -14104,7 +13773,7 @@ snapshots:
 
   isobject@3.0.1: {}
 
-  isomorphic-ws@4.0.1(ws@7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)):
+  isomorphic-ws@4.0.1(ws@7.5.9):
     dependencies:
       ws: 7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
 
@@ -14139,7 +13808,7 @@ snapshots:
       delay: 5.0.0
       es6-promisify: 5.0.0
       eyes: 0.1.8
-      isomorphic-ws: 4.0.1(ws@7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      isomorphic-ws: 4.0.1(ws@7.5.9)
       json-stringify-safe: 5.0.1
       uuid: 8.3.2
       ws: 7.5.9(bufferutil@4.0.8)(utf-8-validate@5.0.10)
@@ -14802,8 +14471,6 @@ snapshots:
       pkg-types: 1.0.3
       ufo: 1.3.2
 
-  mocha-suppress-logs@0.3.1: {}
-
   mocha@10.2.0:
     dependencies:
       ansi-colors: 4.1.1
@@ -15398,13 +15065,6 @@ snapshots:
 
   quick-lru@5.1.1: {}
 
-  r1csfile@0.0.41:
-    dependencies:
-      '@iden3/bigarray': 0.0.2
-      '@iden3/binfileutils': 0.0.11
-      fastfile: 0.0.20
-      ffjavascript: 0.2.56
-
   r1csfile@0.0.48:
     dependencies:
       '@iden3/bigarray': 0.0.2
@@ -15923,19 +15583,6 @@ snapshots:
       dot-case: 3.0.4
       tslib: 2.6.2
 
-  snarkjs@0.5.0:
-    dependencies:
-      '@iden3/binfileutils': 0.0.11
-      bfj: 7.1.0
-      blake2b-wasm: 2.4.0
-      circom_runtime: 0.1.21
-      ejs: 3.1.9
-      fastfile: 0.0.20
-      ffjavascript: 0.2.56
-      js-sha3: 0.8.0
-      logplease: 1.2.15
-      r1csfile: 0.0.41
-
   snarkjs@0.7.4:
     dependencies:
       '@iden3/binfileutils': 0.0.12
@@ -16224,10 +15871,6 @@ snapshots:
 
   tinyspy@2.2.0: {}
 
-  tmp-promise@3.0.3:
-    dependencies:
-      tmp: 0.2.1
-
   tmp@0.2.1:
     dependencies:
       rimraf: 3.0.2
@@ -16381,8 +16024,6 @@ snapshots:
       for-each: 0.3.3
       is-typed-array: 1.1.12
 
-  typescript-collections@1.3.3: {}
-
   typescript@5.4.5: {}
 
   ufo@1.3.2: {}
@@ -16454,14 +16095,6 @@ snapshots:
     optional: true
 
   util-deprecate@1.0.2: {}
-
-  util@0.12.5:
-    dependencies:
-      inherits: 2.0.4
-      is-arguments: 1.1.1
-      is-generator-function: 1.0.10
-      is-typed-array: 1.1.12
-      which-typed-array: 1.1.11
 
   utils-merge@1.0.1: {}
 
@@ -16563,10 +16196,6 @@ snapshots:
 
   wasmbuilder@0.0.16: {}
 
-  wasmcurves@0.2.0:
-    dependencies:
-      wasmbuilder: 0.0.16
-
   wasmcurves@0.2.2:
     dependencies:
       wasmbuilder: 0.0.16
@@ -16578,8 +16207,6 @@ snapshots:
   web-streams-polyfill@3.2.1: {}
 
   web-worker@1.2.0: {}
-
-  web-worker@1.3.0: {}
 
   webidl-conversions@3.0.1: {}
 
