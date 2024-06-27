@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use env_logger::Env;
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
@@ -81,7 +80,7 @@ async fn test_state_tree_nullifier() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_1_all() {
-    init();
+    init().await;
     let env_accounts = get_test_env_accounts();
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
 

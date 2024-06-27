@@ -1,4 +1,3 @@
-use env_logger::Env;
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
@@ -29,7 +28,7 @@ async fn init() {
 // truncate to <254 bit
 pub fn generate_pubkey_254() -> Pubkey {
     let mock_address: Pubkey = Pubkey::new_unique();
-    let mut mock_address_less_than_254_bit: [u8; 32] = mock_address.to_bytes().try_into().unwrap();
+    let mut mock_address_less_than_254_bit: [u8; 32] = mock_address.to_bytes();
     mock_address_less_than_254_bit[0] = 0;
     Pubkey::from(mock_address_less_than_254_bit)
 }

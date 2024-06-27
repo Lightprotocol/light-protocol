@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
-use env_logger::Env;
 use log::info;
 use solana_sdk::signature::{Keypair, Signer};
 

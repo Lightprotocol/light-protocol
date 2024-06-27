@@ -1,4 +1,3 @@
-use env_logger::Env;
 use log::info;
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::pubkey::Pubkey;
