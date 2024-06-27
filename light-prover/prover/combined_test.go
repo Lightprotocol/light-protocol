@@ -144,10 +144,10 @@ func TestCombined(t *testing.T) {
 		expectedResult := splitLine[0]
 		if expectedResult == "0" {
 			// Run the failing test
-			assert.ProverFailed(&circuit, assignment, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			assert.ProverFailed(&circuit, assignment, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else if expectedResult == "1" {
 			// Run the passing test
-			assert.ProverSucceeded(&circuit, assignment, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			assert.ProverSucceeded(&circuit, assignment, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else {
 			fmt.Println("Invalid expected result: ", expectedResult)
 		}
