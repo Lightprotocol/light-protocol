@@ -226,7 +226,7 @@ async fn only_test_create_pda() {
         .unwrap();
         let compressed_token_account_data =
             test_indexer.get_compressed_token_accounts_by_owner(&payer.pubkey())[0].clone();
-        // // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
+        // Failing 10 provide cpi context account but cpi context has a different proof ----------------------------------------------
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,

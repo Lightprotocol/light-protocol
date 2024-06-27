@@ -120,10 +120,6 @@ fn cpi_compressed_pda_transfer<'info>(
     let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
     let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
     cpi_context.first_set_context = false;
-    msg!(
-        "cpi context account index: {}",
-        cpi_context.first_set_context
-    );
     // Create inputs struct
     let inputs_struct = create_cpi_inputs_for_new_address(
         proof,
@@ -188,7 +184,6 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
     mut cpi_context: CompressedCpiContext,
 ) -> Result<()> {
     cpi_context.set_context = true;
-    // cpi_context.first_set_context = true;
 
     let inputs_struct = CompressedTokenInstructionDataTransfer {
         proof: Some(proof),
@@ -203,7 +198,7 @@ pub fn cpi_compressed_token_transfer_pda<'info>(
 
     let mut inputs = Vec::new();
     CompressedTokenInstructionDataTransfer::serialize(&inputs_struct, &mut inputs).unwrap();
-    msg!("token transfer fee payer: {:?}", ctx.accounts.signer.key());
+
     let cpi_accounts = light_compressed_token::cpi::accounts::TransferInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.signer.to_account_info(),

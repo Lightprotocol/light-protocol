@@ -120,7 +120,7 @@ pub fn create_invalidate_not_owned_account_instruction(
     let compressed_token_cpi_authority_pda = get_cpi_authority_pda().0;
     let account_compression_authority =
         light_system_program::utils::get_cpi_authority_pda(&light_system_program::ID);
-    println!("cpi context account {:?}", input_params.cpi_context_account);
+
     let accounts = crate::accounts::InvalidateNotOwnedCompressedAccount {
         signer: *input_params.signer,
         noop_program: Pubkey::new_from_array(account_compression::utils::constants::NOOP_PUBKEY),
