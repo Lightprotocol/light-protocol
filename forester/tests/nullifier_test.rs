@@ -10,7 +10,7 @@ use solana_sdk::signer::Signer;
 use account_compression::StateMerkleTreeAccount;
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
-use forester::utils::{spawn_validator, u8_arr_to_hex_string};
+use forester::utils::u8_arr_to_hex_string;
 use forester::{nullify_state, subscribe_state, ForesterConfig};
 use light_concurrent_merkle_tree::copy::ConcurrentMerkleTreeCopy;
 use light_hasher::Poseidon;
