@@ -34,6 +34,7 @@ pub enum StateMerkleTreeRolloverMode {
     TreeInvalidSize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc: &mut R,
     new_nullifier_queue_keypair: &Keypair,
