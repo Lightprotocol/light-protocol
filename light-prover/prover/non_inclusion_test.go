@@ -95,7 +95,7 @@ func TestNonInclusion(t *testing.T) {
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
 				Depth:                      treeDepth,
-			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else if expectedResult == "1" {
 			// Run the passing test
 			assert.ProverSucceeded(&circuit, &NonInclusionCircuit{
@@ -108,7 +108,7 @@ func TestNonInclusion(t *testing.T) {
 				InPathElements:             inPathElements,
 				NumberOfCompressedAccounts: numberOfCompressedAccounts,
 				Depth:                      treeDepth,
-			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerialization())
+			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else {
 			fmt.Println("Invalid expected result: ", expectedResult)
 		}
