@@ -1,39 +1,39 @@
 {
-    "name": "@lightprotocol/stateless.js",
+  "name": "@lightprotocol/stateless.js",
     "version": "0.4.1",
     "description": "JavaScript API for Light and ZK Compression",
-    "sideEffects": false,
+  "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
-    "type": "module",
-    "exports": {
-        ".": {
+  "type": "module",
+  "exports": {
+    ".": {
             "require": "./dist/cjs/node/index.cjs",
             "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/node/index.cjs"
-        },
+    },
         "./browser": {
             "import": "./dist/es/browser/index.js",
             "require": "./dist/cjs/browser/index.cjs",
             "types": "./dist/types/index.d.ts"
         }
-    },
-    "types": "./dist/types/index.d.ts",
-    "files": [
-        "dist"
-    ],
-    "keywords": [
-        "zk",
+  },
+  "types": "./dist/types/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "zk",
         "compression",
-        "stateless",
-        "solana"
-    ],
+    "stateless",
+    "solana"
+  ],
     "maintainers": [
         {
             "name": "Light Protocol Maintainers",
             "email": "friends@lightprotocol.com"
         }
     ],
-    "license": "Apache-2.0",
+  "license": "Apache-2.0",
     "peerDependencies": {
         "@solana/web3.js": "^1.91.8"
     },
@@ -44,9 +44,9 @@
         "superstruct": "^1.0.3",
         "tweetnacl": "^1.0.3"
     },
-    "devDependencies": {
+  "devDependencies": {
         "@lightprotocol/hasher.rs": "workspace:*",
-        "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@lightprotocol/programs": "workspace:*",
         "@playwright/test": "^1.43.1",
         "@rollup/plugin-babel": "^6.0.4",
@@ -55,23 +55,23 @@
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@rollup/plugin-replace": "^5.0.5",
         "@rollup/plugin-terser": "^0.4.4",
-        "@rollup/plugin-typescript": "^11.1.5",
+    "@rollup/plugin-typescript": "^11.1.5",
         "@types/bn.js": "^5.1.5",
         "@types/node": "^20.12.8",
         "@typescript-eslint/eslint-plugin": "^7.6.0",
         "eslint": "8.57.0",
-        "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
-        "eslint-plugin-promise": "^6.0.0",
-        "eslint-plugin-vitest": "^0.3.26",
+    "eslint-plugin-n": "^15.0.0 || ^16.0.0 ",
+    "eslint-plugin-promise": "^6.0.0",
+    "eslint-plugin-vitest": "^0.3.26",
         "http-server": "^14.1.1",
         "playwright": "^1.44.1",
         "prettier": "^3.3.2",
         "rimraf": "^5.0.7",
-        "rollup": "^4.6.1",
+    "rollup": "^4.6.1",
         "rollup-plugin-dts": "^6.1.0",
-        "rollup-plugin-polyfill-node": "^0.13.0",
+    "rollup-plugin-polyfill-node": "^0.13.0",
         "ts-node": "^10.9.2",
-        "tslib": "^2.6.2",
+    "tslib": "^2.6.2",
         "typescript": "^5.4.5",
         "vitest": "^1.6.0"
     },
@@ -93,8 +93,9 @@
         "build": "rimraf dist && pnpm pull-idls && pnpm build:bundle",
         "build:bundle": "rollup -c",
         "format": "prettier --write .",
-        "lint": "eslint ."
-    },
+        "lint": "eslint . && pnpm check-circular-deps",
+        "check-circular-deps": "madge src/**.ts -c"
+  },
     "nx": {
         "targets": {
             "build": {
@@ -105,5 +106,5 @@
                 ]
             }
         }
-    }
+  }
 }
