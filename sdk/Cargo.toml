@@ -23,19 +23,19 @@ bench-sbf = []
 cpi-context = []
 
 [dependencies]
-aligned-sized = { version = "0.2.1", path = "../macros/aligned-sized" }
-light-macros = { version = "0.4.1", path = "../macros/light" }
-anchor-lang = "0.29.0"
-bytemuck = "1.14"
-light-hasher = { version = "0.2.1", path = "../merkle-tree/hasher" }
-light-heap = { version = "0.2.1", path = "../heap", optional = true }
-account-compression = { version = "0.4.1", path = "../programs/account-compression", features = ["cpi"] }
-light-system-program = { version = "0.4.1", path = "../programs/system", features = ["cpi"] }
-light-concurrent-merkle-tree = { path = "../merkle-tree/concurrent", version = "0.2.1" }
-light-utils = { version = "0.2.1", path = "../utils" }
-groth16-solana = "0.0.3"
-light-verifier = { path = "../circuit-lib/verifier", version = "0.2.1", features = ["solana"] }
-borsh = "0.10.0"
+account-compression = { workspace = true }
+aligned-sized = { workspace = true }
+anchor-lang = { workspace = true }
+borsh = { workspace = true }
+bytemuck = { workspace = true }
+groth16-solana = { workspace = true }
+light-concurrent-merkle-tree = { workspace = true }
+light-hasher = { workspace = true }
+light-heap = { workspace = true, optional = true }
+light-macros = { workspace = true }
+light-system-program = { workspace = true }
+light-utils = { workspace = true }
+light-verifier = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
