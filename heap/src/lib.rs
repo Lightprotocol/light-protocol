@@ -67,7 +67,7 @@ impl BumpAllocator {
     }
 
     pub fn get_heap_pos(&self) -> usize {
-        unsafe { self.pos() } as usize;
+        unsafe { self.pos() }
     }
 
     pub fn free_heap(&self, pos: usize) -> Result<()> {
