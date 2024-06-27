@@ -517,10 +517,6 @@ export class LightSystemProgram {
             rawInputs,
         );
 
-        console.log(
-            'this.deriveCompressedSolPda',
-            this.deriveCompressedSolPda(),
-        );
         /// Build anchor instruction
         const instruction = await this.program.methods
             .invoke(data)
