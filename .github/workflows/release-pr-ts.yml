@@ -8,11 +8,9 @@ on:
         type: choice
         options:
           - all
-          - circuit-lib.js
           - cli
           - compressed-token
           - hasher.rs
-          - prover.js
           - stateless.js
       version:
         description: Version to release

@@ -270,24 +270,6 @@ download_file_github \
     jq \
     "${PREFIX}/bin"
 
-echo "📥 Downloading Circom"
-download_file_github \
-    Lightprotocol \
-    circom \
-    "${CIRCOM_VERSION}" \
-    "circom-${ARCH_SUFFIX_LP}" \
-    circom \
-    "${PREFIX}/bin"
-
-echo "📥 Downloading macro-circom"
-download_file_github \
-    Lightprotocol \
-    macro-circom \
-    "${MACRO_CIRCOM_VERSION}" \
-    "macro-circom-${ARCH_SUFFIX_LP}" \
-    macro-circom \
-    "${PREFIX}/bin"
-
 echo "📦 Installing pnpm dependencies"
 pnpm install
 
