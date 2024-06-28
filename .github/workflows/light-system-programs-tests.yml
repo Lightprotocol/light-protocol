@@ -8,6 +8,7 @@ on:
       - "circuit-lib/verifier/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
+      - "heap/**"
   pull_request:
     branches:
       - "*"
@@ -17,6 +18,7 @@ on:
       - "circuit-lib/verifier/**"
       - "merkle-tree/**"
       - ".github/workflows/light-system-programs-tests.yml"
+      - "heap/**"
     types:
       - opened
       - synchronize

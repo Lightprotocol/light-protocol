@@ -1,7 +1,6 @@
 use std::{alloc::Layout, mem::size_of, ptr::null_mut};
 pub mod bench;
 
-#[cfg(target_os = "solana")]
 use anchor_lang::{
     prelude::*,
     solana_program::entrypoint::{HEAP_LENGTH, HEAP_START_ADDRESS},
@@ -14,12 +13,12 @@ pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator {
     len: HEAP_LENGTH,
 };
 
-#[cfg(target_os = "solana")]
 #[error_code]
 pub enum HeapError {
     #[msg("The provided position to free is invalid.")]
     InvalidHeapPos,
 }
+
 pub struct BumpAllocator {
     pub start: usize,
     pub len: usize,
@@ -28,7 +27,6 @@ pub struct BumpAllocator {
 impl BumpAllocator {
     const RESERVED_MEM: usize = size_of::<*mut u8>();
 
-    #[cfg(target_os = "solana")]
     pub fn new() -> Self {
         Self {
             start: HEAP_START_ADDRESS as usize,
@@ -56,23 +54,22 @@ impl BumpAllocator {
         *pos_ptr = pos;
     }
 
-    #[cfg(target_os = "solana")]
-    pub fn log_total_heap(&self, msg: &str) -> u64 {
-        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS as u64 + HEAP_LENGTH as u64;
-
+    pub fn total_heap(&self) -> u64 {
+        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS + HEAP_LENGTH as u64;
         let heap_start = unsafe { self.pos() } as u64;
-        let heap_used = HEAP_END_ADDRESS - heap_start;
-        msg!("{}: total heap used: {}", msg, heap_used);
-        heap_used
+        HEAP_END_ADDRESS - heap_start
     }
 
-    #[cfg(target_os = "solana")]
+    pub fn log_total_heap(&self, msg: &str) -> u64 {
+        let total_heap = self.total_heap();
+        msg!("{}: total heap used: {}", msg, total_heap);
+        total_heap
+    }
+
     pub fn get_heap_pos(&self) -> usize {
-        let heap_start = unsafe { self.pos() } as usize;
-        heap_start
+        unsafe { self.pos() }
     }
 
-    #[cfg(target_os = "solana")]
     pub fn free_heap(&self, pos: usize) -> Result<()> {
         if pos < self.start + BumpAllocator::RESERVED_MEM || pos > self.start + self.len {
             return err!(HeapError::InvalidHeapPos);
@@ -80,6 +77,28 @@ impl BumpAllocator {
 
         unsafe { self.move_cursor(pos) };
         Ok(())
+    }
+
+    #[allow(unused_variables)]
+    pub fn guard(&self, msg: String) -> HeapNeutralGuard {
+        #[cfg(feature = "mem-profiling")]
+        self.allocator.log_total_heap(format!("pre: {}", self.msg));
+        let pos = self.get_heap_pos();
+        HeapNeutralGuard {
+            allocator: self,
+            #[cfg(feature = "mem-profiling")]
+            msg,
+            pos,
+        }
+    }
+}
+
+impl Default for BumpAllocator {
+    fn default() -> Self {
+        Self {
+            start: HEAP_START_ADDRESS as usize,
+            len: HEAP_LENGTH,
+        }
     }
 }
 
@@ -104,6 +123,21 @@ unsafe impl std::alloc::GlobalAlloc for BumpAllocator {
     #[inline]
     unsafe fn dealloc(&self, _: *mut u8, _: Layout) {
         // no dellaoc in Solana runtime :*(
+    }
+}
+
+pub struct HeapNeutralGuard<'a> {
+    allocator: &'a BumpAllocator,
+    #[cfg(feature = "mem-profiling")]
+    msg: String,
+    pos: usize,
+}
+
+impl<'a> Drop for HeapNeutralGuard<'a> {
+    fn drop(&mut self) {
+        #[cfg(feature = "mem-profiling")]
+        self.allocator.log_total_heap(format!("post: {}", self.msg));
+        let _ = self.allocator.free_heap(self.pos);
     }
 }
 
@@ -228,5 +262,33 @@ mod test {
             assert_ne!(ptr, null_mut());
             assert_eq!(0, ptr.align_offset(size_of::<u64>()));
         }
+    }
+
+    #[test]
+    fn test_heap_neutral_guard() {
+        let heap = [0u8; 128];
+        let allocator = BumpAllocator {
+            start: heap.as_ptr() as *const _ as usize,
+            len: heap.len(),
+        };
+
+        let layout = Layout::from_size_align(1, size_of::<u8>()).unwrap();
+        let _ptr_1 = unsafe { allocator.alloc(layout) };
+
+        let old_pos = allocator.get_heap_pos();
+
+        // With an explicit `drop`.
+        let guard = allocator.guard("ayylmao".to_string());
+        let _ptr_2 = unsafe { allocator.alloc(layout) };
+
+        drop(guard);
+        assert_eq!(allocator.get_heap_pos(), old_pos);
+
+        // In a scope, which should drop the guard implicitly.
+        {
+            let _guard = allocator.guard("ayylmao".to_string());
+            let _ptr_3 = unsafe { allocator.alloc(layout) };
+        }
+        assert_eq!(allocator.get_heap_pos(), old_pos);
     }
 }
