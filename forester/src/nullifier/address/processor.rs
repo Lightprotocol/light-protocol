@@ -2,7 +2,9 @@ use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
 use crate::nullifier::address::pipeline::AddressPipelineStage;
 use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
-use account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG;
+use account_compression::utils::constants::{
+    ADDRESS_MERKLE_TREE_CHANGELOG, ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG,
+};
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use light_hash_set::HashSet;
 use light_hasher::Poseidon;
@@ -143,7 +145,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         // TODO: use changelog array size from tree config
         let changelog = proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG;
         // TODO: add index changelog current changelog index to the proof or we make them the same size
-        let index_changelog = proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG;
+        let index_changelog = proof.root_seq % ADDRESS_MERKLE_TREE_INDEXED_CHANGELOG;
         let changelogs =
             get_changelog_indices(&config.address_merkle_tree_pubkey, &mut *rpc.lock().await)
                 .await
@@ -155,9 +157,8 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
         debug!("index_changelog: {:?}", index_changelog);
 
         let mut retry_count = 0;
-        let max_retries = 3;
 
-        while retry_count < max_retries {
+        while retry_count < context.config.max_retries {
             match update_merkle_tree(
                 rpc,
                 &config.payer_keypair,
@@ -194,12 +195,12 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                 }
             }
 
-            if retry_count < max_retries {
+            if retry_count < context.config.max_retries {
                 debug!(
                     "Retrying update for address: {:?} (Attempt {} of {})",
                     address,
                     retry_count + 1,
-                    max_retries
+                    context.config.max_retries
                 );
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }

@@ -574,11 +574,8 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 }
             };
 
-        let mut retries = 1;
+        let mut retries = 3;
         while retries > 0 {
-            /*if retries < 3 {
-                spawn_prover(true, self.proof_types.as_slice()).await;
-            }*/
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -601,10 +598,9 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                     },
                 };
             } else {
-                // print error message
                 warn!("Error: {}", response_result.text().await.unwrap());
-                // wait for a second before retrying
                 tokio::time::sleep(Duration::from_secs(1)).await;
+                spawn_prover(true, self.proof_types.as_slice()).await;
                 retries -= 1;
             }
         }
