@@ -1,7 +1,270 @@
+/**
+ * Program IDL in camelCase format in order to be used in JS/TS.
+ *
+ * Note that this is only a type helper and is not the actual IDL. The original
+ * IDL can be found at `target/idl/light_compressed_token.json`.
+ */
 export type LightCompressedToken = {
-    version: '0.5.0';
-    name: 'light_compressed_token';
+    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
+    metadata: {
+        name: 'lightCompressedToken';
+        version: '0.5.0';
+        spec: '0.1.0';
+        description: 'Generalized token compression on Solana';
+        repository: 'https://github.com/Lightprotocol/light-protocol';
+    };
     instructions: [
+        {
+            name: 'approve';
+            docs: [
+                'Delegates an amount to a delegate. A compressed token account is either',
+                'completely delegated or not. Prior delegates are not preserved. Cannot',
+                'be called by a delegate.',
+                'The instruction creates two output accounts:',
+                '1. one account with delegated amount',
+                '2. one account with remaining(change) amount',
+            ];
+            discriminator: [69, 74, 217, 36, 115, 117, 97, 76];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
+                    signer: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'lightSystemProgram';
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
+                },
+                {
+                    name: 'registeredProgramPda';
+                },
+                {
+                    name: 'noopProgram';
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
+                },
+                {
+                    name: 'selfProgram';
+                    docs: ['this program is the signer of the cpi.'];
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'burn';
+            docs: [
+                'Burns compressed tokens and spl tokens from the pool account. Delegates',
+                'can burn tokens. The output compressed token account remains delegated.',
+                'Creates one output compressed token account.',
+            ];
+            discriminator: [116, 110, 29, 56, 107, 219, 42, 93];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
+                    signer: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'mint';
+                    writable: true;
+                },
+                {
+                    name: 'tokenPoolPda';
+                    writable: true;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [112, 111, 111, 108];
+                            },
+                            {
+                                kind: 'account';
+                                path: 'mint';
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'tokenProgram';
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+                },
+                {
+                    name: 'lightSystemProgram';
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
+                },
+                {
+                    name: 'registeredProgramPda';
+                },
+                {
+                    name: 'noopProgram';
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                238,
+                                250,
+                                35,
+                                216,
+                                163,
+                                90,
+                                82,
+                                72,
+                                167,
+                                209,
+                                196,
+                                227,
+                                210,
+                                173,
+                                89,
+                                255,
+                                142,
+                                20,
+                                199,
+                                150,
+                                144,
+                                215,
+                                61,
+                                164,
+                                34,
+                                47,
+                                181,
+                                228,
+                                226,
+                                153,
+                                208,
+                                17,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
+                },
+                {
+                    name: 'selfProgram';
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
         {
             name: 'createTokenPool';
             docs: [
@@ -10,40 +273,208 @@ export type LightCompressedToken = {
                 'transferrred to the token pool, and their compressed equivalent is',
                 'minted into a Merkle tree.',
             ];
+            discriminator: [23, 169, 27, 122, 147, 169, 209, 152];
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
                     docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
+                    writable: true;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [112, 111, 111, 108];
+                            },
+                            {
+                                kind: 'account';
+                                path: 'mint';
+                            },
+                        ];
+                    };
                 },
                 {
                     name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: '11111111111111111111111111111111';
                 },
                 {
                     name: 'mint';
-                    isMut: true;
-                    isSigner: false;
+                    writable: true;
                 },
                 {
                     name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
                 },
                 {
                     name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
             ];
             args: [];
+        },
+        {
+            name: 'freeze';
+            docs: [
+                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
+                'many outputs as inputs. Balances and delegates are preserved.',
+            ];
+            discriminator: [255, 91, 207, 84, 251, 194, 254, 63];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'lightSystemProgram';
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
+                },
+                {
+                    name: 'registeredProgramPda';
+                },
+                {
+                    name: 'noopProgram';
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                238,
+                                250,
+                                35,
+                                216,
+                                163,
+                                90,
+                                82,
+                                72,
+                                167,
+                                209,
+                                196,
+                                227,
+                                210,
+                                173,
+                                89,
+                                255,
+                                142,
+                                20,
+                                199,
+                                150,
+                                144,
+                                215,
+                                61,
+                                164,
+                                34,
+                                47,
+                                181,
+                                228,
+                                226,
+                                153,
+                                208,
+                                17,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
+                },
+                {
+                    name: 'selfProgram';
+                    docs: ['that this program is the signer of the cpi.'];
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+                {
+                    name: 'mint';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
         },
         {
             name: 'mintTo';
@@ -56,94 +487,170 @@ export type LightCompressedToken = {
                 'to a compressed token account is to prevent spam. This is the only way',
                 'to add lamports to a compressed token account.',
             ];
+            discriminator: [241, 34, 48, 186, 37, 179, 123, 192];
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
                     docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    signer: true;
                 },
                 {
                     name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
                 {
                     name: 'mint';
-                    isMut: true;
-                    isSigner: false;
+                    writable: true;
                 },
                 {
                     name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
                     docs: [
                         'account to a token account of a different mint will fail',
                     ];
+                    writable: true;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [112, 111, 111, 108];
+                            },
+                            {
+                                kind: 'account';
+                                path: 'mint';
+                            },
+                        ];
+                    };
                 },
                 {
                     name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
                 },
                 {
                     name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
                     docs: ['programs'];
                 },
                 {
                     name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                238,
+                                250,
+                                35,
+                                216,
+                                163,
+                                90,
+                                82,
+                                72,
+                                167,
+                                209,
+                                196,
+                                227,
+                                210,
+                                173,
+                                89,
+                                255,
+                                142,
+                                20,
+                                199,
+                                150,
+                                144,
+                                215,
+                                61,
+                                164,
+                                34,
+                                47,
+                                181,
+                                228,
+                                226,
+                                153,
+                                208,
+                                17,
+                            ];
+                        };
+                    };
                 },
                 {
                     name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
                 },
                 {
                     name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
+                    writable: true;
                 },
                 {
                     name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
                 },
                 {
                     name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: '11111111111111111111111111111111';
                 },
                 {
                     name: 'solPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
+                    writable: true;
+                    optional: true;
                 },
             ];
             args: [
                 {
                     name: 'publicKeys';
                     type: {
-                        vec: 'publicKey';
+                        vec: 'pubkey';
                     };
                 },
                 {
@@ -161,471 +668,78 @@ export type LightCompressedToken = {
             ];
         },
         {
-            name: 'transfer';
-            docs: [
-                'Transfers compressed tokens from one account to another. All accounts',
-                'must be of the same mint. Additional spl tokens can be compressed or',
-                'decompressed. In one transaction only compression or decompression is',
-                'possible. Lamports can be transferred alongside tokens. If output token',
-                'accounts specify less lamports than inputs the remaining lamports are',
-                'transferred to an output compressed account. Signer must be owner or',
-                'delegate. If a delegated token account is transferred the delegate is',
-                'not preserved.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['UNCHECKED: only pays fees.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ];
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                    docs: ['this program is the signer of the cpi.'];
-                },
-                {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'compressOrDecompressTokenAccount';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'approve';
-            docs: [
-                'Delegates an amount to a delegate. A compressed token account is either',
-                'completely delegated or not. Prior delegates are not preserved. Cannot',
-                'be called by a delegate.',
-                'The instruction creates two output accounts:',
-                '1. one account with delegated amount',
-                '2. one account with remaining(change) amount',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['UNCHECKED: only pays fees.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ];
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                    docs: ['this program is the signer of the cpi.'];
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
             name: 'revoke';
             docs: [
                 'Revokes a delegation. The instruction merges all inputs into one output',
                 'account. Cannot be called by a delegate. Delegates are not preserved.',
             ];
+            discriminator: [170, 23, 31, 34, 133, 173, 93, 242];
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
                     docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
                     docs: [
                         'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ];
+                    signer: true;
                 },
                 {
                     name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
                 {
                     name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
                 },
                 {
                     name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
                     docs: ['this program is the signer of the cpi.'];
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
                 },
                 {
                     name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'freeze';
-            docs: [
-                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
-                'many outputs as inputs. Balances and delegates are preserved.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['UNCHECKED: only pays fees.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                    docs: ['that this program is the signer of the cpi.'];
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'thaw';
-            docs: [
-                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
-                'as many outputs as inputs. Balances and delegates are preserved.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['UNCHECKED: only pays fees.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                    docs: ['that this program is the signer of the cpi.'];
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'burn';
-            docs: [
-                'Burns compressed tokens and spl tokens from the pool account. Delegates',
-                'can burn tokens. The output compressed token account remains delegated.',
-                'Creates one output compressed token account.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                    docs: ['UNCHECKED: only pays fees.'];
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ];
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: '11111111111111111111111111111111';
                 },
             ];
             args: [
@@ -642,204 +756,394 @@ export type LightCompressedToken = {
                 'the IDL. It should not be included in production builds nor be called in',
                 'practice.',
             ];
+            discriminator: [118, 99, 238, 243, 8, 167, 251, 168];
             accounts: [
                 {
                     name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
                     docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
                     docs: [
                         'Authority is verified through proof since both owner and delegate',
                         'are included in the token data hash, which is a public input to the',
                         'validity proof.',
                     ];
+                    signer: true;
                 },
                 {
                     name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
                 {
                     name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
                 },
                 {
                     name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
                 },
                 {
                     name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
                 },
                 {
                     name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
                     docs: ['this program is the signer of the cpi.'];
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
                 },
                 {
                     name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
+                    writable: true;
+                    optional: true;
                 },
                 {
                     name: 'compressOrDecompressTokenAccount';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
+                    writable: true;
+                    optional: true;
                 },
                 {
                     name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
+                    optional: true;
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
                 },
                 {
                     name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    address: '11111111111111111111111111111111';
                 },
             ];
             args: [
                 {
                     name: 'inputs1';
                     type: {
-                        defined: 'CompressedTokenInstructionDataTransfer';
+                        defined: {
+                            name: 'compressedTokenInstructionDataTransfer';
+                        };
                     };
                 },
                 {
                     name: 'inputs2';
                     type: {
-                        defined: 'TokenData';
+                        defined: {
+                            name: 'tokenData';
+                        };
                     };
                 },
             ];
         },
+        {
+            name: 'thaw';
+            docs: [
+                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
+                'as many outputs as inputs. Balances and delegates are preserved.',
+            ];
+            discriminator: [226, 249, 34, 57, 189, 21, 177, 101];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'lightSystemProgram';
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
+                },
+                {
+                    name: 'registeredProgramPda';
+                },
+                {
+                    name: 'noopProgram';
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                238,
+                                250,
+                                35,
+                                216,
+                                163,
+                                90,
+                                82,
+                                72,
+                                167,
+                                209,
+                                196,
+                                227,
+                                210,
+                                173,
+                                89,
+                                255,
+                                142,
+                                20,
+                                199,
+                                150,
+                                144,
+                                215,
+                                61,
+                                164,
+                                34,
+                                47,
+                                181,
+                                228,
+                                226,
+                                153,
+                                208,
+                                17,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
+                },
+                {
+                    name: 'selfProgram';
+                    docs: ['that this program is the signer of the cpi.'];
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+                {
+                    name: 'mint';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'transfer';
+            docs: [
+                'Transfers compressed tokens from one account to another. All accounts',
+                'must be of the same mint. Additional spl tokens can be compressed or',
+                'decompressed. In one transaction only compression or decompression is',
+                'possible. Lamports can be transferred alongside tokens. If output token',
+                'accounts specify less lamports than inputs the remaining lamports are',
+                'transferred to an output compressed account. Signer must be owner or',
+                'delegate. If a delegated token account is transferred the delegate is',
+                'not preserved.',
+            ];
+            discriminator: [163, 52, 200, 231, 140, 3, 69, 186];
+            accounts: [
+                {
+                    name: 'feePayer';
+                    docs: ['UNCHECKED: only pays fees.'];
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    docs: [
+                        'Authority is verified through proof since both owner and delegate',
+                        'are included in the token data hash, which is a public input to the',
+                        'validity proof.',
+                    ];
+                    signer: true;
+                },
+                {
+                    name: 'cpiAuthorityPda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'lightSystemProgram';
+                    address: 'H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN';
+                },
+                {
+                    name: 'registeredProgramPda';
+                },
+                {
+                    name: 'noopProgram';
+                },
+                {
+                    name: 'accountCompressionAuthority';
+                },
+                {
+                    name: 'accountCompressionProgram';
+                    address: 'CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK';
+                },
+                {
+                    name: 'selfProgram';
+                    docs: ['this program is the signer of the cpi.'];
+                    address: 'HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN';
+                },
+                {
+                    name: 'tokenPoolPda';
+                    writable: true;
+                    optional: true;
+                },
+                {
+                    name: 'compressOrDecompressTokenAccount';
+                    writable: true;
+                    optional: true;
+                },
+                {
+                    name: 'tokenProgram';
+                    optional: true;
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+                },
+                {
+                    name: 'systemProgram';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+    ];
+    errors: [
+        {
+            code: 6000;
+            name: 'signerCheckFailed';
+            msg: 'Signer check failed';
+        },
+        {
+            code: 6001;
+            name: 'createTransferInstructionFailed';
+            msg: 'Create transfer instruction failed';
+        },
+        {
+            code: 6002;
+            name: 'accountNotFound';
+            msg: 'Account not found';
+        },
+        {
+            code: 6003;
+            name: 'serializationError';
+            msg: 'Serialization error';
+        },
     ];
     types: [
         {
-            name: 'AccessMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'programOwner';
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'forester';
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ];
-                        type: 'publicKey';
-                    },
-                ];
+            name: 'accountState';
+            repr: {
+                kind: 'rust';
             };
-        },
-        {
-            name: 'AccountState';
             type: {
                 kind: 'enum';
                 variants: [
                     {
-                        name: 'Initialized';
+                        name: 'initialized';
                     },
                     {
-                        name: 'Frozen';
+                        name: 'frozen';
                     },
                 ];
             };
         },
         {
-            name: 'CompressedAccount';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'lamports';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'address';
-                        type: {
-                            option: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'data';
-                        type: {
-                            option: {
-                                defined: 'CompressedAccountData';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedAccountData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'discriminator';
-                        type: {
-                            array: ['u8', 8];
-                        };
-                    },
-                    {
-                        name: 'data';
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'dataHash';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedCpiContext';
+            name: 'compressedCpiContext';
             type: {
                 kind: 'struct';
                 fields: [
@@ -870,7 +1174,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'CompressedProof';
+            name: 'compressedProof';
             type: {
                 kind: 'struct';
                 fields: [
@@ -896,7 +1200,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'CompressedTokenInstructionDataTransfer';
+            name: 'compressedTokenInstructionDataTransfer';
             type: {
                 kind: 'struct';
                 fields: [
@@ -904,13 +1208,15 @@ export type LightCompressedToken = {
                         name: 'proof';
                         type: {
                             option: {
-                                defined: 'CompressedProof';
+                                defined: {
+                                    name: 'compressedProof';
+                                };
                             };
                         };
                     },
                     {
                         name: 'mint';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'delegatedTransfer';
@@ -921,7 +1227,9 @@ export type LightCompressedToken = {
                         ];
                         type: {
                             option: {
-                                defined: 'DelegatedTransfer';
+                                defined: {
+                                    name: 'delegatedTransfer';
+                                };
                             };
                         };
                     },
@@ -929,7 +1237,9 @@ export type LightCompressedToken = {
                         name: 'inputTokenDataWithContext';
                         type: {
                             vec: {
-                                defined: 'InputTokenDataWithContext';
+                                defined: {
+                                    name: 'inputTokenDataWithContext';
+                                };
                             };
                         };
                     },
@@ -937,7 +1247,9 @@ export type LightCompressedToken = {
                         name: 'outputCompressedAccounts';
                         type: {
                             vec: {
-                                defined: 'PackedTokenTransferOutputData';
+                                defined: {
+                                    name: 'packedTokenTransferOutputData';
+                                };
                             };
                         };
                     },
@@ -955,7 +1267,9 @@ export type LightCompressedToken = {
                         name: 'cpiContext';
                         type: {
                             option: {
-                                defined: 'CompressedCpiContext';
+                                defined: {
+                                    name: 'compressedCpiContext';
+                                };
                             };
                         };
                     },
@@ -969,7 +1283,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'DelegatedTransfer';
+            name: 'delegatedTransfer';
             docs: [
                 'Struct to provide the owner when the delegate is signer of the transaction.',
             ];
@@ -978,7 +1292,7 @@ export type LightCompressedToken = {
                 fields: [
                     {
                         name: 'owner';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'delegateChangeAccountIndex';
@@ -996,7 +1310,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'InputTokenDataWithContext';
+            name: 'inputTokenDataWithContext';
             type: {
                 kind: 'struct';
                 fields: [
@@ -1013,7 +1327,9 @@ export type LightCompressedToken = {
                     {
                         name: 'merkleContext';
                         type: {
-                            defined: 'PackedMerkleContext';
+                            defined: {
+                                name: 'packedMerkleContext';
+                            };
                         };
                     },
                     {
@@ -1039,255 +1355,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'InstructionDataInvoke';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'PackedCompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'OutputCompressedAccountWithPackedContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'newAddressParams';
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked';
-                            };
-                        };
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InstructionDataInvokeCpi';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'newAddressParams';
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'PackedCompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'OutputCompressedAccountWithPackedContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'signerSeeds';
-                        type: {
-                            vec: 'bytes';
-                        };
-                    },
-                    {
-                        name: 'cpiContext';
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleTreeSequenceNumber';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'pubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'seq';
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NewAddressParamsPacked';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'addressQueueAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleTreeIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedCompressedAccountWithMerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'PackedMerkleContext';
-                        };
-                    },
-                    {
-                        name: 'rootIndex';
-                        docs: [
-                            'Index of root used in inclusion validity proof.',
-                        ];
-                        type: 'u16';
-                    },
-                    {
-                        name: 'readOnly';
-                        docs: [
-                            'Placeholder to mark accounts read-only unimplemented set to false.',
-                        ];
-                        type: 'bool';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedMerkleContext';
+            name: 'packedMerkleContext';
             type: {
                 kind: 'struct';
                 fields: [
@@ -1311,7 +1379,9 @@ export type LightCompressedToken = {
                         ];
                         type: {
                             option: {
-                                defined: 'QueueIndex';
+                                defined: {
+                                    name: 'queueIndex';
+                                };
                             };
                         };
                     },
@@ -1319,13 +1389,13 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'PackedTokenTransferOutputData';
+            name: 'packedTokenTransferOutputData';
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'owner';
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'amount';
@@ -1354,81 +1424,7 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'PublicTransactionEvent';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'inputCompressedAccountHashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccountHashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'OutputCompressedAccountWithPackedContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputLeafIndices';
-                        type: {
-                            vec: 'u32';
-                        };
-                    },
-                    {
-                        name: 'sequenceNumbers';
-                        type: {
-                            vec: {
-                                defined: 'MerkleTreeSequenceNumber';
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'pubkeyArray';
-                        type: {
-                            vec: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'message';
-                        type: {
-                            option: 'bytes';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'QueueIndex';
+            name: 'queueIndex';
             type: {
                 kind: 'struct';
                 fields: [
@@ -1446,76 +1442,19 @@ export type LightCompressedToken = {
             };
         },
         {
-            name: 'RolloverMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        docs: ['Unique index.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverFee';
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        docs: ['Tip for maintaining the account.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolledoverSlot';
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'closeThreshold';
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'additionalBytes';
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ];
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'TokenData';
+            name: 'tokenData';
             type: {
                 kind: 'struct';
                 fields: [
                     {
                         name: 'mint';
                         docs: ['The mint associated with this account'];
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'owner';
                         docs: ['The owner of this account.'];
-                        type: 'publicKey';
+                        type: 'pubkey';
                     },
                     {
                         name: 'amount';
@@ -1529,14 +1468,16 @@ export type LightCompressedToken = {
                             'the amount authorized by the delegate',
                         ];
                         type: {
-                            option: 'publicKey';
+                            option: 'pubkey';
                         };
                     },
                     {
                         name: 'state';
                         docs: ["The account's state"];
                         type: {
-                            defined: 'AccountState';
+                            defined: {
+                                name: 'accountState';
+                            };
                         };
                     },
                     {
@@ -1552,1802 +1493,4 @@ export type LightCompressedToken = {
             };
         },
     ];
-    errors: [
-        {
-            code: 6000;
-            name: 'PublicKeyAmountMissmatch';
-            msg: 'public keys and amounts must be of same length';
-        },
-        {
-            code: 6001;
-            name: 'ComputeInputSumFailed';
-            msg: 'ComputeInputSumFailed';
-        },
-        {
-            code: 6002;
-            name: 'ComputeOutputSumFailed';
-            msg: 'ComputeOutputSumFailed';
-        },
-        {
-            code: 6003;
-            name: 'ComputeCompressSumFailed';
-            msg: 'ComputeCompressSumFailed';
-        },
-        {
-            code: 6004;
-            name: 'ComputeDecompressSumFailed';
-            msg: 'ComputeDecompressSumFailed';
-        },
-        {
-            code: 6005;
-            name: 'SumCheckFailed';
-            msg: 'SumCheckFailed';
-        },
-        {
-            code: 6006;
-            name: 'DecompressRecipientUndefinedForDecompress';
-            msg: 'DecompressRecipientUndefinedForDecompress';
-        },
-        {
-            code: 6007;
-            name: 'CompressedPdaUndefinedForDecompress';
-            msg: 'CompressedPdaUndefinedForDecompress';
-        },
-        {
-            code: 6008;
-            name: 'DeCompressAmountUndefinedForDecompress';
-            msg: 'DeCompressAmountUndefinedForDecompress';
-        },
-        {
-            code: 6009;
-            name: 'CompressedPdaUndefinedForCompress';
-            msg: 'CompressedPdaUndefinedForCompress';
-        },
-        {
-            code: 6010;
-            name: 'DeCompressAmountUndefinedForCompress';
-            msg: 'DeCompressAmountUndefinedForCompress';
-        },
-        {
-            code: 6011;
-            name: 'DelegateSignerCheckFailed';
-            msg: 'DelegateSignerCheckFailed';
-        },
-        {
-            code: 6012;
-            name: 'MintTooLarge';
-            msg: 'Minted amount greater than u64::MAX';
-        },
-        {
-            code: 6013;
-            name: 'SplTokenSupplyMismatch';
-            msg: 'SplTokenSupplyMismatch';
-        },
-        {
-            code: 6014;
-            name: 'HeapMemoryCheckFailed';
-            msg: 'HeapMemoryCheckFailed';
-        },
-        {
-            code: 6015;
-            name: 'InstructionNotCallable';
-            msg: 'The instruction is not callable';
-        },
-        {
-            code: 6016;
-            name: 'ArithmeticUnderflow';
-            msg: 'ArithmeticUnderflow';
-        },
-        {
-            code: 6017;
-            name: 'HashToFieldError';
-            msg: 'HashToFieldError';
-        },
-        {
-            code: 6018;
-            name: 'InvalidAuthorityMint';
-            msg: 'Expected the authority to be also a mint authority';
-        },
-        {
-            code: 6019;
-            name: 'InvalidFreezeAuthority';
-            msg: 'Provided authority is not the freeze authority';
-        },
-        {
-            code: 6020;
-            name: 'InvalidDelegateIndex';
-        },
-        {
-            code: 6021;
-            name: 'TokenPoolPdaUndefined';
-        },
-        {
-            code: 6022;
-            name: 'IsTokenPoolPda';
-            msg: 'Compress or decompress recipient is the same account as the token pool pda.';
-        },
-        {
-            code: 6023;
-            name: 'InvalidTokenPoolPda';
-        },
-    ];
-};
-export const IDL: LightCompressedToken = {
-    version: '0.5.0',
-    name: 'light_compressed_token',
-    instructions: [
-        {
-            name: 'createTokenPool',
-            docs: [
-                'This instruction creates a token pool for a given mint. Every spl mint',
-                'can have one token pool. When a token is compressed the tokens are',
-                'transferrred to the token pool, and their compressed equivalent is',
-                'minted into a Merkle tree.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'mintTo',
-            docs: [
-                'Mints tokens from an spl token mint to a list of compressed accounts.',
-                'Minted tokens are transferred to a pool account owned by the compressed',
-                'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair. A constant amount of lamports can be',
-                'transferred to each output account to enable. A use case to add lamports',
-                'to a compressed token account is to prevent spam. This is the only way',
-                'to add lamports to a compressed token account.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                    docs: [
-                        'account to a token account of a different mint will fail',
-                    ],
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['programs'],
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'solPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-            ],
-            args: [
-                {
-                    name: 'publicKeys',
-                    type: {
-                        vec: 'publicKey',
-                    },
-                },
-                {
-                    name: 'amounts',
-                    type: {
-                        vec: 'u64',
-                    },
-                },
-                {
-                    name: 'lamports',
-                    type: {
-                        option: 'u64',
-                    },
-                },
-            ],
-        },
-        {
-            name: 'transfer',
-            docs: [
-                'Transfers compressed tokens from one account to another. All accounts',
-                'must be of the same mint. Additional spl tokens can be compressed or',
-                'decompressed. In one transaction only compression or decompression is',
-                'possible. Lamports can be transferred alongside tokens. If output token',
-                'accounts specify less lamports than inputs the remaining lamports are',
-                'transferred to an output compressed account. Signer must be owner or',
-                'delegate. If a delegated token account is transferred the delegate is',
-                'not preserved.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ],
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['this program is the signer of the cpi.'],
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'compressOrDecompressTokenAccount',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'approve',
-            docs: [
-                'Delegates an amount to a delegate. A compressed token account is either',
-                'completely delegated or not. Prior delegates are not preserved. Cannot',
-                'be called by a delegate.',
-                'The instruction creates two output accounts:',
-                '1. one account with delegated amount',
-                '2. one account with remaining(change) amount',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ],
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['this program is the signer of the cpi.'],
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'revoke',
-            docs: [
-                'Revokes a delegation. The instruction merges all inputs into one output',
-                'account. Cannot be called by a delegate. Delegates are not preserved.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ],
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['this program is the signer of the cpi.'],
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'freeze',
-            docs: [
-                'Freezes compressed token accounts. Inputs must not be frozen. Creates as',
-                'many outputs as inputs. Balances and delegates are preserved.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['that this program is the signer of the cpi.'],
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'thaw',
-            docs: [
-                'Thaws frozen compressed token accounts. Inputs must be frozen. Creates',
-                'as many outputs as inputs. Balances and delegates are preserved.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['that this program is the signer of the cpi.'],
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'burn',
-            docs: [
-                'Burns compressed tokens and spl tokens from the pool account. Delegates',
-                'can burn tokens. The output compressed token account remains delegated.',
-                'Creates one output compressed token account.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ],
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'stubIdlBuild',
-            docs: [
-                'This function is a stub to allow Anchor to include the input types in',
-                'the IDL. It should not be included in production builds nor be called in',
-                'practice.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                    docs: ['UNCHECKED: only pays fees.'],
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                    docs: [
-                        'Authority is verified through proof since both owner and delegate',
-                        'are included in the token data hash, which is a public input to the',
-                        'validity proof.',
-                    ],
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                    docs: ['this program is the signer of the cpi.'],
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'compressOrDecompressTokenAccount',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs1',
-                    type: {
-                        defined: 'CompressedTokenInstructionDataTransfer',
-                    },
-                },
-                {
-                    name: 'inputs2',
-                    type: {
-                        defined: 'TokenData',
-                    },
-                },
-            ],
-        },
-    ],
-    types: [
-        {
-            name: 'AccessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Program owner of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'forester',
-                        docs: [
-                            'Optional privileged forester pubkey, can be set for custom Merkle trees',
-                            'without a network fee. Merkle trees without network fees are not',
-                            'forested by light foresters. The variable is not used in the account',
-                            'compression program but the registry program. The registry program',
-                            'implements access control to prevent contention during forester. The',
-                            'forester pubkey specified in this struct can bypass contention checks.',
-                        ],
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'AccountState',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'Initialized',
-                    },
-                    {
-                        name: 'Frozen',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedAccount',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'lamports',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'address',
-                        type: {
-                            option: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'data',
-                        type: {
-                            option: {
-                                defined: 'CompressedAccountData',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedAccountData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'discriminator',
-                        type: {
-                            array: ['u8', 8],
-                        },
-                    },
-                    {
-                        name: 'data',
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'dataHash',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedCpiContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'setContext',
-                        docs: [
-                            'Is set by the program that is invoking the CPI to signal that is should',
-                            'set the cpi context.',
-                        ],
-                        type: 'bool',
-                    },
-                    {
-                        name: 'firstSetContext',
-                        docs: [
-                            'Is set to wipe the cpi context since someone could have set it before',
-                            'with unrelated data.',
-                        ],
-                        type: 'bool',
-                    },
-                    {
-                        name: 'cpiContextAccountIndex',
-                        docs: [
-                            'Index of cpi context account in remaining accounts.',
-                        ],
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedProof',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'a',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'b',
-                        type: {
-                            array: ['u8', 64],
-                        },
-                    },
-                    {
-                        name: 'c',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedTokenInstructionDataTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'mint',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'delegatedTransfer',
-                        docs: [
-                            'Is required if the signer is delegate,',
-                            '-> delegate is authority account,',
-                            'owner = Some(owner) is the owner of the token account.',
-                        ],
-                        type: {
-                            option: {
-                                defined: 'DelegatedTransfer',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputTokenDataWithContext',
-                        type: {
-                            vec: {
-                                defined: 'InputTokenDataWithContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'PackedTokenTransferOutputData',
-                            },
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compressOrDecompressAmount',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'cpiContext',
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'lamportsChangeAccountMerkleTreeIndex',
-                        type: {
-                            option: 'u8',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'DelegatedTransfer',
-            docs: [
-                'Struct to provide the owner when the delegate is signer of the transaction.',
-            ],
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'delegateChangeAccountIndex',
-                        docs: [
-                            'Index of change compressed account in output compressed accounts. In',
-                            "case that the delegate didn't spend the complete delegated compressed",
-                            'account balance the change compressed account will be delegated to her',
-                            'as well.',
-                        ],
-                        type: {
-                            option: 'u8',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InputTokenDataWithContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'amount',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegateIndex',
-                        type: {
-                            option: 'u8',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'PackedMerkleContext',
-                        },
-                    },
-                    {
-                        name: 'rootIndex',
-                        type: 'u16',
-                    },
-                    {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'tlv',
-                        docs: [
-                            'Placeholder for TokenExtension tlv data (unimplemented)',
-                        ],
-                        type: {
-                            option: 'bytes',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InstructionDataInvoke',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined:
-                                    'PackedCompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined:
-                                    'OutputCompressedAccountWithPackedContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'newAddressParams',
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked',
-                            },
-                        },
-                    },
-                    {
-                        name: 'compressOrDecompressLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InstructionDataInvokeCpi',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'newAddressParams',
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined:
-                                    'PackedCompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined:
-                                    'OutputCompressedAccountWithPackedContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'compressOrDecompressLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'signerSeeds',
-                        type: {
-                            vec: 'bytes',
-                        },
-                    },
-                    {
-                        name: 'cpiContext',
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleTreeSequenceNumber',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'pubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seq',
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'NewAddressParamsPacked',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'addressQueueAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedCompressedAccountWithMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'PackedMerkleContext',
-                        },
-                    },
-                    {
-                        name: 'rootIndex',
-                        docs: [
-                            'Index of root used in inclusion validity proof.',
-                        ],
-                        type: 'u16',
-                    },
-                    {
-                        name: 'readOnly',
-                        docs: [
-                            'Placeholder to mark accounts read-only unimplemented set to false.',
-                        ],
-                        type: 'bool',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'merkleTreePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
-                    },
-                    {
-                        name: 'queueIndex',
-                        docs: [
-                            'Index of leaf in queue. Placeholder of batched Merkle tree updates',
-                            'currently unimplemented.',
-                        ],
-                        type: {
-                            option: {
-                                defined: 'QueueIndex',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedTokenTransferOutputData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'tlv',
-                        docs: [
-                            'Placeholder for TokenExtension tlv data (unimplemented)',
-                        ],
-                        type: {
-                            option: 'bytes',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PublicTransactionEvent',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'inputCompressedAccountHashes',
-                        type: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccountHashes',
-                        type: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined:
-                                    'OutputCompressedAccountWithPackedContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputLeafIndices',
-                        type: {
-                            vec: 'u32',
-                        },
-                    },
-                    {
-                        name: 'sequenceNumbers',
-                        type: {
-                            vec: {
-                                defined: 'MerkleTreeSequenceNumber',
-                            },
-                        },
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compressOrDecompressLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'pubkeyArray',
-                        type: {
-                            vec: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'message',
-                        type: {
-                            option: 'bytes',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'QueueIndex',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'queueId',
-                        docs: ['Id of queue in queue account.'],
-                        type: 'u8',
-                    },
-                    {
-                        name: 'index',
-                        docs: ['Index of compressed account hash in queue.'],
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'RolloverMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'additionalBytes',
-                        docs: [
-                            'Placeholder for bytes of additional accounts which are tied to the',
-                            'Merkle trees operation and need to be rolled over as well.',
-                        ],
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'TokenData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'mint',
-                        docs: ['The mint associated with this account'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'owner',
-                        docs: ['The owner of this account.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
-                        docs: ['The amount of tokens this account holds.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegate',
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ],
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'state',
-                        docs: ["The account's state"],
-                        type: {
-                            defined: 'AccountState',
-                        },
-                    },
-                    {
-                        name: 'tlv',
-                        docs: [
-                            'Placeholder for TokenExtension tlv data (unimplemented)',
-                        ],
-                        type: {
-                            option: 'bytes',
-                        },
-                    },
-                ],
-            },
-        },
-    ],
-    errors: [
-        {
-            code: 6000,
-            name: 'PublicKeyAmountMissmatch',
-            msg: 'public keys and amounts must be of same length',
-        },
-        {
-            code: 6001,
-            name: 'ComputeInputSumFailed',
-            msg: 'ComputeInputSumFailed',
-        },
-        {
-            code: 6002,
-            name: 'ComputeOutputSumFailed',
-            msg: 'ComputeOutputSumFailed',
-        },
-        {
-            code: 6003,
-            name: 'ComputeCompressSumFailed',
-            msg: 'ComputeCompressSumFailed',
-        },
-        {
-            code: 6004,
-            name: 'ComputeDecompressSumFailed',
-            msg: 'ComputeDecompressSumFailed',
-        },
-        {
-            code: 6005,
-            name: 'SumCheckFailed',
-            msg: 'SumCheckFailed',
-        },
-        {
-            code: 6006,
-            name: 'DecompressRecipientUndefinedForDecompress',
-            msg: 'DecompressRecipientUndefinedForDecompress',
-        },
-        {
-            code: 6007,
-            name: 'CompressedPdaUndefinedForDecompress',
-            msg: 'CompressedPdaUndefinedForDecompress',
-        },
-        {
-            code: 6008,
-            name: 'DeCompressAmountUndefinedForDecompress',
-            msg: 'DeCompressAmountUndefinedForDecompress',
-        },
-        {
-            code: 6009,
-            name: 'CompressedPdaUndefinedForCompress',
-            msg: 'CompressedPdaUndefinedForCompress',
-        },
-        {
-            code: 6010,
-            name: 'DeCompressAmountUndefinedForCompress',
-            msg: 'DeCompressAmountUndefinedForCompress',
-        },
-        {
-            code: 6011,
-            name: 'DelegateSignerCheckFailed',
-            msg: 'DelegateSignerCheckFailed',
-        },
-        {
-            code: 6012,
-            name: 'MintTooLarge',
-            msg: 'Minted amount greater than u64::MAX',
-        },
-        {
-            code: 6013,
-            name: 'SplTokenSupplyMismatch',
-            msg: 'SplTokenSupplyMismatch',
-        },
-        {
-            code: 6014,
-            name: 'HeapMemoryCheckFailed',
-            msg: 'HeapMemoryCheckFailed',
-        },
-        {
-            code: 6015,
-            name: 'InstructionNotCallable',
-            msg: 'The instruction is not callable',
-        },
-        {
-            code: 6016,
-            name: 'ArithmeticUnderflow',
-            msg: 'ArithmeticUnderflow',
-        },
-        {
-            code: 6017,
-            name: 'HashToFieldError',
-            msg: 'HashToFieldError',
-        },
-        {
-            code: 6018,
-            name: 'InvalidAuthorityMint',
-            msg: 'Expected the authority to be also a mint authority',
-        },
-        {
-            code: 6019,
-            name: 'InvalidFreezeAuthority',
-            msg: 'Provided authority is not the freeze authority',
-        },
-        {
-            code: 6020,
-            name: 'InvalidDelegateIndex',
-        },
-        {
-            code: 6021,
-            name: 'TokenPoolPdaUndefined',
-        },
-        {
-            code: 6022,
-            name: 'IsTokenPoolPda',
-            msg: 'Compress or decompress recipient is the same account as the token pool pda.',
-        },
-        {
-            code: 6023,
-            name: 'InvalidTokenPoolPda',
-        },
-    ],
 };

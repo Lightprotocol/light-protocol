@@ -285,9 +285,8 @@ impl light_hasher::DataHasher for RegisteredUser {
 pub struct CreateCompressedPda<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
+    pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK:
     pub account_compression_authority: AccountInfo<'info>,
     /// CHECK:

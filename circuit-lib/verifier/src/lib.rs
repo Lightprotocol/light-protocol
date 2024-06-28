@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use borsh::{BorshDeserialize, BorshSerialize};
 use groth16_solana::decompression::{decompress_g1, decompress_g2};
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};

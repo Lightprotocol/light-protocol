@@ -117,7 +117,7 @@ export const parsePublicTransactionEventWithIdl = (
 
     try {
         return LightSystemProgram.program.coder.types.decode(
-            'PublicTransactionEvent',
+            'publicTransactionEvent',
             numericData,
         );
     } catch (error) {

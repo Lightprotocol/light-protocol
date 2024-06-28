@@ -11,7 +11,7 @@ VERSIONS=(
     "node:20.9.0"
     "pnpm:9.5.0"
     "solana:1.18.17"
-    "anchor:anchor-v0.29.0"
+    "anchor:anchor-v0.30.1"
     "jq:jq-1.7.1"
     "photon:0.38.0"
 )

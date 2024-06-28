@@ -2,7 +2,7 @@ import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import { BN, BorshCoder } from '@coral-xyz/anchor';
 
-import { IDL } from '../../idls/light_compressed_token';
+import { LightCompressedToken } from '../../idls/light_compressed_token';
 import { defaultTestStateTreeAccounts } from '../../constants';
 import { Rpc } from '../../rpc';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
@@ -13,6 +13,7 @@ import {
     createCompressedAccountWithMerkleContext,
     bn,
 } from '../../state';
+import LightCompressedTokenIDL from '../../idls/light_compressed_token.json';
 
 const tokenProgramId: PublicKey = new PublicKey(
     // TODO: can add check to ensure its consistent with the idl
@@ -47,10 +48,9 @@ function parseTokenLayoutWithIdl(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
-    const decodedLayout = new BorshCoder(IDL).types.decode(
-        'TokenData',
-        Buffer.from(data),
-    );
+    const decodedLayout = new BorshCoder(
+        LightCompressedTokenIDL as unknown as LightCompressedToken,
+    ).types.decode('TokenData', Buffer.from(data));
 
     return decodedLayout;
 }

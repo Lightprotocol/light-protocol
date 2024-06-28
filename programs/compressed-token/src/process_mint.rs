@@ -11,6 +11,10 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
+use crate::program::LightCompressedToken;
+use account_compression::program::AccountCompression;
+use light_system_program::program::LightSystemProgram;
+
 pub const POOL_SEED: &[u8] = b"pool";
 
 /// creates a token pool account which is owned by the token authority pda
@@ -362,7 +366,7 @@ pub struct MintToInstruction<'info> {
     #[account(mut, seeds = [POOL_SEED, &mint.key().to_bytes()],bump)]
     pub token_pool_pda: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (different program) checked in account compression program
     pub registered_program_pda: UncheckedAccount<'info>,
     /// CHECK: (different program) checked in system and account compression
@@ -372,13 +376,12 @@ pub struct MintToInstruction<'info> {
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump, seeds::program = light_system_program::ID)]
     pub account_compression_authority: UncheckedAccount<'info>,
     /// CHECK: this account in account compression program
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
+    pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK: (different program) will be checked by the system program
     #[account(mut)]
     pub merkle_tree: UncheckedAccount<'info>,
     /// CHECK: (different program) will be checked by the system program
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
     /// CHECK: (different program) will be checked by the system program
     #[account(mut)]

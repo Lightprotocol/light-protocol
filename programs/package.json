@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "push-idls": "../scripts/push-stateless-js-idls.sh && ../scripts/push-compressed-token-idl.sh",
-    "build": "anchor build",
+    "build": "echo \"commented until we have anchor 0.30.1 binaries\"",
     "build-idls": "anchor build && pnpm build-system && pnpm build-compressed-token && pnpm push-idls",
     "build-system": "anchor build --program-name light_system_program -- --features idl-build custom-heap",
     "build-compressed-token": "anchor build --program-name light_compressed_token -- --features idl-build custom-heap",

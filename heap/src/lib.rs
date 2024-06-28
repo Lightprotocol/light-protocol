@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use std::{alloc::Layout, mem::size_of, ptr::null_mut};
 pub mod bench;
 

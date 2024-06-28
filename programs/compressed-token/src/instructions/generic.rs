@@ -1,6 +1,10 @@
+use crate::program::LightCompressedToken;
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
-use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
+use light_system_program::{
+    program::LightSystemProgram,
+    sdk::accounts::{InvokeAccounts, SignerAccounts},
+};
 
 #[derive(Accounts)]
 pub struct GenericInstruction<'info> {
@@ -15,18 +19,17 @@ pub struct GenericInstruction<'info> {
     /// CHECK: (seed constraint).
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
     pub cpi_authority_pda: UncheckedAccount<'info>,
-    pub light_system_program: Program<'info, light_system_program::program::LightSystemProgram>,
+    pub light_system_program: Program<'info, LightSystemProgram>,
     /// CHECK: (account compression program).
     pub registered_program_pda: AccountInfo<'info>,
     /// CHECK: (account compression program) when emitting event.
     pub noop_program: UncheckedAccount<'info>,
     /// CHECK: (different program) is used to cpi account compression program from light system program.
     pub account_compression_authority: UncheckedAccount<'info>,
-    pub account_compression_program:
-        Program<'info, account_compression::program::AccountCompression>,
+    pub account_compression_program: Program<'info, AccountCompression>,
     /// CHECK:(system program) used to derive cpi_authority_pda and check that
     /// this program is the signer of the cpi.
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
 }
 
