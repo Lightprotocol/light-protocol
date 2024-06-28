@@ -475,6 +475,24 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                 merkle_tree.root(),
                 "Root off-chain onchain inconsistent."
             );
+
+            let changelog_entry = merkle_tree
+                .changelog
+                .get(merkle_tree.changelog_index())
+                .unwrap();
+            let path = relayer_merkle_tree
+                .get_path_of_leaf(merkle_tree.current_index(), true)
+                .unwrap();
+            assert_eq!(changelog_entry.path.as_slice(), path.as_slice());
+
+            let indexed_changelog_entry = merkle_tree
+                .indexed_changelog
+                .get(merkle_tree.indexed_changelog_index())
+                .unwrap();
+            let proof = relayer_merkle_tree
+                .get_proof_of_leaf(merkle_tree.current_index(), false)
+                .unwrap();
+            assert_eq!(indexed_changelog_entry.proof.as_slice(), proof.as_slice());
         }
     }
 
