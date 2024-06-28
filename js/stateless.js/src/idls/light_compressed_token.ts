@@ -742,10 +742,25 @@ export type LightCompressedToken = {
                 fields: [
                     {
                         name: 'setContext';
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ];
+                        type: 'bool';
+                    },
+                    {
+                        name: 'firstSetContext';
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ];
                         type: 'bool';
                     },
                     {
                         name: 'cpiContextAccountIndex';
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ];
                         type: 'u8';
                     },
                 ];
@@ -2197,10 +2212,25 @@ export const IDL: LightCompressedToken = {
                 fields: [
                     {
                         name: 'setContext',
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ],
+                        type: 'bool',
+                    },
+                    {
+                        name: 'firstSetContext',
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ],
                         type: 'bool',
                     },
                     {
                         name: 'cpiContextAccountIndex',
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ],
                         type: 'u8',
                     },
                 ],

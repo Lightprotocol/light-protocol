@@ -7,8 +7,12 @@ use light_compressed_token::process_transfer::{
     get_cpi_authority_pda, transfer_sdk::to_account_metas,
 };
 use light_system_program::{
-    invoke::processor::CompressedProof, sdk::address::pack_new_address_params,
-    sdk::compressed_account::PackedCompressedAccountWithMerkleContext, NewAddressParams,
+    invoke::processor::CompressedProof,
+    sdk::{
+        address::pack_new_address_params,
+        compressed_account::PackedCompressedAccountWithMerkleContext,
+    },
+    NewAddressParams,
 };
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
@@ -84,6 +88,7 @@ pub struct InvalidateNotOwnedCompressedAccountInstructionInputs<'a> {
     pub compressed_account: &'a PackedCompressedAccountWithMerkleContext,
     pub token_transfer_data: Option<crate::TokenTransferData>,
     pub cpi_context: Option<crate::CompressedCpiContext>,
+    pub invalid_fee_payer: &'a Pubkey,
 }
 pub fn create_invalidate_not_owned_account_instruction(
     input_params: InvalidateNotOwnedCompressedAccountInstructionInputs,
@@ -128,6 +133,7 @@ pub fn create_invalidate_not_owned_account_instruction(
         cpi_signer,
         system_program: solana_sdk::system_program::id(),
         compressed_token_program: light_compressed_token::ID,
+        invalid_fee_payer: *input_params.invalid_fee_payer,
     };
     let remaining_accounts = to_account_metas(remaining_accounts);
 

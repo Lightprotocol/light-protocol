@@ -377,7 +377,6 @@ where
             STATE_MERKLE_TREE_HEIGHT as usize,
             STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
         ));
-        #[cfg(feature = "cpi-context")]
         crate::test_env::init_cpi_context_account(
             &mut self.rpc,
             &merkle_tree_keypair.pubkey(),
@@ -583,7 +582,6 @@ where
         .await
         .unwrap();
         let new_cpi_signature_keypair = Keypair::new();
-        #[cfg(feature = "cpi-context")]
         crate::test_env::init_cpi_context_account(
             &mut self.rpc,
             &new_merkle_tree_keypair.pubkey(),

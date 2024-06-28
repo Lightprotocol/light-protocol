@@ -127,13 +127,14 @@ fn cpi_compressed_pda_withdrawal<'info>(
     proof: CompressedProof,
     old_state: PackedCompressedAccountWithMerkleContext,
     compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: CompressedCpiContext,
+    mut cpi_context: CompressedCpiContext,
     bump: u8,
 ) -> Result<()> {
     // Create CPI signer seed
     let bump_seed = &[bump];
     let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
     let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
+    cpi_context.first_set_context = false;
 
     // Create CPI inputs
     let inputs_struct = InstructionDataInvokeCpi {
@@ -152,6 +153,7 @@ fn cpi_compressed_pda_withdrawal<'info>(
 
     Ok(())
 }
+
 // TODO: test with delegate (is disabled right now)
 #[inline(never)]
 pub fn cpi_compressed_token_withdrawal<'info>(

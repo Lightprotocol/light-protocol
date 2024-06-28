@@ -80,6 +80,7 @@ pub fn create_escrow_instruction(
         new_address_params: new_address_params[0],
         cpi_context: CompressedCpiContext {
             set_context: false,
+            first_set_context: true,
             cpi_context_account_index,
         },
         bump: token_owner_pda.1,
@@ -185,6 +186,7 @@ pub fn create_withdrawal_instruction(
     };
     let cpi_context = CompressedCpiContext {
         set_context: false,
+        first_set_context: true,
         cpi_context_account_index,
     };
     let input_compressed_pda = PackedInputCompressedPda {

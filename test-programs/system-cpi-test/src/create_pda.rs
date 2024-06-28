@@ -10,7 +10,7 @@ use light_system_program::{
     InstructionDataInvokeCpi, NewAddressParamsPacked, OutputCompressedAccountWithPackedContext,
 };
 
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, PartialEq)]
 pub enum CreatePdaMode {
     ProgramIsSigner,
     ProgramIsNotSigner,

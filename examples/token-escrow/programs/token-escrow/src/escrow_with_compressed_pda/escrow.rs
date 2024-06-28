@@ -112,14 +112,14 @@ fn cpi_compressed_pda_transfer<'info>(
     proof: CompressedProof,
     new_address_params: NewAddressParamsPacked,
     compressed_pda: OutputCompressedAccountWithPackedContext,
-    cpi_context: CompressedCpiContext,
+    mut cpi_context: CompressedCpiContext,
     bump: u8,
 ) -> Result<()> {
     // Create CPI signer seed
     let bump_seed = &[bump];
     let signer_key_bytes = ctx.accounts.signer.key.to_bytes();
     let signer_seeds = [&b"escrow"[..], &signer_key_bytes[..], bump_seed];
-
+    cpi_context.first_set_context = false;
     // Create inputs struct
     let inputs_struct = create_cpi_inputs_for_new_address(
         proof,

@@ -60,4 +60,6 @@ pub enum SystemProgramError {
     AppendStateFailed,
     #[msg("The instruction is not callable")]
     InstructionNotCallable,
+    #[msg("CpiContextFeePayerMismatch")]
+    CpiContextFeePayerMismatch,
 }

@@ -288,6 +288,10 @@ export type LightSystemProgram = {
                 kind: 'struct';
                 fields: [
                     {
+                        name: 'feePayer';
+                        type: 'publicKey';
+                    },
+                    {
                         name: 'associatedMerkleTree';
                         type: 'publicKey';
                     },
@@ -604,10 +608,25 @@ export type LightSystemProgram = {
                 fields: [
                     {
                         name: 'setContext';
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ];
+                        type: 'bool';
+                    },
+                    {
+                        name: 'firstSetContext';
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ];
                         type: 'bool';
                     },
                     {
                         name: 'cpiContextAccountIndex';
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ];
                         type: 'u8';
                     },
                 ];
@@ -953,6 +972,11 @@ export type LightSystemProgram = {
             name: 'InstructionNotCallable';
             msg: 'The instruction is not callable';
         },
+        {
+            code: 6029;
+            name: 'CpiContextFeePayerMismatch';
+            msg: 'CpiContextFeePayerMismatch';
+        },
     ];
 };
 
@@ -1245,6 +1269,10 @@ export const IDL: LightSystemProgram = {
             type: {
                 kind: 'struct',
                 fields: [
+                    {
+                        name: 'feePayer',
+                        type: 'publicKey',
+                    },
                     {
                         name: 'associatedMerkleTree',
                         type: 'publicKey',
@@ -1566,10 +1594,25 @@ export const IDL: LightSystemProgram = {
                 fields: [
                     {
                         name: 'setContext',
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ],
+                        type: 'bool',
+                    },
+                    {
+                        name: 'firstSetContext',
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ],
                         type: 'bool',
                     },
                     {
                         name: 'cpiContextAccountIndex',
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ],
                         type: 'u8',
                     },
                 ],
@@ -1915,6 +1958,11 @@ export const IDL: LightSystemProgram = {
             code: 6028,
             name: 'InstructionNotCallable',
             msg: 'The instruction is not callable',
+        },
+        {
+            code: 6029,
+            name: 'CpiContextFeePayerMismatch',
+            msg: 'CpiContextFeePayerMismatch',
         },
     ],
 };
