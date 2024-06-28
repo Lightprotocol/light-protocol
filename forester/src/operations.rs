@@ -2,6 +2,7 @@ use crate::config::ForesterConfig;
 use crate::indexer::PhotonIndexer;
 use crate::nullifier::address::setup_address_pipeline;
 use crate::nullifier::state::setup_state_pipeline;
+use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::SolanaRpcConnection;
 use log::{info, warn};
@@ -12,7 +13,6 @@ use solana_sdk::signature::Signer;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use light_test_utils::indexer::Indexer;
 
 pub async fn subscribe_state(config: Arc<ForesterConfig>) {
     info!(
@@ -81,7 +81,11 @@ pub async fn nullify_state(config: Arc<ForesterConfig>) {
     tokio::time::sleep(Duration::from_millis(100)).await;
 }
 
-pub async fn nullify_addresses<I: Indexer, R: RpcConnection>(config: Arc<ForesterConfig>, rpc: Arc<tokio::sync::Mutex<R>>, indexer: Arc<tokio::sync::Mutex<I>>) {
+pub async fn nullify_addresses<I: Indexer, R: RpcConnection>(
+    config: Arc<ForesterConfig>,
+    rpc: Arc<tokio::sync::Mutex<R>>,
+    indexer: Arc<tokio::sync::Mutex<I>>,
+) {
     info!(
         "Run address tree nullifier. Queue: {}. Merkle tree: {}",
         config.address_merkle_tree_queue_pubkey, config.address_merkle_tree_pubkey

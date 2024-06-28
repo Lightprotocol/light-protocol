@@ -665,7 +665,10 @@ where
             };
             println!("Recipients: {:?}", recipients.len());
             println!("Output Merkle trees: {:?}", output_merkle_trees.len());
-            println!("input compressed accounts: {:?}", input_compressed_accounts.len());
+            println!(
+                "input compressed accounts: {:?}",
+                input_compressed_accounts.len()
+            );
             transfer_compressed_sol_test(
                 &mut self.rpc,
                 &mut self.indexer,

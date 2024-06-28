@@ -6,17 +6,17 @@ use forester::cli::{Cli, Commands};
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nqmt::reindex_and_store;
 use forester::settings::SettingsKey;
-use forester::{nullify_addresses, nullify_state, subscribe_state, ForesterConfig, init_rpc};
+use forester::{init_rpc, nullify_addresses, nullify_state, subscribe_state, ForesterConfig};
+use light_registry::sdk::get_group_pda;
+use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TestIndexer};
+use light_test_utils::rpc::SolanaRpcConnection;
+use light_test_utils::test_env::{GROUP_PDA_SEED_TEST_KEYPAIR, SIGNATURE_CPI_TEST_KEYPAIR};
 use log::{error, info};
 use serde_json::Result;
 use solana_sdk::signature::{Keypair, Signer};
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
-use light_registry::sdk::get_group_pda;
-use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TestIndexer};
-use light_test_utils::rpc::SolanaRpcConnection;
-use light_test_utils::test_env::{GROUP_PDA_SEED_TEST_KEYPAIR, SIGNATURE_CPI_TEST_KEYPAIR};
 
 fn locate_config_file() -> String {
     let file_name = "forester.toml";
@@ -158,7 +158,7 @@ async fn run_nullify_addresses(config: Arc<ForesterConfig>) {
         true,
         true,
     )
-        .await;
+    .await;
     let indexer = Arc::new(tokio::sync::Mutex::new(indexer));
     nullify_addresses(config.clone(), rpc, indexer).await;
 }

@@ -19,7 +19,7 @@ pub trait RpcConnection: Send + Sync + Debug + 'static {
     ) -> impl std::future::Future<Output = Result<Option<(T, Signature)>, RpcError>> + Send
     where
         T: AnchorDeserialize + Send + Debug;
-    
+
     fn create_and_send_transaction(
         &mut self,
         instruction: &[Instruction],

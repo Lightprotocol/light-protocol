@@ -289,7 +289,7 @@ impl RpcConnection for SolanaRpcConnection {
             .client
             .request_airdrop(to, lamports)
             .map_err(RpcError::from)?;
-    // TODO: Find a different way this can result in an infinite loop
+        // TODO: Find a different way this can result in an infinite loop
         loop {
             let confirmed = self
                 .client
