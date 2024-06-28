@@ -29,7 +29,7 @@ overflow-checks = true
 opt-level = 2
 
 [workspace.dependencies]
-solana-banks-interface = "1.18.11"
+solana-banks-interface = "=1.18.11"
 solana-program = "=1.18.11"
 solana-sdk = "=1.18.11"
 solana-program-test = "=1.18.11"
