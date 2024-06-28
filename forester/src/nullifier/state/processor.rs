@@ -43,7 +43,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
                                 }
                                 Err(e) => {
                                     warn!("Error in FetchQueueData: {:?}", e);
-                                    vec![]
+                                    vec![PipelineStage::Complete]
                                 }
                             }
                         }
@@ -58,8 +58,8 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
                                     next_stages
                                 }
                                 Err(e) => {
-                                    warn!("Error in FetchProofs: {:?}", e);
-                                    vec![]
+                                    info!("Error in FetchProofs: {:?}", e);
+                                    vec![PipelineStage::Complete]
                                 }
                             }
                         }
@@ -76,7 +76,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
                                 }
                                 Err(e) => {
                                     warn!("Error in NullifyAccount for account: {}: {:?}", hash, e);
-                                    vec![]
+                                    vec![PipelineStage::Complete]
                                 }
                             }
                         }
@@ -93,7 +93,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
                                 }
                                 Err(e) => {
                                     warn!("Error in UpdateIndexer for account: {}: {:?}", hash, e);
-                                    vec![]
+                                    vec![PipelineStage::Complete]
                                 }
                             }
                         }
@@ -166,23 +166,30 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
             rpc: _,
             config: _,
         } = &context;
+        info!(
+            "Fetching proofs for {} accounts",
+            queue_data.accounts_to_nullify.len()
+        );
         let mut next_stages = Vec::new();
-
         let compressed_account_list: Vec<String> = queue_data
             .accounts_to_nullify
             .iter()
             .map(|account_data| account_data.account.hash_string())
             .collect();
+        info!("Compressed account list: {:?}", compressed_account_list);
+
+        let indexer = indexer.lock().await;
+        info!("Indexer unlocked.: {:?}", indexer);
 
         let proofs = indexer
-            .lock()
-            .await
             .get_multiple_compressed_account_proofs(compressed_account_list)
-            .await
-            .map_err(|e| {
-                warn!("Cannot get multiple proofs: {:#?}", e);
-                ForesterError::NoProofsFound
-            })?;
+            .await;
+        info!("Proofs: {:?}", proofs);
+
+        let proofs = proofs.map_err(|e| {
+            warn!("Cannot get multiple proofs: {:#?}", e);
+            ForesterError::NoProofsFound
+        })?;
 
         info!("Received {} proofs", proofs.len());
 

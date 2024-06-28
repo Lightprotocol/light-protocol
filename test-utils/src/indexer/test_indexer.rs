@@ -147,6 +147,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
+        info!("Getting proofs for {:?}", hashes);
         let mut proofs: Vec<MerkleProof> = Vec::new();
         hashes.iter().for_each(|hash| {
             let hash_array: [u8; 32] = bs58::decode(hash)

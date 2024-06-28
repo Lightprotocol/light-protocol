@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
-use forester::utils::spawn_validator;
+use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::{nullify_state, ForesterConfig};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
@@ -21,7 +21,11 @@ async fn init() {
     .is_test(true)
     .try_init();
 
-    spawn_validator(Default::default()).await;
+    let config = LightValidatorConfig {
+        enable_indexer: true,
+        ..LightValidatorConfig::default()
+    };
+    spawn_validator(config).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]

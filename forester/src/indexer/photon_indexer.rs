@@ -44,6 +44,7 @@ impl Indexer for PhotonIndexer {
         &self,
         hashes: Vec<String>,
     ) -> Result<Vec<MerkleProof>, IndexerError> {
+        info!("Getting proofs for {:?}", hashes);
         let request = photon_api::models::GetMultipleCompressedAccountProofsPostRequest {
             params: hashes,
             ..Default::default()

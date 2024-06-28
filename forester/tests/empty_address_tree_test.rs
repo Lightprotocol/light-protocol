@@ -6,7 +6,7 @@ use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 use forester::errors::ForesterError;
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
-use forester::utils::spawn_validator;
+use forester::utils::{spawn_validator, LightValidatorConfig};
 use forester::{init_rpc, nullify_addresses, ForesterConfig};
 use light_hasher::Poseidon;
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
@@ -25,7 +25,11 @@ async fn init() {
     .is_test(true)
     .try_init();
 
-    spawn_validator(Default::default()).await;
+    let config = LightValidatorConfig {
+        enable_indexer: false,
+        ..LightValidatorConfig::default()
+    };
+    spawn_validator(config).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
