@@ -25,7 +25,7 @@ bench-sbf = []
 
 [dependencies]
 aligned-sized = { version = "0.2.1", path = "../../macros/aligned-sized" }
-anchor-lang = "0.29.0"
+anchor-lang = { workspace = true }
 bytemuck = { version = "1.14", features = ["min_const_generics"] }
 light-bounded-vec = { version = "0.2.1", path = "../../merkle-tree/bounded-vec", features = ["solana"] }
 light-hash-set = { version = "0.2.1", path = "../../merkle-tree/hash-set", features = ["solana"] }

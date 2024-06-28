@@ -7,4 +7,4 @@ license = "Apache-2.0"
 edition = "2021"
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = { workspace = true }
