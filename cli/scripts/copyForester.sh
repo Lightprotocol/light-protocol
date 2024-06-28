@@ -10,6 +10,8 @@ fi
 
 lsof "$out_dir"/forester | awk 'NR>1 {print $2}' |  xargs -r kill -9
 
+cd "$root_dir/forester"
 cargo build --release --bin forester
 cp "$root_dir/target/release/forester" "$out_dir"
 cp "$root_dir/forester/forester.toml" "$out_dir"
+cd "$root_dir/cli"

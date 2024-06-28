@@ -36,7 +36,7 @@
         "test:e2e:decompress": "pnpm test-validator && vitest run tests/e2e/decompress.test.ts --reporter=verbose",
         "test:e2e:rpc-token-interop": "pnpm test-validator && vitest run tests/e2e/rpc-token-interop.test.ts --reporter=verbose",
         "test:e2e:all": "pnpm test-validator && vitest run tests/e2e/create-mint.test.ts && vitest run tests/e2e/mint-to.test.ts && vitest run tests/e2e/transfer.test.ts && vitest run tests/e2e/compress.test.ts && vitest run tests/e2e/decompress.test.ts && vitest run tests/e2e/register-mint.test.ts && vitest run tests/e2e/approve-and-mint-to.test.ts && vitest run tests/e2e/rpc-token-interop.test.ts",
-        "pull-idl": "../../scripts/push-compressed-token-idl.sh",
+        "pull-idl": "cp  ../../target/types/light_compressed_token.ts ../../js/compressed-token/src/idl/ && cp  ../../target/idl/light_compressed_token.json ../../js/compressed-token/src/idl/",
         "build": "rimraf dist && pnpm pull-idl && pnpm build:bundle",
         "build:bundle": "rollup -c",
         "format": "prettier --write .",
@@ -61,7 +61,7 @@
         "@lightprotocol/stateless.js": "workspace:*"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "0.29.0",
+        "@coral-xyz/anchor": "0.30.1",
         "@solana/spl-token": "^0.3.11",
         "buffer": "^6.0.3",
         "tweetnacl": "^1.0.3"

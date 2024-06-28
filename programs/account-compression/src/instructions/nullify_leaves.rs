@@ -168,7 +168,6 @@ pub fn from_vec(vec: &[[u8; 32]], height: usize) -> Result<BoundedVec<[u8; 32]>>
 
 #[cfg(not(target_os = "solana"))]
 pub mod sdk_nullify {
-    use anchor_lang::{InstructionData, ToAccountMetas};
     use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
     use crate::utils::constants::NOOP_PUBKEY;

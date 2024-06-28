@@ -166,6 +166,7 @@ pub fn create_input_and_output_accounts_burn(
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
 
+#[allow(warnings)]
 #[cfg(not(target_os = "solana"))]
 pub mod sdk {
 

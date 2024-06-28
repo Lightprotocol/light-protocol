@@ -3,7 +3,6 @@ use crate::{
     protocol_config::state::ProtocolConfigPda,
 };
 use anchor_lang::prelude::*;
-
 #[derive(Accounts)]
 #[instruction(bump: u8)]
 pub struct InitializeProtocolConfig<'info> {

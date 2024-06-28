@@ -4,7 +4,7 @@
 //!
 //! The purpose of the module is to provide definition of Poseidon syscall
 //! without upgrading solana-program and Anchor just yet.
-
+#![allow(unexpected_cfgs)]
 #[cfg(target_os = "solana")]
 mod definitions;
 
