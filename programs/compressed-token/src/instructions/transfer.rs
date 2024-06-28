@@ -1,3 +1,4 @@
+
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount};
@@ -5,6 +6,10 @@ use light_system_program::{
     self,
     sdk::accounts::{InvokeAccounts, SignerAccounts},
 };
+// use account_compression::program::AccountCompression;
+use crate::program::LightCompressedToken;
+use light_system_program::program::LightSystemProgram;
+
 #[derive(Accounts)]
 pub struct TransferInstruction<'info> {
     #[account(mut)]
@@ -25,7 +30,7 @@ pub struct TransferInstruction<'info> {
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub self_program: Program<'info, LightCompressedToken>,
     #[account(mut)]
     pub token_pool_pda: Option<Account<'info, TokenAccount>>,
     #[account(mut)]

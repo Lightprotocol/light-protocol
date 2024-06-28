@@ -1,6 +1,8 @@
 use account_compression::{program::AccountCompression, utils::constants::CPI_AUTHORITY_PDA_SEED};
 use anchor_lang::prelude::*;
 use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
+use crate::program::LightCompressedToken;
+use light_system_program::program::LightSystemProgram;
 
 #[derive(Accounts)]
 pub struct GenericInstruction<'info> {
@@ -22,7 +24,7 @@ pub struct GenericInstruction<'info> {
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
 }
 

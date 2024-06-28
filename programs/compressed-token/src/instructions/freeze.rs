@@ -2,12 +2,14 @@ use account_compression::{program::AccountCompression, utils::constants::CPI_AUT
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 use light_system_program::sdk::accounts::{InvokeAccounts, SignerAccounts};
+use crate::program::LightCompressedToken;
+use light_system_program::program::LightSystemProgram;
 
 #[derive(Accounts)]
 pub struct FreezeInstruction<'info> {
     #[account(mut)]
     pub fee_payer: Signer<'info>,
-    #[account(address= mint.freeze_authority.unwrap())]
+    //#[account(address= mint.freeze_authority.unwrap())] TODO add manual check or uncomment
     pub authority: Signer<'info>,
     /// CHECK: that mint authority is derived from signer
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump,)]
@@ -24,7 +26,7 @@ pub struct FreezeInstruction<'info> {
     /// CHECK: this account in psp account compression program
     pub account_compression_program:
         Program<'info, account_compression::program::AccountCompression>,
-    pub self_program: Program<'info, crate::program::LightCompressedToken>,
+    pub self_program: Program<'info, LightCompressedToken>,
     pub system_program: Program<'info, System>,
     pub mint: Account<'info, Mint>,
 }

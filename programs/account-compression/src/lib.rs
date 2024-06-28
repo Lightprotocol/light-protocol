@@ -12,7 +12,7 @@ pub use processor::*;
 pub mod sdk;
 use anchor_lang::prelude::*;
 
-declare_id!("CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK");
+declare_id!("EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

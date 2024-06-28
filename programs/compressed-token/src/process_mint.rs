@@ -11,6 +11,10 @@ use {
     light_utils::hash_to_bn254_field_size_be,
 };
 
+use crate::program::LightCompressedToken;
+use light_system_program::program::LightSystemProgram;
+use account_compression::program::AccountCompression;
+
 pub const POOL_SEED: &[u8] = b"pool";
 
 /// creates a token pool account which is owned by the token authority pda

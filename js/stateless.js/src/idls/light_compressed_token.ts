@@ -1,468 +1,134 @@
 export type LightCompressedToken = {
-    version: '0.4.1';
-    name: 'light_compressed_token';
+    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+    metadata: {
+        name: 'light_compressed_token';
+        version: '0.4.1';
+        spec: '0.1.0';
+        description: 'Generalized token compression on Solana';
+        repository: 'https://github.com/Lightprotocol/light-protocol';
+    };
     instructions: [
         {
-            name: 'createTokenPool';
-            docs: [
-                'This instruction expects a mint account to be created in a separate',
-                'token program instruction with token authority as mint authority. This',
-                'instruction creates a token pool account for that mint owned by token',
-                'authority.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [];
-        },
-        {
-            name: 'mintTo';
-            docs: [
-                'Mints tokens from an spl token mint to a list of compressed accounts.',
-                'Minted tokens are transferred to a pool account owned by the compressed',
-                'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account.',
-            ];
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'merkleTree';
-                    isMut: true;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'publicKeys';
-                    type: {
-                        vec: 'publicKey';
-                    };
-                },
-                {
-                    name: 'amounts';
-                    type: {
-                        vec: 'u64';
-                    };
-                },
-            ];
-        },
-        {
-            name: 'transfer';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'compressOrDecompressTokenAccount';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
             name: 'approve';
+            discriminator: [69, 74, 217, 36, 115, 117, 97, 76];
             accounts: [
                 {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    signer: true;
                 },
                 {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
                 {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
                 },
                 {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'registered_program_pda';
                 },
                 {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'noop_program';
                 },
                 {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
                 },
                 {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
                 },
                 {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
                 },
                 {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'revoke';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'freeze';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: false;
-                    isSigner: false;
-                },
-            ];
-            args: [
-                {
-                    name: 'inputs';
-                    type: 'bytes';
-                },
-            ];
-        },
-        {
-            name: 'thaw';
-            accounts: [
-                {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
-                },
-                {
-                    name: 'authority';
-                    isMut: false;
-                    isSigner: true;
-                },
-                {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
-                },
-                {
-                    name: 'mint';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
                 },
             ];
             args: [
@@ -474,56 +140,125 @@ export type LightCompressedToken = {
         },
         {
             name: 'burn';
+            discriminator: [116, 110, 29, 56, 107, 219, 42, 93];
             accounts: [
                 {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    signer: true;
                 },
                 {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
                 {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
                 },
                 {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'registered_program_pda';
                 },
                 {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'noop_program';
                 },
                 {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
                 },
                 {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
                 },
                 {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
                 },
                 {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
                 },
             ];
             args: [
@@ -534,94 +269,936 @@ export type LightCompressedToken = {
             ];
         },
         {
-            name: 'stubIdlBuild';
+            name: 'create_token_pool';
+            docs: [
+                'This instruction expects a mint account to be created in a separate',
+                'token program instruction with token authority as mint authority. This',
+                'instruction creates a token pool account for that mint owned by token',
+                'authority.',
+            ];
+            discriminator: [23, 169, 27, 122, 147, 169, 209, 152];
+            accounts: [
+                {
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'token_pool_pda';
+                    writable: true;
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [112, 111, 111, 108];
+                            },
+                            {
+                                kind: 'account';
+                                path: 'mint';
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
+                },
+                {
+                    name: 'mint';
+                    writable: true;
+                },
+                {
+                    name: 'token_program';
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+                },
+                {
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+            ];
+            args: [];
+        },
+        {
+            name: 'freeze';
+            discriminator: [255, 91, 207, 84, 251, 194, 254, 63];
+            accounts: [
+                {
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                },
+                {
+                    name: 'registered_program_pda';
+                },
+                {
+                    name: 'noop_program';
+                },
+                {
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                },
+                {
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                },
+                {
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
+                },
+                {
+                    name: 'mint';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'mint_to';
+            docs: [
+                'Mints tokens from an spl token mint to a list of compressed accounts.',
+                'Minted tokens are transferred to a pool account owned by the compressed',
+                'token program. The instruction creates one compressed output account for',
+                'every amount and pubkey input pair one output compressed account.',
+            ];
+            discriminator: [241, 34, 48, 186, 37, 179, 123, 192];
+            accounts: [
+                {
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'mint';
+                    writable: true;
+                },
+                {
+                    name: 'token_pool_pda';
+                    writable: true;
+                },
+                {
+                    name: 'token_program';
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+                },
+                {
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                },
+                {
+                    name: 'registered_program_pda';
+                },
+                {
+                    name: 'noop_program';
+                },
+                {
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                },
+                {
+                    name: 'merkle_tree';
+                    writable: true;
+                },
+                {
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                },
+                {
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'public_keys';
+                    type: {
+                        vec: 'pubkey';
+                    };
+                },
+                {
+                    name: 'amounts';
+                    type: {
+                        vec: 'u64';
+                    };
+                },
+            ];
+        },
+        {
+            name: 'revoke';
+            discriminator: [170, 23, 31, 34, 133, 173, 93, 242];
+            accounts: [
+                {
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                },
+                {
+                    name: 'registered_program_pda';
+                },
+                {
+                    name: 'noop_program';
+                },
+                {
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                },
+                {
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                },
+                {
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'stub_idl_build';
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
                 'the IDL. It should not be included in production builds nor be called in',
                 'practice.',
             ];
+            discriminator: [118, 99, 238, 243, 8, 167, 251, 168];
             accounts: [
                 {
-                    name: 'feePayer';
-                    isMut: true;
-                    isSigner: true;
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
                 },
                 {
                     name: 'authority';
-                    isMut: false;
-                    isSigner: true;
+                    signer: true;
                 },
                 {
-                    name: 'cpiAuthorityPda';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
                 },
                 {
-                    name: 'lightSystemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
                 },
                 {
-                    name: 'registeredProgramPda';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'registered_program_pda';
                 },
                 {
-                    name: 'noopProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'noop_program';
                 },
                 {
-                    name: 'accountCompressionAuthority';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
                 },
                 {
-                    name: 'accountCompressionProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
                 },
                 {
-                    name: 'selfProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
                 },
                 {
-                    name: 'tokenPoolPda';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
+                    name: 'token_pool_pda';
+                    writable: true;
+                    optional: true;
                 },
                 {
-                    name: 'compressOrDecompressTokenAccount';
-                    isMut: true;
-                    isSigner: false;
-                    isOptional: true;
+                    name: 'compress_or_decompress_token_account';
+                    writable: true;
+                    optional: true;
                 },
                 {
-                    name: 'tokenProgram';
-                    isMut: false;
-                    isSigner: false;
-                    isOptional: true;
+                    name: 'token_program';
+                    optional: true;
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
                 },
                 {
-                    name: 'systemProgram';
-                    isMut: false;
-                    isSigner: false;
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
                 },
             ];
             args: [
                 {
-                    name: 'inputs1';
+                    name: '_inputs1';
                     type: {
-                        defined: 'CompressedTokenInstructionDataTransfer';
+                        defined: {
+                            name: 'CompressedTokenInstructionDataTransfer';
+                        };
                     };
                 },
                 {
-                    name: 'inputs2';
+                    name: '_inputs2';
                     type: {
-                        defined: 'TokenData';
+                        defined: {
+                            name: 'TokenData';
+                        };
                     };
+                },
+            ];
+        },
+        {
+            name: 'thaw';
+            discriminator: [226, 249, 34, 57, 189, 21, 177, 101];
+            accounts: [
+                {
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                },
+                {
+                    name: 'registered_program_pda';
+                },
+                {
+                    name: 'noop_program';
+                },
+                {
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                },
+                {
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                },
+                {
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
+                },
+                {
+                    name: 'mint';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
+                },
+            ];
+        },
+        {
+            name: 'transfer';
+            discriminator: [163, 52, 200, 231, 140, 3, 69, 186];
+            accounts: [
+                {
+                    name: 'fee_payer';
+                    writable: true;
+                    signer: true;
+                },
+                {
+                    name: 'authority';
+                    signer: true;
+                },
+                {
+                    name: 'cpi_authority_pda';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                    };
+                },
+                {
+                    name: 'light_system_program';
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ';
+                },
+                {
+                    name: 'registered_program_pda';
+                },
+                {
+                    name: 'noop_program';
+                },
+                {
+                    name: 'account_compression_authority';
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const';
+                                value: [
+                                    99,
+                                    112,
+                                    105,
+                                    95,
+                                    97,
+                                    117,
+                                    116,
+                                    104,
+                                    111,
+                                    114,
+                                    105,
+                                    116,
+                                    121,
+                                ];
+                            },
+                        ];
+                        program: {
+                            kind: 'const';
+                            value: [
+                                30,
+                                193,
+                                178,
+                                123,
+                                205,
+                                181,
+                                228,
+                                6,
+                                139,
+                                125,
+                                78,
+                                222,
+                                202,
+                                109,
+                                151,
+                                70,
+                                186,
+                                17,
+                                32,
+                                135,
+                                5,
+                                154,
+                                189,
+                                133,
+                                11,
+                                148,
+                                97,
+                                140,
+                                115,
+                                182,
+                                99,
+                                45,
+                            ];
+                        };
+                    };
+                },
+                {
+                    name: 'account_compression_program';
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7';
+                },
+                {
+                    name: 'self_program';
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr';
+                },
+                {
+                    name: 'token_pool_pda';
+                    writable: true;
+                    optional: true;
+                },
+                {
+                    name: 'compress_or_decompress_token_account';
+                    writable: true;
+                    optional: true;
+                },
+                {
+                    name: 'token_program';
+                    optional: true;
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+                },
+                {
+                    name: 'system_program';
+                    address: '11111111111111111111111111111111';
+                },
+            ];
+            args: [
+                {
+                    name: 'inputs';
+                    type: 'bytes';
                 },
             ];
         },
@@ -629,735 +1206,7 @@ export type LightCompressedToken = {
     accounts: [
         {
             name: 'RegisteredProgram';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'registeredProgramId';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'groupAuthorityPda';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-    ];
-    types: [
-        {
-            name: 'AccessMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        docs: ['Owner of the Merkle tree.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'programOwner';
-                        docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ];
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'AccountState';
-            type: {
-                kind: 'enum';
-                variants: [
-                    {
-                        name: 'Initialized';
-                    },
-                    {
-                        name: 'Frozen';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedAccount';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'lamports';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'address';
-                        type: {
-                            option: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'data';
-                        type: {
-                            option: {
-                                defined: 'CompressedAccountData';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedAccountData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'discriminator';
-                        type: {
-                            array: ['u8', 8];
-                        };
-                    },
-                    {
-                        name: 'data';
-                        type: 'bytes';
-                    },
-                    {
-                        name: 'dataHash';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedCpiContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'setContext';
-                        docs: [
-                            'Is set by the program that is invoking the CPI to signal that is should',
-                            'set the cpi context.',
-                        ];
-                        type: 'bool';
-                    },
-                    {
-                        name: 'firstSetContext';
-                        docs: [
-                            'Is set to wipe the cpi context since someone could have set it before',
-                            'with unrelated data.',
-                        ];
-                        type: 'bool';
-                    },
-                    {
-                        name: 'cpiContextAccountIndex';
-                        docs: [
-                            'Index of cpi context account in remaining accounts.',
-                        ];
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedProof';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'a';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'b';
-                        type: {
-                            array: ['u8', 64];
-                        };
-                    },
-                    {
-                        name: 'c';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'CompressedTokenInstructionDataTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'mint';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'delegatedTransfer';
-                        docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
-                            'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
-                        ];
-                        type: {
-                            option: {
-                                defined: 'DelegatedTransfer';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputTokenDataWithContext';
-                        type: {
-                            vec: {
-                                defined: 'InputTokenDataWithContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'PackedTokenTransferOutputData';
-                            };
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compressOrDecompressAmount';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'cpiContext';
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'DelegatedTransfer';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'delegateChangeAccountIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InputTokenDataWithContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'amount';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'delegateIndex';
-                        type: {
-                            option: 'u8';
-                        };
-                    },
-                    {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'PackedMerkleContext';
-                        };
-                    },
-                    {
-                        name: 'rootIndex';
-                        type: 'u16';
-                    },
-                    {
-                        name: 'lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InstructionDataInvoke';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'PackedCompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'OutputCompressedAccountWithPackedContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'newAddressParams';
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked';
-                            };
-                        };
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'InstructionDataInvokeCpi';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'proof';
-                        type: {
-                            option: {
-                                defined: 'CompressedProof';
-                            };
-                        };
-                    },
-                    {
-                        name: 'newAddressParams';
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked';
-                            };
-                        };
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext';
-                        type: {
-                            vec: {
-                                defined: 'PackedCompressedAccountWithMerkleContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'OutputCompressedAccountWithPackedContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'signerSeeds';
-                        type: {
-                            vec: 'bytes';
-                        };
-                    },
-                    {
-                        name: 'cpiContext';
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext';
-                            };
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleTreeMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'accessMetadata';
-                        type: {
-                            defined: 'AccessMetadata';
-                        };
-                    },
-                    {
-                        name: 'rolloverMetadata';
-                        type: {
-                            defined: 'RolloverMetadata';
-                        };
-                    },
-                    {
-                        name: 'associatedQueue';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'nextMerkleTree';
-                        type: 'publicKey';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'MerkleTreeSequenceNumber';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'pubkey';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'seq';
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'NewAddressParamsPacked';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'seed';
-                        type: {
-                            array: ['u8', 32];
-                        };
-                    },
-                    {
-                        name: 'addressQueueAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex';
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleTreeIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedCompressedAccountWithMerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'compressedAccount';
-                        type: {
-                            defined: 'CompressedAccount';
-                        };
-                    },
-                    {
-                        name: 'merkleContext';
-                        type: {
-                            defined: 'PackedMerkleContext';
-                        };
-                    },
-                    {
-                        name: 'rootIndex';
-                        docs: [
-                            'Index of root used in inclusion validity proof.',
-                        ];
-                        type: 'u16';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedMerkleContext';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'merkleTreePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex';
-                        type: 'u8';
-                    },
-                    {
-                        name: 'leafIndex';
-                        type: 'u32';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PackedTokenTransferOutputData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'owner';
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'amount';
-                        type: 'u64';
-                    },
-                    {
-                        name: 'lamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'merkleTreeIndex';
-                        type: 'u8';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'PublicTransactionEvent';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'inputCompressedAccountHashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccountHashes';
-                        type: {
-                            vec: {
-                                array: ['u8', 32];
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputCompressedAccounts';
-                        type: {
-                            vec: {
-                                defined: 'OutputCompressedAccountWithPackedContext';
-                            };
-                        };
-                    },
-                    {
-                        name: 'outputLeafIndices';
-                        type: {
-                            vec: 'u32';
-                        };
-                    },
-                    {
-                        name: 'sequenceNumbers';
-                        type: {
-                            vec: {
-                                defined: 'MerkleTreeSequenceNumber';
-                            };
-                        };
-                    },
-                    {
-                        name: 'relayFee';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'isCompress';
-                        type: 'bool';
-                    },
-                    {
-                        name: 'compressOrDecompressLamports';
-                        type: {
-                            option: 'u64';
-                        };
-                    },
-                    {
-                        name: 'pubkeyArray';
-                        type: {
-                            vec: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'message';
-                        type: {
-                            option: 'bytes';
-                        };
-                    },
-                ];
-            };
-        },
-        {
-            name: 'RolloverMetadata';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'index';
-                        docs: ['Unique index.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverFee';
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolloverThreshold';
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'networkFee';
-                        docs: ['Tip for maintaining the account.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'rolledoverSlot';
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'closeThreshold';
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ];
-                        type: 'u64';
-                    },
-                ];
-            };
-        },
-        {
-            name: 'TokenData';
-            type: {
-                kind: 'struct';
-                fields: [
-                    {
-                        name: 'mint';
-                        docs: ['The mint associated with this account'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'owner';
-                        docs: ['The owner of this account.'];
-                        type: 'publicKey';
-                    },
-                    {
-                        name: 'amount';
-                        docs: ['The amount of tokens this account holds.'];
-                        type: 'u64';
-                    },
-                    {
-                        name: 'delegate';
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ];
-                        type: {
-                            option: 'publicKey';
-                        };
-                    },
-                    {
-                        name: 'state';
-                        docs: ["The account's state"];
-                        type: {
-                            defined: 'AccountState';
-                        };
-                    },
-                ];
-            };
+            discriminator: [31, 251, 180, 235, 3, 116, 50, 4];
         },
     ];
     errors: [
@@ -1467,472 +1316,940 @@ export type LightCompressedToken = {
             msg: 'InvalidMint';
         },
     ];
+    types: [
+        {
+            name: 'AccessMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        docs: ['Owner of the Merkle tree.'];
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'program_owner';
+                        docs: [
+                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ];
+                        type: 'pubkey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'AccountState';
+            repr: {
+                kind: 'rust';
+            };
+            type: {
+                kind: 'enum';
+                variants: [
+                    {
+                        name: 'Initialized';
+                    },
+                    {
+                        name: 'Frozen';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedAccount';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'lamports';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'address';
+                        type: {
+                            option: {
+                                array: ['u8', 32];
+                            };
+                        };
+                    },
+                    {
+                        name: 'data';
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedAccountData';
+                                };
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedAccountData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'discriminator';
+                        type: {
+                            array: ['u8', 8];
+                        };
+                    },
+                    {
+                        name: 'data';
+                        type: 'bytes';
+                    },
+                    {
+                        name: 'data_hash';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedCpiContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'set_context';
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ];
+                        type: 'bool';
+                    },
+                    {
+                        name: 'first_set_context';
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ];
+                        type: 'bool';
+                    },
+                    {
+                        name: 'cpi_context_account_index';
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ];
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedProof';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'a';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'b';
+                        type: {
+                            array: ['u8', 64];
+                        };
+                    },
+                    {
+                        name: 'c';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CompressedTokenInstructionDataTransfer';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedProof';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'mint';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'delegated_transfer';
+                        docs: [
+                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'owner = Some(owner) is the owner of the token account.',
+                            'Is set if the signer is delegate',
+                        ];
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'DelegatedTransfer';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'input_token_data_with_context';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'InputTokenDataWithContext';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'output_compressed_accounts';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'PackedTokenTransferOutputData';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'is_compress';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'compress_or_decompress_amount';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'cpi_context';
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedCpiContext';
+                                };
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'CpiContextAccount';
+            docs: [
+                'Collects instruction data without executing a compressed transaction.',
+                'Signer checks are performed on instruction data.',
+                'Collected instruction data is combined with the instruction data of the executing cpi,',
+                'and executed as a single transaction.',
+                'This enables to use input compressed accounts that are owned by multiple programs,',
+                'with one zero-knowledge proof.',
+            ];
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'fee_payer';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'associated_merkle_tree';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'context';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'InstructionDataInvokeCpi';
+                                };
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'DelegatedTransfer';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'delegate_change_account_index';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'InputTokenDataWithContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'amount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'delegate_index';
+                        type: {
+                            option: 'u8';
+                        };
+                    },
+                    {
+                        name: 'merkle_context';
+                        type: {
+                            defined: {
+                                name: 'PackedMerkleContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'root_index';
+                        type: 'u16';
+                    },
+                    {
+                        name: 'lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'InstructionDataInvoke';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedProof';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'input_compressed_accounts_with_merkle_context';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'PackedCompressedAccountWithMerkleContext';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'output_compressed_accounts';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'OutputCompressedAccountWithPackedContext';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'relay_fee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'new_address_params';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'NewAddressParamsPacked';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'compress_or_decompress_lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'is_compress';
+                        type: 'bool';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'InstructionDataInvokeCpi';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'proof';
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedProof';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'new_address_params';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'NewAddressParamsPacked';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'input_compressed_accounts_with_merkle_context';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'PackedCompressedAccountWithMerkleContext';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'output_compressed_accounts';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'OutputCompressedAccountWithPackedContext';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'relay_fee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'compress_or_decompress_lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'is_compress';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'signer_seeds';
+                        type: {
+                            vec: 'bytes';
+                        };
+                    },
+                    {
+                        name: 'cpi_context';
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedCpiContext';
+                                };
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleTreeMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'access_metadata';
+                        type: {
+                            defined: {
+                                name: 'AccessMetadata';
+                            };
+                        };
+                    },
+                    {
+                        name: 'rollover_metadata';
+                        type: {
+                            defined: {
+                                name: 'RolloverMetadata';
+                            };
+                        };
+                    },
+                    {
+                        name: 'associated_queue';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'next_merkle_tree';
+                        type: 'pubkey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'MerkleTreeSequenceNumber';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'pubkey';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'seq';
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'NewAddressParamsPacked';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'seed';
+                        type: {
+                            array: ['u8', 32];
+                        };
+                    },
+                    {
+                        name: 'address_queue_account_index';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'address_merkle_tree_account_index';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'address_merkle_tree_root_index';
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressed_account';
+                        type: {
+                            defined: {
+                                name: 'CompressedAccount';
+                            };
+                        };
+                    },
+                    {
+                        name: 'merkle_tree_index';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedCompressedAccountWithMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'compressed_account';
+                        type: {
+                            defined: {
+                                name: 'CompressedAccount';
+                            };
+                        };
+                    },
+                    {
+                        name: 'merkle_context';
+                        type: {
+                            defined: {
+                                name: 'PackedMerkleContext';
+                            };
+                        };
+                    },
+                    {
+                        name: 'root_index';
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ];
+                        type: 'u16';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedMerkleContext';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'merkle_tree_pubkey_index';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'nullifier_queue_pubkey_index';
+                        type: 'u8';
+                    },
+                    {
+                        name: 'leaf_index';
+                        type: 'u32';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PackedTokenTransferOutputData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'owner';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'amount';
+                        type: 'u64';
+                    },
+                    {
+                        name: 'lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'merkle_tree_index';
+                        type: 'u8';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'PublicTransactionEvent';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'input_compressed_account_hashes';
+                        type: {
+                            vec: {
+                                array: ['u8', 32];
+                            };
+                        };
+                    },
+                    {
+                        name: 'output_compressed_account_hashes';
+                        type: {
+                            vec: {
+                                array: ['u8', 32];
+                            };
+                        };
+                    },
+                    {
+                        name: 'output_compressed_accounts';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'OutputCompressedAccountWithPackedContext';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'output_leaf_indices';
+                        type: {
+                            vec: 'u32';
+                        };
+                    },
+                    {
+                        name: 'sequence_numbers';
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'MerkleTreeSequenceNumber';
+                                };
+                            };
+                        };
+                    },
+                    {
+                        name: 'relay_fee';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'is_compress';
+                        type: 'bool';
+                    },
+                    {
+                        name: 'compress_or_decompress_lamports';
+                        type: {
+                            option: 'u64';
+                        };
+                    },
+                    {
+                        name: 'pubkey_array';
+                        type: {
+                            vec: 'pubkey';
+                        };
+                    },
+                    {
+                        name: 'message';
+                        type: {
+                            option: 'bytes';
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'RegisteredProgram';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'registered_program_id';
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'group_authority_pda';
+                        type: 'pubkey';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'RolloverMetadata';
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'index';
+                        docs: ['Unique index.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rollover_fee';
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rollover_threshold';
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'network_fee';
+                        docs: ['Tip for maintaining the account.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'rolledover_slot';
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'close_threshold';
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ];
+                        type: 'u64';
+                    },
+                ];
+            };
+        },
+        {
+            name: 'StateMerkleTreeAccount';
+            docs: [
+                'Concurrent state Merkle tree used for public compressed transactions.',
+            ];
+            serialization: 'bytemuck';
+            repr: {
+                kind: 'c';
+            };
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'metadata';
+                        type: {
+                            defined: {
+                                name: 'MerkleTreeMetadata';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+        {
+            name: 'TokenData';
+            type: {
+                kind: 'struct';
+                fields: [
+                    {
+                        name: 'mint';
+                        docs: ['The mint associated with this account'];
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'owner';
+                        docs: ['The owner of this account.'];
+                        type: 'pubkey';
+                    },
+                    {
+                        name: 'amount';
+                        docs: ['The amount of tokens this account holds.'];
+                        type: 'u64';
+                    },
+                    {
+                        name: 'delegate';
+                        docs: [
+                            'If `delegate` is `Some` then `delegated_amount` represents',
+                            'the amount authorized by the delegate',
+                        ];
+                        type: {
+                            option: 'pubkey';
+                        };
+                    },
+                    {
+                        name: 'state';
+                        docs: ["The account's state"];
+                        type: {
+                            defined: {
+                                name: 'AccountState';
+                            };
+                        };
+                    },
+                ];
+            };
+        },
+    ];
 };
 export const IDL: LightCompressedToken = {
-    version: '0.4.1',
-    name: 'light_compressed_token',
+    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+    metadata: {
+        name: 'light_compressed_token',
+        version: '0.4.1',
+        spec: '0.1.0',
+        description: 'Generalized token compression on Solana',
+        repository: 'https://github.com/Lightprotocol/light-protocol',
+    },
     instructions: [
         {
-            name: 'createTokenPool',
-            docs: [
-                'This instruction expects a mint account to be created in a separate',
-                'token program instruction with token authority as mint authority. This',
-                'instruction creates a token pool account for that mint owned by token',
-                'authority.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [],
-        },
-        {
-            name: 'mintTo',
-            docs: [
-                'Mints tokens from an spl token mint to a list of compressed accounts.',
-                'Minted tokens are transferred to a pool account owned by the compressed',
-                'token program. The instruction creates one compressed output account for',
-                'every amount and pubkey input pair one output compressed account.',
-            ],
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'merkleTree',
-                    isMut: true,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'publicKeys',
-                    type: {
-                        vec: 'publicKey',
-                    },
-                },
-                {
-                    name: 'amounts',
-                    type: {
-                        vec: 'u64',
-                    },
-                },
-            ],
-        },
-        {
-            name: 'transfer',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'compressOrDecompressTokenAccount',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
             name: 'approve',
+            discriminator: [69, 74, 217, 36, 115, 117, 97, 76],
             accounts: [
                 {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
                 },
                 {
                     name: 'authority',
-                    isMut: false,
-                    isSigner: true,
+                    signer: true,
                 },
                 {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
                 },
                 {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
                 },
                 {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'registered_program_pda',
                 },
                 {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'noop_program',
                 },
                 {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
                 },
                 {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
                 },
                 {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
                 },
                 {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'revoke',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'freeze',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: false,
-                    isSigner: false,
-                },
-            ],
-            args: [
-                {
-                    name: 'inputs',
-                    type: 'bytes',
-                },
-            ],
-        },
-        {
-            name: 'thaw',
-            accounts: [
-                {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
-                },
-                {
-                    name: 'authority',
-                    isMut: false,
-                    isSigner: true,
-                },
-                {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
-                },
-                {
-                    name: 'mint',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
                 },
             ],
             args: [
@@ -1944,56 +2261,75 @@ export const IDL: LightCompressedToken = {
         },
         {
             name: 'burn',
+            discriminator: [116, 110, 29, 56, 107, 219, 42, 93],
             accounts: [
                 {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
                 },
                 {
                     name: 'authority',
-                    isMut: false,
-                    isSigner: true,
+                    signer: true,
                 },
                 {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
                 },
                 {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
                 },
                 {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'registered_program_pda',
                 },
                 {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'noop_program',
                 },
                 {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
                 },
                 {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
                 },
                 {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
                 },
                 {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
                 },
             ],
             args: [
@@ -2004,94 +2340,625 @@ export const IDL: LightCompressedToken = {
             ],
         },
         {
-            name: 'stubIdlBuild',
+            name: 'create_token_pool',
+            docs: [
+                'This instruction expects a mint account to be created in a separate',
+                'token program instruction with token authority as mint authority. This',
+                'instruction creates a token pool account for that mint owned by token',
+                'authority.',
+            ],
+            discriminator: [23, 169, 27, 122, 147, 169, 209, 152],
+            accounts: [
+                {
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
+                },
+                {
+                    name: 'token_pool_pda',
+                    writable: true,
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [112, 111, 111, 108],
+                            },
+                            {
+                                kind: 'account',
+                                path: 'mint',
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
+                },
+                {
+                    name: 'mint',
+                    writable: true,
+                },
+                {
+                    name: 'token_program',
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+                },
+                {
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+            args: [],
+        },
+        {
+            name: 'freeze',
+            discriminator: [255, 91, 207, 84, 251, 194, 254, 63],
+            accounts: [
+                {
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
+                },
+                {
+                    name: 'authority',
+                    signer: true,
+                },
+                {
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                },
+                {
+                    name: 'registered_program_pda',
+                },
+                {
+                    name: 'noop_program',
+                },
+                {
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
+                },
+                {
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                },
+                {
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                },
+                {
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
+                },
+                {
+                    name: 'mint',
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'mint_to',
+            docs: [
+                'Mints tokens from an spl token mint to a list of compressed accounts.',
+                'Minted tokens are transferred to a pool account owned by the compressed',
+                'token program. The instruction creates one compressed output account for',
+                'every amount and pubkey input pair one output compressed account.',
+            ],
+            discriminator: [241, 34, 48, 186, 37, 179, 123, 192],
+            accounts: [
+                {
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
+                },
+                {
+                    name: 'authority',
+                    signer: true,
+                },
+                {
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'mint',
+                    writable: true,
+                },
+                {
+                    name: 'token_pool_pda',
+                    writable: true,
+                },
+                {
+                    name: 'token_program',
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+                },
+                {
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                },
+                {
+                    name: 'registered_program_pda',
+                },
+                {
+                    name: 'noop_program',
+                },
+                {
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
+                },
+                {
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                },
+                {
+                    name: 'merkle_tree',
+                    writable: true,
+                },
+                {
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                },
+                {
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
+                },
+            ],
+            args: [
+                {
+                    name: 'public_keys',
+                    type: {
+                        vec: 'pubkey',
+                    },
+                },
+                {
+                    name: 'amounts',
+                    type: {
+                        vec: 'u64',
+                    },
+                },
+            ],
+        },
+        {
+            name: 'revoke',
+            discriminator: [170, 23, 31, 34, 133, 173, 93, 242],
+            accounts: [
+                {
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
+                },
+                {
+                    name: 'authority',
+                    signer: true,
+                },
+                {
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                },
+                {
+                    name: 'registered_program_pda',
+                },
+                {
+                    name: 'noop_program',
+                },
+                {
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
+                },
+                {
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                },
+                {
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                },
+                {
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'stub_idl_build',
             docs: [
                 'This function is a stub to allow Anchor to include the input types in',
                 'the IDL. It should not be included in production builds nor be called in',
                 'practice.',
             ],
+            discriminator: [118, 99, 238, 243, 8, 167, 251, 168],
             accounts: [
                 {
-                    name: 'feePayer',
-                    isMut: true,
-                    isSigner: true,
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
                 },
                 {
                     name: 'authority',
-                    isMut: false,
-                    isSigner: true,
+                    signer: true,
                 },
                 {
-                    name: 'cpiAuthorityPda',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
                 },
                 {
-                    name: 'lightSystemProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
                 },
                 {
-                    name: 'registeredProgramPda',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'registered_program_pda',
                 },
                 {
-                    name: 'noopProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'noop_program',
                 },
                 {
-                    name: 'accountCompressionAuthority',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
                 },
                 {
-                    name: 'accountCompressionProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
                 },
                 {
-                    name: 'selfProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
                 },
                 {
-                    name: 'tokenPoolPda',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
+                    name: 'token_pool_pda',
+                    writable: true,
+                    optional: true,
                 },
                 {
-                    name: 'compressOrDecompressTokenAccount',
-                    isMut: true,
-                    isSigner: false,
-                    isOptional: true,
+                    name: 'compress_or_decompress_token_account',
+                    writable: true,
+                    optional: true,
                 },
                 {
-                    name: 'tokenProgram',
-                    isMut: false,
-                    isSigner: false,
-                    isOptional: true,
+                    name: 'token_program',
+                    optional: true,
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
                 },
                 {
-                    name: 'systemProgram',
-                    isMut: false,
-                    isSigner: false,
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
                 },
             ],
             args: [
                 {
-                    name: 'inputs1',
+                    name: '_inputs1',
                     type: {
-                        defined: 'CompressedTokenInstructionDataTransfer',
+                        defined: {
+                            name: 'CompressedTokenInstructionDataTransfer',
+                        },
                     },
                 },
                 {
-                    name: 'inputs2',
+                    name: '_inputs2',
                     type: {
-                        defined: 'TokenData',
+                        defined: {
+                            name: 'TokenData',
+                        },
                     },
+                },
+            ],
+        },
+        {
+            name: 'thaw',
+            discriminator: [226, 249, 34, 57, 189, 21, 177, 101],
+            accounts: [
+                {
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
+                },
+                {
+                    name: 'authority',
+                    signer: true,
+                },
+                {
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                },
+                {
+                    name: 'registered_program_pda',
+                },
+                {
+                    name: 'noop_program',
+                },
+                {
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
+                },
+                {
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                },
+                {
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                },
+                {
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
+                },
+                {
+                    name: 'mint',
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
+                },
+            ],
+        },
+        {
+            name: 'transfer',
+            discriminator: [163, 52, 200, 231, 140, 3, 69, 186],
+            accounts: [
+                {
+                    name: 'fee_payer',
+                    writable: true,
+                    signer: true,
+                },
+                {
+                    name: 'authority',
+                    signer: true,
+                },
+                {
+                    name: 'cpi_authority_pda',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'light_system_program',
+                    address: '354YBtbY7ZKdvQHs3GRVw25bULrc87SZmVYLPY53eCeQ',
+                },
+                {
+                    name: 'registered_program_pda',
+                },
+                {
+                    name: 'noop_program',
+                },
+                {
+                    name: 'account_compression_authority',
+                    pda: {
+                        seeds: [
+                            {
+                                kind: 'const',
+                                value: [
+                                    99, 112, 105, 95, 97, 117, 116, 104, 111,
+                                    114, 105, 116, 121,
+                                ],
+                            },
+                        ],
+                        program: {
+                            kind: 'const',
+                            value: [
+                                30, 193, 178, 123, 205, 181, 228, 6, 139, 125,
+                                78, 222, 202, 109, 151, 70, 186, 17, 32, 135, 5,
+                                154, 189, 133, 11, 148, 97, 140, 115, 182, 99,
+                                45,
+                            ],
+                        },
+                    },
+                },
+                {
+                    name: 'account_compression_program',
+                    address: 'EJb9Svap6x9P2psyLW6YrDuygmMpSsiNbmZw72eDCxd7',
+                },
+                {
+                    name: 'self_program',
+                    address: '26UVVNp898798b73KstHfnCng7g5rrn6eVGsJCy3LoAr',
+                },
+                {
+                    name: 'token_pool_pda',
+                    writable: true,
+                    optional: true,
+                },
+                {
+                    name: 'compress_or_decompress_token_account',
+                    writable: true,
+                    optional: true,
+                },
+                {
+                    name: 'token_program',
+                    optional: true,
+                    address: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+                },
+                {
+                    name: 'system_program',
+                    address: '11111111111111111111111111111111',
+                },
+            ],
+            args: [
+                {
+                    name: 'inputs',
+                    type: 'bytes',
                 },
             ],
         },
@@ -2099,740 +2966,7 @@ export const IDL: LightCompressedToken = {
     accounts: [
         {
             name: 'RegisteredProgram',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'registeredProgramId',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'groupAuthorityPda',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-    ],
-    types: [
-        {
-            name: 'AccessMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        docs: ['Owner of the Merkle tree.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'programOwner',
-                        docs: [
-                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
-                        ],
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'AccountState',
-            type: {
-                kind: 'enum',
-                variants: [
-                    {
-                        name: 'Initialized',
-                    },
-                    {
-                        name: 'Frozen',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedAccount',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'lamports',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'address',
-                        type: {
-                            option: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'data',
-                        type: {
-                            option: {
-                                defined: 'CompressedAccountData',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedAccountData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'discriminator',
-                        type: {
-                            array: ['u8', 8],
-                        },
-                    },
-                    {
-                        name: 'data',
-                        type: 'bytes',
-                    },
-                    {
-                        name: 'dataHash',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedCpiContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'setContext',
-                        docs: [
-                            'Is set by the program that is invoking the CPI to signal that is should',
-                            'set the cpi context.',
-                        ],
-                        type: 'bool',
-                    },
-                    {
-                        name: 'firstSetContext',
-                        docs: [
-                            'Is set to wipe the cpi context since someone could have set it before',
-                            'with unrelated data.',
-                        ],
-                        type: 'bool',
-                    },
-                    {
-                        name: 'cpiContextAccountIndex',
-                        docs: [
-                            'Index of cpi context account in remaining accounts.',
-                        ],
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedProof',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'a',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'b',
-                        type: {
-                            array: ['u8', 64],
-                        },
-                    },
-                    {
-                        name: 'c',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'CompressedTokenInstructionDataTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'mint',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'delegatedTransfer',
-                        docs: [
-                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
-                            'owner = Some(owner) is the owner of the token account.',
-                            'Is set if the signer is delegate',
-                        ],
-                        type: {
-                            option: {
-                                defined: 'DelegatedTransfer',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputTokenDataWithContext',
-                        type: {
-                            vec: {
-                                defined: 'InputTokenDataWithContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined: 'PackedTokenTransferOutputData',
-                            },
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compressOrDecompressAmount',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'cpiContext',
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'DelegatedTransfer',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'delegateChangeAccountIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InputTokenDataWithContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'amount',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegateIndex',
-                        type: {
-                            option: 'u8',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'PackedMerkleContext',
-                        },
-                    },
-                    {
-                        name: 'rootIndex',
-                        type: 'u16',
-                    },
-                    {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InstructionDataInvoke',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined:
-                                    'PackedCompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined:
-                                    'OutputCompressedAccountWithPackedContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'newAddressParams',
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked',
-                            },
-                        },
-                    },
-                    {
-                        name: 'compressOrDecompressLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'InstructionDataInvokeCpi',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'proof',
-                        type: {
-                            option: {
-                                defined: 'CompressedProof',
-                            },
-                        },
-                    },
-                    {
-                        name: 'newAddressParams',
-                        type: {
-                            vec: {
-                                defined: 'NewAddressParamsPacked',
-                            },
-                        },
-                    },
-                    {
-                        name: 'inputCompressedAccountsWithMerkleContext',
-                        type: {
-                            vec: {
-                                defined:
-                                    'PackedCompressedAccountWithMerkleContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined:
-                                    'OutputCompressedAccountWithPackedContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'compressOrDecompressLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'signerSeeds',
-                        type: {
-                            vec: 'bytes',
-                        },
-                    },
-                    {
-                        name: 'cpiContext',
-                        type: {
-                            option: {
-                                defined: 'CompressedCpiContext',
-                            },
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleTreeMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'accessMetadata',
-                        type: {
-                            defined: 'AccessMetadata',
-                        },
-                    },
-                    {
-                        name: 'rolloverMetadata',
-                        type: {
-                            defined: 'RolloverMetadata',
-                        },
-                    },
-                    {
-                        name: 'associatedQueue',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'nextMerkleTree',
-                        type: 'publicKey',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'MerkleTreeSequenceNumber',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'pubkey',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'seq',
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'NewAddressParamsPacked',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'seed',
-                        type: {
-                            array: ['u8', 32],
-                        },
-                    },
-                    {
-                        name: 'addressQueueAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeAccountIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'addressMerkleTreeRootIndex',
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'OutputCompressedAccountWithPackedContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedCompressedAccountWithMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'compressedAccount',
-                        type: {
-                            defined: 'CompressedAccount',
-                        },
-                    },
-                    {
-                        name: 'merkleContext',
-                        type: {
-                            defined: 'PackedMerkleContext',
-                        },
-                    },
-                    {
-                        name: 'rootIndex',
-                        docs: [
-                            'Index of root used in inclusion validity proof.',
-                        ],
-                        type: 'u16',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedMerkleContext',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'merkleTreePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'nullifierQueuePubkeyIndex',
-                        type: 'u8',
-                    },
-                    {
-                        name: 'leafIndex',
-                        type: 'u32',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PackedTokenTransferOutputData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'owner',
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
-                        type: 'u64',
-                    },
-                    {
-                        name: 'lamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'merkleTreeIndex',
-                        type: 'u8',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'PublicTransactionEvent',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'inputCompressedAccountHashes',
-                        type: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccountHashes',
-                        type: {
-                            vec: {
-                                array: ['u8', 32],
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputCompressedAccounts',
-                        type: {
-                            vec: {
-                                defined:
-                                    'OutputCompressedAccountWithPackedContext',
-                            },
-                        },
-                    },
-                    {
-                        name: 'outputLeafIndices',
-                        type: {
-                            vec: 'u32',
-                        },
-                    },
-                    {
-                        name: 'sequenceNumbers',
-                        type: {
-                            vec: {
-                                defined: 'MerkleTreeSequenceNumber',
-                            },
-                        },
-                    },
-                    {
-                        name: 'relayFee',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'isCompress',
-                        type: 'bool',
-                    },
-                    {
-                        name: 'compressOrDecompressLamports',
-                        type: {
-                            option: 'u64',
-                        },
-                    },
-                    {
-                        name: 'pubkeyArray',
-                        type: {
-                            vec: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'message',
-                        type: {
-                            option: 'bytes',
-                        },
-                    },
-                ],
-            },
-        },
-        {
-            name: 'RolloverMetadata',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'index',
-                        docs: ['Unique index.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverFee',
-                        docs: [
-                            'This fee is used for rent for the next account.',
-                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolloverThreshold',
-                        docs: [
-                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'networkFee',
-                        docs: ['Tip for maintaining the account.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'rolledoverSlot',
-                        docs: [
-                            'The slot when the account was rolled over, a rolled over account should not be written to.',
-                        ],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'closeThreshold',
-                        docs: [
-                            'If current slot is greater than rolledover_slot + close_threshold and',
-                            "the account is empty it can be closed. No 'close' functionality has been",
-                            'implemented yet.',
-                        ],
-                        type: 'u64',
-                    },
-                ],
-            },
-        },
-        {
-            name: 'TokenData',
-            type: {
-                kind: 'struct',
-                fields: [
-                    {
-                        name: 'mint',
-                        docs: ['The mint associated with this account'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'owner',
-                        docs: ['The owner of this account.'],
-                        type: 'publicKey',
-                    },
-                    {
-                        name: 'amount',
-                        docs: ['The amount of tokens this account holds.'],
-                        type: 'u64',
-                    },
-                    {
-                        name: 'delegate',
-                        docs: [
-                            'If `delegate` is `Some` then `delegated_amount` represents',
-                            'the amount authorized by the delegate',
-                        ],
-                        type: {
-                            option: 'publicKey',
-                        },
-                    },
-                    {
-                        name: 'state',
-                        docs: ["The account's state"],
-                        type: {
-                            defined: 'AccountState',
-                        },
-                    },
-                ],
-            },
+            discriminator: [31, 251, 180, 235, 3, 116, 50, 4],
         },
     ],
     errors: [
@@ -2940,6 +3074,858 @@ export const IDL: LightCompressedToken = {
             code: 6020,
             name: 'InvalidMint',
             msg: 'InvalidMint',
+        },
+    ],
+    types: [
+        {
+            name: 'AccessMetadata',
+            serialization: 'bytemuck',
+            repr: {
+                kind: 'c',
+            },
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        docs: ['Owner of the Merkle tree.'],
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'program_owner',
+                        docs: [
+                            'Delegate of the Merkle tree. This will be used for program owned Merkle trees.',
+                        ],
+                        type: 'pubkey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'AccountState',
+            repr: {
+                kind: 'rust',
+            },
+            type: {
+                kind: 'enum',
+                variants: [
+                    {
+                        name: 'Initialized',
+                    },
+                    {
+                        name: 'Frozen',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedAccount',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'lamports',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'address',
+                        type: {
+                            option: {
+                                array: ['u8', 32],
+                            },
+                        },
+                    },
+                    {
+                        name: 'data',
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedAccountData',
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedAccountData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'discriminator',
+                        type: {
+                            array: ['u8', 8],
+                        },
+                    },
+                    {
+                        name: 'data',
+                        type: 'bytes',
+                    },
+                    {
+                        name: 'data_hash',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedCpiContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'set_context',
+                        docs: [
+                            'Is set by the program that is invoking the CPI to signal that is should',
+                            'set the cpi context.',
+                        ],
+                        type: 'bool',
+                    },
+                    {
+                        name: 'first_set_context',
+                        docs: [
+                            'Is set to wipe the cpi context since someone could have set it before',
+                            'with unrelated data.',
+                        ],
+                        type: 'bool',
+                    },
+                    {
+                        name: 'cpi_context_account_index',
+                        docs: [
+                            'Index of cpi context account in remaining accounts.',
+                        ],
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedProof',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'a',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'b',
+                        type: {
+                            array: ['u8', 64],
+                        },
+                    },
+                    {
+                        name: 'c',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CompressedTokenInstructionDataTransfer',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedProof',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'mint',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'delegated_transfer',
+                        docs: [
+                            'If the signer is a delegate, the delegate index is index 0 of remaining accounts.',
+                            'owner = Some(owner) is the owner of the token account.',
+                            'Is set if the signer is delegate',
+                        ],
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'DelegatedTransfer',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'input_token_data_with_context',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'InputTokenDataWithContext',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'output_compressed_accounts',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'PackedTokenTransferOutputData',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'is_compress',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'compress_or_decompress_amount',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'cpi_context',
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedCpiContext',
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'CpiContextAccount',
+            docs: [
+                'Collects instruction data without executing a compressed transaction.',
+                'Signer checks are performed on instruction data.',
+                'Collected instruction data is combined with the instruction data of the executing cpi,',
+                'and executed as a single transaction.',
+                'This enables to use input compressed accounts that are owned by multiple programs,',
+                'with one zero-knowledge proof.',
+            ],
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'fee_payer',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'associated_merkle_tree',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'context',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'InstructionDataInvokeCpi',
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'DelegatedTransfer',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'delegate_change_account_index',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'InputTokenDataWithContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'amount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'delegate_index',
+                        type: {
+                            option: 'u8',
+                        },
+                    },
+                    {
+                        name: 'merkle_context',
+                        type: {
+                            defined: {
+                                name: 'PackedMerkleContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'root_index',
+                        type: 'u16',
+                    },
+                    {
+                        name: 'lamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'InstructionDataInvoke',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedProof',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'input_compressed_accounts_with_merkle_context',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'PackedCompressedAccountWithMerkleContext',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'output_compressed_accounts',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'OutputCompressedAccountWithPackedContext',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'relay_fee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'new_address_params',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'NewAddressParamsPacked',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'compress_or_decompress_lamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'is_compress',
+                        type: 'bool',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'InstructionDataInvokeCpi',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'proof',
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedProof',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'new_address_params',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'NewAddressParamsPacked',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'input_compressed_accounts_with_merkle_context',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'PackedCompressedAccountWithMerkleContext',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'output_compressed_accounts',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'OutputCompressedAccountWithPackedContext',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'relay_fee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'compress_or_decompress_lamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'is_compress',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'signer_seeds',
+                        type: {
+                            vec: 'bytes',
+                        },
+                    },
+                    {
+                        name: 'cpi_context',
+                        type: {
+                            option: {
+                                defined: {
+                                    name: 'CompressedCpiContext',
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleTreeMetadata',
+            serialization: 'bytemuck',
+            repr: {
+                kind: 'c',
+            },
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'access_metadata',
+                        type: {
+                            defined: {
+                                name: 'AccessMetadata',
+                            },
+                        },
+                    },
+                    {
+                        name: 'rollover_metadata',
+                        type: {
+                            defined: {
+                                name: 'RolloverMetadata',
+                            },
+                        },
+                    },
+                    {
+                        name: 'associated_queue',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'next_merkle_tree',
+                        type: 'pubkey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'MerkleTreeSequenceNumber',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'pubkey',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'seq',
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'NewAddressParamsPacked',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'seed',
+                        type: {
+                            array: ['u8', 32],
+                        },
+                    },
+                    {
+                        name: 'address_queue_account_index',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'address_merkle_tree_account_index',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'address_merkle_tree_root_index',
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'OutputCompressedAccountWithPackedContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressed_account',
+                        type: {
+                            defined: {
+                                name: 'CompressedAccount',
+                            },
+                        },
+                    },
+                    {
+                        name: 'merkle_tree_index',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedCompressedAccountWithMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'compressed_account',
+                        type: {
+                            defined: {
+                                name: 'CompressedAccount',
+                            },
+                        },
+                    },
+                    {
+                        name: 'merkle_context',
+                        type: {
+                            defined: {
+                                name: 'PackedMerkleContext',
+                            },
+                        },
+                    },
+                    {
+                        name: 'root_index',
+                        docs: [
+                            'Index of root used in inclusion validity proof.',
+                        ],
+                        type: 'u16',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedMerkleContext',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'merkle_tree_pubkey_index',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'nullifier_queue_pubkey_index',
+                        type: 'u8',
+                    },
+                    {
+                        name: 'leaf_index',
+                        type: 'u32',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PackedTokenTransferOutputData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'owner',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'amount',
+                        type: 'u64',
+                    },
+                    {
+                        name: 'lamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'merkle_tree_index',
+                        type: 'u8',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'PublicTransactionEvent',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'input_compressed_account_hashes',
+                        type: {
+                            vec: {
+                                array: ['u8', 32],
+                            },
+                        },
+                    },
+                    {
+                        name: 'output_compressed_account_hashes',
+                        type: {
+                            vec: {
+                                array: ['u8', 32],
+                            },
+                        },
+                    },
+                    {
+                        name: 'output_compressed_accounts',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'OutputCompressedAccountWithPackedContext',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'output_leaf_indices',
+                        type: {
+                            vec: 'u32',
+                        },
+                    },
+                    {
+                        name: 'sequence_numbers',
+                        type: {
+                            vec: {
+                                defined: {
+                                    name: 'MerkleTreeSequenceNumber',
+                                },
+                            },
+                        },
+                    },
+                    {
+                        name: 'relay_fee',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'is_compress',
+                        type: 'bool',
+                    },
+                    {
+                        name: 'compress_or_decompress_lamports',
+                        type: {
+                            option: 'u64',
+                        },
+                    },
+                    {
+                        name: 'pubkey_array',
+                        type: {
+                            vec: 'pubkey',
+                        },
+                    },
+                    {
+                        name: 'message',
+                        type: {
+                            option: 'bytes',
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'RegisteredProgram',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'registered_program_id',
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'group_authority_pda',
+                        type: 'pubkey',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'RolloverMetadata',
+            serialization: 'bytemuck',
+            repr: {
+                kind: 'c',
+            },
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'index',
+                        docs: ['Unique index.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rollover_fee',
+                        docs: [
+                            'This fee is used for rent for the next account.',
+                            'It accumulates in the account so that once the corresponding Merkle tree account is full it can be rolled over',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rollover_threshold',
+                        docs: [
+                            'The threshold in percentage points when the account should be rolled over (95 corresponds to 95% filled).',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'network_fee',
+                        docs: ['Tip for maintaining the account.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'rolledover_slot',
+                        docs: [
+                            'The slot when the account was rolled over, a rolled over account should not be written to.',
+                        ],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'close_threshold',
+                        docs: [
+                            'If current slot is greater than rolledover_slot + close_threshold and',
+                            "the account is empty it can be closed. No 'close' functionality has been",
+                            'implemented yet.',
+                        ],
+                        type: 'u64',
+                    },
+                ],
+            },
+        },
+        {
+            name: 'StateMerkleTreeAccount',
+            docs: [
+                'Concurrent state Merkle tree used for public compressed transactions.',
+            ],
+            serialization: 'bytemuck',
+            repr: {
+                kind: 'c',
+            },
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'metadata',
+                        type: {
+                            defined: {
+                                name: 'MerkleTreeMetadata',
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            name: 'TokenData',
+            type: {
+                kind: 'struct',
+                fields: [
+                    {
+                        name: 'mint',
+                        docs: ['The mint associated with this account'],
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'owner',
+                        docs: ['The owner of this account.'],
+                        type: 'pubkey',
+                    },
+                    {
+                        name: 'amount',
+                        docs: ['The amount of tokens this account holds.'],
+                        type: 'u64',
+                    },
+                    {
+                        name: 'delegate',
+                        docs: [
+                            'If `delegate` is `Some` then `delegated_amount` represents',
+                            'the amount authorized by the delegate',
+                        ],
+                        type: {
+                            option: 'pubkey',
+                        },
+                    },
+                    {
+                        name: 'state',
+                        docs: ["The account's state"],
+                        type: {
+                            defined: {
+                                name: 'AccountState',
+                            },
+                        },
+                    },
+                ],
+            },
         },
     ],
 };
