@@ -11,7 +11,7 @@ pub mod utils;
 use errors::SystemProgramError;
 use sdk::event::PublicTransactionEvent;
 
-declare_id!("H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN");
+declare_id!("9zXtyYvRynkU25sQFMS9hkaqh616LerRugZ9dFpUzEVW");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

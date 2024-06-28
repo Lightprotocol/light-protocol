@@ -10,9 +10,10 @@ pub use config_accounts::*;
 pub mod processor;
 pub use processor::*;
 pub mod sdk;
+
 use anchor_lang::prelude::*;
 
-declare_id!("CbjvJc1SNx1aav8tU49dJGHu8EUdzQJSMtkjDmV8miqK");
+declare_id!("GisHt5QwRd5CYRri5qbr6Fv5ToE5bAFHiKNefjaKpDf8");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

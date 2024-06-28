@@ -111,11 +111,9 @@ check_flag() {
 GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
 PNPM_VERSION="9.2.0"
-SOLANA_VERSION="1.18.11"
-ANCHOR_VERSION="anchor-v0.29.0"
+SOLANA_VERSION="2.0.1"
+#ANCHOR_VERSION="anchor-v0.30.1"
 JQ_VERSION="jq-1.7.1"
-CIRCOM_VERSION=$(latest_release Lightprotocol circom)
-MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
 LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
 PHOTON_VERSION="0.28.0"
 PHOTON_BRANCH=""
@@ -178,7 +176,7 @@ esac
 echo "🔍 Detected system ${ARCH_SUFFIX_LP}"
 
 echo "📁 Creating directory ${PREFIX}"
-mkdir -p $PREFIX/bin/deps
+mkdir -p "$PREFIX"/bin/deps
 
 echo "📥 Installing Go"
 curl --fail --retry "${MAX_RETRIES}" --retry-delay 10 -L -o \
@@ -208,7 +206,7 @@ cargo install cargo-expand wasm-pack
 
 # check if variable PHOTON_BRANCH is not empty, then install photon-indexer from the branch, otherwise install the version
 if [ -n "$PHOTON_BRANCH" ]; then
-    cargo install --git https://github.com/Lightprotocol/photon/ --branch $PHOTON_BRANCH --locked
+    cargo install --git https://github.com/Lightprotocol/photon/ --branch "$PHOTON_BRANCH" --locked
 else
   cargo install photon-indexer --version ${PHOTON_VERSION} --locked
 fi
@@ -240,8 +238,8 @@ export PATH="${PREFIX}/bin:${PATH}"
 
 echo "📥 Downloading Solana toolchain"
 if download_and_extract_github \
-    solana-labs \
-    solana \
+    anza-xyz/ \
+    agave \
     "v${SOLANA_VERSION}" \
     "solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2" \
     j \
@@ -252,14 +250,14 @@ else
     echo "⚠️ Solana toolchain is not available for this architecture. Skipping Solana installation."
 fi
 
-echo "📥 Downloading Anchor"
-download_file_github \
-    Lightprotocol \
-    binaries \
-    "${ANCHOR_VERSION}" \
-    "anchor-${ARCH_SUFFIX_LP}" \
-    anchor \
-    "${PREFIX}/bin"
+#echo "📥 Downloading Anchor"
+#download_file_github \
+#    Lightprotocol \
+#    binaries \
+#    "${ANCHOR_VERSION}" \
+#    "anchor-${ARCH_SUFFIX_LP}" \
+#    anchor \
+#    "${PREFIX}/bin"
 
 echo "📥 Downloading Jq"
 download_file_github \

@@ -37,6 +37,14 @@ impl From<BoundedVecError> for solana_program::program_error::ProgramError {
     }
 }
 
+#[cfg(feature = "solana")]
+impl From<BoundedVecError> for anchor_lang::prelude::ProgramError {
+    fn from(e: BoundedVecError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
+    }
+}
+
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BoundedVecMetadata {
     capacity: usize,

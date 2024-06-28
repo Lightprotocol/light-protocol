@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 config = "0.14.0"
-anchor-lang = "0.29.0"
+anchor-lang = { workspace = true }
 clap = {version = "4.0.26", features = ["derive"]}
-solana-sdk = "1.18.11"
-solana-client = "1.18.11"
-solana-transaction-status = "1.18.11"
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+solana-transaction-status = { workspace = true }
 tiny-bip39 = "0.8.2"
 chrono = "0.4.37"
 time = "0.3.34"
@@ -27,7 +27,7 @@ tokio-util = "0.7"
 reqwest = { version = "0.11", features = ["json", "rustls-tls"]  }
 futures = "0.3.30"
 thiserror = "1"
-borsh = "0.10.3"
+borsh = { workspace = true }
 bs58 = "0.4.0"
 photon-api = { path = "../photon-api" }
 bincode = "1.3"

@@ -64,3 +64,10 @@ impl From<ConcurrentMerkleTreeError> for solana_program::program_error::ProgramE
         solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
+
+#[cfg(feature = "solana")]
+impl From<ConcurrentMerkleTreeError> for anchor_lang::prelude::ProgramError {
+    fn from(e: ConcurrentMerkleTreeError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
+    }
+}

@@ -7,10 +7,11 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = ["solana-program"]
+solana = ["solana-poseidon", "solana-program"]
 
 [dependencies]
 light-poseidon = "0.2.0"
+solana-poseidon = { workspace = true, optional = true }
 solana-program = { workspace = true, optional = true }
 thiserror = "1.0"
 

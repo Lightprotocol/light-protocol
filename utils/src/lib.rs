@@ -48,6 +48,13 @@ impl From<UtilsError> for solana_program::program_error::ProgramError {
     }
 }
 
+
+impl From<UtilsError> for anchor_lang::prelude::ProgramError {
+    fn from(e: UtilsError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
+    }
+}
+
 pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
     let bigint = BigUint::from_bytes_be(bytes);
     bigint < ark_bn254::Fr::MODULUS.into()

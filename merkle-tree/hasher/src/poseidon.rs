@@ -29,7 +29,7 @@ impl Hasher for Poseidon {
         // Call via a system call to perform the calculation.
         #[cfg(target_os = "solana")]
         {
-            use solana_program::poseidon::PoseidonSyscallError;
+            use solana_poseidon::PoseidonSyscallError;
 
             use crate::HASH_BYTES;
 

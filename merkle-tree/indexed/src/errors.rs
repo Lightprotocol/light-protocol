@@ -64,3 +64,10 @@ impl From<IndexedMerkleTreeError> for solana_program::program_error::ProgramErro
         solana_program::program_error::ProgramError::Custom(e.into())
     }
 }
+
+#[cfg(feature = "solana")]
+impl From<IndexedMerkleTreeError> for anchor_lang::prelude::ProgramError {
+    fn from(e: IndexedMerkleTreeError) -> Self {
+        anchor_lang::prelude::ProgramError::Custom(e.into())
+    }
+}

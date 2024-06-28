@@ -20,7 +20,7 @@ test-sbf = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-anchor-lang = { version="0.29.0", features = ["init-if-needed"] }
+anchor-lang = { workspace = true, features = ["init-if-needed"] }
 light-compressed-token = { path = "../../../../programs/compressed-token", version = "0.4.1", features = ["cpi"]}
 light-system-program = { path = "../../../../programs/system", version = "0.4.1", features = ["cpi"]}
 account-compression = { path = "../../../../programs/account-compression", version = "0.4.1",  features = ["cpi"] }
@@ -40,4 +40,4 @@ light-prover-client = { path = "../../../../circuit-lib/light-prover-client", ve
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 spl-token = "3.5.0"
-anchor-spl = "0.29.0"
+anchor-spl = { workspace = true }

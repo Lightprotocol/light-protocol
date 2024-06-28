@@ -7,7 +7,7 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-solana = ["solana-program"]
+solana = ["solana-program", "anchor-lang"]
 
 [dependencies]
 light-bounded-vec = { path = "../bounded-vec", version = "0.2.1" }
@@ -16,6 +16,7 @@ memoffset = "0.9"
 num-bigint = "0.4"
 num-traits = "0.2"
 solana-program = { workspace = true, optional = true }
+anchor-lang = { workspace = true, optional = true }
 thiserror = "1.0"
 [target.'cfg(target_os = "solana")'.dependencies]
 light-heap = { path = "../../heap", version = "0.2.1" }

@@ -25,8 +25,8 @@ idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 
 [dependencies]
-anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
 spl-token = {version = "3.5.0", features = ["no-entrypoint"]}
 aligned-sized = { version = "0.2.1", path = "../../macros/aligned-sized" }
 account-compression = { version = "0.4.1", path = "../account-compression", features = ["cpi", "no-idl"] }

@@ -14,7 +14,7 @@ pub use instructions::*;
 pub mod burn;
 
 use crate::process_transfer::CompressedTokenInstructionDataTransfer;
-declare_id!("HXVfQ44ATEi9WBKLSCCwM54KokdkzqXci9xCQ7ST9SYN");
+declare_id!("BkGR4UUkvKB1vBN5ExPE6igdkFZVntYmCJRQJguEM5qF");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {

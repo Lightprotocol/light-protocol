@@ -1,7 +1,7 @@
 #[cfg(not(target_os = "solana"))]
 use light_poseidon::PoseidonError;
 #[cfg(target_os = "solana")]
-use solana_program::poseidon::PoseidonSyscallError;
+use solana_poseidon::PoseidonSyscallError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
