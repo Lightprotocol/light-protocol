@@ -24,7 +24,13 @@ fn test_config() -> ForesterConfig {
 
     let env_accounts = get_test_env_accounts();
     ForesterConfig {
-        external_services: ExternalServicesConfig::local(),
+        external_services: ExternalServicesConfig {
+            rpc_url: "http://localhost:8899".to_string(),
+            ws_rpc_url: "ws://localhost:8900".to_string(),
+            indexer_url: "http://localhost:8784".to_string(),
+            prover_url: "http://localhost:3001".to_string(),
+            derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
+        },
         nullifier_queue_pubkey: env_accounts.nullifier_queue_pubkey,
         state_merkle_tree_pubkey: env_accounts.merkle_tree_pubkey,
         address_merkle_tree_pubkey: env_accounts.address_merkle_tree_pubkey,

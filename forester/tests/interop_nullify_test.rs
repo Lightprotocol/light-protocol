@@ -151,8 +151,14 @@ async fn test_photon_interop_nullify_account() {
     )
     .await;
 
-    let photon_indexer =
-        PhotonIndexer::new(ExternalServicesConfig::local().indexer_url.to_string());
+    let config = ExternalServicesConfig {
+        rpc_url: "http://localhost:8899".to_string(),
+        ws_rpc_url: "ws://localhost:8900".to_string(),
+        indexer_url: "http://localhost:8784".to_string(),
+        prover_url: "http://localhost:3001".to_string(),
+        derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
+    };
+    let photon_indexer = PhotonIndexer::new(config.indexer_url);
     let user_index = 0;
     let balance = env
         .rpc

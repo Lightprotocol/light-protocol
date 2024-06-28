@@ -109,7 +109,13 @@ async fn test_photon_interop_address() {
     init().await;
     let env_accounts = get_test_env_accounts();
 
-    let services_config = ExternalServicesConfig::local();
+    let services_config = ExternalServicesConfig {
+        rpc_url: "http://localhost:8899".to_string(),
+        ws_rpc_url: "ws://localhost:8900".to_string(),
+        indexer_url: "http://localhost:8784".to_string(),
+        prover_url: "http://localhost:3001".to_string(),
+        derivation: "En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP".to_string(),
+    };
     let mut rpc = SolanaRpcConnection::new(services_config.rpc_url, None);
 
     // Airdrop because currently TestEnv.new() transfers funds from get_payer.
