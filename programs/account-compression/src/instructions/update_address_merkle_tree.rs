@@ -106,6 +106,7 @@ pub fn process_update_address_merkle_tree<'info>(
     // Inputs check:
     // - address is element of (value, next_value)
     // - changelog index gets values from account
+    // - indexed changelog index gets values from account
     // - address is selected by value index from hashset
     // - low address and low address next value are validated with low address Merkle proof
     let indexed_merkle_tree_update = merkle_tree
