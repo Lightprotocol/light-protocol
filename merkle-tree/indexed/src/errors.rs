@@ -33,6 +33,8 @@ pub enum IndexedMerkleTreeError {
     BoundedVec(#[from] BoundedVecError),
     #[error("Next index of new element should be next index of the low element.")]
     NewElementNextIndexMismatch,
+    #[error("Indexed array is full, cannot append more elements")]
+    ArrayFull,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -50,6 +52,7 @@ impl From<IndexedMerkleTreeError> for u32 {
             IndexedMerkleTreeError::ElementDoesNotExist => 11007,
             IndexedMerkleTreeError::ChangelogBufferSize(_, _) => 11008,
             IndexedMerkleTreeError::NewElementNextIndexMismatch => 11009,
+            IndexedMerkleTreeError::ArrayFull => 11010,
             IndexedMerkleTreeError::Hasher(e) => e.into(),
             IndexedMerkleTreeError::ConcurrentMerkleTree(e) => e.into(),
             IndexedMerkleTreeError::Utils(e) => e.into(),

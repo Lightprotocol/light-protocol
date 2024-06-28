@@ -1163,7 +1163,7 @@ async fn test_nullify_leaves(
     .await
     .unwrap();
 
-    // nullify with invalid leaf index
+    // 2. nullify with invalid leaf index
     let invalid_element_index = 0;
     let valid_changelog_index = 3;
     let valid_leaf_queue_index = {
@@ -1193,6 +1193,8 @@ async fn test_nullify_leaves(
     )
     .await
     .unwrap_err();
+
+    // 3. nullify with invalid leaf queue index
     let valid_element_index = 1;
     let invalid_leaf_queue_index = 0;
     nullify(
@@ -1208,6 +1210,24 @@ async fn test_nullify_leaves(
     )
     .await
     .unwrap_err();
+
+    // 4. nullify with invalid change log index
+    let invalid_changelog_index = 0;
+    nullify(
+        &mut context,
+        &merkle_tree_pubkey,
+        &nullifier_queue_pubkey,
+        queue_config,
+        &mut reference_merkle_tree,
+        &elements[1].1,
+        invalid_changelog_index,
+        leaf_queue_index as u16,
+        element_index,
+    )
+    .await
+    .unwrap_err();
+
+    // 5. nullify other leaf
     nullify(
         &mut context,
         &merkle_tree_pubkey,
@@ -1222,6 +1242,8 @@ async fn test_nullify_leaves(
     .await
     .unwrap();
 
+    // 6. nullify leaf with nullifier queue that is not associated with the
+    // merkle tree
     nullify(
         &mut context,
         &merkle_tree_pubkey,
