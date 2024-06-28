@@ -1,7 +1,6 @@
 use std::{alloc::Layout, mem::size_of, ptr::null_mut};
 pub mod bench;
 
-#[cfg(target_os = "solana")]
 use anchor_lang::{
     prelude::*,
     solana_program::entrypoint::{HEAP_LENGTH, HEAP_START_ADDRESS},
@@ -14,12 +13,12 @@ pub static GLOBAL_ALLOCATOR: BumpAllocator = BumpAllocator {
     len: HEAP_LENGTH,
 };
 
-#[cfg(target_os = "solana")]
 #[error_code]
 pub enum HeapError {
     #[msg("The provided position to free is invalid.")]
     InvalidHeapPos,
 }
+
 pub struct BumpAllocator {
     pub start: usize,
     pub len: usize,
@@ -28,7 +27,6 @@ pub struct BumpAllocator {
 impl BumpAllocator {
     const RESERVED_MEM: usize = size_of::<*mut u8>();
 
-    #[cfg(target_os = "solana")]
     pub fn new() -> Self {
         Self {
             start: HEAP_START_ADDRESS as usize,
@@ -56,23 +54,23 @@ impl BumpAllocator {
         *pos_ptr = pos;
     }
 
-    #[cfg(target_os = "solana")]
-    pub fn log_total_heap(&self, msg: &str) -> u64 {
-        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS as u64 + HEAP_LENGTH as u64;
-
+    pub fn total_heap(&self) -> u64 {
+        const HEAP_END_ADDRESS: u64 = HEAP_START_ADDRESS + HEAP_LENGTH as u64;
         let heap_start = unsafe { self.pos() } as u64;
-        let heap_used = HEAP_END_ADDRESS - heap_start;
-        msg!("{}: total heap used: {}", msg, heap_used);
-        heap_used
+        HEAP_END_ADDRESS - heap_start
     }
 
-    #[cfg(target_os = "solana")]
+    pub fn log_total_heap(&self, msg: &str) -> u64 {
+        let total_heap = self.total_heap();
+        msg!("{}: total heap used: {}", msg, total_heap);
+        total_heap
+    }
+
     pub fn get_heap_pos(&self) -> usize {
         let heap_start = unsafe { self.pos() } as usize;
         heap_start
     }
 
-    #[cfg(target_os = "solana")]
     pub fn free_heap(&self, pos: usize) -> Result<()> {
         if pos < self.start + BumpAllocator::RESERVED_MEM || pos > self.start + self.len {
             return err!(HeapError::InvalidHeapPos);
