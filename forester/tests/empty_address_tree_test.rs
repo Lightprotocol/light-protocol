@@ -7,8 +7,9 @@ use solana_sdk::signature::{Keypair, Signer};
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::spawn_validator;
-use forester::{nullify_addresses, ForesterConfig};
+use forester::{nullify_addresses, ForesterConfig, init_rpc};
 use light_test_utils::e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig};
+use light_test_utils::indexer::TestIndexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
 use light_test_utils::rpc::solana_rpc::SolanaRpcUrl;
 use light_test_utils::rpc::SolanaRpcConnection;
@@ -82,7 +83,14 @@ async fn empty_address_tree_test() {
         get_address_queue_length(&config, &mut env.rpc).await
     );
 
-    nullify_addresses(Arc::new(config.clone())).await;
+    let config = Arc::new(config.clone());
+    let rpc = init_rpc(&config).await;
+    let rpc = Arc::new(tokio::sync::Mutex::new(rpc));
+
+    let indexer: TestIndexer<200, SolanaRpcConnection> = TestIndexer::init_from_env(&env_accounts.forester, &env_accounts, true, true).await;
+    let indexer = Arc::new(tokio::sync::Mutex::new(indexer));
+
+    nullify_addresses(config.clone(), rpc, indexer).await;
     assert_eq!(get_address_queue_length(&config, &mut env.rpc).await, 0);
 }
 
