@@ -35,6 +35,7 @@ solana-sdk = "=1.18.11"
 solana-program-test = "=1.18.11"
 solana-client = "=1.18.11"
 solana-cli-output = "=1.18.11"
+solana-transaction-status = "=1.18.11"
 
 anchor-lang = "=0.29.0"
 anchor-spl = "=0.29.0"
