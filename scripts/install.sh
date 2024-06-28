@@ -111,8 +111,8 @@ check_flag() {
 GO_VERSION="1.21.7"
 NODE_VERSION="20.9.0"
 PNPM_VERSION="9.2.0"
-SOLANA_VERSION="1.18.11"
-ANCHOR_VERSION="anchor-v0.29.0"
+# SOLANA_VERSION="1.18.17"
+# ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
 PHOTON_VERSION="0.28.0"
 PHOTON_BRANCH=""
@@ -235,28 +235,28 @@ download_file_github \
 chmod +x "${PREFIX}/bin/pnpm"
 export PATH="${PREFIX}/bin:${PATH}"
 
-echo "📥 Downloading Solana toolchain"
-if download_and_extract_github \
-    solana-labs \
-    solana \
-    "v${SOLANA_VERSION}" \
-    "solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2" \
-    j \
-    "${PREFIX}/bin" \
-    2 > /dev/null 2>&1; then
-    echo "✅ Solana toolchain downloaded and installed successfully"
-else
-    echo "⚠️ Solana toolchain is not available for this architecture. Skipping Solana installation."
-fi
+# echo "📥 Downloading Solana toolchain"
+# if download_and_extract_github \
+#     solana-labs \
+#     solana \
+#     "v${SOLANA_VERSION}" \
+#     "solana-release-${ARCH_SUFFIX_SOLANA}.tar.bz2" \
+#     j \
+#     "${PREFIX}/bin" \
+#     2 > /dev/null 2>&1; then
+#     echo "✅ Solana toolchain downloaded and installed successfully"
+# else
+#     echo "⚠️ Solana toolchain is not available for this architecture. Skipping Solana installation."
+# fi
 
-echo "📥 Downloading Anchor"
-download_file_github \
-    Lightprotocol \
-    binaries \
-    "${ANCHOR_VERSION}" \
-    "anchor-${ARCH_SUFFIX_LP}" \
-    anchor \
-    "${PREFIX}/bin"
+# echo "📥 Downloading Anchor"
+# download_file_github \
+#     Lightprotocol \
+#     binaries \
+#     "${ANCHOR_VERSION}" \
+#     "anchor-${ARCH_SUFFIX_LP}" \
+#     anchor \
+#     "${PREFIX}/bin"
 
 echo "📥 Downloading Jq"
 download_file_github \
