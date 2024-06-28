@@ -1,4 +1,4 @@
-use log::warn;
+use log::{info, warn};
 use num_bigint::BigUint;
 use solana_sdk::bs58;
 use std::marker::PhantomData;
@@ -211,8 +211,6 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             .new_element_with_low_element_index(old_low_address.index, &address_biguint)
             .unwrap();
 
-        let address_biguint = BigUint::from_bytes_be(address.as_slice());
-
         let (old_low_address, old_low_address_next_value) = address_tree_bundle
             .indexed_array
             .find_low_element_for_nonexistent(&address_biguint)
@@ -221,16 +219,21 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         // Get the Merkle proof for updating low element.
         let low_address_proof = address_tree_bundle
             .merkle_tree
-            .get_proof_of_leaf(old_low_address.index, true)
+            .get_proof_of_leaf(old_low_address.index, false)
             .unwrap();
 
         let low_address_index: u64 = old_low_address.index as u64;
         let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
         let low_address_next_index: u64 = old_low_address.next_index as u64;
-        let low_address_next_value: [u8; 32] =
-            bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
-        let low_address_proof = low_address_proof.to_vec();
-        let low_address_proof: [[u8; 32]; 16] = low_address_proof.try_into().unwrap();
+        let low_address_next_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
+        let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
+        info!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
+        info!("address: {:?}", address);
+        info!("low_address_index: {:?}", low_address_index);
+        info!("low_address_value: {:?}", low_address_value);
+        info!("low_address_next_index: {:?}", low_address_next_index);
+        info!("low_address_next_value: {:?}", low_address_next_value);
+        info!("low_address_proof: {:?}", low_address_proof);
 
         Ok(NewAddressProofWithContext {
             merkle_tree: merkle_tree_pubkey,
@@ -569,11 +572,11 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 }
             };
 
-        let mut retries = 5;
+        let mut retries = 1;
         while retries > 0 {
-            if retries < 3 {
+            /*if retries < 3 {
                 spawn_prover(true, self.proof_types.as_slice()).await;
-            }
+            }*/
             let response_result = client
                 .post(&format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
                 .header("Content-Type", "text/plain; charset=utf-8")
@@ -643,7 +646,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             println!("sequence number {:?}", fetched_merkle_tree.sequence_number());
             println!("root index {:?}", fetched_merkle_tree.root_index());
             println!("local sequence number {:?}", merkle_tree.sequence_number);
-            
+
             assert_eq!(
                 merkle_tree.root(),
                 fetched_merkle_tree.root(),

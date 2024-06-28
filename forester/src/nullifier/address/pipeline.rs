@@ -61,7 +61,7 @@ pub async fn setup_address_pipeline<T: Indexer, R: RpcConnection>(
         let mut consecutive_empty_fetches = 0;
         info!("Starting to process output in addresses_setup_pipeline");
         while let Some(result) = output_rx.recv().await {
-            info!("Received result in address_setup_pipeline: {:?}", result);
+            // info!("Received result in address_setup_pipeline: {:?}", result);
             match result {
                 AddressPipelineStage::FetchAddressQueueData(_) => {
                     input_tx_clone

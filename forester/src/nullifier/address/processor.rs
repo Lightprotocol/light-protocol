@@ -138,10 +138,19 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             .get_multiple_new_address_proofs(config.address_merkle_tree_pubkey.to_bytes(), address)
             .await
             .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
-
+        // TODO: use changelog array size from tree config
+        let changelog = proof.root_seq % 1400;
+        // TODO: add index changelog current changelog index to the proof or we make them the same size
+        let index_changelog = (proof.root_seq - 1) % 1400;
+        let changelogs = get_changelog_indices(&config.address_merkle_tree_pubkey, &mut *rpc.lock().await).await.unwrap();
+        info!("fetched changelog: {:?}", changelogs.0);
+        info!("fetched index_changelog: {:?}", changelogs.1);
+        info!("changelog: {:?}", changelog);
+        info!("index_changelog: {:?}", index_changelog);
+        
         let mut retry_count = 0;
         let max_retries = 3;
-
+        
         while retry_count < max_retries {
             match update_merkle_tree(
                 rpc,
@@ -154,6 +163,8 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                 proof.low_address_next_index,
                 proof.low_address_next_value,
                 proof.low_address_proof,
+                changelog as u16,
+                index_changelog as u16,
             )
             .await
             {
@@ -254,13 +265,13 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     low_address_next_index: u64,
     low_address_next_value: [u8; 32],
     low_address_proof: [[u8; 32]; 16],
+    changelog_index: u16,
+    indexed_changelog_index: u16,
 ) -> Result<bool, ForesterError> {
     info!("update_merkle_tree");
-    let (changelog_index, indexed_changelog_index) =
-        get_changelog_indices(&address_merkle_tree_pubkey, &mut *rpc.lock().await)
-            .await
-            .unwrap();
+    
     info!("changelog_index: {:?}", changelog_index);
+    info!("indexed_changelog_index: {:?}", indexed_changelog_index);
 
     let update_ix =
         create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {

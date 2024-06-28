@@ -223,6 +223,7 @@ impl<T: Indexer, R: RpcConnection> StateProcessor<T, R> {
         info!("Leaf index: {}", account_data.leaf_index);
         info!("Root seq: {}", account_data.root_seq);
 
+        // TODO: replace STATE_MERKLE_TREE_CHANGELOG with config value
         let root_seq_mod = account_data.root_seq % STATE_MERKLE_TREE_CHANGELOG;
         info!("Root seq mod: {}", root_seq_mod);
 
