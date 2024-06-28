@@ -18,7 +18,7 @@ custom-heap = []
 default = ["custom-heap"]
 
 [dependencies]
-anchor-lang ={ version="0.29.0" }
+anchor-lang = { workspace = true }
 light-compressed-token = { path = "../../programs/compressed-token"  , features = ["cpi"]}
 light-system-program = { path = "../../programs/system"  , features = ["cpi"]}
 account-compression = { path = "../../programs/account-compression" , features = ["cpi"] }
@@ -30,7 +30,6 @@ light-verifier = {path = "../../circuit-lib/verifier"}
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
-
 [dev-dependencies]
 solana-program-test = { workspace = true }
 light-test-utils = { version = "0.2.1", path = "../../test-utils" }
@@ -40,4 +39,4 @@ light-prover-client = {path = "../../circuit-lib/light-prover-client" }
 num-bigint = "0.4.4"
 num-traits = "0.2.18"
 spl-token = "3.5.0"
-anchor-spl = "0.29.0"
+anchor-spl = { workspace = true }

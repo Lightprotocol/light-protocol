@@ -114,9 +114,6 @@ PNPM_VERSION="9.2.0"
 SOLANA_VERSION="1.18.11"
 ANCHOR_VERSION="anchor-v0.29.0"
 JQ_VERSION="jq-1.7.1"
-CIRCOM_VERSION=$(latest_release Lightprotocol circom)
-MACRO_CIRCOM_VERSION=$(latest_release Lightprotocol macro-circom)
-LIGHT_PROTOCOL_VERSION=$(latest_release Lightprotocol light-protocol)
 PHOTON_VERSION="0.28.0"
 PHOTON_BRANCH=""
 

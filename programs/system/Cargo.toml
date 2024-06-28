@@ -23,7 +23,7 @@ idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 aligned-sized = { version = "0.2.1", path = "../../macros/aligned-sized" }
-anchor-lang = "0.29.0"
+anchor-lang = { workspace = true }
 light-hasher = { version = "0.2.1", path = "../../merkle-tree/hasher" }
 light-heap = { version = "0.2.1", path = "../../heap", optional = true }
 light-macros = { path = "../../macros/light", version = "0.4.1" }
