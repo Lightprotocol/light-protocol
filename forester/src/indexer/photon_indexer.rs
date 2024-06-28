@@ -58,7 +58,6 @@ impl Indexer for PhotonIndexer {
 
         match result {
             Ok(response) => {
-                // info!("Response: {:?}", response);
                 match response.result {
                     Some(result) => {
                         let proofs = result

@@ -1,9 +1,11 @@
 use crate::config::ForesterConfig;
-use crate::nullifier::state::{AccountData, QueueData, StateProcessor};
-use crate::nullifier::{BackpressureControl, PipelineContext};
+use crate::nullifier::state::StateProcessor;
+use crate::nullifier::{
+    BackpressureControl, ForesterQueueAccountData, ForesterQueueData, PipelineContext,
+};
 use light_test_utils::indexer::Indexer;
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use log::info;
+use log::debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -12,9 +14,9 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub enum PipelineStage<T: Indexer, R: RpcConnection> {
     FetchQueueData(PipelineContext<T, R>),
-    FetchProofs(PipelineContext<T, R>, QueueData),
-    NullifyAccount(PipelineContext<T, R>, AccountData),
-    UpdateIndexer(PipelineContext<T, R>, AccountData),
+    FetchProofs(PipelineContext<T, R>, ForesterQueueData),
+    NullifyAccount(PipelineContext<T, R>, ForesterQueueAccountData),
+    UpdateIndexer(PipelineContext<T, R>, ForesterQueueAccountData),
     Complete,
 }
 
@@ -55,12 +57,12 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
             .await
             .unwrap();
 
-        info!("Starting to process output in state_setup_pipeline");
+        debug!("Starting to process output in state_setup_pipeline");
         while let Some(result) = output_rx.recv().await {
-            info!("Received result in state_setup_pipeline: {:?}", result);
+            debug!("Received result in state_setup_pipeline: {:?}", result);
             match result {
                 PipelineStage::FetchQueueData(_) => {
-                    info!("Received FetchQueueData, restarting pipeline");
+                    debug!("Received FetchQueueData, restarting pipeline");
                     input_tx_clone
                         .send(PipelineStage::FetchQueueData(context.clone()))
                         .await
@@ -68,10 +70,10 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
                 }
                 PipelineStage::FetchProofs(_, queue_data) => {
                     if queue_data.accounts_to_nullify.is_empty() {
-                        info!("No more accounts to nullify. Signaling completion.");
+                        debug!("No more accounts to nullify. Signaling completion.");
                         input_tx_clone.send(PipelineStage::Complete).await.unwrap();
                     } else {
-                        info!(
+                        debug!(
                             "Received FetchProofs in setup_pipeline, processing {} accounts",
                             queue_data.accounts_to_nullify.len()
                         );
@@ -82,7 +84,7 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
                     }
                 }
                 PipelineStage::NullifyAccount(_, account_data) => {
-                    info!(
+                    debug!(
                         "Received NullifyAccount for account: {} in setup_pipeline",
                         account_data.account.hash_string()
                     );
@@ -92,7 +94,7 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
                         .unwrap();
                 }
                 PipelineStage::UpdateIndexer(_, account_data) => {
-                    info!(
+                    debug!(
                         "Received UpdateIndexer for account: {} in setup_pipeline",
                         account_data.account.hash_string()
                     );
@@ -102,7 +104,7 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
                         .unwrap();
                 }
                 PipelineStage::Complete => {
-                    info!("Processing complete, signaling completion.");
+                    debug!("Processing complete, signaling completion.");
                     shutdown.store(true, Ordering::Relaxed);
                     let _ = close_output_tx.send(()).await;
                     break;
@@ -118,7 +120,7 @@ pub async fn setup_state_pipeline<T: Indexer, R: RpcConnection>(
         shutdown.store(true, Ordering::Relaxed);
         let _ = close_output_tx.send(()).await;
         let _ = completion_tx.send(()).await;
-        info!("Pipeline process completed.");
+        debug!("Pipeline process completed.");
     });
 
     (input_tx, completion_rx)

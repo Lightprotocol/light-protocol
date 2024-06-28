@@ -1,4 +1,4 @@
-use log::info;
+use log::debug;
 use std::process::Command;
 use sysinfo::{Signal, System};
 
@@ -24,8 +24,8 @@ impl Default for LightValidatorConfig {
 }
 
 pub async fn spawn_validator(config: LightValidatorConfig) {
-    info!("Starting validator...");
-    info!("Config: {:?}", config);
+    debug!("Starting validator...");
+    debug!("Config: {:?}", config);
     let mut path = config.path.clone();
     if !config.enable_indexer {
         path.push_str(" --skip-indexer");
@@ -43,7 +43,7 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         .spawn()
         .expect("Failed to start server process");
     tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;
-    info!("Validator started successfully");
+    debug!("Validator started successfully");
 }
 
 pub async fn restart_photon() {

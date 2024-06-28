@@ -11,7 +11,7 @@ use light_registry::sdk::get_group_pda;
 use light_test_utils::indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts, TestIndexer};
 use light_test_utils::rpc::SolanaRpcConnection;
 use light_test_utils::test_env::{GROUP_PDA_SEED_TEST_KEYPAIR, SIGNATURE_CPI_TEST_KEYPAIR};
-use log::{error, info};
+use log::{debug, error};
 use serde_json::Result;
 use solana_sdk::signature::{Keypair, Signer};
 use std::env;
@@ -86,7 +86,7 @@ async fn main() {
     let cli = Cli::parse();
     match &cli.command {
         Some(Commands::Subscribe) => {
-            info!(
+            debug!(
                 "Subscribe to nullify compressed accounts for indexed array: {} and merkle tree: {}",
                 config.nullifier_queue_pubkey, config.state_merkle_tree_pubkey
             );
@@ -97,12 +97,6 @@ async fn main() {
         }
         Some(Commands::NullifyAddresses) => {
             run_nullify_addresses(config).await;
-            /*
-            let rpc = init_rpc(&config).await;
-            let indexer = Arc::new(tokio::sync::Mutex::new(PhotonIndexer::new(
-                config.external_services.indexer_url.to_string(),
-            )));
-            */
         }
         Some(Commands::Nullify) => {
             let state_nullifier = tokio::spawn(nullify_state(config.clone()));
@@ -119,11 +113,11 @@ async fn main() {
                 error!("Address nullifier encountered an error: {:?}", e);
             }
 
-            info!("All nullification processes completed");
+            debug!("All nullification processes completed");
         }
         Some(Commands::Index) => {
-            info!("Reindex merkle tree & nullifier queue accounts");
-            info!(
+            debug!("Reindex merkle tree & nullifier queue accounts");
+            debug!(
                 "Initial merkle tree account: {}",
                 config.state_merkle_tree_pubkey
             );

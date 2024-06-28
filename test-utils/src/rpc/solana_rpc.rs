@@ -4,7 +4,7 @@ use anchor_lang::prelude::Pubkey;
 use anchor_lang::solana_program::clock::Slot;
 use anchor_lang::solana_program::hash::Hash;
 use anchor_lang::AnchorDeserialize;
-use log::info;
+use log::debug;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_program_test::BanksClientError;
@@ -240,7 +240,7 @@ impl RpcConnection for SolanaRpcConnection {
     }
 
     async fn get_account(&mut self, address: Pubkey) -> Result<Option<Account>, RpcError> {
-        info!("CommitmentConfig: {:?}", self.client.commitment());
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
         let result = self
             .client
             .get_account_with_commitment(&address, self.client.commitment());
@@ -269,7 +269,7 @@ impl RpcConnection for SolanaRpcConnection {
         &mut self,
         transaction: Transaction,
     ) -> Result<Signature, RpcError> {
-        info!("CommitmentConfig: {:?}", self.client.commitment());
+        debug!("CommitmentConfig: {:?}", self.client.commitment());
         match self.client.send_and_confirm_transaction(&transaction) {
             Ok(signature) => Ok(signature),
             Err(e) => Err(RpcError::ClientError(e)),

@@ -1,7 +1,7 @@
 use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
 use crate::nullifier::address::pipeline::AddressPipelineStage;
-use crate::nullifier::{BackpressureControl, PipelineContext};
+use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
 use account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use light_hash_set::HashSet;
@@ -12,7 +12,7 @@ use light_registry::sdk::{
 use light_test_utils::get_indexed_merkle_tree;
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use log::{info, warn};
+use log::{debug, warn};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
@@ -31,11 +31,11 @@ pub struct AddressProcessor<T: Indexer, R: RpcConnection> {
 
 impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
     pub(crate) async fn process(&mut self) {
-        info!("Starting AddressProcessor process");
+        debug!("Starting AddressProcessor process");
         loop {
             tokio::select! {
                 Some(item) = self.input.recv() => {
-                    info!("Received item in AddressProcessor");
+                    debug!("Received item in AddressProcessor");
                     let _permit = self.backpressure.acquire().await;
                     let result = match item {
                         AddressPipelineStage::FetchAddressQueueData(context) => {
@@ -51,7 +51,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                             self.update_indexer(context, *proof).await
                         }
                         AddressPipelineStage::Complete => {
-                            info!("AddressProcessor completed");
+                            debug!("AddressProcessor completed");
                             self.shutdown.store(true, Ordering::Relaxed);
                             break;
                         }
@@ -59,9 +59,10 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
 
                     match result {
                         Ok(next_stages) => {
-                            info!("Number of next stages: {}", next_stages.len());
+                            debug!("Number of next stages: {}", next_stages.len());
                             if next_stages.is_empty() {
-                                // TODO: close and exit
+                               debug!("No more stages to process, closing output channel");
+                                self.shutdown.store(true, Ordering::Relaxed);
                             }
                             for next_stage in next_stages {
                                 self.output.send(next_stage).await.unwrap();
@@ -74,17 +75,17 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
                     }
                 }
                 _ = self.close_output.recv() => {
-                    info!("Received signal to close output channel");
+                    debug!("Received signal to close output channel");
                     break;
                 }
                 else => break,
             }
             if self.shutdown.load(Ordering::Relaxed) {
-                info!("Shutdown signal received, stopping AddressProcessor");
+                debug!("Shutdown signal received, stopping AddressProcessor");
                 break;
             }
         }
-        info!("AddressProcessor process completed");
+        debug!("AddressProcessor process completed");
     }
 
     async fn fetch_address_queue_data(
@@ -96,7 +97,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
 
         let queue_data = fetch_address_queue_data(config, rpc).await?;
         if queue_data.is_empty() {
-            info!("Address queue is empty");
+            debug!("Address queue is empty");
             Ok(vec![AddressPipelineStage::Complete])
         } else {
             Ok(vec![AddressPipelineStage::ProcessAddressQueue(
@@ -109,7 +110,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
     async fn process_address_queue(
         &self,
         context: PipelineContext<T, R>,
-        queue_data: Vec<crate::nullifier::address::Account>,
+        queue_data: Vec<ForesterQueueAccount>,
     ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let mut next_stages = Vec::new();
         for account in queue_data {
@@ -124,7 +125,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
     async fn update_address_merkle_tree(
         &self,
         context: PipelineContext<T, R>,
-        account: crate::nullifier::address::Account,
+        account: ForesterQueueAccount,
     ) -> Result<Vec<AddressPipelineStage<T, R>>, ForesterError> {
         let config = &context.config;
         let rpc = &context.rpc;
@@ -147,10 +148,11 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             get_changelog_indices(&config.address_merkle_tree_pubkey, &mut *rpc.lock().await)
                 .await
                 .unwrap();
-        info!("fetched changelog: {:?}", changelogs.0);
-        info!("fetched index_changelog: {:?}", changelogs.1);
-        info!("changelog: {:?}", changelog);
-        info!("index_changelog: {:?}", index_changelog);
+
+        debug!("fetched changelog: {:?}", changelogs.0);
+        debug!("fetched index_changelog: {:?}", changelogs.1);
+        debug!("changelog: {:?}", changelog);
+        debug!("index_changelog: {:?}", index_changelog);
 
         let mut retry_count = 0;
         let max_retries = 3;
@@ -173,7 +175,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             .await
             {
                 Ok(true) => {
-                    info!(
+                    debug!(
                         "Successfully updated merkle tree for address: {:?}",
                         address
                     );
@@ -193,7 +195,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             }
 
             if retry_count < max_retries {
-                info!(
+                debug!(
                     "Retrying update for address: {:?} (Attempt {} of {})",
                     address,
                     retry_count + 1,
@@ -230,7 +232,7 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
 async fn fetch_address_queue_data<R: RpcConnection>(
     config: &Arc<ForesterConfig>,
     rpc: &Arc<Mutex<R>>,
-) -> Result<Vec<crate::nullifier::address::Account>, ForesterError> {
+) -> Result<Vec<ForesterQueueAccount>, ForesterError> {
     let address_queue_pubkey = config.address_merkle_tree_queue_pubkey;
 
     let mut account = (*rpc.lock().await)
@@ -246,7 +248,7 @@ async fn fetch_address_queue_data<R: RpcConnection>(
         let bucket = address_queue.get_bucket(i).unwrap();
         if let Some(bucket) = bucket {
             if bucket.sequence_number.is_none() {
-                address_queue_vec.push(crate::nullifier::address::Account {
+                address_queue_vec.push(ForesterQueueAccount {
                     hash: bucket.value_bytes(),
                     index: i,
                 });
@@ -272,10 +274,8 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     changelog_index: u16,
     indexed_changelog_index: u16,
 ) -> Result<bool, ForesterError> {
-    info!("update_merkle_tree");
-
-    info!("changelog_index: {:?}", changelog_index);
-    info!("indexed_changelog_index: {:?}", indexed_changelog_index);
+    debug!("changelog_index: {:?}", changelog_index);
+    debug!("indexed_changelog_index: {:?}", indexed_changelog_index);
 
     let update_ix =
         create_update_address_merkle_tree_instruction(UpdateAddressMerkleTreeInstructionInputs {
@@ -291,7 +291,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             changelog_index,
             indexed_changelog_index,
         });
-    info!("sending transaction...");
+    debug!("Sending transaction...");
 
     let rpc = &mut *rpc.lock().await;
     let transaction = Transaction::new_signed_with_payer(
@@ -302,9 +302,9 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     );
 
     let signature = rpc.process_transaction(transaction).await?;
-    info!("signature: {:?}", signature);
+    debug!("Signature: {:?}", signature);
     let confirmed = rpc.confirm_transaction(signature).await?;
-    info!("confirmed: {:?}", confirmed);
+    debug!("Confirmed: {:?}", confirmed);
     Ok(confirmed)
 }
 

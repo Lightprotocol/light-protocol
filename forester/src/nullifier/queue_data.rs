@@ -1,10 +1,10 @@
 #[derive(Debug)]
-pub struct QueueData {
-    pub(crate) accounts_to_nullify: Vec<AccountData>,
+pub struct ForesterQueueData {
+    pub(crate) accounts_to_nullify: Vec<ForesterQueueAccountData>,
 }
 
-impl QueueData {
-    pub(crate) fn new(accounts_to_nullify: Vec<AccountData>) -> Self {
+impl ForesterQueueData {
+    pub(crate) fn new(accounts_to_nullify: Vec<ForesterQueueAccountData>) -> Self {
         Self {
             accounts_to_nullify,
         }
@@ -12,20 +12,20 @@ impl QueueData {
 }
 
 #[derive(Debug)]
-pub struct AccountData {
-    pub account: Account,
+pub struct ForesterQueueAccountData {
+    pub account: ForesterQueueAccount,
     pub proof: Vec<[u8; 32]>,
     pub leaf_index: u64,
     pub root_seq: u64,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Account {
+pub struct ForesterQueueAccount {
     pub hash: [u8; 32],
     pub index: usize,
 }
 
-impl Account {
+impl ForesterQueueAccount {
     pub fn hash_string(&self) -> String {
         bs58::encode(&self.hash).into_string()
     }

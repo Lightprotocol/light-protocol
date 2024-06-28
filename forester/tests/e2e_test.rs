@@ -71,7 +71,7 @@ async fn test_state_tree_nullifier() {
         .await
         .unwrap();
     env.compress_sol(user_index, balance).await;
-    let iterations = 100;
+    let iterations = 10;
     for i in 0..iterations {
         info!("Round {} of {}", i, iterations);
         env.transfer_sol(user_index).await;

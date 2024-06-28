@@ -1,9 +1,9 @@
 use crate::config::ForesterConfig;
 use crate::nullifier::address::AddressProcessor;
-use crate::nullifier::{BackpressureControl, PipelineContext};
+use crate::nullifier::{BackpressureControl, ForesterQueueAccount, PipelineContext};
 use light_test_utils::indexer::{Indexer, NewAddressProofWithContext};
 use light_test_utils::rpc::rpc_connection::RpcConnection;
-use log::info;
+use log::{debug, info};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -12,11 +12,8 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub enum AddressPipelineStage<T: Indexer, R: RpcConnection> {
     FetchAddressQueueData(PipelineContext<T, R>),
-    ProcessAddressQueue(
-        PipelineContext<T, R>,
-        Vec<crate::nullifier::address::Account>,
-    ),
-    UpdateAddressMerkleTree(PipelineContext<T, R>, crate::nullifier::address::Account),
+    ProcessAddressQueue(PipelineContext<T, R>, Vec<ForesterQueueAccount>),
+    UpdateAddressMerkleTree(PipelineContext<T, R>, ForesterQueueAccount),
     UpdateIndexer(PipelineContext<T, R>, Box<NewAddressProofWithContext>),
     Complete,
 }
@@ -61,7 +58,6 @@ pub async fn setup_address_pipeline<T: Indexer, R: RpcConnection>(
         let mut consecutive_empty_fetches = 0;
         info!("Starting to process output in addresses_setup_pipeline");
         while let Some(result) = output_rx.recv().await {
-            // info!("Received result in address_setup_pipeline: {:?}", result);
             match result {
                 AddressPipelineStage::FetchAddressQueueData(_) => {
                     input_tx_clone
@@ -73,7 +69,7 @@ pub async fn setup_address_pipeline<T: Indexer, R: RpcConnection>(
                     if queue_data.is_empty() {
                         consecutive_empty_fetches += 1;
                         if consecutive_empty_fetches >= 1 {
-                            info!("No more addresses to process after 3 consecutive empty fetches. Signaling completion.");
+                            debug!("No more addresses to process. Signaling completion.");
                             break;
                         }
                     } else {
@@ -82,7 +78,7 @@ pub async fn setup_address_pipeline<T: Indexer, R: RpcConnection>(
                     input_tx_clone.send(result).await.unwrap();
                 }
                 AddressPipelineStage::Complete => {
-                    info!("Processing complete, signaling completion.");
+                    debug!("Processing complete, signaling completion.");
                     break;
                 }
 
@@ -101,7 +97,7 @@ pub async fn setup_address_pipeline<T: Indexer, R: RpcConnection>(
         shutdown.store(true, Ordering::Relaxed);
         let _ = close_output_tx.send(()).await;
         let _ = completion_tx.send(()).await;
-        info!("Pipeline process completed.");
+        debug!("Pipeline process completed.");
     });
 
     (input_tx, completion_rx)
