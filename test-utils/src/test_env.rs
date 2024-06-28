@@ -205,7 +205,8 @@ pub async fn setup_test_programs_with_accounts(
         &nullifier_queue_keypair,
         None,
         1,
-        StateMerkleTreeConfig::default(),
+        &StateMerkleTreeConfig::default(),
+        &NullifierQueueConfig::default(),
     )
     .await;
 
@@ -357,13 +358,14 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
     nullifier_queue_keypair: &Keypair,
     program_owner: Option<Pubkey>,
     index: u64,
-    config: StateMerkleTreeConfig,
+    merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
 ) {
     let size = account_compression::state::StateMerkleTreeAccount::size(
-        config.height as usize,
-        config.changelog_size as usize,
-        config.roots_size as usize,
-        config.canopy_depth as usize,
+        merkle_tree_config.height as usize,
+        merkle_tree_config.changelog_size as usize,
+        merkle_tree_config.roots_size as usize,
+        merkle_tree_config.canopy_depth as usize,
     );
 
     let merkle_tree_account_create_ix = create_account_instruction(
@@ -375,10 +377,9 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         &account_compression::ID,
         Some(merkle_tree_keypair),
     );
-    let size = account_compression::state::queue::QueueAccount::size(
-        account_compression::utils::constants::STATE_NULLIFIER_QUEUE_VALUES as usize,
-    )
-    .unwrap();
+    let size =
+        account_compression::state::queue::QueueAccount::size(queue_config.capacity as usize)
+            .unwrap();
     let nullifier_queue_account_create_ix = create_account_instruction(
         &payer.pubkey(),
         size,
@@ -394,8 +395,8 @@ pub async fn create_state_merkle_tree_and_queue_account<R: RpcConnection>(
         *owner,
         merkle_tree_keypair.pubkey(),
         nullifier_queue_keypair.pubkey(),
-        config,
-        NullifierQueueConfig::default(),
+        merkle_tree_config.clone(),
+        queue_config.clone(),
         program_owner,
         index,
         0, // TODO: replace with CPI_CONTEXT_ACCOUNT_RENT once enabled

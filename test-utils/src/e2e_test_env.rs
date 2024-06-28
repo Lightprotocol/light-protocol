@@ -69,6 +69,7 @@
 // refactor all tests to work with that so that we can run all tests with a test validator and concurrency
 
 use light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE;
+use light_utils::rand::gen_prime;
 use solana_sdk::signature::Signature;
 use spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
@@ -101,6 +102,7 @@ use light_indexed_merkle_tree::{array::IndexedArray, reference::IndexedMerkleTre
 
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+    SAFETY_MARGIN,
 };
 use light_system_program::sdk::compressed_account::CompressedAccountWithMerkleContext;
 use light_utils::bigint::bigint_to_be_bytes_array;
@@ -348,7 +350,7 @@ where
         } else {
             None
         };
-        let config = if !self.keypair_action_config.fee_assert {
+        let merkle_tree_config = if !self.keypair_action_config.fee_assert {
             StateMerkleTreeConfig {
                 height: 26,
                 changelog_size: self.rng.gen_range(1..5000),
@@ -361,7 +363,18 @@ where
         } else {
             StateMerkleTreeConfig::default()
         };
-        println!("config: {:?}", config);
+        println!("merkle tree config: {:?}", merkle_tree_config);
+        let queue_config = if !self.keypair_action_config.fee_assert {
+            let capacity: f64 = gen_prime(&mut self.rng, 1.0..10000.0).unwrap();
+            NullifierQueueConfig {
+                capacity: capacity as u16,
+                sequence_threshold: merkle_tree_config.roots_size + SAFETY_MARGIN,
+                network_fee: None,
+            }
+        } else {
+            NullifierQueueConfig::default()
+        };
+        println!("queue config: {:?}", queue_config);
         create_state_merkle_tree_and_queue_account(
             &self.payer,
             &self.indexer.group_pda,
@@ -370,7 +383,8 @@ where
             &nullifier_queue_keypair,
             None,
             1,
-            config,
+            &merkle_tree_config,
+            &queue_config,
         )
         .await;
         let merkle_tree = Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(

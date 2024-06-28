@@ -4,7 +4,9 @@ use solana_sdk::bs58;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig, StateMerkleTreeConfig};
+use account_compression::{
+    AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
+};
 use light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
 use light_compressed_token::mint_sdk::create_create_token_pool_instruction;
 use light_compressed_token::{get_token_pool_pda, TokenData};
@@ -519,7 +521,8 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
             nullifier_queue_keypair,
             owning_program_id,
             self.state_merkle_trees.len() as u64,
-            StateMerkleTreeConfig::default(),
+            &StateMerkleTreeConfig::default(),
+            &NullifierQueueConfig::default(),
         )
         .await;
         crate::test_env::init_cpi_context_account(
