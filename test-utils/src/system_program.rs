@@ -254,6 +254,8 @@ pub async fn transfer_compressed_sol_test<const INDEXED_ARRAY_SIZE: usize, R: Rp
         });
     }
     let payer = rpc.get_payer().insecure_clone();
+    println!("input_compressed_accounts: {:?}", input_compressed_accounts);
+    println!("output_compressed_accounts: {:?}", output_compressed_accounts);
     let inputs = CompressedTransactionTestInputs {
         rpc,
         test_indexer,
@@ -434,6 +436,9 @@ pub async fn compressed_transaction_test<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         )
         .await?
         .unwrap();
+
+    println!("Signature: {:?}", event.1);
+    println!("event: {:?}", event.0);
 
     let (created_output_compressed_accounts, _) = inputs
         .test_indexer

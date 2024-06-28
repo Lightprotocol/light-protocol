@@ -25,6 +25,7 @@ impl Default for LightValidatorConfig {
 
 pub async fn spawn_validator(config: LightValidatorConfig) {
     info!("Starting validator...");
+    info!("Config: {:?}", config);
     let mut path = config.path.clone();
     if !config.enable_indexer {
         path.push_str(" --skip-indexer");
@@ -38,7 +39,7 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
 
     Command::new("sh")
         .arg("-c")
-        .arg(config.path)
+        .arg(path)
         .spawn()
         .expect("Failed to start server process");
     tokio::time::sleep(tokio::time::Duration::from_secs(config.wait_time)).await;

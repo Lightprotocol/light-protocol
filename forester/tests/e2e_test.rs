@@ -3,7 +3,7 @@ use std::sync::Arc;
 use log::{info, LevelFilter};
 use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_sdk::signature::{Keypair, Signer};
-
+use tokio::time::sleep;
 use forester::external_services_config::ExternalServicesConfig;
 use forester::nullifier::state::get_nullifier_queue;
 use forester::utils::spawn_validator;
@@ -21,7 +21,7 @@ async fn init() {
     spawn_validator(Default::default()).await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_state_tree_nullifier() {
     init().await;
     info!("Starting test_state_tree_nullifier");
@@ -38,7 +38,7 @@ async fn test_state_tree_nullifier() {
         concurrency_limit: 1,
         batch_size: 1,
         max_retries: 5,
-        max_concurrent_batches: 5,
+        max_concurrent_batches: 1,
     };
 
     let mut rpc = SolanaRpcConnection::new(SolanaRpcUrl::Localnet, None);
@@ -53,7 +53,7 @@ async fn test_state_tree_nullifier() {
         KeypairActionConfig::test_forester_default(),
         GeneralActionConfig::test_forester_default(),
         0,
-        None,
+        Some(6214032178617709141),
     )
     .await;
 
@@ -68,6 +68,7 @@ async fn test_state_tree_nullifier() {
     for i in 0..iterations {
         info!("Round {} of {}", i, iterations);
         env.transfer_sol(user_index).await;
+        sleep(std::time::Duration::from_secs(3)).await;
     }
 
     assert_ne!(get_state_queue_length(&mut env.rpc, &config).await, 0);

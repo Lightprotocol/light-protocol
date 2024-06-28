@@ -652,7 +652,7 @@ where
                 .copied()
                 .collect::<Vec<_>>();
             let output_merkle_trees = self.get_merkle_tree_pubkeys(num_output_merkle_trees);
-            let transaction_paramets = if self.keypair_action_config.fee_assert {
+            let transaction_parameters = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
                     num_input_compressed_accounts: input_compressed_accounts.len() as u8,
@@ -663,6 +663,9 @@ where
             } else {
                 None
             };
+            println!("Recipients: {:?}", recipients.len());
+            println!("Output Merkle trees: {:?}", output_merkle_trees.len());
+            println!("input compressed accounts: {:?}", input_compressed_accounts.len());
             transfer_compressed_sol_test(
                 &mut self.rpc,
                 &mut self.indexer,
@@ -670,7 +673,7 @@ where
                 input_compressed_accounts.as_slice(),
                 recipients.as_slice(),
                 output_merkle_trees.as_slice(),
-                transaction_paramets,
+                transaction_parameters,
             )
             .await
             .unwrap();
@@ -1244,7 +1247,7 @@ impl KeypairActionConfig {
 
     pub fn test_forester_default() -> Self {
         Self {
-            compress_sol: Some(1.0),
+            compress_sol: Some(0.0),
             decompress_sol: Some(0.0),
             transfer_sol: Some(1.0),
             create_address: None,
@@ -1281,8 +1284,8 @@ impl Default for GeneralActionConfig {
 impl GeneralActionConfig {
     pub fn test_forester_default() -> Self {
         Self {
-            add_keypair: Some(1.0),
-            create_state_mt: Some(1.0),
+            add_keypair: None,
+            create_state_mt: None,
             create_address_mt: None,
             nullify_compressed_accounts: None,
             empty_address_queue: None,

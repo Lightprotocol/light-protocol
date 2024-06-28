@@ -637,6 +637,13 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 )
                 .await
             };
+            for i in 0..fetched_merkle_tree.roots.len() {
+                println!("roots {:?} {:?}", i,fetched_merkle_tree.roots[i]);
+            }
+            println!("sequence number {:?}", fetched_merkle_tree.sequence_number());
+            println!("root index {:?}", fetched_merkle_tree.root_index());
+            println!("local sequence number {:?}", merkle_tree.sequence_number);
+            
             assert_eq!(
                 merkle_tree.root(),
                 fetched_merkle_tree.root(),

@@ -263,6 +263,9 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             snapshot.accounts.merkle_tree,
         )
         .await;
+        println!("sequence number: {:?}", merkle_tree.next_index() as u64);
+        println!("next index: {:?}", snapshot.next_index);
+        println!("prev sequence number: {:?}", snapshot.num_added_accounts);
         sequence_numbers.push(MerkleTreeSequenceNumber {
             pubkey: snapshot.accounts.merkle_tree,
             seq: merkle_tree.sequence_number() as u64,
@@ -270,7 +273,7 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
         if merkle_tree.root() == snapshot.root {
             println!("deduped_snapshots: {:?}", deduped_snapshots);
             println!("i: {:?}", i);
-            panic!("merkle tree root update failed");
+            panic!("merkle tree root update failed, it should have updated but didn't");
         }
         assert_eq!(
             merkle_tree.next_index(),
@@ -293,17 +296,6 @@ pub async fn assert_merkle_tree_after_tx<const INDEXED_ARRAY_SIZE: usize, R: Rpc
             }
             for i in 0..16 {
                 println!("root {} {:?}", i, merkle_tree.roots.get(i));
-            }
-            for i in 0..5 {
-                test_indexer_merkle_tree
-                    .merkle_tree
-                    .update(&[0u8; 32], 15 - i)
-                    .unwrap();
-                println!(
-                    "roll back root {} {:?}",
-                    15 - i,
-                    test_indexer_merkle_tree.merkle_tree.root()
-                );
             }
 
             panic!("merkle tree root update failed");
