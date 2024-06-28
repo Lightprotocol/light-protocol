@@ -225,7 +225,8 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
         let low_address_index: u64 = old_low_address.index as u64;
         let low_address_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address.value).unwrap();
         let low_address_next_index: u64 = old_low_address.next_index as u64;
-        let low_address_next_value: [u8; 32] = bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
+        let low_address_next_value: [u8; 32] =
+            bigint_to_be_bytes_array(&old_low_address_next_value).unwrap();
         let low_address_proof: [[u8; 32]; 16] = low_address_proof.to_array().unwrap();
         info!("merkle_tree_pubkey: {:?}", merkle_tree_pubkey);
         info!("address: {:?}", address);
@@ -243,7 +244,7 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection + Send + Sync + 'static> 
             low_address_next_value,
             low_address_proof,
             root: address_tree_bundle.merkle_tree.root(),
-            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as i64,
+            root_seq: address_tree_bundle.merkle_tree.merkle_tree.sequence_number as u64,
             new_low_element: Some(address_bundle.new_low_element),
             new_element: Some(address_bundle.new_element),
             new_element_next_value: Some(address_bundle.new_element_next_value),
@@ -641,9 +642,12 @@ impl<const INDEXED_ARRAY_SIZE: usize, R: RpcConnection> TestIndexer<INDEXED_ARRA
                 .await
             };
             for i in 0..fetched_merkle_tree.roots.len() {
-                println!("roots {:?} {:?}", i,fetched_merkle_tree.roots[i]);
+                println!("roots {:?} {:?}", i, fetched_merkle_tree.roots[i]);
             }
-            println!("sequence number {:?}", fetched_merkle_tree.sequence_number());
+            println!(
+                "sequence number {:?}",
+                fetched_merkle_tree.sequence_number()
+            );
             println!("root index {:?}", fetched_merkle_tree.root_index());
             println!("local sequence number {:?}", merkle_tree.sequence_number);
 

@@ -140,6 +140,7 @@ where
             proof: H::zero_bytes()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index: 0,
         };
+        self.indexed_changelog.push(changelog_entry.clone());
         self.indexed_changelog.push(changelog_entry);
         Ok(())
     }

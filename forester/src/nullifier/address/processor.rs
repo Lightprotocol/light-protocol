@@ -2,6 +2,7 @@ use crate::config::ForesterConfig;
 use crate::errors::ForesterError;
 use crate::nullifier::address::pipeline::AddressPipelineStage;
 use crate::nullifier::{BackpressureControl, PipelineContext};
+use account_compression::utils::constants::ADDRESS_MERKLE_TREE_CHANGELOG;
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use light_hash_set::HashSet;
 use light_hasher::Poseidon;
@@ -139,18 +140,21 @@ impl<T: Indexer, R: RpcConnection> AddressProcessor<T, R> {
             .await
             .map_err(|_| ForesterError::Custom("Failed to get address tree proof".to_string()))?;
         // TODO: use changelog array size from tree config
-        let changelog = proof.root_seq % 1400;
+        let changelog = proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG;
         // TODO: add index changelog current changelog index to the proof or we make them the same size
-        let index_changelog = (proof.root_seq - 1) % 1400;
-        let changelogs = get_changelog_indices(&config.address_merkle_tree_pubkey, &mut *rpc.lock().await).await.unwrap();
+        let index_changelog = proof.root_seq % ADDRESS_MERKLE_TREE_CHANGELOG;
+        let changelogs =
+            get_changelog_indices(&config.address_merkle_tree_pubkey, &mut *rpc.lock().await)
+                .await
+                .unwrap();
         info!("fetched changelog: {:?}", changelogs.0);
         info!("fetched index_changelog: {:?}", changelogs.1);
         info!("changelog: {:?}", changelog);
         info!("index_changelog: {:?}", index_changelog);
-        
+
         let mut retry_count = 0;
         let max_retries = 3;
-        
+
         while retry_count < max_retries {
             match update_merkle_tree(
                 rpc,
@@ -269,7 +273,7 @@ pub async fn update_merkle_tree<R: RpcConnection>(
     indexed_changelog_index: u16,
 ) -> Result<bool, ForesterError> {
     info!("update_merkle_tree");
-    
+
     info!("changelog_index: {:?}", changelog_index);
     info!("indexed_changelog_index: {:?}", indexed_changelog_index);
 
@@ -284,8 +288,8 @@ pub async fn update_merkle_tree<R: RpcConnection>(
             low_address_next_index,
             low_address_next_value,
             low_address_proof,
-            changelog_index: changelog_index as u16,
-            indexed_changelog_index: indexed_changelog_index as u16,
+            changelog_index,
+            indexed_changelog_index,
         });
     info!("sending transaction...");
 
