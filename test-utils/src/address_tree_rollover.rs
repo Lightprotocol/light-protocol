@@ -10,11 +10,11 @@ use crate::{
     },
     get_hash_set,
 };
-use account_compression::AddressMerkleTreeConfig;
 use account_compression::{
     accounts, initialize_address_merkle_tree::AccountLoader, instruction, state::QueueAccount,
     AddressMerkleTreeAccount,
 };
+use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
 use anchor_lang::{InstructionData, Key, Lamports, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
@@ -62,11 +62,10 @@ pub async fn perform_address_merkle_tree_roll_over<R: RpcConnection>(
     old_merkle_tree_pubkey: &Pubkey,
     old_queue_pubkey: &Pubkey,
     merkle_tree_config: &AddressMerkleTreeConfig,
+    queue_config: &AddressQueueConfig,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer = context.get_payer().insecure_clone();
-    let size =
-        QueueAccount::size(account_compression::utils::constants::ADDRESS_QUEUE_VALUES as usize)
-            .unwrap();
+    let size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     let account_create_ix = crate::create_account_instruction(
         &payer.pubkey(),
         size,

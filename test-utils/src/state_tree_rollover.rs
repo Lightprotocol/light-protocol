@@ -9,10 +9,10 @@ use crate::{
     },
     create_account_instruction, get_hash_set,
 };
+use account_compression::NullifierQueueConfig;
 use account_compression::{
     self, initialize_address_merkle_tree::AccountLoader, state::QueueAccount,
-    utils::constants::STATE_NULLIFIER_QUEUE_VALUES, StateMerkleTreeAccount, StateMerkleTreeConfig,
-    ID,
+    StateMerkleTreeAccount, StateMerkleTreeConfig, ID,
 };
 use anchor_lang::{InstructionData, Lamports, ToAccountMetas};
 use light_concurrent_merkle_tree::{
@@ -34,6 +34,7 @@ pub enum StateMerkleTreeRolloverMode {
     TreeInvalidSize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     rpc: &mut R,
     new_nullifier_queue_keypair: &Keypair,
@@ -41,10 +42,11 @@ pub async fn perform_state_merkle_tree_roll_over<R: RpcConnection>(
     merkle_tree_pubkey: &Pubkey,
     nullifier_queue_pubkey: &Pubkey,
     merkle_tree_config: &StateMerkleTreeConfig,
+    queue_config: &NullifierQueueConfig,
     mode: Option<StateMerkleTreeRolloverMode>,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
     let payer_pubkey = rpc.get_payer().pubkey();
-    let mut size = QueueAccount::size(STATE_NULLIFIER_QUEUE_VALUES as usize).unwrap();
+    let mut size = QueueAccount::size(queue_config.capacity as usize).unwrap();
     if let Some(StateMerkleTreeRolloverMode::QueueInvalidSize) = mode {
         size += 1;
     }

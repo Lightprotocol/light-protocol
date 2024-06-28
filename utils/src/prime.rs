@@ -86,17 +86,21 @@ mod test {
         assert_eq!(find_next_prime(10.0), 11.0);
         assert_eq!(find_next_prime(28.0), 29.0);
 
+        assert_eq!(find_next_prime(100.0), 101.0);
         assert_eq!(find_next_prime(102.0), 103.0);
         assert_eq!(find_next_prime(105.0), 107.0);
 
-        assert_eq!(find_next_prime(100.0), 101.0);
         assert_eq!(find_next_prime(1000.0), 1009.0);
+        assert_eq!(find_next_prime(2000.0), 2003.0);
+        assert_eq!(find_next_prime(3000.0), 3001.0);
+        assert_eq!(find_next_prime(4000.0), 4001.0);
 
         assert_eq!(find_next_prime(4800.0), 4801.0);
         assert_eq!(find_next_prime(5000.0), 5003.0);
         assert_eq!(find_next_prime(6000.0), 6007.0);
         assert_eq!(find_next_prime(6850.0), 6857.0);
 
+        assert_eq!(find_next_prime(7000.0), 7001.0);
         assert_eq!(find_next_prime(7900.0), 7901.0);
         assert_eq!(find_next_prime(7907.0), 7907.0);
     }

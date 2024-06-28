@@ -452,7 +452,7 @@ pub async fn empty_address_queue_test<const INDEXED_ARRAY_SIZE: usize, R: RpcCon
                     .unwrap()
                     .sequence_number()
                     .unwrap(),
-                old_sequence_number + ADDRESS_MERKLE_TREE_ROOTS as usize + SAFETY_MARGIN as usize
+                old_sequence_number + address_queue.sequence_threshold
             );
 
             relayer_merkle_tree
