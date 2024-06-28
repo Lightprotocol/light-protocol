@@ -33,8 +33,8 @@ pub fn process_initialize_address_queue<'info>(
                 .map_err(ProgramError::from)?
                 + compute_rollover_fee(rollover_threshold, height, queue_rent)
                     .map_err(ProgramError::from)?;
-            if rollover_fee * rollover_threshold * (queue_rent + merkle_tree_rent) / 100
-                > queue_rent
+            if (rollover_fee * rollover_threshold * (2u64.pow(height))) / 100
+                <= queue_rent + merkle_tree_rent
             {
                 return err!(crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee);
             }

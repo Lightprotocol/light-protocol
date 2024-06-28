@@ -20,7 +20,7 @@ pub fn process_initialize_state_merkle_tree(
     network_fee: u64,
     rollover_threshold: Option<u64>,
     close_threshold: Option<u64>,
-    rent: u64,
+    merkle_tree_rent: u64,
     queue_rent: u64,
 ) -> Result<()> {
     // Initialize new Merkle trees.
@@ -29,11 +29,23 @@ pub fn process_initialize_state_merkle_tree(
 
         let rollover_fee = match rollover_threshold {
             Some(rollover_threshold) => {
-                let rollover_fee = compute_rollover_fee(rollover_threshold, *height, rent)
-                    .map_err(ProgramError::from)?
-                    + compute_rollover_fee(rollover_threshold, *height, queue_rent)
-                        .map_err(ProgramError::from)?;
-                if rollover_fee * rollover_threshold * (queue_rent + rent) / 100 > queue_rent {
+                let rollover_fee =
+                    compute_rollover_fee(rollover_threshold, *height, merkle_tree_rent)
+                        .map_err(ProgramError::from)?
+                        + compute_rollover_fee(rollover_threshold, *height, queue_rent)
+                            .map_err(ProgramError::from)?;
+                if (rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100
+                    <= queue_rent + merkle_tree_rent
+                {
+                    msg!("rollover_fee: {}", rollover_fee);
+                    msg!("rollover_threshold: {}", rollover_threshold);
+                    msg!("height: {}", height);
+                    msg!("merkle_tree_rent: {}", merkle_tree_rent);
+                    msg!("queue_rent: {}", queue_rent);
+                    msg!(
+                        "((rollover_fee * rollover_threshold * (2u64.pow(height))) / 100): {} < {} rent",
+                        ((rollover_fee * rollover_threshold * (2u64.pow(*height))) / 100), queue_rent + merkle_tree_rent
+                    );
                     return err!(
                         crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee
                     );
