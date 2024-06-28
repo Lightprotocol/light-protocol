@@ -29,13 +29,20 @@ pub fn process_initialize_address_queue<'info>(
         // Merkle tree.
         let queue_rent = queue_account_info.lamports();
         let rollover_fee = if let Some(rollover_threshold) = rollover_threshold {
-            compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
+            let rollover_fee = compute_rollover_fee(rollover_threshold, height, merkle_tree_rent)
                 .map_err(ProgramError::from)?
                 + compute_rollover_fee(rollover_threshold, height, queue_rent)
-                    .map_err(ProgramError::from)?
+                    .map_err(ProgramError::from)?;
+            if rollover_fee * rollover_threshold * (queue_rent + merkle_tree_rent) / 100
+                > queue_rent
+            {
+                return err!(crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee);
+            }
+            rollover_fee
         } else {
             0
         };
+
         address_queue.init(
             AccessMetadata::new(owner, program_owner),
             RolloverMetadata::new(

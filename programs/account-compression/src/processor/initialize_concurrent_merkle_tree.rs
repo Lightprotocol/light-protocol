@@ -29,10 +29,16 @@ pub fn process_initialize_state_merkle_tree(
 
         let rollover_fee = match rollover_threshold {
             Some(rollover_threshold) => {
-                compute_rollover_fee(rollover_threshold, *height, rent)
+                let rollover_fee = compute_rollover_fee(rollover_threshold, *height, rent)
                     .map_err(ProgramError::from)?
                     + compute_rollover_fee(rollover_threshold, *height, queue_rent)
-                        .map_err(ProgramError::from)?
+                        .map_err(ProgramError::from)?;
+                if rollover_fee * rollover_threshold * (queue_rent + rent) / 100 > queue_rent {
+                    return err!(
+                        crate::errors::AccountCompressionErrorCode::InsufficientRolloverFee
+                    );
+                }
+                rollover_fee
             }
             None => 0,
         };

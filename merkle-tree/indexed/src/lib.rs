@@ -128,7 +128,7 @@ where
         // operation.
         self.merkle_tree.append(&H::zero_indexed_leaf())?;
 
-        // Emit first changelog entry.
+        // Emit first changelog entries.
         let element = RawIndexedElement {
             value: [0_u8; 32],
             next_index: I::zero(),
@@ -140,7 +140,9 @@ where
             proof: H::zero_bytes()[..NET_HEIGHT].try_into().unwrap(),
             changelog_index: 0,
         };
+        self.indexed_changelog.push(changelog_entry.clone());
         self.indexed_changelog.push(changelog_entry);
+
         Ok(())
     }
 

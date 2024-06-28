@@ -44,4 +44,6 @@ pub enum AccountCompressionErrorCode {
     NoLeavesForMerkleTree,
     #[msg("SizeMismatch")]
     SizeMismatch,
+    #[msg("InsufficientRolloverFee")]
+    InsufficientRolloverFee,
 }

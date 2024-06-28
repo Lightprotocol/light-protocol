@@ -15,7 +15,7 @@ use account_compression::{
     AddressMerkleTreeAccount,
 };
 use account_compression::{AddressMerkleTreeConfig, AddressQueueConfig};
-use anchor_lang::{InstructionData, Key, Lamports, ToAccountMetas};
+use anchor_lang::{InstructionData, Key, Lamports, ToAccountInfo, ToAccountMetas};
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
 use solana_sdk::{
@@ -173,7 +173,10 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
     let old_mt_account =
         AccountLoader::<AddressMerkleTreeAccount>::try_from(&account_info).unwrap();
     let old_loaded_mt_account = old_mt_account.load().unwrap();
-
+    assert_eq!(
+        new_mt_account.to_account_info().data.borrow().len(),
+        old_mt_account.to_account_info().data.borrow().len()
+    );
     assert_rolledover_merkle_trees_metadata(
         &old_loaded_mt_account.metadata,
         &new_loaded_mt_account.metadata,
@@ -197,6 +200,10 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
         )
         .await;
     assert_rolledover_merkle_trees(&struct_old.merkle_tree, &struct_new.merkle_tree);
+    assert_eq!(
+        struct_old.merkle_tree.changelog.capacity(),
+        struct_new.merkle_tree.changelog.capacity()
+    );
 
     {
         let mut new_queue_account = rpc.get_account(*new_queue_pubkey).await.unwrap().unwrap();
@@ -228,7 +235,10 @@ pub async fn assert_rolled_over_address_merkle_tree_and_queue<R: RpcConnection>(
         );
         let old_queue_account = AccountLoader::<QueueAccount>::try_from(&account_info).unwrap();
         let old_loaded_queue_account = old_queue_account.load().unwrap();
-
+        assert_eq!(
+            old_queue_account.to_account_info().data.borrow().len(),
+            new_queue_account.to_account_info().data.borrow().len(),
+        );
         assert_rolledover_queues_metadata(
             &old_loaded_queue_account.metadata,
             &new_loaded_queue_account.metadata,
