@@ -145,6 +145,7 @@ async fn test_photon_interop_nullify_account() {
             add_keypair: None,
             create_state_mt: None,
             create_address_mt: None,
+            rollover: None,
         },
         0,
         Some(1),
