@@ -22,3 +22,9 @@ wallet = "~/.config/solana/id.json"
 # [workspace]
 # types = "./js/stateless.js/src/idls"
 # idls = "./js/stateless.js/src/idls"
+
+[programs.localnet]
+account_compression = "7NSaKQZr5zL3LafGF48VaycvKcsBVdLZnWs3XW8cwGQA"
+light_compresed_token = "8HqZ1XgE6KHceeX8AFrriJd7yu2pqWaqWAErJLnWYVHv"
+light_registry = "7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1"
+light_system_program = "H5sFv8VwWmjxHYS2GB4fTDsK7uTtnRT4WiixtHrET3bN"

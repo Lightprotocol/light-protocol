@@ -8,7 +8,7 @@ pub use forester::*;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
 
-declare_id!("8howj4oxb5vvGXrnksG7tjWYe44ZjRgAZbcUaF2ddXGC");
+declare_id!("7Z9Yuy3HkBCc2Wf3xzMGnz6qpV4n7ciwcoEMGKqhAnj1");
 
 #[error_code]
 pub enum RegistryError {
